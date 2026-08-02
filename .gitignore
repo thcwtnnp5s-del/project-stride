@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Generated Xcode project — the spec is project.yml, see TECHNICAL/PROJECT_SETUP.md
+Stride.xcodeproj/
+
 # Xcode
 build/
 DerivedData/

@@ -36,6 +36,22 @@ Reviewed and confirmed on 2026-08-01, replacing the earlier provisional status. 
 **Status:** Locked for Milestone 01 — see `DECISIONS/0006_SINGLE_ACTIVITY.md`  
 Steps apply to a single selected activity. While travelling, the player cannot gather. The choice is the point.
 
+## Earned opportunity never expires
+**Status:** Locked — see `DECISIONS/0008_STEPLESS_WEEK.md`  
+Steps govern the rate at which new opportunities are created; previously earned opportunities remain available indefinitely. Nothing decays, spoils, or expires — ever.
+
+## Milestone 01 validates the loop in one to two weeks
+**Status:** Locked — see `DECISIONS/0007_PROGRESSION_PACING.md`  
+The vertical slice must expose the complete loop within roughly one to two weeks of ordinary movement. Maxing all five skills is not a completion condition. Pacing figures are testable hypotheses, not constants.
+
+## Platform, orientation, and distribution
+**Status:** Locked — see `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md`  
+iPhone only, portrait only, iOS 17+, current stable Xcode. TestFlight for the owner and friends; no App Store launch preparation.
+
+## Audio sourcing
+**Status:** Locked — see `DECISIONS/0005_AUDIO_SOURCING.md`  
+Lean prototype budget: generated or CC0/royalty-free assets, full provenance recorded, referenced by replaceable asset ID. Never extract assets from the inspiration games.
+
 ## Milestone 01 scope is frozen
 **Status:** Locked — see `DECISIONS/0004_MILESTONE_01_SCOPE.md`  
 Four locations, five skills, three enemies, six tabs plus a combat modal, no currency, no merchants. Additions require a new decision record.

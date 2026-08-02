@@ -26,9 +26,15 @@ Completes `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_TEMPLATE.md`. Binding deci
 | Audio | AVAudioEngine, behind `AudioDirecting` | |
 | Haptics | Core Haptics, behind `HapticPlaying` | |
 | Tests | Swift Testing (core), XCTest (integration) | |
-| Dependencies | **None** | Third-party additions require a decision record |
+| Dependencies | **None at runtime** | Third-party runtime additions require a decision record |
+| Devices | iPhone only, **portrait only** | No iPad idiom, no landscape (`DECISIONS/0009`) |
+| Distribution | Local builds, then TestFlight | No App Store launch preparation (`DECISIONS/0009`) |
 
-Approved in `DECISIONS/0002_TECHNOLOGY_STACK.md`.
+Approved in `DECISIONS/0002_TECHNOLOGY_STACK.md` and `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md`.
+
+Test matrix: one small iPhone simulator, one contemporary standard-size simulator, and the owner's physical iPhone once its model is provided. Simulators cannot validate HealthKit, Core Haptics, or battery — those criteria require the device.
+
+**Constraint of record:** iOS development requires macOS.
 
 ### 1.1 Alternatives considered
 
@@ -311,11 +317,18 @@ Every file carries `{"schemaVersion": 1, "entries": [...]}`. IDs are stable stri
 
 Validation failure is a **build-time test failure**, not a runtime crash. Content is authored data, so content errors are caught by the test suite that runs against the bundled pack.
 
-### 7.3 Balance data
+### 7.3 Balance data and profiles
 
-All tunable numbers live in content, never in Swift: XP curves, steps-per-gather, steps-per-travel-segment, yields, damage, HP, drop tables.
+All tunable numbers live in content, never in Swift: XP curves, steps-per-gather, steps-per-travel-segment, yields, damage, HP, drop tables, and the `discrepancyDebt` cap.
 
-Tuning must be possible without touching code, because §11 says the first numbers will be wrong.
+Tuning must be possible without touching code, because the first numbers will be wrong.
+
+Two profiles exist (`DECISIONS/0007`):
+
+- **Production** — the real balance data, the only profile that ships
+- **Accelerated** — a separate development/test profile that reaches states quickly for QA and automated tests
+
+The accelerated profile is a *distinct* content profile, never an overlay or a mutation of production values. Switching profiles leaves production data byte-identical, asserted by test. It is unavailable in release builds, and pacing assertions always run against production values.
 
 ---
 
@@ -323,7 +336,9 @@ Tuning must be possible without touching code, because §11 says the first numbe
 
 ### 8.1 Semantic events, never file names
 
-Systems emit `GameEvent`s. `AVAudioDirector` maps events to cues via `audio_cues.json`. No simulation code knows a sound exists.
+Systems emit `GameEvent`s. `AVAudioDirector` maps events to **asset IDs** via `audio_cues.json`; `AUDIO/AUDIO_ASSET_MANIFEST.md` maps asset IDs to files and provenance. No simulation code knows a sound exists, and no code or content references a filename or path.
+
+That indirection is what makes shipping placeholders safe: replacing a generated placeholder with a better recording is a one-row manifest change (`DECISIONS/0005`).
 
 This is what lets audio ship as a first-class system from Phase 3 with placeholder assets, satisfying the locked pillar without blocking on asset sourcing (gap G-05).
 
@@ -398,7 +413,8 @@ The step-clocked decision pays a real dividend here: a time-clocked game must si
 - Persisted health-derived state is three numbers plus an opaque anchor. No step history, no timestamps beyond the ledger's, no daily breakdown.
 - A visible **Disconnect and reset** control clears the anchor, the ledger, and all step counters, leaving gameplay progress intact.
 - Permission rationale is shown in-app before the system sheet, in plain language, with no dark patterns and no repeated prompting after a decline.
-- **A privacy policy is required** before TestFlight distribution (gap G-09) — App Review requires one for any app requesting HealthKit access, and the App Privacy questionnaire must declare health data usage. Drafted during Phase 2, not at submission.
+- **A privacy policy is required** before TestFlight distribution (gap G-09) — TestFlight still goes through App Review, App Review requires a privacy policy for any app requesting HealthKit access, and the App Privacy questionnaire must declare health data usage. Drafted during Phase 2, not at submission. Store listing, screenshots, and marketing copy are explicitly **out of scope** (`DECISIONS/0009`).
+- **Step counts are never presented as targets.** No goal rings, no daily quotas, no "you walked less than usual." The simulation fixtures in `DECISIONS/0007` (2,500 / 7,500 / 15,000 steps per day) are test inputs and must never surface in player-facing copy as recommendations or expected behavior.
 
 ---
 
@@ -446,11 +462,13 @@ Two things should be understood as accepted trade-offs rather than oversights:
 
 The first implementation task, `F-01`, builds the skeleton and the reconciliation test harness *before* any gameplay depends on it. That ordering is the plan's main defence against its own worst risk.
 
-### Open items requiring owner input
+### Open items — all closed
 
-| Item | Needed by |
+| Item | Resolved by |
 |---|---|
-| Xcode version and target device set | Phase 1 start |
-| TestFlight vs. App Store distribution | Phase 2 (drives privacy policy scope) |
-| Typical daily step count | Phase 2 balance tuning |
-| Audio asset sourcing budget and licence preference (gap G-05) | Phase 3 |
+| Xcode version and target device set | `DECISIONS/0009` — current stable Xcode, iOS 17, iPhone portrait only |
+| TestFlight vs. App Store distribution | `DECISIONS/0009` — TestFlight only, no store launch preparation |
+| Balance pacing targets | `DECISIONS/0007` — loop validated in one to two weeks; fixtures 2,500 / 7,500 / 15,000 |
+| Audio sourcing budget and licence preference | `DECISIONS/0005` — lean prototype budget, generated and CC0, full provenance |
+
+**One physical constraint remains:** iOS builds require macOS, and the repository currently lives on a Windows machine. See `MILESTONES/F-01_COMPLETION_REPORT.md`.

@@ -47,16 +47,20 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
 
 - **Owner:** Technical Director
 - **Objective:** Stand up the Xcode project, the `StrideCore` package, and the boundary that keeps them separate.
-- **Inputs:** `ARCHITECTURE_IMPLEMENTATION_PLAN.md` §2
+- **Inputs:** `ARCHITECTURE_IMPLEMENTATION_PLAN.md` §2; `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md`
 - **Dependencies:** P0-08
-- **Deliverables:** Xcode project (iOS 17, Swift 6 strict concurrency); `StrideCore` local package; app target depending on core; empty test targets; CI-or-script import check
+- **Scope limit:** project creation, `StrideCore` package, dependency and import boundaries, test targets, build verification, supporting documentation. **No gameplay, no HealthKit, no production UI.**
+- **Deliverables:** Xcode project (iOS 17, Swift 6 strict concurrency, iPhone portrait only); `StrideCore` local package; app target depending on core; test targets; import boundary guard; verification script; `TECHNICAL/PROJECT_SETUP.md`
 - **Acceptance criteria:**
-  1. App builds and launches to a placeholder screen on device and simulator
-  2. `StrideCore` tests run with no simulator
-  3. The import check **fails the build** when `import SwiftUI` is added to a core file, and this is demonstrated once
-- **Tests:** Build check; deliberate-violation check
+  1. App builds and launches to a placeholder screen on both simulators in the test matrix
+  2. `StrideCore` tests run with `swift test`, no simulator, in under a second
+  3. The import guard **fails** when a forbidden import is added to a core file, demonstrated once
+  4. `Info.plist` permits portrait only; a check verifies it *(0009)*
+  5. Deployment target is iOS 17; the app target is iPhone-only, with no iPad idiom *(0009)*
+  6. No third-party runtime dependency is declared
+- **Tests:** Build check on both simulators; core purity test; deliberate-violation check; orientation and deployment-target checks
 - **Documentation:** `TECHNICAL/PROJECT_SETUP.md`
-- **Status:** Not started
+- **Status:** **In review** — see `MILESTONES/F-01_COMPLETION_REPORT.md`. All authorable deliverables complete; build verification blocked on macOS access.
 
 ### F-02 — Content schemas and loader
 
@@ -196,7 +200,8 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
   3. **Repeating** activities (gathering) continue consuming until the player's allocation is exhausted, then bank zero. The allocation is the boundary, not the activity *(QA-1)*
   4. Switching activity loses no banked steps and no partial progress on the previous activity
   5. Nothing in the game is unavailable at zero banked steps — every screen, every affordable craft, every prepared encounter remains accessible
-  6. Progress advances **only** on step consumption; a state left untouched for a simulated year advances zero
+  6. Progress advances **only** on step consumption; a state left untouched for a simulated year advances zero — **and loses nothing.** No banked steps, partial progress, resources, XP, or discoveries decay, spoil, or expire *(0008)*
+  7. At zero available steps the player can still craft from owned resources, manage equipment, review skills and discoveries, and fight previously unlocked encounters *(0008)*
 - **Tests:** Bank/expire; overflow behavior for both activity kinds; a 14-day-absence allocation test asserting gathering repeats and travel banks; activity switching; the zero-step and idle-year assertions
 - **Documentation:** `GAME_BIBLE/SYSTEMS/02_WALKING_INTEGRATION.md`; `DECISIONS/0006_SINGLE_ACTIVITY.md`
 - **Status:** Not started
@@ -241,12 +246,16 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
 - **Objective:** Make the game testable without walking ten kilometres per iteration.
 - **Inputs:** Risk A-03
 - **Dependencies:** S-02
-- **Deliverables:** Debug-only panel injecting arbitrary step counts, simulating absences, forcing corrections and deletions
+- **Deliverables:** Debug-only panel injecting arbitrary step counts, simulating absences, forcing corrections and deletions; the three daily-step fixtures as one-tap presets; **the developer/test balance profile**
 - **Acceptance criteria:**
   1. Compiled out of release builds entirely — verified by a symbol check on a release binary
   2. Injected steps traverse the identical reconciliation path as real ones
   3. Can simulate a 30-day absence in one action
-- **Tests:** Release-build absence check
+  4. Low (2,500), reference (7,500), and high (15,000) daily fixtures are available as presets
+  5. **The accelerated balance profile is a separate content profile.** Selecting it never mutates, overwrites, or migrates production balance data — asserted by a test that switches profiles and confirms production values are byte-identical afterwards *(0007)*
+  6. The accelerated profile is unavailable in release builds
+  7. Tests asserting *pacing* run against production values; the accelerated profile is only for tests that need to reach a state quickly
+- **Tests:** Release-build absence check; profile-isolation test; a test asserting no pacing assertion runs under the accelerated profile
 - **Documentation:** `TECHNICAL/DEBUG_TOOLS.md`
 - **Status:** Not started
 
@@ -254,18 +263,27 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
 
 - **Owner:** Systems Designer, with owner input
 - **Objective:** Close gap G-06 with a defensible starting point.
-- **Inputs:** **Owner's typical daily step count** (required)
+- **Inputs:** `DECISIONS/0007_PROGRESSION_PACING.md`
 - **Dependencies:** S-03, S-05
 - **Deliverables:** `GAME_BIBLE/BALANCE/01_FIRST_PASS_NUMBERS.md`; all values in content files
-- **Acceptance criteria:**
-  1. Every rate derives from the owner's stated daily step count, with the derivation shown
-  2. A typical day yields 25–40 minutes of meaningful decisions and visible progress
-  3. Level 20 in one skill lands at roughly 4–6 weeks of ordinary walking
-  4. **The full-completion figure is stated explicitly and shown to the owner** *(CR-3)*. With one activity at a time, five skills are serial: 4–6 weeks each implies 20–30 weeks to exhaust the slice. If that is too slow to learn anything from, the curve or the cap moves here — not at V-04.
-  5. Every number is marked provisional and lives in content, not code
-- **Tests:** Simulated 30-day walking projection asserting the pacing targets; a full-completion projection across all five skills
+- **Acceptance criteria:** every target below is met at the **reference fixture of 7,500 steps/day**, and the low (2,500) and high (15,000) fixtures are reported alongside.
+
+  | Beat | Target |
+  |---|---|
+  | First gathering result | First few hundred allocated steps |
+  | First combat encounter | ~1,000–2,000 total steps |
+  | First bronze upgrade | ~3,000–6,000 allocated steps |
+  | Access to ordinary starter areas | ~10,000–20,000 total steps |
+  | Hollow Guardian readiness | ~25,000–40,000 total allocated steps |
+  | Level 20 in one skill | 60,000–90,000 allocated steps |
+
+  1. **The complete loop is exposed and validatable within one to two weeks of ordinary movement** at every fixture
+  2. **Maxing all five skills is not required to complete Milestone 01**, and nothing in the game implies otherwise
+  3. Every number lives in content and is marked provisional
+  4. Step fixtures appear **nowhere** in player-facing copy, and nothing in the game presents a step count as a target, a recommendation, or expected behavior *(0007)*
+- **Tests:** Projections at all three fixtures asserting each beat lands in its band; a copy audit for implied step recommendations
 - **Documentation:** `GAME_BIBLE/BALANCE/01_FIRST_PASS_NUMBERS.md`
-- **Status:** Blocked — needs the owner's daily step count
+- **Status:** Not started — unblocked by `DECISIONS/0007`
 
 ### S-07 — Privacy policy and permission copy
 
@@ -374,16 +392,20 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
 
 - **Owner:** Audio Director
 - **Objective:** Close gap G-05 before placeholders calcify into shipped sound.
-- **Inputs:** `REFERENCES/README.md` (no copied assets)
+- **Inputs:** `DECISIONS/0005_AUDIO_SOURCING.md`; `AUDIO/AUDIO_ASSET_MANIFEST.md`
 - **Dependencies:** A-04
-- **Deliverables:** `DECISIONS/0005_AUDIO_SOURCING.md`; per-material cue matrix for the Milestone 01 content set; format and memory budget
+- **Deliverables:** Generated and CC0 placeholder assets; complete manifest rows; per-material cue matrix for the Milestone 01 content set
 - **Acceptance criteria:**
-  1. Every source is lawfully licensed for this use, with the licence recorded
-  2. The matrix covers every material and tier in the Milestone 01 content set
-  3. Total audio memory stays within the 30 MB budget
-- **Tests:** Manual licence audit; automated budget check on the bundled assets
-- **Documentation:** `DECISIONS/0005_AUDIO_SOURCING.md`
-- **Status:** Blocked — needs owner budget and licence preference
+  1. Every asset has a manifest row with source, licence, model, verbatim prompt, date, and usage. **A shipped asset with no row is a defect.**
+  2. Every source is lawfully licensed for TestFlight distribution
+  3. **No asset originates from WalkScape, Melvor Idle, Old School RuneScape, or New World** — verified by provenance audit
+  4. The cue matrix covers every material and tier in the Milestone 01 set; a material falling through to a generic sound fails the build
+  5. Audio is referenced by asset ID only — no filename or path appears in code or content
+  6. Total audio memory within the 30 MB budget, or the budget is revised with reasoning
+  7. No paid library is used without a new decision record
+- **Tests:** Manifest completeness check against bundled assets; cue coverage test; asset-ID-only reference check; automated budget check
+- **Documentation:** `AUDIO/AUDIO_ASSET_MANIFEST.md`
+- **Status:** Not started — unblocked by `DECISIONS/0005`
 
 ---
 
@@ -419,6 +441,7 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
   4. There is no death state, no penalty timer, and no progress rollback anywhere in the codebase
   5. **The retreat screen explains why the player lost** in concrete terms — "the Guardian's hide turned your bronze blade" — so a loss teaches preparation rather than inviting a reroll *(CR-2)*
   6. `isSafe` locations are defined in content; retreat returns the player to the most recent safe one *(TD-4)*
+  7. **Boss retries never require freshly-walked steps.** A player holding the necessary supplies can retry at zero available steps *(0008)*
 - **Tests:** Full state-diff assertion on defeat; retry-without-limit test; retreat destination resolution
 - **Documentation:** `GAME_BIBLE/COMBAT/01_COMBAT_PHILOSOPHY.md`
 - **Status:** Not started
@@ -503,8 +526,9 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
   1. Understandable in under ten seconds after a two-week absence
   2. Shows remaining banked steps and invites the next decision
   3. Contains **no** urgency language, no streak, no "you missed", no expiry warning — checked against `06_ANTI_FEATURES.md` line by line
-  4. A zero-step return is calm and non-judgemental, with no nagging
-- **Tests:** Snapshot tests at 0, typical, and two-week-absence step volumes; anti-feature copy audit
+  4. A zero-step return is calm and non-judgemental, with no nagging, and surfaces what the player *can* still do — craft, review, fight what is already unlocked *(0008)*
+  5. No screen presents a step count as a target, a goal, or a recommendation *(0007)*
+- **Tests:** Snapshot tests at 0, typical, and two-week-absence step volumes; anti-feature copy audit; step-recommendation copy audit
 - **Documentation:** `GAME_BIBLE/UI_UX/01_MOBILE_EXPERIENCE.md`
 - **Status:** Not started
 
@@ -583,7 +607,7 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
 - **Owner:** QA Director
 - **Objective:** Verify the complete loop end to end.
 - **Dependencies:** All Phase 5 tasks
-- **Acceptance criteria:** All eight required player experiences from `PROJECT_STATE.md` pass on a real device; zero critical or high defects open
+- **Acceptance criteria:** All eight required player experiences from `PROJECT_STATE.md` pass on a real device; zero critical or high defects open; **a full session at zero available steps is playable, calm, and loses nothing** *(0008)*
 - **Tests:** Full suite green; manual checklist
 - **Documentation:** `QA_REPORT.md`
 - **Status:** Not started
@@ -635,7 +659,9 @@ Acceptance criteria are written to be **checkable** — a reviewer can say yes o
 - **Owner:** Creative Director, with owner
 - **Dependencies:** V-05
 - **Acceptance criteria:** The owner walks, returns, understands what changed, improves their character, defeats the Hollow Guardian, and **wants to continue**. That last clause is the real acceptance criterion for the entire milestone, and only the owner can sign it.
-- **Tests:** Multi-week owner playtest
+
+  **Maxing the five skills is explicitly not required.** The milestone is complete when the loop is validated, which `DECISIONS/0007` targets at one to two weeks of ordinary movement — not when the content is exhausted.
+- **Tests:** One-to-two-week owner playtest, extended at the owner's discretion
 - **Documentation:** `MILESTONES/MILESTONE_01_REPORT.md`
 - **Status:** Not started
 
@@ -672,7 +698,9 @@ P0-08 approval
 
 Note what is no longer on the critical path: the fourteen-day real-data log. Starting it at S-02 instead of V-02 removes two idle weeks from the milestone's tail.
 
-Two tasks are blocked on owner input and can start the moment it arrives: **S-06** (typical daily step count) and **A-05** (audio budget and licence preference). **P-01** has no code dependency and can begin immediately on approval.
+**No task is blocked on owner input.** S-06 is unblocked by `DECISIONS/0007`, A-05 by `DECISIONS/0005`, and F-01 by `DECISIONS/0009`. **P-01** has no code dependency and can begin at any time.
+
+The one outstanding constraint is physical: iOS builds require macOS. See `MILESTONES/F-01_COMPLETION_REPORT.md`.
 
 **S-08 is a checkpoint, not a formality.** A negative result there sends the design back before Phases 3–5 are built on top of it.
 
