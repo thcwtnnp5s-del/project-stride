@@ -1,0 +1,8 @@
+# A frozen save fixture is bytes, not text.
+#
+# The framing separator is a single 0x0A. This repository is developed on
+# Windows with core.autocrlf=true, which would rewrite that byte to 0x0D 0x0A on
+# checkout — changing the payload length, breaking the CRC32C, and turning a
+# fixture that is supposed to be immutable forever into one that differs per
+# machine. Marking it binary is what makes "frozen" true across clones.
+*.save binary
