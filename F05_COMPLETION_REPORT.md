@@ -268,9 +268,20 @@ The suite that matters most is the one asserting on bytes. Every other save test
 
 ## 10. CI identifiers
 
-The four-job matrix is unchanged from M-4: `core` / `pigeon` / `android` on ubuntu, `ios` on macOS. Run identifiers are recorded against the pushed commit.
+**Run `30762430717`** on `8657d30`. All four jobs green.
 
-The `ios` job is the one that matters here: nothing about the Apple branch is verifiable on Windows, and it has caught a compile failure before.
+| Job | ID | Runner | Duration |
+|---|---|---|---|
+| Dart core | `91535256409` | ubuntu | 1m21s |
+| Pigeon bindings | `91535256437` | ubuntu | 37s |
+| iOS compile | `91535397058` | **macOS** | 6m30s |
+| Android | `91535397099` | ubuntu | 7m27s |
+
+The `ios` job is the one that matters most: nothing about the Apple branch is verifiable on Windows, and it has caught a compile failure before — `HealthKitAdapter.swift` missing `import Flutter`, in code that had been committed three times and described as working.
+
+The `.gitattributes` fix is also only truly proven here: CI checks the repository out fresh, so the frozen fixture passing on a runner is the evidence that the `autocrlf` hazard is actually closed rather than merely closed on this machine.
+
+**One standing annotation, unrelated to F-05:** `actions/checkout@v4` targets Node 20, which GitHub has deprecated and is forcing onto Node 24. Not breaking anything; worth a bump when something else touches CI.
 
 ---
 
