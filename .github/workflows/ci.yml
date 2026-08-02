@@ -52,6 +52,15 @@ jobs:
           (cd packages/stride_health && flutter pub get)
           (cd packages/stride_health/example && flutter pub get)
 
+      # Cheap, specific guards run first. A developer who adds a health package
+      # should see 'prohibited health package', not a generic analyzer error
+      # three steps later.
+      - name: Core purity guard
+        run: bash ./Scripts/check-core-purity.sh
+
+      - name: Dependency policy guard
+        run: bash ./Scripts/check-dependency-policy.sh
+
       # Hand-written Dart only. Pigeon output is not dart-format clean, and
       # formatting it would fail the drift check in the `pigeon` job on the next
       # regeneration.
@@ -70,12 +79,6 @@ jobs:
 
       - name: Analyze (fatal warnings and infos)
         run: flutter analyze --fatal-infos --fatal-warnings
-
-      - name: Core purity guard
-        run: bash ./Scripts/check-core-purity.sh
-
-      - name: Dependency policy guard
-        run: bash ./Scripts/check-dependency-policy.sh
 
       # The simulation. No Flutter, no emulator. Should be seconds.
       - name: stride_core tests
