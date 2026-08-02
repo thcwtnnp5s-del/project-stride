@@ -110,7 +110,7 @@ Archived, not deleted: `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVE
 
 Repository: `thcwtnnp5s-del/project-stride` (private), branch `master`, all history preserved including the superseded Swift scaffold at `859d0ac`.
 
-**CI green on all four jobs** — run `30752314906`. **44 automated tests**: 17 Dart, 5 Kotlin, 12 Swift, plus the Dart suite re-run on macOS.
+**CI green on all four jobs** — run `30752832663`. **44 automated tests**: 17 Dart, 5 Kotlin, 12 Swift, plus the Dart suite re-run on macOS.
 
 | Job | Runner | Covers |
 |---|---|---|
