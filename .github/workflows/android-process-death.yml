@@ -44,7 +44,18 @@ jobs:
     # Hardware acceleration for the emulator is available on ubuntu-latest
     # runners through KVM, which the enable step below unlocks.
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Run 30767934429 was killed at 45m15s by the timeout: not a test failure,
+    # a job that never finished. The wall clock here is dominated by things
+    # that are slow rather than wasteful -- an SDK download, a system-image
+    # download, an AVD creation, a cold emulator boot, and a debug Gradle build
+    # -- and the harness itself is bounded at 90 seconds per phase by
+    # TIMEOUT_SECONDS in the script.
+    #
+    # So the limit is raised rather than the work cut. 90 minutes is roughly
+    # double the observed cold-cache run, which leaves room for a slow image
+    # download without leaving a hung emulator burning an hour of runner time
+    # unnoticed.
+    timeout-minutes: 90
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +69,18 @@ jobs:
         with:
           channel: stable
           cache: true
+
+      # A debug Gradle build downloads the Gradle distribution and the whole
+      # dependency graph on a cold runner. That is minutes of the budget spent
+      # on nothing this job is trying to demonstrate.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-process-death-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-process-death-
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -76,6 +99,38 @@ jobs:
       - name: Build the harness APK
         run: flutter build apk --debug -t integration_test/process_death_app.dart
 
+      # `force-avd-creation: false` only helps if an AVD already exists, and
+      # nothing carried one between runs -- so every run paid for a system-image
+      # download and a cold first boot. This is the emulator action's documented
+      # caching recipe: create the AVD once, save a boot snapshot, and let every
+      # later run resume from it.
+      #
+      # It does not change what is emulated. The harness still installs onto a
+      # cleared package, still force-stops a live process, and still reads the
+      # verdict written by the process that started afterwards.
+      - name: Cache the AVD and its boot snapshot
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ inputs.api_level || '35' }}-x86_64-google_apis
+
+      - name: Create the AVD and generate a boot snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ inputs.api_level || '35' }}
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          # No -no-snapshot-save here on purpose: saving the snapshot is the
+          # entire point of this step.
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-metrics
+          disable-animations: false
+          script: echo "AVD created and snapshot saved."
+
       - name: Seed, kill, resume
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -83,10 +138,12 @@ jobs:
           arch: x86_64
           target: google_apis
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim -no-metrics
           disable-animations: true
           script: bash Scripts/android-process-death.sh --skip-build
 
-      - name: Collect logcat on failure
-        if: failure()
-        run: adb logcat -d | grep -i -E 'STRIDE_HARNESS|flutter' | tail -100 || true
+      # There is deliberately no post-run `adb logcat` step. The emulator action
+      # tears the emulator down when its `script` returns, so a step after it
+      # has no device to talk to and collects nothing while looking like it
+      # collects something. Logcat is dumped from inside the script, in
+      # `wait_for_phase`, where the device is still alive.

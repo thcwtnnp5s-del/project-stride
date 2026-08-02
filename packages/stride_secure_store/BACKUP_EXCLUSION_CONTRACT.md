@@ -12,9 +12,9 @@ applied once at launch and is lost again on the first commit.
 `NSURLIsExcludedFromBackupKey` is a resource value on the **filesystem node**,
 not on a path and not on the app. Apple documents it that way, and the
 consequence is that the attribute does not follow a path across the ordinary
-operations a save system performs. A replacement, an atomic write, a rename over
-the top, or a delete-and-recreate all leave the path naming a *different* node,
-and the new node carries whatever attributes it was born with — none.
+operations a save system performs. An atomic write, a rename over the top, or a
+delete-and-recreate all leave the path naming a *different* node, and the new
+node carries whatever attributes it was born with — none.
 
 Today the exclusion is applied exactly once per launch, in `IdentityVault.open`
 (`lib/runtime/identity_vault.dart`), **before any save file is written or
@@ -31,15 +31,37 @@ file was protected, and a routine maintenance operation silently unprotected it.
 
 This is demonstrated, not argued. `example/ios/RunnerTests/RunnerTests.swift`:
 
+**Operations that destroy the exclusion**
+
 * `testARenameOverTheTopDropsTheExclusion` — the journal compaction, exactly.
 * `testAnAtomicWriteDropsTheExclusion`
-* `testReplaceItemAtDropsTheExclusion`
-* `testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied`
-* `testTruncatingInPlaceKeepsTheExclusion` — the counter-case, so the contract
-  is precise rather than superstitious. `writeVerified` opens `FileMode.write`,
-  which truncates the existing inode rather than replacing it, so an *overwrite*
-  of an existing file does keep the attribute. Re-application is still required
-  after it, because the file may not have existed beforehand.
+* `testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied` — a gap rather
+  than a loss, but the same outcome.
+
+**Operations that preserve it — the counter-cases, so the contract is precise
+rather than superstitious**
+
+* `testTruncatingInPlaceKeepsTheExclusion`. `writeVerified` opens
+  `FileMode.write`, which truncates the existing inode rather than replacing
+  it, so an *overwrite* of an existing file does keep the attribute.
+  Re-application is still required after it, because the file may not have
+  existed beforehand.
+* `testReplaceItemAtPreservesTheExclusion`. **This entry is a correction.**
+  Until CI run `30769049772` this document and the test both claimed
+  `FileManager.replaceItemAt` destroys the exclusion, by analogy with the
+  rename. It was the one backup-exclusion case to fail on a simulator, and the
+  analogy was simply wrong: `replaceItemAt` is the "safe save" primitive and,
+  without `.usingNewMetadataOnly`, deliberately carries the *original* item's
+  metadata onto the replacement. Preserving attributes is what the API is for.
+  The test now asserts preservation, verifies the replacement actually happened
+  by reading the bytes back, and lets a `replaceItemAt` failure throw rather
+  than be swallowed into looking like the finding.
+
+  Nothing rests on it either way. `replaceItemAt` is a Foundation API; Dart's
+  `File.rename` is `rename(2)` and `stride_storage` performs no equivalent, so
+  no call site in this project depends on the behaviour, and re-application
+  after it is a cheap no-op. It is recorded because a contract that states a
+  rule more broadly than its evidence supports stops being believed.
 
 These run on the macOS CI job and have never been executed on this machine.
 

@@ -347,9 +347,10 @@ jobs:
       # kSecAttrAccessible value, and NSURLIsExcludedFromBackupKey on real
       # paths -- including re-application after the directory is recreated.
       #
-      # They also prove that an atomic write, a rename over the top, and
-      # replaceItemAt each DESTROY the exclusion -- which is why it is
-      # re-applied per write and not only at launch. See
+      # They also prove that an atomic write and a rename over the top each
+      # DESTROY the exclusion, and that an in-place truncate and
+      # `replaceItemAt` each PRESERVE it -- which is why it is re-applied per
+      # write and not only at launch. See
       # packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md.
       #
       # THEY DO NOT PROVE THE THING THIS FEATURE EXISTS FOR. That a
@@ -359,7 +360,53 @@ jobs:
       # and restore onto a second device. A locked-device read
       # (errSecInteractionNotAllowed) is also unreachable: a simulator is never
       # locked.
+      #
+      # ## Code signing, and why it is not NO here
+      #
+      # The compile steps above pass --no-codesign deliberately: they prove the
+      # code builds, and an unsigned binary is the honest artifact for that.
+      #
+      # The TEST step cannot do the same. iOS gates every SecItem* call on the
+      # calling process's entitlements, and the entitlements are attached at
+      # signing time. With CODE_SIGNING_ALLOWED=NO the test host is unsigned,
+      # carries no `application-identifier`, and every Keychain call returns
+      # errSecMissingEntitlement (-34018) before it reaches any of the logic
+      # under test. Signing ad-hoc for the simulator (`CODE_SIGN_IDENTITY=-`,
+      # requirement off, no team, no profile) is what Xcode itself does for an
+      # ordinary local simulator run.
+      #
+      # This changes nothing about what is proven: an ad-hoc signature is not a
+      # distribution signature, and no step in this workflow produces an
+      # installable build.
       # ---------------------------------------------------------------------
+
+      # A diagnostic, not a gate. Runs the entitlement probe suite against an
+      # UNSIGNED host, on purpose, so the raw OSStatus that an unsigned host
+      # gets from the Keychain is printed in the log rather than inferred. It
+      # is allowed to fail and does not affect the job result.
+      #
+      # Remove this step once the -34018 finding is old news; it costs a build.
+      - name: Keychain entitlement probe (unsigned host, diagnostic only)
+        continue-on-error: true
+        working-directory: packages/stride_secure_store/example/ios
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              print(next(x['name'] for v in d.values() for x in v if 'iPhone' in x['name']))")
+          echo "Simulator: $DEVICE"
+          set +e
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -destination "platform=iOS Simulator,name=$DEVICE" \
+            -only-testing:RunnerTests/KeychainEntitlementProbe \
+            -resultBundlePath "$RUNNER_TEMP/probe-unsigned.xcresult" \
+            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/probe-unsigned.log" 2>&1
+          echo "xcodebuild exit: $?"
+          echo "--- probe output (unsigned host) ---"
+          grep -E "KEYCHAIN PROBE" "$RUNNER_TEMP/probe-unsigned.log" || \
+            echo "(no probe lines; see the uploaded log)"
+
       - name: Swift secure-store tests (simulator Keychain, no iCloud)
         working-directory: packages/stride_secure_store/example/ios
         run: |
@@ -376,12 +423,47 @@ jobs:
             -workspace Runner.xcworkspace \
             -scheme Runner \
             -destination "platform=iOS Simulator,name=$DEVICE" \
-            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/secure-store-tests.log" 2>&1; then
+            -resultBundlePath "$RUNNER_TEMP/secure-store-tests.xcresult" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            > "$RUNNER_TEMP/secure-store-tests.log" 2>&1; then
             echo "::error::Swift secure-store tests failed."
-            grep -E "error:|failed|XCTAssert" "$RUNNER_TEMP/secure-store-tests.log" | tail -60 || true
-            tail -80 "$RUNNER_TEMP/secure-store-tests.log"
+
+            # The assertion text is the only thing worth reading here, and the
+            # previous version of this step threw it away: it grepped a pattern
+            # that also matches every 'Test case ... failed' line and then took
+            # tail -60, so the summary crowded out the detail entirely and the
+            # log showed which tests failed and nothing about why.
+            #
+            # XCTest writes an assertion as
+            #   /path/File.swift:120: error: -[Suite testName] : XCTAssertEqual
+            #   failed: ("a") is not equal to ("b") - message
+            # possibly continued over several lines, so the message is matched
+            # by its shape and printed with context.
+            echo "--- assertion failures ---"
+            grep -n -A 12 -E "\.swift:[0-9]+: error:" \
+              "$RUNNER_TEMP/secure-store-tests.log" | head -400 || true
+
+            echo "--- probe output (signed host) ---"
+            grep -E "KEYCHAIN PROBE" "$RUNNER_TEMP/secure-store-tests.log" || true
+
+            echo "--- which tests failed ---"
+            grep -E "^Test Case .* failed|^\s+Test case .* failed" \
+              "$RUNNER_TEMP/secure-store-tests.log" | sort -u | head -60 || true
+
+            echo "--- tail ---"
+            tail -400 "$RUNNER_TEMP/secure-store-tests.log"
             exit 1
           fi
+
+          # The probe is a diagnostic and always passes, so its output is
+          # printed on success too: an entitlement regression that made every
+          # Keychain call return -34018 again would be visible here on the run
+          # before it broke something.
+          grep -E "KEYCHAIN PROBE" "$RUNNER_TEMP/secure-store-tests.log" || true
 
           # A green xcodebuild is not the same claim as "the suites ran". A test
           # target that builds and hosts nothing exits zero, and so does a
@@ -396,6 +478,22 @@ jobs:
             fi
           done
           grep -E "Test Suite '.*' (passed|failed)" "$RUNNER_TEMP/secure-store-tests.log"
+
+      # Uploaded unconditionally. A failure whose detail only exists inside a
+      # runner that has already been destroyed costs a full CI cycle to
+      # re-learn, and this job's cycle is a quarter of an hour.
+      - name: Upload secure-store test logs and result bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-store-test-output
+          path: |
+            ${{ runner.temp }}/secure-store-tests.log
+            ${{ runner.temp }}/secure-store-tests.xcresult
+            ${{ runner.temp }}/probe-unsigned.log
+            ${{ runner.temp }}/probe-unsigned.xcresult
+          if-no-files-found: warn
+          retention-days: 14
 
       # Simulator-hosted unit tests. Nothing here requests HealthKit
       # authorization: an interactive permission prompt cannot be answered on a
