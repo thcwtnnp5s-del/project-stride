@@ -108,14 +108,13 @@ The Flutter workspace exists and is verified on Windows: **17 tests, analyze cle
 
 The Swift scaffold is still in the tree, unbuilt and inert, retired last at M-5.
 
-### Two blockers
+The Android app **builds and runs on an emulator from Windows** — screenshot at `MILESTONES/evidence/m2_android_emulator.png`.
 
-| # | Blocker | Effect |
-|---|---|---|
-| 1 | **JDK install failed** — the download stalled twice against its CDN | Blocks `sdkmanager`, adb, the emulator, and every Android build. Recovery steps in `TOOLCHAIN_REPORT_WINDOWS.md` |
-| 2 | **GitHub repo not created** — `gh` login is interactive | Blocks CI. Exact commands in `MIGRATION_COMPLETION_REPORT.md` §7 |
+### One blocker
 
-Neither is a design problem, and neither invalidates the work done.
+| Blocker | Effect |
+|---|---|
+| **GitHub repo not created** — `gh` login is interactive | Blocks CI (M-4). Exact commands in `MIGRATION_COMPLETION_REPORT.md` §7 |
 
 ### Toolchain
 
@@ -123,9 +122,10 @@ Neither is a design problem, and neither invalidates the work done.
 |---|---|
 | Flutter | ✅ 3.44.8 at `C:\Users\jwspa\dev\flutter` |
 | Dart | ✅ 3.12.2 |
-| Android cmdline-tools | ✅ at `C:\Users\jwspa\dev\android-sdk` |
-| JDK, adb, emulator | ⛔ blocked |
-| GitHub CLI | ✅ 2.97.0, not authenticated |
+| JDK | ✅ Temurin 17.0.20 |
+| Android SDK | ✅ platform-36, build-tools 36.1.0, adb, emulator |
+| AVD | ✅ `stride_pixel` (API 36) |
+| GitHub CLI | ✅ 2.97.0, **not authenticated** |
 | Xcode | ➖ iOS-only; CI macOS job covers compilation |
 
 ### Not yet compiled anywhere

@@ -3,7 +3,9 @@
 **Machine:** Dell, Windows 11 25H2 (10.0.26200.8894)
 **Date:** 2026-08-01
 **Task:** M-1
-**Status:** Flutter and Dart operational. Android build chain incomplete — one blocking item.
+**Status:** ✅ **Complete. The full Android chain is operational.**
+
+> **Revised.** An earlier version of this report recorded the JDK install as failed and Android as blocked. The first Temurin attempt had in fact succeeded — it ran long and its result arrived after the report was written; a second attempt then failed only as redundant. Once Java was confirmed present the remaining chain installed normally. **There is no outstanding Android blocker.**
 
 ---
 
@@ -13,16 +15,17 @@
 |---|---|
 | Flutter stable | ✅ 3.44.8 |
 | Dart | ✅ 3.12.2 |
-| Android SDK command-line tools | ✅ installed, packages not yet downloaded |
-| Java toolchain | ⛔ **install failed — blocking** |
-| Android platform-tools / adb | ⛔ blocked on Java |
-| Android emulator | ⛔ blocked on Java |
+| Java toolchain | ✅ Temurin 17.0.20+8 |
+| Android SDK | ✅ platform-36, build-tools 36.1.0, NDK 28.2, CMake 3.22.1 |
+| adb | ✅ 1.0.41 (37.0.1) |
+| Android emulator | ✅ 37.1.11, AVD `stride_pixel` (API 36) |
+| Android licences | ✅ all accepted |
 | Editor tooling | ➖ optional, see below |
 | Xcode | ➖ **iOS-only, expected absent on Windows** |
 
-**What this permits today:** the entire Dart simulation, the entire Flutter UI, all unit and widget tests, and both enforcement guards — all verified running (see `MIGRATION_COMPLETION_REPORT.md`).
+**Verified working:** the entire Dart simulation, the entire Flutter UI, all tests, both enforcement guards, **the Android APK build**, and **the app running on an emulator**.
 
-**What it blocks:** building or running the Android app, and therefore the emulator check in M-2's acceptance criteria.
+`flutter doctor` reports no Android issues.
 
 ---
 
@@ -46,10 +49,18 @@ Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on "windows_x6
 ### `adb --version`
 
 ```text
-bash: adb: command not found
+Android Debug Bridge version 1.0.41
+Version 37.0.1-15733141
+Installed as C:\Users\jwspa\dev\android-sdk\platform-tools\adb.exe
+Running on Windows 10.0.26200
 ```
 
-Not installed. `adb` ships in the Android SDK `platform-tools` package, which is downloaded by `sdkmanager` — and `sdkmanager` is a Java program. Blocked behind the JDK.
+### `java -version`
+
+```text
+openjdk version "17.0.20" 2026-07-21
+OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
+```
 
 ### `flutter doctor -v`
 
@@ -63,30 +74,51 @@ Not installed. `adb` ships in the Android SDK `platform-tools` package, which is
     • DevTools version 2.57.0
     • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, enable-swift-package-manager, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
 
-[√] Windows Version (Windows 11 or higher, 25H2, 2009) [520ms]
+[√] Windows Version (Windows 11 or higher, 25H2, 2009) [575ms]
 
-[X] Android toolchain - develop for Android devices [27ms]
-    X ANDROID_HOME = C:/Users/jwspa/dev/android-sdk
-      but Android SDK not found at this location.
+[√] Android toolchain - develop for Android devices (Android SDK version 36.1.0) [1,382ms]
+    • Android SDK at C:\Users\jwspa\dev\android-sdk
+    • Emulator version 37.1.11.0 (build_id 15917651) (CL:N/A)
+    • Platform android-36, build-tools 36.1.0
+    • ANDROID_HOME = C:/Users/jwspa/dev/android-sdk
+    • Java binary at: C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot\bin\java
+      This JDK is specified by the JAVA_HOME environment variable.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
+    • All Android licenses accepted.
 
-[√] Chrome - develop for the web [11ms]
+[√] Chrome - develop for the web [9ms]
     • Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
 
-[X] Visual Studio - develop Windows apps [10ms]
+[X] Visual Studio - develop Windows apps [8ms]
     X Visual Studio not installed; this is necessary to develop Windows apps.
       Download at https://visualstudio.microsoft.com/downloads/.
       Please install the "Desktop development with C++" workload, including all of its default components
 
-[√] Connected device (3 available) [139ms]
-    • Windows (desktop) • windows • windows-x64    • Microsoft Windows [Version 10.0.26200.8894]
-    • Chrome (web)      • chrome  • web-javascript • Google Chrome 150.0.7871.187
-    • Edge (web)        • edge    • web-javascript • Microsoft Edge 150.0.4078.99
-
-[√] Network resources [471ms]
-    • All expected network resources are available.
-
-! Doctor found issues in 2 categories.
+[√] Connected device (4 available) [325ms]
+    • sdk gphone64 x86 64 (mobile) • emulator-5554 • android-x64    • Android 16 (API 36) (emulator)
 ```
+
+The only remaining `[X]` is Visual Studio, which is for Windows *desktop* builds and is permanently irrelevant to a mobile-only project.
+
+### Android build and run — verified
+
+```text
+flutter build apk --debug
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+
+flutter build apk --debug        (packages/stride_health/example)
+√ Built build\app\outputs\flutter-apk\app-debug.apk
+
+adb install -r … → Success
+adb shell am start -n com.projectstride.stride/.MainActivity
+topResumedActivity=ActivityRecord{… com.projectstride.stride/.MainActivity}
+logcat: no FATAL, no AndroidRuntime, no E/flutter
+```
+
+Screenshot: `MILESTONES/evidence/m2_android_emulator.png` — portrait, rendering the live `stride_core` version string, which is what proves the app target actually links the package.
+
+**This means the Kotlin adapter, the Pigeon-generated Kotlin, the plugin registration, `minSdk 26`, and `allowBackup=false` all compile and run.**
 
 ---
 
@@ -94,24 +126,9 @@ Not installed. `adb` ships in the Android SDK `platform-tools` package, which is
 
 ### Android-blocking
 
-**A-1 — Java toolchain not installed.**
+**None.** The chain that was previously blocked — JDK, SDK packages, adb, emulator, licences — is complete and verified.
 
-Two winget attempts failed at the download stage, not at install:
-
-```text
-Microsoft.OpenJDK.17         → InternetOpenUrl() failed. 0x80072f78
-EclipseAdoptium.Temurin.17   → download stalled past a 15-minute timeout
-```
-
-This looks like a network restriction on the JDK CDNs rather than a machine problem — Flutter's own ~1 GB download from `storage.googleapis.com` and the 136 MB Android command-line tools from `dl.google.com` both succeeded on the same connection.
-
-Java is required by `sdkmanager` and by Gradle, so it blocks **A-2**, **A-3**, and every Android build. **This is the only genuinely blocking item.**
-
-**A-2 — Android SDK packages not downloaded.** Command-line tools are installed at `C:\Users\jwspa\dev\android-sdk\cmdline-tools\latest`; `platform-tools` (adb), `platforms`, `build-tools`, and `emulator` are not. Blocked by A-1.
-
-**A-3 — No Android emulator/AVD.** Blocked by A-2.
-
-**A-4 — Android licences not accepted.** `flutter doctor --android-licenses` needs Java. Blocked by A-1.
+*Historical note, kept because it cost real time:* `Microsoft.OpenJDK.17` failed with `InternetOpenUrl() failed. 0x80072f78`, and `EclipseAdoptium.Temurin.17` appeared to stall. The Temurin install had actually succeeded; it simply ran past the observation window. **The lesson is procedural — confirm a long install by checking for the artifact, not by watching its exit.** A `java -version` check would have saved a wrong entry in the first version of this report.
 
 ### iOS-only — expected, not a Windows failure
 
@@ -133,11 +150,13 @@ Java is required by `sdkmanager` and by Gradle, so it blocks **A-2**, **A-3**, a
 |---|---|
 | Flutter SDK | `C:\Users\jwspa\dev\flutter` (git clone, `stable`, `--depth 1`) |
 | Dart SDK | bundled at `flutter\bin\cache\dart-sdk` |
+| JDK 17 | `C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot` |
 | Android SDK root | `C:\Users\jwspa\dev\android-sdk` |
 | Android cmdline-tools | `…\android-sdk\cmdline-tools\latest` |
+| AVD | `stride_pixel` — Pixel 7, API 36, google_apis, x86_64 |
 | GitHub CLI | `C:\Program Files\GitHub CLI` (2.97.0) |
 
-User environment variables set: `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and `Path` additions for `flutter\bin`, `android-sdk\platform-tools`, and `android-sdk\cmdline-tools\latest\bin`.
+User environment variables set: `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and `Path` additions for `flutter\bin`, `android-sdk\platform-tools`, and `android-sdk\cmdline-tools\latest\bin`.
 
 `flutter config --android-sdk` points at the SDK root.
 
@@ -145,53 +164,39 @@ User environment variables set: `ANDROID_HOME`, `ANDROID_SDK_ROOT`, and `Path` a
 
 ---
 
-## To finish the Android chain
+## Daily use
 
-### 1. Install a JDK
+**Open a fresh terminal** — already-open ones predate the environment variables and will look broken.
 
-Retry winget first — the failures looked transient:
-
-```bash
-winget install --id EclipseAdoptium.Temurin.17.JDK --accept-package-agreements --accept-source-agreements
-```
-
-If it fails again, download the **Temurin 17 (LTS) Windows x64 .msi** directly from `https://adoptium.net/temurin/releases/` and run the installer.
-
-Verify:
+From the repository root:
 
 ```bash
-java -version
+flutter emulators --launch stride_pixel
 ```
-
-### 2. Install the SDK packages
-
-```bash
-sdkmanager --sdk_root=%ANDROID_HOME% "platform-tools" "platforms;android-35" "build-tools;35.0.0" "emulator" "system-images;android-35;google_apis;x86_64"
-```
-
-### 3. Accept licences
-
-```bash
-flutter doctor --android-licenses
-```
-
-### 4. Create an emulator
-
-```bash
-avdmanager create avd -n stride_pixel -k "system-images;android-35;google_apis;x86_64" -d pixel_7
-```
-
-### 5. Confirm
-
-```bash
-flutter doctor -v
-```
-
-The Android toolchain line should turn green. Then, from the repository root:
 
 ```bash
 flutter run
 ```
+
+Full local verification, no emulator needed:
+
+```bash
+./Scripts/verify.sh
+```
+
+### Rebuilding this setup elsewhere
+
+```bash
+git clone --depth 1 -b stable https://github.com/flutter/flutter.git C:\Users\<you>\dev\flutter
+winget install --id EclipseAdoptium.Temurin.17.JDK --accept-package-agreements --accept-source-agreements
+sdkmanager --sdk_root=%ANDROID_HOME% "platform-tools" "platforms;android-36" "build-tools;36.1.0" "emulator" "system-images;android-36;google_apis;x86_64"
+flutter doctor --android-licenses
+avdmanager create avd -n stride_pixel -k "system-images;android-36;google_apis;x86_64" -d pixel_7
+```
+
+Set `JAVA_HOME`, `ANDROID_HOME`, and `ANDROID_SDK_ROOT`, then confirm with `flutter doctor -v`.
+
+*Note: `sdkmanager` aborts silently on the licence prompt when its stdin is not a terminal. Accept licences first, or pass `--sdk_root` and rerun after accepting.*
 
 ---
 

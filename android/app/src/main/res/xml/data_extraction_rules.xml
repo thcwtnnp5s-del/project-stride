@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup is disabled for Project Stride.
+
+  The save holds a monotonic step ledger. An automatic cloud backup restored
+  onto a second device would replay that ledger against a health source the
+  original device already consumed from — producing exactly the double-count
+  the entire reconciliation design exists to prevent, and doing it silently.
+
+  This has no iOS equivalent, which makes it easy to miss. It is the kind of
+  platform difference that otherwise gets discovered by a player whose progress
+  doubled overnight.
+
+  Cloud save is a Milestone 04 question and would need a decision record. If it
+  ever arrives it must be a designed sync with conflict resolution, not the
+  platform copying a file.
+
+  See ARCHITECTURE_IMPLEMENTATION_PLAN.md §4.4 and §12.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

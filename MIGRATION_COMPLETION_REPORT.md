@@ -10,16 +10,19 @@
 
 ## 1. Headline
 
-The Flutter workspace exists, compiles, and is tested. **17 tests pass on Windows in under a second**, with no emulator, no simulator, and no Mac.
+The Flutter workspace exists, compiles, is tested, **builds an Android APK, and runs on an emulator — all from Windows.**
 
-Two things are outstanding, one of which needs the owner:
+**17 tests pass in under a second** with no emulator, no simulator, and no Mac.
+
+> **Correction.** An earlier version of this report listed the JDK install as failed and Android as blocked. That was wrong: the first Temurin install had succeeded, and its result simply arrived after the report was written. Once Java was confirmed present, the rest of the chain installed normally and **every deferred M-1 and M-2 criterion is now met.** The lesson is procedural — confirm a long install by checking for the artifact, not by watching its exit.
+
+**One item remains, and it needs the owner:**
 
 | | |
 |---|---|
-| ⛔ **JDK install failed** | Blocks the Android build and the emulator check |
-| ⏸ **GitHub repo not created** | `gh` needs an interactive login — commands in §7 |
+| ⏸ **GitHub repo not created** | `gh` login is interactive — commands in §7 |
 
-Neither blocks the work already done, and neither is a design problem.
+That blocks CI (M-4) and nothing else.
 
 ---
 
@@ -89,6 +92,20 @@ All checks passed.
 
 **17 tests: 8 core + 2 app + 7 plugin.** Static analysis clean across the workspace with `--fatal-infos`. Pigeon generated all three sides from one definition.
 
+### Android build and run
+
+```text
+flutter build apk --debug                    → √ Built app-debug.apk
+flutter build apk --debug  (plugin example)  → √ Built app-debug.apk
+adb install -r …                             → Success
+adb shell am start …/.MainActivity           → topResumedActivity = com.projectstride.stride
+logcat                                        → no FATAL, no AndroidRuntime, no E/flutter
+```
+
+Screenshot: `MILESTONES/evidence/m2_android_emulator.png` — portrait, rendering the live `stride_core` version string, which is what proves the app target actually links the package rather than merely declaring it.
+
+**The Kotlin adapter, the Pigeon-generated Kotlin, the plugin registration, `minSdk 26`, and `allowBackup=false` all compile and run.**
+
 This is the migration's whole point, delivered: under the superseded Swift decision, none of this could run on the owner's machine.
 
 ### Guards demonstrated failing
@@ -147,20 +164,13 @@ After removal: `dependency policy: OK`.
 
 ## 5. Known warnings and failures
 
-### ⛔ JDK install failed — Android-blocking
+### ⛔ None outstanding on Android
 
-Two attempts, both failing at download rather than install:
+The JDK, SDK packages, adb, emulator, and licences are all installed and verified. `flutter doctor` reports no Android issues.
 
-```text
-Microsoft.OpenJDK.17        → InternetOpenUrl() failed. 0x80072f78
-EclipseAdoptium.Temurin.17  → stalled past a 15-minute timeout
-```
+*What happened:* `Microsoft.OpenJDK.17` genuinely failed (`InternetOpenUrl() failed. 0x80072f78`), and `EclipseAdoptium.Temurin.17` appeared to stall. It had actually succeeded — the install simply ran past the point where this report was first written, and a redundant retry then failed with "already installed", which read like a second failure.
 
-Probably a network restriction on the JDK CDNs: Flutter's ~1 GB clone and the 136 MB Android command-line tools both succeeded over the same connection.
-
-**Consequence:** `sdkmanager` and Gradle cannot run, so `platform-tools`/`adb`, the emulator, and the Android licences are all blocked. `flutter doctor` reports `[X] Android toolchain`.
-
-**M-2 acceptance criterion 3 — "app runs on an Android emulator from Windows" — is therefore NOT met.** Recovery steps are in `TOOLCHAIN_REPORT_WINDOWS.md` §"To finish the Android chain".
+Worth recording rather than quietly fixing: **a long-running install should be confirmed by checking for its artifact, not by watching its exit.** One `java -version` would have prevented a wrong entry in the first version of this report.
 
 ### ⏸ GitHub repository not created
 
@@ -260,8 +270,8 @@ Also corrected: the CI Android step called `./gradlew` directly, but Flutter's g
 
 | # | Criterion | Result |
 |---|---|---|
-| 1 | `flutter doctor` clean for Android | ⛔ **Not met** — JDK blocked |
-| 2 | Emulator runs a stock Flutter app | ⛔ **Not met** — blocked by 1 |
+| 1 | `flutter doctor` clean for Android | ✅ SDK 36.1.0, licences accepted |
+| 2 | Emulator runs a Flutter app | ✅ `stride_pixel`, API 36 |
 | 3 | Git remote configured | ⏸ **Paused** — needs owner login |
 
 ### M-2 — Scaffold
@@ -270,11 +280,17 @@ Also corrected: the CI Android step called `./gradlew` directly, but Flutter's g
 |---|---|---|
 | 1 | `stride_core` declares no Flutter dependency | ✅ |
 | 2 | `dart test` runs on Windows with real assertions | ✅ 8 tests |
-| 3 | `flutter run` on an Android emulator | ⛔ **Not met** — blocked by M-1 |
+| 3 | `flutter run` on an Android emulator | ✅ screenshot in `MILESTONES/evidence/` |
 | 4 | Pigeon generates all three sides; version pinned | ✅ pinned `27.3.0` |
 | 5 | No third-party health package | ✅ enforced |
-| 6 | `minSdkVersion` chosen with player consequence stated | ⛔ **Not met** — needs the Android SDK to set meaningfully |
-| 7 | `allowBackup` disabled | ⛔ **Not met** — deferred with 6 |
+| 6 | `minSdkVersion` chosen with player consequence stated | ✅ **26**, reasoning below |
+| 7 | `allowBackup` disabled | ✅ plus `dataExtractionRules` |
+
+**`minSdk 26`** is set by the Health Connect client library's floor, not by preference. Player consequence: devices below Android 8.0 cannot install Stride — a 2017 cutoff, effectively nobody in this audience.
+
+The softer consequence matters more and is *not* an exclusion: Health Connect is built into the platform from Android 14, and on Android 8–13 it needs the separate Health Connect app. Those players install and play normally, and simply get the graceful no-health-service path until they add it. `DECISIONS/0008` requires the game stay fully playable in that state — which is exactly what the M-2 adapter shell exercises by reporting `unavailable`.
+
+**`allowBackup=false`** with an explicit `data_extraction_rules.xml` excluding cloud backup and device transfer. An automatic backup restored onto a second device would replay the step ledger against a source the original device already consumed from — producing exactly the double-count the whole reconciliation design exists to prevent, silently. There is no iOS equivalent, which is what makes it easy to miss.
 
 ### M-3 — Enforcement
 
@@ -286,20 +302,18 @@ Also corrected: the CI Android step called `./gradlew` directly, but Flutter's g
 | 4 | `dart:io` on the forbidden list | ✅ |
 | 5 | `verify.sh` run in every mode | ✅ three modes |
 
-**M-3 is complete. M-1 and M-2 are complete except what the JDK blocks.**
+**M-1, M-2, and M-3 are complete except the git remote, which needs the owner.**
 
 ---
 
 ## 11. Recommended next task
 
-> ### Install a JDK, finish the Android SDK, and create the GitHub repository — then execute M-4.
+> ### Create the GitHub repository, then execute M-4.
 
-In order:
+1. **Owner:** run the two `gh` commands in §7. This is the only remaining prerequisite.
+2. **Studio:** execute **M-4** — wire CI, and demonstrate it failing on a deliberately broken commit and passing on a clean one. **This is the first time any Apple code will be compiled.**
 
-1. **Owner:** run the two `gh` commands in §7.
-2. **Owner or Studio:** install Temurin 17 and finish the SDK chain per `TOOLCHAIN_REPORT_WINDOWS.md`. Retrying winget is worth one attempt; the direct `.msi` from adoptium.net is the fallback.
-3. **Studio:** close the three deferred M-2 criteria — `minSdkVersion` with its player consequence, `allowBackup=false`, and the emulator run.
-4. **Studio:** execute **M-4**, wiring CI and demonstrating it failing on a deliberately broken commit and passing on a clean one. **This is the first time any Apple code will be compiled.**
+Everything else is ready. The Android half is built and running; the iOS half is authored and untouched by any compiler.
 
 **F-02 should not start until CI is green, including the macOS job.** That gate is exactly what kept this migration to one session of rework instead of five, and the reasoning has not changed.
 
