@@ -1,7 +1,7 @@
 # Project Stride — Project State
 
-**Version:** 1.6
-**Status:** M-1 to M-4 complete; CI green on all four jobs
+**Version:** 1.7
+**Status:** ✅ **Flutter migration closed.** CI green on all four jobs.
 **Current Phase:** Milestone 01 — awaiting owner approval before F-02
 
 ## Project identity
@@ -86,7 +86,9 @@ The player must be able to:
 13. ~~Execute migration M-1, M-2, M-3.~~ **Done — `MIGRATION_COMPLETION_REPORT.md`**
 14. ~~Owner review at the M-3 stop gate.~~ **Approved**
 15. ~~Execute M-4 — cross-platform CI validation.~~ **Done — `M4_CI_COMPLETION_REPORT.md`**
-16. **Owner approval before F-02.** ← current state
+16. ~~Owner approval of M-4.~~ **Approved**
+17. ~~Execute M-5 and M-6 — retire the Swift scaffold, close the migration.~~ **Done — `MIGRATION_CLOSURE_REPORT.md`**
+18. **Owner approval before F-02.** ← current state
 
 ## Current documents
 
@@ -102,13 +104,13 @@ The player must be able to:
 
 Archived, not deleted: `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVED.md`, `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_SWIFT_ARCHIVED.md`, `DECISIONS/0002` (superseded).
 
-## Migration status
+## Migration closed
 
-**M-1 through M-4 complete.** M-5 (retire the Swift scaffold) and M-6 (close) remain — both short.
+**M-1 through M-6 complete.** See `MIGRATION_CLOSURE_REPORT.md`.
 
 Repository: `thcwtnnp5s-del/project-stride` (private), branch `master`, all history preserved including the superseded Swift scaffold at `859d0ac`.
 
-**CI is green on all four jobs** — run `30730542145`. Full detail in `M4_CI_COMPLETION_REPORT.md`.
+**CI green on all four jobs** — run `30752314906`. **44 automated tests**: 17 Dart, 5 Kotlin, 12 Swift, plus the Dart suite re-run on macOS.
 
 | Job | Runner | Covers |
 |---|---|---|
@@ -117,13 +119,17 @@ Repository: `thcwtnnp5s-del/project-stride` (private), branch `master`, all hist
 | Android | ubuntu | Both debug APKs, 5 Kotlin tests |
 | iOS compile | **macOS** | Pigeon verify, 17 tests, app + Swift adapter compilation |
 
-**The iOS branch compiles.** It did not on its first attempt — `HealthKitAdapter.swift` was missing `import Flutter`, invisible to every tool on Windows. That single finding justifies the macOS job.
+**The iOS branch compiles and its adapter is behaviorally tested.** It did not compile on its first attempt — `HealthKitAdapter.swift` was missing `import Flutter`, invisible to every tool on Windows. That single finding justifies the macOS job.
 
-Three deliberate violations were demonstrated failing on a disposable branch (purity, Pigeon drift, prohibited health package). Master was never left broken.
-
-The Swift scaffold is still in the tree, inert, retired at M-5.
+The Swift scaffold was retired at M-5. All ten `.claude/agents/` definitions, which still described the native-Swift stack, were corrected — they load as standing context and were the likeliest way a future agent could have been misled.
 
 ### No blockers
+
+### Apple: adapter tested, platform not
+
+The Swift adapter's mapping and error handling are covered by 12 simulator tests. `HealthKitStepStore` is still the S-01b shell, so **nothing about real HealthKit is verified**. Same on Android: `HealthConnectAdapter` is a shell until S-01.
+
+Physical devices are needed for real health data, background sync, process-kill, and cross-adapter equivalence (V-02b). A real Mac plus Apple Developer Program is needed for signing and TestFlight.
 
 ### Toolchain
 
@@ -137,13 +143,6 @@ The Swift scaffold is still in the tree, inert, retired at M-5.
 | GitHub CLI | ✅ 2.97.0, **not authenticated** |
 | Xcode | ➖ iOS-only; CI macOS job covers compilation |
 
-### Apple: compiles, nothing more
-
-The Swift adapter and generated bindings **compile in CI**. Nothing about their runtime behavior is verified, and no Swift unit-test target exists yet — it arrives with the real HealthKit implementation at S-01b.
-
-Still needs a physical iPhone: HealthKit authorization, anchored queries, deletions, `wasUserEntered` filtering, locked-device behavior, background delivery, audio, haptics, battery. Still needs a real Mac plus Apple Developer Program: signing, archiving, TestFlight.
-
-None of it is on the critical path.
 
 ## Open gaps to close during Milestone 01
 
