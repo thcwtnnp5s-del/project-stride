@@ -347,10 +347,11 @@ jobs:
       # kSecAttrAccessible value, and NSURLIsExcludedFromBackupKey on real
       # paths -- including re-application after the directory is recreated.
       #
-      # They also prove that an atomic write and a rename over the top each
-      # DESTROY the exclusion, and that an in-place truncate and
-      # `replaceItemAt` each PRESERVE it -- which is why it is re-applied per
-      # write and not only at launch. See
+      # They also prove the invariant the project guarantees: after every
+      # create, write, rename, replacement and compaction, the file at the
+      # final path is excluded once the per-write hook has run. An atomic write
+      # and a rename over the top are separately confirmed to DESTROY the
+      # attribute, which is why the hook exists at all. See
       # packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md.
       #
       # THEY DO NOT PROVE THE THING THIS FEATURE EXISTS FOR. That a
@@ -380,13 +381,21 @@ jobs:
       # installable build.
       # ---------------------------------------------------------------------
 
-      # A diagnostic, not a gate. Runs the entitlement probe suite against an
-      # UNSIGNED host, on purpose, so the raw OSStatus that an unsigned host
-      # gets from the Keychain is printed in the log rather than inferred. It
-      # is allowed to fail and does not affect the job result.
+      # A diagnostic, not a gate. Runs the entitlement probe against a
+      # deliberately UNSIGNED host so the OSStatus an unsigned host gets from
+      # the Keychain is in the log as a number rather than as an assumption in
+      # a comment. It is EXPECTED TO FAIL, and continue-on-error keeps that off
+      # the job result.
       #
-      # Remove this step once the -34018 finding is old news; it costs a build.
-      - name: Keychain entitlement probe (unsigned host, diagnostic only)
+      # The probe asserts rather than prints. Run 30771670303 established that
+      # stdout from the test process does not reach xcodebuild's streamed log
+      # -- the first version of this step greped for lines the probe had
+      # printed and found none, because they never left the simulator. An
+      # XCTest assertion failure does reach the log, so the numbers ride out on
+      # a failure message.
+      #
+      # Delete this step once the -34018 finding is old news: it costs a build.
+      - name: Keychain entitlement probe (unsigned host, expected to fail)
         continue-on-error: true
         working-directory: packages/stride_secure_store/example/ios
         run: |
@@ -402,10 +411,12 @@ jobs:
             -only-testing:RunnerTests/KeychainEntitlementProbe \
             -resultBundlePath "$RUNNER_TEMP/probe-unsigned.xcresult" \
             CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/probe-unsigned.log" 2>&1
-          echo "xcodebuild exit: $?"
-          echo "--- probe output (unsigned host) ---"
-          grep -E "KEYCHAIN PROBE" "$RUNNER_TEMP/probe-unsigned.log" || \
-            echo "(no probe lines; see the uploaded log)"
+          echo "xcodebuild exit: $? (a non-zero exit here is the expected result)"
+          echo "--- what an unsigned test host gets from the Keychain ---"
+          grep -a -A 12 -E "\.swift:[0-9]+: error:" \
+            "$RUNNER_TEMP/probe-unsigned.log" | head -120 ||
+            echo "(no assertion text; see the uploaded probe-unsigned.xcresult)"
+          grep -a "KEYCHAIN PROBE" "$RUNNER_TEMP/probe-unsigned.log" | head -20 || true
 
       - name: Swift secure-store tests (simulator Keychain, no iCloud)
         working-directory: packages/stride_secure_store/example/ios
@@ -459,25 +470,50 @@ jobs:
             exit 1
           fi
 
-          # The probe is a diagnostic and always passes, so its output is
-          # printed on success too: an entitlement regression that made every
-          # Keychain call return -34018 again would be visible here on the run
-          # before it broke something.
-          grep -E "KEYCHAIN PROBE" "$RUNNER_TEMP/secure-store-tests.log" || true
-
           # A green xcodebuild is not the same claim as "the suites ran". A test
           # target that builds and hosts nothing exits zero, and so does a
           # scheme whose testables were dropped -- which is exactly how a
           # security control comes to be enforced by a suite nobody notices is
-          # empty. These three names are the enforcement.
-          for suite in SecureStoreTests BackupExclusionTests SecureStoreAdapterTests; do
-            if ! grep -q "Test Suite '$suite' passed" "$RUNNER_TEMP/secure-store-tests.log"; then
+          # empty. These four names are the enforcement.
+          #
+          # This guard used to grep for "Test Suite '<name>' passed" and was
+          # therefore dead: run 30771670303 passed all forty tests and failed
+          # here, because the toolchain on macos-latest emits
+          #   Test suite '<name>' started on '<device>'
+          #   Test case '<name>.<test>()' passed on '<device>' (0.001 seconds)
+          #   ** TEST SUCCEEDED **
+          # and no per-suite result line in any case. The old pattern could
+          # only ever have matched on a red run that never reached it. Both
+          # spellings are accepted now so a toolchain change breaks this loudly
+          # rather than silently.
+          #
+          # "Started" alone is not enough either -- a suite can start and
+          # contain nothing -- so each name must also account for at least one
+          # executed case and zero failed ones.
+          LOG="$RUNNER_TEMP/secure-store-tests.log"
+          for suite in SecureStoreTests BackupExclusionTests SecureStoreAdapterTests KeychainEntitlementProbe; do
+            if ! grep -qE "Test [Ss]uite '$suite' (started|passed)" "$LOG"; then
               echo "::error::$suite did not run. The device-bound identity and"
               echo "::error::the backup exclusion are unverified on this build."
               exit 1
             fi
+            ran=$(grep -acE "Test [Cc]ase '($suite\.|-\[$suite )" "$LOG" || true)
+            if [ "${ran:-0}" -lt 1 ]; then
+              echo "::error::$suite started but executed no test cases."
+              exit 1
+            fi
+            bad=$(grep -acE "Test [Cc]ase '($suite\.|-\[$suite )[^']*' failed" "$LOG" || true)
+            if [ "${bad:-0}" -ne 0 ]; then
+              echo "::error::$suite reported $bad failed case line(s) despite a zero exit."
+              exit 1
+            fi
+            echo "$suite: $ran case result line(s), 0 failed"
           done
-          grep -E "Test Suite '.*' (passed|failed)" "$RUNNER_TEMP/secure-store-tests.log"
+
+          # The belt to that pair of braces. If xcodebuild ever exits zero
+          # without having succeeded, this is the line that notices.
+          grep -q '\*\* TEST SUCCEEDED \*\*' "$LOG" ||
+            { echo "::error::xcodebuild exited 0 but never printed TEST SUCCEEDED."; exit 1; }
 
       # Uploaded unconditionally. A failure whose detail only exists inside a
       # runner that has already been destroyed costs a full CI cycle to

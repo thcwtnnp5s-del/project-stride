@@ -65,17 +65,25 @@ func describe(_ outcome: SecureWriteOutcome) -> String {
   }
 }
 
-/// A probe, not a test. It asserts nothing and cannot fail.
+/// Whether the test host can reach the Keychain at all — asserted, so the
+/// answer reaches the log.
 ///
-/// It performs the three Keychain calls the store performs, against its own
-/// service string, and prints the raw OSStatus of each. The point is that the
-/// *environment* — specifically whether the test host was signed and therefore
-/// has an `application-identifier` entitlement — is legible in the CI log of
-/// every run, passing or failing.
+/// This suite exists because a Keychain test that fails for an environmental
+/// reason looks exactly like a Keychain test that fails for a real one. It
+/// performs the three calls the store performs, against its own service
+/// string, and asserts each returned the status a working host returns — with
+/// the numeric OSStatus in every message.
 ///
-/// The workflow runs this suite on its own against a deliberately unsigned host
-/// (`CODE_SIGNING_ALLOWED=NO`) as a diagnostic step, which is how the -34018
-/// claim in the comments above is evidence rather than folklore.
+/// It was first written to `print` the statuses instead. That did not work:
+/// run 30771670303 confirmed that stdout from the test process does not reach
+/// xcodebuild's streamed output, so the probe ran, passed, and told nobody
+/// anything. An XCTest assertion failure *does* reach the log, so the check is
+/// an assertion.
+///
+/// The workflow runs this suite on its own against a deliberately UNSIGNED
+/// host (`CODE_SIGNING_ALLOWED=NO`) as a non-gating diagnostic step. It is
+/// expected to fail there, and the numbers in its failure are the evidence for
+/// the entitlement claim in the workflow comments.
 final class KeychainEntitlementProbe: XCTestCase {
 
   /// Deliberately not `KeychainIdentityStore.service`. A probe that shared the
@@ -104,7 +112,14 @@ final class KeychainEntitlementProbe: XCTestCase {
     super.tearDown()
   }
 
-  func testProbeReportsTheRawKeychainStatusesAndNeverFails() {
+  /// The whole diagnosis, in one line of failure text per call.
+  ///
+  /// A failing message here reads, for example:
+  ///
+  ///     KEYCHAIN PROBE: SecItemCopyMatching with nothing stored returned
+  ///     -34018 errSecMissingEntitlement, expected -25300 errSecItemNotFound.
+  ///     ...
+  func testTheTestHostCanReachTheKeychain() {
     var item: CFTypeRef?
 
     let emptyRead = SecItemCopyMatching(
@@ -117,19 +132,30 @@ final class KeychainEntitlementProbe: XCTestCase {
     let readBack = SecItemCopyMatching(
       query([kSecReturnData as String: true]), &item)
 
-    // `print`, not an assertion. xcodebuild captures stdout, and the workflow
-    // greps for this prefix on both the passing and the failing path.
-    print("KEYCHAIN PROBE: SecItemCopyMatching(nothing stored) -> \(describe(emptyRead))")
-    print("KEYCHAIN PROBE: SecItemAdd                          -> \(describe(add))")
-    print("KEYCHAIN PROBE: SecItemCopyMatching(after add)      -> \(describe(readBack))")
-    print(
+    let diagnosis = """
+
+      All three statuses above coming back \(describe(-34018)) means the test \
+      host carries no application-identifier entitlement. That happens when \
+      code signing is disabled for the test step \
+      (CODE_SIGNING_ALLOWED=NO), and it means the Keychain refused every call \
+      before any logic under test ran — so the other failures in this run are \
+      environmental, not defects in KeychainIdentityStore.
       """
-      KEYCHAIN PROBE: expected on a signed host: \
-      \(describe(-25300)) / \(describe(0)) / \(describe(0)). \
-      All three coming back \(describe(-34018)) means the test host carries no \
-      application-identifier entitlement, which means code signing was \
-      disabled for this step and no Keychain logic was exercised at all.
-      """)
+
+    XCTAssertEqual(
+      emptyRead, errSecItemNotFound,
+      "KEYCHAIN PROBE: SecItemCopyMatching with nothing stored returned "
+        + "\(describe(emptyRead)), expected \(describe(errSecItemNotFound))."
+        + diagnosis)
+    XCTAssertEqual(
+      add, errSecSuccess,
+      "KEYCHAIN PROBE: SecItemAdd returned \(describe(add)), expected "
+        + "\(describe(errSecSuccess))." + diagnosis)
+    XCTAssertEqual(
+      readBack, errSecSuccess,
+      "KEYCHAIN PROBE: SecItemCopyMatching after the add returned "
+        + "\(describe(readBack)), expected \(describe(errSecSuccess))."
+        + diagnosis)
   }
 }
 
@@ -161,8 +187,13 @@ final class KeychainEntitlementProbe: XCTestCase {
 ///     recreated, which is the case a one-shot implementation gets wrong
 ///   * **that an atomic write and a rename over the top each destroy the
 ///     exclusion**, which is why a launch-only application is not enough and
-///     `BACKUP_EXCLUSION_CONTRACT.md` exists — and, as the counter-cases, that
-///     an in-place truncate and `FileManager.replaceItemAt` each preserve it
+///     `BACKUP_EXCLUSION_CONTRACT.md` exists
+///   * **that after every create, write, rename, replacement and compaction,
+///     the file at the final path is excluded once the per-write hook has
+///     run.** That is the invariant this project guarantees. What the platform
+///     does in between is recorded as an observation and asserted only where
+///     it is already confirmed on this OS, because it is Apple's behaviour and
+///     not ours to promise.
 ///
 /// ===========================================================================
 /// What these CANNOT prove — read this before quoting the suite as evidence
@@ -687,12 +718,18 @@ final class BackupExclusionTests: XCTestCase {
   // file created after the launch sweep each leaves a file that would travel in
   // a restore, with nothing anywhere reporting it.
   //
-  // Two operations are counter-cases and are asserted as such, so the contract
-  // is precise rather than superstitious: an in-place truncate and
-  // `FileManager.replaceItemAt` both PRESERVE the attribute. Neither is an
-  // operation `stride_storage` performs, and re-application after them is a
-  // cheap no-op, so nothing rests on that — but a rule stated more broadly than
-  // the evidence supports is how a contract stops being believed.
+  // The rule these tests enforce is the END STATE, not the platform's
+  // intermediate behaviour:
+  //
+  //     After every create, write, rename, replacement and compaction, the
+  //     file at the final path is excluded from backup.
+  //
+  // Every test in this section ends on that assertion. The drop itself is
+  // asserted only for the atomic write and the rename, where it is confirmed on
+  // this OS and is the motivation for the hook; for `replaceItemAt` and the
+  // in-place truncate the platform behaviour is recorded and not required,
+  // because whether a Foundation call preserves a resource value is Apple's to
+  // change and not ours to promise.
 
   func testAnAtomicWriteDropsTheExclusion() {
     let path = create(["save_slot_a"])[0]
@@ -742,38 +779,42 @@ final class BackupExclusionTests: XCTestCase {
     XCTAssertTrue(isExcluded(journal.path))
   }
 
-  /// The counter-case, corrected against what the platform actually does.
+  /// `replaceItemAt`: the platform behaviour is **recorded**, the end state is
+  /// **asserted**.
   ///
-  /// This test previously asserted that `replaceItemAt` DROPS the exclusion,
-  /// by analogy with the atomic write and the rename above. CI run
-  /// 30769049772 disagreed: it was the one `BackupExclusionTests` case to
-  /// fail, while `testARenameOverTheTopDropsTheExclusion` — the case the
-  /// per-write re-application actually exists for — passed.
+  /// This was `testReplaceItemAtDropsTheExclusion`, and it required
+  /// `replaceItemAt` to destroy the attribute, by analogy with the atomic
+  /// write and the rename above. CI run 30769049772 disagreed: it was the only
+  /// `BackupExclusionTests` case to fail, while
+  /// `testARenameOverTheTopDropsTheExclusion` — the case the per-write hook
+  /// actually exists for — passed on the same simulator.
   ///
-  /// The analogy was wrong, and the documentation was right about why:
-  /// `replaceItemAt` is the "safe save" primitive, and without
-  /// `.usingNewMetadataOnly` it deliberately carries the ORIGINAL item's
-  /// metadata onto the replacement. Preserving the attribute is the whole
-  /// point of the API. The rename and the atomic write make no such promise,
-  /// and they are the operations `stride_storage` actually performs.
+  /// The analogy was the mistake, and so was the shape of the test. Whether a
+  /// given Foundation call preserves a resource value is **Apple's** behaviour.
+  /// It is not ours to promise, no contract we can hold Apple to covers it, and
+  /// it may differ between OS versions — so pinning it as a requirement means a
+  /// future iOS release fails this suite over something that was never the
+  /// point.
   ///
-  /// So this now asserts preservation. Three things make that a real
-  /// assertion rather than a test bent to fit:
+  /// What IS ours to guarantee is the end state:
+  ///
+  ///   > After every create, write, rename, replacement and compaction, the
+  ///   > final sensitive file is excluded from backup.
+  ///
+  /// So the intermediate observation is printed rather than asserted — it is
+  /// evidence, and it is why the per-write hook exists — and the assertion is
+  /// on the state after `BackupExclusion.apply` has run, which is the state
+  /// this project actually controls.
+  ///
+  /// Two things keep that from being a test bent to fit:
   ///
   ///   * `try`, not `try?`. A `replaceItemAt` that threw would leave the
-  ///     original in place and its attribute intact, which is indistinguishable
-  ///     from preservation — swallowing the error would let a failed
-  ///     replacement masquerade as the finding.
-  ///   * the file contents are checked, so the replacement is proven to have
-  ///     happened at all.
-  ///   * the re-application is still exercised afterwards, and it must still
-  ///     be a no-op-shaped success.
-  ///
-  /// Nothing about the contract loosens: re-application after every write is
-  /// still required, because this is Apple's behaviour and not a guarantee
-  /// this project controls, and because the operations that DO destroy the
-  /// attribute are the ones the save system uses.
-  func testReplaceItemAtPreservesTheExclusion() throws {
+  ///     original in place with its attribute intact, which is
+  ///     indistinguishable from preservation; swallowing the error would let a
+  ///     failed replacement masquerade as a finding.
+  ///   * the bytes are read back, so the replacement is proven to have happened
+  ///     at all.
+  func testTheFileIsExcludedAfterAReplaceItemAt() throws {
     let target = root.appendingPathComponent("save_slot_a")
     let replacement = root.appendingPathComponent("save_slot_a.new")
     FileManager.default.createFile(atPath: target.path, contents: Data([0x01]))
@@ -786,28 +827,46 @@ final class BackupExclusionTests: XCTestCase {
 
     // The replacement really happened. Without this, a no-op would read as
     // "the attribute was preserved".
-    let contents = try Data(contentsOf: target)
     XCTAssertEqual(
-      contents, Data([0x02]),
+      try Data(contentsOf: target), Data([0x02]),
       "the replacement's bytes must be at the target path")
-    let survived = isExcluded(target.path)
-    print("BACKUP EXCLUSION: replaceItemAt -> excluded == \(survived)")
+
+    // ---- the observation: recorded, never required ----
+    //
+    // Apple documents `replaceItemAt` as the safe-save primitive that carries
+    // the ORIGINAL item's metadata onto the replacement unless
+    // `.usingNewMetadataOnly` is given, which would mean preservation. This
+    // records what the runner actually did, and asserts nothing about it.
+    //
+    // Recorded as an XCTest activity and attachment rather than with `print`.
+    // Run 30771670303 established that stdout from the test process does not
+    // reach xcodebuild's streamed log — the earlier `print` here ran and was
+    // never seen. An activity name and an attachment are both written into the
+    // .xcresult bundle, which CI uploads and keeps.
+    let afterReplacement = isExcluded(target.path)
+    let observation =
+      "OBSERVED: after FileManager.replaceItemAt, isExcludedFromBackup == "
+      + "\(afterReplacement). Recorded, not asserted: this is Apple's "
+      + "behaviour and may differ between OS versions."
+    XCTContext.runActivity(named: observation) { activity in
+      let note = XCTAttachment(string: observation)
+      note.name = "replaceItemAt-backup-exclusion-observation"
+      note.lifetime = .keepAlways
+      activity.add(note)
+    }
+
+    // ---- the invariant: asserted ----
+    let report = BackupExclusion.apply(paths: [target.path])
+    XCTAssertTrue(report.failed.isEmpty, "failed: \(report.failed)")
     XCTAssertTrue(
-      survived,
+      isExcluded(target.path),
       """
-      replaceItemAt is documented to carry the original item's metadata onto \
-      the replacement unless .usingNewMetadataOnly is given, and on this OS it \
-      does: the exclusion survives.
-
-      If this ever fails, Apple's behaviour has changed and \
-      BACKUP_EXCLUSION_CONTRACT.md section 1 must be corrected again — the \
-      per-write re-application already covers it either way, which is why this \
-      is a documented observation and not a load-bearing dependency.
+      The file at the final path must be excluded once the per-write hook has \
+      run. That is the invariant this project guarantees, and it holds whether \
+      or not the platform preserved the attribute across the replacement — \
+      which is exactly why the hook re-applies unconditionally instead of \
+      checking first.
       """)
-
-    // Re-application after it is still correct and still cheap.
-    XCTAssertTrue(BackupExclusion.apply(paths: [target.path]).failed.isEmpty)
-    XCTAssertTrue(isExcluded(target.path))
   }
 
   func testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied() {
