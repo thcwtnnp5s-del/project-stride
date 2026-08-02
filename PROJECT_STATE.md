@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
 **Version:** 2.0
-**Status:** ✅ **F-04 complete** — step ledger and reconciliation. ⚠️ One privacy decision escalated.
-**Current Phase:** Milestone 01 — awaiting owner approval before F-05
+**Status:** ⚠️ **F-05 blocked on four owner decisions** — see F05_DESIGN_RECONCILIATION.md. Three lost-grant defects in F-04 found and fixed.
+**Current Phase:** Milestone 01 — F-05 design reconciled, implementation not started
 
 ## Project identity
 
@@ -94,17 +94,28 @@ The player must be able to:
 21. ~~Execute F-03 — state, commands, events, engine.~~ **Done — `F03_COMPLETION_REPORT.md`**
 22. ~~Owner approval of F-03.~~ **Approved**
 23. ~~Execute F-04 — step ledger and reconciliation.~~ **Done — `F04_COMPLETION_REPORT.md`**
-24. **Owner approval before F-05, and answer the escalated privacy question.** ← current state
+24. ~~Owner approval before F-05; answer the escalated privacy question.~~ **Approved 2026-08-02**
+25. ~~Fix the three lost-grant defects the F-05 critic review found in F-04.~~ **Done — commit 8336774**
+26. **Answer the four blocking F-05 decisions in `F05_DESIGN_RECONCILIATION.md` §4.** ← current state
 
-## ⚠️ Open decision for the owner
+## ⚠️ Open decisions for the owner
 
-**The persisted ledger narrows a Game Bible rule.** `GAME_BIBLE/HEALTH_INTEGRATION` says persist *"ingested total, consumed total, sync anchor"* and **"never a step history"**. The reconciler additionally persists `grantedSlices` — per-device, per-hour **granted amounts**, bounded to 48 hours and compacted after.
+The privacy question is **settled** — bounded `grantedSlices` approved as a documented exception, 7-day default retention with a 48-hour floor, described honestly as coarse recent reconciliation history. See `TECHNICAL/STEP_LEDGER_PRIVACY.md`.
 
-It is derived rather than raw, and bounded — but close enough to a coarse recent step record that calling it "not a history" would be a word game. It is also what makes replay, overlap, multi-origin, and bounded recovery provably safe; the scalar alternative cannot distinguish a restatement from new data.
+**F-05 is blocked on four new decisions**, raised by the four sub-agent reviews and reconciled in `F05_DESIGN_RECONCILIATION.md` §4:
 
-Three options with a recommendation: `TECHNICAL/STEP_LEDGER_PRIVACY.md` §5.
+1. **Snapshot atomicity** — temp+rename (approved plan §4.1) or two-slot ping-pong? Dart cannot fsync a directory, so rename durability is unverifiable. Recommendation: two slots, with a plan amendment.
+2. **Concurrent commit** — in F-05 scope, or an explicit written deferral? Health Connect background delivery can double-grant against a foreground sync, and it will not reproduce in development. Recommendation: in scope.
+3. **Profile mismatch in release builds** — hard refusal on a real save?
+4. **Journal as intent log rather than event store** — required by the retention ruling, but it forecloses post-hoc debugging and away-summary reconstruction.
 
-**Answer before F-05** — F-05 serializes whatever shape is settled, and deciding after the save format exists is the expensive order.
+**Answer before implementation.** F-05 serializes whatever shape is settled; deciding after the save format exists is the expensive order.
+
+## Three lost-grant defects found and fixed
+
+The F-05 Technical Critic review ran F-04's code and constructed three silent lost grants. Two required no crash — they were ordinary provider behaviour. A newest-first paginated backfill destroyed 55,200 of 64,800 steps; a watch reconnecting after an absence lost its whole backlog.
+
+Root cause: the settled watermark was *inferred* by the core rather than *asserted* by the adapter. Fixed at commit `8336774` — `SyncResponse.completeThroughMillis`, a watermark that is exactly what compaction used, and a `lateDiscardedSlices` counter so the one remaining lossy path is countable rather than silent.
 
 ## Milestone 01 progress
 
@@ -117,7 +128,7 @@ Three options with a recommendation: `TECHNICAL/STEP_LEDGER_PRIVACY.md` §5.
 | F-05 — save, ledger persistence, crash recovery | Next |
 | F-06 — skill framework | Unblocked |
 
-**147 automated tests** across the workspace: 138 Dart in `stride_core`, 2 app widget, 7 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
+**175 automated tests** across the workspace: 149 Dart in `stride_core`, 2 app widget, 7 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
 
 `stride_core` is 19 files of pure Dart — no Flutter, no plugins, no `dart:io`, and now no clock, randomness, locale, or platform reads either, enforced by a static source scan.
 
