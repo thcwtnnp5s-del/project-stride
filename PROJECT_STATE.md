@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
 **Version:** 2.0
-**Status:** ⚠️ **F-05 blocked on four owner decisions** — see F05_DESIGN_RECONCILIATION.md. Three lost-grant defects in F-04 found and fixed.
-**Current Phase:** Milestone 01 — F-05 design reconciled, implementation not started
+**Status:** ✅ **F-05 complete** — local save, ledger persistence, transactional commit, crash recovery.
+**Current Phase:** Milestone 01 — awaiting owner approval before F-06
 
 ## Project identity
 
@@ -96,26 +96,21 @@ The player must be able to:
 23. ~~Execute F-04 — step ledger and reconciliation.~~ **Done — `F04_COMPLETION_REPORT.md`**
 24. ~~Owner approval before F-05; answer the escalated privacy question.~~ **Approved 2026-08-02**
 25. ~~Fix the three lost-grant defects the F-05 critic review found in F-04.~~ **Done — commit 8336774**
-26. **Answer the four blocking F-05 decisions in `F05_DESIGN_RECONCILIATION.md` §4.** ← current state
+26. ~~Answer the four blocking F-05 decisions.~~ **Ruled 2026-08-02**
+27. ~~Execute F-05 — save, ledger persistence, crash recovery.~~ **Done — `F05_COMPLETION_REPORT.md`**
+28. **Owner approval before F-06.** ← current state
 
-## ⚠️ Open decisions for the owner
+## F-05 closed the four decisions
 
-The privacy question is **settled** — bounded `grantedSlices` approved as a documented exception, 7-day default retention with a 48-hour floor, described honestly as coarse recent reconciliation history. See `TECHNICAL/STEP_LEDGER_PRIVACY.md`.
+All four were ruled on 2026-08-02 and implemented: two-slot ping-pong snapshots, compare-and-swap on every commit, save-authoritative balance profile, and the journal as a bounded recovery log rather than an event store. Recorded in `DECISIONS/0012_SAVE_FORMAT.md`.
 
-**F-05 is blocked on four new decisions**, raised by the four sub-agent reviews and reconciled in `F05_DESIGN_RECONCILIATION.md` §4:
+## Ten root causes fixed during F-05
 
-1. **Snapshot atomicity** — temp+rename (approved plan §4.1) or two-slot ping-pong? Dart cannot fsync a directory, so rename durability is unverifiable. Recommendation: two slots, with a plan amendment.
-2. **Concurrent commit** — in F-05 scope, or an explicit written deferral? Health Connect background delivery can double-grant against a foreground sync, and it will not reproduce in development. Recommendation: in scope.
-3. **Profile mismatch in release builds** — hard refusal on a real save?
-4. **Journal as intent log rather than event store** — required by the retention ruling, but it forecloses post-hoc debugging and away-summary reconstruction.
+Four sub-agents ran against compiling code. They found a durable commit that reported failure and froze the step cursor; a `core.autocrlf` hazard that would have broken the frozen save fixture on any second machine; and unconstrained bucket *resolution*, which would have made a minute-by-minute activity log fully compliant with the retention ruling.
 
-**Answer before implementation.** F-05 serializes whatever shape is settled; deciding after the save format exists is the expensive order.
+**The most serious was mine.** LG-3 — the origin-blind horizon that discarded a returning player's backlog — was fixed, committed, and reported closed at `8336774` with a passing regression test. The fix was inert: a single global watermark cannot express "settled for the phone, still open for the watch", and the test passed only because it never asserted completeness. Closed properly at `ae06719` with per-origin watermarks.
 
-## Three lost-grant defects found and fixed
-
-The F-05 Technical Critic review ran F-04's code and constructed three silent lost grants. Two required no crash — they were ordinary provider behaviour. A newest-first paginated backfill destroyed 55,200 of 64,800 steps; a watch reconnecting after an absence lost its whole backlog.
-
-Root cause: the settled watermark was *inferred* by the core rather than *asserted* by the adapter. Fixed at commit `8336774` — `SyncResponse.completeThroughMillis`, a watermark that is exactly what compaction used, and a `lateDiscardedSlices` counter so the one remaining lossy path is countable rather than silent.
+Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 
 ## Milestone 01 progress
 
@@ -125,12 +120,12 @@ Root cause: the settled watermark was *inferred* by the core rather than *assert
 | F-02 — content schemas and loader | ✅ Done |
 | F-03 — GameState, events, engine | ✅ Done |
 | **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
-| F-05 — save, ledger persistence, crash recovery | Next |
+| **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
 | F-06 — skill framework | Unblocked |
 
-**175 automated tests** across the workspace: 149 Dart in `stride_core`, 2 app widget, 7 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
+**283 automated tests** across the workspace: 247 Dart in `stride_core`, 2 app widget, 17 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
 
-`stride_core` is 19 files of pure Dart — no Flutter, no plugins, no `dart:io`, and now no clock, randomness, locale, or platform reads either, enforced by a static source scan.
+`stride_core` is 31 files of pure Dart — no Flutter, no plugins, no `dart:io`, and now no clock, randomness, locale, or platform reads either, enforced by a static source scan.
 
 ## Current documents
 
@@ -144,6 +139,8 @@ Root cause: the settled watermark was *inferred* by the core rather than *assert
 | `TOOLCHAIN_REPORT_WINDOWS.md` | Verified Windows toolchain |
 | `FILE_MANIFEST.md` | Full inventory, active vs. historical |
 | **`MIGRATION_CLOSURE_REPORT.md`** | **M-5/M-6, final CI, recommended F-02 scope** |
+| **`F05_COMPLETION_REPORT.md`** | **Save format, crash recovery, the ten root causes** |
+| **`DECISIONS/0012_SAVE_FORMAT.md`** | **Two slots, CAS, cursor authority, origin privacy** |
 | `MIGRATION_EXECUTION_PLAN.md` | M-1 to M-6, with acceptance criteria |
 | `DESIGN_REVIEW_FLUTTER.md` | Four-role review, approved with changes |
 | `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md` | Why Flutter |

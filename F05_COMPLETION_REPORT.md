@@ -4,7 +4,7 @@
 **Task:** F-05 — save system, step-ledger persistence, transactional commit, crash recovery
 **Authority:** Owner rulings of 2026-08-02 — four design rulings, cursor authority, completeness contract, origin privacy, late data
 **Decision record:** `DECISIONS/0012_SAVE_FORMAT.md`
-**Status:** *(filled in at completion)*
+**Status:** ✅ **Complete.** 247 `stride_core` tests, 266 across the workspace. Full verification green, twice from fresh storage.
 
 ---
 
@@ -16,8 +16,8 @@ Four focused sub-agents, spawned against **compiling code rather than a sketch**
 |---|---|---|
 | **Storage Protocol** | Two-slot snapshots, validation, CAS, single-writer | Implemented by the orchestrator directly. The protocol *is* the crash-safety argument, and splitting its authorship from its invariants invites a second implementation that disagrees about ordering |
 | **Fault Matrix** | Every crash boundary, concurrency, divergent slots, journal recovery | **1 real bug** — see §1.1. 18 tests |
-| **Migration** | Version decoders, prior-version fixture, invariant revalidation | *(pending)* |
-| **Privacy Auditor** | Serialized fields, pseudonymization boundary, retention, redaction | *(pending)* |
+| **Migration** | Version decoders, prior-version fixture, invariant revalidation | **1 real hazard, outside Dart** — see §1.3. 34 tests |
+| **Privacy Auditor** | Serialized fields, pseudonymization boundary, retention, redaction | **No leak found; one open hole in the ruling** — see §1.4. 23 tests |
 
 ### 1.1 Fault Matrix — a durable commit that reported failure
 
@@ -44,6 +44,31 @@ Step reconciliation grants `max(0, observed − alreadyGranted)`. A loader that 
 Every committed batch therefore carries a non-idempotent effect — `GrantSyntheticSteps(291)` plus `AllocateSteps(137)` as one transaction — and every post-restart assertion checks `totalSpent` alongside `totalGranted`. A double replay reads 274; a dropped replay reads 0.
 
 Verified by mutating the loader to replay unconditionally: **13 of 18 tests failed.** The mutation was reverted.
+
+
+### 1.3 Migration — a hazard in git rather than in Dart
+
+`core.autocrlf=true` on the development machine, and no `.gitattributes`.
+
+The save frame separator is a single `0x0A`. Git would have rewritten it to `0x0D 0x0A` on checkout — changing the payload length, breaking the CRC-32C, and making a fixture that is supposed to be immutable **differ per clone**.
+
+It would have presented as a mysterious integrity mismatch on a second machine, or in CI, rather than as a checkout problem. That is the kind of failure that costs a day and teaches nothing.
+
+Closed with a scoped `.gitattributes` marking `*.save` binary. The migration suite now asserts the fixture's byte length and the absence of any `0x0D`, with a reason string naming the cause, so a regression diagnoses itself. I verified `git check-attr` reports `binary: set` rather than taking the report on trust.
+
+**Fixture policy, recorded so it is not renegotiated:** `v1_baseline.save` is frozen forever. When `StateVersion.current` becomes 2, a `_V2StateDecoder` is added, the v1 fixture and decoder are left untouched, v1's round-trip test becomes decode-only, and a new frozen `v2_baseline.save` carries the round-trip property forward. Never chain v1→v2→v3. **Regenerating the fixture is never the fix.**
+
+### 1.4 Privacy — no leak, and one genuinely open hole
+
+The auditor found **no value on disk that the ruling forbids**. Slices are structural `{o,s,e,g}`; the origin type cannot hold a name; the decoder's rejection carries a length only; there is no `print`, no logging, no telemetry, no export path anywhere in `stride_core`.
+
+Android backup was already correct — **domain-wide exclusions rather than a filename allowlist**, so the new save artifacts are covered by construction. An allowlist would have silently missed them when F-05 renamed everything. But nothing asserted it, and a manifest edit or a library manifest merged in by a future plugin would have changed it with no test failing. `Scripts/check-backup-exclusions.sh` now guards both transports and all five domains; I confirmed it fails when `allowBackup` is flipped and when a single domain is dropped.
+
+**The open hole was bucket resolution.** The ruling bounds retention *length* and says nothing about *resolution*, so one-minute buckets would have been fully compliant as written — roughly ten thousand entries per origin, a minute-by-minute record of when the player moved, kept for a week. Nobody would have chosen that; it would simply have been whatever the adapter emitted, and the adapter is not written yet.
+
+`TimeBucket.minimumWidthMillis` is now one hour, enforced at the reconciler boundary as a typed refusal **rather than an `assert`** — asserts are stripped from release builds, and release is where a player's data is. One hour is also what the retention document's own sizing estimate always assumed; the document now says so.
+
+**One documentation correction.** `STEP_LEDGER_PRIVACY.md` §2 claimed the rescan window is "recorded only as a truncation count, not the window". That was false and contradicted §3 of the same document — the window is persisted and rides in the journal until compaction. Corrected in place, with the withdrawn claim left visible.
 
 ---
 
@@ -190,22 +215,89 @@ A test that supplies well-formed input and checks the output cannot find a bug w
 
 ## 8. `/loop` iterations and root causes fixed
 
-*(filled in at completion)*
+**Two iterations. Stopped at the two-consecutive-clean-passes condition.**
+
+| Pass | From fresh storage | Fixtures | Result |
+|---|---|---|---|
+| 1 | ✅ | unchanged | 247 core + 2 app + 17 health, all guards |
+| 2 | ✅ | unchanged | identical |
+
+**Stated plainly: the loop found nothing, because the defects had already been found and fixed during the sub-agent phase, each with its own commit.** Reporting eight iterations of churn would be more impressive and less true.
+
+Every suite constructs a fresh in-memory device per test, so "initialize fresh temporary storage" is a property of the harness rather than a step in the loop — and `reboot()` returns a *new* instance, so a test cannot leak state across the restart it claims to be testing.
+
+The root causes fixed during implementation, all before the loop ran:
+
+| # | Root cause | Found by | Commit |
+|---|---|---|---|
+| 1 | Unguarded `_compact()` turned a durable commit into a thrown error, freezing the cursor | Fault Matrix | `8e64edf` |
+| 2 | `core.autocrlf` would rewrite the frozen fixture's `0x0A` separator, breaking its digest per clone | Migration | `1d90830` |
+| 3 | Bucket *resolution* was unconstrained, so minute buckets would have been compliant | Privacy Auditor | `bc4ebf4` |
+| 4 | `originKeyReset` / `originKeyRejected` documented as safeguards, never produced | Migration + Privacy | `bc4ebf4` |
+| 5 | Android backup exclusions correct but unasserted | Privacy Auditor | `bc4ebf4` |
+| 6 | **A global watermark cannot express per-origin settlement — LG-3 was never actually fixed** | Orchestrator, via a test written to prove the opposite | `ae06719` |
+| 7 | `StepCheckpointAuthorized` dropped the watermark map, unsettling every origin | Orchestrator | `ae06719` |
+| 8 | The snapshot did not persist the watermark map, so a reload re-granted the window | Orchestrator | `ae06719` |
+| 9 | A healthy single-commit save reported itself `degraded` | Orchestrator | `6f4519b` |
+| 10 | Pseudonymizer emitted 17-character keys for negative hashes | Orchestrator | `04c9282` |
+
+**No test was weakened and no fixture was edited to obtain green.** Two tests were corrected, both times because the *fixture* did not reach the assertion:
+
+- A privacy test ended on a spend and an equip, so the retained journal record carried no slices — the test failed with its own "proved nothing" reason string.
+- A corruption test pinned `slotMalformedEncoding` where the diagnosis is now the more specific `originKeyRejected`, which is the improvement that agent asked for.
 
 ---
 
 ## 9. Test inventory
 
-*(filled in at completion)*
+**247 `stride_core`**, up from 149 at F-04. **17 `stride_health`**, up from 7. **2 app.** 266 total, plus 5 Kotlin and 12 Swift in CI.
+
+| Suite | Tests | Covers |
+|---|---|---|
+| `save_corruption_test.dart` | 27 | Every typed refusal; malformed encoding in six shapes; a digest test that proves the tampered payload still parses |
+| `save_privacy_test.dart` | 23 | Assertions against **raw durable bytes**, not decoded objects |
+| `save_fault_matrix_test.dart` | 18 | Eight crash boundaries plus concurrency and divergent slots |
+| `save_protocol_test.dart` | 17 | Encoding, slot selection, CAS, salt refusal, watermark persistence |
+| `lost_grant_regression_test.dart` | 11 | The three F-04 defects, bucket resolution, per-origin scoping |
+| `save_migration_test.dart` | 7 | Frozen v1 fixture, byte-identical round trip, version refusals |
+| `origin_pseudonymizer_test.dart` | 12 | A device name cannot cross the boundary or be constructed |
+
+The suite that matters most is the one asserting on bytes. Every other save test can be clean while the file that produced it carries a field nobody reads.
 
 ---
 
 ## 10. CI identifiers
 
-*(filled in at completion)*
+The four-job matrix is unchanged from M-4: `core` / `pigeon` / `android` on ubuntu, `ios` on macOS. Run identifiers are recorded against the pushed commit.
+
+The `ios` job is the one that matters here: nothing about the Apple branch is verifiable on Windows, and it has caught a compile failure before.
 
 ---
 
 ## 11. Unresolved risks and required follow-up
 
-*(filled in at completion)*
+### Carried into S-01
+
+| | |
+|---|---|
+| **Adapter durability is unverifiable from the core** | `LedgerJournal.appendLine` promises to return only once durable. A platform that lies is survivable only because the snapshot write follows; if a device lied about both, `commit()` would return `CommitDurable` over nothing. Needs an adapter-level test, not a core test |
+| **`lateDiscardedSlices` on real hardware** | Every nonzero occurrence must be investigated. Nonzero means real steps were probably lost |
+| **Retention is provisional** | 7 days is a judgement. S-01 must measure actual correction latency |
+| **Background-worker concurrency** | CAS is implemented and tested in-process. Health Connect background delivery is out of F-05 scope and must be reconciled against this contract rather than assumed safe |
+| **Native cursor caching is prohibited** | `DECISIONS/0012` §5. The natural adapter implementation breaks it, and the failure is permanent and silent |
+
+### Open, and honestly named
+
+**Journal growth on the snapshot-failure path is unbounded and unobserved.** Compaction refuses when fewer than two slots verify — correct, since the floor is undefined — and `_commitOnce` only compacts when the snapshot is durable. On a device where snapshot writes keep failing, the journal grows while every reconciliation record carries a slice map. The healthy path is tight (the retained record is always the newest, so its slices are inside the live window), but there is no counter, no diagnosis, and no ceiling. *Privacy Auditor R-privacy-2.*
+
+**An origin with no completeness assertion never compacts.** Deliberate — silence about a source is not an assertion about it — but an abandoned origin retains slices indefinitely. Bounded in practice because an adapter that enumerated the platform's source list asserts `AllOrigins`; unbounded if one persistently cannot. Needs an eviction rule once a real adapter exists.
+
+**`ObservationKey.toString()` renders an origin key and a bucket.** Documented diagnostic-only and unreachable from any persisted or player-visible surface today, but it is the *default* rendering, so a future interpolation into an exception message writes health-derived data without anyone deciding to.
+
+**`totalObserved` ratchets down under correction churn** and never recovers, so `grantedAheadOfObserved` — the field that exists to answer "why does the game say more than Health does?" — can report a divergence that is not there. Diagnostic only, but it is the diagnostic reached for when investigating everything above. *Carried from the F-04 critic review; not fixed in F-05.*
+
+### The procedural finding
+
+**Three of the ten root causes above were found by writing a test intended to demonstrate that something already worked.** The per-origin watermark defect is the clearest: the earlier LG-3 fix was committed, reported as complete, and had a passing regression test — and it only passed because that test never asserted completeness. The fix worked by never exercising the path it was supposed to protect.
+
+The habit worth keeping: when a test is written to confirm a fix, it has to be able to fail. A regression test that passes against the pre-fix code is not a regression test.
