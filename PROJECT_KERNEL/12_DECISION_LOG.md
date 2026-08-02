@@ -24,9 +24,11 @@ Audio must be considered during system design, not added only as final polish.
 **Status:** Locked — see `DECISIONS/0001_PROGRESSION_CLOCK.md`  
 Activities advance only from newly earned, reconciled steps. Nothing progresses on wall-clock time alone. "Idle" means asynchronous planning, offline reconciliation, and delayed collection — not passive accrual.
 
-## Native Swift + SwiftUI
-**Status:** Locked — see `DECISIONS/0002_TECHNOLOGY_STACK.md`  
-iOS 17+, SwiftUI shell over a pure-Swift `StrideCore` simulation package. The core must not depend on any platform framework.
+## Technology stack
+**Status:** ⚠️ **REOPENED 2026-08-01** — see `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`  
+`DECISIONS/0002` selected native Swift + SwiftUI on the premises that iOS was the only platform and macOS was available. Both premises changed: the development machine is Windows, and some players use Android. A formal review recommends **Flutter with first-party HealthKit and Health Connect platform channels**. Awaiting owner approval; F-01 is paused.
+
+The architectural *principle* is unaffected and stands regardless of outcome: a pure simulation core with no dependency on any UI or platform framework, with every platform capability behind a port.
 
 ## Turn-based, retreat-not-death combat
 **Status:** Locked — see `DECISIONS/0003_COMBAT_MODEL.md`  

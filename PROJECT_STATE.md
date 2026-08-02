@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
-**Version:** 1.2
-**Status:** Plans approved; Phase 1 begun
-**Current Phase:** Milestone 01 — F-01 in review, blocked on macOS access for build verification
+**Version:** 1.3
+**Status:** Technology stack reopened; F-01 paused
+**Current Phase:** Milestone 01 — cross-platform architecture review awaiting owner approval
 
 ## Project identity
 
@@ -74,20 +74,28 @@ The player must be able to:
 5. ~~Create `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md`.~~ **Done — awaiting owner approval**
 6. ~~Run design, critic, and QA review on those plans.~~ **Done — `DESIGN_REVIEW.md`, `CRITIC_REPORT.md`**
 7. ~~Wait for owner approval before production implementation.~~ **Approved 2026-08-01**
-8. ~~Execute F-01.~~ **Authored; in review — see `MILESTONES/F-01_COMPLETION_REPORT.md`**
-9. **Verify the F-01 build on macOS.** ← current state
+8. ~~Execute F-01 (Swift).~~ **Authored, never compiled — paused, see below**
+9. ~~Reopen the technology-stack decision.~~ **Done — `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`**
+10. **Owner approval of the Flutter recommendation.** ← current state
 
-## Blocker
+## Stack reopened — F-01 paused
 
-**iOS development requires macOS.** This repository is on Windows, with no Swift toolchain, no Xcode, and no simulator. All F-01 source and configuration is authored, but it has never been compiled.
+`DECISIONS/0002` (native Swift + SwiftUI) was made on two premises that have since changed: iOS was the only platform, and macOS was available. The development machine is a Dell running Windows 11, and some intended players use Android.
 
-On a Mac:
+`ARCHITECTURE_REVIEW_CROSS_PLATFORM.md` compares Flutter, Kotlin Multiplatform, and separate native applications across fifteen criteria and recommends:
 
-```bash
-brew install xcodegen && xcodegen generate && ./Scripts/verify.sh
-```
+> **Flutter, with first-party HealthKit and Health Connect platform channels, Android built first.**
 
-F-02 is gated on that passing.
+Under the current Swift decision, roughly **0%** of the project is verifiable on the owner's machine. Under Flutter it is roughly **90%**, and 35 of 40 tasks need no Mac at all.
+
+**Nothing is replaced until the owner approves.** The Swift F-01 scaffold remains in the tree, unbuilt and inert. Migration cost is assessed in `MIGRATION_IMPACT_F01.md` as roughly one session.
+
+### Awaiting owner confirmation
+
+1. Adopt Flutter with first-party platform channels
+2. Sequence Android first, iOS when Mac access is arranged
+3. How macOS access will be provided — cloud CI, rented, or owned
+4. Android beta channel — Play closed testing or direct APK
 
 ## Open gaps to close during Milestone 01
 

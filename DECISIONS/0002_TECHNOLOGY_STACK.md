@@ -1,9 +1,22 @@
 # Decision: Technology Stack — Native Swift + SwiftUI
 
-**Status:** Approved
+**Status:** ⚠️ **REOPENED 2026-08-01 — under review, do not act on this document**
 **Date:** 2026-08-01
 **Owner:** Project owner
 **Satisfies:** The technical review required by `GAME_BIBLE/TECHNICAL/01_MOBILE_ARCHITECTURE_DIRECTION.md`
+
+> ## Reopened
+>
+> This decision was made on two premises that have since changed:
+>
+> 1. **iOS was the only target platform.** Some intended players use Android, and the private beta should support both if reasonably achievable.
+> 2. **macOS was available for development.** The primary development machine is a Dell running Windows 11, where native iOS development is not possible at all.
+>
+> A formal comparison of Flutter, Kotlin Multiplatform, and separate native applications is in **`ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`**, which recommends **Flutter with first-party HealthKit and Health Connect platform channels**.
+>
+> **This decision remains nominally in force but must not be acted on.** F-01 is paused. Nothing is replaced until the owner approves the recommendation, at which point this document is superseded by `DECISIONS/0010_CROSS_PLATFORM_STACK.md`.
+>
+> The analysis below was sound for its premises. It is retained for the record.
 
 ## Context
 

@@ -3,7 +3,13 @@
 **Task:** F-01
 **Owner agent:** Technical Director
 **Date:** 2026-08-01
-**Status:** **Complete except build verification, which is blocked on macOS access**
+**Status:** ⛔ **PAUSED 2026-08-01 — superseded pending a stack decision**
+
+> The technology stack was reopened before this task closed. See `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`, which recommends Flutter, and `MIGRATION_IMPACT_F01.md`, which assesses the cost of discarding this scaffold as roughly one session.
+>
+> The Swift scaffold below remains in the tree but is inert. **Do not build on it.** The two QA corrections were applied before the pause and their lessons carry forward into the Flutter restart.
+>
+> Original status: complete except build verification, which was blocked on macOS access.
 **Reviews:** QA Director and Critic Agent, below
 
 ---
