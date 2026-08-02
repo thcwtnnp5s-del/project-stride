@@ -52,6 +52,8 @@ jobs:
           (cd packages/stride_storage && dart pub get)
           (cd packages/stride_health && flutter pub get)
           (cd packages/stride_health/example && flutter pub get)
+          (cd packages/stride_secure_store && flutter pub get)
+          (cd packages/stride_secure_store/example && flutter pub get)
 
       # Cheap, specific guards run first. A developer who adds a health package
       # should see 'prohibited health package', not a generic analyzer error
@@ -84,7 +86,14 @@ jobs:
             packages/stride_health/test \
             packages/stride_health/pigeons \
             packages/stride_health/example/lib \
-            packages/stride_health/example/integration_test
+            packages/stride_health/example/integration_test \
+            packages/stride_secure_store/lib/stride_secure_store.dart \
+            packages/stride_secure_store/lib/src/secure_identity_store.dart \
+            packages/stride_secure_store/lib/src/keychain_identity_store.dart \
+            packages/stride_secure_store/lib/src/fake_secure_identity_store.dart \
+            packages/stride_secure_store/test \
+            packages/stride_secure_store/pigeons \
+            packages/stride_secure_store/example/lib
 
       - name: Analyze (fatal warnings and infos)
         run: flutter analyze --fatal-infos --fatal-warnings
@@ -109,6 +118,13 @@ jobs:
         working-directory: packages/stride_health
         run: flutter test
 
+      # The port contract and the Pigeon translation. Not the Keychain: that
+      # needs the macOS job, and the iCloud restore this all exists for needs
+      # two physical iPhones and is verified nowhere.
+      - name: stride_secure_store Dart tests
+        working-directory: packages/stride_secure_store
+        run: flutter test
+
   # ===========================================================================
   # 2. Pigeon — the platform contract must be identical on all three sides
   # ===========================================================================
@@ -124,13 +140,14 @@ jobs:
           cache: true
 
       - name: Resolve dependencies
-        working-directory: packages/stride_health
-        run: flutter pub get
+        run: |
+          (cd packages/stride_health && flutter pub get)
+          (cd packages/stride_secure_store && flutter pub get)
 
       # Compares only the generated files, and relies on the Pigeon version
-      # being pinned exactly in stride_health/pubspec.yaml. Without the pin, a
+      # being pinned exactly in each plugin's pubspec.yaml. Without the pin, a
       # tool upgrade fails this for header churn unrelated to a stale contract.
-      - name: Regenerate and verify bindings
+      - name: Regenerate and verify health bindings
         working-directory: packages/stride_health
         run: |
           GENERATED="lib/src/messages.g.dart \
@@ -143,7 +160,24 @@ jobs:
             git diff -- $GENERATED
             exit 1
           fi
-          echo "pigeon: Dart, Kotlin, and Swift bindings all match the contract"
+          echo "pigeon: health Dart, Kotlin, and Swift bindings all match"
+
+      # The second surface. Two sides only -- there is no Kotlin, because the
+      # plugin is iOS-only: Android keeps app-private identity storage and its
+      # declarative backup exclusions, per the owner's F-06 closure ruling.
+      - name: Regenerate and verify secure-store bindings
+        working-directory: packages/stride_secure_store
+        run: |
+          GENERATED="lib/src/messages.g.dart \
+                     ios/stride_secure_store/Sources/stride_secure_store/Messages.g.swift"
+          dart run pigeon --input pigeons/secure_store_api.dart
+          if ! git diff --quiet -- $GENERATED; then
+            echo "::error::Secure-store Pigeon bindings are stale. Regenerate and commit:"
+            echo "::error::  cd packages/stride_secure_store && dart run pigeon --input pigeons/secure_store_api.dart"
+            git diff -- $GENERATED
+            exit 1
+          fi
+          echo "pigeon: secure-store Dart and Swift bindings match"
 
   # ===========================================================================
   # 3. Android — debug builds and JVM unit tests. No production signing.
@@ -214,20 +248,30 @@ jobs:
           (cd packages/stride_core && dart pub get)
           (cd packages/stride_health && flutter pub get)
           (cd packages/stride_health/example && flutter pub get)
+          (cd packages/stride_secure_store && flutter pub get)
+          (cd packages/stride_secure_store/example && flutter pub get)
 
       - name: Regenerate and verify Pigeon output
-        working-directory: packages/stride_health
         run: |
-          GENERATED="lib/src/messages.g.dart \
-                     android/src/main/kotlin/com/projectstride/stride_health/Messages.g.kt \
-                     ios/stride_health/Sources/stride_health/Messages.g.swift"
-          dart run pigeon --input pigeons/health_api.dart
-          if ! git diff --quiet -- $GENERATED; then
-            echo "::error::Pigeon bindings are stale on macOS."
-            git diff -- $GENERATED
-            exit 1
-          fi
-          echo "pigeon: verified on macOS"
+          verify() {
+            local dir="$1" input="$2"; shift 2
+            (cd "$dir" && dart run pigeon --input "$input")
+            local generated=()
+            for f in "$@"; do generated+=("$dir/$f"); done
+            if ! git diff --quiet -- "${generated[@]}"; then
+              echo "::error::Pigeon bindings are stale on macOS ($dir)."
+              git diff -- "${generated[@]}"
+              exit 1
+            fi
+          }
+          verify packages/stride_health pigeons/health_api.dart \
+            lib/src/messages.g.dart \
+            android/src/main/kotlin/com/projectstride/stride_health/Messages.g.kt \
+            ios/stride_health/Sources/stride_health/Messages.g.swift
+          verify packages/stride_secure_store pigeons/secure_store_api.dart \
+            lib/src/messages.g.dart \
+            ios/stride_secure_store/Sources/stride_secure_store/Messages.g.swift
+          echo "pigeon: both surfaces verified on macOS"
 
       # Platform-neutral tests, re-run here so a macOS-specific Dart regression
       # cannot hide behind a green Linux job.
@@ -236,6 +280,7 @@ jobs:
           (cd packages/stride_core && dart test)
           flutter test
           (cd packages/stride_health && flutter test)
+          (cd packages/stride_secure_store && flutter test)
 
       # --no-codesign: compiles and links without any signing identity. The
       # binary is not installable, which is the point — this proves the code
@@ -248,6 +293,44 @@ jobs:
       - name: Compile Swift health adapter
         working-directory: packages/stride_health/example
         run: flutter build ios --no-codesign --debug
+
+      # Compiles the Swift Keychain and backup-exclusion code by building its
+      # host app. The main application above also links this plugin, so a
+      # compile break shows up twice -- but only here does it come with a test
+      # target.
+      - name: Compile Swift secure-store adapter
+        working-directory: packages/stride_secure_store/example
+        run: flutter build ios --no-codesign --debug
+
+      # ---------------------------------------------------------------------
+      # Simulator tests for the device-bound identity.
+      #
+      # The simulator has a real Keychain and a real filesystem, so these do
+      # genuinely exercise SecItemAdd/CopyMatching/Delete, the
+      # kSecAttrAccessible value, and NSURLIsExcludedFromBackupKey on real
+      # paths -- including re-application after the directory is recreated.
+      #
+      # THEY DO NOT PROVE THE THING THIS FEATURE EXISTS FOR. That a
+      # ThisDeviceOnly item is omitted from an encrypted iCloud backup, and
+      # that the backup exclusion is honoured, are properties of Apple's backup
+      # implementation. No runner and no simulator can perform an iCloud backup
+      # and restore onto a second device. A locked-device read
+      # (errSecInteractionNotAllowed) is also unreachable: a simulator is never
+      # locked.
+      # ---------------------------------------------------------------------
+      - name: Swift secure-store tests (simulator Keychain, no iCloud)
+        working-directory: packages/stride_secure_store/example/ios
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              print(next(x['name'] for v in d.values() for x in v if 'iPhone' in x['name']))")
+          echo "Simulator: $DEVICE"
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -destination "platform=iOS Simulator,name=$DEVICE" \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
 
       # Simulator-hosted unit tests. Nothing here requests HealthKit
       # authorization: an interactive permission prompt cannot be answered on a

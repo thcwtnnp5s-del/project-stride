@@ -60,7 +60,7 @@ import Security
 enum KeychainAccessibility {
   /// The one value this app is allowed to use. Exposed so both the production
   /// path and the test assert the same constant rather than two spellings.
-  static let required = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+  static let value = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 }
 
 /// The stored record.
@@ -158,16 +158,17 @@ struct KeychainIdentityStore: SecureIdentityBackend {
 
     var attributes = baseQuery()
     attributes[kSecValueData as String] = data
-    attributes[kSecAttrAccessible as String] = KeychainAccessibility.required
+    attributes[kSecAttrAccessible as String] = KeychainAccessibility.value
 
     let status = SecItemAdd(attributes as CFDictionary, nil)
     switch status {
     case errSecSuccess:
       return .created
     case errSecDuplicateItem:
-      // Reported, never repaired. There is no `SecItemUpdate` anywhere in this
+      // Reported, never repaired. There is no update call anywhere in this
       // file, and its absence is the enforcement: a caller whose read just
-      // failed cannot express an overwrite.
+      // failed cannot express an overwrite. Guarded by
+      // Scripts/check-backup-exclusions.sh, section 6b.
       return .alreadyExists
     default:
       return .failed(status)

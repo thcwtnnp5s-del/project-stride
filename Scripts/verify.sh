@@ -61,6 +61,15 @@ FORMAT_PATHS=(
   packages/stride_health/pigeons
   packages/stride_health/example/lib
   packages/stride_health/example/integration_test
+  # Same enumeration, same reason: messages.g.dart lives beside the
+  # hand-written sources in lib/src.
+  packages/stride_secure_store/lib/stride_secure_store.dart
+  packages/stride_secure_store/lib/src/secure_identity_store.dart
+  packages/stride_secure_store/lib/src/keychain_identity_store.dart
+  packages/stride_secure_store/lib/src/fake_secure_identity_store.dart
+  packages/stride_secure_store/test
+  packages/stride_secure_store/pigeons
+  packages/stride_secure_store/example/lib
 )
 
 step "Core purity"
@@ -69,7 +78,7 @@ step "Core purity"
 step "Dependency policy"
 ./Scripts/check-dependency-policy.sh
 
-step "Android backup exclusions"
+step "Storage privacy and backup exclusions"
 ./Scripts/check-backup-exclusions.sh
 
 if ! command -v dart >/dev/null 2>&1; then
@@ -104,7 +113,17 @@ flutter test
 step "stride_health tests"
 (cd packages/stride_health && flutter test)
 
+step "stride_secure_store tests (port contract only -- no Keychain here)"
+(cd packages/stride_secure_store && flutter test)
+
 echo
 echo "All checks passed."
 echo "Not covered here: Android build (needs the Android SDK and a JDK) and"
 echo "iOS compilation (needs macOS -- see the CI ios job)."
+echo
+echo "Specifically NOT verified anywhere by this script:"
+echo "  - the iOS Keychain itself (macOS CI job, simulator)"
+echo "  - that a ThisDeviceOnly item is omitted from an iCloud backup"
+echo "  - that NSURLIsExcludedFromBackupKey is honoured by iCloud"
+echo "  - a locked-device Keychain read (errSecInteractionNotAllowed)"
+echo "The last three need two physical iPhones and an iCloud account."
