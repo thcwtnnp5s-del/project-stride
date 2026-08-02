@@ -10,6 +10,7 @@
 /// F-04.
 library;
 
+export 'src/bootstrap/bootstrap.dart';
 export 'src/engine/commands.dart';
 export 'src/engine/event_reducer.dart';
 export 'src/engine/events.dart';
@@ -33,6 +34,7 @@ export 'src/content/reachability.dart';
 export 'src/content/schema_version.dart';
 export 'src/content/validation.dart';
 export 'src/core_info.dart';
+export 'src/ports/identity_store.dart';
 export 'src/ports/save_store.dart';
 export 'src/ports/step_provider.dart';
 export 'src/save/crc32c.dart';

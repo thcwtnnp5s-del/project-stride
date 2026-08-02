@@ -14,6 +14,11 @@ dependencies:
     path: packages/stride_core
   stride_health:
     path: packages/stride_health
+  stride_storage:
+    path: packages/stride_storage
+  # The only way to reach an application-support directory from Flutter.
+  # It touches no health data and reads no content; it returns a path.
+  path_provider: ^2.1.5
 
 # No third-party health aggregation package may appear here or in any other
 # pubspec. Health integration is first-party, in packages/stride_health.
@@ -27,3 +32,19 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Declared file by file, not as a directory glob.
+  #
+  # A glob would silently start shipping whatever someone drops in, and the
+  # loader validates exactly the files it is handed -- so an undeclared file
+  # is content that does not exist, and a stray one is content nobody
+  # reviewed. The version prefix is in the path so a v2 pack can ship beside
+  # v1 rather than replacing it.
+  assets:
+    - assets/content/v1/enemies.json
+    - assets/content/v1/items.json
+    - assets/content/v1/locations.json
+    - assets/content/v1/profiles.json
+    - assets/content/v1/recipes.json
+    - assets/content/v1/resource_nodes.json
+    - assets/content/v1/skills.json

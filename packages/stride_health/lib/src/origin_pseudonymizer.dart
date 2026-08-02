@@ -116,14 +116,11 @@ String _hex64(int value) {
 /// The salt is therefore stored beside the save and covered by the same backup
 /// exclusions. It is never derived from a device identifier, which would make
 /// it a device identifier.
-final class OriginSaltPolicy {
-  const OriginSaltPolicy._();
+// OriginSaltPolicy now lives in stride_core, because stride_storage needs it
+// too and must not depend on this package -- stride_health pulls in Flutter,
+// and the storage layer is deliberately pure dart:io so it can be tested by
+//  with no emulator.
+//
+// Re-exported from stride_core via this package's barrel; the documentation of
+// what salt loss costs stays here, with the code that mints it.
 
-  /// A short, non-reversing fingerprint of a salt, for the save envelope.
-  ///
-  /// Fingerprint rather than the salt itself: the save must be able to detect
-  /// a changed salt without carrying the material that would let a reader
-  /// re-derive every origin mapping.
-  static String fingerprint(Uint8List salt) =>
-      _hex64(_fnv1a(<int>[0x53, 0x41, 0x4c, 0x54, ...salt]));
-}

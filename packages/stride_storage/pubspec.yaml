@@ -1,0 +1,26 @@
+name: stride_storage
+description: >-
+  Device-local persistence for Project Stride. Concrete `dart:io` adapters for
+  the pure-Dart ports defined by stride_core.
+version: 0.1.0
+publish_to: 'none'
+
+# This package exists so `stride_core` can stay free of `dart:io`.
+#
+# It deliberately does NOT depend on Flutter. Everything here is testable by
+# `dart test` against a real temporary directory, on any platform, with no
+# emulator and no device — which is the only reason the filesystem behaviour is
+# verifiable at all from a Windows development machine.
+#
+# The Flutter-specific pieces (rootBundle, path_provider) live in the app.
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  stride_core:
+    path: ../stride_core
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

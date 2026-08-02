@@ -23,6 +23,37 @@ library;
 
 import 'package:meta/meta.dart';
 
+/// Fingerprints the origin pseudonymization salt.
+///
+/// Lives in the core because two packages need it and neither should depend on
+/// the other: `stride_health` mints the salt, and `stride_storage` persists it.
+/// It is a pure function over bytes, so it belongs where pure functions live.
+///
+/// **A fingerprint, never the salt.** This value reaches the save envelope; the
+/// salt does not, because a reader holding the salt could re-derive every
+/// origin mapping the save contains.
+final class OriginSaltPolicy {
+  const OriginSaltPolicy._();
+
+  /// Sixteen lowercase hex characters derived from [salt].
+  static String fingerprint(List<int> salt) {
+    // Domain-separated, so a salt and some other byte string of the same
+    // content cannot fingerprint alike.
+    int hash = 0xcbf29ce484222325;
+    for (final int byte in <int>[0x53, 0x41, 0x4c, 0x54, ...salt]) {
+      hash ^= byte;
+      hash = (hash * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF;
+    }
+    // Dart's int is 64-bit *signed*, so half of all values render with a
+    // leading minus — seventeen characters, which is not a fingerprint. The
+    // halves are formatted separately with an unsigned shift.
+    final int high = (hash >>> 32) & 0xFFFFFFFF;
+    final int low = hash & 0xFFFFFFFF;
+    return high.toRadixString(16).padLeft(8, '0') +
+        low.toRadixString(16).padLeft(8, '0');
+  }
+}
+
 /// Why a candidate origin key was refused.
 enum OriginKeyRefusal {
   /// Empty string.
