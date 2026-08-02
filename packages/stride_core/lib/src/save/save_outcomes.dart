@@ -149,6 +149,7 @@ final class NoSaveFound extends LoadOutcome {
 final class SaveLoaded extends LoadOutcome {
   SaveLoaded({
     required this.state,
+    required this.saveId,
     required this.fromSlot,
     required this.generation,
     required this.lastAppliedTransaction,
@@ -158,6 +159,15 @@ final class SaveLoaded extends LoadOutcome {
   }) : repairs = List<SaveRepair>.unmodifiable(repairs);
 
   final GameState state;
+
+  /// The lineage the loaded snapshot was written under.
+  ///
+  /// Exposed so a caller can compare it with the identity it holds. Without
+  /// it, an identity from another lineage resumes silently and every later
+  /// commit is written under the mismatched id -- which forks the journal on
+  /// the next transaction.
+  final String saveId;
+
   final SnapshotSlot fromSlot;
   final int generation;
   final int lastAppliedTransaction;

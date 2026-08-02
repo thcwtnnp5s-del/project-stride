@@ -329,6 +329,24 @@ final class BootstrapCoordinator {
       );
     }
 
+    if (stored.saveId != load.saveId) {
+      // The identity belongs to a different save.
+      //
+      // Resuming would write every later commit under the mismatched id,
+      // which forks the journal lineage on the very next transaction and
+      // leaves the next launch with `lineageMismatch` and no way out. The
+      // origin keys in this save were also produced by a salt this identity
+      // does not have.
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.originIdentityMismatch,
+        stoppedAt: BootstrapPhase.validatingState,
+        explanation:
+            'Stride found saved progress that belongs to a different '
+            'installation. Reconnect health to continue; your earned progress '
+            'is kept.',
+      );
+    }
+
     final GameEngine engine = GameEngine(registry: registry, state: load.state);
 
     return BootstrapExistingGame(

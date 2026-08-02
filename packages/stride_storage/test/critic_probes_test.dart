@@ -686,56 +686,34 @@ void main() {
       );
     });
 
-    test(
-      'DEFECT: the identity saveId is never compared with the save it opens',
-      () async {
-        final StorageLayout l = freshLayout();
-        await seedSave(l); // envelope saveId == probeSaveId
+    test('an identity from another lineage is refused, not resumed', () async {
+      final StorageLayout l = freshLayout();
+      await seedSave(l); // envelope saveId == probeSaveId
 
-        await writeIdentity(l, 'a-completely-different-lineage', 40);
+      await writeIdentity(l, 'a-completely-different-lineage', 40);
 
-        final BootstrapOutcome b = await boot(l);
-        say('mismatched lineage -> ${b.runtimeType}');
-        expect(
-          b,
-          isA<BootstrapExistingGame>(),
-          reason: 'DEFECT: accepted a save whose lineage id it does not match',
-        );
+      final BootstrapOutcome b = await boot(l);
+      say('mismatched lineage -> ${b.runtimeType}');
 
-        // Now commit under the identity's saveId, as the app is wired to do.
-        final BootstrapExistingGame ok = b as BootstrapExistingGame;
-        final SaveRepository repo = repoOver(l);
-        final SaveLoaded loaded =
-            await repo.load(registry: registry) as SaveLoaded;
-        final GameEngine e = GameEngine(
-          registry: registry,
-          state: loaded.state,
-        );
-        final EngineResult r = e.execute(
-          const GrantSyntheticSteps(steps: 250, reason: 'probe'),
-        );
-        final CommitOutcome commit = await repo.commit(
-          after: e.state,
-          events: r.events,
-          saveId: ok.identity.saveId,
-          expectation: CommitExpectation(
-            expectedSnapshotGeneration: loaded.generation,
-            expectedLastAppliedTransaction: loaded.lastAppliedTransaction,
-          ),
-          originSaltFingerprint: null,
-        );
-        say('commit under the mismatched lineage -> ${commit.runtimeType}');
+      // Fixed in F-06. `SaveLoaded` now carries the envelope's `saveId` and
+      // `_resume` compares it against the stored identity.
+      //
+      // Before that, this resumed silently and every later commit was
+      // written under the mismatched id — which forks the journal lineage on
+      // the very next transaction and leaves the launch after that with
+      // `lineageMismatch` and no way out. This probe used to demonstrate
+      // that sequence; it now asserts the refusal that prevents it.
+      expect(b, isA<BootstrapBlocked>());
+      expect(
+        (b as BootstrapBlocked).reason,
+        BootstrapBlockReason.originIdentityMismatch,
+      );
 
-        final LoadOutcome next = await repoOver(l).load(registry: registry);
-        say(
-          'the launch after that -> ${next.runtimeType}'
-          '${next is LoadRefused ? ' / ${next.reason}' : ''}',
-        );
-        if (next is SaveLoaded) {
-          say('banked steps: ${next.state.steps.banked}');
-        }
-      },
-    );
+      // A refusal must leave the directory exactly as it found it.
+      final SaveLoaded still =
+          await repoOver(l).load(registry: registry) as SaveLoaded;
+      expect(still.saveId, probeSaveId);
+    });
   });
 
   // =========================================================================

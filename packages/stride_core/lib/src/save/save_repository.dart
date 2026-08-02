@@ -318,6 +318,7 @@ final class SaveRepository {
 
     return SaveLoaded(
       state: state,
+      saveId: envelope.saveId,
       fromSlot: chosen.slot,
       generation: envelope.snapshotGeneration,
       lastAppliedTransaction: watermark + replayed,

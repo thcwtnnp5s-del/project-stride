@@ -81,10 +81,13 @@ Future<String> _runPhase() async {
       ? jsonDecode(marker.readAsStringSync()) as Map<String, Object?>
       : <String, Object?>{};
 
-  final String verdict = found['phase'] == 'seeded'
-      ? await _verify(found)
-      : await _seed(marker);
+  if (found['phase'] != 'seeded') return _seed(marker);
 
+  final String verdict = await _verify(found);
+  // The verdict has to reach the disk, not just logcat. logcat is lossy and
+  // is cleared by anything; the file is what the driving script reads, and it
+  // is written by the process that started after the kill.
+  marker.writeAsStringSync(verdict, flush: true);
   return verdict;
 }
 

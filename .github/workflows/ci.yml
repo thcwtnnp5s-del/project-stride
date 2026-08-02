@@ -75,7 +75,8 @@ jobs:
       - name: Format check
         run: |
           dart format --output=none --set-exit-if-changed \
-            lib test \
+            lib test integration_test \
+            packages/stride_storage/lib packages/stride_storage/test \
             packages/stride_core/lib packages/stride_core/test \
             packages/stride_health/lib/stride_health.dart \
             packages/stride_health/lib/src/mock_step_provider.dart \

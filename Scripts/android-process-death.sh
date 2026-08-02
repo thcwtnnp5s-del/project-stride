@@ -95,7 +95,15 @@ wait_for_phase() {
   fail "timed out after ${TIMEOUT_SECONDS}s waiting for phase '$want'"
 }
 
-pid_of() { adb shell "pidof $PKG" 2>/dev/null | tr -d '\r\n'; }
+# `pidof` exits 1 when the process is gone -- which here is the answer we are
+# looking for, not an error. `pipefail` would hand that status to the
+# assignment and `set -e` would abort the run at exactly the moment it
+# succeeds, so the substitution absorbs it.
+pid_of() {
+  local out
+  out="$(adb shell "pidof $PKG" 2>/dev/null || true)"
+  printf '%s' "$(printf '%s' "$out" | tr -d '\r\n')"
+}
 
 # --- launch 1: seed --------------------------------------------------------
 

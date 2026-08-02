@@ -1084,13 +1084,14 @@ void _saltFingerprintEndToEnd() {
 
 void _documentedGaps() {
   group('documented gaps', () {
-    test('GAP: the identity lineage is never compared with the save', () async {
-      // `SaveLoaded` does not expose the envelope's `saveId`, so the
-      // coordinator has nothing to compare `stored.saveId` against. An
-      // identity belonging to a different lineage resumes silently.
+    test('an identity from another lineage is refused', () async {
+      // Closed in F-06. `SaveLoaded` now carries the envelope's `saveId` and
+      // `_resume` compares it.
       //
-      // Closing this needs `saveId` on `SaveLoaded` and a comparison in
-      // `_resume`; invert the expectation then.
+      // Before that, a mismatched identity resumed silently and every later
+      // commit was written under the wrong id — which forks the journal
+      // lineage on the very next transaction and leaves the launch after that
+      // with `lineageMismatch` and no way out.
       final saved = await savedGame(commits: 2, saveId: 'lineage-one');
       final result = await boot(
         device: saved.device.reboot(),
@@ -1102,17 +1103,15 @@ void _documentedGaps() {
         ),
       );
 
+      expect(result.outcome, isA<BootstrapBlocked>());
       expect(
-        result.outcome,
-        isA<BootstrapExistingGame>(),
-        reason: 'a mismatched lineage is currently undetectable',
+        (result.outcome as BootstrapBlocked).reason,
+        BootstrapBlockReason.originIdentityMismatch,
       );
       expect(
-        (result.outcome as BootstrapExistingGame).identity.saveId,
-        'lineage-two',
-        reason:
-            'and the mismatched id is what subsequent commits will be written '
-            'under, which forks the journal lineage on the next transaction',
+        (result.outcome as BootstrapBlocked).explanation,
+        contains('Reconnect health'),
+        reason: 'a fail-closed refusal must name the way out of it',
       );
     });
   });

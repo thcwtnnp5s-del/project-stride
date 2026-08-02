@@ -82,31 +82,42 @@ Future<StrideRuntime> bootstrapStride({
   // is never derived from a device identifier, which would make it a device
   // identifier; and its *fingerprint*, not the salt, is what reaches the save.
   final Random entropy = random ?? Random.secure();
-  StoredIdentity? stored = await identityStore.readStored();
+  final StoredIdentity? existing = await identityStore.readStored();
 
-  if (stored == null) {
-    stored = StoredIdentity(
-      saveId: base64Url.encode(
-        List<int>.generate(12, (_) => entropy.nextInt(256)),
-      ),
-      salt: Uint8List.fromList(
-        List<int>.generate(16, (_) => entropy.nextInt(256)),
-      ),
-    );
-    // Written before startup runs, so a crash between minting and the first
-    // commit leaves an identity with no save — which the coordinator treats as
-    // a new game and reuses, rather than minting a second one that would orphan
-    // any save that did exist.
-    await identityStore.writeStored(stored);
-  }
+  // A *candidate*, held in memory and not yet written.
+  //
+  // An earlier version wrote it before calling the coordinator, which defeated
+  // the guard it exists for: the coordinator then never saw `stored == null`,
+  // so the "a save survived but its identity did not" refusal was unreachable
+  // from the app. A save with a freshly minted identity beside it would have
+  // resumed under the wrong lineage.
+  //
+  // Now the coordinator decides. It writes the candidate only on the new-game
+  // path; if a save exists and no identity does, it blocks.
+  final StoredIdentity candidate =
+      existing ??
+      StoredIdentity(
+        saveId: base64Url.encode(
+          List<int>.generate(12, (_) => entropy.nextInt(256)),
+        ),
+        salt: Uint8List.fromList(
+          List<int>.generate(16, (_) => entropy.nextInt(256)),
+        ),
+      );
 
   final BootstrapOutcome outcome = await coordinator.run(
     loadContent: loadContentFromAssets,
-    // Already written above, so this is only ever the value the coordinator
-    // reads back. It cannot mint a *different* identity than the one the
-    // pseudonymizer below is built from.
-    mintIdentity: () => stored!.public,
+    mintIdentity: () => candidate.public,
   );
+
+  // The salt itself is the app's to persist — the core only ever holds a
+  // fingerprint, and a fingerprint cannot reconstruct a salt. Written only
+  // once startup actually reached a new game, so a blocked launch leaves the
+  // directory exactly as it found it.
+  if (existing == null && outcome is BootstrapNewGame) {
+    await identityStore.writeStored(candidate);
+  }
+  final StoredIdentity stored = candidate;
 
   return StrideRuntime(
     outcome: outcome,
