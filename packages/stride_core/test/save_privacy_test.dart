@@ -1107,6 +1107,18 @@ void main() {
           'truncatedGap',
           'wasRecovery',
           'slices',
+          // Added 2026-08-02 with the per-origin watermark fix, and reviewed
+          // rather than waved through — which is what this frozen key set is
+          // for.
+          //
+          // Carries a pseudonymous origin key and one UTC millisecond value per
+          // origin. Both categories are already permitted by the ruling, and
+          // this is strictly *coarser* than the slice map beside it: one
+          // instant per source rather than one entry per bucket. It replaces a
+          // scalar that could not express "settled for the phone, still open
+          // for the watch" — and using a scalar for that silently discarded a
+          // returning player's backlog.
+          'originWatermarks',
         },
         reason: 'a new reconciliation event field needs a privacy review',
       );

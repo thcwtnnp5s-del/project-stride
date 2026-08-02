@@ -2,7 +2,9 @@ import 'dart:collection';
 
 import 'package:meta/meta.dart';
 
+import 'completeness.dart';
 import 'step_ledger.dart';
+import 'step_origin_key.dart';
 import 'sync_batch.dart';
 
 /// Why a reconciliation could not be applied.
@@ -53,7 +55,7 @@ final class ReconciliationAccepted extends ReconciliationOutcome {
     required this.wasRecovery,
     required this.truncatedGap,
     this.lateDiscardedSlices = 0,
-    this.watermarkAfter,
+    this.watermarksAfter = const <StepOriginKey, int>{},
     this.compactedGranted = 0,
     this.windowStartMillis,
     this.windowEndMillis,
@@ -92,7 +94,7 @@ final class ReconciliationAccepted extends ReconciliationOutcome {
   /// the surviving slices. Recomputing it independently was how a paginated
   /// backfill lost 55,200 steps: compaction correctly declined to drop the
   /// older page, and the watermark advanced past it anyway.
-  final int? watermarkAfter;
+  final Map<StepOriginKey, int> watermarksAfter;
 
   /// Granted credit dropped by compaction, to fold into `grantedBeforeWatermark`.
   ///
@@ -258,7 +260,7 @@ final class StepReconciler {
       case IncrementalSync(
         :final List<StepObservation> observations,
         :final SyncCursor? nextCursor,
-        :final int? completeThroughMillis,
+        :final SyncCompleteness completeness,
       ):
         final ReconciliationRefused? tooFine = _refuseFineBuckets(observations);
         if (tooFine != null) return tooFine;
@@ -268,14 +270,14 @@ final class StepReconciler {
           cursor: nextCursor,
           isRecovery: false,
           truncated: false,
-          completeThroughMillis: completeThroughMillis,
+          completeness: completeness,
         );
 
       case CursorInvalidatedSync(
         :final List<StepObservation> observations,
         :final RescanWindow window,
         :final SyncCursor? nextCursor,
-        :final int? completeThroughMillis,
+        :final SyncCompleteness completeness,
       ):
         if (window.endMillis < window.startMillis) {
           return const ReconciliationRefused(
@@ -292,7 +294,7 @@ final class StepReconciler {
           cursor: nextCursor,
           isRecovery: true,
           truncated: window.truncated,
-          completeThroughMillis: completeThroughMillis,
+          completeness: completeness,
           windowStartMillis: window.startMillis,
           windowEndMillis: window.endMillis,
         );
@@ -335,7 +337,7 @@ final class StepReconciler {
     required SyncCursor? cursor,
     required bool isRecovery,
     required bool truncated,
-    required int? completeThroughMillis,
+    required SyncCompleteness completeness,
     int? windowStartMillis,
     int? windowEndMillis,
   }) {
@@ -386,14 +388,14 @@ final class StepReconciler {
 
     final int observedAfter = ledger.totalObserved + observedDelta;
 
-    final _Compaction compaction = _compact(slices, completeThroughMillis);
+    final _Compaction compaction = _compact(slices, completeness);
 
     return ReconciliationAccepted(
       newlyGranted: newlyGranted,
       observedAfter: observedAfter < 0 ? 0 : observedAfter,
       grantedAfter: ledger.totalGranted + newlyGranted,
       grantedSlicesAfter: compaction.slices,
-      watermarkAfter: compaction.horizon,
+      watermarksAfter: compaction.horizons,
       compactedGranted: compaction.droppedGranted,
       correctionsSeen: corrections,
       wasRecovery: isRecovery,
@@ -415,42 +417,62 @@ final class StepReconciler {
   ///
   /// The horizon this returns is the *only* watermark the caller may publish.
   /// Deriving the watermark separately reintroduces the bug this closes.
-  _Compaction _compact(Map<ObservationKey, int> slices, int? completeThrough) {
-    // No assertion means no compaction. The ledger grows a little rather than
-    // risking a silent lost grant, and the watermark stays where it was.
-    if (completeThrough == null || slices.isEmpty) {
-      return _Compaction(slices, null, 0);
-    }
+  _Compaction _compact(
+    Map<ObservationKey, int> slices,
+    SyncCompleteness completeness,
+  ) {
+    if (slices.isEmpty) return _Compaction(slices, const {}, 0);
 
     int newestEnd = 0;
     for (final ObservationKey key in slices.keys) {
       if (key.bucket.endMillis > newestEnd) newestEnd = key.bucket.endMillis;
     }
     final int byRetention = newestEnd - retentionWindowMillis;
-    // Never settle past what the adapter says it has fully delivered.
-    final int horizon = byRetention < completeThrough
-        ? byRetention
-        : completeThrough;
+
+    // **Per origin, on both sides.** Compaction drops a slice, and the origin's
+    // watermark is what stops that slice being granted again — so the two must
+    // move together, per origin, or the design is wrong in one of two ways:
+    //
+    // - compact without advancing that origin's watermark → the slice is
+    //   granted a second time
+    // - advance an origin's watermark on another origin's authority → that
+    //   origin's backlog is silently discarded when it finally arrives
+    //
+    // The second is the defect this whole change closes, and it survived a
+    // first attempt that compacted per origin while still publishing one
+    // scalar watermark. A test caught that; the scalar is now diagnostic only.
+    final Map<StepOriginKey, int> horizons = <StepOriginKey, int>{};
+    for (final ObservationKey key in slices.keys) {
+      if (horizons.containsKey(key.origin)) continue;
+      final int? asserted = completeness.horizonFor(key.origin);
+      // Silence about an origin is not an assertion about it. No entry means
+      // nothing of that origin's is settled, and none of it compacts.
+      if (asserted == null) continue;
+      horizons[key.origin] = byRetention < asserted ? byRetention : asserted;
+    }
+
+    if (horizons.isEmpty) return _Compaction(slices, const {}, 0);
 
     final Map<ObservationKey, int> survivors = <ObservationKey, int>{};
     int dropped = 0;
     for (final MapEntry<ObservationKey, int> entry in slices.entries) {
-      if (entry.key.bucket.endMillis > horizon) {
+      final int? horizon = horizons[entry.key.origin];
+      if (horizon == null || entry.key.bucket.endMillis > horizon) {
         survivors[entry.key] = entry.value;
       } else {
         dropped += entry.value;
       }
     }
-    return _Compaction(survivors, horizon, dropped);
+    return _Compaction(survivors, horizons, dropped);
   }
 }
 
 /// What one compaction pass decided: the survivors, the floor it set, and the
 /// granted credit it folded away.
 final class _Compaction {
-  const _Compaction(this.slices, this.horizon, this.droppedGranted);
+  const _Compaction(this.slices, this.horizons, this.droppedGranted);
 
   final Map<ObservationKey, int> slices;
-  final int? horizon;
+  final Map<StepOriginKey, int> horizons;
   final int droppedGranted;
 }

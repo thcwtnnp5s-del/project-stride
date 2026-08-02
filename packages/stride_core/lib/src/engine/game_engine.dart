@@ -5,6 +5,7 @@ import '../content/definitions.dart';
 import '../steps/reconciliation.dart';
 
 import '../steps/step_ledger.dart';
+import '../steps/step_origin_key.dart';
 import 'commands.dart';
 import 'event_reducer.dart';
 import 'events.dart';
@@ -248,16 +249,28 @@ final class GameEngine {
           );
         }
 
-        // The watermark is whatever compaction actually used, never a figure
+        // The watermarks are whatever compaction actually used, never figures
         // recomputed here. The two disagreeing is what silently discarded a
         // paginated backfill.
-        final int? previousWatermark = state.steps.checkpoint.watermarkMillis;
-        final int? watermark = outcome.watermarkAfter == null
-            ? previousWatermark
-            : (previousWatermark != null &&
-                  previousWatermark > outcome.watermarkAfter!)
-            ? previousWatermark
-            : outcome.watermarkAfter;
+        //
+        // Merged per origin, and monotonic per origin: an origin's watermark
+        // never moves backwards, and an origin the batch said nothing about
+        // keeps whatever it had.
+        final Map<StepOriginKey, int> watermarks = <StepOriginKey, int>{
+          ...state.steps.checkpoint.originWatermarks,
+        };
+        for (final MapEntry<StepOriginKey, int> e
+            in outcome.watermarksAfter.entries) {
+          final int? existing = watermarks[e.key];
+          if (existing == null || e.value > existing) {
+            watermarks[e.key] = e.value;
+          }
+        }
+        // Diagnostic only: the lowest per-origin watermark. Never used to
+        // decide whether a slice is settled.
+        final int? watermark = watermarks.isEmpty
+            ? null
+            : watermarks.values.reduce((int a, int b) => a < b ? a : b);
 
         events.add(
           StepObservationReconciled(
@@ -267,6 +280,7 @@ final class GameEngine {
             grantedCompactedAway: outcome.compactedGranted,
             lateDiscarded: outcome.lateDiscardedSlices,
             watermarkMillis: watermark,
+            originWatermarks: watermarks,
             correctionsSeen: outcome.correctionsSeen,
             truncatedGap: outcome.truncatedGap,
             wasRecovery: outcome.wasRecovery,

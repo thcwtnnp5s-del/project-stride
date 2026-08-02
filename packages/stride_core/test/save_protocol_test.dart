@@ -324,6 +324,7 @@ void main() {
   });
 
   _saltRefusal();
+  _watermarkPersistence();
 }
 
 // The origin pseudonymization salt, and what happens when it changes.
@@ -418,6 +419,78 @@ void _saltRefusal() {
         unframe(await savedWith('aaaaaaaaaaaaaaaa')).payload!,
       );
       expect(withSalt, contains('originSaltFingerprint'));
+    });
+  });
+}
+
+// Per-origin watermarks must survive a reload.
+//
+// Without this the save layer silently double-grants: every origin comes back
+// unsettled, so the whole live retention window is granted a second time on the
+// next sync. F-04's arithmetic cannot save it, because the record it consults
+// is exactly the one that was dropped.
+void _watermarkPersistence() {
+  group('origin watermarks survive a reload', () {
+    test('a settled origin stays settled across a restart', () async {
+      final (:SaveRepository repo, :FaultingDevice device) = newRepo();
+      final GameEngine engine = newEngine();
+
+      int generation = -1;
+      int transaction = 0;
+      for (int day = 0; day < 14; day++) {
+        final EngineResult r = engine.execute(
+          ReconcileStepSync(
+            response: incremental(
+              <StepObservation>[obs(phone, day * 24, 1000)],
+              next: 'd$day',
+              completeThroughIndex: day * 24 + 1,
+            ),
+          ),
+        );
+        final CommitDurable d =
+            await commit(
+                  repo,
+                  after: engine.state,
+                  events: r.events,
+                  generation: generation,
+                  lastTransaction: transaction,
+                )
+                as CommitDurable;
+        generation = d.generation;
+        transaction = d.transactionId;
+      }
+
+      final Map<StepOriginKey, int> before =
+          engine.state.steps.checkpoint.originWatermarks;
+      expect(before, isNotEmpty, reason: 'the fixture must actually compact');
+      expect(engine.state.steps.totalGranted, 14000);
+
+      // Restart from the durable bytes alone.
+      final SaveLoaded loaded =
+          await newRepo(device).repo.load(registry: saveRegistry) as SaveLoaded;
+
+      expect(
+        loaded.state.steps.checkpoint.originWatermarks,
+        before,
+        reason: 'a dropped watermark map re-grants the whole retention window',
+      );
+
+      // The proof that matters: replay an already-settled bucket after the
+      // restart and confirm it grants nothing.
+      final GameEngine resumed = GameEngine(
+        registry: saveRegistry,
+        state: loaded.state,
+      );
+      expect(
+        grantedBy(
+          sync(
+            resumed,
+            incremental(<StepObservation>[obs(phone, 0, 1000)], next: 'again'),
+          ),
+        ),
+        0,
+      );
+      expect(resumed.state.steps.totalGranted, 14000);
     });
   });
 }

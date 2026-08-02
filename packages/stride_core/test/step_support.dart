@@ -45,6 +45,26 @@ StepObservation obs(StepOriginKey origin, int index, int steps) =>
 
 SyncCursor cursor(String name) => SyncCursor.ofString(name);
 
+/// Builds a completeness assertion covering every origin through an hour index.
+///
+/// The adapter's claim: "I drained every page, for every source I can see, up
+/// to here." Tests that need a narrower claim build [SomeOrigins] directly.
+SyncCompleteness completeThrough(
+  int index, {
+  Set<StepOriginKey>? origins,
+  int fromIndex = 0,
+  int queryGeneration = 1,
+}) => CompleteThrough(
+  throughMillis: t0 + index * hour,
+  scope: CompletenessScope(
+    dataType: HealthDataType.steps,
+    origins: origins == null ? const AllOrigins() : SomeOrigins(origins),
+    intervalStartMillis: t0 + fromIndex * hour,
+    intervalEndMillis: t0 + index * hour,
+    queryGeneration: queryGeneration,
+  ),
+);
+
 /// [completeThroughIndex] is the adapter's completeness assertion, in hour
 /// indices: "I have delivered everything up to this point."
 ///
@@ -55,12 +75,15 @@ IncrementalSync incremental(
   List<StepObservation> observations, {
   String? next,
   int? completeThroughIndex,
+  SyncCompleteness? completeness,
 }) => IncrementalSync(
   observations: observations,
   nextCursor: next == null ? null : cursor(next),
-  completeThroughMillis: completeThroughIndex == null
-      ? null
-      : t0 + completeThroughIndex * hour,
+  completeness:
+      completeness ??
+      (completeThroughIndex == null
+          ? const PartialDelivery()
+          : completeThrough(completeThroughIndex)),
 );
 
 CursorInvalidatedSync rescan(
@@ -78,9 +101,9 @@ CursorInvalidatedSync rescan(
   ),
   observations: observations,
   nextCursor: next == null ? null : cursor(next),
-  completeThroughMillis: completeThroughIndex == null
-      ? null
-      : t0 + completeThroughIndex * hour,
+  completeness: completeThroughIndex == null
+      ? const PartialDelivery()
+      : completeThrough(completeThroughIndex, fromIndex: fromIndex),
 );
 
 /// Runs a sync and returns the result.

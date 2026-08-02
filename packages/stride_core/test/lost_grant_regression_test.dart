@@ -208,6 +208,7 @@ void main() {
   });
 
   _bucketWidth();
+  _originScoping();
 }
 
 // Bucket resolution is a privacy bound, not a correctness one.
@@ -283,6 +284,108 @@ void _bucketWidth() {
         613,
       );
       expect(TimeBucket.minimumWidthMillis, 60 * 60 * 1000);
+    });
+  });
+}
+
+// An assertion settles only the origins it vouches for.
+//
+// The second lost-grant defect was an origin-blind horizon: origin separated
+// the *keys* but not the *horizon*, so a phone syncing hourly permanently
+// prevented a watch from backfilling more than the retention window.
+//
+// Before the scoped contract this was closed only by adapter discipline — the
+// adapter had to refrain from asserting completeness it could not vouch for.
+// These tests close it structurally: the core will not settle an origin the
+// assertion does not name.
+void _originScoping() {
+  group('per-origin horizons', () {
+    test('an assertion for one origin does not settle another', () {
+      final GameEngine engine = newEngine();
+
+      // The phone is current and says so, for itself only. The watch has been
+      // offline for the whole period and has asserted nothing.
+      for (int day = 0; day < 14; day++) {
+        sync(
+          engine,
+          incremental(
+            <StepObservation>[obs(phone, day * 24, 1000)],
+            next: 'd$day',
+            completeness: completeThrough(
+              day * 24 + 1,
+              origins: <StepOriginKey>{phone},
+            ),
+          ),
+        );
+      }
+
+      final StepLedger ledger = engine.state.steps;
+      expect(
+        ledger.grantedSlices.keys.every(
+          (ObservationKey k) => k.origin == phone,
+        ),
+        isTrue,
+      );
+
+      // The watch finally uploads its backlog from the very beginning.
+      final EngineResult backfill = sync(
+        engine,
+        incremental(<StepObservation>[obs(watch, 0, 8000)], next: 'w'),
+      );
+
+      expect(
+        grantedBy(backfill),
+        8000,
+        reason:
+            'the phone vouched for the phone; nothing it said settles a '
+            'bucket belonging to the watch',
+      );
+      expect(engine.state.steps.lateDiscardedSlices, 0);
+    });
+
+    test('the published watermark is the lowest horizon applied', () {
+      // A single scalar watermark has to be safe for every origin. Publishing
+      // the phone's horizon would settle the watch's buckets on the phone's
+      // authority, which is the defect itself.
+      final GameEngine engine = newEngine();
+
+      for (int day = 0; day < 14; day++) {
+        sync(
+          engine,
+          incremental(
+            <StepObservation>[
+              obs(phone, day * 24, 500),
+              obs(watch, day * 24, 500),
+            ],
+            next: 'd$day',
+            completeness: completeThrough(day * 24 + 1),
+          ),
+        );
+      }
+
+      final StepLedger ledger = engine.state.steps;
+      final int watermark = ledger.checkpoint.watermarkMillis!;
+      for (final ObservationKey key in ledger.grantedSlices.keys) {
+        expect(key.bucket.endMillis, greaterThan(watermark));
+      }
+      expect(ledger.totalGranted, 14000);
+    });
+
+    test('a partial delivery settles nothing at all', () {
+      // Every page but the last of a paginated read, and every truncated
+      // rescan, is PartialDelivery.
+      final GameEngine engine = newEngine();
+      for (int day = 0; day < 14; day++) {
+        sync(
+          engine,
+          incremental(<StepObservation>[
+            obs(phone, day * 24, 1000),
+          ], next: 'd$day'),
+        );
+      }
+
+      expect(engine.state.steps.grantedSlices.length, 14);
+      expect(engine.state.steps.checkpoint.watermarkMillis, isNull);
     });
   });
 }

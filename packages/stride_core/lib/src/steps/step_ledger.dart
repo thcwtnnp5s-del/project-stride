@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
+import 'step_origin_key.dart';
 import 'sync_batch.dart';
 
 /// How the provider last presented itself.
@@ -91,18 +92,41 @@ final class RecoveryState {
 /// recomputes the same result.
 @immutable
 final class SyncCheckpoint {
-  const SyncCheckpoint({this.cursor, this.watermarkMillis, this.syncCount = 0});
+  SyncCheckpoint({
+    this.cursor,
+    this.watermarkMillis,
+    Map<StepOriginKey, int>? originWatermarks,
+    this.syncCount = 0,
+  }) : originWatermarks = UnmodifiableMapView<StepOriginKey, int>(
+         SplayTreeMap<StepOriginKey, int>.of(
+           originWatermarks ?? const <StepOriginKey, int>{},
+         ),
+       );
 
-  const SyncCheckpoint.initial() : this();
+  SyncCheckpoint.initial() : this();
 
   /// The cursor safe to hand back to the provider next time.
   final SyncCursor? cursor;
 
-  /// All source data at or before this instant is fully accounted for.
+  /// The lowest per-origin watermark. **Diagnostic only.**
   ///
-  /// Advances only when the per-slice detail behind it has been compacted, so
-  /// the ledger never needs to look further back than this.
+  /// Deliberately not used to decide whether a slice is settled. A single
+  /// scalar cannot express "settled for the phone, still open for the watch",
+  /// and using one for that is a lost grant: an origin that has never synced
+  /// has its whole history settled the first time some *other* origin's data
+  /// pushed a global horizon past it.
   final int? watermarkMillis;
+
+  /// Per origin, the point through which that origin is fully accounted for.
+  ///
+  /// An origin absent from this map has never been vouched for, so **nothing**
+  /// of its is settled. That is the correct default: silence about a source is
+  /// not an assertion about it.
+  ///
+  /// This is what makes a returning player's offline watch safe. The phone
+  /// syncing hourly for a fortnight says nothing about the watch, so the
+  /// watch's backlog is still grantable when it finally arrives.
+  final Map<StepOriginKey, int> originWatermarks;
 
   /// How many syncs have committed. Gives a replayed batch something to be
   /// idempotent *against* without needing a clock.
@@ -113,10 +137,19 @@ final class SyncCheckpoint {
       other is SyncCheckpoint &&
       other.cursor == cursor &&
       other.watermarkMillis == watermarkMillis &&
+      const MapEquality<StepOriginKey, int>().equals(
+        other.originWatermarks,
+        originWatermarks,
+      ) &&
       other.syncCount == syncCount;
 
   @override
-  int get hashCode => Object.hash(cursor, watermarkMillis, syncCount);
+  int get hashCode => Object.hash(
+    cursor,
+    watermarkMillis,
+    const MapEquality<StepOriginKey, int>().hash(originWatermarks),
+    syncCount,
+  );
 }
 
 /// The step ledger.
@@ -181,7 +214,7 @@ final class StepLedger {
         SplayTreeMap<ObservationKey, int>(),
       ),
       grantedBeforeWatermark = 0,
-      checkpoint = const SyncCheckpoint.initial(),
+      checkpoint = SyncCheckpoint.initial(),
       recovery = const RecoveryState.idle(),
       sourceState = SourceState.unknown,
       correctionsObserved = 0,
@@ -243,7 +276,9 @@ final class StepLedger {
   int grantedFor(ObservationKey key) => grantedSlices[key] ?? 0;
 
   bool isSettled(ObservationKey key) {
-    final int? watermark = checkpoint.watermarkMillis;
+    // Per origin. An origin nobody vouched for has nothing settled — see
+    // [SyncCheckpoint.originWatermarks] for why the scalar cannot do this job.
+    final int? watermark = checkpoint.originWatermarks[key.origin];
     return watermark != null && key.bucket.endMillis <= watermark;
   }
 

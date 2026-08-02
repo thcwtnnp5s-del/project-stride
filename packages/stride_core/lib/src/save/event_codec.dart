@@ -76,6 +76,14 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'grantedCompactedAway': event.grantedCompactedAway,
     'lateDiscarded': event.lateDiscarded,
     'watermarkMillis': event.watermarkMillis,
+    'originWatermarks': <Object?>[
+      for (final MapEntry<StepOriginKey, int> e
+          in (event.originWatermarks.entries.toList()..sort(
+            (MapEntry<StepOriginKey, int> a, MapEntry<StepOriginKey, int> b) =>
+                a.key.compareTo(b.key),
+          )))
+        <String, Object?>{'o': e.key.value, 'w': e.value},
+    ],
     'correctionsSeen': event.correctionsSeen,
     'truncatedGap': event.truncatedGap,
     'wasRecovery': event.wasRecovery,
@@ -241,6 +249,19 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
             )] =
             granted;
       }
+      final Map<StepOriginKey, int> marks = <StepOriginKey, int>{};
+      final Object? rawMarks = json['originWatermarks'];
+      if (rawMarks is List<Object?>) {
+        for (final Object? raw in rawMarks) {
+          if (raw is! Map<String, Object?>) return null;
+          final Object? o = raw['o'];
+          final Object? w = raw['w'];
+          if (o is! String || w is! int) return null;
+          final StepOriginKey? key = StepOriginKey.tryParse(o);
+          if (key == null) return null;
+          marks[key] = w;
+        }
+      }
       return StepObservationReconciled(
         sequence: seq,
         observedAfter: observed,
@@ -248,6 +269,7 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         grantedCompactedAway: compacted,
         lateDiscarded: late,
         watermarkMillis: i('watermarkMillis'),
+        originWatermarks: marks,
         correctionsSeen: corrections,
         truncatedGap: b('truncatedGap'),
         wasRecovery: b('wasRecovery'),

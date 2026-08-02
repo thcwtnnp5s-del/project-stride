@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
+import 'completeness.dart';
 import 'step_origin_key.dart';
 
 /// A window of time, as data.
@@ -257,7 +258,7 @@ final class IncrementalSync extends SyncResponse {
   IncrementalSync({
     required List<StepObservation> observations,
     this.nextCursor,
-    this.completeThroughMillis,
+    this.completeness = const PartialDelivery(),
   }) : observations = List<StepObservation>.unmodifiable(observations);
 
   final List<StepObservation> observations;
@@ -266,7 +267,7 @@ final class IncrementalSync extends SyncResponse {
   final SyncCursor? nextCursor;
 
   /// The adapter's completeness assertion. Null means "do not compact".
-  final int? completeThroughMillis;
+  final SyncCompleteness completeness;
 
   @override
   String get kind => 'incremental';
@@ -275,12 +276,15 @@ final class IncrementalSync extends SyncResponse {
 /// Nothing changed since the cursor.
 @immutable
 final class NoChangeSync extends SyncResponse {
-  const NoChangeSync({this.nextCursor, this.completeThroughMillis});
+  const NoChangeSync({
+    this.nextCursor,
+    this.completeness = const PartialDelivery(),
+  });
 
   final SyncCursor? nextCursor;
 
-  /// See [IncrementalSync.completeThroughMillis].
-  final int? completeThroughMillis;
+  /// See [IncrementalSync.completeness].
+  final SyncCompleteness completeness;
 
   @override
   String get kind => 'no_change';
@@ -298,7 +302,7 @@ final class CursorInvalidatedSync extends SyncResponse {
     required this.window,
     required List<StepObservation> observations,
     this.nextCursor,
-    this.completeThroughMillis,
+    this.completeness = const PartialDelivery(),
   }) : observations = List<StepObservation>.unmodifiable(observations);
 
   final RescanWindow window;
@@ -308,8 +312,8 @@ final class CursorInvalidatedSync extends SyncResponse {
 
   final SyncCursor? nextCursor;
 
-  /// See [IncrementalSync.completeThroughMillis].
-  final int? completeThroughMillis;
+  /// See [IncrementalSync.completeness].
+  final SyncCompleteness completeness;
 
   @override
   String get kind => 'cursor_invalidated';

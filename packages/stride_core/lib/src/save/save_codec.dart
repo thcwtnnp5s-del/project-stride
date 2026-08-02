@@ -224,6 +224,17 @@ Map<String, Object?> encodeStepLedger(StepLedger ledger) => <String, Object?>{
         ? null
         : base64Encode(ledger.checkpoint.cursor!.bytes),
     'watermarkMillis': ledger.checkpoint.watermarkMillis,
+    // Omitted when empty so saves written before per-origin watermarks existed
+    // stay byte-identical -- the frozen v1 fixture depends on that.
+    //
+    // Persisting these is not optional: without them a reload unsettles every
+    // origin, and the whole live retention window is granted a second time.
+    if (ledger.checkpoint.originWatermarks.isNotEmpty)
+      'originWatermarks': <Object?>[
+        for (final MapEntry<StepOriginKey, int> e
+            in ledger.checkpoint.originWatermarks.entries)
+          <String, Object?>{'o': e.key.value, 'w': e.value},
+      ],
     'syncCount': ledger.checkpoint.syncCount,
   },
   'recovery': <String, Object?>{
@@ -617,6 +628,25 @@ final class V1StateDecoder implements StateDecoder {
       throw const SaveCodecException('checkpoint.cursor is not a string');
     }
 
+    final Map<StepOriginKey, int> originWatermarks = <StepOriginKey, int>{};
+    final Object? rawMarks = checkpointJson['originWatermarks'];
+    if (rawMarks is List<Object?>) {
+      for (final Object? raw in rawMarks) {
+        if (raw is! Map<String, Object?>) {
+          throw const SaveCodecException(
+            'originWatermarks entry is not an object',
+          );
+        }
+        final StepOriginKey? key = StepOriginKey.tryParse(stringAt(raw, 'o'));
+        if (key == null) {
+          throw const SaveCodecException(
+            'originWatermarks.o is not a valid origin key',
+          );
+        }
+        originWatermarks[key] = intAt(raw, 'w');
+      }
+    }
+
     final Map<ObservationKey, int> slices = <ObservationKey, int>{};
     for (final Object? entry in listAt(json, 'grantedSlices')) {
       if (entry is! Map<String, Object?>) {
@@ -659,6 +689,7 @@ final class V1StateDecoder implements StateDecoder {
       ),
       checkpoint: SyncCheckpoint(
         cursor: cursor,
+        originWatermarks: originWatermarks,
         watermarkMillis: nullableIntAt(checkpointJson, 'watermarkMillis'),
         syncCount: intAt(checkpointJson, 'syncCount'),
       ),

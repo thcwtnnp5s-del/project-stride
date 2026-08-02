@@ -75,6 +75,9 @@ final class EventReducer {
           checkpoint: SyncCheckpoint(
             cursor: event.cursor,
             watermarkMillis: state.steps.checkpoint.watermarkMillis,
+            // Carried forward. Dropping these would unsettle every origin and
+            // re-grant the whole retention window on the next sync.
+            originWatermarks: state.steps.checkpoint.originWatermarks,
             syncCount: event.syncCount,
           ),
         ),
@@ -139,6 +142,7 @@ final class EventReducer {
         checkpoint: SyncCheckpoint(
           cursor: ledger.checkpoint.cursor,
           watermarkMillis: event.watermarkMillis,
+          originWatermarks: event.originWatermarks,
           syncCount: ledger.checkpoint.syncCount,
         ),
         lateDiscardedSlices: ledger.lateDiscardedSlices + event.lateDiscarded,

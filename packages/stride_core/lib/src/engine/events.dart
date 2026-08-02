@@ -4,6 +4,7 @@ import '../content/content_id.dart';
 import '../content/definitions.dart';
 import '../steps/reconciliation.dart';
 import '../steps/step_ledger.dart';
+import '../steps/step_origin_key.dart';
 import '../steps/sync_batch.dart';
 
 /// Something that has happened.
@@ -177,11 +178,15 @@ final class StepObservationReconciled extends GameEvent {
     required this.grantedCompactedAway,
     required this.lateDiscarded,
     required this.watermarkMillis,
+    required Map<StepOriginKey, int> originWatermarks,
     required this.correctionsSeen,
     required this.truncatedGap,
     required this.wasRecovery,
   }) : grantedSlicesAfter = Map<ObservationKey, int>.unmodifiable(
          grantedSlicesAfter,
+       ),
+       originWatermarks = Map<StepOriginKey, int>.unmodifiable(
+         originWatermarks,
        );
 
   final int observedAfter;
@@ -198,7 +203,11 @@ final class StepObservationReconciled extends GameEvent {
   /// because this is the one lossy path the design still permits.
   final int lateDiscarded;
 
+  /// Diagnostic. The lowest per-origin watermark.
   final int? watermarkMillis;
+
+  /// Per origin, the point through which that origin is accounted for.
+  final Map<StepOriginKey, int> originWatermarks;
   final int correctionsSeen;
   final bool truncatedGap;
   final bool wasRecovery;
