@@ -289,7 +289,20 @@ When it happens, the delta stream is broken and the adapter cannot say what chan
 
 > When a Health Connect changes token expires or becomes invalid, perform a **bounded authoritative rescan**, rebuild native source state, and reconcile it against the game's monotonic granted-step ledger **without duplicating previously granted progress**.
 
-#### Watermark and overlap arithmetic
+#### The contract is binding; the mechanism is not
+
+Recovery must satisfy every clause below. **How** it satisfies them is an implementation choice to be settled at S-01 against the real Health Connect API, not locked here.
+
+| # | Required behavior |
+|---|---|
+| 1 | The game ledger is **never reset** |
+| 2 | Rescanned history is **never treated as all new** |
+| 3 | Granted progress is **never clawed back** |
+| 4 | The cursor is **never silently discarded in favour of granting full history** |
+| 5 | A replacement token is persisted **only after** the recovery batch is committed to the ledger |
+| 6 | Recovery interrupted at any point is **safe to retry** and recomputes the same result |
+
+#### Initial hypothesis — watermark and overlap arithmetic
 
 The save persists two values alongside the cursor:
 
@@ -308,6 +321,12 @@ The subtraction is the overlap correction: whatever was already granted from ins
 
 `sourceWatermark` advances and `grantedSinceWatermark` resets to zero only after a successful recovery.
 
+> **This equation is a starting hypothesis, not settled architecture.** It is simple, cheap, and needs no shadow copy of health data — which is why it is the default. But it has a known weakness: it assumes the source total for a window is stable enough that arithmetic over it is meaningful. Aggregates that shift under retroactive writes, or multiple data origins writing into the same window, could make it too blunt.
+>
+> **Permitted alternatives, alone or in combination:** record identities, origin metadata, time buckets, overlap fingerprints, aggregate reads, or a hybrid.
+>
+> The choice is settled at S-01 against the real API, and whichever mechanism wins must satisfy clauses 1–6 and pass scenario 13 unchanged. **The tests assert the contract, not the equation** — that is what lets the mechanism change without the guarantees moving.
+
 #### Bounded
 
 `windowStart` is clamped to `StepRescan.maxRescanWindow` (30 days) before now. If the watermark is older, the window is truncated and `truncated` is set. **Steps in the unreachable gap are recorded, never granted** — they cannot be distinguished from steps already counted, and inventing progress is worse than missing it.
@@ -320,9 +339,13 @@ Recovery reads state and computes a number; it mutates nothing until the ledger 
 
 #### On record identity
 
-Health Connect exposes per-record UIDs, and deduplicating by UID inside the overlap window would be more precise than arithmetic. It is deliberately not the primary mechanism: retaining identifiers indefinitely is unbounded storage, and it would leave the game holding a shadow copy of health data, which `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Identity may be used as a refinement *within* a single recovery pass; the watermark arithmetic is what the correctness argument rests on.
+Health Connect exposes per-record UIDs, and deduplicating by UID inside the overlap window would be more precise than arithmetic.
 
-The contract is expressed in `StepRescan` in `stride_core`, and tested by reconciliation scenario 13.
+It is not the *default* mechanism for one reason worth stating plainly: retaining identifiers indefinitely is unbounded storage, and it would leave the game holding a shadow copy of health data, which `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Using identity **transiently, within a single recovery pass**, has no such problem and is entirely permitted — the constraint is on what the game *persists*, not on what it reads.
+
+If S-01 finds that arithmetic alone cannot distinguish processed from unprocessed data, identity-within-a-pass is the first alternative to try.
+
+The **contract** is expressed in `StepRescan` in `stride_core` and tested by reconciliation scenario 13. The mechanism behind it may change; the contract may not.
 
 ### 6.7 Testability — and now, cross-platform equivalence
 

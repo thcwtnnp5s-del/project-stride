@@ -93,6 +93,10 @@ The scenario must assert every clause of it:
 - **Acceptance:** all thirteen scenarios exist and fail for the right reason before S-02; none touches real health data, the file system, or the wall clock; the suite runs in under a second
 - **Note:** the ledger's monotonic counters were *claimed* to handle this by design. That claim is untested until 13a–13g exist, and "handled by design" is exactly the kind of belief that turns out to be wrong in the one system that must not be.
 
+> **The mechanism is not fixed.** `newlyGrantable = max(0, windowTotal − grantedSinceWatermark)` is an initial hypothesis, not settled architecture. S-01 may instead use record identities, origin metadata, time buckets, overlap fingerprints, aggregate reads, or a hybrid — whatever the real Health Connect API turns out to require.
+>
+> **Write 13a–13g against the contract, not the equation.** A test that asserts the arithmetic would have to be rewritten when the mechanism changes, and a test you rewrite to make it pass has stopped being a test.
+
 **Ordering rule stands: F-04 before S-02. Do not reorder it.**
 
 ### F-05 — Save, ledger, and crash recovery *(unchanged)*

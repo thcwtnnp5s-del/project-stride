@@ -84,7 +84,24 @@ class StepFetchResult {
 /// * Grant everything rescanned — double-counts every step already granted.
 /// * Reset the ledger and start over — erases the player's earned progress.
 ///
-/// ## The strategy: watermark plus overlap arithmetic
+/// ## The binding contract
+///
+/// Recovery must, by whatever mechanism:
+///
+/// 1. never reset the game ledger
+/// 2. never treat rescanned history as all new
+/// 3. never claw back granted progress
+/// 4. never silently discard the cursor and grant full history
+/// 5. persist a replacement cursor only after the batch is committed
+/// 6. be safe to retry after interruption, recomputing the same result
+///
+/// ## Initial hypothesis: watermark plus overlap arithmetic
+///
+/// **A starting point, not settled architecture.** The implementation may
+/// instead use record identities, origin metadata, time buckets, overlap
+/// fingerprints, aggregate reads, or a hybrid — settled at S-01 against the
+/// real Health Connect API. Scenario 13 asserts the contract above, not this
+/// arithmetic, so the mechanism can change without the guarantees moving.
 ///
 /// The game persists two values alongside the cursor:
 ///
