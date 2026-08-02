@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
-**Version:** 1.7
-**Status:** ✅ **Flutter migration closed.** CI green on all four jobs.
-**Current Phase:** Milestone 01 — awaiting owner approval before F-02
+**Version:** 1.8
+**Status:** ✅ **F-02 complete** — content schema, loader, and validation.
+**Current Phase:** Milestone 01 — awaiting owner approval before F-03
 
 ## Project identity
 
@@ -88,7 +88,20 @@ The player must be able to:
 15. ~~Execute M-4 — cross-platform CI validation.~~ **Done — `M4_CI_COMPLETION_REPORT.md`**
 16. ~~Owner approval of M-4.~~ **Approved**
 17. ~~Execute M-5 and M-6 — retire the Swift scaffold, close the migration.~~ **Done — `MIGRATION_CLOSURE_REPORT.md`**
-18. **Owner approval before F-02.** ← current state
+18. ~~Owner approval of the closed migration.~~ **Approved**
+19. ~~Execute F-02 — content schema, loader, validation.~~ **Done — `F02_COMPLETION_REPORT.md`**
+20. **Owner approval before F-03.** ← current state
+
+## Milestone 01 progress
+
+| Task | Status |
+|---|---|
+| F-01 — project skeleton, core purity | ✅ Done (Flutter form, M-2/M-3) |
+| **F-02 — content schemas and loader** | ✅ **Done** |
+| F-03 — GameState, events, engine | Next |
+| F-04 — reconciliation test harness (13 scenarios) | Blocked on F-03 |
+| F-05 — save, ledger, crash recovery | Blocked on F-03 |
+| F-06 — skill framework | Blocked on F-03 |
 
 ## Current documents
 

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "enemies",
+  "entries": [
+    {
+      "id": "enemy.forest_wolf",
+      "displayName": "Forest Wolf",
+      "location": "location.whispering_wood",
+      "health": 40,
+      "attack": 5,
+      "defence": 2,
+      "isBoss": false,
+      "drops": [
+        {
+          "item": "item.meadow_herb",
+          "quantity": 1,
+          "chancePercent": 40
+        }
+      ]
+    },
+    {
+      "id": "enemy.cave_goblin",
+      "displayName": "Cave Goblin",
+      "location": "location.stonefall_mine",
+      "health": 70,
+      "attack": 9,
+      "defence": 5,
+      "isBoss": false,
+      "drops": [
+        {
+          "item": "item.copper_ore",
+          "quantity": 2,
+          "chancePercent": 55
+        },
+        {
+          "item": "item.tin_ore",
+          "quantity": 1,
+          "chancePercent": 30
+        }
+      ]
+    },
+    {
+      "id": "enemy.hollow_guardian",
+      "displayName": "Hollow Guardian",
+      "location": "location.forgotten_hollow",
+      "health": 220,
+      "attack": 18,
+      "defence": 12,
+      "isBoss": true,
+      "drops": [
+        {
+          "item": "item.hollow_sigil",
+          "quantity": 1,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.hollow_root",
+          "quantity": 2,
+          "chancePercent": 70
+        }
+      ]
+    }
+  ]
+}

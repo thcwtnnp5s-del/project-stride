@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "standalone": true,
+  "kind": "items",
+  "entries": [
+    {
+      "id": "Item.Bad_Thing",
+      "displayName": "Bad Thing",
+      "category": "material"
+    }
+  ]
+}

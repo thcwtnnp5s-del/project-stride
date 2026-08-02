@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "profiles",
+  "entries": [
+    {
+      "id": "profile.production",
+      "displayName": "Production",
+      "releaseSafe": true,
+      "stepCostPercent": 100,
+      "xpPercent": 100,
+      "yieldPercent": 100,
+      "enemyHealthPercent": 100
+    },
+    {
+      "id": "profile.accelerated_qa",
+      "displayName": "Accelerated QA",
+      "releaseSafe": true,
+      "stepCostPercent": 5,
+      "xpPercent": 1000,
+      "yieldPercent": 300,
+      "enemyHealthPercent": 25
+    }
+  ]
+}

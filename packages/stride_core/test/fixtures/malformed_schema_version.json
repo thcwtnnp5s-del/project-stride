@@ -1,0 +1,11 @@
+{
+  "standalone": true,
+  "kind": "items",
+  "entries": [
+    {
+      "id": "item.undated_thing",
+      "displayName": "Undated Thing",
+      "category": "material"
+    }
+  ]
+}

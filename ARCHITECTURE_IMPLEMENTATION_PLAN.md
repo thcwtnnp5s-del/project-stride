@@ -355,15 +355,31 @@ New requirement: **the same twelve scenarios must pass against both real adapter
 
 ---
 
-## 7. Data-driven content model *(unchanged)*
+## 7. Data-driven content model *(implemented at F-02)*
 
-`assets/content/v1/` — nine JSON files, `{"schemaVersion": 1, "entries": [...]}`, stable string-slug IDs.
+`assets/content/v1/` — seven JSON files, each `{"schemaVersion": 1, "kind": …, "entries": [...]}`, with stable namespaced IDs (`item.oak_log`, `skill.woodcutting`).
 
-Validation at build time as a **test failure**, never a runtime crash: unresolved references, recipes unreachable from starting equipment, gatherables with no consumer, skills missing curves, materials with no audio cue, and the deferred-vocabulary guard.
+**Identifiers are permanent and independent of display names.** Display names are a separate field that may change freely; nothing is ever looked up by one.
 
-### 7.1 Balance profiles *(unchanged)*
+**The loader never guesses.** A schema version it does not support is a hard failure, not something to coerce — silently dropping a field this build has never heard of would produce a registry that looks fine and is quietly wrong.
 
-**Production** ships. **Accelerated** is a separate development/test profile that never mutates production values, is unavailable in release builds, and is never used for pacing assertions (`DECISIONS/0007`).
+**`ContentSource` takes text, not a directory.** The core cannot touch the file system, so reading files is the caller's job. The side benefit is that loading cannot depend on file enumeration order, because the loader never enumerates anything.
+
+**All practical errors are collected in one pass**, each naming its source file, entry, field, explanation, and a suggested fix — including a "did you mean…?" for a near-miss reference. Stopping at the first error would make fixing a bundle a sequence of one-error rebuilds.
+
+Validation is a **test failure**, never a runtime crash. Seventeen deliberately broken fixtures prove each rule fires; one test proves the validator stays silent on valid content, and one proves a single broken field does not cascade.
+
+A **reachability validator** walks the progression graph from the granted loadout to Bronze, diagnosing tool-bootstrap deadlocks, missing ingredients, cycles with no entry point, resources gated behind their own output, and unobtainable location-entry requirements. It proves reachability, not balance: step costs, quantities, and skill levels are deliberately ignored.
+
+### 7.1 Balance profiles — base content plus profile
+
+**Production** ships and leaves everything at 100%, so base content is the single source of truth for real numbers. **`accelerated_qa`** compresses pacing for testing.
+
+A profile may change only four percentages — step cost, XP, yield, enemy health. It has no vocabulary for adding an item, changing a reference, or rewiring progression, because those live in a layer it cannot reach. A test asserts that both profiles produce identical IDs, recipes, and travel graphs.
+
+**The release safeguard is mechanical.** `ReleaseSafety` reads `dart.vm.product`, which the compiler sets and a build script cannot forget, and a release build selecting a profile that is not `releaseSafe` throws at load. Validation additionally rejects a production profile that is not release-safe, and any non-production profile that is.
+
+Shipping accelerated pacing by accident would not crash, would not fail a test that was not looking for it, and would most likely be noticed by a player wondering why level 20 took four days.
 
 ---
 

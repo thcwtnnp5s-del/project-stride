@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 99,
+  "standalone": true,
+  "kind": "items",
+  "entries": [
+    {
+      "id": "item.future_thing",
+      "displayName": "Future Thing",
+      "category": "material"
+    }
+  ]
+}

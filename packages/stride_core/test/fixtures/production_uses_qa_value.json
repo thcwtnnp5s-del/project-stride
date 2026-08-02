@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 1,
+  "kind": "items",
+  "entries": [
+    {
+      "id": "item.training_sword",
+      "displayName": "Training Sword",
+      "category": "equipment",
+      "slot": "weapon",
+      "tier": 0,
+      "power": 3,
+      "stackable": false
+    },
+    {
+      "id": "item.training_axe",
+      "displayName": "Training Axe",
+      "category": "equipment",
+      "slot": "tool",
+      "toolKind": "axe",
+      "tier": 0,
+      "power": 1,
+      "stackable": false
+    },
+    {
+      "id": "item.training_pickaxe",
+      "displayName": "Training Pickaxe",
+      "category": "equipment",
+      "slot": "tool",
+      "toolKind": "pickaxe",
+      "tier": 0,
+      "power": 1,
+      "stackable": false
+    },
+    {
+      "id": "item.traveler_tunic",
+      "displayName": "Traveler Tunic",
+      "category": "equipment",
+      "slot": "armor",
+      "tier": 0,
+      "power": 2,
+      "stackable": false
+    },
+    {
+      "id": "item.oak_log",
+      "displayName": "Oak Log",
+      "category": "material",
+      "tier": 0
+    },
+    {
+      "id": "item.pine_log",
+      "displayName": "Pine Log",
+      "category": "material",
+      "tier": 1
+    },
+    {
+      "id": "item.copper_ore",
+      "displayName": "Copper Ore",
+      "category": "material",
+      "tier": 0,
+      "qaOnly": true
+    },
+    {
+      "id": "item.tin_ore",
+      "displayName": "Tin Ore",
+      "category": "material",
+      "tier": 0
+    },
+    {
+      "id": "item.meadow_herb",
+      "displayName": "Meadow Herb",
+      "category": "material",
+      "tier": 0
+    },
+    {
+      "id": "item.hollow_root",
+      "displayName": "Hollow Root",
+      "category": "material",
+      "tier": 1
+    },
+    {
+      "id": "item.oak_handle",
+      "displayName": "Oak Handle",
+      "category": "material",
+      "tier": 0
+    },
+    {
+      "id": "item.bronze_ingot",
+      "displayName": "Bronze Ingot",
+      "category": "material",
+      "tier": 1
+    },
+    {
+      "id": "item.pine_plank",
+      "displayName": "Pine Plank",
+      "category": "material",
+      "tier": 1
+    },
+    {
+      "id": "item.bronze_sword",
+      "displayName": "Bronze Sword",
+      "category": "equipment",
+      "slot": "weapon",
+      "tier": 1,
+      "power": 9,
+      "stackable": false
+    },
+    {
+      "id": "item.bronze_axe",
+      "displayName": "Bronze Axe",
+      "category": "equipment",
+      "slot": "tool",
+      "toolKind": "axe",
+      "tier": 1,
+      "power": 4,
+      "stackable": false
+    },
+    {
+      "id": "item.bronze_pickaxe",
+      "displayName": "Bronze Pickaxe",
+      "category": "equipment",
+      "slot": "tool",
+      "toolKind": "pickaxe",
+      "tier": 1,
+      "power": 4,
+      "stackable": false
+    },
+    {
+      "id": "item.bronze_chestplate",
+      "displayName": "Bronze Chestplate",
+      "category": "equipment",
+      "slot": "armor",
+      "tier": 1,
+      "power": 7,
+      "stackable": false
+    },
+    {
+      "id": "item.herb_broth",
+      "displayName": "Herb Broth",
+      "category": "consumable",
+      "tier": 0,
+      "healing": 12
+    },
+    {
+      "id": "item.hearty_stew",
+      "displayName": "Hearty Stew",
+      "category": "consumable",
+      "tier": 1,
+      "healing": 30
+    },
+    {
+      "id": "item.hollow_sigil",
+      "displayName": "Hollow Sigil",
+      "category": "quest",
+      "tier": 1
+    }
+  ]
+}

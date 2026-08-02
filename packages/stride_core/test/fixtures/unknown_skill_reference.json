@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "kind": "resource_nodes",
+  "entries": [
+    {
+      "id": "resource_node.oak_stand",
+      "displayName": "Oak Stand",
+      "skill": "skill.lumberjacking",
+      "requiredLevel": 1,
+      "requiredToolKind": "axe",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.oak_log",
+      "yieldsQuantity": 1,
+      "stepCost": 120,
+      "xp": 12
+    },
+    {
+      "id": "resource_node.pine_ridge",
+      "displayName": "Pine Ridge",
+      "skill": "skill.woodcutting",
+      "requiredLevel": 8,
+      "requiredToolKind": "axe",
+      "minimumToolTier": 1,
+      "yieldsItem": "item.pine_log",
+      "yieldsQuantity": 1,
+      "stepCost": 260,
+      "xp": 30
+    },
+    {
+      "id": "resource_node.meadow_patch",
+      "displayName": "Meadow Patch",
+      "skill": "skill.foraging",
+      "requiredLevel": 1,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.meadow_herb",
+      "yieldsQuantity": 2,
+      "stepCost": 90,
+      "xp": 10
+    },
+    {
+      "id": "resource_node.copper_seam",
+      "displayName": "Copper Seam",
+      "skill": "skill.mining",
+      "requiredLevel": 1,
+      "requiredToolKind": "pickaxe",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.copper_ore",
+      "yieldsQuantity": 1,
+      "stepCost": 140,
+      "xp": 14
+    },
+    {
+      "id": "resource_node.tin_seam",
+      "displayName": "Tin Seam",
+      "skill": "skill.mining",
+      "requiredLevel": 3,
+      "requiredToolKind": "pickaxe",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.tin_ore",
+      "yieldsQuantity": 1,
+      "stepCost": 160,
+      "xp": 16
+    },
+    {
+      "id": "resource_node.hollow_thicket",
+      "displayName": "Hollow Thicket",
+      "skill": "skill.foraging",
+      "requiredLevel": 10,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.hollow_root",
+      "yieldsQuantity": 1,
+      "stepCost": 300,
+      "xp": 34
+    }
+  ]
+}
