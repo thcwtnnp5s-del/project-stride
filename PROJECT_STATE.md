@@ -98,6 +98,10 @@ The player must be able to:
 | `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md` | v2.0 — 41 tasks, review findings applied |
 | `TECHNICAL/PROJECT_STRUCTURE.md` | Package layout and the Pigeon boundary |
 | `.github/workflows/ci.yml` | Build matrix — Linux for Dart/Android, macOS for iOS |
+| `TECHNICAL/PROJECT_SETUP.md` | How to build and verify |
+| `TOOLCHAIN_REPORT_WINDOWS.md` | Verified Windows toolchain |
+| `FILE_MANIFEST.md` | Full inventory, active vs. historical |
+| **`MIGRATION_CLOSURE_REPORT.md`** | **M-5/M-6, final CI, recommended F-02 scope** |
 | `MIGRATION_EXECUTION_PLAN.md` | M-1 to M-6, with acceptance criteria |
 | `DESIGN_REVIEW_FLUTTER.md` | Four-role review, approved with changes |
 | `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md` | Why Flutter |
@@ -140,7 +144,7 @@ Physical devices are needed for real health data, background sync, process-kill,
 | JDK | ✅ Temurin 17.0.20 |
 | Android SDK | ✅ platform-36, build-tools 36.1.0, adb, emulator |
 | AVD | ✅ `stride_pixel` (API 36) |
-| GitHub CLI | ✅ 2.97.0, **not authenticated** |
+| GitHub CLI | ✅ 2.97.0, authenticated |
 | Xcode | ➖ iOS-only; CI macOS job covers compilation |
 
 
