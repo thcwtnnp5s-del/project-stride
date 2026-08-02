@@ -2,6 +2,9 @@ import 'package:meta/meta.dart';
 
 import '../content/content_id.dart';
 import '../content/definitions.dart';
+import '../steps/reconciliation.dart';
+import '../steps/step_ledger.dart';
+import '../steps/sync_batch.dart';
 
 /// Something that has happened.
 ///
@@ -134,4 +137,146 @@ final class LocationEntered extends GameEvent {
 
   @override
   String get name => 'LocationEntered';
+}
+
+/// A bounded recovery began.
+///
+/// Emitted **before** the observation is reconciled, so a process that dies
+/// mid-recovery leaves a ledger that knows one was started and never finished.
+/// Without it, a retry could not tell an interrupted first attempt from a fresh
+/// one.
+@immutable
+final class StepRecoveryStarted extends GameEvent {
+  const StepRecoveryStarted({
+    required super.sequence,
+    required this.windowStartMillis,
+    required this.windowEndMillis,
+    required this.truncated,
+  });
+
+  final int windowStartMillis;
+  final int windowEndMillis;
+  final bool truncated;
+
+  @override
+  String get name => 'StepRecoveryStarted';
+}
+
+/// A batch was reconciled: observed totals and slice records updated.
+///
+/// Carries the downward-correction count, but **there is no `StepsRemoved`
+/// event**. A health correction changes what the source says, never what the
+/// player has been credited, so there is no removal to announce — inventing one
+/// would invite a listener to undo a grant.
+@immutable
+final class StepObservationReconciled extends GameEvent {
+  StepObservationReconciled({
+    required super.sequence,
+    required this.observedAfter,
+    required Map<ObservationKey, int> grantedSlicesAfter,
+    required this.grantedCompactedAway,
+    required this.watermarkMillis,
+    required this.correctionsSeen,
+    required this.truncatedGap,
+    required this.wasRecovery,
+  }) : grantedSlicesAfter = Map<ObservationKey, int>.unmodifiable(
+         grantedSlicesAfter,
+       );
+
+  final int observedAfter;
+  final Map<ObservationKey, int> grantedSlicesAfter;
+
+  /// Granted credit for slices dropped by compaction, folded into the
+  /// pre-watermark total so no granted step is ever lost.
+  final int grantedCompactedAway;
+
+  final int? watermarkMillis;
+  final int correctionsSeen;
+  final bool truncatedGap;
+  final bool wasRecovery;
+
+  @override
+  String get name => 'StepObservationReconciled';
+}
+
+/// Steps were credited to the player.
+///
+/// Separate from [StepObservationReconciled] on purpose. Observing and granting
+/// are different facts: a batch can update what the source says while granting
+/// nothing, and anything reacting to *progress* — audio, the return summary —
+/// should hear only this one.
+@immutable
+final class StepsGranted extends GameEvent {
+  const StepsGranted({
+    required super.sequence,
+    required this.steps,
+    required this.grantedTotalAfter,
+  }) : assert(steps > 0, 'a grant event must credit something');
+
+  final int steps;
+  final int grantedTotalAfter;
+
+  @override
+  String get name => 'StepsGranted';
+}
+
+/// The replacement cursor is now safe to persist.
+///
+/// **Always the last event of a reconciliation batch.** The reducer applies
+/// events in order, so the ledger has already committed the grant by the time
+/// this lands.
+///
+/// That ordering is the entire crash-safety argument. Persisting a cursor first
+/// would let a process die before the grant and resume from a point whose steps
+/// were never credited — steps the player walked and will never see. Doing it
+/// last means an interrupted commit leaves the old cursor in place and the
+/// retry recomputes exactly the same result.
+@immutable
+final class StepCheckpointAuthorized extends GameEvent {
+  const StepCheckpointAuthorized({
+    required super.sequence,
+    required this.cursor,
+    required this.syncCount,
+  });
+
+  /// Null when the provider offered none — an unrecovered cursor stays absent
+  /// rather than being invented.
+  final SyncCursor? cursor;
+
+  final int syncCount;
+
+  @override
+  String get name => 'StepCheckpointAuthorized';
+}
+
+/// A recovery finished and the ledger is consistent again.
+@immutable
+final class StepRecoveryCompleted extends GameEvent {
+  const StepRecoveryCompleted({
+    required super.sequence,
+    required this.newlyGranted,
+    required this.truncated,
+  });
+
+  final int newlyGranted;
+  final bool truncated;
+
+  @override
+  String get name => 'StepRecoveryCompleted';
+}
+
+/// The provider's availability changed.
+@immutable
+final class StepSourceStateChanged extends GameEvent {
+  const StepSourceStateChanged({
+    required super.sequence,
+    required this.sourceState,
+    this.code,
+  });
+
+  final SourceState sourceState;
+  final ReconciliationCode? code;
+
+  @override
+  String get name => 'StepSourceStateChanged';
 }

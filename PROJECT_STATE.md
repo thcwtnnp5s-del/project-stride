@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
-**Version:** 1.9
-**Status:** ✅ **F-03 complete** — immutable state, typed commands and events, deterministic engine.
-**Current Phase:** Milestone 01 — awaiting owner approval before F-04
+**Version:** 2.0
+**Status:** ✅ **F-04 complete** — step ledger and reconciliation. ⚠️ One privacy decision escalated.
+**Current Phase:** Milestone 01 — awaiting owner approval before F-05
 
 ## Project identity
 
@@ -92,7 +92,19 @@ The player must be able to:
 19. ~~Execute F-02 — content schema, loader, validation.~~ **Done — `F02_COMPLETION_REPORT.md`**
 20. ~~Owner approval of F-02.~~ **Approved**
 21. ~~Execute F-03 — state, commands, events, engine.~~ **Done — `F03_COMPLETION_REPORT.md`**
-22. **Owner approval before F-04.** ← current state
+22. ~~Owner approval of F-03.~~ **Approved**
+23. ~~Execute F-04 — step ledger and reconciliation.~~ **Done — `F04_COMPLETION_REPORT.md`**
+24. **Owner approval before F-05, and answer the escalated privacy question.** ← current state
+
+## ⚠️ Open decision for the owner
+
+**The persisted ledger narrows a Game Bible rule.** `GAME_BIBLE/HEALTH_INTEGRATION` says persist *"ingested total, consumed total, sync anchor"* and **"never a step history"**. The reconciler additionally persists `grantedSlices` — per-device, per-hour **granted amounts**, bounded to 48 hours and compacted after.
+
+It is derived rather than raw, and bounded — but close enough to a coarse recent step record that calling it "not a history" would be a word game. It is also what makes replay, overlap, multi-origin, and bounded recovery provably safe; the scalar alternative cannot distinguish a restatement from new data.
+
+Three options with a recommendation: `TECHNICAL/STEP_LEDGER_PRIVACY.md` §5.
+
+**Answer before F-05** — F-05 serializes whatever shape is settled, and deciding after the save format exists is the expensive order.
 
 ## Milestone 01 progress
 
@@ -100,12 +112,12 @@ The player must be able to:
 |---|---|
 | F-01 — project skeleton, core purity | ✅ Done (Flutter form, M-2/M-3) |
 | F-02 — content schemas and loader | ✅ Done |
-| **F-03 — GameState, events, engine** | ✅ **Done** |
-| F-04 — step ledger and the thirteen scenarios | Next |
-| F-05 — save, ledger persistence, crash recovery | Blocked on F-04 |
+| F-03 — GameState, events, engine | ✅ Done |
+| **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
+| F-05 — save, ledger persistence, crash recovery | Next |
 | F-06 — skill framework | Unblocked |
 
-**106 automated tests** across the workspace: 97 Dart in `stride_core`, 2 app widget, 7 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
+**147 automated tests** across the workspace: 138 Dart in `stride_core`, 2 app widget, 7 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
 
 `stride_core` is 19 files of pure Dart — no Flutter, no plugins, no `dart:io`, and now no clock, randomness, locale, or platform reads either, enforced by a static source scan.
 

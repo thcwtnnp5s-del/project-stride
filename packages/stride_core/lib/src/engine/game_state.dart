@@ -5,6 +5,7 @@ import 'package:meta/meta.dart';
 
 import '../content/content_id.dart';
 import '../content/definitions.dart';
+import '../steps/step_ledger.dart';
 import 'state_version.dart';
 
 /// Deep-immutability helpers.
@@ -237,52 +238,6 @@ final class WorldState {
   );
 }
 
-/// The step ledger's state, in its F-03 form.
-///
-/// Deliberately minimal. The reconciliation model — ingested and consumed
-/// counters, the discrepancy debt, cursor recovery — is **F-04**, and building
-/// it here would mean designing it without the thirteen scenarios that define
-/// it. What exists now is enough to prove the command/event architecture:
-/// steps arrive, steps are allocated, and allocating more than you have is
-/// rejected rather than thrown.
-///
-/// [granted] and [allocated] only ever increase. That monotonicity is not
-/// decoration: it is the property the whole reconciliation design will rest on,
-/// and starting with it costs nothing.
-@immutable
-final class StepState {
-  const StepState({required this.granted, required this.allocated})
-    : assert(granted >= 0, 'granted steps cannot be negative'),
-      assert(allocated >= 0, 'allocated steps cannot be negative'),
-      assert(allocated <= granted, 'cannot allocate more steps than granted');
-
-  const StepState.initial() : granted = 0, allocated = 0;
-
-  /// Every step the game has ever accepted.
-  final int granted;
-
-  /// Every step the game has ever committed to an activity.
-  final int allocated;
-
-  /// Steps earned but not yet spent. Never expires (`DECISIONS/0008`).
-  int get banked => granted - allocated;
-
-  StepState granting(int steps) =>
-      StepState(granted: granted + steps, allocated: allocated);
-
-  StepState allocating(int steps) =>
-      StepState(granted: granted, allocated: allocated + steps);
-
-  @override
-  bool operator ==(Object other) =>
-      other is StepState &&
-      other.granted == granted &&
-      other.allocated == allocated;
-
-  @override
-  int get hashCode => Object.hash(granted, allocated);
-}
-
 /// The whole game, as one immutable value.
 ///
 /// Every field is either a primitive or a deeply frozen structure. A snapshot
@@ -320,7 +275,7 @@ final class GameState {
   final Equipment equipment;
   final SkillProgress skills;
   final WorldState world;
-  final StepState steps;
+  final StepLedger steps;
 
   /// How many events have been applied. Monotonic, and the sequence number the
   /// next event will carry.
@@ -335,7 +290,7 @@ final class GameState {
     Equipment? equipment,
     SkillProgress? skills,
     WorldState? world,
-    StepState? steps,
+    StepLedger? steps,
     int? eventSequence,
   }) => GameState(
     stateVersion: stateVersion,
@@ -386,7 +341,7 @@ final class GameState {
     final StringBuffer buffer = StringBuffer()
       ..write('v$stateVersion;profile=$profileId;seq=$eventSequence;')
       ..write('lvl=${player.level};xp=${player.experience};')
-      ..write('steps=${steps.granted}/${steps.allocated};')
+      ..write('steps=(${steps.signature});')
       ..write('at=${world.currentLocation};')
       ..write('open=${world.unlockedLocations.join(',')};')
       ..write(

@@ -44,7 +44,14 @@ enum RejectionCode {
   alreadyAtLocation('already_at_location'),
 
   /// The engine has no content registry to validate against.
-  contentNotLoaded('content_not_loaded');
+  contentNotLoaded('content_not_loaded'),
+
+  /// A normalized sync batch violated an invariant.
+  ///
+  /// An adapter fault rather than a player action, but returned rather than
+  /// thrown: a malformed batch must not take the app down, and the app needs to
+  /// be able to skip it and carry on.
+  malformedSyncBatch('malformed_sync_batch');
 
   const RejectionCode(this.wire);
 

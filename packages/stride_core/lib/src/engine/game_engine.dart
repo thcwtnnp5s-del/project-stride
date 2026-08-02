@@ -2,6 +2,9 @@ import '../content/balance_profile.dart';
 import '../content/content_id.dart';
 import '../content/content_registry.dart';
 import '../content/definitions.dart';
+import '../steps/reconciliation.dart';
+
+import '../steps/step_ledger.dart';
 import 'commands.dart';
 import 'event_reducer.dart';
 import 'events.dart';
@@ -68,7 +71,7 @@ final class GameEngine {
         currentLocation: registry.startLocation.id,
         unlockedLocations: <ContentId>{registry.startLocation.id},
       ),
-      steps: const StepState.initial(),
+      steps: StepLedger.initial(),
       eventSequence: 0,
     );
 
@@ -86,6 +89,7 @@ final class GameEngine {
 
   final ContentRegistry registry;
   static const EventReducer _reducer = EventReducer();
+  static const StepReconciler _reconciler = StepReconciler();
 
   GameState _state;
 
@@ -155,7 +159,147 @@ final class GameEngine {
         UnequipItem() => _unequip(command, state),
         UnlockLocation() => _unlock(command, state),
         EnterLocation() => _enter(command, state),
+        ReconcileStepSync() => _reconcile(command, state),
       };
+
+  /// Reconciles a normalized provider response.
+  ///
+  /// ## Event order is the crash-safety contract
+  ///
+  /// The events are emitted in commit order, and the reducer applies them in
+  /// that order:
+  ///
+  /// 1. `StepRecoveryStarted` — only when recovering, so an interrupted
+  ///    recovery is distinguishable from one that never began
+  /// 2. `StepObservationReconciled` — observed totals and slice records
+  /// 3. `StepsGranted` — the credit, if any
+  /// 4. `StepRecoveryCompleted` — only when recovering
+  /// 5. `StepCheckpointAuthorized` — **last**, so the cursor becomes
+  ///    persistable strictly after the ledger has committed
+  ///
+  /// A process that dies at any point leaves the old cursor in place, and the
+  /// retry recomputes the same answer. Authorizing the cursor first would let
+  /// a crash resume past steps that were never credited — steps the player
+  /// walked and would never see.
+  _Decision _reconcile(ReconcileStepSync command, GameState state) {
+    final ReconciliationOutcome outcome = _reconciler.reconcile(
+      ledger: state.steps,
+      response: command.response,
+    );
+
+    switch (outcome) {
+      case ReconciliationRefused(
+        :final ReconciliationCode code,
+        :final String explanation,
+      ):
+        // The ledger is untouched, but the provider's availability is a fact
+        // worth recording — the UI needs it to explain itself calmly.
+        final SourceState sourceState = switch (code) {
+          ReconciliationCode.serviceUnavailable =>
+            SourceState.serviceUnavailable,
+          ReconciliationCode.permissionUnavailable =>
+            SourceState.permissionUnavailable,
+          ReconciliationCode.transientFailure =>
+            SourceState.transientlyUnavailable,
+          ReconciliationCode.malformedBatch => state.steps.sourceState,
+        };
+
+        if (code == ReconciliationCode.malformedBatch) {
+          return _Decision.reject(
+            RejectionCode.malformedSyncBatch,
+            command,
+            explanation,
+          );
+        }
+        if (sourceState == state.steps.sourceState) {
+          // Nothing new to say. Accepted with no events keeps a repeated
+          // failure from filling the event stream with noise.
+          return _Decision.accept(const <GameEvent>[]);
+        }
+        return _Decision.accept(<GameEvent>[
+          StepSourceStateChanged(
+            sequence: state.eventSequence,
+            sourceState: sourceState,
+            code: code,
+          ),
+        ]);
+
+      case ReconciliationAccepted():
+        final List<GameEvent> events = <GameEvent>[];
+        int sequence = state.eventSequence;
+
+        if (state.steps.sourceState != SourceState.available) {
+          events.add(
+            StepSourceStateChanged(
+              sequence: sequence++,
+              sourceState: SourceState.available,
+            ),
+          );
+        }
+
+        if (outcome.wasRecovery) {
+          events.add(
+            StepRecoveryStarted(
+              sequence: sequence++,
+              windowStartMillis: outcome.windowStartMillis ?? 0,
+              windowEndMillis: outcome.windowEndMillis ?? 0,
+              truncated: outcome.truncatedGap,
+            ),
+          );
+        }
+
+        final int compacted = _reconciler.compactedGrantedBetween(
+          state.steps.grantedSlices,
+          outcome.grantedSlicesAfter,
+        );
+        events.add(
+          StepObservationReconciled(
+            sequence: sequence++,
+            observedAfter: outcome.observedAfter,
+            grantedSlicesAfter: outcome.grantedSlicesAfter,
+            grantedCompactedAway: compacted,
+            watermarkMillis: _reconciler.watermarkFor(
+              outcome.grantedSlicesAfter,
+              previous: state.steps.checkpoint.watermarkMillis,
+            ),
+            correctionsSeen: outcome.correctionsSeen,
+            truncatedGap: outcome.truncatedGap,
+            wasRecovery: outcome.wasRecovery,
+          ),
+        );
+
+        if (outcome.newlyGranted > 0) {
+          events.add(
+            StepsGranted(
+              sequence: sequence++,
+              steps: outcome.newlyGranted,
+              grantedTotalAfter: outcome.grantedAfter,
+            ),
+          );
+        }
+
+        if (outcome.wasRecovery) {
+          events.add(
+            StepRecoveryCompleted(
+              sequence: sequence++,
+              newlyGranted: outcome.newlyGranted,
+              truncated: outcome.truncatedGap,
+            ),
+          );
+        }
+
+        // Last. The cursor becomes persistable only now.
+        events.add(
+          StepCheckpointAuthorized(
+            sequence: sequence,
+            cursor: outcome.cursorToAuthorize ?? state.steps.checkpoint.cursor,
+            syncCount: state.steps.checkpoint.syncCount + 1,
+          ),
+        );
+
+        return _Decision.accept(events);
+    }
+  }
 
   _Decision _grantSteps(GrantSyntheticSteps command, GameState state) {
     if (command.steps <= 0) {

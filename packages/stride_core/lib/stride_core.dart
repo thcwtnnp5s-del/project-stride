@@ -17,6 +17,10 @@ export 'src/engine/game_engine.dart';
 export 'src/engine/game_state.dart';
 export 'src/engine/rejection.dart';
 export 'src/engine/state_version.dart';
+export 'src/steps/reconciliation.dart';
+
+export 'src/steps/step_ledger.dart';
+export 'src/steps/sync_batch.dart';
 
 export 'src/content/balance_profile.dart';
 export 'src/content/content_id.dart';

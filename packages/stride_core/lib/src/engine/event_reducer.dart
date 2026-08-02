@@ -1,4 +1,7 @@
 import '../content/content_id.dart';
+
+import '../steps/step_ledger.dart';
+
 import 'events.dart';
 import 'game_state.dart';
 
@@ -40,12 +43,8 @@ final class EventReducer {
 
     final GameState next = switch (event) {
       GameStarted() => _started(state, event),
-      SyntheticStepsGranted() => state.copyWith(
-        steps: state.steps.granting(event.steps),
-      ),
-      StepsAllocated() => state.copyWith(
-        steps: state.steps.allocating(event.steps),
-      ),
+      SyntheticStepsGranted() => _grantSteps(state, event.steps),
+      StepsAllocated() => _spendSteps(state, event.steps),
       ItemEquipped() => state.copyWith(
         equipment: state.equipment.equipping(event.slot, event.item),
       ),
@@ -57,6 +56,34 @@ final class EventReducer {
       ),
       LocationEntered() => state.copyWith(
         world: state.world.movingTo(event.location),
+      ),
+      StepRecoveryStarted() => state.copyWith(
+        steps: state.steps.copyWith(
+          recovery: RecoveryState(
+            phase: RecoveryPhase.awaitingCommit,
+            windowStartMillis: event.windowStartMillis,
+            windowEndMillis: event.windowEndMillis,
+            truncated: event.truncated,
+            attempts: state.steps.recovery.attempts + 1,
+          ),
+        ),
+      ),
+      StepObservationReconciled() => _reconciled(state, event),
+      StepsGranted() => _grantSteps(state, event.steps),
+      StepCheckpointAuthorized() => state.copyWith(
+        steps: state.steps.copyWith(
+          checkpoint: SyncCheckpoint(
+            cursor: event.cursor,
+            watermarkMillis: state.steps.checkpoint.watermarkMillis,
+            syncCount: event.syncCount,
+          ),
+        ),
+      ),
+      StepRecoveryCompleted() => state.copyWith(
+        steps: state.steps.copyWith(recovery: const RecoveryState.idle()),
+      ),
+      StepSourceStateChanged() => state.copyWith(
+        steps: state.steps.copyWith(sourceState: event.sourceState),
       ),
     };
 
@@ -82,6 +109,41 @@ final class EventReducer {
       world: WorldState(
         currentLocation: event.startLocation,
         unlockedLocations: <ContentId>{event.startLocation},
+      ),
+    );
+  }
+
+  /// Credits steps. Granted only ever rises.
+  GameState _grantSteps(GameState state, int steps) => state.copyWith(
+    steps: state.steps.copyWith(totalGranted: state.steps.totalGranted + steps),
+  );
+
+  /// Commits steps to an activity.
+  ///
+  /// Spending beyond banked is refused at validation, so reaching here with an
+  /// impossible amount is a programming fault — [StepLedger] throws rather than
+  /// clamping, because a silently clamped spend is a save that quietly
+  /// disagrees with the command that produced it.
+  GameState _spendSteps(GameState state, int steps) => state.copyWith(
+    steps: state.steps.copyWith(totalSpent: state.steps.totalSpent + steps),
+  );
+
+  GameState _reconciled(GameState state, StepObservationReconciled event) {
+    final StepLedger ledger = state.steps;
+    return state.copyWith(
+      steps: ledger.copyWith(
+        totalObserved: event.observedAfter,
+        grantedSlices: event.grantedSlicesAfter,
+        grantedBeforeWatermark:
+            ledger.grantedBeforeWatermark + event.grantedCompactedAway,
+        checkpoint: SyncCheckpoint(
+          cursor: ledger.checkpoint.cursor,
+          watermarkMillis: event.watermarkMillis,
+          syncCount: ledger.checkpoint.syncCount,
+        ),
+        correctionsObserved: ledger.correctionsObserved + event.correctionsSeen,
+        unreachableGapEvents:
+            ledger.unreachableGapEvents + (event.truncatedGap ? 1 : 0),
       ),
     );
   }

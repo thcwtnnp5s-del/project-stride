@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import '../content/content_id.dart';
 import '../content/definitions.dart';
+import '../steps/sync_batch.dart';
 
 /// Something the player (or a system) wants to happen.
 ///
@@ -23,6 +24,23 @@ sealed class GameCommand {
   /// A stable identifier for logging and test naming. Not localized, not shown
   /// to a player.
   String get name;
+
+  /// Whether a player-facing surface may issue this command.
+  ///
+  /// False for commands that exist to drive the engine from tests, debug tools,
+  /// or future internal systems. A UI that offered one of these would let the
+  /// player grant themselves progress or open the world.
+  ///
+  /// Enforced by [playerFacing] and by test, not by convention.
+  bool get isPlayerFacing => true;
+
+  /// The commands a player-facing surface may offer.
+  ///
+  /// Filtering here rather than at each call site means a new internal command
+  /// is excluded by default: forgetting to mark one is a visible test failure,
+  /// where forgetting to exclude one would be silent.
+  static List<GameCommand> playerFacing(Iterable<GameCommand> commands) =>
+      commands.where((GameCommand c) => c.isPlayerFacing).toList();
 }
 
 /// Commit banked steps to progress.
@@ -63,6 +81,9 @@ final class AllocateSteps extends GameCommand {
 /// Neither is incidental. See `DESIGN_REVIEW_F03.md`, finding CR-1.
 @immutable
 final class GrantSyntheticSteps extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
   const GrantSyntheticSteps({required this.steps, required this.reason});
 
   final int steps;
@@ -99,15 +120,19 @@ final class UnequipItem extends GameCommand {
 
 /// Open a location for travel.
 ///
-/// **Temporary shape.** F-03 unlocks by command so the architecture can be
-/// proven end to end. In the real game an unlock is a *consequence* — of
-/// arriving somewhere, of crafting the item a gate requires — and leaving it as
-/// a command the player issues would eventually let the UI unlock the world.
+/// **Internal and test-only.** Marked so by owner instruction closing F-03: it
+/// must not reach a player command surface, and [isPlayerFacing] is false.
 ///
-/// F-04 or the travel task should demote this to an internal effect
-/// (`DESIGN_REVIEW_F03.md`, finding CD-2).
+/// In the real game an unlock is a *consequence* — of arriving somewhere, of
+/// crafting the item a gate requires. That unlock-condition system is
+/// deliberately deferred; what is retained meanwhile is the
+/// [LocationUnlocked] event, so when real conditions arrive they emit the same
+/// fact through the same reducer and nothing downstream changes.
 @immutable
 final class UnlockLocation extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
   const UnlockLocation({required this.location});
 
   final ContentId location;
@@ -129,4 +154,25 @@ final class EnterLocation extends GameCommand {
 
   @override
   String get name => 'EnterLocation';
+}
+
+/// Reconcile a normalized provider response against the ledger.
+///
+/// **Internal.** Real syncs are driven by the app's platform adapter, not by
+/// anything a player taps. Marked so a player-facing surface cannot offer it.
+///
+/// The command carries an already-normalized [SyncResponse]. No HealthKit or
+/// Health Connect type reaches the core: an adapter translates, and the core
+/// reconciles whatever shape it is handed.
+@immutable
+final class ReconcileStepSync extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
+  const ReconcileStepSync({required this.response});
+
+  final SyncResponse response;
+
+  @override
+  String get name => 'ReconcileStepSync';
 }

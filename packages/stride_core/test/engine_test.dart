@@ -67,8 +67,8 @@ void main() {
       final GameState state = GameEngine.newGame(registry: production).state;
 
       expect(state.stateVersion, StateVersion.current.value);
-      expect(state.steps.granted, 0);
-      expect(state.steps.allocated, 0);
+      expect(state.steps.totalGranted, 0);
+      expect(state.steps.totalSpent, 0);
       expect(state.steps.banked, 0);
       expect(state.player.level, 1);
     });
@@ -155,7 +155,7 @@ void main() {
 
       expect(earlier.signature, earlierSignature);
       expect(earlier.equipment.bySlot, isEmpty);
-      expect(earlier.steps.granted, 0);
+      expect(earlier.steps.totalGranted, 0);
       expect(engine.state.signature, isNot(earlierSignature));
     });
 
@@ -209,7 +209,7 @@ void main() {
           currentLocation: havensRest,
           unlockedLocations: <ContentId>{havensRest},
         ),
-        steps: const StepState.initial(),
+        steps: StepLedger.initial(),
         eventSequence: 0,
       );
 
