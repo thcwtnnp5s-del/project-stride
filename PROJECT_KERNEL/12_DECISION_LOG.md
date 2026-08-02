@@ -24,11 +24,15 @@ Audio must be considered during system design, not added only as final polish.
 **Status:** Locked — see `DECISIONS/0001_PROGRESSION_CLOCK.md`  
 Activities advance only from newly earned, reconciled steps. Nothing progresses on wall-clock time alone. "Idle" means asynchronous planning, offline reconciliation, and delayed collection — not passive accrual.
 
-## Technology stack
-**Status:** ⚠️ **REOPENED 2026-08-01** — see `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`  
-`DECISIONS/0002` selected native Swift + SwiftUI on the premises that iOS was the only platform and macOS was available. Both premises changed: the development machine is Windows, and some players use Android. A formal review recommends **Flutter with first-party HealthKit and Health Connect platform channels**. Awaiting owner approval; F-01 is paused.
+## Flutter, with first-party health adapters
+**Status:** Locked — see `DECISIONS/0010_CROSS_PLATFORM_STACK.md`  
+Flutter for the shared app; a pure Dart `stride_core` for rules and simulation; a repository-owned `stride_health` package with Swift/HealthKit and Kotlin/Health Connect adapters behind a Pigeon-typed boundary. **No third-party health plugin may own reconciliation, anchors, deletion handling, or ledger semantics.** Android first for interactive development on Windows; iOS kept compiling continuously in CI. Supersedes `DECISIONS/0002` (native Swift + SwiftUI).
 
-The architectural *principle* is unaffected and stands regardless of outcome: a pure simulation core with no dependency on any UI or platform framework, with every platform capability behind a port.
+The architectural principle is unchanged from `0002`: a pure simulation core with no dependency on any UI or platform framework, with every platform capability behind a port.
+
+## Staged private distribution
+**Status:** Locked — see `DECISIONS/0011_DISTRIBUTION_CHANNELS.md`  
+Android: local APK → signed APK or GitHub release artifacts → Play internal testing. iOS: TestFlight once Mac access exists. No public store launch on either platform.
 
 ## Turn-based, retreat-not-death combat
 **Status:** Locked — see `DECISIONS/0003_COMBAT_MODEL.md`  

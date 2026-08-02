@@ -1,12 +1,14 @@
 # Project Stride — Project State
 
-**Version:** 1.3
-**Status:** Technology stack reopened; F-01 paused
-**Current Phase:** Milestone 01 — cross-platform architecture review awaiting owner approval
+**Version:** 1.4
+**Status:** Flutter adopted; revised plans reviewed and awaiting approval before migration
+**Current Phase:** Milestone 01 — pre-migration
 
 ## Project identity
 
 Project Stride is a mobile-first, solo **step-powered asynchronous RPG with idle-style planning**, with MMO-style long-term progression. Real-world walking powers travel, gathering, exploration, crafting preparation, and adventure.
+
+Built in Flutter for **Android and iOS**. Android first, for interactive development on Windows; iOS kept compiling continuously in CI.
 
 Progression is step-clocked: activities advance only from earned steps, never from wall-clock time. "Idle" means asynchronous planning, offline reconciliation, and delayed collection.
 
@@ -35,14 +37,16 @@ Completed foundations:
 | # | Decision | Record |
 |---|---|---|
 | 0001 | Progression is step-clocked only | `DECISIONS/0001_PROGRESSION_CLOCK.md` |
-| 0002 | Native Swift + SwiftUI, iOS 17+, pure `StrideCore` package | `DECISIONS/0002_TECHNOLOGY_STACK.md` |
+| 0002 | ~~Native Swift + SwiftUI~~ — **superseded by 0010** | `DECISIONS/0002_TECHNOLOGY_STACK.md` |
 | 0003 | Turn-based, retreat-not-death combat; no combat skills in M01 | `DECISIONS/0003_COMBAT_MODEL.md` |
 | 0004 | M01 scope frozen — no currency, no merchants, five skills, six tabs | `DECISIONS/0004_MILESTONE_01_SCOPE.md` |
 | 0005 | Audio sourcing — lean prototype budget, full provenance, replaceable asset IDs | `DECISIONS/0005_AUDIO_SOURCING.md` |
 | 0006 | One activity at a time; travelling and gathering are a choice | `DECISIONS/0006_SINGLE_ACTIVITY.md` |
 | 0007 | Loop validated in one to two weeks; maxing skills not required | `DECISIONS/0007_PROGRESSION_PACING.md` |
 | 0008 | Earned opportunity never expires; nothing decays | `DECISIONS/0008_STEPLESS_WEEK.md` |
-| 0009 | iPhone portrait only, iOS 17+, TestFlight, no store launch | `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md` |
+| 0009 | Portrait only, phone only, no store launch — *amended for Android* | `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md` |
+| 0010 | **Flutter, pure Dart core, first-party health adapters, Android first** | `DECISIONS/0010_CROSS_PLATFORM_STACK.md` |
+| 0011 | Staged private distribution — APK → Play internal; TestFlight later | `DECISIONS/0011_DISTRIBUTION_CHANNELS.md` |
 
 ## Current milestone
 
@@ -76,26 +80,41 @@ The player must be able to:
 7. ~~Wait for owner approval before production implementation.~~ **Approved 2026-08-01**
 8. ~~Execute F-01 (Swift).~~ **Authored, never compiled — paused, see below**
 9. ~~Reopen the technology-stack decision.~~ **Done — `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`**
-10. **Owner approval of the Flutter recommendation.** ← current state
+10. ~~Owner approval of the Flutter recommendation.~~ **Approved 2026-08-01**
+11. ~~Revise architecture, structure, CI, and task plan; run four-role review.~~ **Done**
+12. **Owner approval of the revised plans, then execute the migration.** ← current state
 
-## Stack reopened — F-01 paused
+## Current documents
 
-`DECISIONS/0002` (native Swift + SwiftUI) was made on two premises that have since changed: iOS was the only platform, and macOS was available. The development machine is a Dell running Windows 11, and some intended players use Android.
+| Document | Purpose |
+|---|---|
+| `ARCHITECTURE_IMPLEMENTATION_PLAN.md` | v2.0 Flutter — the technical plan |
+| `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md` | v2.0 — 41 tasks, review findings applied |
+| `TECHNICAL/PROJECT_STRUCTURE.md` | Package layout and the Pigeon boundary |
+| `.github/workflows/ci.yml` | Build matrix — Linux for Dart/Android, macOS for iOS |
+| `MIGRATION_EXECUTION_PLAN.md` | M-1 to M-6, with acceptance criteria |
+| `DESIGN_REVIEW_FLUTTER.md` | Four-role review, approved with changes |
+| `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md` | Why Flutter |
 
-`ARCHITECTURE_REVIEW_CROSS_PLATFORM.md` compares Flutter, Kotlin Multiplatform, and separate native applications across fifteen criteria and recommends:
+Archived, not deleted: `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVED.md`, `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_SWIFT_ARCHIVED.md`, `DECISIONS/0002` (superseded).
 
-> **Flutter, with first-party HealthKit and Health Connect platform channels, Android built first.**
+## Migration not yet executed
 
-Under the current Swift decision, roughly **0%** of the project is verifiable on the owner's machine. Under Flutter it is roughly **90%**, and 35 of 40 tasks need no Mac at all.
+Flutter is adopted (`DECISIONS/0010`) and the plans are revised and reviewed, but **no code has been migrated.** The Swift F-01 scaffold remains in the tree, unbuilt and inert, and is retired last — at step M-5, after everything Flutter is green.
 
-**Nothing is replaced until the owner approves.** The Swift F-01 scaffold remains in the tree, unbuilt and inert. Migration cost is assessed in `MIGRATION_IMPACT_F01.md` as roughly one session.
+`MIGRATION_EXECUTION_PLAN.md` sequences M-1 through M-6 with acceptance criteria. Estimated two to three sessions. Until M-5 the tree carries both stacks and the migration can be abandoned by deleting a branch.
 
-### Awaiting owner confirmation
+**35 of 41 tasks require no Mac.** Roughly 90% of the project becomes verifiable on the owner's machine, against ~0% under the superseded decision.
 
-1. Adopt Flutter with first-party platform channels
-2. Sequence Android first, iOS when Mac access is arranged
-3. How macOS access will be provided — cloud CI, rented, or owned
-4. Android beta channel — Play closed testing or direct APK
+### Before the migration can start
+
+| Prerequisite | Why |
+|---|---|
+| A git remote | Required for CI and for GitHub release artifacts |
+| Flutter + Android SDK on the Dell | Step M-1 |
+| A physical Android device | Eventually, for real Health Connect data |
+
+macOS is **not** a prerequisite. GitHub-hosted macOS runners satisfy the iOS-compile job without the owner touching a Mac. Real HealthKit testing, signing, TestFlight, interactive iOS UX, and iOS audio/haptic validation still need one later.
 
 ## Open gaps to close during Milestone 01
 

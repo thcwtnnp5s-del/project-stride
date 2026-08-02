@@ -1,11 +1,13 @@
 # Decision: Technology Stack — Native Swift + SwiftUI
 
-**Status:** ⚠️ **REOPENED 2026-08-01 — under review, do not act on this document**
+**Status:** ⛔ **SUPERSEDED 2026-08-01 by `DECISIONS/0010_CROSS_PLATFORM_STACK.md`**
 **Date:** 2026-08-01
 **Owner:** Project owner
 **Satisfies:** The technical review required by `GAME_BIBLE/TECHNICAL/01_MOBILE_ARCHITECTURE_DIRECTION.md`
 
-> ## Reopened
+> ## Superseded — retained for the record
+>
+> **Replaced by `DECISIONS/0010_CROSS_PLATFORM_STACK.md`.** This document is history. It is kept rather than deleted so the reasoning, and the reason it stopped applying, remain legible.
 >
 > This decision was made on two premises that have since changed:
 >
@@ -14,9 +16,9 @@
 >
 > A formal comparison of Flutter, Kotlin Multiplatform, and separate native applications is in **`ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`**, which recommends **Flutter with first-party HealthKit and Health Connect platform channels**.
 >
-> **This decision remains nominally in force but must not be acted on.** F-01 is paused. Nothing is replaced until the owner approves the recommendation, at which point this document is superseded by `DECISIONS/0010_CROSS_PLATFORM_STACK.md`.
+> The analysis below was sound for its premises. What it got wrong was not the reasoning but the inputs — a useful reminder that a decision is only as durable as the facts it was given.
 >
-> The analysis below was sound for its premises. It is retained for the record.
+> The architectural *principle* it established survives intact in `0010`: a pure simulation core with no dependency on any UI or platform framework, with every platform capability behind a port. Only the language and runtime changed.
 
 ## Context
 

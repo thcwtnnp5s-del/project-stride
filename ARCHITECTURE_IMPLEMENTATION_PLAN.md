@@ -2,43 +2,37 @@
 
 **Project:** Project Stride
 **Milestone:** 01 — First Adventure Vertical Slice
-**Version:** 1.1 — review findings applied
+**Version:** 2.0 — Flutter
 **Date:** 2026-08-01
 **Author:** Technical Director, Studio Stride
-**Status:** Awaiting owner approval — no production code written
-**Reviews:** `DESIGN_REVIEW.md`, `CRITIC_REPORT.md`
+**Status:** Revised for `DECISIONS/0010`. Presented for approval before migration executes.
 
-Completes `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_TEMPLATE.md`. Binding decisions: `DECISIONS/0001`–`0004`.
+Supersedes v1.1, archived at `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVED.md`.
+Completes `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_TEMPLATE.md`. Binding: `DECISIONS/0001`, `0003`–`0011`.
+
+> **What changed from v1.1:** the language and runtime. The *shape* — layered with dependencies pointing inward, a pure simulation core, ports for every platform capability, semantic events driving audio and haptics, a ledger-based reconciliation model, JSON content with build-time validation — is unchanged. Sections marked **(unchanged)** carry over in substance.
 
 ---
 
 ## 1. Recommended stack
 
-| Concern | Choice | Notes |
-|---|---|---|
-| Language | Swift 6, strict concurrency | |
-| Minimum OS | iOS 17 | Observation, SwiftUI maturity, Swift Testing |
-| UI | SwiftUI + `@Observable` view models | |
-| Simulation | `StrideCore` local Swift package | Pure, deterministic, no platform frameworks |
-| Health | HealthKit, behind `StepProvider` | |
-| Persistence | Versioned `Codable` snapshot + append-only step ledger | Atomic writes, file protection |
-| Content | JSON with versioned schemas | Bundled, decoded at launch |
-| Audio | AVAudioEngine, behind `AudioDirecting` | |
-| Haptics | Core Haptics, behind `HapticPlaying` | |
-| Tests | Swift Testing (core), XCTest (integration) | |
-| Dependencies | **None at runtime** | Third-party runtime additions require a decision record |
-| Devices | iPhone only, **portrait only** | No iPad idiom, no landscape (`DECISIONS/0009`) |
-| Distribution | Local builds, then TestFlight | No App Store launch preparation (`DECISIONS/0009`) |
+| Concern | Choice |
+|---|---|
+| Framework | Flutter, current stable |
+| Language | Dart 3, sound null safety |
+| Simulation | `stride_core` — pure Dart package, **no Flutter import** |
+| Health | `stride_health` — repository-owned package, Pigeon-typed channels |
+| State | A single store over `stride_core`, exposed to the widget tree |
+| Persistence | Versioned JSON snapshot, atomic write, plus an append-only step ledger |
+| Content | JSON, versioned schemas, decoded into `stride_core` value types |
+| Audio | Behind `AudioDirecting`; package-based, replaceable |
+| Haptics | Behind `HapticPlaying`; platform channel for custom patterns |
+| Tests | `dart test` for the core, `flutter test` for widgets, integration on device |
+| Platforms | Android and iOS. **Mobile only** — no desktop or web target in any configuration |
+| Orientation | Portrait only, phone only, both platforms |
+| Minimum OS | iOS 17; Android minimum set at F-01 against Health Connect's floor |
 
-Approved in `DECISIONS/0002_TECHNOLOGY_STACK.md` and `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md`.
-
-Test matrix: one small iPhone simulator, one contemporary standard-size simulator, and the owner's physical iPhone once its model is provided. Simulators cannot validate HealthKit, Core Haptics, or battery — those criteria require the device.
-
-**Constraint of record:** iOS development requires macOS.
-
-### 1.1 Alternatives considered
-
-Recorded in full in `DECISIONS/0002_TECHNOLOGY_STACK.md` §Alternatives: React Native/Expo (rejected — HealthKit bridge fidelity, two languages), Flutter (strongest runner-up, revisit only if Android is promoted from "maybe" to "planned"), Kotlin Multiplatform (architecturally clean, rejected on solo-project cost before loop validation), Unity/Godot (rejected — engine overhead for a game with no renderer).
+Approved in `DECISIONS/0010_CROSS_PLATFORM_STACK.md`. Alternatives are compared in `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`.
 
 ---
 
@@ -48,427 +42,403 @@ Recorded in full in `DECISIONS/0002_TECHNOLOGY_STACK.md` §Alternatives: React N
 
 ```text
 ┌─────────────────────────────────────────────┐
-│  Presentation — SwiftUI views, @Observable  │  app target
-│  view models, navigation, animation          │
+│  Presentation — Flutter widgets, navigation │  app
 ├─────────────────────────────────────────────┤
-│  Adapters — HealthKitStepProvider,          │  app target
-│  FileSaveStore, AVAudioDirector,            │
-│  CoreHapticsPlayer, BundleContentLoader     │
+│  Store — holds GameEngine, fans events out  │  app
 ├─────────────────────────────────────────────┤
-│  Ports — protocols owned by StrideCore      │  StrideCore
+│  Adapters — stride_health, FileSaveStore,   │  app + stride_health
+│  AudioDirector, HapticPlayer, ContentLoader │
 ├─────────────────────────────────────────────┤
-│  Simulation — GameState, reducers, rules,   │  StrideCore
+│  Ports — abstract classes owned by core     │  stride_core
+├─────────────────────────────────────────────┤
+│  Simulation — GameState, reducers, rules,   │  stride_core
 │  reconciliation, activities, crafting,      │
 │  combat, XP, events                         │
 ├─────────────────────────────────────────────┤
-│  Content — JSON schemas + decoded value     │  StrideCore types,
-│  types (items, recipes, nodes, enemies,     │  bundled JSON
-│  locations, audio cues)                     │
+│  Content — JSON schemas + value types       │  stride_core + assets
 └─────────────────────────────────────────────┘
 ```
 
-Dependencies point **inward only**. `StrideCore` knows nothing about SwiftUI, HealthKit, AVFoundation, Core Haptics, the file system, or the clock.
+Dependencies point **inward only**.
 
-### 2.2 The one enforced rule
+### 2.2 The enforced rule
 
-`StrideCore/Package.swift` declares no platform framework dependencies. A CI check (and a pre-commit grep) fails the build if any file under `Sources/StrideCore` contains `import SwiftUI`, `import UIKit`, `import HealthKit`, `import AVFoundation`, or `import CoreHaptics`.
+`packages/stride_core/pubspec.yaml` declares **no dependency on `flutter`**, and no dependency on any platform or plugin package. A test and a script both fail when any file under `stride_core/lib` imports `package:flutter`, `dart:ui`, `dart:io`, or any plugin.
 
-This is not architectural purity for its own sake. It is what makes the simulation testable in milliseconds, keeps balance work independent of the UI, and means a future Android port re-implements a specified system rather than reverse-engineering one.
+`dart:io` is on the list deliberately: the core must not touch the file system or the clock. Persistence goes through `SaveStore`.
 
-### 2.3 Ports defined by StrideCore
+This is the same rule F-01 enforced in Swift, carried forward in substance. Both enforcement points read one shared list so the rule and its guard cannot drift apart.
 
-```swift
-protocol StepProvider {
-    func requestAuthorization() async throws -> StepAuthorization
-    func fetchNewSteps(since anchor: StepAnchor?) async throws -> StepFetchResult
+### 2.3 Ports defined by `stride_core`
+
+```dart
+abstract interface class StepProvider {
+  Future<StepAuthorization> requestAuthorization();
+  Future<StepFetchResult> fetchNewSteps({StepAnchor? since});
 }
 
-protocol SaveStore {
-    func load() throws -> SaveEnvelope?
-    func save(_ envelope: SaveEnvelope) throws
-    func appendLedger(_ entry: StepLedgerEntry) throws
-    func readLedgerTail(count: Int) throws -> [StepLedgerEntry]
+abstract interface class SaveStore {
+  Future<SaveEnvelope?> load();
+  Future<void> save(SaveEnvelope envelope);
+  Future<void> appendLedger(StepLedgerEntry entry);
+  Future<List<StepLedgerEntry>> readLedgerTail(int count);
 }
 
-protocol ContentLoader {
-    func loadContentPack() throws -> ContentPack
+abstract interface class ContentLoader {
+  Future<ContentPack> loadContentPack();
 }
 
-protocol AudioDirecting { func emit(_ event: GameEvent) }
-protocol HapticPlaying  { func emit(_ event: GameEvent) }
+abstract interface class AudioDirecting { void emit(GameEvent event); }
+abstract interface class HapticPlaying  { void emit(GameEvent event); }
 ```
 
-Each has a production implementation in the app target and a deterministic test double in the test target.
+`StepAnchor` is **opaque** — an encoded blob the core stores and returns without inspecting. On iOS it wraps an `HKQueryAnchor`; on Android a Health Connect changes token. The core must never know which.
 
-### 2.4 Simulation shape
+That opacity is what lets one ledger serve two platforms with genuinely different sync primitives.
 
-`StrideCore` exposes a single entry point:
+### 2.4 Simulation shape *(unchanged in substance)*
 
-```swift
-public struct GameEngine {
-    public private(set) var state: GameState
-    public let content: ContentPack
+```dart
+class GameEngine {
+  GameState get state;
+  final ContentPack content;
 
-    public mutating func apply(_ intent: PlayerIntent) -> [GameEvent]
-    public mutating func ingest(steps: Int) -> [GameEvent]
-    public mutating func consumeSteps(_ count: Int) -> [GameEvent]
+  List<GameEvent> apply(PlayerIntent intent);
+  List<GameEvent> ingest({required int steps});
 }
 ```
 
-- **`GameState` is a value type.** Copyable, `Codable`, `Equatable`. This makes save/load trivially correct and lets tests diff whole states.
-- **Every mutation returns `[GameEvent]`.** Events are the sole channel to audio, haptics, and the "what changed" summary. Nothing in the simulation ever names a sound file or a UI animation; it emits `.resourceGathered(item: .oakLog, count: 3)` and the adapters decide what that sounds and feels like.
-- **No randomness without a seed.** All variance draws from a seeded generator stored in `GameState`, so any outcome is reproducible from a state plus an intent. This is what makes combat balance testable.
+- **`GameState` is immutable.** All fields `final`, no in-place mutation, `copyWith` for derivation, value equality implemented.
+- **Every mutation returns `List<GameEvent>`.** Events are the sole channel to audio, haptics, and the "what changed" summary. Nothing in the simulation names a sound file.
+- **No randomness without a seed.** All variance draws from a seeded generator held in `GameState`.
 - **No clock.** The simulation never reads the current time. Timestamps enter only as data on ingestion records, for display.
+- **Step consumption is not publicly callable** — steps are spent only through activity progression (review finding TD-1).
 
-### 2.5 Event catalogue (initial)
+#### The one language-driven risk
 
-`GameEvent` is the contract between systems and senses. Milestone 01 needs roughly: `stepsIngested`, `stepsConsumed`, `activityStarted`, `activityProgressed`, `activityCompleted`, `resourceGathered`, `skillXPGained`, `skillLevelUp`, `travelDeparted`, `travelArrived`, `locationDiscovered`, `itemCrafted`, `craftFailed`, `itemEquipped`, `encounterStarted`, `playerActed`, `enemyActed`, `damageDealt`, `damageTaken`, `consumableUsed`, `encounterWon`, `encounterRetreated`, `characterLevelUp`, `saveWritten`.
+Swift value types gave immutability for free; Dart does not. A mutable list leaking into `GameState` would silently break save correctness and test diffing — the failure would appear as an inexplicable state divergence, far from its cause.
 
-Every event carries enough payload to select a material-specific sound (`GAME_BIBLE/AUDIO/01_AUDIO_IDENTITY.md`: copper must not sound like iron).
+Mitigation: `final` fields throughout, unmodifiable collection views on construction, and a test asserting that mutating a returned state cannot affect the engine's own. This is task F-03, acceptance criterion 6.
+
+### 2.5 Event catalogue *(unchanged)*
+
+Roughly 24 events from `stepsIngested` through `saveWritten`, each carrying enough payload to select a material-specific cue.
 
 ---
 
 ## 3. State management
 
-### 3.1 In the core
+### 3.1 In the core *(unchanged)*
 
-`GameState` is one value type composed of: `player` (level, XP, HP, attributes), `steps` (ingested, consumed, discrepancy), `skills` (five levels + XP), `inventory`, `equipment`, `world` (current location, discovered locations, travel progress), `activity` (the single selected activity, if any), `encounter` (optional in-flight combat), and `rng`.
+`GameState` composes: `player`, `steps`, `skills`, `inventory`, `equipment`, `world`, `activity`, `encounter`, `rng`.
 
-**One activity at a time** in Milestone 01, recorded as a design decision in `DECISIONS/0006_SINGLE_ACTIVITY.md` — it is the Lead Game Designer's call, not a technical convenience, and it has a real player consequence: while travelling, you cannot gather.
+**One activity at a time** (`DECISIONS/0006`).
 
 ### 3.2 In the app
 
-A single `@Observable final class GameStore` owns the `GameEngine`, is `@MainActor`, and exposes read-only projections to views. Views send `PlayerIntent`s; the store applies them, fans the returned events out to audio and haptics, and persists.
+A single `GameStore` owns the `GameEngine`, exposes read-only projections to widgets, and fans returned events out to audio and haptics before persisting.
 
-No global mutable state, no singletons other than the store, no view reaching into another view's state.
+State management package choice is deferred to F-01 and is deliberately low-stakes: the store is thin, because the engine holds the logic. Whatever is chosen must not leak into `stride_core`.
 
 ### 3.3 Threading
 
-- Simulation: synchronous, main actor. It is arithmetic over a small struct; there is nothing to parallelize.
-- HealthKit and disk I/O: `async`, off the main actor, results marshalled back before touching state.
-- Audio: AVAudioEngine's own threads, driven by fire-and-forget event emission.
+- Simulation: synchronous on the UI isolate. It is arithmetic over a small object graph.
+- Health and disk I/O: `async`, off the platform channel, results applied before touching state.
+- Audio: the package's own threads, driven by fire-and-forget emission.
+
+No `Isolate` use in Milestone 01. If reconciliation of a very long absence ever becomes perceptible, the pure core moves to an isolate trivially — it has no platform dependencies to marshal.
 
 ---
 
-## 4. Local-save strategy
+## 4. Local-save strategy *(unchanged in substance)*
 
 ### 4.1 Two artifacts
 
-**A. `save.json` — the snapshot.** The full `GameState`, plus a schema version.
+**A. `save.json`** — the full `GameState` plus `schemaVersion` and `contentPackVersion`. Written atomically: serialize → write `save.json.tmp` → rename. One rolling backup used if the primary fails to decode.
 
-```swift
-struct SaveEnvelope: Codable {
-    let schemaVersion: Int      // 1 for Milestone 01
-    let contentPackVersion: Int
-    let writtenAt: Date         // display only
-    let state: GameState
-}
-```
-
-Written atomically: serialize → write to `save.json.tmp` → `FileManager.replaceItemAt`. A crash mid-write leaves the previous good save intact. One rolling backup (`save.backup.json`) is retained and used if the primary fails to decode.
-
-**B. `steps.ledger` — the append-only step log.** One line per ingestion batch. Written **before** the snapshot, and before any gameplay consumes the steps. See §6.
+**B. `steps.ledger`** — append-only, one line per ingestion batch, flushed **before** the snapshot and before any gameplay consumes the steps.
 
 ### 4.2 Why a snapshot, not a database
 
-The entire Milestone 01 state is a few kilobytes: five skill levels, an inventory of tens of stacks, four locations, one optional encounter. A snapshot is simpler, fully diffable in tests, and trivially versioned.
-
-**Escalation path, documented now so it is not a surprise:** if the state grows past roughly a megabyte or writes become perceptible, migrate to SQLite via GRDB. The `SaveStore` port makes that a swap of one adapter.
+The whole state is a few kilobytes. A snapshot is simpler, diffable in tests, trivially versioned. Escalation path if it outgrows that: SQLite via `sqflite` or `drift`, behind the unchanged `SaveStore` port.
 
 ### 4.3 Migration
 
-`schemaVersion` is checked on load. Milestone 01 ships version 1 and a `migrate(from:to:)` function that is a no-op — but the *mechanism* ships now, with a test proving a version-0 fixture is rejected cleanly rather than crashing. Retro-fitting migration onto a shipped save format is far more expensive than carrying an empty hook.
+`schemaVersion` checked on load; v1 ships with a no-op `migrate` and a test proving a version-0 fixture is rejected cleanly rather than crashing.
 
 ### 4.4 File protection
 
-Saves are written with `.completeFileProtectionUnlessOpen`. They contain derived gameplay counters, never raw health samples — but the counters are step-derived, so they get the same care.
+Saves live in the app's private documents directory. On Android, `allowBackup` is disabled — an automatic cloud backup restored to a second device would duplicate a step ledger, which is exactly the double-count the whole design exists to prevent.
+
+*This is a new consideration with no iOS equivalent, and it is the kind of platform difference that would be easy to miss.*
 
 ---
 
-## 5. iOS and HealthKit approach
+## 5. Health integration
 
-### 5.1 Permissions
+### 5.1 Package structure
 
-Read-only authorization for `HKQuantityTypeIdentifier.stepCount`. Nothing else. No write access, ever.
+```text
+packages/stride_health/
+├── lib/
+│   ├── stride_health.dart          Public Dart API
+│   ├── src/platform_step_provider.dart
+│   ├── src/mock_step_provider.dart  Deterministic, for tests
+│   └── src/messages.g.dart          Pigeon-generated
+├── pigeons/health_api.dart          Interface definition — the source of truth
+├── android/  …/HealthConnectAdapter.kt
+└── ios/      …/HealthKitAdapter.swift
+```
 
-`NSHealthShareUsageDescription` states plainly: step counts advance your activities and travel; the data stays on your device.
+### 5.2 The Pigeon boundary
 
-The permission is requested **after** an in-app explanation screen, not on first launch cold. HealthKit does not report read-denial (by design, to avoid leaking that the user has no data), so the app must behave correctly when authorization is granted but zero samples arrive — indistinguishable states, one code path.
+One interface definition generates the Dart, Kotlin, and Swift sides. A change to the contract that is not reflected on all three sides **fails to compile** rather than failing at runtime with a null.
 
-### 5.2 Reading
+For the system that governs step correctness, a hand-rolled `MethodChannel` passing untyped maps would be the wrong economy.
 
-`HKAnchoredObjectQuery` over `stepCount`, persisting `HKQueryAnchor`. Anchored queries give exactly what is needed: new samples since the anchor, plus deletions, without date arithmetic.
+The surface is deliberately tiny:
 
-Manually-entered samples (`HKMetadataKeyWasUserEntered == true`) are filtered by default, with a visible setting to include them (`GAME_BIBLE/HEALTH_INTEGRATION`).
+```dart
+@HostApi()
+abstract class HealthHostApi {
+  StepAuthorizationResult requestAuthorization();
+  bool isAvailable();
+  StepFetchResult fetchNewSteps(Uint8List? anchor);
+}
+```
 
-### 5.3 Background delivery is best-effort
+Three methods. That narrowness is what makes cross-platform fidelity achievable, and it is a property of steps-only integration (`GAME_BIBLE/HEALTH_INTEGRATION`).
 
-`enableBackgroundDelivery(for:frequency:)` with the HealthKit background capability is enabled — but **cold-launch backfill is the source of truth.**
+### 5.3 iOS — HealthKit *(unchanged in substance)*
 
-HealthKit data is encrypted at rest and **unreadable while the device is locked**. A background wake on a locked phone cannot read steps. Any design that depends on background reads is broken; any design that reconciles fully on foreground launch is correct regardless. Background delivery is therefore treated as an optimization that may silently never fire.
+`HKAnchoredObjectQuery` over `stepCount`, persisted `HKQueryAnchor`, `deletedObjects` handling, `HKMetadataKeyWasUserEntered` filter, opportunistic background delivery.
 
-This is the single most important platform constraint in the project, and it is why §6 is designed the way it is.
+**Reads fail while the device is locked** — health data is encrypted at rest. Background delivery is therefore best-effort.
 
-### 5.4 Failure and revocation
+### 5.4 Android — Health Connect
+
+The **Changes API** — `getChangesToken()` then `getChanges(token)` — is the direct analogue of an anchored query, returning both upserts and deletions since the token.
+
+- Read-only `StepsRecord` permission. No write scope, ever.
+- `Metadata.recordingMethod` supplies the manual-entry filter.
+- Health Connect is built into Android 14+; earlier versions require the Health Connect app. **Absence degrades gracefully** — identical path to a denied permission, and the game remains fully playable.
+- Deep history permissions are not requested: the ledger never needs old data, only *new* data since the last token.
+- Background sync via `WorkManager`, subject to Doze and manufacturer battery policies.
+
+### 5.5 Neither platform can be trusted to wake the app
+
+iOS background delivery fails on a locked device. Android background work is throttled unpredictably.
+
+> **Foreground cold-launch backfill is the source of truth on both platforms. Background delivery is an optimization that may silently never fire.**
+
+This decision was made in v1.1 for an iOS constraint. It turns out to be exactly what Android also requires, which is fortunate — a design that depended on reliable background wake-ups would have been broken twice over.
+
+### 5.6 Failure and revocation
 
 | Situation | Behavior |
 |---|---|
-| Authorization never granted | Game fully playable; a persistent, non-nagging banner offers to connect. Manual step entry available. |
-| Authorization revoked in Settings | Same as above. Existing progress untouched. |
-| HealthKit unavailable (iPad, simulator) | `StepProvider` reports unavailable; manual/simulated provider used. |
-| Query error | Anchor unchanged, retry next launch. Never advance `stepsIngested` on a failed read. |
+| Authorization never granted | Fully playable. Persistent, non-nagging banner. Manual entry available. |
+| Revoked in settings | Same. Existing progress untouched. |
+| Health Connect not installed (Android) | Same graceful path. |
+| Health service unavailable | Mock/manual provider. |
+| Query error | Anchor unchanged, retry next launch. **Never advance `stepsIngested` on a failed read.** |
 
-Nothing about a missing permission ever blocks a screen, a craft, or a fight. Steps gate rate, never access.
+Nothing about a missing permission ever blocks a screen, a craft, or a fight. Steps gate rate, never access (`DECISIONS/0008`).
 
 ---
 
-## 6. Step-reconciliation model
+## 6. Step-reconciliation model *(unchanged — now serving two platforms)*
 
-This is the highest-severity system in the project (risk R-01). A subtle bug here silently destroys trust in everything else, so it is specified rather than left to implementation.
+The highest-severity system in the project.
 
 ### 6.1 The ledger
 
-Two monotonic counters live in `GameState.steps`:
-
-- `stepsIngested` — everything ever read from the provider
-- `stepsConsumed` — everything ever spent on activities
-
-Available steps = `stepsIngested − stepsConsumed − discrepancyDebt`. **Both counters only ever increase.**
+`stepsIngested` and `stepsConsumed`, both monotonic. Available = `stepsIngested − stepsConsumed − discrepancyDebt`.
 
 ### 6.2 No day boundaries, no timezone logic
 
-Steps are a ledger, not a daily budget. There is no "today's steps", no midnight rollover, no local-calendar arithmetic anywhere in the reconciliation path.
-
-This eliminates an entire bug class at a stroke: DST transitions, flights across timezones, midnight edge cases, and retroactive Health writes all become non-events. A step read at any time from any date is simply added to the total exactly once.
+Steps are a ledger, not a daily budget. DST, flights, midnight, and retroactive writes all become non-events.
 
 ### 6.3 The ingestion sequence
 
-1. Run the anchored query. Receive `(newSamples, deletedObjects, newAnchor)`.
-2. Sum `newSamples` (after the manual-entry filter) into `delta`.
-3. **Append `{batchID, delta, newAnchor, timestamp}` to `steps.ledger` and flush.**
-4. Increase `stepsIngested` by `delta`; store `newAnchor`.
-5. Write the snapshot.
-6. Emit `.stepsIngested(delta)`.
+1. Fetch through `StepProvider`. Receive `(delta, deletions, newAnchor)`.
+2. **Append `{batchID, delta, newAnchor, timestamp}` to the ledger and flush.**
+3. Increase `stepsIngested`; store the anchor.
+4. Write the snapshot.
+5. Emit `stepsIngested`.
 
-Step 3 preceding steps 4–5 is what makes crash recovery safe: on launch, if the ledger's last `batchID` is newer than the snapshot's, the batch is replayed; if it matches, it is skipped. Idempotent by construction, so a crash mid-reconciliation can neither double-count nor lose a batch.
+Step 2 preceding 3–4 makes crash recovery safe: on launch, a ledger batch newer than the snapshot is replayed; a matching one is skipped. Idempotent by construction.
 
-### 6.4 Corrections and deletions never claw back
+### 6.4 Corrections never claw back
 
-If deletions or corrections would reduce the legitimate ingested total below `stepsConsumed`, the game **does not** revoke granted progress. It records the shortfall in `discrepancyDebt` and absorbs it against future ingestion.
+Shortfalls record to `discrepancyDebt`, absorbed against future ingestion, capped (a provisional content tunable, roughly three days of walking) and forgiven beyond the cap.
 
-`discrepancyDebt` is capped so a pathological Health correction cannot leave the player permanently unable to progress. Beyond the cap, the debt is forgiven and logged.
+**The player never watches progress disappear.** In the rare conflict between perfect accounting and player trust, trust wins.
 
-The cap is a **provisional content tunable**, not a Swift constant. Its intended shape is roughly three days of the player's typical walking; the actual value is derived in `GAME_BIBLE/BALANCE/` once the owner's daily step count is known.
+### 6.5 Allocation and overflow
 
-The player never watches progress disappear. This is a direct application of the no-punishment non-negotiable, and it is deliberately generous: in the rare conflict between perfect accounting and player trust, trust wins.
+One selected activity. Unallocated steps bank indefinitely and never expire. **Terminating** activities (travel) bank the remainder on completion; **repeating** activities (gathering) consume until the player's allocation is exhausted.
 
-### 6.5 Allocation
+### 6.6 Testability — and now, cross-platform equivalence
 
-Available steps apply to exactly one selected activity. Allocation is explicit: the player chooses what their walking goes toward, and unallocated steps bank indefinitely and never expire.
+The twelve scenarios (§6.7 of v1.1, unchanged) run against the mock provider in `dart test`, **on Windows, in under a second**.
 
-Banked steps never expiring is load-bearing. Expiry would be an FOMO mechanic, which the Kernel forbids.
-
-### 6.6 Overflow on return
-
-A player returning after two weeks may bank 80,000 steps against an activity needing 5,000. The excess completes the activity, and the remainder **stays banked** — it is not spilled into a random next activity and not discarded. The return summary shows what completed and what is still available to spend.
-
-This preserves player agency (`03_DESIGN_PILLARS.md`: "Walking should create decisions rather than automate the entire game"). The walk earned the steps; the player decides where they go.
-
-### 6.7 Testability
-
-The entire model is exercised through `StepProvider` with zero HealthKit involvement. Required scenarios, all deterministic:
-
-| # | Scenario | Assertion |
-|---|---|---|
-| 1 | Simple ingest | Counters exact |
-| 2 | Same batch delivered twice | No double count |
-| 3 | Out-of-order samples | Order-independent total |
-| 4 | Deletion within available | Debt recorded, no clawback |
-| 5 | Deletion exceeding consumed | Debt recorded, progress intact |
-| 6 | Debt beyond cap | Forgiven, logged, player unblocked |
-| 7 | 14-day absence, 100k steps | Single reconciliation, correct total |
-| 8 | Crash between ledger and snapshot | Replay yields identical state |
-| 9 | Crash after snapshot | No replay, no double count |
-| 10 | Timezone change mid-sequence | No effect whatsoever |
-| 11 | Authorization revoked mid-session | Graceful, counters frozen |
-| 12 | Zero-step week | No progress, no penalty, no nag |
-
-These tests are written **before** the feature (task F-04 in the breakdown).
+New requirement: **the same twelve scenarios must pass against both real adapters.** One ledger, two sync primitives, identical results. Platform behavioral drift in step counting is risk X-06.
 
 ---
 
-## 7. Data-driven content model
+## 7. Data-driven content model *(unchanged)*
 
-### 7.1 Files
+`assets/content/v1/` — nine JSON files, `{"schemaVersion": 1, "entries": [...]}`, stable string-slug IDs.
 
-`Content/v1/` bundled with the app: `items.json`, `recipes.json`, `skills.json`, `resource_nodes.json`, `locations.json`, `enemies.json`, `encounters.json`, `audio_cues.json`, `strings.json`.
+Validation at build time as a **test failure**, never a runtime crash: unresolved references, recipes unreachable from starting equipment, gatherables with no consumer, skills missing curves, materials with no audio cue, and the deferred-vocabulary guard.
 
-Every file carries `{"schemaVersion": 1, "entries": [...]}`. IDs are stable string slugs (`oak_log`, `bronze_pickaxe`, `forest_wolf`) — never array indices, never localized names.
+### 7.1 Balance profiles *(unchanged)*
 
-### 7.2 Loading and validation
-
-`ContentPack` is decoded once at launch and validated:
-
-- Every referenced ID resolves
-- No recipe is unreachable from starting equipment (this is the automated guard against the tool-bootstrap class of bug from C-05)
-- Every gatherable resource has a consumer
-- Every skill has XP curve, unlock cadence, and milestone rewards
-- Every material referenced by an audio cue exists
-
-Validation failure is a **build-time test failure**, not a runtime crash. Content is authored data, so content errors are caught by the test suite that runs against the bundled pack.
-
-### 7.3 Balance data and profiles
-
-All tunable numbers live in content, never in Swift: XP curves, steps-per-gather, steps-per-travel-segment, yields, damage, HP, drop tables, and the `discrepancyDebt` cap.
-
-Tuning must be possible without touching code, because the first numbers will be wrong.
-
-Two profiles exist (`DECISIONS/0007`):
-
-- **Production** — the real balance data, the only profile that ships
-- **Accelerated** — a separate development/test profile that reaches states quickly for QA and automated tests
-
-The accelerated profile is a *distinct* content profile, never an overlay or a mutation of production values. Switching profiles leaves production data byte-identical, asserted by test. It is unavailable in release builds, and pacing assertions always run against production values.
+**Production** ships. **Accelerated** is a separate development/test profile that never mutates production values, is unavailable in release builds, and is never used for pacing assertions (`DECISIONS/0007`).
 
 ---
 
 ## 8. Audio architecture
 
-### 8.1 Semantic events, never file names
+### 8.1 Semantic events, never file names *(unchanged)*
 
-Systems emit `GameEvent`s. `AVAudioDirector` maps events to **asset IDs** via `audio_cues.json`; `AUDIO/AUDIO_ASSET_MANIFEST.md` maps asset IDs to files and provenance. No simulation code knows a sound exists, and no code or content references a filename or path.
-
-That indirection is what makes shipping placeholders safe: replacing a generated placeholder with a better recording is a one-row manifest change (`DECISIONS/0005`).
-
-This is what lets audio ship as a first-class system from Phase 3 with placeholder assets, satisfying the locked pillar without blocking on asset sourcing (gap G-05).
+Systems emit `GameEvent`s → `audio_cues.json` maps to **asset IDs** → `AUDIO/AUDIO_ASSET_MANIFEST.md` maps IDs to files and provenance. No code or content references a filename.
 
 ### 8.2 Buses
 
-Four AVAudioEngine mixer nodes: **ambience** (looping region bed, crossfaded on location change), **action** (gathering, crafting, combat), **UI** (taps, confirmations), **music** (sparse; region themes and encounter stings).
+Four logical buses — **ambience**, **action**, **UI**, **music** — with independent volume, a master mute, ducking for other apps' audio, and silent-switch respect. A walking game will often play over a podcast and must never fight the player's own audio.
 
-Independent volume per bus in settings, plus a master mute. Respects the silent switch and ducks for other audio — a walking game will often be playing over a podcast, and Stride must never fight the player's own audio.
+No background audio session: the game does not play during the walk.
 
-### 8.3 Material identity
+### 8.3 Package selection is deferred to the spike
 
-`audio_cues.json` keys on `(event, material, tier)`, so oak and pine chop differently and copper and iron ring differently, as required by `GAME_BIBLE/AUDIO/01_AUDIO_IDENTITY.md`. Missing cues fall back to a generic sound and **fail a content validation test**, so silent gaps cannot ship unnoticed.
+Task **A-04b** validates: four buses, destination ambience crossfades, layered and varied gathering cues, combat ducking, interruption and resume, independent volume controls, and latency and memory **on a modest Android device**.
 
-### 8.4 Memory and battery
+> **Do not introduce a custom native audio engine unless the spike demonstrates a concrete blocker** (`DECISIONS/0010`, owner instruction).
 
-Short cues preloaded as buffers; ambience beds streamed. Total audio memory budget: 30 MB — **provisional**, to be confirmed against real assets in task A-05. Ambience does not run while the app is backgrounded — no background audio session in Milestone 01, since the game does not play during the walk.
+This is the one capability Flutter genuinely costs against AVAudioEngine. The spike exists to find the wall at Phase 3, where it is recoverable, rather than Phase 5, where it is not. Everything sits behind `AudioDirecting`, so a package swap touches one adapter.
+
+### 8.4 Memory
+
+30 MB total, provisional, confirmed against real assets at A-05. Short cues preloaded, ambience beds streamed.
 
 ### 8.5 Haptics
 
-`CoreHapticsPlayer` consumes the same events. Every haptic pairs with a sound and is individually disableable. Haptics are never the sole channel for information.
+Same events, paired to sound, individually disableable, never the sole channel for information. Flutter's built-in haptics are coarse; custom patterns go through a platform channel — which would be true on any stack, since Core Haptics and Android's vibration API share nothing.
 
 ---
 
 ## 9. Test strategy
 
-| Layer | Framework | Scope |
-|---|---|---|
-| Simulation | Swift Testing | Reconciliation, XP, gathering, crafting, combat, save round-trip. Runs in seconds, no simulator. |
-| Content | Swift Testing | Schema validation, reference integrity, reachability, audio cue coverage |
-| Adapters | XCTest | Save atomicity, crash-recovery replay, `HealthKitStepProvider` against a stubbed store |
-| Integration | XCTest | Full loop: ingest → allocate → gather → craft → equip → fight → save → reload |
-| UI | XCUITest | Smoke only — launch, tab navigation, start an activity, resolve an encounter |
-| Manual | Checklist | Real device, real walking, real Health data; the only way to validate feel |
+| Layer | Tool | Runs on | Scope |
+|---|---|---|---|
+| Simulation | `dart test` | **Windows** | Reconciliation, XP, gathering, crafting, combat, save round-trip. Seconds, no emulator. |
+| Content | `dart test` | **Windows** | Schema validation, reference integrity, reachability, cue coverage, deferred vocabulary |
+| Widgets | `flutter test` | **Windows** | Every screen, golden tests for the return summary |
+| Health adapters | JUnit / XCTest | Windows (Kotlin) · macOS (Swift) | Against stubbed platform stores |
+| Cross-adapter | integration | device | **The twelve scenarios against both real adapters** |
+| Integration | `integration_test` | device/emulator | Full loop: ingest → allocate → gather → craft → equip → fight → save → reload |
+| Manual | checklist | real devices | Real walking, real health data, feel |
 
-### 9.1 Required suites — the actual gate
+### 9.1 Required suites — the actual gate *(unchanged)*
 
-Coverage percentage is not a gate. It is gameable and says nothing about whether the right things are tested. These named suites are the gate:
+Coverage percentage is not a gate. These are:
 
-1. The twelve step-reconciliation scenarios (§6.7)
+1. The twelve reconciliation scenarios — **against the mock and both real adapters**
 2. Save round-trip, interrupted write, corruption fallback, version rejection, ledger replay idempotence
 3. XP curve boundaries and cap behavior for all five skills
 4. Fresh-start-to-Bronze reachability
 5. Combat determinism across 1,000 seeded encounters
-6. The preparation-gate simulations under optimal play
+6. Preparation-gate simulations under optimal play
 7. Content validation, including deferred-vocabulary rejection
 8. The `stepsConsumed` leak invariant
+9. **`GameState` immutability**
+10. **`stride_core` purity**
 
-Coverage may be reported for information. It is never the criterion.
-
-**Determinism is the through-line.** No test depends on wall-clock time, real HealthKit, or unseeded randomness. A failing test names a specific broken rule.
-
-`/qa-check` categories map to layers as: step-data correctness → simulation + adapters; save integrity → adapters; offline behavior → integration; UX clarity and balance → manual.
+**Determinism is the through-line.** No test depends on wall-clock time, real health data, or unseeded randomness.
 
 ---
 
-## 10. Performance and battery
+## 10. Continuous integration
 
-Stride is not compute-bound. The realistic risks are HealthKit polling, audio, and animation.
+Defined in `.github/workflows/ci.yml`. See `TECHNICAL/PROJECT_STRUCTURE.md`.
+
+| Job | Runner | Purpose |
+|---|---|---|
+| `core` | Linux | Format, analyze, `dart test` on `stride_core`, purity check |
+| `app-android` | Linux | `flutter analyze`, `flutter test`, Kotlin adapter unit tests, build APK |
+| `ios` | **macOS** | `flutter build ios --no-codesign`, Swift adapter compilation and unit tests |
+
+> **The iOS branch must not be allowed to remain uncompiled until the end** (`DECISIONS/0010`).
+
+A build nobody runs still catches compile breaks, API changes, and Pigeon contract drift — which is most of the value, and the mitigation for risk X-03.
+
+---
+
+## 11. Performance and battery *(unchanged in substance)*
 
 - **Reconciliation runs on launch and on foreground, not on a timer.** No polling loop.
-- **No background execution** beyond opportunistic HealthKit delivery. No background fetch, no location services, no pedometer.
-- Targets: cold launch to interactive < 1.5 s; reconciliation of a two-week absence < 500 ms; steady-state 60 fps; no measurable battery drain while backgrounded, because nothing runs.
-- Idle CPU while foregrounded and inactive should be ~0% — no timers ticking, which is a natural consequence of step-clocked progression.
-
-The step-clocked decision pays a real dividend here: a time-clocked game must simulate elapsed time and keep something ticking. Stride simulates only on step delivery.
+- No background execution beyond opportunistic health delivery. No location services, no pedometer.
+- Targets: cold launch under 2 s; two-week reconciliation under 500 ms; steady 60 fps; **idle CPU near zero while foregrounded and inactive** — a natural consequence of step-clocked progression, since nothing ticks.
+- Battery and memory validated on a **modest Android device**, not a flagship.
 
 ---
 
-## 11. Privacy and permissions
+## 12. Privacy, permissions, and distribution
 
-- **Raw health data never leaves the device.** No cloud, no accounts, no analytics, no crash reporters, no third-party SDKs in Milestone 01.
-- Persisted health-derived state is three numbers plus an opaque anchor. No step history, no timestamps beyond the ledger's, no daily breakdown.
-- A visible **Disconnect and reset** control clears the anchor, the ledger, and all step counters, leaving gameplay progress intact.
-- Permission rationale is shown in-app before the system sheet, in plain language, with no dark patterns and no repeated prompting after a decline.
-- **A privacy policy is required** before TestFlight distribution (gap G-09) — TestFlight still goes through App Review, App Review requires a privacy policy for any app requesting HealthKit access, and the App Privacy questionnaire must declare health data usage. Drafted during Phase 2, not at submission. Store listing, screenshots, and marketing copy are explicitly **out of scope** (`DECISIONS/0009`).
-- **Step counts are never presented as targets.** No goal rings, no daily quotas, no "you walked less than usual." The simulation fixtures in `DECISIONS/0007` (2,500 / 7,500 / 15,000 steps per day) are test inputs and must never surface in player-facing copy as recommendations or expected behavior.
+- **Raw health data never leaves the device.** No cloud, no accounts, no analytics, no crash reporters, no third-party SDKs.
+- Persisted health-derived state is three numbers plus an opaque anchor. No step history, no daily breakdown.
+- **Android `allowBackup` disabled** — see §4.4.
+- A visible **Disconnect and reset** clears the anchor *and* the changes token, the ledger, and all step counters, leaving gameplay progress intact.
+- Permission rationale shown in-app before the system sheet, plain language, no re-prompting after a decline.
+- **Step counts are never presented as targets.** No goal rings, no quotas, no "you walked less than usual." The simulation fixtures in `DECISIONS/0007` never surface in player-facing copy.
 
----
+**Required before distribution** (`DECISIONS/0011`): a privacy policy, the Play Console Health Connect data-types declaration, and the Data safety form. Needed for Play *or* TestFlight, so not blocked on Mac access.
 
-## 12. Future cloud and leaderboard compatibility
-
-Milestone 04 may add leaderboards, friend comparison, or cloud save. Nothing is built for it now, but three cheap choices keep the door open:
-
-1. **Stable content IDs** — a server could reference `oak_log` meaningfully.
-2. **Versioned save schema** — a sync layer needs a version to negotiate.
-3. **A value-type `GameState`** — serializable to anything, with no object graph to untangle.
-
-Explicitly **not** built now: user IDs, device IDs, sync conflict resolution, server-authoritative validation, network layer, or a `CKRecord`-shaped save. Each would be speculative complexity, and `07_DECISION_FRAMEWORK.md` asks whether complexity is worth present player value. Here it is not.
-
-One caveat recorded honestly: a leaderboard built on client-authoritative step data cannot be trusted against determined manipulation. If Milestone 04 pursues competitive comparison, that is a design problem requiring its own decision, not a technical detail to be patched in later.
+Staged: local APK → signed APK / GitHub release artifacts → Play internal testing; TestFlight when Mac access exists. No public store launch.
 
 ---
 
-## 13. Risks
+## 13. Future cloud and leaderboard compatibility *(unchanged)*
+
+Nothing built now. Three cheap choices keep the door open: stable content IDs, a versioned save schema, and a serializable state object.
+
+Recorded honestly: a leaderboard built on client-authoritative step data cannot be trusted against determined manipulation. If Milestone 04 pursues competitive comparison, that is a design problem needing its own decision — and it is now doubly true, since two platforms means two client implementations to trust.
+
+---
+
+## 14. Risks
 
 | # | Risk | Severity | Mitigation |
 |---|---|---|---|
-| A-01 | Reconciliation bug corrupts progress | Critical | Ledger-before-snapshot, idempotent replay, 12-scenario suite written before the feature, no-clawback rule |
-| A-02 | Background delivery assumed reliable | High | Foreground backfill is the source of truth; background treated as an optimization that may never fire |
-| A-03 | Balance unknowable without real walking | High | All numbers in content; debug step injector; first values explicitly provisional |
-| A-04 | Audio deferred despite being a pillar | High | Events emitted from Phase 3; placeholder cues acceptable, missing hooks are not; validation test fails on uncovered materials |
-| A-05 | `StrideCore` purity erodes under deadline | Medium | Automated import check in CI and pre-commit |
-| A-06 | Snapshot save outgrows its design | Medium | `SaveStore` port; GRDB escalation path documented |
-| A-07 | Content scope creep | Medium | Frozen scope in `DECISIONS/0004`; additions need a decision record |
-| A-08 | Onboarding under-designed | Medium | It grants starting gear and teaches the loop; treated as a real feature in Phase 5, not a formality |
-| A-09 | No visual identity | Medium | Gap G-04 must close before Phase 5 |
-| A-10 | Solo momentum loss | Medium | Small, independently shippable, independently testable tasks |
+| A-01 | Reconciliation bug corrupts progress | Critical | Ledger-before-snapshot, idempotent replay, twelve scenarios written before the feature, no-clawback rule |
+| X-01 | A third-party health plugin creeps in | **High** | Prohibited by `DECISIONS/0010`. A dependency check fails the build. |
+| X-06 | Platform drift in step counting | High | One ledger, two adapters; the twelve scenarios run against both |
+| A-02 | Background delivery assumed reliable | High | Foreground backfill is the source of truth on both platforms |
+| X-02 | Audio falls short of the pillar | High | A-04b spike at Phase 3, behind `AudioDirecting` |
+| A-03 | Balance unknowable without real walking | High | All numbers in content; debug injector; three step fixtures |
+| **F-03i** | **`GameState` immutability breaks silently** | **High** | `final` fields, unmodifiable views, an explicit test. New with Dart. |
+| X-03 | iOS rots between rare builds | Medium | CI compiles iOS on every push from day one |
+| A-05 | Core purity erodes under deadline | Medium | Automated check in CI and pre-commit |
+| X-04 | Health Connect absent on older Android | Medium | Graceful degradation, same path as a denied permission |
+| **S-04a** | **Android auto-backup duplicates the ledger** | **Medium** | `allowBackup=false`. New with Android. |
+| A-06 | Snapshot save outgrows its design | Medium | `SaveStore` port; sqflite/drift escalation documented |
+| A-07 | Content scope creep | Medium | Frozen scope; additions need a decision record |
+| X-05 | Flutter framework risk | Low | The pure-Dart core has no Flutter dependency |
 
 ---
 
-## 14. Recommendation
+## 15. Recommendation
 
-**Approve and proceed to Phase 1.**
+**Approve and execute the migration per `MIGRATION_EXECUTION_PLAN.md`.**
 
-The architecture is deliberately conservative. It adds no framework, no dependency, and no abstraction that the vertical slice does not need, while placing the one genuinely hard problem — step reconciliation — behind an interface that can be tested exhaustively without a device.
+The architecture is the same architecture. What changed is that it can now be built on the machine the owner owns, and shipped to the friends who actually have Android phones.
 
-Two things should be understood as accepted trade-offs rather than oversights:
+Three things are accepted trade-offs rather than oversights:
 
-1. **Android is deferred, not enabled.** A future port rewrites everything above `StrideCore`.
-2. **The snapshot save is intentionally simple.** It will need replacing if the game grows well beyond the vertical slice. That is a good problem to have, and the port makes it a one-adapter change.
+1. **Audio control is less direct than native.** A-04b is the check, and the instruction not to build a custom native audio engine without a demonstrated blocker is the right constraint on it.
+2. **Dart immutability is a discipline, not a guarantee.** Tracked as its own risk with its own test.
+3. **iOS remains build-gated on macOS.** CI covers compilation; real HealthKit, haptics, signing, and TestFlight still need a Mac eventually.
 
-The first implementation task, `F-01`, builds the skeleton and the reconciliation test harness *before* any gameplay depends on it. That ordering is the plan's main defence against its own worst risk.
-
-### Open items — all closed
-
-| Item | Resolved by |
-|---|---|
-| Xcode version and target device set | `DECISIONS/0009` — current stable Xcode, iOS 17, iPhone portrait only |
-| TestFlight vs. App Store distribution | `DECISIONS/0009` — TestFlight only, no store launch preparation |
-| Balance pacing targets | `DECISIONS/0007` — loop validated in one to two weeks; fixtures 2,500 / 7,500 / 15,000 |
-| Audio sourcing budget and licence preference | `DECISIONS/0005` — lean prototype budget, generated and CC0, full provenance |
-
-**One physical constraint remains:** iOS builds require macOS, and the repository currently lives on a Windows machine. See `MILESTONES/F-01_COMPLETION_REPORT.md`.
+The step-reconciliation ordering stands: **F-04 writes the twelve scenarios before S-02 implements reconciliation.** That was the plan's main defence against its worst risk under Swift, and it is unchanged — except that now those tests run on the developer's own machine.

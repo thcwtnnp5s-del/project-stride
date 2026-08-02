@@ -1,9 +1,21 @@
 # Decision: Platform Targets and Distribution
 
-**Status:** Approved
+**Status:** Approved — **amended 2026-08-01**
 **Date:** 2026-08-01
 **Owner:** Project owner
-**Closes:** The open platform items in `ARCHITECTURE_IMPLEMENTATION_PLAN.md` §4.6 and §14
+**Amended by:** `DECISIONS/0010_CROSS_PLATFORM_STACK.md` (Android added, toolchain replaced) and `DECISIONS/0011_DISTRIBUTION_CHANNELS.md` (staged distribution)
+
+> ## Amendments
+>
+> **Android is now a target.** This document's "iPhone only" scope reflected an iOS-only project. Both platforms are now in scope for the private beta.
+>
+> **The toolchain changed.** "Current stable Xcode, Swift 6" is replaced by Flutter with first-party platform channels. Xcode remains required for the iOS build, not for development.
+>
+> **Distribution is staged.** See `0011` for the Android APK → GitHub artifact → Play internal progression, and TestFlight once Mac access exists.
+>
+> **What survives unchanged:** iOS 17 minimum, **portrait only**, phone only (no iPad, no tablet-specific work), adaptive layouts, a small + standard device test matrix, physical device required for health/haptics/battery validation, and **no public store launch**.
+>
+> Portrait-only and no-tablet now apply to Android equally.
 
 ## Decision
 
