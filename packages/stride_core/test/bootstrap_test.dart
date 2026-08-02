@@ -253,6 +253,7 @@ void main() {
   _blocked();
   _identityReuse();
   _saltFingerprintEndToEnd();
+  _identityOrdering();
   _documentedGaps();
 }
 
@@ -773,9 +774,15 @@ void _blocked() {
       expect(blocked.explanation, isNot(contains(saltThen)));
     });
 
-    test('originIdentityMismatch: a save with no identity beside it', () async {
-      // The identity file was lost while the save survived. Every origin would
+    test('originIdentityMissing: a save with no identity beside it', () async {
+      // The identity was lost while the save survived. Every origin would
       // re-key and the live retention window would be granted twice.
+      //
+      // On iOS this is the *expected* shape of an iCloud restore onto a second
+      // device: the Keychain item is ThisDeviceOnly and does not travel, so the
+      // restored phone finds progress with no key. A distinct reason from a
+      // mismatch, because a mismatch means two identities exist and disagree
+      // while this means the device-bound one did not come with the device.
       final saved = await savedGame(commits: 2);
       final FaultingDevice device = saved.device.reboot();
 
@@ -784,7 +791,7 @@ void _blocked() {
 
       expectBlockedAndUntouched(
         result.outcome,
-        BootstrapBlockReason.originIdentityMismatch,
+        BootstrapBlockReason.originIdentityMissing,
         device: device,
         before: before,
         identity: result.identity,
@@ -1114,5 +1121,206 @@ void _documentedGaps() {
         reason: 'a fail-closed refusal must name the way out of it',
       );
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// The identity ordering
+// ---------------------------------------------------------------------------
+//
+// Four rules, from the owner's F-06 ruling. Three of them are about *not* doing
+// something, which is the kind of rule that passes review, ships, and is then
+// quietly undone by a plausible-looking repair six months later. So each one is
+// a test.
+//
+//   1. existing save + missing key  => originIdentityMissing
+//   2. existing save + wrong key    => originIdentityMismatch
+//   3. no save + no key             => create the key, only on the new-game path
+//   4. a failed read                => never a write, never a mint
+
+void _identityOrdering() {
+  group('identity ordering', () {
+    test('1. an existing save with no key blocks as *missing*', () async {
+      final saved = await savedGame(commits: 2);
+      final result = await boot(device: saved.device.reboot());
+
+      expect(
+        (result.outcome as BootstrapBlocked).reason,
+        BootstrapBlockReason.originIdentityMissing,
+      );
+    });
+
+    test(
+      '2. an existing save with a foreign key blocks as *mismatch*',
+      () async {
+        final saved = await savedGame(commits: 2);
+        final result = await boot(
+          device: saved.device.reboot(),
+          identity: MemoryIdentityStore(
+            const ReconciliationIdentity(
+              saveId: 'some-other-lineage',
+              saltFingerprint: saltNow,
+            ),
+          ),
+        );
+
+        expect(
+          (result.outcome as BootstrapBlocked).reason,
+          BootstrapBlockReason.originIdentityMismatch,
+        );
+      },
+    );
+
+    test('1 and 2 are distinguishable, not one reason in two hats', () async {
+      // The assertion is the *inequality*. A diagnostic that folded these
+      // together would send anyone investigating an iCloud restore looking for
+      // a second installation that does not exist.
+      final saved = await savedGame(commits: 2);
+      final missing = await boot(device: saved.device.reboot());
+      final mismatch = await boot(
+        device: saved.device.reboot(),
+        identity: MemoryIdentityStore(
+          const ReconciliationIdentity(
+            saveId: 'some-other-lineage',
+            saltFingerprint: saltNow,
+          ),
+        ),
+      );
+
+      expect(
+        (missing.outcome as BootstrapBlocked).reason,
+        isNot((mismatch.outcome as BootstrapBlocked).reason),
+      );
+    });
+
+    test('3. no save and no key mints once and writes once', () async {
+      final result = await boot();
+
+      expect(result.outcome, isA<BootstrapNewGame>());
+      expect(result.mintCalls, 1);
+      expect(result.identity.writes, hasLength(1));
+      expect(result.identity.erasures, 0);
+    });
+
+    test('3. the key is written only on the new-game path', () async {
+      // Every other terminal state must leave the store untouched. Enumerated
+      // rather than spot-checked: a path added later that writes an identity is
+      // exactly the regression this catches.
+      final saved = await savedGame(commits: 1);
+
+      final List<({String name, MemoryIdentityStore store})> paths =
+          <({String name, MemoryIdentityStore store})>[];
+
+      final MemoryIdentityStore resuming = MemoryIdentityStore(liveIdentity);
+      await boot(device: saved.device.reboot(), identity: resuming);
+      paths.add((name: 'resume', store: resuming));
+
+      final MemoryIdentityStore badContent = MemoryIdentityStore();
+      await boot(identity: badContent, content: invalidContent);
+      paths.add((name: 'invalid content', store: badContent));
+
+      final MemoryIdentityStore missingKey = MemoryIdentityStore();
+      await boot(device: saved.device.reboot(), identity: missingKey);
+      paths.add((name: 'missing identity', store: missingKey));
+
+      for (final ({String name, MemoryIdentityStore store}) path in paths) {
+        expect(
+          path.store.writes,
+          isEmpty,
+          reason: 'the ${path.name} path must not write an identity',
+        );
+        expect(path.store.erasures, 0, reason: '${path.name} must not erase');
+      }
+    });
+
+    test('4. a failed read never writes and never mints', () async {
+      // The scenario the ruling names directly, and the one that looks most
+      // like a bug rather than a rule: the device is *empty*, the identity read
+      // fails, and the tempting repair is "there is nothing here, mint one".
+      //
+      // On iOS an identity read fails when the Keychain cannot answer — before
+      // the first unlock since boot, for instance. Save files are readable long
+      // before the Keychain is, so "unreadable identity" and "empty device" can
+      // be observed together on a device that has neither condition truly.
+      // Minting here would write a key a later real read would contradict.
+      final MemoryIdentityStore store = MemoryIdentityStore()
+        ..readThrows = true;
+      final result = await boot(identity: store);
+
+      expect(
+        (result.outcome as BootstrapBlocked).reason,
+        BootstrapBlockReason.storageUnavailable,
+      );
+      expect(result.mintCalls, 0, reason: 'a failed read must not mint');
+      expect(store.writes, isEmpty, reason: 'a failed read must not write');
+      expect(store.erasures, 0);
+      expect(result.device.image(), isEmpty, reason: 'nothing was created');
+    });
+
+    test('4. a failed read over a live save never overwrites it', () async {
+      final MemoryIdentityStore store = MemoryIdentityStore(liveIdentity)
+        ..readThrows = true;
+      final saved = await savedGame(commits: 2);
+      final FaultingDevice device = saved.device.reboot();
+      final String before = device.image();
+
+      final result = await boot(device: device, identity: store);
+
+      expect(
+        (result.outcome as BootstrapBlocked).reason,
+        BootstrapBlockReason.storageUnavailable,
+      );
+      expect(store.writes, isEmpty);
+      expect(device.image(), before);
+      expect(result.mintCalls, 0);
+    });
+
+    test(
+      'a failed first commit never erases, and the next launch recovers',
+      () async {
+        // ## An open conflict, stated rather than papered over
+        //
+        // `_startNewGame` writes the identity *before* the first commit. A
+        // concurrent audit probe (test/closure_audit_test.dart, C4) asserts the
+        // opposite — that a refused first commit must write no identity at all.
+        //
+        // Its stated harm was real but is now closed from a different direction:
+        // it was that the coordinator wrote the *salt-less* core-facing shape,
+        // which made `FileIdentityStore.readStored` throw on the next launch.
+        // The app no longer writes that shape — `IdentityVault.write` persists
+        // the full candidate, salt included — so an orphan identity is now a
+        // complete, reusable record.
+        //
+        // This test therefore asserts only what is true under *either* ordering:
+        // nothing is erased, and the next launch reaches a new game under one
+        // lineage rather than two. Whether the write should move after the commit
+        // is an ordering question for the owner, and the assertions below do not
+        // pre-empt it.
+        final FaultingDevice device = FaultingDevice()
+          ..plan(<Fault>[
+            const Fault(
+              op: 'append',
+              path: 'journal',
+              effect: FaultEffect.failBefore,
+            ),
+          ]);
+        final MemoryIdentityStore store = MemoryIdentityStore();
+
+        final result = await boot(device: device, identity: store);
+
+        expect(result.outcome, isA<BootstrapBlocked>());
+        expect(
+          store.erasures,
+          0,
+          reason: 'a blocked bootstrap never deletes anything, including this',
+        );
+
+        // The next launch reaches a new game under one lineage, not two.
+        final second = await boot(device: device.reboot(), identity: store);
+        expect(second.outcome, isA<BootstrapNewGame>());
+        expect((second.outcome as BootstrapNewGame).identity, liveIdentity);
+        expect(store.erasures, 0);
+      },
+    );
   });
 }

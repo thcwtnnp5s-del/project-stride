@@ -1,0 +1,51 @@
+name: stride_secure_store
+description: >-
+  Project Stride device-bound secure storage. The iOS Keychain identity and
+  NSURLIsExcludedFromBackupKey, behind one Pigeon-typed boundary.
+version: 0.1.0
+publish_to: 'none'
+
+# Why this is a package of its own, and not a second Pigeon surface in
+# stride_health.
+#
+# Three constraints decide it:
+#
+#   1. `stride_storage` is pure `dart:io` with no Flutter binding, on purpose,
+#      so its whole conformance suite runs under `dart test` on Windows. A
+#      MethodChannel or Pigeon surface cannot live there without dragging the
+#      Flutter engine into the one package that must stay runnable headless.
+#   2. `stride_core` must never see the raw salt, and must never see a plugin.
+#   3. `stride_health` is the *health* boundary. DECISIONS/0010 scopes it to
+#      owning HealthKit and Health Connect and nothing else. Putting Keychain
+#      writes and save-directory backup attributes there would make the health
+#      plugin the owner of the save layout's filenames -- an inverted
+#      dependency (health must not know what a save is) and a blurred boundary
+#      in the one place the project has argued hardest for a sharp one.
+#
+# So: a second, small, single-purpose plugin. iOS only. Android keeps
+# app-private file storage and its declarative backup exclusions, which is the
+# owner's ruling; there is no Kotlin implementation here, and the Dart side
+# selects a file-backed store off iOS rather than pretending a Keychain exists.
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # Pinned exactly, for the same reason as stride_health: without a pin, a tool
+  # upgrade rewrites generated headers and fails CI's freshness check for
+  # reasons unrelated to a stale contract.
+  pigeon: 27.3.0
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: StrideSecureStorePlugin

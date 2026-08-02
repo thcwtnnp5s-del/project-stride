@@ -67,6 +67,7 @@ ContentRegistry loadRegistry() {
       snapshots: FileSnapshotStore(layout),
       journal: FileLedgerJournal(layout),
       identity: FileIdentityStore(layout),
+      lock: FileTransactionLock(layout.transactionLock),
       readArtifacts: () async {
         // Read off the disk, not through the ports. Reading back through
         // SnapshotSlotStore would prove only that the adapter returns what it
@@ -176,6 +177,7 @@ void main() {
       final SaveRepository repo = SaveRepository(
         snapshots: fixture.snapshots,
         journal: fixture.journal,
+        lock: fixture.lock,
       );
       final GameEngine engine = GameEngine.newGame(registry: registry);
       final EngineResult result = engine.execute(
@@ -241,6 +243,7 @@ void main() {
       final SaveRepository repo = SaveRepository(
         snapshots: fixture.snapshots,
         journal: fixture.journal,
+        lock: fixture.lock,
       );
       final GameEngine engine = GameEngine.newGame(registry: registry);
 

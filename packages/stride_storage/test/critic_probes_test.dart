@@ -60,6 +60,9 @@ ContentRegistry get registry => const ContentLoader()
 SaveRepository repoOver(StorageLayout l) => SaveRepository(
   snapshots: FileSnapshotStore(l),
   journal: FileLedgerJournal(l),
+  // A real directory gets the real lock. `UncontendedLock` here would leave
+  // A3 attacking a system that was never defended.
+  lock: FileTransactionLock(l.transactionLock),
 );
 
 Uint8List line(String s) => Uint8List.fromList(utf8.encode('$s\n'));
@@ -243,120 +246,145 @@ void main() {
   // ATTACK 3 — two repositories, one directory (the background-worker case)
   // =========================================================================
   group('A3 cross-instance concurrency', () {
-    // KNOWN DEFECT, awaiting an owner ruling. Skipped so it does not flake CI
-    // green-then-red, NOT because it is wrong -- it is right, and it fails
-    // intermittently for the reason it was written to expose.
+    // Was skipped as a KNOWN DEFECT. It is not skipped any more.
     //
-    // Two SaveRepository instances over one directory each hold their own
-    // single-writer queue. `_readHead` awaits real file I/O, which yields, so
-    // both can read the same durable head, both find their CAS expectation
-    // satisfied, both compute the same next transaction id, and both append.
-    // CAS is checked and released before the append; it is not atomic across
-    // instances and nothing on disk enforces it.
-    //
-    // Either outcome is bad: matching record shapes are absorbed as a
-    // duplicate and that batch of granted steps is silently gone, or differing
-    // shapes give journalForked -> recoveryNotProvable, which compaction
+    // The defect was real: two SaveRepository instances over one directory each
+    // held their own single-writer queue, `_readHead` awaited real file I/O and
+    // therefore yielded, so both could read the same durable head, both find
+    // their compare-and-swap expectation satisfied, both compute the same next
+    // transaction id, and both append. Either outcome lost -- matching record
+    // shapes were absorbed as a duplicate and that batch of granted steps was
+    // silently gone, or differing shapes gave `journalForked`, which compaction
     // cannot clear because compaction only runs inside a commit and a commit
-    // needs a load. That is a permanent brick.
+    // needs a load. That one was a permanent brick.
     //
-    // It passed on one run and failed under Scripts/verify.sh on the next,
-    // which is the signature of the race rather than evidence against it.
+    // It is closed by a real OS-level exclusive lock held across the WHOLE
+    // transaction, wired here through `repoOver`. This test now asserts the
+    // repaired behaviour rather than demonstrating the defect: one writer
+    // lands, the other is refused in a typed way, and the next launch opens.
     //
-    // This is exactly the Android background-worker configuration S-01
-    // introduces, and it does not exist yet -- so nothing today will catch it.
-    // Remove the skip when the owner rules: an advisory lock file held across
-    // read-head-to-append, or an append that refuses a transaction id already
-    // on disk, or a written and dated constraint that Health Connect
-    // background delivery must not open a second SaveRepository.
-    test(
-      'two SaveRepository instances committing concurrently',
-      skip:
-          'KNOWN DEFECT: cross-instance CAS is not atomic. Awaiting owner ruling '
-          '-- see F06_COMPLETION_REPORT.md.',
-      () async {
-        final StorageLayout l = freshLayout();
-        await seedSave(l);
+    // The lock's own proof -- fifty repetitions, cross-process exclusion, a
+    // killed holder, a bounded timeout, and the width of the hold -- lives in
+    // concurrency_test.dart. This probe stays because it is the shape the
+    // Android background worker actually has.
+    test('two SaveRepository instances committing concurrently', () async {
+      final StorageLayout l = freshLayout();
+      await seedSave(l);
 
-        final SaveRepository repoA = repoOver(l);
-        final SaveRepository repoB = repoOver(l);
+      final SaveRepository repoA = repoOver(l);
+      final SaveRepository repoB = repoOver(l);
 
-        final SaveLoaded la =
-            await repoA.load(registry: registry) as SaveLoaded;
-        final SaveLoaded lb =
-            await repoB.load(registry: registry) as SaveLoaded;
+      final SaveLoaded la = await repoA.load(registry: registry) as SaveLoaded;
+      final SaveLoaded lb = await repoB.load(registry: registry) as SaveLoaded;
 
-        final GameEngine ea = GameEngine(registry: registry, state: la.state);
-        final GameEngine eb = GameEngine(registry: registry, state: lb.state);
+      final GameEngine ea = GameEngine(registry: registry, state: la.state);
+      final GameEngine eb = GameEngine(registry: registry, state: lb.state);
 
-        final EngineResult ra = ea.execute(
-          const GrantSyntheticSteps(steps: 5000, reason: 'probe-foreground'),
-        );
-        final EngineResult rb = eb.execute(
-          const GrantSyntheticSteps(steps: 11, reason: 'probe-worker'),
-        );
-        expect(ra.events, isNotEmpty);
-        expect(rb.events, isNotEmpty);
-        say('foreground grants 5000, background worker grants 11');
+      final EngineResult ra = ea.execute(
+        const GrantSyntheticSteps(steps: 5000, reason: 'probe-foreground'),
+      );
+      final EngineResult rb = eb.execute(
+        const GrantSyntheticSteps(steps: 11, reason: 'probe-worker'),
+      );
+      expect(ra.events, isNotEmpty);
+      expect(rb.events, isNotEmpty);
+      say('foreground grants 5000, background worker grants 11');
 
-        final List<CommitOutcome> outcomes =
-            await Future.wait(<Future<CommitOutcome>>[
-              repoA.commit(
-                after: ea.state,
-                events: ra.events,
-                saveId: probeSaveId,
-                expectation: CommitExpectation(
-                  expectedSnapshotGeneration: la.generation,
-                  expectedLastAppliedTransaction: la.lastAppliedTransaction,
-                ),
-                originSaltFingerprint: null,
+      final List<CommitOutcome> outcomes =
+          await Future.wait(<Future<CommitOutcome>>[
+            repoA.commit(
+              after: ea.state,
+              events: ra.events,
+              saveId: probeSaveId,
+              expectation: CommitExpectation(
+                expectedSnapshotGeneration: la.generation,
+                expectedLastAppliedTransaction: la.lastAppliedTransaction,
               ),
-              repoB.commit(
-                after: eb.state,
-                events: rb.events,
-                saveId: probeSaveId,
-                expectation: CommitExpectation(
-                  expectedSnapshotGeneration: lb.generation,
-                  expectedLastAppliedTransaction: lb.lastAppliedTransaction,
-                ),
-                originSaltFingerprint: null,
+              originSaltFingerprint: null,
+            ),
+            repoB.commit(
+              after: eb.state,
+              events: rb.events,
+              saveId: probeSaveId,
+              expectation: CommitExpectation(
+                expectedSnapshotGeneration: lb.generation,
+                expectedLastAppliedTransaction: lb.lastAppliedTransaction,
               ),
-            ]);
+              originSaltFingerprint: null,
+            ),
+          ]);
 
-        say('outcomes: ${outcomes.map((CommitOutcome o) => o.runtimeType)}');
-        final List<int> txIds = <int>[];
-        for (final Uint8List raw in await FileLedgerJournal(l).readLines()) {
-          final JournalLineResult p = decodeJournalLine(raw);
-          txIds.add(p.ok ? p.record!.transactionId : -1);
-        }
-        say('journal transaction ids on disk: $txIds');
-        say(
-          'durable commits: ${outcomes.whereType<CommitDurable>().length} of 2',
-        );
+      say('outcomes: ${outcomes.map((CommitOutcome o) => o.runtimeType)}');
+      final List<int> txIds = <int>[];
+      for (final Uint8List raw in await FileLedgerJournal(l).readLines()) {
+        final JournalLineResult p = decodeJournalLine(raw);
+        txIds.add(p.ok ? p.record!.transactionId : -1);
+      }
+      say('journal transaction ids on disk: $txIds');
+      say(
+        'durable commits: ${outcomes.whereType<CommitDurable>().length} of 2',
+      );
 
-        final LoadOutcome reread = await repoOver(l).load(registry: registry);
-        say('next launch: ${reread.runtimeType}');
-        if (reread is LoadRefused) say('refusal: ${reread.reason}');
-        if (reread is SaveLoaded) {
-          say(
-            'banked steps recovered: ${reread.state.steps.banked} '
-            '(5000 + 11 = 5011 if both landed, 5000 or 11 if one was lost)',
-          );
-          say('repairs: ${reread.repairs.map((SaveRepair r) => r.diagnosis)}');
-        }
+      final LoadOutcome reread = await repoOver(l).load(registry: registry);
+      say('next launch: ${reread.runtimeType}');
+      if (reread is LoadRefused) say('refusal: ${reread.reason}');
+      if (reread is SaveLoaded) {
+        say('banked steps recovered: ${reread.state.steps.banked}');
+        say('repairs: ${reread.repairs.map((SaveRepair r) => r.diagnosis)}');
+      }
 
-        // The attack succeeds if two records share a transaction id.
-        final List<int> good = txIds.where((int i) => i >= 0).toList();
-        expect(
-          good.toSet().length,
-          good.length,
-          reason:
-              'DEFECT: two records claim the same transaction id, so the '
-              'in-process writer queue is the only thing serializing commits and '
-              'compare-and-swap does not span SaveRepository instances',
-        );
-      },
-    );
+      // No fork. Two records at one transaction id is the whole attack.
+      expect(txIds, isNot(contains(-1)));
+      expect(
+        txIds.toSet().length,
+        txIds.length,
+        reason:
+            'two records claim the same transaction id, so compare-and-swap '
+            'does not span SaveRepository instances: $txIds',
+      );
+
+      // Exactly one writer lands. Both landing at one id is a fork; neither
+      // landing means the lock starves a caller that had steps to save.
+      final List<CommitDurable> durable = outcomes
+          .whereType<CommitDurable>()
+          .toList();
+      expect(durable, hasLength(1));
+      final CommitRefused refused = outcomes.whereType<CommitRefused>().single;
+      expect(
+        refused.reason,
+        anyOf(
+          CommitRefusal.conflictRetryLimitExhausted,
+          CommitRefusal.storageBusy,
+        ),
+        reason:
+            'the loser must be told to reload and reconcile, not left to '
+            'assume its batch is durable',
+      );
+
+      // The next launch opens, and holds exactly the winner's grant.
+      expect(
+        reread,
+        isA<SaveLoaded>(),
+        reason:
+            'a journalForked refusal here is permanent: compaction only runs '
+            'inside a commit and a commit needs a load',
+      );
+      final int expected = outcomes[0] is CommitDurable ? 5000 : 11;
+      expect(
+        (reread as SaveLoaded).state.steps.banked,
+        expected,
+        reason:
+            '5011 would mean both landed; the other value would mean the '
+            'commit that reported success was silently discarded',
+      );
+      expect(
+        reread.repairs.map((SaveRepair r) => r.diagnosis),
+        isNot(contains(SaveDiagnosis.journalDuplicateTransaction)),
+        reason:
+            'an absorbed duplicate is a batch of granted steps disappearing '
+            'without any refusal reaching the caller',
+      );
+    });
 
     test('the same two commits, serialized, both land', () async {
       final StorageLayout l = freshLayout();

@@ -124,6 +124,7 @@ final class Session {
       repository = SaveRepository(
         snapshots: FileSnapshotStore(StorageLayout(root)),
         journal: FileLedgerJournal(StorageLayout(root)),
+        lock: FileTransactionLock(StorageLayout(root).transactionLock),
       ),
       identityStore = FileIdentityStore(StorageLayout(root));
 

@@ -14,6 +14,11 @@ dependencies:
     path: packages/stride_core
   stride_health:
     path: packages/stride_health
+  # The iOS Keychain identity and NSURLIsExcludedFromBackupKey, behind a typed
+  # Pigeon port. iOS-only implementation; Android keeps app-private files and
+  # its declarative backup exclusions.
+  stride_secure_store:
+    path: packages/stride_secure_store
   stride_storage:
     path: packages/stride_storage
   # The only way to reach an application-support directory from Flutter.

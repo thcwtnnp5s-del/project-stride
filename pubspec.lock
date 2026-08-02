@@ -525,6 +525,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  stride_secure_store:
+    dependency: "direct main"
+    description:
+      path: "packages/stride_secure_store"
+      relative: true
+    source: path
+    version: "0.1.0"
   stride_storage:
     dependency: "direct main"
     description:
