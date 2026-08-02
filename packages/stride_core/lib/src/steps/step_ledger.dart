@@ -158,6 +158,7 @@ final class StepLedger {
     required this.sourceState,
     required this.correctionsObserved,
     required this.unreachableGapEvents,
+    required this.lateDiscardedSlices,
   }) : grantedSlices = UnmodifiableMapView<ObservationKey, int>(
          SplayTreeMap<ObservationKey, int>.of(grantedSlices),
        ) {
@@ -184,7 +185,8 @@ final class StepLedger {
       recovery = const RecoveryState.idle(),
       sourceState = SourceState.unknown,
       correctionsObserved = 0,
-      unreachableGapEvents = 0;
+      unreachableGapEvents = 0,
+      lateDiscardedSlices = 0;
 
   /// The source's current view. May fall.
   final int totalObserved;
@@ -216,6 +218,12 @@ final class StepLedger {
 
   /// How many rescans were truncated, leaving an unreachable gap.
   final int unreachableGapEvents;
+
+  /// How many observations arrived after their bucket had been compacted.
+  ///
+  /// Non-zero means real steps were probably lost. It is a counter rather than
+  /// silence because this is the one lossy path in the design.
+  final int lateDiscardedSlices;
 
   /// Earned and unspent. Never expires (`DECISIONS/0008`).
   int get banked => totalGranted - totalSpent;
@@ -250,6 +258,7 @@ final class StepLedger {
     SourceState? sourceState,
     int? correctionsObserved,
     int? unreachableGapEvents,
+    int? lateDiscardedSlices,
   }) => StepLedger(
     totalObserved: totalObserved ?? this.totalObserved,
     totalGranted: totalGranted ?? this.totalGranted,
@@ -262,6 +271,7 @@ final class StepLedger {
     sourceState: sourceState ?? this.sourceState,
     correctionsObserved: correctionsObserved ?? this.correctionsObserved,
     unreachableGapEvents: unreachableGapEvents ?? this.unreachableGapEvents,
+    lateDiscardedSlices: lateDiscardedSlices ?? this.lateDiscardedSlices,
   );
 
   /// Commits [steps] to an activity.
@@ -286,6 +296,7 @@ final class StepLedger {
       other.sourceState == sourceState &&
       other.correctionsObserved == correctionsObserved &&
       other.unreachableGapEvents == unreachableGapEvents &&
+      other.lateDiscardedSlices == lateDiscardedSlices &&
       const MapEquality<ObservationKey, int>().equals(
         other.grantedSlices,
         grantedSlices,
@@ -302,6 +313,7 @@ final class StepLedger {
     sourceState,
     correctionsObserved,
     unreachableGapEvents,
+    lateDiscardedSlices,
     const MapEquality<ObservationKey, int>().hash(grantedSlices),
   );
 
@@ -311,7 +323,7 @@ final class StepLedger {
       'slices=${grantedSlices.length};sync=${checkpoint.syncCount};'
       'wm=${checkpoint.watermarkMillis};recovery=${recovery.phase.name};'
       'source=${sourceState.name};corrections=$correctionsObserved;'
-      'gaps=$unreachableGapEvents';
+      'gaps=$unreachableGapEvents;late=$lateDiscardedSlices';
 
   @override
   String toString() => 'StepLedger($signature)';

@@ -230,6 +230,27 @@ sealed class SyncResponse {
   String get kind;
 }
 
+/// How far the adapter guarantees it has delivered everything.
+///
+/// ## Why the core cannot work this out for itself
+///
+/// The reconciler used to infer completeness from the newest bucket it had
+/// seen, and compact anything older than the retention window behind it. That
+/// silently discarded steps in two ordinary situations:
+///
+/// * a provider paginating newest-first — the recent page advanced the
+///   watermark past the older page, which then arrived already "settled"
+/// * a second device uploading a backlog after being offline
+///
+/// Both lost real steps with no error. The core cannot detect either, because
+/// only the adapter knows whether more pages are coming or whether a source has
+/// finished catching up.
+///
+/// So completeness is now **asserted, not inferred**. An adapter sets this only
+/// when it can honestly say "everything at or before this instant has been
+/// delivered". When it is absent the reconciler does not compact at all, which
+/// is the safe default: the ledger grows a little rather than losing a grant.
+///
 /// The source reported observations, incrementally.
 ///
 /// Covers the ordinary case and, without needing a separate shape, delayed
@@ -240,12 +261,16 @@ final class IncrementalSync extends SyncResponse {
   IncrementalSync({
     required List<StepObservation> observations,
     this.nextCursor,
+    this.completeThroughMillis,
   }) : observations = List<StepObservation>.unmodifiable(observations);
 
   final List<StepObservation> observations;
 
   /// The cursor to persist — **but only after the ledger commits**.
   final SyncCursor? nextCursor;
+
+  /// The adapter's completeness assertion. Null means "do not compact".
+  final int? completeThroughMillis;
 
   @override
   String get kind => 'incremental';
@@ -254,9 +279,12 @@ final class IncrementalSync extends SyncResponse {
 /// Nothing changed since the cursor.
 @immutable
 final class NoChangeSync extends SyncResponse {
-  const NoChangeSync({this.nextCursor});
+  const NoChangeSync({this.nextCursor, this.completeThroughMillis});
 
   final SyncCursor? nextCursor;
+
+  /// See [IncrementalSync.completeThroughMillis].
+  final int? completeThroughMillis;
 
   @override
   String get kind => 'no_change';
@@ -274,6 +302,7 @@ final class CursorInvalidatedSync extends SyncResponse {
     required this.window,
     required List<StepObservation> observations,
     this.nextCursor,
+    this.completeThroughMillis,
   }) : observations = List<StepObservation>.unmodifiable(observations);
 
   final RescanWindow window;
@@ -282,6 +311,9 @@ final class CursorInvalidatedSync extends SyncResponse {
   final List<StepObservation> observations;
 
   final SyncCursor? nextCursor;
+
+  /// See [IncrementalSync.completeThroughMillis].
+  final int? completeThroughMillis;
 
   @override
   String get kind => 'cursor_invalidated';

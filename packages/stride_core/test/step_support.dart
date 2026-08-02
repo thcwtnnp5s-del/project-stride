@@ -39,12 +39,22 @@ StepObservation obs(StepOrigin origin, int index, int steps) => StepObservation(
 
 SyncCursor cursor(String name) => SyncCursor.ofString(name);
 
+/// [completeThroughIndex] is the adapter's completeness assertion, in hour
+/// indices: "I have delivered everything up to this point."
+///
+/// Omitting it is the safe default and means "do not compact" — which is why
+/// most scenarios can ignore it entirely. Only tests that care about retention
+/// need to assert completeness.
 IncrementalSync incremental(
   List<StepObservation> observations, {
   String? next,
+  int? completeThroughIndex,
 }) => IncrementalSync(
   observations: observations,
   nextCursor: next == null ? null : cursor(next),
+  completeThroughMillis: completeThroughIndex == null
+      ? null
+      : t0 + completeThroughIndex * hour,
 );
 
 CursorInvalidatedSync rescan(
@@ -53,6 +63,7 @@ CursorInvalidatedSync rescan(
   required int toIndex,
   bool truncated = false,
   String? next,
+  int? completeThroughIndex,
 }) => CursorInvalidatedSync(
   window: RescanWindow(
     startMillis: t0 + fromIndex * hour,
@@ -61,6 +72,9 @@ CursorInvalidatedSync rescan(
   ),
   observations: observations,
   nextCursor: next == null ? null : cursor(next),
+  completeThroughMillis: completeThroughIndex == null
+      ? null
+      : t0 + completeThroughIndex * hour,
 );
 
 /// Runs a sync and returns the result.
@@ -84,13 +98,23 @@ SyncCursor? authorizedCursor(EngineResult result) {
 bool didAuthorizeCheckpoint(EngineResult result) =>
     result.events.whereType<StepCheckpointAuthorized>().isNotEmpty;
 
-/// Applies every event *except* the trailing checkpoint authorization.
+/// Applies every event up to, but not including, the first [T].
+///
+/// Truncates rather than filters. Filtering out one event type and applying
+/// everything after it models no crash that can actually happen, and it would
+/// quietly encode the conclusion that the checkpoint is last — which is the
+/// property under test, not an assumption available to the test.
+GameState commitUpTo<T extends GameEvent>(
+  GameState from,
+  List<GameEvent> events,
+) => const EventReducer().applyAll(
+  from,
+  events.takeWhile((GameEvent e) => e is! T).toList(),
+);
+
+/// Applies every event before the trailing checkpoint authorization.
 ///
 /// Models a process that died after committing the ledger but before the
 /// cursor could be persisted — scenario 10.
-GameState commitWithoutCheckpoint(GameState from, List<GameEvent> events) {
-  final List<GameEvent> upToCheckpoint = events
-      .where((GameEvent e) => e is! StepCheckpointAuthorized)
-      .toList();
-  return const EventReducer().applyAll(from, upToCheckpoint);
-}
+GameState commitWithoutCheckpoint(GameState from, List<GameEvent> events) =>
+    commitUpTo<StepCheckpointAuthorized>(from, events);

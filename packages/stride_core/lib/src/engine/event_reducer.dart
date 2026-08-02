@@ -141,6 +141,7 @@ final class EventReducer {
           watermarkMillis: event.watermarkMillis,
           syncCount: ledger.checkpoint.syncCount,
         ),
+        lateDiscardedSlices: ledger.lateDiscardedSlices + event.lateDiscarded,
         correctionsObserved: ledger.correctionsObserved + event.correctionsSeen,
         unreachableGapEvents:
             ledger.unreachableGapEvents + (event.truncatedGap ? 1 : 0),

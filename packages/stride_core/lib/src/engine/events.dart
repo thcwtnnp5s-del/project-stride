@@ -175,6 +175,7 @@ final class StepObservationReconciled extends GameEvent {
     required this.observedAfter,
     required Map<ObservationKey, int> grantedSlicesAfter,
     required this.grantedCompactedAway,
+    required this.lateDiscarded,
     required this.watermarkMillis,
     required this.correctionsSeen,
     required this.truncatedGap,
@@ -189,6 +190,13 @@ final class StepObservationReconciled extends GameEvent {
   /// Granted credit for slices dropped by compaction, folded into the
   /// pre-watermark total so no granted step is ever lost.
   final int grantedCompactedAway;
+
+  /// Observations that arrived after their bucket had been compacted away.
+  ///
+  /// These cannot be granted — the record proving whether they were already
+  /// credited is gone. Carried as a fact rather than dropped in silence,
+  /// because this is the one lossy path the design still permits.
+  final int lateDiscarded;
 
   final int? watermarkMillis;
   final int correctionsSeen;

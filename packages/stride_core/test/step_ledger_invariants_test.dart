@@ -324,22 +324,27 @@ void main() {
     test('old slices are compacted without losing granted totals', () {
       final GameEngine engine = newEngine();
 
-      // Well beyond the 48-hour retention window.
-      for (int day = 0; day < 6; day++) {
+      // Well beyond the 7-day retention window. Each sync asserts completeness
+      // through the hour it delivered — a healthy provider with nothing
+      // outstanding. Without that assertion nothing compacts, which is the
+      // point of the two tests below.
+      for (int day = 0; day < 14; day++) {
         sync(
           engine,
-          incremental(<StepObservation>[
-            obs(phone, day * 24, 1000),
-          ], next: 'd$day'),
+          incremental(
+            <StepObservation>[obs(phone, day * 24, 1000)],
+            next: 'd$day',
+            completeThroughIndex: day * 24 + 1,
+          ),
         );
       }
 
       final StepLedger ledger = engine.state.steps;
 
-      expect(ledger.totalGranted, 6000, reason: 'no granted step may be lost');
+      expect(ledger.totalGranted, 14000, reason: 'no granted step may be lost');
       expect(
         ledger.grantedSlices.length,
-        lessThan(6),
+        lessThan(14),
         reason:
             'slices past the horizon must be compacted, or the ledger '
             'becomes a step history',
@@ -356,12 +361,14 @@ void main() {
       );
 
       // Push the watermark far past hour 0.
-      for (int day = 1; day <= 4; day++) {
+      for (int day = 1; day <= 12; day++) {
         sync(
           engine,
-          incremental(<StepObservation>[
-            obs(phone, day * 24, 100),
-          ], next: 'd$day'),
+          incremental(
+            <StepObservation>[obs(phone, day * 24, 100)],
+            next: 'd$day',
+            completeThroughIndex: day * 24 + 1,
+          ),
         );
       }
       final int granted = engine.state.steps.totalGranted;

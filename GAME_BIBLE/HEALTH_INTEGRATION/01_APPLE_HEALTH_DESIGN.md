@@ -9,10 +9,28 @@ Step count only.
 - Request only required permissions
 - Explain how step data affects gameplay
 - **Raw health data never leaves the device.** In any milestone. Changing this requires an explicit new owner decision.
-- Store only gameplay-relevant reconciliation state — ingested total, consumed total, sync anchor — never a step history
+- Store the minimum reconciliation state that safety requires — see the amendment below
 - Provide a clear disconnect/reset path
 - Never imply medical interpretation
 - No analytics and no third-party SDKs in the app target for Milestone 01
+
+### Amendment — bounded reconciliation history (owner ruling, 2026-08-02)
+
+This document previously said to store *"ingested total, consumed total, sync anchor — never a step history."* That wording is amended.
+
+The reconciler additionally persists **`grantedSlices`**: per pseudonymous origin and per UTC time bucket, the number of steps already granted.
+
+**This is coarse recent reconciliation history, and is described as such.** It is not "not a history" — calling it that would be a word game. It is retained *only* because safe replay, overlap handling, multi-origin reconciliation, and bounded recovery require it; the scalar-only alternative cannot distinguish a restated observation from a new one.
+
+**Persist only:** pseudonymous origin identifier, UTC time bucket, amount already granted for that bucket, and minimum schema metadata.
+
+**Never persist:** raw HealthKit or Health Connect records, sub-bucket exact timestamps, device names, source display names, workout categories, location, heart data, or original native payloads.
+
+**Retention:** 7 days by default, 48 hours minimum, provisional until S-01 measures real correction latency. After the window, slices are removed and compacted into non-temporal cumulative totals only. **No indefinite bucket-by-bucket activity timeline is ever retained.**
+
+**Locality:** no telemetry, no plaintext diagnostic logging, no routine diagnostic export, no automatic inclusion in any future cloud sync, and the Android backup and transfer exclusions stand.
+
+Full detail and rationale: `TECHNICAL/STEP_LEDGER_PRIVACY.md`.
 
 ## Step reconciliation
 

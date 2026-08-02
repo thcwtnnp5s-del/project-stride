@@ -1,22 +1,26 @@
 # Step Ledger — Persisted vs. Transient Data
 
-**Authority:** `GAME_BIBLE/HEALTH_INTEGRATION/01_APPLE_HEALTH_DESIGN.md`, `DECISIONS/0010`
-**Task:** F-04
-**Status:** ⚠️ **One narrowing of an existing rule needs owner ratification — see §5.**
+**Authority:** owner ruling of 2026-08-02, amending `GAME_BIBLE/HEALTH_INTEGRATION/01_APPLE_HEALTH_DESIGN.md`
+**Tasks:** F-04, F-05
+**Status:** ✅ **Approved as a documented exception.**
 
 ---
 
-## 1. The rule this document exists to honour
+## 1. What is persisted, said plainly
 
-`GAME_BIBLE/HEALTH_INTEGRATION` says:
+`GAME_BIBLE/HEALTH_INTEGRATION` originally said to persist only *"ingested total, consumed total, sync anchor"* and **"never a step history"**.
 
-> Store only gameplay-relevant reconciliation state — ingested total, consumed total, sync anchor — **never a step history**.
+That wording is amended. The ledger additionally persists `grantedSlices`.
 
-and
+> **`grantedSlices` is coarse recent reconciliation history.**
+>
+> It is not "not history". Calling it that would be a word game. It records, per pseudonymous origin and per UTC time bucket, how many steps the game has already granted — which is a coarse recent record of when the player was active.
+>
+> It is retained **only** because safe replay, overlap handling, multi-origin reconciliation, and bounded recovery require it. Without it the reconciler cannot distinguish a restated observation from a new one, and four of the thirteen required scenarios become approximations.
+>
+> It is bounded, compacted, and never leaves the device.
 
-> Raw health data never leaves the device. In any milestone.
-
-F-04 keeps the second absolutely. It narrows the first, deliberately and in a bounded way, and §5 explains why and asks for that narrowing to be ratified rather than assumed.
+`Raw health data never leaves the device, in any milestone` is unchanged and absolute.
 
 ---
 
@@ -64,64 +68,79 @@ It is what makes replay, overlap, delayed records, corrections, deletions, multi
 
 It is **not** a record of steps taken. It records **what the game credited**, which diverges from what the source says the moment a correction arrives — that divergence is the entire point of separating observed from granted.
 
+### Exactly what a slice may contain
+
+Per the ruling, a persisted slice carries **only**:
+
+| Field | |
+|---|---|
+| Pseudonymous origin identifier | Opaque string. **Never** a device name, source display name, or anything a human would recognise |
+| UTC time bucket | Start and end, milliseconds since epoch. **UTC exclusively** — no local calendar anywhere |
+| Amount already granted for that bucket | An integer |
+| Minimum schema/version metadata | Enough to decode it |
+
+**Never persisted, under any circumstance:** raw HealthKit or Health Connect records, sub-bucket exact timestamps, device names, source display names, workout categories, location, heart data, or original native payloads.
+
 ### How it is bounded
 
-Slices are compacted once they fall more than `StepReconciler.retentionWindowMillis` — **48 hours** — behind the newest observation:
+Slices are compacted once they fall more than `StepReconciler.retentionWindowMillis` behind the newest observation.
+
+| | |
+|---|---|
+| **Default retention** | **7 days** |
+| **Configurable minimum** | **48 hours** — a hard floor; a shorter window throws |
+| Production value | **Provisional** until S-01 measures real delayed corrections and provider behaviour |
+
+After the active window: time-bucket slices are **removed**, and compaction folds them into **non-temporal cumulative totals** — `grantedBeforeWatermark` and the watermark — which carry no timing information at all.
+
+**No indefinite bucket-by-bucket activity timeline is ever retained.** That is the line the retention window exists to hold.
 
 - their granted amounts fold into `grantedBeforeWatermark`
 - the watermark advances past them
 - the individual entries are dropped
 - a compacted slice can never be granted again, so forgetting the detail is safe
 
-Steady-state size is roughly *(hours in 48) × (number of devices)* integer entries. For one phone at hourly resolution that is under fifty numbers.
+Steady-state size is roughly *(hours in the window) × (number of devices)* integer entries.
 
-Proven by `bounded retention` in `step_ledger_invariants_test.dart`: six days of syncs leave fewer than six slices retained, with `totalGranted` intact.
+Proven by `bounded retention` in `step_ledger_invariants_test.dart`: fourteen days of syncs leave fewer than fourteen slices retained, with `totalGranted` intact, and a long-settled slice restated by a rescan grants nothing.
 
-### Why 48 hours
+### Why these numbers
 
-Long enough to cover the realistic arrival window for delayed records and corrections — HealthKit and Health Connect both settle within hours, not days. Short enough that nothing resembling a diary accumulates.
+**7 days** is long enough to cover realistic delayed-record and correction latency with margin. **48 hours** is a floor rather than a target: a shorter window trades a privacy gain nobody asked for against a correctness loss that is invisible until a player's walk fails to count. `StepReconciler` throws below it.
 
-**It is a judgement, not a derived number**, and it is stated as one. If real-device testing at S-01 shows corrections arriving later, it moves — it is one constant, and the tests assert the property rather than the value.
-
----
-
-## 5. ⚠️ The narrowing that needs ratification
-
-`GAME_BIBLE/HEALTH_INTEGRATION` says to store **"never a step history"**, and names the permitted state as *ingested total, consumed total, sync anchor*.
-
-`grantedSlices` is more than that list. For up to 48 hours it holds per-device, per-hour granted amounts — which, while derived rather than raw, is close enough to a coarse recent step record that pretending otherwise would be dishonest.
-
-### Why the alternative was not chosen
-
-The scalar-only model — totals plus a watermark, no per-slice detail — stores strictly less. It is also unable to distinguish:
-
-- a restated observation from a new one (breaks replay and overlap)
-- one device's data from another's (breaks multi-device)
-- which part of a rescan window was already granted (breaks bounded recovery without either double-granting or under-granting)
-
-Each of those is a scenario the owner explicitly required. The scalar model can approximate them with a watermark and overlap arithmetic — the original hypothesis — but that approach assumes a window total stable enough for arithmetic over it to mean something, which retroactive writes and multiple origins undermine. §6 of the completion report compares them in full.
-
-### What is being asked
-
-Ratify one of:
-
-1. **Keep `grantedSlices` at 48 hours** and amend `GAME_BIBLE/HEALTH_INTEGRATION` to permit bounded derived reconciliation state, naming this exception. *(Recommended — it is what makes the required scenarios provably safe.)*
-2. **Shorten the window** to, say, 6 hours, accepting that corrections arriving later are silently under-granted.
-3. **Revert to scalar-only**, accepting weaker multi-origin and recovery guarantees, and revise the affected scenarios.
-
-Until ratified, this is recorded as a **known deviation**, not a settled decision.
+**Both are judgements, not derivations.** If S-01 shows corrections arriving later than 7 days, the default moves — it is one constant, and the tests assert the property rather than the value.
 
 ---
 
-## 6. What is never persisted, under any option
+## 5. Locality — this data never leaves the device
 
-- Raw health samples
+Required by the ruling, and absolute:
+
+| | |
+|---|---|
+| Telemetry | **None.** No analytics SDK, no crash reporter |
+| Plaintext diagnostic logging | **None.** Slice detail is redacted from every diagnostic surface |
+| Routine diagnostic export | **None** |
+| Automatic cloud-sync inclusion | **None.** A future sync layer must exclude this explicitly, not inherit it |
+| Android backup and transfer | **Excluded**, and those exclusions are retained — see `android/app/src/main/res/xml/data_extraction_rules.xml` |
+
+The Android exclusion matters more than it looks: an automatic backup restored onto a second device would replay a step ledger against a source the original already consumed from, producing exactly the double-count the whole design exists to prevent.
+
+---
+
+## 6. Never persisted, under any configuration
+
+- Raw HealthKit or Health Connect records
+- Original native payloads
 - Record identifiers or UIDs
-- Precise sample timestamps
-- Any data older than the retention window
-- Anything at all outside the device — no cloud, no analytics, no crash reporting
+- Sub-bucket exact timestamps
+- Device names or source display names
+- Workout categories, location, heart data
+- Any local-calendar or timezone-derived value — **UTC exclusively**
+- Any slice older than the retention window
+- Anything at all outside the device
 
-`DECISIONS/0011` and the architecture plan §12 remain unchanged: raw health data never leaves the device, in any milestone.
+`DECISIONS/0011` and architecture plan §12 are unchanged: raw health data never leaves the device, in any milestone.
 
 ---
 

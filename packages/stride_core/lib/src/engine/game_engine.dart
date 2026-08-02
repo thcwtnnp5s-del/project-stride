@@ -89,7 +89,7 @@ final class GameEngine {
 
   final ContentRegistry registry;
   static const EventReducer _reducer = EventReducer();
-  static const StepReconciler _reconciler = StepReconciler();
+  static final StepReconciler _reconciler = StepReconciler();
 
   GameState _state;
 
@@ -248,20 +248,25 @@ final class GameEngine {
           );
         }
 
-        final int compacted = _reconciler.compactedGrantedBetween(
-          state.steps.grantedSlices,
-          outcome.grantedSlicesAfter,
-        );
+        // The watermark is whatever compaction actually used, never a figure
+        // recomputed here. The two disagreeing is what silently discarded a
+        // paginated backfill.
+        final int? previousWatermark = state.steps.checkpoint.watermarkMillis;
+        final int? watermark = outcome.watermarkAfter == null
+            ? previousWatermark
+            : (previousWatermark != null &&
+                  previousWatermark > outcome.watermarkAfter!)
+            ? previousWatermark
+            : outcome.watermarkAfter;
+
         events.add(
           StepObservationReconciled(
             sequence: sequence++,
             observedAfter: outcome.observedAfter,
             grantedSlicesAfter: outcome.grantedSlicesAfter,
-            grantedCompactedAway: compacted,
-            watermarkMillis: _reconciler.watermarkFor(
-              outcome.grantedSlicesAfter,
-              previous: state.steps.checkpoint.watermarkMillis,
-            ),
+            grantedCompactedAway: outcome.compactedGranted,
+            lateDiscarded: outcome.lateDiscardedSlices,
+            watermarkMillis: watermark,
             correctionsSeen: outcome.correctionsSeen,
             truncatedGap: outcome.truncatedGap,
             wasRecovery: outcome.wasRecovery,
