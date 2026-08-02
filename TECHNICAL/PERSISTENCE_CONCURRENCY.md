@@ -10,14 +10,19 @@ and a forked journal is a **permanent brick**, because `journalForked` refuses
 every load, and the only thing that can clear it is compaction, which runs inside
 a commit, which needs a load.
 
-Three separate mechanisms guard that. They are **not** redundant, none replaces
-another, and each proves something the other two do not.
+Four separate mechanisms guard that. They are **not** redundant, none replaces
+another, and each covers something the others do not.
 
 | Layer | Where | Serializes | Does **not** cover |
 |---|---|---|---|
-| 1. Persistence-owner isolate | `stride_storage/lib/src/persistence_owner.dart` | callers **within one OS process**, across isolates | a second OS process |
-| 2. OS advisory file lock | `stride_storage/lib/src/file_lock.dart` | **separate OS processes** | isolates inside one process, on POSIX |
-| 3. Compare-and-swap | `stride_core/lib/src/save/save_repository.dart` | commits against a head that moved, whatever moved it | nothing it is asked to; it is a check, not a lock |
+| 1. Persistence-owner isolate | `stride_storage/lib/src/persistence_owner.dart` | callers **within one OS process**, across isolates | a second OS process — **and it is not wired into the app**; see below |
+| 2. In-isolate path mutex | `stride_storage/lib/src/file_lock.dart` | two acquirers **inside one isolate** — two `FileTransactionLock`s, two `SaveRepository`s, two overlapping operations | a second isolate: Dart copies `static` state per isolate, so a second isolate gets its own table and its own mutex |
+| 3. OS advisory file lock | `stride_storage/lib/src/file_lock.dart` | **separate OS processes** | **anything inside one process, on POSIX** — see the next section |
+| 4. Compare-and-swap | `stride_core/lib/src/save/save_repository.dart` | commits against a head that moved, whatever moved it | nothing it is asked to; it is a check, not a lock |
+
+**The app is covered by layers 2, 3 and 4 only.** Layer 1 exists, is tested, and
+is reached by nothing outside its own test file. What that leaves open, and why,
+is spelled out under Layer 1.
 
 ---
 
@@ -28,24 +33,75 @@ to different kernel primitives on different platforms, and the difference matter
 more than it looks:
 
 - **Linux and macOS** use `fcntl` record locks. **`fcntl` locks belong to the
-  process, not to the file descriptor and not to the thread.** If one isolate
-  holds the lock and a second isolate in the *same process* asks for it, the
-  kernel sees the same owner and **grants it**. Worse, closing *any* descriptor
+  process, not to the file descriptor and not to the thread.** A second acquirer
+  in the same process asks the kernel for a lock the kernel believes it already
+  granted to that owner, and is granted it again. Worse, closing *any* descriptor
   onto that file drops the whole process's locks on it.
 - **Windows** uses `LockFileEx`, whose locks belong to the *handle*. A second
-  isolate in the same process **is** refused.
+  acquirer in the same process **is** refused.
 
-Two isolates share one process. So:
+So, stated at full strength:
 
-> **The OS file lock does not serialize two isolates on Linux or macOS. Android
-> is Linux. The exact case `file_lock.dart` was introduced to make safe — a
-> Health Connect background isolate running beside the app — is the case it does
-> not cover.**
+> **On Linux and macOS the OS file lock serializes nothing at all within one
+> process.** Not two isolates, and not two `SaveRepository` instances in the
+> *same* isolate. Android is Linux. Two objects in one isolate racing over one
+> save directory — which is the ordinary shape of an app committing while a
+> sync completes — were unguarded by it.
+
+This was originally recorded here as an isolate-only caveat, with the OS lock
+described as serializing separate processes "except for isolates". That was too
+generous by exactly one case, and it was the more likely case. CI run
+`30767931205` on ubuntu is where it surfaced: `concurrency_test.dart` case 0
+constructs two acquirers in one isolate, and Linux granted both.
 
 And the failure mode is the worst-shaped one available: the property *looks*
 proven on a Windows development machine and is simply absent on the shipping
 platform. A green local test run was evidence for the opposite of what it
 appeared to say.
+
+### What closes the same-process half
+
+`FileTransactionLock` takes an **in-isolate mutex, keyed on the canonical
+lock-file path, before it opens the file** and before it asks the kernel for
+anything. Layer 2 in the table above.
+
+Before the open, not merely before the kernel call, and that ordering is
+load-bearing: on POSIX a losing acquirer that had opened the file would, on
+timing out, close its descriptor — and that close drops the whole process's
+locks on the file. The winner would keep believing it was exclusive while a
+genuine second process walked in. Holding the mutex across the open means at
+most one descriptor onto the lock file is ever open in this isolate.
+
+Three further properties, each of which has a probe:
+
+- **The key is canonical, not the raw string.** The resolved parent directory
+  plus the file's own name, case-folded on Windows only. Four spellings of one
+  path would otherwise be four mutexes over one inode, which is no mutex. The
+  honest limitation: a symlink whose *final* segment is the lock file itself is
+  not followed. Resolving the full path would require the file to exist, which
+  would put the open outside the mutex.
+- **The wait is bounded and spends the caller's `lockTimeout`.** There are now
+  two mutexes per operation — `SaveRepository`'s per-instance writer queue and
+  this global per-path one — so a caller that reaches persistence from inside
+  its own transaction, or that touches two repositories, can order them
+  differently. Bounded acquisition makes that a typed `storageBusy` refusal
+  rather than a hang, which is the same reason `maxCommitRetries` is bounded.
+- **It is per isolate and cannot be anything else.** Dart copies `static` state
+  into every isolate. A spawned isolate gets its own empty table and its own
+  mutexes, and both proceed. It closes the same-isolate hole and closes nothing
+  else.
+
+### The descriptor-close hazard, which no mutex can reach
+
+Independently of any lock: on POSIX, closing any descriptor onto a file drops
+every `fcntl` lock the *process* holds on it. Two isolates that each merely open
+and close the lock file will silently strip each other's kernel locks — no
+error, no exception, no observable event. An in-isolate mutex cannot see it,
+because the other party is not in this isolate.
+
+This is the second, independent reason a second isolate must never be pointed at
+a save directory this one is serving. The first is that the OS lock would not
+have excluded it either.
 
 ### What cross-process test success does and does not prove
 
@@ -54,7 +110,8 @@ operating-system process**, has it take the lock, and asserts that the owner is
 refused with the typed busy result and writes nothing. `concurrency_test.dart`
 case 6 does the same for a raw repository.
 
-Those tests are correct, they are green, and CI runs them on Linux.
+Those tests are correct. They passed on Linux for the first time in CI run
+`30767931205`; before that run they had only ever been executed on Windows.
 
 **They say nothing whatsoever about two isolates in one process.** A Linux run
 passing them is fully compatible with the lock being completely transparent
@@ -72,12 +129,58 @@ that the owner isolate serializes them either way.
 
 ## Layer 1 — the persistence-owner isolate
 
+> **Status: built, tested, and not wired into the app.** `bootstrapStride`
+> constructs a plain `SaveRepository` and hands it out as
+> `StrideRuntime.repository`. Nothing in `lib/` or `integration_test/`
+> references `PersistenceOwner` or `PersistenceClient`; its only callers are its
+> own tests. Read the rest of this section as a design that is exercised, not as
+> a control that is deployed.
+
 One isolate owns the save directory. Every in-process caller reaches persistence
 by sending it a message.
 
 **No in-process caller may construct its own `SaveRepository` over a directory
 an owner is serving.** Doing so restores exactly the race this layer closes, and
 on POSIX nothing underneath will catch it.
+
+### Why it is not wired, and what would have to change
+
+Three concrete blockers, none of them a matter of effort:
+
+1. **`SaveRepository` is a `final class`.** `BootstrapCoordinator.repository` is
+   typed against it, so a `PersistenceClient`-backed adapter cannot be
+   substituted — Dart forbids implementing a `final` class. Bootstrap is where
+   the first load and the new-game commit happen, so an owner that bootstrap
+   cannot reach is an owner that does not own the directory. Closing this means
+   extracting an interface in `stride_core`.
+2. **The per-write backup-exclusion hook cannot cross the port.** It is a
+   closure over a Flutter `MethodChannel`. `_Owner.build` constructs
+   `FileSnapshotStore`, `FileLedgerJournal` and `FileTransactionLock` with no
+   `reapplyExclusion` at all, so routing the app through the owner would delete
+   a shipped iCloud-restore control — the one `Scripts/check-backup-exclusions.sh`
+   guards — in exchange for a race the app does not currently have.
+3. **The owner's load does not carry `originSaltFingerprint`.** `_Owner._load`
+   calls `repository.load(registry:, treatAsRelease:)` and nothing else, and
+   re-encodes the reply with `originSaltFingerprint: null`. The salt fail-closed
+   check — the thing that stops a restored device replaying a step ledger
+   against a HealthKit source the first device already consumed from — would be
+   silently inoperative.
+
+**The case it defends against does not exist at Milestone 01.** The milestone
+ships iOS with HealthKit, whose background delivery arrives on the root isolate.
+The second-isolate writer is the Android/Health Connect shape, and Android is
+explicitly deferred. So this is infrastructure ahead of its requirement, which
+the project's own code philosophy lists under *avoid*.
+
+**Recommendation:** either wire it — which means (1), (2) and (3) first, as one
+piece of work when Android is actually on the table — or delete it and recover
+it from history at that point. Keeping it unwired and *labelled as a deployed
+layer*, which is what this document previously did, is the one option with no
+upside: it made the app look protected against a case nothing protected it from.
+It is retained for now rather than deleted only because `.github/workflows/ci.yml`
+names `persistence_owner_test.dart` in the Linux concurrency-proof step, and
+`persistence_owner_test.dart` case 6 is currently the only executed evidence of
+what the raw kernel lock does between two isolates.
 
 - `PersistenceOwner.spawn(config)` starts the owner and supervises it.
 - `PersistenceOwner.endpoint` is a sendable address. Any isolate can hold it.
@@ -139,9 +242,10 @@ can open.
 
 ---
 
-## Layer 2 — the OS advisory lock
+## Layer 3 — the OS advisory lock
 
-Kept, and not optional. A second OS process has no way to reach layer 1's ports.
+Kept, and not optional. A second OS process has no way to reach layer 1's ports,
+and the in-isolate mutex of layer 2 is invisible to it.
 Its other property is the one a sentinel file cannot have: **the kernel releases
 it when the holder dies.** A sentinel survives a process kill, so a crashed
 holder would make every later launch refuse forever — and Android kills apps
@@ -154,9 +258,9 @@ read-head-to-append window open, which is where the race lives.
 
 ---
 
-## Layer 3 — compare-and-swap
+## Layer 4 — compare-and-swap
 
-Kept, and not made redundant by either lock. Locks answer "is anyone else inside
+Kept, and not made redundant by any lock. Locks answer "is anyone else inside
 right now"; CAS answers "is the durable state still the one this caller reasoned
 about". A caller that loaded, thought for a while, and then committed can be
 stale without any lock ever having been contended.
@@ -171,19 +275,44 @@ losing their walk.
 
 ## Evidence
 
-| Property | Test | Runs on |
-|---|---|---|
-| Caller isolates are serialized through one owner | `persistence_owner_test.dart` case 1 | all |
-| N requests produce N results, no duplicate, no loss | case 2 | all |
-| No journal fork under isolate concurrency | case 3 | all |
-| Owner death is typed and recoverable | case 4 | all |
-| A second **process** is refused, with the typed busy result | `cross_process_lock_test.dart` | all; named again on Linux in CI |
-| Cross-process success does **not** prove isolate exclusion | `persistence_owner_test.dart` case 6 | all; the Linux run is the informative one |
+Only executed runs are listed. "Executed on Linux" below means a named CI run
+whose log shows the test passing — not that the file exists and is not skipped.
 
-Nothing is skipped, conditionally or otherwise. The CI step
-*stride_storage concurrency proofs (Linux, no skips allowed)* fails if a skip
-ever appears, because a platform-guarded skip there would silently retire the
-only proof that runs on the semantics we actually ship.
+| Property | Test | Executed on |
+|---|---|---|
+| Caller isolates are serialized through one owner | `persistence_owner_test.dart` case 1 | Windows; Linux in run `30767931205` |
+| N requests produce N results, no duplicate, no loss | case 2 | Windows; Linux in run `30767931205` |
+| No journal fork under isolate concurrency | case 3 | Windows; Linux in run `30767931205` |
+| Owner death is typed and recoverable | case 4 | Windows; Linux in run `30767931205` |
+| A second **process** is refused, with the typed busy result | `cross_process_lock_test.dart` | Windows; Linux in run `30767931205` |
+| Cross-process success does **not** prove isolate exclusion | `persistence_owner_test.dart` case 6 | Windows (recorded *refused* — `LockFileEx`); Linux in run `30767931205` (recorded **acquired**, confirming the hole) |
+| A second acquirer in one isolate never opens the lock file | `closure_probes_test.dart` case S6 | Windows; **not yet on Linux** |
+| Two path spellings share one mutex | `closure_probes_test.dart` case S6 | Windows; **not yet on Linux** |
+| The mutex wait is bounded and refuses in a typed way | `closure_probes_test.dart` case S6 | Windows; **not yet on Linux** |
+| Same-process exclusion end to end | `concurrency_test.dart` cases 0–8, `closure_probes_test.dart` S1 | Windows; **failed on Linux** in run `30767931205`, which is what this change addresses |
+
+### Corrections to what this section used to claim
+
+- It said `cross_process_lock_test.dart` was "named again on Linux in CI". At the
+  time that was written, no CI run had executed it on Linux at all.
+  `concurrency_test.dart`, `closure_probes_test.dart`, `cross_process_lock_test.dart`
+  and `persistence_owner_test.dart` first ran on Linux in run `30767931205`,
+  where **94 passed and 11 failed**.
+- The CI step *stride_storage concurrency proofs (Linux, no skips allowed)* has
+  **never executed**. It is reported as `-` in run `30767931205` because the
+  step before it failed, and no earlier run reached it either. Its no-skip guard
+  is real and it is correctly written; it has simply never had the chance to
+  run, and must not be cited as evidence until it has.
+- Nothing is skipped, conditionally or otherwise. That remains true and is
+  checked by the step above — once that step runs.
+
+**The Linux CI run is the authoritative signal for every property in this
+document.** A green Windows run says the opposite of what it appears to say
+about layer 3, because `LockFileEx` is per-handle. The S6 probes were written
+specifically so that layer 2 — the part that *is* platform-independent — can be
+confirmed from a development machine without waiting for CI; they observe the
+mutex directly rather than inferring it from a refusal the OS lock would have
+produced anyway.
 
 ### What none of it proves
 

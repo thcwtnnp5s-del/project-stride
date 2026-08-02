@@ -901,8 +901,8 @@ final class SaveRepository {
   ///
   /// Full reset only — **not** the health disconnect, which keeps gameplay
   /// progress and is an ordinary commit. And never automatic recovery: no
-  /// path in this package calls it to repair a fault, which
-  /// `test/reset_protocol_test.dart` asserts against the source rather than
+  /// path in this package calls it to repair a fault, which the C5 group in
+  /// `test/closure_audit_test.dart` asserts against the source rather than
   /// against a promise.
   ///
   /// ## The protocol, and what each step is protecting against

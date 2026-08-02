@@ -15,6 +15,7 @@ import 'dart:io' show Directory;
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -68,10 +69,44 @@ final class StrideRuntime {
   /// distinct from [backupExclusion] because a file can pass at launch and then
   /// fail after a rename replaces its node — collapsing the two would hide
   /// exactly that case, which is the one that regressed.
+  ///
+  /// **It is read by [backupExclusionHealthy] and [describeBackupExclusion],
+  /// and each failure is also pushed to `onPerWriteExclusionFailure` at the
+  /// moment it happens.** Until F-06 this list had no reader at all — it was
+  /// declared, populated, and never looked at, while its own comment said
+  /// failures were "surfaced rather than swallowed". They were swallowed. A
+  /// diagnostic nothing reads is indistinguishable from no diagnostic, and it
+  /// is worse than none, because it makes the control look observed.
   final List<String> perWriteExclusionFailures;
 
   /// `keychain` on iOS, `app-private file` elsewhere. Diagnostics only.
   final String identityStorage;
+
+  /// True when both backup-exclusion controls have reported nothing wrong.
+  ///
+  /// Both halves, deliberately. The launch sweep covers what existed at start;
+  /// the per-write hook covers everything created or replaced since. Either one
+  /// reporting a failure means a file that would travel in an iCloud restore,
+  /// which is the condition the whole control exists to detect.
+  bool get backupExclusionHealthy =>
+      backupExclusion.isClean && perWriteExclusionFailures.isEmpty;
+
+  /// A one-line diagnostic naming every path either control could not exclude.
+  ///
+  /// Never player-facing. This is what a support log or a developer overlay
+  /// prints, and it is the reason [perWriteExclusionFailures] is not dead.
+  String describeBackupExclusion() {
+    if (backupExclusionHealthy) {
+      return 'backup exclusion: clean via $identityStorage '
+          '(${backupExclusion.excluded.length} at launch, '
+          '${backupExclusion.missing.length} not yet created)';
+    }
+    return 'backup exclusion: FAILED for '
+        '${backupExclusion.failed.length} path(s) at launch and '
+        '${perWriteExclusionFailures.length} on write — these files would '
+        'travel in an iCloud restore. launch: ${backupExclusion.failed}; '
+        'per-write: $perWriteExclusionFailures';
+  }
 }
 
 /// Opens storage under application support and runs startup.
@@ -120,11 +155,37 @@ final class StrideRuntime {
 /// `stride_storage` must not depend on Flutter. Between them: the sweep covers
 /// what exists at launch, the hook covers everything created or replaced
 /// afterwards. See `packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md`.
+///
+/// ## Who may touch this directory
+///
+/// Persistence is reached through **one** [SaveRepository], built here and
+/// handed out as [StrideRuntime.repository]. Three things guard it, and it is
+/// worth being exact about which callers each one actually covers:
+///
+/// - A second **OS process** is refused by the kernel, through
+///   `FileTransactionLock`. Real, and proved by a spawned process in
+///   `stride_storage`'s `cross_process_lock_test.dart`.
+/// - A second **`SaveRepository` in this isolate** is serialized by the
+///   in-isolate mutex inside `FileTransactionLock`. Also real, and proved
+///   without relying on the OS lock by `closure_probes_test.dart` case S6.
+/// - A second **isolate** is covered by *nothing here*. POSIX `fcntl` locks
+///   belong to the process, and Dart statics are copied per isolate, so
+///   neither guard sees it — and worse, an isolate that merely opens and
+///   closes the lock file drops this one's kernel locks silently.
+///
+/// So: **no second isolate may be pointed at this directory.** The app has
+/// none today — Milestone 01 is iOS with HealthKit, whose background delivery
+/// arrives on the root isolate — and none may be added without first putting a
+/// single-owner arrangement in front of persistence. `PersistenceOwner` in
+/// `stride_storage` is the design for that; it is **not wired into this app**
+/// and covers no caller here. See `TECHNICAL/PERSISTENCE_CONCURRENCY.md` for
+/// why it is not, and what would have to change first.
 Future<StrideRuntime> bootstrapStride({
   Directory? overrideRoot,
   bool treatAsRelease = false,
   Random? random,
   SecureIdentityStore? secureStore,
+  void Function(String path)? onPerWriteExclusionFailure,
 }) async {
   final Directory support =
       overrideRoot ?? await getApplicationSupportDirectory();
@@ -141,9 +202,25 @@ Future<StrideRuntime> bootstrapStride({
   // condition meaning the ledger would travel in a restore, so it must reach a
   // diagnostic — but the Keychain identity is the first control and does not
   // depend on this succeeding, so it must not block a commit or startup.
+  //
+  // Reported at the moment it happens as well as accumulated. The list alone
+  // is a passive record, and a passive record with no reader is what this was
+  // until F-06: a file can pass the launch sweep and then lose the attribute
+  // hours later when a compaction renames a new node over the journal, and by
+  // then nothing is going to go looking. The default sink is a log line;
+  // `describeBackupExclusion()` reads the accumulated list.
   final List<String> exclusionFailures = <String>[];
+  final void Function(String path) report =
+      onPerWriteExclusionFailure ??
+      (String path) => debugPrint(
+        'stride: per-write backup exclusion FAILED '
+        'for $path — this file would travel in an iCloud restore',
+      );
   ReapplyBackupExclusion? hook() => secure.backupExclusionHook(
-    onReport: (BackupExclusionReport r) => exclusionFailures.addAll(r.failed),
+    onReport: (BackupExclusionReport r) {
+      exclusionFailures.addAll(r.failed);
+      r.failed.forEach(report);
+    },
   );
 
   final SaveRepository repository = SaveRepository(
@@ -153,13 +230,15 @@ Future<StrideRuntime> bootstrapStride({
     //
     // A repository over a real directory with an uncontended lock is exactly
     // the cross-instance race `TransactionLock` exists to close, restored at
-    // the one construction site a player actually runs. Health Connect
-    // background delivery opens a second writer over this same directory, and
+    // the one construction site a player actually runs, and
     // `UncontendedLock`'s own documentation forbids it here.
     //
-    // The OS lock is one of three layers, not the whole answer: it is
-    // process-level on POSIX and does not exclude a second isolate in this
-    // process. See `TECHNICAL/PERSISTENCE_CONCURRENCY.md`.
+    // What this buys, precisely: exclusion against a second OS process, from
+    // the kernel; and serialization against a second `SaveRepository` in this
+    // isolate, from the in-isolate mutex `FileTransactionLock` takes before it
+    // opens the file. It buys **nothing against a second isolate** — see the
+    // "Who may touch this directory" section above, which is the constraint
+    // this line depends on rather than provides.
     lock: FileTransactionLock(layout.transactionLock, reapplyExclusion: hook()),
   );
 

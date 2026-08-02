@@ -469,4 +469,198 @@ Future<void> main(List<String> args) async {
       );
     });
   });
+
+  // =========================================================================
+  // S6 — the in-isolate mutex, proved WITHOUT relying on the OS lock
+  // =========================================================================
+  //
+  // S1 asserts the outcome — a second acquirer is refused. On Windows that
+  // assertion passes whether or not the mutex exists, because `LockFileEx` is
+  // per-handle and refuses on its own. So S1 alone cannot tell a Windows
+  // developer whether the fix is present; it could only ever be confirmed by
+  // CI on Linux, which is a slow and easily-misread loop.
+  //
+  // These probes assert the mutex's own observable behaviour instead, and they
+  // fail identically on every platform if it is removed. The instrument is
+  // `reapplyExclusion`: `FileTransactionLock` calls it immediately after the
+  // `open()` that creates the lock file, so the hook firing is a direct
+  // observation that a descriptor onto the lock file was opened.
+  //
+  // That is not an incidental probe point. On POSIX, closing ANY descriptor
+  // onto a file drops every `fcntl` lock the process holds on it. A losing
+  // acquirer that opened the file and closed it on timeout would strip the
+  // winner's lock while the winner still believed it was exclusive. "The
+  // second acquirer never opens the file" is therefore the property, not a
+  // proxy for it.
+  group('S6 the in-isolate mutex', () {
+    test('a second acquirer does not even open the lock file', () async {
+      final StorageLayout l = freshLayout();
+
+      int firstOpens = 0;
+      int secondOpens = 0;
+      final FileTransactionLock a = FileTransactionLock(
+        l.transactionLock,
+        reapplyExclusion: (List<String> _) async => firstOpens++,
+      );
+      final FileTransactionLock b = FileTransactionLock(
+        l.transactionLock,
+        reapplyExclusion: (List<String> _) async => secondOpens++,
+      );
+
+      final TransactionLockHandle first = (await a.acquire(
+        const Duration(seconds: 2),
+      ))!;
+      expect(firstOpens, 1, reason: 'the holder must have opened the file');
+
+      final Future<TransactionLockHandle?> pending = b.acquire(
+        const Duration(seconds: 5),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(
+        secondOpens,
+        0,
+        reason:
+            'the second acquirer opened a descriptor onto the lock file while '
+            'the first held it. On POSIX its eventual close would drop the '
+            "holder's kernel lock, silently, with no error and no event -- so "
+            'a third party could enter a transaction the holder believed it '
+            'was alone inside. The mutex must be taken BEFORE the open, not '
+            'merely before the kernel call.',
+      );
+
+      await first.release();
+      final TransactionLockHandle? second = await pending;
+      expect(
+        second,
+        isNotNull,
+        reason: 'the queued acquirer must be handed the lock on release',
+      );
+      expect(
+        secondOpens,
+        1,
+        reason: 'and it must open exactly once, after it was handed the mutex',
+      );
+      await second!.release();
+    });
+
+    test('two spellings of one path are one mutex', () async {
+      // Keying on the raw path string would make `saves/transaction.lock` and
+      // an absolute path two different mutexes over one inode, which is no
+      // mutex at all. Proved through the open-observation instrument again,
+      // because on Windows the OS lock would refuse the second acquirer even
+      // if the keys had diverged.
+      final StorageLayout l = freshLayout();
+      final String direct = l.transactionLock.path;
+      // A path with a redundant `.` segment: a different string, one inode.
+      final String indirect =
+          '${l.transactionLock.parent.path}${Platform.pathSeparator}.'
+          '${Platform.pathSeparator}'
+          '${l.transactionLock.uri.pathSegments.last}';
+      expect(indirect, isNot(direct), reason: 'the probe needs two spellings');
+
+      int otherOpens = 0;
+      final TransactionLockHandle held = (await FileTransactionLock(
+        File(direct),
+      ).acquire(const Duration(seconds: 2)))!;
+
+      final Future<TransactionLockHandle?> pending = FileTransactionLock(
+        File(indirect),
+        reapplyExclusion: (List<String> _) async => otherOpens++,
+      ).acquire(const Duration(seconds: 5));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+
+      expect(
+        otherOpens,
+        0,
+        reason:
+            'a second spelling of the same path was not excluded, so the '
+            'mutex key is the raw string rather than a canonical one and the '
+            'two acquirers hold two different mutexes over one inode',
+      );
+
+      await held.release();
+      final TransactionLockHandle? second = await pending;
+      expect(second, isNotNull);
+      await second!.release();
+    });
+
+    test(
+      'the wait is bounded, and re-entry refuses rather than hangs',
+      () async {
+        // Two mutexes are now in play per operation -- `SaveRepository`'s own
+        // per-instance writer queue and this global per-path one -- so a path
+        // that reaches persistence from inside its own transaction, or that
+        // touches two repositories in one isolate, can order them differently.
+        // Bounded acquisition is what makes that a typed refusal instead of a
+        // permanent hang during a step sync.
+        final StorageLayout l = freshLayout();
+        final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
+        final TransactionLockHandle held = (await lock.acquire(
+          const Duration(seconds: 2),
+        ))!;
+
+        final Stopwatch clock = Stopwatch()..start();
+        final TransactionLockHandle? refused = await lock
+            .acquire(const Duration(milliseconds: 120))
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () => throw StateError(
+                'the mutex wait was unbounded. A caller asked for 120ms and was '
+                'still blocked five seconds later, which during a step sync '
+                'looks to the player exactly like the game losing their walk.',
+              ),
+            );
+        clock.stop();
+
+        expect(refused, isNull);
+        expect(
+          clock.elapsed,
+          lessThan(const Duration(seconds: 2)),
+          reason: 'the refusal must arrive near the deadline the caller set',
+        );
+        await held.release();
+      },
+    );
+
+    test('a queue of waiters is served, and none is lost', () async {
+      // A mutex that dropped a waiter would not hang the caller -- the bound
+      // catches that -- it would refuse a caller that should have been served,
+      // turning ordinary contention into a lost batch of granted steps.
+      final StorageLayout l = freshLayout();
+      final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
+
+      final List<int> order = <int>[];
+      final TransactionLockHandle first = (await lock.acquire(
+        const Duration(seconds: 2),
+      ))!;
+
+      final List<Future<void>> waiters = <Future<void>>[
+        for (int i = 0; i < 8; i++)
+          () async {
+            final TransactionLockHandle? h = await lock.acquire(
+              const Duration(seconds: 10),
+            );
+            expect(h, isNotNull, reason: 'waiter $i was refused, not served');
+            order.add(i);
+            await h!.release();
+          }(),
+      ];
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await first.release();
+      await Future.wait(waiters);
+
+      expect(order, <int>[0, 1, 2, 3, 4, 5, 6, 7], reason: 'served in order');
+
+      // And the mutex table did not retain the entry: an unpruned table grows
+      // by one per save directory ever locked, which in a long test run or a
+      // long-lived process is an unbounded map keyed on paths.
+      final TransactionLockHandle? after = await lock.acquire(
+        const Duration(milliseconds: 50),
+      );
+      expect(after, isNotNull, reason: 'the mutex was not released at the end');
+      await after!.release();
+    });
+  });
 }

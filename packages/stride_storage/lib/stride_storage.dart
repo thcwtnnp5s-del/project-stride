@@ -15,11 +15,19 @@ library;
 export 'src/file_lock.dart';
 export 'src/file_storage.dart';
 
-/// The in-process serialization layer.
+/// The cross-**isolate** serialization design.
 ///
-/// `src/file_lock.dart` is an OS lock, and on POSIX an OS lock is owned by the
-/// *process* — so it does not exclude a second isolate inside one process.
-/// Every in-process caller must reach persistence through the owner isolate
-/// declared here rather than by constructing a `SaveRepository` of its own over
-/// the same directory. See `TECHNICAL/PERSISTENCE_CONCURRENCY.md`.
+/// `src/file_lock.dart` covers two cases: a second OS process, through the
+/// kernel, and a second acquirer inside one isolate, through the mutex it takes
+/// before opening the lock file. It cannot cover a second **isolate** — on
+/// POSIX an OS lock is owned by the process, and Dart copies `static` state per
+/// isolate — and an owner isolate is the shape that would.
+///
+/// **Nothing outside this package uses it.** The app builds a plain
+/// `SaveRepository` in `lib/runtime/runtime_bootstrap.dart`, and that is
+/// currently sound because the app has exactly one isolate touching the save
+/// directory. This is therefore a tested design rather than a deployed control,
+/// and it must not be cited as one. `TECHNICAL/PERSISTENCE_CONCURRENCY.md`
+/// records the three things that would have to change to wire it, and the
+/// recommendation attached to them.
 export 'src/persistence_owner.dart';

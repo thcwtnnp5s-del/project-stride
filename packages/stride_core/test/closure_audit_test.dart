@@ -764,13 +764,46 @@ void main() {
       // Asserted against the source, because the guarantee is "no code path
       // calls this", and a behavioural test can only ever sample the paths
       // someone thought of.
+      //
+      // The previous version of this scan matched `\.eraseAll\s*\(` — it
+      // required a RECEIVER DOT. A recovery path written inside
+      // `SaveRepository` itself, which is the single most likely place for this
+      // defect, is a bare self-call (`await eraseAll();`) and was therefore
+      // invisible to it. A closure critic injected exactly that and the test
+      // stayed green. `_eraseAll` was equally invisible.
+      //
+      // So: match the identifier with no receiver required, then subtract the
+      // few forms that are legitimate by name. Anything left is an offender.
+      // The allow-list is enumerated rather than pattern-matched, so a new
+      // call site cannot pass by resembling an old one.
+      const Set<String> allowed = <String>{
+        // The public entry point's own declaration.
+        'Future<EraseOutcome> eraseAll() => _serialized(',
+        // The tear-off it hands to the serializer, and the private
+        // implementation's declaration.
+        '_eraseAll,',
+        'Future<EraseOutcome> _eraseAll() async {',
+      };
+
       final List<String> offenders = <String>[];
       for (final File file in _coreSources()) {
-        final String source = file.readAsStringSync();
-        for (final RegExpMatch m in RegExp(
-          r'\.eraseAll\s*\(',
-        ).allMatches(source)) {
-          offenders.add('${file.path}:${m.start}');
+        // Comments are stripped first: several docstrings discuss `eraseAll`
+        // precisely because it is dangerous, and a scan that counted those
+        // would be permanently red and would then be relaxed until it was
+        // useless.
+        final List<String> lines = file
+            .readAsStringSync()
+            .split('\n')
+            .map((String l) => l.replaceFirst(RegExp(r'//.*$'), ''))
+            .toList();
+
+        for (int i = 0; i < lines.length; i++) {
+          final String line = lines[i];
+          if (!RegExp(r'(^|[^A-Za-z0-9_])_?eraseAll\b').hasMatch(line)) {
+            continue;
+          }
+          if (allowed.any((String a) => line.trim().contains(a))) continue;
+          offenders.add('${file.path}:${i + 1}: ${line.trim()}');
         }
       }
       expect(

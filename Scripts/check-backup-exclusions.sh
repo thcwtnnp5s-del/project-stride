@@ -373,18 +373,79 @@ if [ -f "$STORAGE" ]; then
   if ! grep -q 'typedef ReapplyBackupExclusion' "$STORAGE"; then
     fail "$STORAGE does not declare ReapplyBackupExclusion"
   fi
-  # Six required sites: snapshot write, journal append, BOTH halves of the
-  # compaction swap, and the two identity writes.
-  calls=$(grep -c 'reapplyExclusion?\.call' "$STORAGE" || true)
-  if [ "$calls" -lt 6 ]; then
-    fail "$STORAGE re-applies the exclusion at only $calls of 6 required sites"
+  # Each required site is checked WHERE IT MUST BE, not counted.
+  #
+  # This was a count -- `grep -c ... -lt 6`. A closure critic deleted the real
+  # snapshot-slot call site, added `reapplyExclusion?.call(<String>[])` inside
+  # erase() as a decoy, and this script printed OK and exited 0 while the save
+  # slots went unexcluded. All 105 storage tests stayed green too. A count
+  # cannot tell a call site from a decoy, so each one is now anchored to the
+  # write it must follow.
+  #
+  # `after_in`: within the function body starting at $2, is there a call to
+  # reapplyExclusion after a line matching $3?
+  after_in() {
+    awk -v fn="$2" -v anchor="$3" '
+      index($0, fn) { infn=1 }
+      infn && $0 ~ anchor { armed=1; next }
+      armed && /reapplyExclusion\?\.call/ { found=1; exit }
+      # Bounded to the method body, or the scan finds an unrelated call site
+      # further down the file and reports a missing one as present.
+      armed && /^  \}/ { exit }
+      armed && /^  [A-Za-z@]/ { exit }
+      END { exit !found }
+    ' "$1"
+  }
+
+  # Snapshot slots. Created by their first write, after the launch sweep has
+  # already looked for them and correctly reported them missing.
+  if ! after_in "$STORAGE" 'Future<void> write(SnapshotSlot slot' 'await writeVerified'; then
+    fail "$STORAGE does not re-apply the exclusion after a snapshot slot write"
   fi
 
-  # The compaction swap specifically. The call AFTER the rename is the one that
-  # stops the journal travelling from the first compaction onward, and it is
-  # the easiest to drop in a refactor because the code reads fine without it.
-  if ! awk '/journalSidecar\.rename/{seen=1; next} seen && /reapplyExclusion\?\.call/{found=1; exit} END{exit !found}' "$STORAGE"; then
+  # The journal, created by its first append.
+  if ! after_in "$STORAGE" 'Future<void> appendLine' 'append read-back'; then
+    fail "$STORAGE does not re-apply the exclusion after a journal append"
+  fi
+
+  # The compaction swap, BOTH halves.
+  #
+  # Before the rename: a death between write and rename leaves the sidecar on
+  # disk, and the launch sweep reported it missing because it did not exist.
+  if ! awk '/await writeVerified\(layout\.journalSidecar/{armed=1; next} armed && /reapplyExclusion\?\.call/{found=1; exit} armed && /journalSidecar\.rename/{exit} END{exit !found}' "$STORAGE"; then
+    fail "$STORAGE does not re-apply the exclusion to the sidecar BEFORE the compaction rename"
+  fi
+  # After the rename: the journal path now names the sidecar's node, carrying
+  # the sidecar's attributes. This is the regression case -- the journal LOSES
+  # an exclusion it had -- and it is the easiest to drop in a refactor, because
+  # the code reads perfectly well without it.
+  #
+  # Bounded to the method body. Unbounded, this scan walked off the end of
+  # replaceLines and found the identity-write call site hundreds of lines
+  # later, so deleting the post-rename call still passed -- the same
+  # "a scan that cannot fail" defect this section exists to prevent, in the
+  # check itself. `^  }` is the method's closing brace at two-space indent.
+  if ! awk '
+      /journalSidecar\.rename/ { seen=1; next }
+      seen && /reapplyExclusion\?\.call/ { found=1; exit }
+      seen && /^  \}/ { exit }
+      END { exit !found }
+    ' "$STORAGE"; then
     fail "$STORAGE does not re-apply the exclusion AFTER the compaction rename"
+  fi
+
+  # Both identity writes.
+  if ! after_in "$STORAGE" 'Future<void> writeStored' 'await writeVerified'; then
+    fail "$STORAGE does not re-apply the exclusion after writeStored"
+  fi
+  if ! after_in "$STORAGE" 'Future<void> write(ReconciliationIdentity' 'await writeVerified'; then
+    fail "$STORAGE does not re-apply the exclusion after the core-facing identity write"
+  fi
+
+  # A call with an empty path list excludes nothing. It exists only to satisfy
+  # a scan, which is precisely how the count was defeated.
+  if grep -qE 'reapplyExclusion\?\.call\(\s*<String>\[\s*\]\s*\)' "$STORAGE"; then
+    fail "$STORAGE calls reapplyExclusion with an empty path list, which excludes nothing"
   fi
 fi
 
