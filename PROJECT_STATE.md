@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
-**Version:** 1.5
-**Status:** Migration steps M-1 to M-3 executed; stop gate reached
-**Current Phase:** Milestone 01 — awaiting owner review before M-4 and F-02
+**Version:** 1.6
+**Status:** M-1 to M-4 complete; CI green on all four jobs
+**Current Phase:** Milestone 01 — awaiting owner approval before F-02
 
 ## Project identity
 
@@ -84,7 +84,9 @@ The player must be able to:
 11. ~~Revise architecture, structure, CI, and task plan; run four-role review.~~ **Done**
 12. ~~Owner approval of the revised plans.~~ **Approved 2026-08-01**
 13. ~~Execute migration M-1, M-2, M-3.~~ **Done — `MIGRATION_COMPLETION_REPORT.md`**
-14. **Owner review at the M-3 stop gate.** ← current state
+14. ~~Owner review at the M-3 stop gate.~~ **Approved**
+15. ~~Execute M-4 — cross-platform CI validation.~~ **Done — `M4_CI_COMPLETION_REPORT.md`**
+16. **Owner approval before F-02.** ← current state
 
 ## Current documents
 
@@ -102,19 +104,26 @@ Archived, not deleted: `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVE
 
 ## Migration status
 
-**M-1, M-2, M-3 executed.** M-4 (CI), M-5 (retire the Swift scaffold), M-6 (close) remain.
+**M-1 through M-4 complete.** M-5 (retire the Swift scaffold) and M-6 (close) remain — both short.
 
-The Flutter workspace exists and is verified on Windows: **17 tests, analyze clean, both enforcement guards demonstrated failing and recovering.** Full detail in `MIGRATION_COMPLETION_REPORT.md`.
+Repository: `thcwtnnp5s-del/project-stride` (private), branch `master`, all history preserved including the superseded Swift scaffold at `859d0ac`.
 
-The Swift scaffold is still in the tree, unbuilt and inert, retired last at M-5.
+**CI is green on all four jobs** — run `30730542145`. Full detail in `M4_CI_COMPLETION_REPORT.md`.
 
-The Android app **builds and runs on an emulator from Windows** — screenshot at `MILESTONES/evidence/m2_android_emulator.png`.
+| Job | Runner | Covers |
+|---|---|---|
+| Dart core | ubuntu | Guards, format, analyze (fatal), 17 tests |
+| Pigeon bindings | ubuntu | Three-way contract drift |
+| Android | ubuntu | Both debug APKs, 5 Kotlin tests |
+| iOS compile | **macOS** | Pigeon verify, 17 tests, app + Swift adapter compilation |
 
-### One blocker
+**The iOS branch compiles.** It did not on its first attempt — `HealthKitAdapter.swift` was missing `import Flutter`, invisible to every tool on Windows. That single finding justifies the macOS job.
 
-| Blocker | Effect |
-|---|---|
-| **GitHub repo not created** — `gh` login is interactive | Blocks CI (M-4). Exact commands in `MIGRATION_COMPLETION_REPORT.md` §7 |
+Three deliberate violations were demonstrated failing on a disposable branch (purity, Pigeon drift, prohibited health package). Master was never left broken.
+
+The Swift scaffold is still in the tree, inert, retired at M-5.
+
+### No blockers
 
 ### Toolchain
 
@@ -128,11 +137,13 @@ The Android app **builds and runs on an emulator from Windows** — screenshot a
 | GitHub CLI | ✅ 2.97.0, **not authenticated** |
 | Xcode | ➖ iOS-only; CI macOS job covers compilation |
 
-### Not yet compiled anywhere
+### Apple: compiles, nothing more
 
-**All Apple code.** `HealthKitAdapter.swift` and the generated Swift are authored and never built — the CI macOS job in M-4 is the first time any of it compiles. Treat as unverified until then.
+The Swift adapter and generated bindings **compile in CI**. Nothing about their runtime behavior is verified, and no Swift unit-test target exists yet — it arrives with the real HealthKit implementation at S-01b.
 
-macOS is not needed for the critical path. Real HealthKit testing, signing, TestFlight, interactive iOS UX, and iOS audio/haptic validation need a Mac later.
+Still needs a physical iPhone: HealthKit authorization, anchored queries, deletions, `wasUserEntered` filtering, locked-device behavior, background delivery, audio, haptics, battery. Still needs a real Mac plus Apple Developer Program: signing, archiving, TestFlight.
+
+None of it is on the critical path.
 
 ## Open gaps to close during Milestone 01
 
