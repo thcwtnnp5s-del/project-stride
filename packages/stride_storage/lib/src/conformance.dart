@@ -70,11 +70,19 @@ final class PersistenceFixture {
     required this.readArtifacts,
     required this.seedIdentity,
     required this.teardown,
+    this.lock = const UncontendedLock(),
   });
 
   final SnapshotSlotStore snapshots;
   final LedgerJournal journal;
   final ReconciliationIdentityStore identity;
+
+  /// The transaction lock the suite builds its repositories with.
+  ///
+  /// The in-memory fixture has no medium to contend over and keeps the
+  /// default. A fixture over a real directory **must** supply the real lock,
+  /// or the suite would be certifying a configuration that never ships.
+  final TransactionLock lock;
 
   /// Every durable artifact that currently exists, keyed by [ArtifactRole],
   /// read **from the medium itself and not through the ports**.
@@ -175,6 +183,7 @@ SaveRepository _repo(PersistenceFixture f, {int maxCommitRetries = 3}) =>
       snapshots: f.snapshots,
       journal: f.journal,
       maxCommitRetries: maxCommitRetries,
+      lock: f.lock,
     );
 
 Future<CommitOutcome> _commit(

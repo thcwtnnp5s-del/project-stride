@@ -141,6 +141,11 @@ final class SaveRepository {
     final Completer<T> result = Completer<T>();
     _writer = _writer.then((_) async {
       TransactionLockHandle? held;
+      late T value;
+      bool produced = false;
+      Object? failure;
+      StackTrace? failureStack;
+
       try {
         held = await _lock.acquire(lockTimeout);
         if (held == null) {
@@ -151,17 +156,45 @@ final class SaveRepository {
           }
           // Nothing has been written at this point -- the lock is taken
           // before any read or write -- so a busy result is a clean refusal.
-          result.complete(onBusy());
-          return;
+          value = onBusy();
+        } else {
+          value = await action();
         }
-        result.complete(await action());
+        produced = true;
       } on Object catch (e, st) {
-        result.completeError(e, st);
+        failure = e;
+        failureStack = st;
       } finally {
         // Always. A lock leaked by an exception would block every later
         // launch, and on a real filesystem only a process death would clear
         // it.
-        await held?.release();
+        try {
+          await held?.release();
+        } on Object catch (e, st) {
+          // A release failure after a *durable* transaction is a leaked
+          // descriptor, not a lost commit. Reporting it as a throw would make
+          // the caller assume the batch did not land and withhold the cursor,
+          // which is the one thing P1 forbids. It is only allowed to surface
+          // when there is no result to protect.
+          if (!produced) {
+            failure = e;
+            failureStack = st;
+          }
+        }
+      }
+
+      // Completed only after the lock is gone.
+      //
+      // The previous version completed inside the `try`, so `await commit(...)`
+      // returned while the handle was still open: the caller could start the
+      // next operation, or erase the directory, against a save this process
+      // had not finished letting go of. On Windows that is an immediate
+      // sharing violation; everywhere it is a spurious `storageBusy` for a
+      // second instance that was told the first had finished.
+      if (produced) {
+        result.complete(value);
+      } else {
+        result.completeError(failure!, failureStack!);
       }
     });
     return result.future;

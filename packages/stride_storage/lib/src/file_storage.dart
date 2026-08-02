@@ -11,12 +11,18 @@
 /// | **write completed** | `write()` returned. The bytes are in the OS page cache | Return of the call |
 /// | **flush requested** | `flush()` returned. We asked the OS to push them to the medium | Return of the call |
 /// | **read-back verified** | Reading the file returns the bytes we wrote | An actual second read |
-/// | **envelope validated** | Those bytes parse, and their digest matches | `unframe` + decode |
+/// | **envelope validated** | Those bytes parse, and their digest matches | `unframe` + decode, in `SaveRepository` |
 /// | **protocol commit durable** | All of the above, *and* the previous valid slot is untouched | The protocol, not this class |
 ///
-/// This adapter delivers the first four. The fifth is a property of the
-/// two-slot protocol in `stride_core` and cannot be delivered by any single
-/// file operation.
+/// **This adapter delivers the first three.** Stages four and five belong to
+/// the protocol in `stride_core`: nothing here unframes or decodes anything,
+/// and `writeVerified` compares bytes rather than envelopes.
+///
+/// The table said "the first four" until a probe wrote non-envelope bytes
+/// through `FileSnapshotStore.write` and watched them be accepted. That is
+/// the second time a doc comment in this package has claimed a property the
+/// code did not have, which is precisely what a table like this is supposed
+/// to prevent — so it is corrected rather than deleted.
 ///
 /// **What none of this proves.** `flush()` is a request. Whether the bytes
 /// survive sudden physical power loss depends on the device's write cache, its
@@ -296,14 +302,28 @@ final class FileLedgerJournal implements LedgerJournal {
     }
     final Uint8List bytes = Uint8List.fromList(joined);
 
-    // Sidecar first. If the swap does not survive, the old and longer journal
-    // remains — never a partial one. Replay is idempotent, so a journal that
-    // is longer than necessary costs a little startup work and nothing else.
+    // Sidecar first, then **rename** it over the journal.
+    //
+    // It used to write the sidecar and then `writeVerified` the journal —
+    // which opens `FileMode.write` and therefore TRUNCATES IN PLACE. Between
+    // that truncate and the flush the journal was neither the old set nor the
+    // new one, and the old bytes were already gone: exactly the partial
+    // journal this port contract forbids. Worse, `discardIncompleteCompaction`
+    // then deletes the sidecar, which in that window is the only complete
+    // copy on the device. A probe that killed the swap mid-flight recovered
+    // zero of three records.
+    //
+    // A rename replaces the directory entry rather than the file contents, so
+    // an interrupted swap leaves the old, longer journal — which is what the
+    // contract promises and what replay is idempotent against.
+    //
+    // Note this is a different trade from the snapshot slots, which
+    // deliberately avoid relying on rename: there the concern is durability
+    // *ordering* after a power loss, and two slots remove the dependency
+    // entirely. Here the concern is only that no observer sees a half-written
+    // file, and rename gives that without a second journal.
     await writeVerified(layout.journalSidecar, bytes);
-    await writeVerified(layout.journal, bytes);
-    if (layout.journalSidecar.existsSync()) {
-      await layout.journalSidecar.delete();
-    }
+    await layout.journalSidecar.rename(layout.journal.path);
   }
 
   @override

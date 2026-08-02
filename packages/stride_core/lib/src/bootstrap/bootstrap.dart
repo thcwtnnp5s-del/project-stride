@@ -17,6 +17,35 @@
 ///
 /// A blocked bootstrap **never deletes anything**. Refusing is recoverable —
 /// a newer build, a fixed content pack, a health reconnect. Deleting is not.
+///
+/// ## The identity ordering
+///
+/// Four rules, in the order they are enforced. They are stated here because the
+/// third and fourth are the ones that look like defects to a reader who does
+/// not know the failure they prevent.
+///
+/// 1. **Read the identity before the save, and refuse if the read faults.**
+///    The identity is what the save's origin keys were produced from, so the
+///    save cannot be interpreted without it. A read that *faults* is not
+///    absence, and is [BootstrapBlockReason.storageUnavailable].
+/// 2. **Existing save, no identity ⇒ [BootstrapBlockReason.originIdentityMissing].**
+///    Distinct from a mismatch, because the causes and the diagnostics differ:
+///    a mismatch means two identities exist, and a miss means the device-bound
+///    one did not travel. On iOS the second is the *expected* shape of an
+///    iCloud restore onto a new phone, and it is the whole point of the
+///    Keychain being `ThisDeviceOnly`.
+/// 3. **Existing save, different identity ⇒
+///    [BootstrapBlockReason.originIdentityMismatch].**
+/// 4. **No save and no identity ⇒ mint, and only then.** The load runs *before*
+///    [mintIdentity] is ever called. Minting first and then discovering a save
+///    would leave a fresh identity beside a save it cannot interpret, which is
+///    unrecoverable in the direction that matters: the save is then refused
+///    forever, by an identity we created ourselves.
+///
+/// Rule 4 is why `mintIdentity` is a callback rather than a value. A value
+/// would be computed by the caller before `run` is entered, and the ordering
+/// would then be a property of the *caller's* code — which is where it was
+/// wrong before, and where it would go wrong again.
 library;
 
 import 'package:meta/meta.dart';
@@ -67,15 +96,43 @@ enum BootstrapBlockReason {
   /// The save's balance profile is unknown, or differs from the running one.
   profileMismatch,
 
+  /// A save exists and there is **no** reconciliation identity beside it.
+  ///
+  /// Distinct from [originIdentityMismatch], and the distinction is the point
+  /// of this whole refusal rather than a taxonomic nicety.
+  ///
+  /// On iOS this is the expected shape of an **iCloud restore onto a second
+  /// device**. The identity lives in the Keychain with
+  /// `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, so it does not travel
+  /// in a backup; the save and the ledger, absent the backup exclusions, might.
+  /// The restored device therefore finds progress with no key, and that is
+  /// exactly what must stop the ledger replaying against a HealthKit source the
+  /// original device has already consumed from.
+  ///
+  /// Before the identity was device-bound, this case could not arise from a
+  /// restore at all — the identity file travelled *with* the save, the
+  /// fingerprints matched, and the fail-closed check was defeated by the exact
+  /// transport it was designed to detect.
+  ///
+  /// A mismatch says two identities exist and disagree. A miss says the
+  /// device-bound one did not come with the device. Same refusal, different
+  /// causes, and a diagnostic that conflated them would send anyone
+  /// investigating to the wrong place.
+  originIdentityMissing,
+
   /// The pseudonymization salt does not match the one the save was written
   /// with, so every origin would re-key and the retention window would be
-  /// granted a second time.
+  /// granted a second time. Or the identity belongs to a different lineage.
   originIdentityMismatch,
 
   /// The save references content that does not exist in this build.
   unknownContentReferences,
 
   /// Storage could not be opened at all.
+  ///
+  /// Includes a secure store that could not answer — a Keychain read before the
+  /// first unlock since boot returns `errSecInteractionNotAllowed`, which is
+  /// "ask me later" and must never be read as "there is nothing here".
   storageUnavailable,
 
   /// A journal was present but its correctness could not be established.
@@ -181,6 +238,9 @@ final class BootstrapCoordinator {
   /// [mintIdentity] supplies a save id and salt fingerprint for a brand-new
   /// installation. The core cannot generate either — no clock, no randomness —
   /// so the app provides them, and this is the only place they enter.
+  ///
+  /// **[mintIdentity] is called at most once, and never before the save has
+  /// been looked for.** See the library comment, rule 4.
   Future<BootstrapOutcome> run({
     required Future<ContentSource> Function() loadContent,
     required ReconciliationIdentity Function() mintIdentity,
@@ -217,7 +277,17 @@ final class BootstrapCoordinator {
       );
     }
 
-    // --- storage --------------------------------------------------------
+    // --- identity, step 1 of the ordering -------------------------------
+    //
+    // Read first, because the save's origin keys were produced from it and
+    // cannot be interpreted without it.
+    //
+    // A *fault* here is not absence, and the difference is the whole reason
+    // the port distinguishes them. A Keychain read before the first unlock
+    // since boot returns `errSecInteractionNotAllowed`; treating that as "no
+    // identity" would take this launch straight down the path where a
+    // replacement identity is minted over a live save. So it refuses, and the
+    // next launch — after an unlock — succeeds.
     final ReconciliationIdentity? stored;
     try {
       stored = await identityStore.read();
@@ -230,6 +300,11 @@ final class BootstrapCoordinator {
       );
     }
 
+    // --- save -----------------------------------------------------------
+    //
+    // Always before any minting. `_startNewGame` is reachable only through
+    // `NoSaveFound`, which is the load's own conclusion and not a guess made
+    // from a missing identity.
     final LoadOutcome outcome;
     try {
       outcome = await repository.load(
@@ -264,6 +339,18 @@ final class BootstrapCoordinator {
     // save that did in fact exist.
     final ReconciliationIdentity identity = stored ?? mint();
     if (stored == null) {
+      // Written before the first commit, not after.
+      //
+      // The two orderings fail differently, and one of them is recoverable:
+      //
+      //   identity then save : a crash in between leaves an identity with no
+      //                        save. The next launch reuses it. Harmless.
+      //   save then identity : a crash in between leaves a save with no
+      //                        identity — `originIdentityMissing`, forever,
+      //                        caused by us.
+      //
+      // A store that refuses the write therefore stops startup here, with no
+      // save on disk to be orphaned.
       try {
         await identityStore.write(identity);
       } on Object catch (e) {
@@ -295,6 +382,10 @@ final class BootstrapCoordinator {
     );
 
     if (commit is CommitRefused) {
+      // The identity we just wrote is deliberately left in place. Erasing it
+      // here would be a blocked bootstrap deleting something, and the next
+      // launch reuses an orphan identity perfectly well — whereas a save
+      // written under an identity we then deleted could never be opened again.
       return BootstrapBlocked(
         reason: BootstrapBlockReason.storageUnavailable,
         stoppedAt: BootstrapPhase.openingStorage,
@@ -319,8 +410,14 @@ final class BootstrapCoordinator {
       // A save exists and the identity that produced its origin keys does not.
       // Every origin would re-key on the next sync and the live retention
       // window would be granted twice. Refuse rather than guess.
+      //
+      // On iOS this is what an iCloud restore onto a second device looks like:
+      // the Keychain item is `ThisDeviceOnly` and does not travel, so the
+      // restored phone finds progress with no key. That is the refusal doing
+      // its job — the ledger must not replay against a HealthKit source the
+      // original device has already consumed from.
       return BootstrapBlocked(
-        reason: BootstrapBlockReason.originIdentityMismatch,
+        reason: BootstrapBlockReason.originIdentityMissing,
         stoppedAt: BootstrapPhase.validatingState,
         explanation:
             'Stride found saved progress but not the health-source key that '
@@ -369,6 +466,10 @@ final class BootstrapCoordinator {
         BootstrapBlockReason.profileMismatch,
       LoadRefusal.unknownContent =>
         BootstrapBlockReason.unknownContentReferences,
+      // A fingerprint that exists and differs. The *absent* case never reaches
+      // here: `_checkSalt` returns early when the running fingerprint is null,
+      // so a missing identity is diagnosed by `_resume` as
+      // `originIdentityMissing` rather than being folded into this one.
       LoadRefusal.originKeyReset => BootstrapBlockReason.originIdentityMismatch,
       LoadRefusal.allSlotsUnreadable ||
       LoadRefusal.divergentSlotsAtSameGeneration =>

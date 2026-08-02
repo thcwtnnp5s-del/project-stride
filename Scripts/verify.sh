@@ -86,7 +86,10 @@ step "stride_storage: analyze and test (real files, no emulator)"
 # The whole F-06 filesystem surface. It runs against a real temporary
 # directory, so this is the only place the adapters are exercised at all --
 # leaving it out meant every F-06 regression would land silently.
-(cd packages/stride_storage && dart pub get >/dev/null && dart analyze --fatal-infos && dart test)
+# -j 1 deliberately. This package measures cross-process lock contention and
+# process-death timing; running its files in parallel means the suite contends
+# with itself and reports races that are the harness, not the code.
+(cd packages/stride_storage && dart pub get >/dev/null && dart analyze --fatal-infos && dart test -j 1)
 
 if ! command -v flutter >/dev/null 2>&1; then
   missing_toolchain "flutter" || exit 0

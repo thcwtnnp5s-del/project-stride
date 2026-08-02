@@ -98,7 +98,9 @@ jobs:
         working-directory: packages/stride_storage
         run: |
           dart analyze --fatal-infos
-          dart test
+          # Serial: this suite measures lock contention and process-death
+          # timing, so parallel files make it contend with itself.
+          dart test -j 1
 
       - name: App tests
         run: flutter test
