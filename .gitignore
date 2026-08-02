@@ -80,10 +80,9 @@ xcuserdata/
 .build/
 .swiftpm/
 
-# ---------------------------------------------------------------------------
-# Superseded Swift scaffold (retired at M-5; kept in history at 859d0ac)
-# ---------------------------------------------------------------------------
-Stride.xcodeproj/
+# The superseded native Swift scaffold was retired at M-5. It needed no ignore
+# rules of its own; it survives in history at 859d0ac. See
+# MIGRATION_CLOSURE_REPORT.md.
 
 # ---------------------------------------------------------------------------
 # Editors and OS

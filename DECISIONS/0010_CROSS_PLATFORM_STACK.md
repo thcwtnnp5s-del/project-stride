@@ -1,6 +1,7 @@
 # Decision: Cross-Platform Stack — Flutter with First-Party Health Adapters
 
-**Status:** Approved
+**Status:** ✅ **ACTIVE — this is the architecture of Project Stride.**
+**Migration:** Complete. M-1 through M-6 closed 2026-08-02 — see `MIGRATION_CLOSURE_REPORT.md`.
 **Date:** 2026-08-01
 **Owner:** Project owner
 **Supersedes:** `DECISIONS/0002_TECHNOLOGY_STACK.md`

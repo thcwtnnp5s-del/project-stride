@@ -43,7 +43,7 @@ Milestone 01 grows combat power through **character progression and equipment on
 
 **Time-sliced / real-time-lite.** More visceral, but hostile to one-handed use, interruption, and the 30-second micro-session. Rejected.
 
-**Adding a combat skill to the slice.** Rejected: it would let the player grind past the Hollow Guardian instead of preparing for it, which is precisely what `COMBAT_PHILOSOPHY.md` argues against.
+**Adding a combat skill to the slice.** Rejected: it would let the player grind past the Hollow Guardian instead of preparing for it, which is precisely what `GAME_BIBLE/COMBAT/01_COMBAT_PHILOSOPHY.md` argues against.
 
 ## Reasoning
 

@@ -32,8 +32,9 @@ You may propose changes. You may not silently redefine the Kernel. Escalate Kern
 Approved foundation decisions that bind your work:
 
 - Progression is **step-clocked only** — nothing advances on wall-clock time (`DECISIONS/0001`)
-- **Native Swift + SwiftUI**, iOS 17+, with a platform-free `StrideCore` package (`DECISIONS/0002`)
+- **Flutter** for Android and iOS, with a platform-free pure-Dart `stride_core` package and first-party Swift/Kotlin health adapters in `stride_health` (`DECISIONS/0010`). No third-party health plugin may own reconciliation.
 - Combat is **turn-based, retreat-not-death**; no combat skills in Milestone 01 (`DECISIONS/0003`)
+- **Android first** for interactive development on Windows; iOS kept compiling in CI (`DECISIONS/0010`)
 - Milestone 01 scope is **frozen**: 4 locations, 5 skills, 3 enemies, 6 tabs + combat modal, no currency, no merchants (`DECISIONS/0004`)
 
 ## Immediate concerns in your area

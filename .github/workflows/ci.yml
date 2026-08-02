@@ -236,18 +236,16 @@ jobs:
       # authorization: an interactive permission prompt cannot be answered on a
       # CI runner, and asserting against real health data needs a physical
       # device (task V-02b).
-      - name: Unit tests not requiring HealthKit authorization
+      - name: Swift unit tests (no HealthKit authorization required)
         working-directory: packages/stride_health/example/ios
         run: |
-          if xcodebuild -workspace Runner.xcworkspace -list 2>/dev/null | grep -q RunnerTests; then
-            xcodebuild test \
-              -workspace Runner.xcworkspace \
-              -scheme Runner \
-              -destination 'platform=iOS Simulator,name=iPhone 16' \
-              CODE_SIGNING_ALLOWED=NO \
-              -quiet
-          else
-            echo "No Swift unit-test target yet — it arrives with the real"
-            echo "HealthKit implementation in S-01b. Adapter compilation above"
-            echo "is the current iOS guarantee."
-          fi
+          DEVICE=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              print(next(x['name'] for v in d.values() for x in v if 'iPhone' in x['name']))")
+          echo "Simulator: $DEVICE"
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -destination "platform=iOS Simulator,name=$DEVICE" \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet

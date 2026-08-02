@@ -1,6 +1,6 @@
 # Design Review — Flutter Architecture and Revised Task Breakdown
 
-**Subject:** `ARCHITECTURE_IMPLEMENTATION_PLAN.md` v2.0, `MILESTONE_01_TASK_BREAKDOWN_FLUTTER_PROPOSED.md` v2.0-proposed, `TECHNICAL/PROJECT_STRUCTURE.md`, `.github/workflows/ci.yml`
+**Subject:** `ARCHITECTURE_IMPLEMENTATION_PLAN.md` v2.0, `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md` v2.0 *(reviewed as `…_FLUTTER_PROPOSED.md`, promoted on approval)*, `TECHNICAL/PROJECT_STRUCTURE.md`, `.github/workflows/ci.yml`
 **Date:** 2026-08-01
 **Reviewers:** Creative Director, Technical Director, Critic Agent, QA Director
 

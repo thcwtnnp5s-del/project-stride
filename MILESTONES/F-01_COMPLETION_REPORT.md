@@ -3,7 +3,11 @@
 **Task:** F-01
 **Owner agent:** Technical Director
 **Date:** 2026-08-01
-**Status:** ⛔ **PAUSED 2026-08-01 — superseded pending a stack decision**
+**Status:** ⛔ **SUPERSEDED — historical record only. The Swift scaffold described here was deleted at M-5.**
+
+> **Do not act on this document.** Project Stride is a Flutter application (`DECISIONS/0010`). Every file named below — `StrideCore/`, `App/`, `project.yml` — was removed from the working tree at M-5 and survives only in history at commit `859d0ac`. The Flutter equivalent of this task is recorded in `MIGRATION_COMPLETION_REPORT.md`.
+>
+> Retained because it documents *why* the stack changed, and because the two QA lessons it produced still bind: assert the build setting rather than the runtime value, and run a graceful-degradation script in its degraded case before trusting it.
 
 > The technology stack was reopened before this task closed. See `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`, which recommends Flutter, and `MIGRATION_IMPACT_F01.md`, which assesses the cost of discarding this scaffold as roughly one session.
 >

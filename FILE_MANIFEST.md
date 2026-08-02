@@ -1,110 +1,134 @@
 # File Manifest
 
-## Root
+**Architecture:** Flutter for Android and iOS, pure-Dart simulation core, first-party Swift and Kotlin health adapters. See `DECISIONS/0010_CROSS_PLATFORM_STACK.md`.
 
-- `README.md` — Repository overview and handoff sequence
-- `CLAUDE.md` — Primary Claude Code operating instructions
-- `PROJECT_STATE.md` — Current project state and next actions
-- `HANDOFF_INSTRUCTIONS.md` — Exact setup and launch instructions
-- `FILE_MANIFEST.md` — Complete package inventory
-- `STUDIO_INITIALIZATION_REPORT.md` — Foundation audit, contradictions, gaps, stack recommendation
-- `ARCHITECTURE_IMPLEMENTATION_PLAN.md` — Approved technical plan for Milestone 01
-- `DESIGN_REVIEW.md` — Technical, creative, and QA review of the plans
-- `CRITIC_REPORT.md` — Critic Agent challenge of the decisions and plans
+> The superseded native-Swift scaffold was retired at M-5. It survives in history at commit `859d0ac`. Documents describing it are banded as superseded and listed under *Historical* below.
 
-## Claude Code integration
+---
 
-- `.claude/commands/` — The seven studio workflows, installed as slash commands
-- `.claude/agents/` — The ten studio roles, installed as subagents
-- `.gitignore` — Swift/Xcode ignore rules
+## Source
 
-## Project Kernel
+### Application
 
-- `PROJECT_KERNEL/00_PROJECT.md`
-- `PROJECT_KERNEL/01_WHY.md`
-- `PROJECT_KERNEL/02_VISION.md`
-- `PROJECT_KERNEL/03_DESIGN_PILLARS.md`
-- `PROJECT_KERNEL/04_PLAYER_PROMISE.md`
-- `PROJECT_KERNEL/05_NON_NEGOTIABLES.md`
-- `PROJECT_KERNEL/06_ANTI_FEATURES.md`
-- `PROJECT_KERNEL/07_DECISION_FRAMEWORK.md`
-- `PROJECT_KERNEL/08_GLOSSARY.md`
-- `PROJECT_KERNEL/09_SUCCESS_CRITERIA.md`
-- `PROJECT_KERNEL/10_ROADMAP.md`
-- `PROJECT_KERNEL/11_AI_OPERATING_INSTRUCTIONS.md`
-- `PROJECT_KERNEL/12_DECISION_LOG.md`
-- `PROJECT_KERNEL/13_INSPIRATION.md`
+- `lib/main.dart` — entry point
+- `lib/ui/root_placeholder.dart` — placeholder screen
+- `test/app_shell_test.dart` — widget tests
+- `pubspec.yaml`, `analysis_options.yaml`
+- `android/`, `ios/` — Flutter platform runners
 
-## Studio Operations
+### `packages/stride_core` — pure Dart simulation
 
-- `STUDIO_OPERATIONS/AGENT_ORCHESTRATION.md`
-- `STUDIO_OPERATIONS/WORKFLOW.md`
-- `STUDIO_OPERATIONS/REVIEW_PROCESS.md`
-- `STUDIO_OPERATIONS/QUALITY_STANDARDS.md`
-- `STUDIO_OPERATIONS/CHANGE_MANAGEMENT.md`
-- `STUDIO_OPERATIONS/CLAUDE_LAUNCH.md`
+Imports no Flutter, no plugin, no `dart:io`. Enforced structurally and by test.
 
-## Agents
+- `pubspec.yaml` — declares no Flutter dependency
+- `lib/stride_core.dart` — public API
+- `lib/src/core_info.dart` — module marker, forbidden-import list
+- `lib/src/ports/step_provider.dart` — `StepProvider` port and the cursor-recovery contract
+- `test/core_info_test.dart`, `test/core_purity_test.dart`
 
-- `AGENTS/creative_director.md`
-- `AGENTS/lead_game_designer.md`
-- `AGENTS/systems_designer.md`
-- `AGENTS/combat_designer.md`
-- `AGENTS/world_designer.md`
-- `AGENTS/audio_director.md`
-- `AGENTS/ux_designer.md`
-- `AGENTS/technical_director.md`
-- `AGENTS/qa_director.md`
-- `AGENTS/critic_agent.md`
+### `packages/stride_health` — first-party health plugin
 
-## Commands
+- `pigeons/health_api.dart` — the contract, single source of truth
+- `lib/stride_health.dart`, `lib/src/platform_step_provider.dart`, `lib/src/mock_step_provider.dart`
+- `lib/src/messages.g.dart` — generated Dart
+- `android/…/StrideHealthPlugin.kt`, `HealthConnectAdapter.kt`, `Messages.g.kt`
+- `android/src/test/…/HealthConnectAdapterTest.kt` — 5 JVM tests
+- `ios/stride_health/Sources/stride_health/StrideHealthPlugin.swift`, `HealthKitAdapter.swift`, `Messages.g.swift`
+- `example/` — host app for native tests
+- `example/ios/RunnerTests/RunnerTests.swift` — 12 Swift tests
+- `example/integration_test/plugin_integration_test.dart` — on-device channel checks
+- `test/mock_step_provider_test.dart` — 7 Dart tests
 
-- `COMMANDS/studio-init.md`
-- `COMMANDS/spawn-agents.md`
-- `COMMANDS/design-review.md`
-- `COMMANDS/execute-phase.md`
-- `COMMANDS/critic-loop.md`
-- `COMMANDS/qa-check.md`
-- `COMMANDS/milestone-report.md`
+### Tooling
 
-## Game Bible
+- `.github/workflows/ci.yml` — four-job matrix
+- `Scripts/check-core-purity.sh`, `Scripts/check-dependency-policy.sh`, `Scripts/verify.sh`
+- `.gitignore`
 
-- `GAME_BIBLE/VISION/01_CORE_GAME_LOOP.md`
-- `GAME_BIBLE/SYSTEMS/01_PROGRESSION_FRAMEWORK.md`
-- `GAME_BIBLE/SYSTEMS/02_WALKING_INTEGRATION.md`
-- `GAME_BIBLE/SYSTEMS/03_SKILL_SYSTEM_FRAMEWORK.md`
-- `GAME_BIBLE/SYSTEMS/04_CRAFTING_SYSTEM_FRAMEWORK.md`
-- `GAME_BIBLE/SYSTEMS/05_ECONOMY_AND_RESOURCE_MODEL.md`
-- `GAME_BIBLE/SYSTEMS/06_INVENTORY_AND_EQUIPMENT_SYSTEM.md`
-- `GAME_BIBLE/WORLD/01_WORLD_STRUCTURE.md`
-- `GAME_BIBLE/WORLD/02_EXPLORATION_AND_TRAVEL.md`
-- `GAME_BIBLE/COMBAT/01_COMBAT_PHILOSOPHY.md`
-- `GAME_BIBLE/AUDIO/01_AUDIO_IDENTITY.md`
-- `GAME_BIBLE/UI_UX/01_MOBILE_EXPERIENCE.md`
-- `GAME_BIBLE/HEALTH_INTEGRATION/01_APPLE_HEALTH_DESIGN.md`
-- `GAME_BIBLE/CONTENT/01_STARTER_CONTENT_BIBLE.md`
-- `GAME_BIBLE/TECHNICAL/01_MOBILE_ARCHITECTURE_DIRECTION.md`
+---
 
-## Milestones
+## Project operating system
 
-- `MILESTONES/MILESTONE_01_FIRST_ADVENTURE.md`
-- `MILESTONES/MILESTONE_01_IMPLEMENTATION_PLAN.md`
-- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md` — The reviewed task plan
-- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_TEMPLATE.md` — Superseded by the above
+### Root
+
+- `README.md`, `CLAUDE.md`, `PROJECT_STATE.md`, `HANDOFF_INSTRUCTIONS.md`, `FILE_MANIFEST.md`
+
+### Project Kernel
+
+`PROJECT_KERNEL/00_PROJECT.md` … `13_INSPIRATION.md` — identity, why, vision, pillars, promise, non-negotiables, anti-features, decision framework, glossary, success criteria, roadmap, AI operating instructions, decision log, inspiration.
+
+### Studio Operations
+
+`STUDIO_OPERATIONS/` — agent orchestration, workflow, review process, quality standards, change management, Claude launch protocol.
+
+### Agents and commands
+
+- `AGENTS/` — ten role charters
+- `.claude/agents/` — the same ten installed as subagents
+- `COMMANDS/` — seven workflow definitions
+- `.claude/commands/` — the same seven installed as slash commands
+
+### Game Bible
+
+`GAME_BIBLE/VISION/`, `SYSTEMS/` (progression, walking, skills, crafting, economy, inventory), `WORLD/`, `COMBAT/`, `AUDIO/`, `UI_UX/`, `HEALTH_INTEGRATION/`, `CONTENT/`, `TECHNICAL/`.
+
+Planned, not yet written: `GAME_BIBLE/ART/01_VISUAL_IDENTITY.md` (task P-01), `GAME_BIBLE/BALANCE/01_FIRST_PASS_NUMBERS.md` (task S-06).
+
+---
 
 ## Decisions
 
-- `DECISIONS/0001_PROGRESSION_CLOCK.md` — Step-clocked only
-- `DECISIONS/0002_TECHNOLOGY_STACK.md` — Native Swift + SwiftUI
-- `DECISIONS/0003_COMBAT_MODEL.md` — Turn-based, retreat-not-death
-- `DECISIONS/0004_MILESTONE_01_SCOPE.md` — Scope freeze
-- `DECISIONS/0006_SINGLE_ACTIVITY.md` — One activity at a time
-- *(0005 reserved for audio sourcing — blocked on owner input)*
+| # | Decision | Status |
+|---|---|---|
+| 0001 | Progression is step-clocked only | Active |
+| 0002 | Native Swift + SwiftUI | ⛔ **Superseded by 0010** |
+| 0003 | Turn-based, retreat-not-death combat | Active |
+| 0004 | Milestone 01 scope freeze | Active |
+| 0005 | Audio sourcing and provenance | Active |
+| 0006 | One activity at a time | Active |
+| 0007 | Progression pacing and step fixtures | Active |
+| 0008 | Stepless-week behavior | Active |
+| 0009 | Platform targets and distribution | Active, amended by 0010 and 0011 |
+| **0010** | **Flutter, pure Dart core, first-party health adapters** | ✅ **Active architecture decision** |
+| 0011 | Staged private distribution | Active |
 
-## Templates and supporting folders
+Template: `DECISIONS/DECISION_TEMPLATE.md`.
 
-- `DECISIONS/DECISION_TEMPLATE.md`
-- `JOURNAL/README.md`
+---
+
+## Active planning and technical documents
+
+- `ARCHITECTURE_IMPLEMENTATION_PLAN.md` — v2.0, Flutter
+- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md` — v2.0, 41 tasks
+- `MILESTONES/MILESTONE_01_FIRST_ADVENTURE.md`, `MILESTONE_01_IMPLEMENTATION_PLAN.md`
+- `TECHNICAL/PROJECT_SETUP.md` — how to build and verify
+- `TECHNICAL/PROJECT_STRUCTURE.md` — package layout and the Pigeon boundary
+- `TOOLCHAIN_REPORT_WINDOWS.md` — verified Windows toolchain
+- `AUDIO/AUDIO_ASSET_MANIFEST.md` — asset provenance
 - `JOURNAL/OPEN_QUESTIONS.md`
-- `REFERENCES/README.md`
-- `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_TEMPLATE.md`
+
+## Reviews
+
+- `DESIGN_REVIEW.md`, `CRITIC_REPORT.md` — original plans
+- `DESIGN_REVIEW_FLUTTER.md` — Flutter plans, four roles
+- `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md` — why Flutter
+
+## Migration record
+
+- `MIGRATION_EXECUTION_PLAN.md` — M-1 to M-6
+- `MIGRATION_IMPACT_F01.md` — cost assessment
+- `MIGRATION_COMPLETION_REPORT.md` — M-1 to M-3
+- `M4_CI_COMPLETION_REPORT.md` — CI validation
+- `MIGRATION_CLOSURE_REPORT.md` — M-5 and M-6, final
+- `MILESTONES/evidence/m2_android_emulator.png`
+
+## Historical — superseded, retained, **do not implement**
+
+- `DECISIONS/0002_TECHNOLOGY_STACK.md`
+- `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVED.md`
+- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_SWIFT_ARCHIVED.md`
+- `MILESTONES/F-01_COMPLETION_REPORT.md`
+- `STUDIO_INITIALIZATION_REPORT.md` §4 (stack recommendation only; the audit stands)
+- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_TEMPLATE.md`, `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_TEMPLATE.md`
+
+Each carries a banner at the top of the file. None describes files that still exist.

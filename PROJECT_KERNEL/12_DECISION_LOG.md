@@ -25,7 +25,7 @@ Audio must be considered during system design, not added only as final polish.
 Activities advance only from newly earned, reconciled steps. Nothing progresses on wall-clock time alone. "Idle" means asynchronous planning, offline reconciliation, and delayed collection — not passive accrual.
 
 ## Flutter, with first-party health adapters
-**Status:** Locked — see `DECISIONS/0010_CROSS_PLATFORM_STACK.md`  
+**Status:** ✅ **LOCKED — the active architecture decision.** See `DECISIONS/0010_CROSS_PLATFORM_STACK.md`  
 Flutter for the shared app; a pure Dart `stride_core` for rules and simulation; a repository-owned `stride_health` package with Swift/HealthKit and Kotlin/Health Connect adapters behind a Pigeon-typed boundary. **No third-party health plugin may own reconciliation, anchors, deletion handling, or ledger semantics.** Android first for interactive development on Windows; iOS kept compiling continuously in CI. Supersedes `DECISIONS/0002` (native Swift + SwiftUI).
 
 The architectural principle is unchanged from `0002`: a pure simulation core with no dependency on any UI or platform framework, with every platform capability behind a port.

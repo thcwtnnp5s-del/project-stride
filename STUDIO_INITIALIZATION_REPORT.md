@@ -193,7 +193,11 @@ Any App Store app requesting HealthKit read access requires a privacy policy, an
 
 ## 4. Recommended technology stack
 
-### 4.1 Recommendation
+> ⛔ **This section is superseded.** It recommended native Swift on the premises that iOS was the only platform and macOS was available. Both changed. The project is now **Flutter** for Android and iOS — see `DECISIONS/0010_CROSS_PLATFORM_STACK.md` and `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`.
+>
+> What survives is the *principle*, and it survives intact: a pure simulation core with no dependency on any UI or platform framework, with every platform capability behind a port. Only the language changed.
+
+### 4.1 Recommendation *(superseded — historical)*
 
 > **Native iOS — Swift 6 + SwiftUI, iOS 17 minimum, with the entire game simulation in a pure-Swift package containing no Apple framework dependencies.**
 

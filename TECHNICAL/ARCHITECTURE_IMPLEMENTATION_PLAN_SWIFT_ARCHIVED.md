@@ -1,5 +1,13 @@
 # Architecture Implementation Plan
 
+> ⛔ **SUPERSEDED — historical record only.** This is the v1.1 native-Swift architecture plan, replaced on 2026-08-01.
+>
+> **Project Stride is a Flutter application** targeting Android and iOS, with first-party Swift (HealthKit) and Kotlin (Health Connect) adapters. See `DECISIONS/0010_CROSS_PLATFORM_STACK.md` and `ARCHITECTURE_IMPLEMENTATION_PLAN.md` (v2.0, Flutter).
+>
+> Do not implement anything described below. Retained so the reasoning, and the reason it stopped applying, remain legible.
+
+
+
 **Project:** Project Stride
 **Milestone:** 01 — First Adventure Vertical Slice
 **Version:** 1.1 — review findings applied

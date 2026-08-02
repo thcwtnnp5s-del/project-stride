@@ -1,7 +1,10 @@
 # Project Setup
 
-**Task:** F-01
-**Authority:** `DECISIONS/0002_TECHNOLOGY_STACK.md`, `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md`
+**Authority:** `DECISIONS/0010_CROSS_PLATFORM_STACK.md`, `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md`
+
+> **Project Stride is a Flutter application** targeting Android and iOS, with first-party Swift (HealthKit) and Kotlin (Health Connect) health adapters behind a Pigeon-typed boundary.
+>
+> It is **not** a native SwiftUI app. That was `DECISIONS/0002`, superseded on 2026-08-01. If you find a document describing a `StrideCore` Swift package or an `xcodegen` workflow, it is history — see `MIGRATION_CLOSURE_REPORT.md`.
 
 ---
 
@@ -9,12 +12,14 @@
 
 | | |
 |---|---|
-| OS | **macOS** — iOS development is not possible on Windows or Linux |
-| Xcode | Current stable |
-| Swift | 6, strict concurrency |
-| Deployment target | iOS 17 |
-| Devices | iPhone only, portrait only |
-| XcodeGen | Optional — `brew install xcodegen` |
+| Development OS | **Windows, macOS, or Linux** — Android development works on all three |
+| Flutter | Current stable (3.44.8 verified) |
+| Dart | Bundled with Flutter (3.12.2 verified) |
+| JDK | 17 (Temurin verified) |
+| Android SDK | platform-36, build-tools 36.1.0 |
+| Xcode | **macOS only**, and only for iOS builds — CI covers compilation |
+
+Android is fully developable on Windows. See `TOOLCHAIN_REPORT_WINDOWS.md` for the verified Windows setup.
 
 ---
 
@@ -22,96 +27,102 @@
 
 ```text
 ProjectStride/
-├── StrideCore/                  Swift package — the simulation
-│   ├── Package.swift            No dependencies. Ever.
-│   ├── Sources/StrideCore/
-│   └── Tests/StrideCoreTests/   Runs with `swift test`, no simulator
-├── App/
-│   ├── Stride/                  App target — SwiftUI shell, Info.plist
-│   └── StrideTests/             App-target tests (XCTest)
-├── Scripts/
-│   ├── check-core-purity.sh     Import boundary guard
-│   └── verify.sh                Full local verification
-├── project.yml                  Xcode project spec (XcodeGen)
-└── Stride.xcodeproj             Generated — not committed
+├── lib/                        Flutter app — main.dart, ui/
+├── packages/
+│   ├── stride_core/            PURE DART — no Flutter, no plugins, no dart:io
+│   └── stride_health/          First-party health plugin
+│       ├── pigeons/            Contract — single source of truth
+│       ├── android/            Kotlin — Health Connect
+│       ├── ios/                Swift — HealthKit (SPM layout)
+│       └── example/            Host app for native tests
+├── test/                       App widget tests
+├── android/  ios/              Flutter platform runners
+├── Scripts/                    Guards and local verification
+└── .github/workflows/ci.yml    Four-job matrix
 ```
 
-### Why the project is generated
-
-`Stride.xcodeproj` is not committed. A `.pbxproj` is an opaque, machine-ordered file that conflicts on nearly every branch and cannot be reviewed. `project.yml` is forty readable lines that say the same thing.
-
-XcodeGen is a **build-time tool**, not a runtime dependency. The "no dependencies" rule in `DECISIONS/0002` governs what ships inside the app; this ships nothing. If you would rather avoid it entirely, the manual path below produces an identical target layout.
+Full detail in `TECHNICAL/PROJECT_STRUCTURE.md`.
 
 ---
 
 ## First-time setup
 
 ```bash
-git clone <repo> && cd ProjectStride
-brew install xcodegen
-xcodegen generate
-open Stride.xcodeproj
+git clone https://github.com/thcwtnnp5s-del/project-stride.git
+cd project-stride
+flutter pub get
 ```
 
-### Manual alternative, without XcodeGen
+Then resolve the packages:
 
-Create in Xcode: **iOS App**, name `Stride`, interface SwiftUI, language Swift. Then:
-
-1. Delete the generated `ContentView.swift` and `StrideApp.swift`; add the existing files from `App/Stride/` instead
-2. Set the app target's Info.plist to `App/Stride/Info.plist`, and `GENERATE_INFOPLIST_FILE` to `NO`
-3. **File → Add Package Dependencies → Add Local…** → select `StrideCore/`
-4. Add `StrideCore` to the app target's frameworks
-5. Add a unit test target named `StrideTests` pointed at `App/StrideTests/`
-6. Set: deployment target **iOS 17.0**, `TARGETED_DEVICE_FAMILY` **1** (iPhone), Swift language version **6**, strict concurrency **complete**, treat warnings as errors **YES**
-7. Confirm the app target's supported orientations are **portrait only**
+```bash
+(cd packages/stride_core && dart pub get) && (cd packages/stride_health && flutter pub get) && (cd packages/stride_health/example && flutter pub get)
+```
 
 ---
 
 ## Verification
 
+Everything below runs on Windows. Nothing here needs macOS.
+
 ```bash
 ./Scripts/verify.sh
 ```
 
-Runs, in order: the core purity check, the `StrideCore` test suite, then builds and tests on both simulators in the matrix. It degrades gracefully — on a machine with no Xcode it runs the toolchain-independent checks and says so rather than failing.
+Runs, in order: core purity guard, dependency policy guard, format check, `stride_core` analyze and tests, workspace analyze, app tests, plugin tests. It degrades gracefully when a toolchain is absent and says so; `--strict` makes an absent toolchain a failure.
 
-Simulator names come from `STRIDE_SMALL_SIM` and `STRIDE_STANDARD_SIM`, defaulting to *iPhone SE (3rd generation)* and *iPhone 16*. Override if your installed simulators differ:
-
-```bash
-STRIDE_STANDARD_SIM="iPhone 17" ./Scripts/verify.sh
-```
-
-### Core purity alone
+Run the app on an Android emulator:
 
 ```bash
-./Scripts/check-core-purity.sh
+flutter emulators --launch stride_pixel && flutter run
 ```
-
-Runs anywhere bash and grep exist, including Windows via Git Bash. Recommended as a pre-commit hook.
 
 ---
 
-## The architectural rule
+## The two enforced rules
 
-**`StrideCore` must not import any platform framework.**
+### 1. `stride_core` stays pure
 
-Forbidden: SwiftUI, UIKit, AppKit, HealthKit, AVFoundation, AVFAudio, CoreHaptics, CoreLocation, CoreMotion, WidgetKit, Combine.
+It must not import `package:flutter`, `dart:ui`, `dart:io`, or any plugin, and its `pubspec.yaml` must not declare a Flutter dependency.
 
-Enforced in two places, deliberately:
+**When the core needs a platform capability, do not import it.** Define a port in `packages/stride_core/lib/src/ports/`, implement it in the app or in `stride_health`, and inject it. `StepProvider` is the worked example.
 
-- `CorePurityTests` — fails `swift test`
-- `Scripts/check-core-purity.sh` — fails pre-commit and CI
+Enforced by `packages/stride_core/test/core_purity_test.dart` and `Scripts/check-core-purity.sh`, both reading `StrideCore.forbiddenImports` so the rule and its guards cannot drift.
 
-Both read the forbidden list from `StrideCore.forbiddenImports`, so the rule and its enforcement cannot drift apart.
+### 2. No third-party health package
 
-This is not aesthetic. It is what keeps the simulation testable in milliseconds without a simulator, keeps balance work independent of the UI, and means a future port re-implements a specified system rather than reverse-engineering one out of view code.
+Health integration is first-party, in `packages/stride_health`. No external package may own change tokens or anchors, reconciliation, deletion handling, double-count prevention, or ledger semantics.
 
-**When you need a platform capability inside the core, you do not import it.** You define a protocol in `StrideCore`, implement it in the app target, and inject it. That is the whole pattern, and `StepProvider`, `SaveStore`, `ContentLoader`, `AudioDirecting`, and `HapticPlaying` are all instances of it (`ARCHITECTURE_IMPLEMENTATION_PLAN.md` §2.3).
+Enforced by `Scripts/check-dependency-policy.sh` and a CI job. Utility packages remain allowed after normal dependency review.
 
 ---
 
-## What is deliberately absent
+## Regenerating the platform boundary
 
-F-01 is a skeleton. There is no game state, no content schema, no HealthKit, no save file, no navigation, and no design in the placeholder screen.
+After editing `packages/stride_health/pigeons/health_api.dart`:
 
-Those arrive in F-02 (content schemas), F-03 (state and events), F-04 (reconciliation tests), F-05 (save), and P-01/P-02 (visual identity and navigation). Adding any of it here would put implementation ahead of the reviews that own it.
+```bash
+cd packages/stride_health && dart run pigeon --input pigeons/health_api.dart
+```
+
+Commit the generated Dart, Kotlin, and Swift. CI fails if they are stale. The Pigeon version is pinned exactly — an unpinned upgrade rewrites headers and fails the drift check for reasons unrelated to the contract.
+
+Generated files are excluded from the format check: Pigeon output is not `dart format` clean, and formatting it would fail the drift check on the next regeneration.
+
+---
+
+## What needs macOS
+
+Only these:
+
+- Compiling, signing, and archiving the iOS app
+- TestFlight upload
+- iOS simulator or physical iPhone testing
+- Developing and debugging the Swift HealthKit adapter (S-01b)
+- iOS audio, haptic, and battery validation
+
+**The CI macOS job compiles the iOS shell, the Swift adapter, and the Swift unit tests on every push**, so the iOS branch cannot rot between rare manual builds. Everything else runs on Windows.
+
+## What needs a physical device
+
+Real health data. Health Connect permissions and step records on Android; HealthKit authorization, anchored queries, and locked-device behavior on iOS; background sync, process-kill, and installed-APK validation on both. Tasks S-01, S-01b, and V-02b.
