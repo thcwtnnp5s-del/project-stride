@@ -250,6 +250,13 @@ enum CommitRefusal {
   /// committed** and must not release the cursor.
   journalAppendFailed,
 
+  /// Another writer held the transaction lock past the timeout.
+  ///
+  /// Nothing was written. The caller may retry; the lock exists so that a
+  /// second repository over the same directory waits rather than forking
+  /// the journal.
+  storageBusy,
+
   // storageFull and writerBusy were declared here and never produced.
   //
   // A full disk arrives as an opaque exception the core cannot classify, so it

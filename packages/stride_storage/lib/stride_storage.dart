@@ -12,4 +12,5 @@
 /// Windows development machine with no emulator and no device.
 library;
 
+export 'src/file_lock.dart';
 export 'src/file_storage.dart';

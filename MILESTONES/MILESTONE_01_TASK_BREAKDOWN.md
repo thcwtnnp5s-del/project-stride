@@ -101,7 +101,17 @@ The scenario must assert every clause of it:
 
 ### F-05 — Save, ledger, and crash recovery *(unchanged)*
 
-### F-06 — Skill framework *(unchanged)*
+### F-06 — Device persistence, bootstrap, and restart validation *(re-scoped 2026-08-02)*
+
+> **This entry read "Skill framework" until 2026-08-02, and that line was stale.**
+>
+> The owner's F-06 authorization scoped it as *device-local persistence adapters, runtime bootstrap, and restart-validation harness* — the real filesystem adapters for the F-05 protocol, the asset content source, the bootstrap state machine, and proof that the guarantees survive actual files, process termination, and restart.
+>
+> The stale line caused a real error: a review concluded F-06 "is supposed to be the skill framework" and used that to argue the save work had overrun its budget, and the orchestrator relayed it without checking. **The owner's authorization governs; the document was simply not updated when the scope changed.** Corrected here so the next reader does not repeat it.
+
+**Delivers:** `stride_storage` (real `dart:io` adapters), OS-level cross-instance transaction locking, iOS Keychain identity with `ThisDeviceOnly` accessibility, backup exclusions on both platforms, the `BootstrapCoordinator` state machine, the reusable persistence conformance suite, and Android process-death evidence.
+
+**Does not deliver:** skills, gameplay, health ingestion, or UI. The skill framework moves to a later task.
 
 ---
 

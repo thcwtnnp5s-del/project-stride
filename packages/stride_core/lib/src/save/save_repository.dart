@@ -42,6 +42,7 @@ import '../engine/events.dart';
 import '../engine/game_state.dart';
 import '../engine/state_version.dart';
 import '../ports/save_store.dart';
+import '../ports/transaction_lock.dart';
 import 'journal_record.dart';
 import 'save_codec.dart';
 import 'save_outcomes.dart';
@@ -82,15 +83,31 @@ final class SaveRepository {
     required SnapshotSlotStore snapshots,
     required LedgerJournal journal,
     this.maxCommitRetries = 3,
+    TransactionLock lock = const UncontendedLock(),
+    this.lockTimeout = const Duration(seconds: 5),
     // The fields are private and named parameters cannot be, so the
     // initializing-formal shorthand is unavailable here.
     // ignore: prefer_initializing_formals
   }) : _snapshots = snapshots,
        // ignore: prefer_initializing_formals
-       _journal = journal;
+       _journal = journal,
+       // ignore: prefer_initializing_formals
+       _lock = lock;
 
   final SnapshotSlotStore _snapshots;
   final LedgerJournal _journal;
+
+  /// Held across the **entire** transaction, not just the append.
+  ///
+  /// Everything from reading the durable head through CAS validation, the
+  /// journal append, read-back, the snapshot write, cursor authorization and
+  /// compaction happens inside one hold. Narrowing it to the append alone
+  /// would leave the read-head-to-append window open, which is the window
+  /// the whole race lives in.
+  final TransactionLock _lock;
+
+  /// How long to wait for another holder before refusing.
+  final Duration lockTimeout;
 
   /// How many compare-and-swap conflicts to absorb before refusing.
   ///
@@ -106,13 +123,45 @@ final class SaveRepository {
   /// itself not sufficient — see [CommitExpectation].
   Future<void> _writer = Future<void>.value();
 
-  Future<T> _serialized<T>(Future<T> Function() action) {
+  /// Serializes within this process, then across processes.
+  ///
+  /// Two layers, because they solve different problems. The queue stops one
+  /// isolate interleaving its own awaits; the OS lock stops a second process
+  /// -- a background worker -- from interleaving with this one. Neither
+  /// substitutes for the other.
+  ///
+  /// [onBusy] supplies the typed result when the lock cannot be taken. A
+  /// caller that has no meaningful busy value passes null and gets a throw,
+  /// which is correct for a read: a load that cannot start has nothing safe
+  /// to return.
+  Future<T> _serialized<T>(
+    Future<T> Function() action, {
+    T Function()? onBusy,
+  }) {
     final Completer<T> result = Completer<T>();
     _writer = _writer.then((_) async {
+      TransactionLockHandle? held;
       try {
+        held = await _lock.acquire(lockTimeout);
+        if (held == null) {
+          if (onBusy == null) {
+            throw StateError(
+              'the save is in use by another process; no safe result exists',
+            );
+          }
+          // Nothing has been written at this point -- the lock is taken
+          // before any read or write -- so a busy result is a clean refusal.
+          result.complete(onBusy());
+          return;
+        }
         result.complete(await action());
       } on Object catch (e, st) {
         result.completeError(e, st);
+      } finally {
+        // Always. A lock leaked by an exception would block every later
+        // launch, and on a real filesystem only a process death would clear
+        // it.
+        await held?.release();
       }
     });
     return result.future;
@@ -581,6 +630,10 @@ final class SaveRepository {
       saveId,
       expectation,
       originSaltFingerprint,
+    ),
+    onBusy: () => const CommitRefused(
+      reason: CommitRefusal.storageBusy,
+      detail: 'another process holds the save; nothing was written',
     ),
   );
 

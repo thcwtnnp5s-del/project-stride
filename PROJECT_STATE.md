@@ -2,7 +2,7 @@
 
 **Version:** 2.0
 **Status:** ✅ **F-05 complete** — local save, ledger persistence, transactional commit, crash recovery.
-**Current Phase:** Milestone 01 — awaiting owner approval before F-06
+**Current Phase:** Milestone 01 — F-06 in progress (device persistence, bootstrap, restart validation)
 
 ## Project identity
 
@@ -98,7 +98,8 @@ The player must be able to:
 25. ~~Fix the three lost-grant defects the F-05 critic review found in F-04.~~ **Done — commit 8336774**
 26. ~~Answer the four blocking F-05 decisions.~~ **Ruled 2026-08-02**
 27. ~~Execute F-05 — save, ledger persistence, crash recovery.~~ **Done — `F05_COMPLETION_REPORT.md`**
-28. **Owner approval before F-06.** ← current state
+28. ~~Owner approval before F-06.~~ **Approved 2026-08-02**
+29. **Execute F-06 — device persistence, bootstrap, restart validation.** ← current state
 
 ## F-05 closed the four decisions
 
@@ -121,7 +122,8 @@ Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 | F-03 — GameState, events, engine | ✅ Done |
 | **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
 | **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
-| F-06 — skill framework | Unblocked |
+| **F-06 — device persistence, bootstrap, restart validation** | In progress |
+| F-07 — skill framework | Blocked on F-06 |
 
 **283 automated tests** across the workspace: 247 Dart in `stride_core`, 2 app widget, 17 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
 

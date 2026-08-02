@@ -52,6 +52,11 @@ final class StorageLayout {
   File get journalSidecar => File('${root.path}/ledger_journal.compacting');
   File get identity => File('${root.path}/reconciliation_identity');
 
+  /// Holds no data. It exists only to give the OS something to lock, and is
+  /// never read, written, or deleted — deleting a file another process holds
+  /// a lock on leaves two processes locking two inodes that share a name.
+  File get transactionLock => File('${root.path}/transaction.lock');
+
   /// Every file this layout may create.
   ///
   /// Exposed so a platform audit can assert that backup exclusions cover the
@@ -62,6 +67,7 @@ final class StorageLayout {
     journal,
     journalSidecar,
     identity,
+    transactionLock,
   ];
 
   Future<void> ensureExists() async {
