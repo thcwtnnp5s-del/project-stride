@@ -42,6 +42,7 @@ export 'src/ports/step_provider.dart';
 export 'src/save/crc32c.dart';
 export 'src/save/event_codec.dart';
 export 'src/save/journal_record.dart';
+export 'src/save/reset.dart';
 export 'src/save/save_codec.dart';
 export 'src/save/save_outcomes.dart';
 export 'src/save/save_repository.dart';

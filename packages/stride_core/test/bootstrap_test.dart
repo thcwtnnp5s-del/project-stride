@@ -34,6 +34,7 @@ final class MemoryIdentityStore implements ReconciliationIdentityStore {
 
   bool readThrows = false;
   bool writeThrows = false;
+  bool eraseThrows = false;
 
   /// Every identity written, in order. A new game must write exactly one, and
   /// a resumed game must write none.
@@ -55,6 +56,7 @@ final class MemoryIdentityStore implements ReconciliationIdentityStore {
 
   @override
   Future<void> erase() async {
+    if (eraseThrows) throw StateError('identity store erase refused');
     erasures++;
     _identity = null;
   }
@@ -975,17 +977,30 @@ void _blocked() {
 // Identity reuse
 // ---------------------------------------------------------------------------
 
+const ReconciliationIdentity orphanIdentity = ReconciliationIdentity(
+  saveId: 'save-from-the-crashed-launch',
+  saltFingerprint: 'cccccccccccccccc',
+);
+
 void _identityReuse() {
+  // The owner's F-06 ruling: provisioning is identity-first, and an identity
+  // with **no save and no journal at all** is an interrupted first-save orphan.
+  // It is deleted and reprovisioned, not reused.
+  //
+  // Reuse was the previous behaviour and reads as the conservative choice. It
+  // is not. The orphan's saveId is the lineage of a save that was never
+  // written, so binding it to a different, later save makes a lineage id stop
+  // meaning "the save it was minted for" — and `_resume`, the journal scan and
+  // `_checkSalt` are all comparisons against that identifier.
+  //
+  // What makes the deletion safe is *where* it sits. It is reachable only
+  // through `NoSaveFound`, which the load produces only when both slots are
+  // conclusively absent and the journal is empty. Every weaker observation —
+  // truncated, corrupt, busy, unreadable — is a refusal that never gets here.
+  // `closure_audit_test.dart` C4 is what holds that boundary.
   group('identity with no save', () {
-    test('is reused rather than replaced', () async {
-      // Exactly what a crash between minting and the first commit leaves
-      // behind. Minting a second identity here would orphan any save that did
-      // in fact exist, and would re-key every origin.
-      const ReconciliationIdentity survivor = ReconciliationIdentity(
-        saveId: 'save-from-the-crashed-launch',
-        saltFingerprint: 'cccccccccccccccc',
-      );
-      final MemoryIdentityStore store = MemoryIdentityStore(survivor);
+    test('is deleted and reprovisioned, not reused', () async {
+      final MemoryIdentityStore store = MemoryIdentityStore(orphanIdentity);
 
       final result = await boot(
         identity: store,
@@ -996,32 +1011,48 @@ void _identityReuse() {
       );
 
       expect(result.outcome, isA<BootstrapNewGame>());
-      expect((result.outcome as BootstrapNewGame).identity, survivor);
       expect(
-        result.mintCalls,
-        0,
-        reason: 'an identity that exists is never re-minted',
+        (result.outcome as BootstrapNewGame).identity.saveId,
+        'a-second-lineage',
       );
-      expect(store.writes, isEmpty, reason: 'nothing to rewrite');
+      expect(result.mintCalls, 1);
+      expect(store.erasures, 1, reason: 'the orphan is cleared exactly once');
+      expect(store.writes, hasLength(1));
     });
 
-    test(
-      'the reused identity is the lineage the new save is written under',
-      () async {
-        const ReconciliationIdentity survivor = ReconciliationIdentity(
-          saveId: 'save-from-the-crashed-launch',
-          saltFingerprint: 'cccccccccccccccc',
-        );
-        final result = await boot(identity: MemoryIdentityStore(survivor));
+    test('the new lineage is the one the new save is written under', () async {
+      final result = await boot(identity: MemoryIdentityStore(orphanIdentity));
 
-        // Read the lineage back off the durable journal, not off the object we
-        // were handed — a saveId that only exists in memory proves nothing.
-        final Uint8List journal = result.device.committedBytes('journal')!;
-        final JournalLineResult line = decodeJournalLine(journal);
-        expect(line.ok, isTrue);
-        expect(line.record!.saveId, survivor.saveId);
-      },
-    );
+      // Read the lineage back off the durable journal, not off the object we
+      // were handed — a saveId that only exists in memory proves nothing.
+      final Uint8List journal = result.device.committedBytes('journal')!;
+      final JournalLineResult line = decodeJournalLine(journal);
+      expect(line.ok, isTrue);
+      expect(line.record!.saveId, liveIdentity.saveId);
+      expect(
+        line.record!.saveId,
+        isNot(orphanIdentity.saveId),
+        reason:
+            'a save must never be written under a lineage minted for a '
+            'different save',
+      );
+    });
+
+    test('a failed orphan cleanup blocks rather than provisioning', () async {
+      // The one state worse than an orphan is a second lineage beside it.
+      final MemoryIdentityStore store = MemoryIdentityStore(orphanIdentity)
+        ..eraseThrows = true;
+      final result = await boot(identity: store);
+
+      expect(result.outcome, isA<BootstrapBlocked>());
+      expect(
+        (result.outcome as BootstrapBlocked).reason,
+        BootstrapBlockReason.storageUnavailable,
+      );
+      expect(result.mintCalls, 0);
+      expect(store.writes, isEmpty);
+      expect(result.device.image(), isEmpty);
+    });
   });
 }
 
@@ -1276,26 +1307,14 @@ void _identityOrdering() {
     });
 
     test(
-      'a failed first commit never erases, and the next launch recovers',
+      '5. a failed first commit attempts cleanup, and the next launch recovers',
       () async {
-        // ## An open conflict, stated rather than papered over
-        //
-        // `_startNewGame` writes the identity *before* the first commit. A
-        // concurrent audit probe (test/closure_audit_test.dart, C4) asserts the
-        // opposite — that a refused first commit must write no identity at all.
-        //
-        // Its stated harm was real but is now closed from a different direction:
-        // it was that the coordinator wrote the *salt-less* core-facing shape,
-        // which made `FileIdentityStore.readStored` throw on the next launch.
-        // The app no longer writes that shape — `IdentityVault.write` persists
-        // the full candidate, salt included — so an orphan identity is now a
-        // complete, reusable record.
-        //
-        // This test therefore asserts only what is true under *either* ordering:
-        // nothing is erased, and the next launch reaches a new game under one
-        // lineage rather than two. Whether the write should move after the commit
-        // is an ordering question for the owner, and the assertions below do not
-        // pre-empt it.
+        // The conflict this test used to describe is resolved. The owner ruled
+        // that provisioning is identity-first: the identity is written before
+        // the first commit, because the alternative ordering leaves a save with
+        // no identity, which is `originIdentityMissing` forever and caused by
+        // us. What changed is what happens *after* a refused commit — cleanup
+        // is now attempted, because the identity provably has no save under it.
         final FaultingDevice device = FaultingDevice()
           ..plan(<Fault>[
             const Fault(
@@ -1309,17 +1328,59 @@ void _identityOrdering() {
         final result = await boot(device: device, identity: store);
 
         expect(result.outcome, isA<BootstrapBlocked>());
+        expect(store.writes, hasLength(1));
         expect(
           store.erasures,
-          0,
-          reason: 'a blocked bootstrap never deletes anything, including this',
+          1,
+          reason:
+              'the identity has no save under it and the commit wrote nothing, '
+              'so this is the orphan rule, not a blocked bootstrap deleting a '
+              'save',
+        );
+        expect(
+          device.image(),
+          isEmpty,
+          reason: 'nothing durable was created for it to orphan',
         );
 
         // The next launch reaches a new game under one lineage, not two.
         final second = await boot(device: device.reboot(), identity: store);
         expect(second.outcome, isA<BootstrapNewGame>());
         expect((second.outcome as BootstrapNewGame).identity, liveIdentity);
-        expect(store.erasures, 0);
+      },
+    );
+
+    test(
+      '5. a cleanup that itself fails leaves a recoverable orphan, not a crash',
+      () async {
+        // The residue is an identity with no save. That is exactly the state
+        // the orphan rule above is for, so the next launch clears it and
+        // provisions — no permanent failure, and no escaping exception from
+        // either launch.
+        final FaultingDevice device = FaultingDevice()
+          ..plan(<Fault>[
+            const Fault(
+              op: 'append',
+              path: 'journal',
+              effect: FaultEffect.failBefore,
+            ),
+          ]);
+        final MemoryIdentityStore store = MemoryIdentityStore()
+          ..eraseThrows = true;
+
+        final result = await boot(device: device, identity: store);
+
+        expect(
+          result.outcome,
+          isA<BootstrapBlocked>(),
+          reason: 'a failed cleanup is still a typed outcome',
+        );
+        expect(store.writes, hasLength(1));
+
+        store.eraseThrows = false;
+        final second = await boot(device: device.reboot(), identity: store);
+        expect(second.outcome, isA<BootstrapNewGame>());
+        expect(store.erasures, 1, reason: 'the orphan is cleared on relaunch');
       },
     );
   });

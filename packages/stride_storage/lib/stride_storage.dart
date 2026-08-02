@@ -14,3 +14,12 @@ library;
 
 export 'src/file_lock.dart';
 export 'src/file_storage.dart';
+
+/// The in-process serialization layer.
+///
+/// `src/file_lock.dart` is an OS lock, and on POSIX an OS lock is owned by the
+/// *process* — so it does not exclude a second isolate inside one process.
+/// Every in-process caller must reach persistence through the owner isolate
+/// declared here rather than by constructing a `SaveRepository` of its own over
+/// the same directory. See `TECHNICAL/PERSISTENCE_CONCURRENCY.md`.
+export 'src/persistence_owner.dart';

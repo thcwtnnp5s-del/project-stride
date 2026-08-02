@@ -327,6 +327,87 @@ if [ "$failures" -eq 0 ]; then
   # a backup and re-opens the exact hole the Keychain closes.
   grep -q 'no file-to-Keychain migration' "$VAULT" ||
     fail "$VAULT no longer documents why there is no file-to-Keychain migration. A migration would read the identity file that DID travel in the restore and write it into the new device's Keychain, at which point the fingerprints match again and the refusal is gone."
+
+  # 6i. The per-write re-application entry point.
+  #
+  # NSURLIsExcludedFromBackupKey is a resource value on the filesystem NODE. A
+  # rename over the top, an atomic write, or a replace leaves the path naming a
+  # different node, which carries none of the old node's attributes.
+  # FileLedgerJournal.replaceLines renames a sidecar over the journal on every
+  # compaction, so a launch-only application is correct until the first
+  # compaction and silently wrong after it. Demonstrated on a real APFS volume
+  # by testARenameOverTheTopDropsTheExclusion in the simulator suite.
+  PORT="packages/stride_secure_store/lib/src/secure_identity_store.dart"
+  CONTRACT="packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md"
+
+  grep -q 'reapplyBackupExclusions' "$PORT" ||
+    fail "$PORT no longer exposes reapplyBackupExclusions. Without a per-write entry point the exclusion is applied once at launch, and the journal loses it on the first compaction."
+
+  grep -q 'reapplyBackupExclusions' "$EXCLUSION" ||
+    grep -q 'apply(paths:' "$EXCLUSION" ||
+    fail "$EXCLUSION has no path-list entry point for the per-write re-application."
+
+  [ -f "$CONTRACT" ] ||
+    fail "$CONTRACT is missing. It is the only place the required call sites in stride_storage and lib/runtime are written down."
+fi
+
+# ===========================================================================
+# 7. The per-write call sites
+# ===========================================================================
+#
+# The launch sweep alone is not the control. NSURLIsExcludedFromBackupKey
+# belongs to the filesystem *node*, not the path, so it is lost whenever the
+# path comes to name a different node. The snapshot slots, the journal and the
+# lock file are all created after the sweep has run, and replaceLines renames a
+# sidecar over the journal on every compaction -- which discards an exclusion
+# the journal previously had. That last one is a regression, not a gap.
+#
+# These were notes while the call sites were unwired. They are failures now.
+# Contract: packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md
+
+STORAGE="packages/stride_storage/lib/src/file_storage.dart"
+LOCKSRC="packages/stride_storage/lib/src/file_lock.dart"
+RUNTIME="lib/runtime/runtime_bootstrap.dart"
+
+if [ -f "$STORAGE" ]; then
+  if ! grep -q 'typedef ReapplyBackupExclusion' "$STORAGE"; then
+    fail "$STORAGE does not declare ReapplyBackupExclusion"
+  fi
+  # Six required sites: snapshot write, journal append, BOTH halves of the
+  # compaction swap, and the two identity writes.
+  calls=$(grep -c 'reapplyExclusion?\.call' "$STORAGE" || true)
+  if [ "$calls" -lt 6 ]; then
+    fail "$STORAGE re-applies the exclusion at only $calls of 6 required sites"
+  fi
+
+  # The compaction swap specifically. The call AFTER the rename is the one that
+  # stops the journal travelling from the first compaction onward, and it is
+  # the easiest to drop in a refactor because the code reads fine without it.
+  if ! awk '/journalSidecar\.rename/{seen=1; next} seen && /reapplyExclusion\?\.call/{found=1; exit} END{exit !found}' "$STORAGE"; then
+    fail "$STORAGE does not re-apply the exclusion AFTER the compaction rename"
+  fi
+fi
+
+if [ -f "$LOCKSRC" ] && ! grep -q 'reapplyExclusion?\.call' "$LOCKSRC"; then
+  fail "$LOCKSRC does not re-apply the exclusion after creating the lock file"
+fi
+
+# A hook that is declared and never injected is worse than none: the guards
+# above would pass and the control would still be a launch sweep only.
+if [ -f "$RUNTIME" ]; then
+  injected=$(grep -c 'reapplyExclusion: hook()' "$RUNTIME" || true)
+  if [ "$injected" -lt 3 ]; then
+    fail "$RUNTIME injects the exclusion hook into only $injected of 3 sites (snapshots, journal, lock)"
+  fi
+fi
+
+# The identity store is constructed inside the vault, not the bootstrap, so it
+# is injected separately. Null on iOS -- the identity lives in the Keychain, not
+# in this file -- but wired regardless, so the next platform is not a special
+# case.
+VAULT="lib/runtime/identity_vault.dart"
+if [ -f "$VAULT" ] && ! grep -q 'reapplyExclusion:' "$VAULT"; then
+  fail "$VAULT does not inject the exclusion hook into FileIdentityStore"
 fi
 
 # If a file-protection class is ever declared, it must be a real one -- a typo
@@ -357,7 +438,9 @@ echo "  layout  : application support only; every path component a literal"
 echo "  ios     : identity in the Keychain, AfterFirstUnlockThisDeviceOnly,"
 echo "            add-only, not synchronizable."
 echo "            NSURLIsExcludedFromBackupKey applied to the directory and"
-echo "            every declared file, re-applied on every launch."
+echo "            every declared file at launch, AND re-applied per write:"
+echo "            snapshot writes, journal appends, both halves of the"
+echo "            compaction swap, identity writes, and lock creation."
 echo "            Container is not browsable (no file-sharing keys)."
 echo "            NOT PROVEN HERE: that Apple honours either control. That"
 echo "            needs two physical iPhones, an iCloud account, and a real"

@@ -37,15 +37,24 @@
 // The fix is defence in depth, and both halves are the owner's ruling:
 //
 //   * The identity moves into the Keychain with
-//     `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. `ThisDeviceOnly`
-//     items are NOT included in an encrypted backup and are NOT restored to a
-//     different device. So on a restored device the identity is *absent* while
-//     the save is present — which is the `originIdentityMissing` refusal, and
-//     the refusal fires again.
+//     `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. Apple documents
+//     `ThisDeviceOnly` items as excluded from an encrypted backup and as not
+//     restored to a different device. So on a restored device the identity
+//     should be *absent* while the save is present — which is the
+//     `originIdentityMissing` refusal, and the refusal fires again.
 //   * `NSURLIsExcludedFromBackupKey` is applied to the save directory and every
 //     file `StorageLayout` declares, so the save and the ledger should not
 //     migrate either. Belt as well as braces: the first control restores the
 //     refusal, the second stops the ledger travelling in the first place.
+//
+// **Neither half is verified.** Both are documented Apple behaviours this
+// design relies on. What is testable is that the attributes are set to the
+// values asked for — that a `ThisDeviceOnly` item is genuinely omitted from an
+// encrypted iCloud backup, and that `NSURLIsExcludedFromBackupKey` is genuinely
+// honoured, are properties of Apple's backup implementation with no API to
+// interrogate. Demonstrating them needs two physical iPhones, an iCloud
+// account, a real backup and a real restore. No CI runner and no simulator can
+// do it. Nothing in this repository should be quoted as proving otherwise.
 //
 // `AfterFirstUnlock`, not `WhenUnlocked`: cold-launch backfill and any
 // best-effort background wake must be able to read the identity after the
@@ -229,6 +238,31 @@ abstract class SecureStoreHostApi {
     String directoryPath,
     List<String> filePaths,
   );
+
+  /// Re-applies `NSURLIsExcludedFromBackupKey` to [paths] and nothing else.
+  ///
+  /// **Why a second, narrower method.** Apple documents
+  /// `NSURLIsExcludedFromBackupKey` as a resource value on the filesystem node,
+  /// and resource values do not follow a path: a replacement, an atomic write,
+  /// a rename over the top, or a delete-and-recreate all leave the path
+  /// pointing at a *different* node, which carries whatever attributes it was
+  /// born with — none.
+  ///
+  /// The save layout does all of those. `FileLedgerJournal.replaceLines` writes
+  /// a sidecar and renames it over the journal, so after every compaction the
+  /// journal path names a node that has never been excluded. The snapshot slots
+  /// are created on their first write. So a once-at-launch application is
+  /// correct until the first commit and silently wrong after it.
+  ///
+  /// Separate from [applyBackupExclusions] because that one is the launch
+  /// sweep: it takes the directory as well, and reports the whole layout. This
+  /// is the per-write call — a list of the paths a single operation just
+  /// touched, no directory, so it stays cheap enough to sit on the commit path.
+  /// Two `setResourceValues` round trips per file, against an fsync.
+  ///
+  /// Idempotent. Paths that do not exist come back as `missing`, not `failed`.
+  @async
+  PlatformBackupExclusionReport reapplyBackupExclusions(List<String> paths);
 
   /// Reads back what is actually configured. Diagnostics only.
   @async

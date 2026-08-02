@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-  List<Object?>? replyList,
-  String channelName, {
-  required bool isNullValid,
+    List<Object?>? replyList,
+    String channelName, {
+    required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,9 +46,8 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed.every(
-          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
-        );
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -97,11 +96,19 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
+
 /// Mirrors `StepAuthorization` in stride_core.
-enum PlatformAuthorization { granted, denied, unavailable }
+enum PlatformAuthorization {
+  granted,
+  denied,
+  unavailable,
+}
 
 /// Mirrors `CursorStatus` in stride_core.
-enum PlatformCursorStatus { valid, invalidated }
+enum PlatformCursorStatus {
+  valid,
+  invalidated,
+}
 
 /// An authoritative re-read of a bounded window, sent only when the cursor was
 /// invalidated. See `StepRescan` in stride_core for the recovery strategy.
@@ -138,8 +145,7 @@ class PlatformRescan {
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformRescan decode(Object result) {
     result as List<Object?>;
@@ -160,10 +166,7 @@ class PlatformRescan {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(windowStartMillis, other.windowStartMillis) &&
-        _deepEquals(windowEndMillis, other.windowEndMillis) &&
-        _deepEquals(windowTotal, other.windowTotal) &&
-        _deepEquals(truncated, other.truncated);
+    return _deepEquals(windowStartMillis, other.windowStartMillis) && _deepEquals(windowEndMillis, other.windowEndMillis) && _deepEquals(windowTotal, other.windowTotal) && _deepEquals(truncated, other.truncated);
   }
 
   @override
@@ -202,12 +205,17 @@ class PlatformFetchResult {
   PlatformRescan? rescan;
 
   List<Object?> _toList() {
-    return <Object?>[status, newSteps, deletedSteps, cursor, rescan];
+    return <Object?>[
+      status,
+      newSteps,
+      deletedSteps,
+      cursor,
+      rescan,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PlatformFetchResult decode(Object result) {
     result as List<Object?>;
@@ -229,11 +237,7 @@ class PlatformFetchResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(status, other.status) &&
-        _deepEquals(newSteps, other.newSteps) &&
-        _deepEquals(deletedSteps, other.deletedSteps) &&
-        _deepEquals(cursor, other.cursor) &&
-        _deepEquals(rescan, other.rescan);
+    return _deepEquals(status, other.status) && _deepEquals(newSteps, other.newSteps) && _deepEquals(deletedSteps, other.deletedSteps) && _deepEquals(cursor, other.cursor) && _deepEquals(rescan, other.rescan);
   }
 
   @override
@@ -246,6 +250,7 @@ class PlatformFetchResult {
   }
 }
 
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -253,16 +258,16 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    } else if (value is PlatformAuthorization) {
+    }    else if (value is PlatformAuthorization) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is PlatformCursorStatus) {
+    }    else if (value is PlatformCursorStatus) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is PlatformRescan) {
+    }    else if (value is PlatformRescan) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    } else if (value is PlatformFetchResult) {
+    }    else if (value is PlatformFetchResult) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
@@ -293,13 +298,9 @@ class HealthHostApi {
   /// Constructor for [HealthHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  HealthHostApi({
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  HealthHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -309,8 +310,7 @@ class HealthHostApi {
   /// Whether the platform's health service is present and usable. False on
   /// Android without Health Connect installed — a normal state, not an error.
   Future<bool> isAvailable() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.stride_health.HealthHostApi.isAvailable$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.isAvailable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -320,16 +320,16 @@ class HealthHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as bool;
   }
 
   Future<PlatformAuthorization> requestAuthorization() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.stride_health.HealthHostApi.requestAuthorization$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.requestAuthorization$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -339,36 +339,32 @@ class HealthHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as PlatformAuthorization;
   }
 
   /// Fetch steps since [cursor]. [watermarkMillis] bounds the rescan window if
   /// the cursor turns out to be invalid.
-  Future<PlatformFetchResult> fetchNewSteps(
-    Uint8List? cursor,
-    int? watermarkMillis,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.stride_health.HealthHostApi.fetchNewSteps$pigeonVar_messageChannelSuffix';
+  Future<PlatformFetchResult> fetchNewSteps(Uint8List? cursor, int? watermarkMillis) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.fetchNewSteps$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[cursor, watermarkMillis],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[cursor, watermarkMillis]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as PlatformFetchResult;
   }
 }

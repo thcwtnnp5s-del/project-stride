@@ -149,11 +149,32 @@ Future<void> writeVerified(File file, Uint8List bytes) async {
   }
 }
 
+/// Re-applies the platform's backup exclusion to [paths].
+///
+/// Injected as a plain function from `lib/runtime/`, because this package must
+/// not depend on Flutter — its conformance suite has to run headless under
+/// `dart test`. Dart function types are structural, so this matches
+/// `stride_secure_store`'s `ReapplyBackupExclusion` without either package
+/// importing the other.
+///
+/// **Null off iOS**, rather than a no-op closure, so "the control is not active
+/// on this platform" and "the control ran and did nothing" stay
+/// distinguishable. On Android the exclusion is declarative and stronger.
+///
+/// Must not throw: it runs on the commit path, and a refused
+/// `setResourceValues` must never turn a durable save into a failed one.
+///
+/// See `packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md`.
+typedef ReapplyBackupExclusion = Future<void> Function(List<String> paths);
+
 /// Two snapshot slots as two files.
 final class FileSnapshotStore implements SnapshotSlotStore {
-  const FileSnapshotStore(this.layout);
+  const FileSnapshotStore(this.layout, {this.reapplyExclusion});
 
   final StorageLayout layout;
+
+  /// Re-applied after every write. See [ReapplyBackupExclusion].
+  final ReapplyBackupExclusion? reapplyExclusion;
 
   File _fileFor(SnapshotSlot slot) =>
       slot == SnapshotSlot.a ? layout.slotA : layout.slotB;
@@ -177,7 +198,14 @@ final class FileSnapshotStore implements SnapshotSlotStore {
     await layout.ensureExists();
     // Writes the slot file in place, and touches nothing else. The protocol's
     // atomicity comes from never being asked to write the live slot.
-    await writeVerified(_fileFor(slot), bytes);
+    final File file = _fileFor(slot);
+    await writeVerified(file, bytes);
+    // The slot is created by its first write, which is *after* the launch
+    // sweep looked for it and correctly reported it missing. Without this the
+    // slot is never excluded at all. The directory is included because
+    // `ensureExists` may have just recreated it, and a recreated node carries
+    // none of the attributes the old one had.
+    await reapplyExclusion?.call(<String>[layout.root.path, file.path]);
   }
 
   @override
@@ -189,9 +217,13 @@ final class FileSnapshotStore implements SnapshotSlotStore {
 
 /// The write-ahead journal as one append-only file.
 final class FileLedgerJournal implements LedgerJournal {
-  const FileLedgerJournal(this.layout);
+  const FileLedgerJournal(this.layout, {this.reapplyExclusion});
 
   final StorageLayout layout;
+
+  /// Re-applied after every append and after **both halves** of a compaction
+  /// swap. See [ReapplyBackupExclusion].
+  final ReapplyBackupExclusion? reapplyExclusion;
 
   @override
   Future<List<Uint8List>> readLines() async {
@@ -290,6 +322,13 @@ final class FileLedgerJournal implements LedgerJournal {
     } on Object catch (e) {
       throw StorageException('append read-back ${file.path}', e);
     }
+
+    // The journal is created by its first append, after the launch sweep
+    // reported it missing.
+    await reapplyExclusion?.call(<String>[
+      layout.root.path,
+      layout.journal.path,
+    ]);
   }
 
   @override
@@ -323,7 +362,19 @@ final class FileLedgerJournal implements LedgerJournal {
     // entirely. Here the concern is only that no observer sees a half-written
     // file, and rename gives that without a second journal.
     await writeVerified(layout.journalSidecar, bytes);
+    // Excluded *before* the rename, not after. A death between the two leaves
+    // the sidecar on disk, and the launch sweep reported it missing because it
+    // did not exist then.
+    await reapplyExclusion?.call(<String>[layout.journalSidecar.path]);
+
     await layout.journalSidecar.rename(layout.journal.path);
+    // The journal path now names the sidecar's node, carrying the sidecar's
+    // attributes. This is the one case that is a *regression* rather than a
+    // gap: the journal was excluded, and a routine compaction silently
+    // unprotected it. Without this line the journal travels in an iCloud
+    // restore from the first compaction onward.
+    // See `testARenameOverTheTopDropsTheExclusion`.
+    await reapplyExclusion?.call(<String>[layout.journal.path]);
   }
 
   @override
@@ -368,33 +419,149 @@ final class StoredIdentity {
   );
 }
 
+/// What the identity file actually contains.
+///
+/// ## Why this is a sealed result and not a nullable [StoredIdentity]
+///
+/// The file has **three** legitimate shapes, not two, and the third one is
+/// produced by this package's own code:
+///
+/// | Shape | Written by | Carries |
+/// |---|---|---|
+/// | absent | nothing yet | — |
+/// | full | [FileIdentityStore.writeStored], i.e. the app | lineage id **and salt** |
+/// | core-facing | [FileIdentityStore.write], i.e. `ReconciliationIdentityStore` | lineage id and salt **fingerprint** |
+///
+/// The core-facing shape is what `BootstrapCoordinator` writes when this class
+/// is wired as its identity store directly, because the core only ever holds a
+/// fingerprint — it has no salt to hand over and inventing one would be a
+/// fabrication. That record is **complete and correct**: it faithfully records
+/// everything that exists.
+///
+/// `readStored` could not express it. It required a `salt` key and reported its
+/// absence as *"missing a required field"* — a corruption message for a record
+/// this package writes on purpose. The next `readStored` after an orphan
+/// replacement therefore threw out of a read path, which is the
+/// permanent-next-launch-failure shape the save rules forbid. Found by the F-06
+/// Bootstrap agent, fixed here rather than at the one call site that happened
+/// to reach it.
+sealed class IdentityRecord {
+  const IdentityRecord();
+}
+
+/// No identity file exists. A new installation, or a completed reset.
+final class IdentityAbsent extends IdentityRecord {
+  const IdentityAbsent();
+}
+
+/// A complete record: the lineage id and the salt itself.
+final class IdentityWithSalt extends IdentityRecord {
+  const IdentityWithSalt(this.identity);
+
+  final StoredIdentity identity;
+}
+
+/// A lineage id and a salt **fingerprint**, with no salt.
+///
+/// Not damage. The core-facing port has no salt to write, so this is what a
+/// faithful record looks like when the app's own vault was not the writer.
+///
+/// A caller that needs to *pseudonymize* cannot proceed from this — a
+/// fingerprint cannot rebuild a salt — and must fail closed rather than
+/// substitute one. A caller that only needs the lineage id, or only needs to
+/// compare fingerprints, can proceed exactly as before.
+final class IdentityWithoutSalt extends IdentityRecord {
+  const IdentityWithoutSalt({
+    required this.saveId,
+    required this.saltFingerprint,
+  });
+
+  final String saveId;
+  final String saltFingerprint;
+
+  ReconciliationIdentity get public =>
+      ReconciliationIdentity(saveId: saveId, saltFingerprint: saltFingerprint);
+}
+
 /// The reconciliation identity as one small file.
 final class FileIdentityStore implements ReconciliationIdentityStore {
-  const FileIdentityStore(this.layout);
+  const FileIdentityStore(this.layout, {this.reapplyExclusion});
 
   final StorageLayout layout;
 
-  /// Reads the full stored identity, salt included.
+  /// Re-applied after every write. See [ReapplyBackupExclusion].
   ///
-  /// For the app, which needs the salt to build a pseudonymizer. The core-facing
-  /// [read] projects this to a fingerprint.
-  Future<StoredIdentity?> readStored() async {
+  /// Null on the platform this store is actually used on — iOS keeps the
+  /// identity in the Keychain, not here. Wired anyway, because the symmetry is
+  /// what stops the next platform being a special case.
+  final ReapplyBackupExclusion? reapplyExclusion;
+
+  /// Reads the file and names which of the three shapes it holds.
+  ///
+  /// Total over every shape this package can write, so no legitimate record
+  /// arrives as an exception. It still throws for genuine damage — unreadable
+  /// bytes, non-JSON, no lineage id — because those are not shapes, they are
+  /// faults, and reporting a fault as absence would present a corrupt identity
+  /// as a new installation.
+  Future<IdentityRecord> readRecord() async {
     final Map<String, Object?> json = await _readJson();
-    if (json.isEmpty) return null;
+    if (json.isEmpty) return const IdentityAbsent();
 
     final Object? saveId = json['saveId'];
-    final Object? salt = json['salt'];
-    if (saveId is! String || salt is! String) {
+    if (saveId is! String) {
       throw const StorageException(
         'decode identity',
-        'the reconciliation identity file is missing a required field',
+        'the reconciliation identity file has no saveId',
       );
     }
-    return StoredIdentity(
-      saveId: saveId,
-      salt: Uint8List.fromList(base64Decode(salt)),
-    );
+
+    // The salt wins when present, because a fingerprint derived from it cannot
+    // drift from it, whereas a stored fingerprint can.
+    final Object? salt = json['salt'];
+    if (salt is String) {
+      return IdentityWithSalt(
+        StoredIdentity(
+          saveId: saveId,
+          salt: Uint8List.fromList(base64Decode(salt)),
+        ),
+      );
+    }
+
+    final Object? fingerprint = json['saltFingerprint'];
+    if (fingerprint is! String) {
+      throw const StorageException(
+        'decode identity',
+        'the reconciliation identity file has neither a salt nor a fingerprint',
+      );
+    }
+    return IdentityWithoutSalt(saveId: saveId, saltFingerprint: fingerprint);
   }
+
+  /// Reads the full stored identity, salt included.
+  ///
+  /// For the app, which needs the salt to build a pseudonymizer.
+  ///
+  /// **Prefer [readRecord].** This projection cannot express the core-facing
+  /// shape, and it fails closed on it rather than guessing: returning null
+  /// would present a live lineage as a new installation and let a second
+  /// identity be minted beside a save it can no longer interpret, and
+  /// substituting an empty salt would be worse still — an empty salt is a
+  /// *valid-looking* key, so every origin would be pseudonymized under a
+  /// constant that is not secret at all.
+  ///
+  /// The message names the shape, so a reader of a crash report can tell a
+  /// deliberate refusal from a decode accident.
+  Future<StoredIdentity?> readStored() async => switch (await readRecord()) {
+    IdentityAbsent() => null,
+    final IdentityWithSalt r => r.identity,
+    IdentityWithoutSalt() => throw const StorageException(
+      'decode identity',
+      'the reconciliation identity holds a salt fingerprint but no salt, so '
+          'it cannot pseudonymize an origin. It was written through the '
+          'core-facing ReconciliationIdentityStore port, which has no salt to '
+          'write. Use readRecord() to handle this shape.',
+    ),
+  };
 
   /// Writes the full identity, salt included.
   Future<void> writeStored(StoredIdentity identity) async {
@@ -404,6 +571,10 @@ final class FileIdentityStore implements ReconciliationIdentityStore {
       'salt': base64Encode(identity.salt),
     });
     await writeVerified(layout.identity, Uint8List.fromList(utf8.encode(text)));
+    await reapplyExclusion?.call(<String>[
+      layout.root.path,
+      layout.identity.path,
+    ]);
   }
 
   Future<Map<String, Object?>> _readJson() async {
@@ -438,39 +609,16 @@ final class FileIdentityStore implements ReconciliationIdentityStore {
     return decoded;
   }
 
+  /// The core-facing projection: lineage id and fingerprint, never the salt.
+  ///
+  /// Total over all three shapes, because both of the present ones can produce
+  /// a fingerprint — one derives it, the other has it stored.
   @override
-  Future<ReconciliationIdentity?> read() async {
-    final Map<String, Object?> json = await _readJson();
-    if (json.isEmpty) return null;
-
-    final Object? saveId = json['saveId'];
-    if (saveId is! String) {
-      throw const StorageException(
-        'decode identity',
-        'the reconciliation identity file has no saveId',
-      );
-    }
-
-    // Prefer the salt when it is present, because deriving the fingerprint
-    // from the salt cannot drift from it. Fall back to a stored fingerprint
-    // for a record written through [write], which has no salt to derive from.
-    final Object? salt = json['salt'];
-    if (salt is String) {
-      return ReconciliationIdentity(
-        saveId: saveId,
-        saltFingerprint: OriginSaltPolicy.fingerprint(base64Decode(salt)),
-      );
-    }
-
-    final Object? fingerprint = json['saltFingerprint'];
-    if (fingerprint is! String) {
-      throw const StorageException(
-        'decode identity',
-        'the reconciliation identity file has neither a salt nor a fingerprint',
-      );
-    }
-    return ReconciliationIdentity(saveId: saveId, saltFingerprint: fingerprint);
-  }
+  Future<ReconciliationIdentity?> read() async => switch (await readRecord()) {
+    IdentityAbsent() => null,
+    final IdentityWithSalt r => r.identity.public,
+    final IdentityWithoutSalt r => r.public,
+  };
 
   /// Writes the core-facing identity: lineage id and salt **fingerprint**.
   ///
@@ -499,6 +647,10 @@ final class FileIdentityStore implements ReconciliationIdentityStore {
       if (salt is String) 'salt': salt,
     });
     await writeVerified(layout.identity, Uint8List.fromList(utf8.encode(text)));
+    await reapplyExclusion?.call(<String>[
+      layout.root.path,
+      layout.identity.path,
+    ]);
   }
 
   @override

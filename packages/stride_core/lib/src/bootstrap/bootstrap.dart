@@ -15,19 +15,30 @@
 /// read" are different states reached by different paths, and the second is
 /// always [BootstrapBlocked].
 ///
-/// A blocked bootstrap **never deletes anything**. Refusing is recoverable —
-/// a newer build, a fixed content pack, a health reconnect. Deleting is not.
+/// A blocked bootstrap **never deletes a save, a journal, or an identity that
+/// could interpret one.** Refusing is recoverable — a newer build, a fixed
+/// content pack, a health reconnect. Deleting is not.
+///
+/// That claim used to be the unqualified "never deletes anything", and it was
+/// not true of the code beneath it even then. There is exactly one deletion on
+/// any path here, it is narrow, and it is stated rather than hidden: an
+/// **orphan identity** — one that the load has conclusively proven has no save
+/// and no journal beside it — is removed before a new lineage is provisioned.
+/// Nothing else is ever deleted, and the proof required for that one case is
+/// the strongest the protocol can produce (see rule 5 below).
 ///
 /// ## The identity ordering
 ///
-/// Four rules, in the order they are enforced. They are stated here because the
-/// third and fourth are the ones that look like defects to a reader who does
-/// not know the failure they prevent.
+/// Five rules, in the order they are enforced. They are stated here because
+/// several of them look like defects to a reader who does not know the failure
+/// they prevent.
 ///
 /// 1. **Read the identity before the save, and refuse if the read faults.**
 ///    The identity is what the save's origin keys were produced from, so the
 ///    save cannot be interpreted without it. A read that *faults* is not
-///    absence, and is [BootstrapBlockReason.storageUnavailable].
+///    absence, and is [BootstrapBlockReason.storageUnavailable]. A save that is
+///    merely *busy* is neither, and is
+///    [BootstrapBlockReason.storageBusy] — the storage is available and in use.
 /// 2. **Existing save, no identity ⇒ [BootstrapBlockReason.originIdentityMissing].**
 ///    Distinct from a mismatch, because the causes and the diagnostics differ:
 ///    a mismatch means two identities exist, and a miss means the device-bound
@@ -36,11 +47,23 @@
 ///    Keychain being `ThisDeviceOnly`.
 /// 3. **Existing save, different identity ⇒
 ///    [BootstrapBlockReason.originIdentityMismatch].**
-/// 4. **No save and no identity ⇒ mint, and only then.** The load runs *before*
-///    [mintIdentity] is ever called. Minting first and then discovering a save
-///    would leave a fresh identity beside a save it cannot interpret, which is
-///    unrecoverable in the direction that matters: the save is then refused
-///    forever, by an identity we created ourselves.
+/// 4. **Provisioning is identity-first, and the load runs before any of it.**
+///    [mintIdentity] is never called until the save has been looked for and the
+///    load has concluded [NoSaveFound]. Minting first and then discovering a
+///    save would leave a fresh identity beside a save it cannot interpret,
+///    which is unrecoverable in the direction that matters: the save is then
+///    refused forever, by an identity we created ourselves. Within provisioning
+///    the identity is written *before* the first commit, because the two
+///    orderings fail asymmetrically — see `_startNewGame`.
+/// 5. **An orphan identity is replaced, not reused — and only on the strongest
+///    possible proof.** An identity with no save is what an interrupted first
+///    save leaves behind. Reusing it looks harmless and is not: its `saveId`
+///    would become the lineage of a *different*, later save, so a lineage id
+///    would stop meaning "the save it was minted for". It is therefore deleted
+///    and reprovisioned — but only through [NoSaveFound], which requires both
+///    slots to be conclusively **absent** and the journal to be empty. A
+///    truncated slot, a corrupt slot, a busy lock, or an unreadable device all
+///    fail closed and delete nothing, because none of them proves absence.
 ///
 /// Rule 4 is why `mintIdentity` is a callback rather than a value. A value
 /// would be computed by the caller before `run` is entered, and the ordering
@@ -135,11 +158,37 @@ enum BootstrapBlockReason {
   /// "ask me later" and must never be read as "there is nothing here".
   storageUnavailable,
 
+  /// The save is in use by another process, and this launch waited long enough.
+  ///
+  /// **Deliberately distinct from [storageUnavailable].** The storage is
+  /// available; it is open, healthy, and held by someone else — a background
+  /// step sync, most likely. Folding the two together would send anyone
+  /// investigating towards a broken device, and would let a transient condition
+  /// wear the wording of a permanent one. Nothing was read, nothing was
+  /// written, and the next launch normally succeeds.
+  storageBusy,
+
+  /// A full reset was started and did not finish.
+  ///
+  /// The durable reset intent is still present. This is what stops a
+  /// half-erased directory presenting as a new installation; re-running the
+  /// reset completes it.
+  resetIncomplete,
+
   /// A journal was present but its correctness could not be established.
   ///
   /// The catch-all for "recovery ran and could not prove the result", which is
   /// exactly when guessing is most tempting and least safe.
   recoveryNotProvable,
+
+  /// A new game was committed and did not read back.
+  ///
+  /// The first snapshot is written, verified by the repository, and then
+  /// **reloaded** before the player is told the game exists. A commit that
+  /// reports success over storage that cannot reproduce it is not a ready
+  /// game, and handing one back would make the first session the one the player
+  /// loses.
+  newGameNotVerifiable,
 }
 
 /// The outcome of startup.
@@ -333,43 +382,80 @@ final class BootstrapCoordinator {
     ReconciliationIdentity? stored,
     ReconciliationIdentity Function() mint,
   ) async {
-    // An identity present with no save is not automatically wrong — a crash
-    // between minting and the first commit produces exactly that — so it is
-    // reused rather than replaced. Minting a second identity would orphan any
-    // save that did in fact exist.
-    final ReconciliationIdentity identity = stored ?? mint();
-    if (stored == null) {
-      // Written before the first commit, not after.
+    // Steps 1 and 2 of the provisioning protocol are already done, and were
+    // done by the only component entitled to do them. Reaching here means the
+    // load returned `NoSaveFound`, which it produces *only* when both slots
+    // read as conclusively absent and the journal is empty — not when a slot is
+    // truncated, malformed, integrity-broken, busy, or unreadable, each of
+    // which is a refusal that never arrives here. Re-deriving that conclusion
+    // in this method would be a second, weaker copy of it.
+
+    if (stored != null) {
+      // Step 3, the orphan case. An identity with no save at all is what an
+      // interrupted first save leaves behind, and it is **replaced, not
+      // reused**.
       //
-      // The two orderings fail differently, and one of them is recoverable:
+      // Reuse was the previous behaviour and looks like the conservative
+      // choice. It is not. The orphan's `saveId` is the lineage of a save that
+      // was never written; binding it to a different, later save makes a
+      // lineage id stop meaning "the save it was minted for", and every
+      // downstream check that compares lineages — `_resume`, the journal scan,
+      // `_checkSalt` — is weakened by exactly the amount that identifier stops
+      // being trustworthy.
       //
-      //   identity then save : a crash in between leaves an identity with no
-      //                        save. The next launch reuses it. Harmless.
-      //   save then identity : a crash in between leaves a save with no
-      //                        identity — `originIdentityMissing`, forever,
-      //                        caused by us.
-      //
-      // A store that refuses the write therefore stops startup here, with no
-      // save on disk to be orphaned.
+      // The deletion is safe here and nowhere else, because `NoSaveFound` is
+      // the strongest absence proof the protocol produces. A failed delete is
+      // not fatal: it leaves the same orphan we started with, which the next
+      // launch meets again.
       try {
-        await identityStore.write(identity);
+        await identityStore.erase();
       } on Object catch (e) {
         return BootstrapBlocked(
           reason: BootstrapBlockReason.storageUnavailable,
           stoppedAt: BootstrapPhase.openingStorage,
-          explanation: 'Stride could not create its local storage.',
+          explanation:
+              'Stride could not clear a leftover key from a previous '
+              'start.',
           detail: <String>['$e'],
         );
       }
     }
 
-    final GameEngine engine = GameEngine.newGame(registry: registry);
+    // Steps 3 and 4. Mint, and hold the fingerprint and saveId the first
+    // snapshot will be written under.
+    final ReconciliationIdentity identity = mint();
 
-    // Persisted immediately, and the caller is told only after it is durable.
-    // A "new game" that exists solely in memory is a first session the player
-    // loses to a process kill.
+    // Written before the first commit, not after.
+    //
+    // The two orderings fail differently, and one of them is recoverable:
+    //
+    //   identity then save : a crash in between leaves an identity with no
+    //                        save. The next launch proves the save is absent,
+    //                        clears the orphan, and provisions again.
+    //   save then identity : a crash in between leaves a save with no
+    //                        identity — `originIdentityMissing`, forever,
+    //                        caused by us.
+    //
+    // A store that refuses the write therefore stops startup here, with no
+    // save on disk to be orphaned.
+    try {
+      await identityStore.write(identity);
+    } on Object catch (e) {
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.storageUnavailable,
+        stoppedAt: BootstrapPhase.openingStorage,
+        explanation: 'Stride could not create its local storage.',
+        detail: <String>['$e'],
+      );
+    }
+
+    final GameEngine fresh = GameEngine.newGame(registry: registry);
+
+    // Step 5. Persisted immediately, and the caller is told only after it is
+    // durable. A "new game" that exists solely in memory is a first session the
+    // player loses to a process kill.
     final CommitOutcome commit = await repository.commit(
-      after: engine.state,
+      after: fresh.state,
       events: const <GameEvent>[],
       saveId: identity.saveId,
       expectation: const CommitExpectation(
@@ -382,20 +468,70 @@ final class BootstrapCoordinator {
     );
 
     if (commit is CommitRefused) {
-      // The identity we just wrote is deliberately left in place. Erasing it
-      // here would be a blocked bootstrap deleting something, and the next
-      // launch reuses an orphan identity perfectly well — whereas a save
-      // written under an identity we then deleted could never be opened again.
+      // Cleanup is *attempted*, and its failure is not.
+      //
+      // The identity we just wrote has no save under it and — because the
+      // commit refused without writing anything — provably cannot acquire one
+      // from this launch, so it is the same orphan rule as above.
+      //
+      // If the cleanup itself throws we still return a typed refusal. The
+      // residue is a recoverable orphan, not a crash: the next launch either
+      // proves absence again and clears it, or finds a save and diagnoses the
+      // lineage properly. Turning a failed cleanup into an escaping exception
+      // would convert a recoverable state into a launch that cannot report
+      // anything at all.
+      try {
+        await identityStore.erase();
+      } on Object {
+        // Deliberately swallowed, and the reason is above.
+      }
       return BootstrapBlocked(
-        reason: BootstrapBlockReason.storageUnavailable,
+        reason: commit.reason == CommitRefusal.storageBusy
+            ? BootstrapBlockReason.storageBusy
+            : BootstrapBlockReason.storageUnavailable,
         stoppedAt: BootstrapPhase.openingStorage,
         explanation: 'Stride could not save a new game.',
         detail: <String>[commit.reason.name],
       );
     }
 
+    // Step 6. Reload and validate before returning.
+    //
+    // A new game that was committed but does not read back is not ready. The
+    // repository verifies its own snapshot write, but that is a check of the
+    // bytes it just produced; this is the first read that goes through the
+    // whole load path — framing, envelope, lineage, salt, profile, content —
+    // which is the path every later launch will use.
+    final LoadOutcome verified;
+    try {
+      verified = await repository.load(
+        registry: registry,
+        treatAsRelease: treatAsRelease,
+        originSaltFingerprint: identity.saltFingerprint,
+      );
+    } on Object catch (e) {
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.newGameNotVerifiable,
+        stoppedAt: BootstrapPhase.validatingState,
+        explanation: 'Stride saved a new game but could not read it back.',
+        detail: <String>['$e'],
+      );
+    }
+
+    if (verified is! SaveLoaded || verified.saveId != identity.saveId) {
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.newGameNotVerifiable,
+        stoppedAt: BootstrapPhase.validatingState,
+        explanation: 'Stride saved a new game but could not read it back.',
+        detail: <String>[verified.runtimeType.toString()],
+      );
+    }
+
+    // Step 7. The state the player is handed is the state that is durable, not
+    // the one that was written — if those ever differ, the difference belongs
+    // on the player's side of the boundary rather than hidden behind it.
     return BootstrapNewGame(
-      engine: engine,
+      engine: GameEngine(registry: registry, state: verified.state),
       registry: registry,
       identity: identity,
     );
@@ -476,6 +612,11 @@ final class BootstrapCoordinator {
         BootstrapBlockReason.bothSlotsInvalid,
       LoadRefusal.lineageMismatch ||
       LoadRefusal.journalForked => BootstrapBlockReason.recoveryNotProvable,
+      // Available and in use, which is not the same as unavailable. Read as
+      // "no save" it would start a new game over a live one; read as
+      // `storageUnavailable` it would report a broken device that is fine.
+      LoadRefusal.storageBusy => BootstrapBlockReason.storageBusy,
+      LoadRefusal.resetIncomplete => BootstrapBlockReason.resetIncomplete,
     };
 
     return BootstrapBlocked(

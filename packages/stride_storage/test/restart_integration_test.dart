@@ -288,20 +288,131 @@ void main() {
       expect(finalLaunch.engine.state.signature, signature);
     });
 
-    test('the identity file survives and keeps its fingerprint', () async {
-      Session session = Session(root);
-      final ReconciliationIdentity identity = await seedIdentity(session);
-      await session.start(identity);
+    // This case used to assert the opposite: that a seeded identity survived
+    // startup and kept its salt. **The owner overruled its premise.**
+    //
+    // Identity reuse is gone. Provisioning is identity-first, and an identity
+    // sitting beside conclusively-absent save artifacts is an interrupted
+    // first-save *orphan*: it names a lineage no save was ever written under,
+    // and reusing it would let a later save be written under a lineage minted
+    // for a different one. The launch clears it and provisions a new lineage.
+    //
+    // Asserting the new rule rather than weakening the old one, because
+    // "does not throw" and "recovers correctly" are different properties and
+    // only the second is worth having.
+    test(
+      'an orphan identity is cleared and a new lineage provisioned',
+      () async {
+        Session session = Session(root);
+        final ReconciliationIdentity orphan = await seedIdentity(session);
 
-      session = Session(root);
-      final ReconciliationIdentity? reread = await session.identityStore.read();
+        // Nothing has been committed, so the save artifacts are conclusively
+        // absent and the seeded identity is by definition an orphan.
+        expect(session.layout.slotA.existsSync(), isFalse);
+        expect(session.layout.journal.existsSync(), isFalse);
 
-      expect(reread, identity);
+        final ReconciliationIdentity minted = ReconciliationIdentity(
+          saveId: 'restart-0002-reprovisioned',
+          saltFingerprint: OriginSaltPolicy.fingerprint(
+            Uint8List.fromList(List<int>.generate(16, (int i) => i * 11 + 5)),
+          ),
+        );
+        final BootstrapOutcome started = await session.coordinator.run(
+          loadContent: () async => productionSource,
+          mintIdentity: () => minted,
+        );
+        expect(
+          started,
+          isA<BootstrapNewGame>(),
+          reason: 'an orphan must not block startup; got $started',
+        );
+
+        // --- the restart, reading only what is on disk ------------------------
+        session = Session(root);
+        final ReconciliationIdentity? reread = await session.identityStore
+            .read();
+
+        expect(
+          reread?.saveId,
+          minted.saveId,
+          reason: 'the durable identity must be the reprovisioned lineage',
+        );
+        expect(
+          reread?.saveId,
+          isNot(orphan.saveId),
+          reason:
+              'the orphan lineage was reused. A save written under a lineage '
+              'minted for a different save is a lineage mismatch on every '
+              'subsequent load',
+        );
+        expect(
+          reread?.saltFingerprint,
+          isNot(orphan.saltFingerprint),
+          reason: 'a reprovisioned lineage carries its own salt fingerprint',
+        );
+
+        // And the record is READABLE. The coordinator writes through the
+        // core-facing port, which has only a fingerprint to write — so this is
+        // the salt-less shape, and `readRecord` names it instead of reporting a
+        // record this package writes on purpose as a corrupt one.
+        final IdentityRecord record = await session.identityStore.readRecord();
+        expect(
+          record,
+          isA<IdentityWithoutSalt>(),
+          reason:
+              'BootstrapCoordinator writes ReconciliationIdentityStore.write, '
+              'which has no salt to write',
+        );
+        expect((record as IdentityWithoutSalt).saveId, minted.saveId);
+        expect(record.saltFingerprint, minted.saltFingerprint);
+
+        // The app never reaches this shape -- IdentityVault writes the full
+        // record -- so `readStored` still fails closed on it rather than
+        // guessing. It must fail *legibly*, naming the shape, and it must never
+        // answer "absent": that would present a live lineage as a new
+        // installation.
+        await expectLater(
+          session.identityStore.readStored(),
+          throwsA(
+            isA<StorageException>().having(
+              (StorageException e) => '${e.cause}',
+              'cause',
+              allOf(contains('no salt'), contains('readRecord')),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('a full record round-trips through a restart with its salt', () async {
+      final Session session = Session(root);
+      await seedIdentity(session);
+
+      // No startup: this is the vault's shape, written by writeStored, and it
+      // must survive being read by a completely fresh set of objects.
+      final IdentityRecord record = await Session(
+        root,
+      ).identityStore.readRecord();
+      expect(record, isA<IdentityWithSalt>());
       expect(
-        (await session.identityStore.readStored())!.salt.length,
+        (record as IdentityWithSalt).identity.salt.length,
         16,
         reason: 'the salt itself must survive; a fingerprint cannot rebuild it',
       );
+      expect((await Session(root).identityStore.readStored())!.salt.length, 16);
+      expect(
+        await Session(root).identityStore.readRecord(),
+        isA<IdentityWithSalt>(),
+      );
+    });
+
+    test('an absent identity file is absent, not damaged', () async {
+      expect(
+        await Session(root).identityStore.readRecord(),
+        isA<IdentityAbsent>(),
+      );
+      expect(await Session(root).identityStore.readStored(), isNull);
+      expect(await Session(root).identityStore.read(), isNull);
     });
   });
 

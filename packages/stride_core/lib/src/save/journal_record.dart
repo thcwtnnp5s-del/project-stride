@@ -83,6 +83,58 @@ Uint8List encodeJournalLine(JournalRecord record) {
   ]);
 }
 
+/// The durable "a full reset has begun" intent.
+///
+/// It lives in the journal rather than in a file of its own, because the
+/// journal is the last artifact a reset removes and its erase is therefore the
+/// single act that clears the intent. A separate marker file would need its own
+/// port method, its own delete, and its own ordering argument — and a marker
+/// that outlived the thing it marks is worse than no marker at all.
+///
+/// It deliberately does **not** parse as a [JournalRecord]: it carries no
+/// `saveId`, no transaction, and no events, so no replay path can mistake it
+/// for history. Every reader that must notice it calls [isResetMarkerLine]
+/// explicitly, and the readers that must not are unaffected — [decodeJournalLine]
+/// simply rejects it.
+Uint8List encodeResetMarkerLine() {
+  final List<int> json = utf8.encode(
+    canonicalJson(<String, Object?>{
+      'f': SaveFormatVersion.current,
+      'reset': 1,
+    }),
+  );
+  return Uint8List.fromList(<int>[
+    ...utf8.encode('${crc32cHex(json)} '),
+    ...json,
+    0x0A,
+  ]);
+}
+
+/// True when [line] is an intact reset intent.
+///
+/// Integrity-checked, so a corrupt line that happens to contain the word cannot
+/// wedge a directory into permanent refusal.
+bool isResetMarkerLine(Uint8List line) {
+  List<int> body = line;
+  if (body.isNotEmpty && body.last == 0x0A) {
+    body = body.sublist(0, body.length - 1);
+  }
+  final int space = body.indexOf(0x20);
+  if (space != 8) return false;
+
+  final String digest;
+  final Object? decoded;
+  try {
+    digest = utf8.decode(body.sublist(0, space));
+    final List<int> json = body.sublist(space + 1);
+    if (crc32cHex(json) != digest) return false;
+    decoded = jsonDecode(utf8.decode(json));
+  } on FormatException {
+    return false;
+  }
+  return decoded is Map<String, Object?> && decoded['reset'] == 1;
+}
+
 /// Parses one line. Never throws for a corrupt line.
 JournalLineResult decodeJournalLine(Uint8List line) {
   // A line without its terminator is a torn tail. The caller decides whether

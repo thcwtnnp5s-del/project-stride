@@ -4,7 +4,7 @@ import Foundation
 /// file `StorageLayout` declares.
 ///
 /// ===========================================================================
-/// Why this runs on every launch, not once
+/// Why this runs on every launch AND after every write
 /// ===========================================================================
 ///
 /// The exclusion is a resource value on the *filesystem node*, not a property
@@ -19,6 +19,25 @@ import Foundation
 /// nobody deleted a directory, and would then be silently wrong forever, with
 /// nothing anywhere reporting it. So this is idempotent, cheap, and runs at
 /// every startup.
+///
+/// **A launch sweep alone is still not enough**, and this is the part F-06
+/// originally got wrong. Apple documents resource values as living on the node,
+/// and the ordinary file operations a save system performs replace the node
+/// underneath a stable path:
+///
+///   * `FileLedgerJournal.replaceLines` writes a sidecar and renames it over
+///     the journal. After a compaction the journal path names the *sidecar's*
+///     node, which was never excluded.
+///   * `Data.write(options: .atomic)` and `FileManager.replaceItemAt` do the
+///     same thing by construction.
+///   * Any file created after the sweep — a snapshot slot on the first commit,
+///     the transaction lock, the sidecar during a compaction — is born without
+///     the attribute.
+///
+/// `testTheAttributeIsLostWhenTheNodeIsReplaced` demonstrates each of those on
+/// a real APFS volume in the simulator. So `apply(paths:)` exists as the cheap
+/// per-write call, and `BACKUP_EXCLUSION_CONTRACT.md` names the exact call
+/// sites that must use it.
 ///
 /// Excluding the *directory* is not sufficient on its own either. The attribute
 /// is not documented as inherited by files created inside an excluded
@@ -59,12 +78,24 @@ enum BackupExclusion {
   /// leaves the attribute unset is the failure this exists to catch, and it is
   /// invisible from the setter's return.
   static func apply(directoryPath: String, filePaths: [String]) -> Report {
-    var report = Report()
-
     // The directory first. If it does not exist, every file under it is
     // missing too, and reporting five separate missings for one cause reads as
     // five problems.
-    for path in [directoryPath] + filePaths {
+    apply(paths: [directoryPath] + filePaths)
+  }
+
+  /// The same work over a bare list, with no directory and no launch-sweep
+  /// framing.
+  ///
+  /// This is the per-write entry point. It is deliberately the *same* code as
+  /// the launch sweep rather than a second, cheaper implementation: a
+  /// re-application that skipped the read-back "because it is on the hot path"
+  /// would report success for exactly the case — a node replaced underneath a
+  /// stable path — that it exists to catch.
+  static func apply(paths: [String]) -> Report {
+    var report = Report()
+
+    for path in paths {
       switch exclude(path: path) {
       case .excluded:
         report.excluded.append(path)

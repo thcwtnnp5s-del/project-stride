@@ -35,7 +35,8 @@ final class FakeSecureIdentityStore implements SecureIdentityStore {
   bool readIsUnavailable = false;
   bool createFails = false;
 
-  /// `read`, `create`, `delete`, `applyBackupExclusions`, `readDiagnostics`.
+  /// `read`, `create`, `delete`, `applyBackupExclusions`,
+  /// `reapplyBackupExclusions`, `readDiagnostics`.
   final List<String> calls = <String>[];
 
   /// Every identity handed to [create], including ones that were refused.
@@ -54,6 +55,18 @@ final class FakeSecureIdentityStore implements SecureIdentityStore {
   /// first. A test asserts against `StorageLayout.allFiles` so a sixth file
   /// added later is caught the day it is added.
   final List<String> lastExclusionPaths = <String>[];
+
+  /// Every [reapplyBackupExclusions] call, in order, one entry per call.
+  ///
+  /// A list of lists rather than a flattened set, because the assertion that
+  /// matters is *per operation*: "the journal was re-excluded after the
+  /// compaction that renamed a new node over it" is a different claim from
+  /// "the journal appears somewhere in the paths we have ever re-excluded".
+  final List<List<String>> reapplications = <List<String>>[];
+
+  /// What [reapplyBackupExclusions] will report. Defaults to reporting every
+  /// path excluded.
+  BackupExclusionReport? plannedReapplicationReport;
 
   SecureIdentity? get stored => _stored;
 
@@ -101,6 +114,20 @@ final class FakeSecureIdentityStore implements SecureIdentityStore {
       ..add(directoryPath)
       ..addAll(filePaths);
     return plannedExclusionReport;
+  }
+
+  @override
+  Future<BackupExclusionReport> reapplyBackupExclusions(
+    List<String> paths,
+  ) async {
+    calls.add('reapplyBackupExclusions');
+    reapplications.add(List<String>.of(paths));
+    return plannedReapplicationReport ??
+        BackupExclusionReport(
+          excluded: List<String>.of(paths),
+          missing: const <String>[],
+          failed: const <String>[],
+        );
   }
 
   @override

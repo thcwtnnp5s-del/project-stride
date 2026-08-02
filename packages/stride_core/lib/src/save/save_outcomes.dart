@@ -55,6 +55,9 @@ enum SaveDiagnosis {
   snapshotOlderThanJournal,
   interruptedCompaction,
 
+  /// A durable reset intent was found, so a reset began and did not finish.
+  resetIncomplete,
+
   /// A slice carried an origin that is not a valid pseudonymous key.
   ///
   /// Distinct from generic malformed encoding because the cause and the fix
@@ -115,6 +118,26 @@ enum LoadRefusal {
   /// The origin pseudonymization key changed, so every persisted origin would
   /// be re-keyed and every device would look new.
   originKeyReset,
+
+  /// Another process held the transaction lock past the timeout.
+  ///
+  /// **Nothing was read and nothing was written, and this is emphatically not
+  /// "no save exists".** A busy save is an ordinary condition — a background
+  /// step sync holding the lock while the app resumes — and the one reading of
+  /// it that must never be possible is the one that starts a new game. It has a
+  /// name here for that reason: an untyped throw at this point reaches the
+  /// caller as "the save files could not be read", which is a different claim
+  /// about a different device.
+  storageBusy,
+
+  /// A full reset was interrupted partway through.
+  ///
+  /// The reset intent is recorded durably *before* the first artifact is
+  /// deleted, so a half-erased directory is always distinguishable from a
+  /// clean one. Without it, an erase that died between the journal delete and
+  /// the identity delete would present on the next launch as
+  /// [NoSaveFound] over a directory the player had not finished resetting.
+  resetIncomplete,
 }
 
 /// A repair recovery performed, or a condition it noticed.
@@ -257,6 +280,13 @@ enum CommitRefusal {
   /// the journal.
   storageBusy,
 
+  /// A full reset is recorded as begun and has not completed.
+  ///
+  /// Committing onto a half-erased directory would write a new lineage over
+  /// artifacts a reset is still entitled to remove, and would make the reset
+  /// unresumable. The caller must finish or re-run the reset first.
+  resetInProgress,
+
   // storageFull and writerBusy were declared here and never produced.
   //
   // A full disk arrives as an opaque exception the core cannot classify, so it
@@ -296,4 +326,63 @@ enum CompactionRefusal {
 
   /// Nothing to remove.
   nothingBelowFloor,
+
+  /// Another writer held the transaction lock past the timeout.
+  ///
+  /// Compaction is journal hygiene and is always safe to skip; it runs again
+  /// after the next commit. It is typed rather than thrown for the same reason
+  /// the others are — a caller that must catch an exception to learn "not
+  /// now" eventually catches one that meant something else.
+  storageBusy,
+}
+
+/// The result of a full reset.
+///
+/// Erase is the one operation that destroys rather than refuses, so it gets its
+/// own sealed result: a caller must be made to distinguish "everything is gone"
+/// from "some of it is gone and here is the step that stopped".
+@immutable
+sealed class EraseOutcome {
+  const EraseOutcome();
+}
+
+/// Every artifact this operation is responsible for is gone, and its absence
+/// was read back rather than assumed.
+final class EraseComplete extends EraseOutcome {
+  const EraseComplete();
+}
+
+/// The reset did not finish.
+///
+/// [reason] names the step that stopped. The reset intent stays recorded, so
+/// the next launch refuses with [LoadRefusal.resetIncomplete] rather than
+/// presenting a half-erased directory as a new installation, and re-running the
+/// reset resumes it.
+final class EraseRefused extends EraseOutcome {
+  const EraseRefused({required this.reason, required this.detail});
+
+  final EraseRefusal reason;
+  final String detail;
+}
+
+/// Which step of the reset could not complete.
+enum EraseRefusal {
+  /// Another process held the transaction lock past the timeout. **Nothing was
+  /// deleted, and no reset intent was recorded** — the lock is taken before
+  /// anything is written.
+  storageBusy,
+
+  /// A snapshot slot could not be deleted, or was still readable afterwards.
+  snapshotEraseFailed,
+
+  /// The journal could not be emptied, or the reset intent could not be
+  /// recorded in the first place.
+  journalEraseFailed,
+
+  /// Save and journal are gone and the identity is not.
+  ///
+  /// The one ordering that is safe: an identity outliving its save is a
+  /// recoverable orphan the next launch clears, whereas a save outliving its
+  /// identity can never be opened again.
+  identityEraseFailed,
 }

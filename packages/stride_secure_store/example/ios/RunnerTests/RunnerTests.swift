@@ -18,6 +18,12 @@ import XCTest
 ///
 ///   * key creation and read-back, including the salt byte for byte
 ///   * that a second create does not overwrite the first
+///   * that a create over an item whose read just *failed* does not overwrite
+///     it either, byte for byte and attribute for attribute
+///   * that a present-but-unreadable item reads as `unavailable`, never
+///     `absent`
+///   * that no operation here can bring an item into existence, and that none
+///     of them produces a synchronizable one
 ///   * that the item persists past the object that wrote it
 ///   * that `kSecAttrAccessible` is exactly
 ///     `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
@@ -25,6 +31,9 @@ import XCTest
 ///     paths named the way `StorageLayout` names them
 ///   * that the exclusion is re-applied after the directory is deleted and
 ///     recreated, which is the case a one-shot implementation gets wrong
+///   * **that an atomic write, a rename over the top, and `replaceItemAt` each
+///     destroy the exclusion**, which is why a launch-only application is not
+///     enough and `BACKUP_EXCLUSION_CONTRACT.md` exists
 ///
 /// ===========================================================================
 /// What these CANNOT prove — read this before quoting the suite as evidence
@@ -207,6 +216,162 @@ final class SecureStoreTests: XCTestCase {
     XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
   }
 
+  // MARK: - 3b. Nothing but a create may write, and nothing recreates
+
+  /// Adds an item directly, bypassing the store, so a test can set up states
+  /// the store's own API cannot produce.
+  @discardableResult
+  private func addRaw(
+    data: Data,
+    synchronizable: Bool = false,
+    accessible: CFString = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+  ) -> OSStatus {
+    let attributes: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: KeychainIdentityStore.service,
+      kSecAttrAccount as String: KeychainIdentityStore.account,
+      kSecAttrSynchronizable as String: synchronizable,
+      kSecAttrAccessible as String: accessible,
+      kSecValueData as String: data,
+    ]
+    return SecItemAdd(attributes as CFDictionary, nil)
+  }
+
+  /// The raw bytes currently stored, bypassing `decode`.
+  private func rawStoredData() -> Data? {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: KeychainIdentityStore.service,
+      kSecAttrAccount as String: KeychainIdentityStore.account,
+      kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+      kSecReturnData as String: true,
+      kSecMatchLimit as String: kSecMatchLimitOne,
+    ]
+    var item: CFTypeRef?
+    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else {
+      return nil
+    }
+    return item as? Data
+  }
+
+  func testAPresentButUnreadableItemIsUnavailableNotAbsent() {
+    // The status a real device produces for this case is
+    // errSecInteractionNotAllowed, and a simulator is never locked, so that
+    // exact trigger is unreachable here. This exercises the same branch through
+    // the one non-success path that IS reachable: an item that is present and
+    // does not decode.
+    //
+    // The rule under test is the general one — everything that is not
+    // errSecItemNotFound is `unavailable` — and getting it wrong for a corrupt
+    // record is the same defect as getting it wrong for a locked device: the
+    // bootstrap is told a phone with a live save is a new installation.
+    XCTAssertEqual(addRaw(data: Data([0xDE, 0xAD, 0xBE, 0xEF])), errSecSuccess)
+
+    switch store.read() {
+    case .unavailable(let status):
+      XCTAssertEqual(status, errSecDecode)
+    case .absent:
+      XCTFail(
+        """
+        A present-but-unreadable item reported as .absent is how the bootstrap \
+        comes to mint a second identity beside a save it can no longer \
+        interpret. Absence must be reachable only from errSecItemNotFound.
+        """)
+    case .found:
+      XCTFail("garbage must not decode to a record")
+    }
+  }
+
+  func testACreateAfterAFailedReadDoesNotClobberTheStoredItem() {
+    // The ruling's fifth item, executed rather than argued. Set up the exact
+    // situation the rule names: an item is present, a read of it fails, and a
+    // caller then tries to create a replacement.
+    let existing = Data([0xDE, 0xAD, 0xBE, 0xEF])
+    XCTAssertEqual(addRaw(data: existing), errSecSuccess)
+
+    guard case .unavailable = store.read() else {
+      return XCTFail("precondition: the read must fail")
+    }
+
+    let outcome = store.create(record("replacement"))
+
+    XCTAssertEqual(
+      outcome, .alreadyExists,
+      "SecItemAdd must refuse, because there is no update path to fall back on")
+    XCTAssertEqual(
+      rawStoredData(), existing,
+      """
+      The stored bytes must be byte-for-byte what they were. An unreadable \
+      record may still be the live identity — this is what a partially failed \
+      write or a future format looks like — and replacing it orphans the save \
+      whose origin keys it produced.
+      """)
+  }
+
+  func testAFailedReadFollowedByCreateLeavesTheAccessibilityAlone() {
+    // A create that was refused must not have edited the item's attributes
+    // either. `SecItemAdd` returning errSecDuplicateItem is documented as
+    // making no change; this pins it, because a variant that relaxed
+    // accessibility on the existing item would be invisible everywhere else.
+    XCTAssertEqual(
+      addRaw(data: Data([0x01]), accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly),
+      errSecSuccess)
+
+    _ = store.create(record())
+
+    XCTAssertEqual(
+      store.storedAccessibility(),
+      kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String,
+      "a refused create must change nothing at all, attributes included")
+  }
+
+  func testReadingAnEmptyStoreCreatesNothing() {
+    // Every query in this file must be incapable of creating an item. A
+    // `SecItemCopyMatching` cannot, but a future edit that reached for
+    // `SecItemAdd`-on-miss inside a read would be exactly the "write after a
+    // failed read" the design forbids, and would look reasonable in review.
+    _ = store.read()
+    _ = store.storedAccessibility()
+    _ = store.read()
+
+    XCTAssertNil(rawStoredData(), "no read may bring an item into existence")
+  }
+
+  func testNoOperationEverProducesASynchronizableItem() {
+    // Checked after every operation rather than only after a create. iCloud
+    // Keychain sync is a second transport to another device and would defeat
+    // the control exactly as a backup does.
+    XCTAssertEqual(store.create(record()), .created)
+    _ = store.read()
+    _ = store.storedAccessibility()
+    _ = store.create(record("second"))
+
+    var query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: KeychainIdentityStore.service,
+      kSecAttrAccount as String: KeychainIdentityStore.account,
+      kSecAttrSynchronizable as String: true,
+      kSecReturnData as String: true,
+    ]
+    var item: CFTypeRef?
+    XCTAssertEqual(
+      SecItemCopyMatching(query as CFDictionary, &item), errSecItemNotFound,
+      "no synchronizable copy of the identity may exist after any operation")
+
+    query[kSecAttrSynchronizable as String] = false
+    XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
+  }
+
+  func testDeleteSweepsUpAStraySynchronizableItem() {
+    // The one place the base query is deliberately widened. An older build, or
+    // a bug, could have left a synchronizable item behind; a reset that left it
+    // in place would let it reappear afterwards as a second identity.
+    XCTAssertEqual(addRaw(data: Data([0x01]), synchronizable: true), errSecSuccess)
+
+    XCTAssertTrue(store.delete())
+    XCTAssertNil(rawStoredData())
+  }
+
   // MARK: - 4. Encoding
 
   func testTheRecordRoundTripsThroughItsEncoding() {
@@ -344,6 +509,168 @@ final class BackupExclusionTests: XCTestCase {
     XCTAssertEqual(second.excluded.count, 2)
   }
 
+  // MARK: - 2b. The case a launch-only implementation gets wrong
+  //
+  // Apple documents NSURLIsExcludedFromBackupKey as a resource value on the
+  // filesystem node. These tests demonstrate the consequence on a real APFS
+  // volume: the ordinary file operations a save system performs leave the path
+  // naming a different node, and the new node was never excluded.
+  //
+  // This is the evidence for BACKUP_EXCLUSION_CONTRACT.md. Without the
+  // per-write re-application, every one of these leaves a file that would
+  // travel in a restore, with nothing anywhere reporting it.
+
+  func testAnAtomicWriteDropsTheExclusion() {
+    let path = create(["save_slot_a"])[0]
+    _ = BackupExclusion.apply(paths: [path])
+    XCTAssertTrue(isExcluded(path))
+
+    // `.atomic` writes a temporary file and renames it over the destination.
+    // The destination path now names the temporary file's node.
+    try? Data([0x02]).write(to: URL(fileURLWithPath: path), options: .atomic)
+
+    XCTAssertFalse(
+      isExcluded(path),
+      "an atomic write replaces the node, and the exclusion goes with it")
+
+    XCTAssertTrue(BackupExclusion.apply(paths: [path]).failed.isEmpty)
+    XCTAssertTrue(isExcluded(path))
+  }
+
+  func testARenameOverTheTopDropsTheExclusion() {
+    // This is `FileLedgerJournal.replaceLines`, exactly: write the sidecar,
+    // then rename it over the journal. Dart's `File.rename` is rename(2), which
+    // replaces the directory entry.
+    let journal = root.appendingPathComponent("ledger_journal")
+    let sidecar = root.appendingPathComponent("ledger_journal.compacting")
+
+    FileManager.default.createFile(atPath: journal.path, contents: Data([0x01]))
+    _ = BackupExclusion.apply(paths: [journal.path])
+    XCTAssertTrue(isExcluded(journal.path))
+
+    // The sidecar is fresh. The launch sweep reported it `missing`, because it
+    // did not exist then — which is healthy, and is also why it carries no
+    // attribute now.
+    FileManager.default.createFile(atPath: sidecar.path, contents: Data([0x02]))
+    XCTAssertEqual(rename(sidecar.path, journal.path), 0)
+
+    XCTAssertFalse(
+      isExcluded(journal.path),
+      """
+      After a journal compaction the journal path names the sidecar's node. \
+      A launch-only application of the exclusion is therefore correct until \
+      the first compaction and silently wrong after it — the ledger would \
+      travel in a restore and replay against a health source the original \
+      device already consumed from.
+      """)
+
+    XCTAssertTrue(BackupExclusion.apply(paths: [journal.path]).failed.isEmpty)
+    XCTAssertTrue(isExcluded(journal.path))
+  }
+
+  func testReplaceItemAtDropsTheExclusion() {
+    let target = root.appendingPathComponent("save_slot_a")
+    let replacement = root.appendingPathComponent("save_slot_a.new")
+    FileManager.default.createFile(atPath: target.path, contents: Data([0x01]))
+    FileManager.default.createFile(atPath: replacement.path, contents: Data([0x02]))
+    _ = BackupExclusion.apply(paths: [target.path])
+    XCTAssertTrue(isExcluded(target.path))
+
+    _ = try? FileManager.default.replaceItemAt(target, withItemAt: replacement)
+
+    XCTAssertFalse(isExcluded(target.path))
+    XCTAssertTrue(BackupExclusion.apply(paths: [target.path]).failed.isEmpty)
+    XCTAssertTrue(isExcluded(target.path))
+  }
+
+  func testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied() {
+    // Every file in the layout is created at some point after launch: the
+    // snapshot slots on the first commit, the transaction lock on the first
+    // transaction, the sidecar during a compaction. The launch sweep reports
+    // each of them `missing`, correctly, and covers none of them.
+    let report = BackupExclusion.apply(
+      directoryPath: root.path,
+      filePaths: [root.appendingPathComponent("save_slot_a").path])
+    XCTAssertEqual(report.missing.count, 1)
+
+    let path = create(["save_slot_a"])[0]
+    XCTAssertFalse(isExcluded(path), "a file born after the sweep carries nothing")
+
+    XCTAssertTrue(BackupExclusion.apply(paths: [path]).failed.isEmpty)
+    XCTAssertTrue(isExcluded(path))
+  }
+
+  func testTruncatingInPlaceKeepsTheExclusion() {
+    // The counter-case, so the contract is precise rather than superstitious.
+    // `writeVerified` opens FileMode.write, which truncates the existing inode
+    // instead of replacing it, so the attribute survives. Re-applying is still
+    // required after it — the file may not have existed beforehand — but this
+    // pins which operations do and do not destroy the attribute, so the
+    // contract is not defended by folklore.
+    let path = create(["save_slot_a"])[0]
+    _ = BackupExclusion.apply(paths: [path])
+
+    // The pre-13.4 spellings deliberately: this package deploys to iOS 13.0,
+    // and the throwing `truncate(atOffset:)`/`write(contentsOf:)` pair is
+    // 13.4+.
+    let handle = FileHandle(forWritingAtPath: path)
+    handle?.truncateFile(atOffset: 0)
+    handle?.write(Data([0x09, 0x09]))
+    handle?.closeFile()
+
+    XCTAssertTrue(
+      isExcluded(path),
+      "an in-place truncate keeps the inode, so it keeps the resource value")
+  }
+
+  // MARK: - 2c. The per-write entry point
+
+  func testApplyPathsCoversExactlyTheListItWasGiven() {
+    let paths = create(["save_slot_a", "save_slot_b"])
+
+    let report = BackupExclusion.apply(paths: [paths[0]])
+
+    XCTAssertEqual(report.excluded, [paths[0]])
+    XCTAssertTrue(isExcluded(paths[0]))
+    // No directory, and nothing else swept in. The per-write call is on the
+    // commit path and must stay proportional to the operation.
+    XCTAssertFalse(isExcluded(paths[1]))
+    XCTAssertFalse(isExcluded(root.path))
+  }
+
+  func testApplyPathsReportsAMissingPathRatherThanFailing() {
+    let report = BackupExclusion.apply(
+      paths: [root.appendingPathComponent("never_written").path])
+
+    XCTAssertEqual(report.missing.count, 1)
+    XCTAssertTrue(
+      report.failed.isEmpty,
+      "a write that was rolled back leaves a path with no file, and that is not "
+        + "a fault the commit path should shout about")
+  }
+
+  func testApplyPathsIsIdempotent() {
+    let paths = create(["save_slot_a"])
+
+    _ = BackupExclusion.apply(paths: paths)
+    let second = BackupExclusion.apply(paths: paths)
+
+    XCTAssertTrue(second.failed.isEmpty)
+    XCTAssertEqual(second.excluded, paths)
+  }
+
+  func testTheLaunchSweepAndThePerWriteCallAreTheSameCode() {
+    // `apply(directoryPath:filePaths:)` delegates to `apply(paths:)`. Asserted
+    // because the tempting optimisation is a second, cheaper implementation for
+    // the hot path that skips the read-back — which would report success for
+    // precisely the replaced-node case it exists to catch.
+    let paths = create(["save_slot_a"])
+
+    let sweep = BackupExclusion.apply(directoryPath: root.path, filePaths: paths)
+
+    XCTAssertEqual(sweep.excluded, [root.path] + paths)
+  }
+
   // MARK: - 3. Inspection
 
   func testInspectSeparatesExcludedFromNotExcluded() {
@@ -439,5 +766,47 @@ final class SecureStoreAdapterTests: XCTestCase {
     // Collapsing three into two is the regression that matters, and a removed
     // case is not a compile error the way an added one is.
     XCTAssertEqual(PlatformSecureReadStatus.allCases.count, 3)
+  }
+
+  func testFailedCreateIsNotReportedAsSuccess() {
+    let adapter = SecureStoreAdapter(
+      backend: FakeBackend(writeOutcome: .failed(-25300)))
+
+    var captured: PlatformSecureWriteStatus?
+    adapter.createIdentity(
+      record: PlatformIdentityRecord(
+        saveId: "a", salt: FlutterStandardTypedData(bytes: Data([0x01])))
+    ) { captured = try? $0.get() }
+
+    XCTAssertEqual(captured, .failed)
+  }
+
+  func testReapplyBackupExclusionsIsCarriedThroughTheBoundary() throws {
+    // The per-write call, over a real file, through the Pigeon-facing adapter.
+    // The mapping is the part that could silently lose the `failed` list, which
+    // is the only entry in the report that means a file would travel.
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("reapply_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(
+      at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let present = directory.appendingPathComponent("save_slot_a")
+    FileManager.default.createFile(atPath: present.path, contents: Data([0x01]))
+    let absent = directory.appendingPathComponent("ledger_journal.compacting")
+
+    var report: PlatformBackupExclusionReport?
+    SecureStoreAdapter(backend: FakeBackend())
+      .reapplyBackupExclusions(paths: [present.path, absent.path]) {
+        report = try? $0.get()
+      }
+
+    XCTAssertEqual(report?.excluded, [present.path])
+    XCTAssertEqual(report?.missing, [absent.path])
+    XCTAssertEqual(report?.failed, [])
+
+    let values = try URL(fileURLWithPath: present.path)
+      .resourceValues(forKeys: [.isExcludedFromBackupKey])
+    XCTAssertEqual(values.isExcludedFromBackup, true)
   }
 }

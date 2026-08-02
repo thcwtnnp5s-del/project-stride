@@ -130,13 +130,21 @@ final class SaveRepository {
   /// -- a background worker -- from interleaving with this one. Neither
   /// substitutes for the other.
   ///
-  /// [onBusy] supplies the typed result when the lock cannot be taken. A
-  /// caller that has no meaningful busy value passes null and gets a throw,
-  /// which is correct for a read: a load that cannot start has nothing safe
-  /// to return.
+  /// [onBusy] supplies the typed result when the lock cannot be taken, and is
+  /// **required**.
+  ///
+  /// It used to be optional, with a `StateError` for callers that passed
+  /// nothing — on the reasoning that "a load that cannot start has nothing safe
+  /// to return". That reasoning was wrong twice over. A load that cannot start
+  /// has something very safe and very specific to return, namely "the save is
+  /// in use"; and the throw reached the bootstrap as `storageUnavailable`,
+  /// which says the storage could not be opened when in fact it was open and
+  /// busy. Contention is the most ordinary condition in this protocol, and the
+  /// project's rule is that anticipated conditions are outcomes. There is now
+  /// no path that can decline to name one.
   Future<T> _serialized<T>(
     Future<T> Function() action, {
-    T Function()? onBusy,
+    required T Function() onBusy,
   }) {
     final Completer<T> result = Completer<T>();
     _writer = _writer.then((_) async {
@@ -149,11 +157,6 @@ final class SaveRepository {
       try {
         held = await _lock.acquire(lockTimeout);
         if (held == null) {
-          if (onBusy == null) {
-            throw StateError(
-              'the save is in use by another process; no safe result exists',
-            );
-          }
           // Nothing has been written at this point -- the lock is taken
           // before any read or write -- so a busy result is a clean refusal.
           value = onBusy();
@@ -210,8 +213,18 @@ final class SaveRepository {
     required ContentRegistry registry,
     bool treatAsRelease = false,
     String? originSaltFingerprint,
-  }) =>
-      _serialized(() => _load(registry, treatAsRelease, originSaltFingerprint));
+  }) => _serialized(
+    () => _load(registry, treatAsRelease, originSaltFingerprint),
+    onBusy: () => LoadRefused(
+      reason: LoadRefusal.storageBusy,
+      // Worded so it cannot be read as "there is no save". Nothing here is
+      // conditional on what is on the device, because nothing on the device was
+      // looked at.
+      explanation:
+          'Stride is already using this save somewhere else on this device. '
+          'Nothing has been changed or deleted; try again in a moment.',
+    ),
+  );
 
   Future<LoadOutcome> _load(
     ContentRegistry registry,
@@ -246,6 +259,25 @@ final class SaveRepository {
       repairs.add(SaveRepair(r.diagnosis!, detail: r.slot.fileName));
     }
     final List<Uint8List> lines = await _journal.readLines();
+
+    // Step 1. A reset that began and did not finish.
+    //
+    // Checked before the new-game decision below, and that order is the whole
+    // point of the marker. A reset removes the slots and then the journal; a
+    // death in between leaves a directory that is *indistinguishable by
+    // content* from a fresh install, and presenting it as one would hand the
+    // player a new character over a reset they may not have confirmed and would
+    // strand the identity delete that had not run yet.
+    if (lines.any(isResetMarkerLine)) {
+      repairs.add(const SaveRepair(SaveDiagnosis.resetIncomplete));
+      return LoadRefused(
+        reason: LoadRefusal.resetIncomplete,
+        explanation:
+            'A full reset of this save was started and did not finish. Run the '
+            'reset again to complete it.',
+        repairs: repairs,
+      );
+    }
 
     // Step 2. Nothing readable.
     if (verified.isEmpty) {
@@ -680,6 +712,19 @@ final class SaveRepository {
     for (int attempt = 0; attempt <= maxCommitRetries; attempt++) {
       final _DurableHead head = await _readHead();
 
+      if (head.resetPending) {
+        // A reset began and did not finish. Writing a lineage on top of it
+        // would leave artifacts the reset is still entitled to delete, and
+        // would make the reset unresumable — the marker would then sit in a
+        // journal that has live records after it.
+        return const CommitRefused(
+          reason: CommitRefusal.resetInProgress,
+          detail:
+              'a full reset is recorded as begun; nothing was written. Finish '
+              'or re-run the reset first',
+        );
+      }
+
       final bool matches =
           head.generation == expectation.expectedSnapshotGeneration &&
           head.lastAppliedTransaction ==
@@ -804,7 +849,11 @@ final class SaveRepository {
   /// permanent unbounded step history — the thing the retention ruling bounds,
   /// reintroduced through the back door. Compaction is a privacy control with
   /// a hard obligation.
-  Future<CompactionOutcome> compact() => _serialized(_compact);
+  Future<CompactionOutcome> compact() => _serialized(
+    _compact,
+    onBusy: () =>
+        const CompactionOutcome.skipped(CompactionRefusal.storageBusy),
+  );
 
   Future<CompactionOutcome> _compact() async {
     final List<_SlotReading> readings = <_SlotReading>[
@@ -848,13 +897,106 @@ final class SaveRepository {
     );
   }
 
-  /// Clears every artifact. Full reset only — **not** the health disconnect,
-  /// which keeps gameplay progress and is an ordinary commit.
-  Future<void> eraseAll() => _serialized(() async {
-    await _snapshots.erase(SnapshotSlot.a);
-    await _snapshots.erase(SnapshotSlot.b);
-    await _journal.erase();
-  });
+  /// Clears every save artifact, under an explicit reset protocol.
+  ///
+  /// Full reset only — **not** the health disconnect, which keeps gameplay
+  /// progress and is an ordinary commit. And never automatic recovery: no
+  /// path in this package calls it to repair a fault, which
+  /// `test/reset_protocol_test.dart` asserts against the source rather than
+  /// against a promise.
+  ///
+  /// ## The protocol, and what each step is protecting against
+  ///
+  /// 1. Take the transaction lock, held across the whole reset.
+  /// 2. Record the reset intent durably, **before deleting anything**.
+  /// 3. Delete both snapshot slots, and read them back to prove they are gone.
+  /// 4. Delete the journal — which removes the intent with it, atomically as
+  ///    far as any reader is concerned, because the intent lives *in* the
+  ///    journal.
+  /// 5. Read the journal back to prove it is empty.
+  ///
+  /// The intent is what makes step 3 survivable. Without it, a death between
+  /// the last slot delete and the journal delete leaves a directory whose
+  /// *contents* are identical to a fresh install, and the next launch is
+  /// entitled to conclude exactly that. With it, the next load refuses with
+  /// [LoadRefusal.resetIncomplete] and the reset can be re-run to completion.
+  ///
+  /// The identity is **not** deleted here. It is not this class's to delete —
+  /// it lives behind a different port — and the ordering matters: it goes last,
+  /// after these steps have succeeded, which `ResetCoordinator` sequences.
+  Future<EraseOutcome> eraseAll() => _serialized(
+    _eraseAll,
+    onBusy: () => const EraseRefused(
+      reason: EraseRefusal.storageBusy,
+      detail:
+          'another process holds the save; no reset intent was recorded and '
+          'nothing was deleted',
+    ),
+  );
+
+  Future<EraseOutcome> _eraseAll() async {
+    // Step 2. Intent first. An append that fails here has deleted nothing, so
+    // the refusal is clean and the directory is untouched.
+    try {
+      final List<Uint8List> existing = await _journal.readLines();
+      if (!existing.any(isResetMarkerLine)) {
+        await _journal.appendLine(encodeResetMarkerLine());
+      }
+    } on Object catch (e) {
+      return EraseRefused(
+        reason: EraseRefusal.journalEraseFailed,
+        detail:
+            'the reset intent could not be recorded, so nothing was '
+            'deleted: $e',
+      );
+    }
+
+    // Step 3. Slots, then proof.
+    try {
+      await _snapshots.erase(SnapshotSlot.a);
+      await _snapshots.erase(SnapshotSlot.b);
+    } on Object catch (e) {
+      return EraseRefused(
+        reason: EraseRefusal.snapshotEraseFailed,
+        detail: '$e',
+      );
+    }
+    for (final SnapshotSlot slot in SnapshotSlot.values) {
+      final Uint8List? still;
+      try {
+        still = await _snapshots.read(slot);
+      } on Object catch (e) {
+        return EraseRefused(
+          reason: EraseRefusal.snapshotEraseFailed,
+          detail: 'could not confirm ${slot.fileName} is gone: $e',
+        );
+      }
+      if (still != null) {
+        return EraseRefused(
+          reason: EraseRefusal.snapshotEraseFailed,
+          detail: '${slot.fileName} is still readable after being erased',
+        );
+      }
+    }
+
+    // Steps 4 and 5. The journal goes last, because it carries the intent.
+    try {
+      await _journal.erase();
+      if ((await _journal.readLines()).isNotEmpty) {
+        return const EraseRefused(
+          reason: EraseRefusal.journalEraseFailed,
+          detail: 'the journal is still readable after being erased',
+        );
+      }
+    } on Object catch (e) {
+      return EraseRefused(
+        reason: EraseRefusal.journalEraseFailed,
+        detail: '$e',
+      );
+    }
+
+    return const EraseComplete();
+  }
 
   // --- durable head -------------------------------------------------------
 
@@ -870,7 +1012,12 @@ final class SaveRepository {
         );
 
     int maxTx = 0;
+    bool resetPending = false;
     for (final Uint8List line in await _journal.readLines()) {
+      if (isResetMarkerLine(line)) {
+        resetPending = true;
+        continue;
+      }
       final JournalLineResult parsed = decodeJournalLine(line);
       if (parsed.ok && parsed.record!.transactionId > maxTx) {
         maxTx = parsed.record!.transactionId;
@@ -883,6 +1030,7 @@ final class SaveRepository {
         lastAppliedTransaction: 0,
         maxJournalTransaction: maxTx,
         staleSlot: SnapshotSlot.a,
+        resetPending: resetPending,
       );
     }
 
@@ -896,6 +1044,7 @@ final class SaveRepository {
       // Write to the slot that is not live. When only one verifies, the other
       // is by definition the safe target.
       staleSlot: verified.first.slot.other,
+      resetPending: resetPending,
     );
   }
 }
@@ -906,12 +1055,16 @@ final class _DurableHead {
     required this.lastAppliedTransaction,
     required this.maxJournalTransaction,
     required this.staleSlot,
+    required this.resetPending,
   });
 
   final int generation;
   final int lastAppliedTransaction;
   final int maxJournalTransaction;
   final SnapshotSlot staleSlot;
+
+  /// A durable reset intent is present, so a reset began and did not finish.
+  final bool resetPending;
 }
 
 final class _JournalScan {

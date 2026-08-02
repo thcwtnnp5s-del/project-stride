@@ -29,10 +29,21 @@ build/
 .flutter-plugins-dependencies
 *.iml
 
-# Package lockfiles: committed for the app, ignored for libraries, per Dart
-# convention. Keeping the app's lock makes CI reproducible.
+# Package lockfiles.
+#
+# The Dart convention is to ignore a library's lock. That convention is for
+# *published* libraries, whose consumers resolve their own versions. It does not
+# apply to `stride_health` and `stride_secure_store`, which are `publish_to:
+# 'none'` internal packages whose Pigeon output is **diff-checked in CI**.
+#
+# Codegen that is diff-checked has to be reproducible, and it is not
+# reproducible without a lock: `pigeon` is pinned exactly, but the formatter it
+# generates through is a floating transitive dependency. That is what actually
+# broke — every F-06 commit failed the `pigeon` job with "bindings are stale"
+# against an unchanged contract, because the runner resolved a different
+# `dart_style` than the machine that last generated them. Their locks are
+# therefore committed.
 packages/stride_core/pubspec.lock
-packages/stride_health/pubspec.lock
 
 # ---------------------------------------------------------------------------
 # Android

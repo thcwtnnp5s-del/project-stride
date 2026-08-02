@@ -32,18 +32,35 @@
 /// ===========================================================================
 ///
 /// **Keychain, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.** This is
-/// the control that restores the refusal. `ThisDeviceOnly` items are not in an
-/// encrypted backup and are not restored onto a different device, so a restored
+/// the control that restores the refusal. Apple **documents** that
+/// `ThisDeviceOnly` items are excluded from an encrypted backup and are not
+/// restored onto a different device; on that documented behaviour, a restored
 /// phone finds progress with no key — `originIdentityMissing`, and the game
 /// blocks with a recoverable message instead of double-granting in silence.
+///
+/// **That behaviour is verified by nothing in this repository, and cannot be.**
+/// There is no API to interrogate it. Demonstrating it needs two physical
+/// iPhones, an iCloud account, and a real backup and restore. The simulator
+/// tests prove the attribute is *set to the value asked for* — never that
+/// Apple's backup machinery then honours it. A green suite must not be quoted
+/// as evidence for this.
 ///
 /// **`NSURLIsExcludedFromBackupKey` on the directory and every declared file.**
 /// This is the control that stops the ledger travelling at all. It is the
 /// weaker of the two — a user can restore a device, and this is a request to
 /// Apple's backup machinery rather than a property of the data — which is why
-/// it is the second layer rather than the first. Re-applied on every launch,
-/// because the attribute lives on the filesystem node and a recreated
-/// directory silently loses it.
+/// it is the second layer rather than the first.
+///
+/// Applied here on every launch, and that is **not sufficient on its own**. The
+/// attribute belongs to the filesystem *node*, not the path, so it is lost
+/// whenever the path comes to name a different node: a recreated directory, an
+/// atomic write, a replace, or a rename. `FileLedgerJournal.replaceLines`
+/// renames a sidecar over the journal on every compaction, which means a
+/// launch-only sweep leaves the journal **losing** an exclusion it previously
+/// had. The launch sweep therefore covers only what exists at launch; the
+/// per-write hook wired in `runtime_bootstrap.dart` covers everything created
+/// or replaced afterwards. See
+/// `packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md`.
 ///
 /// ===========================================================================
 /// There is deliberately no file-to-Keychain migration on iOS
@@ -204,7 +221,7 @@ final class IdentityVault implements ReconciliationIdentityStore {
     this._fault, {
     required this.backupExclusion,
     required this.storageDescription,
-  }) : _wasPresentAtOpen = _resolved != null;
+  }) : _present = _resolved != null;
 
   final _Backend _backend;
   final Random _entropy;
@@ -221,7 +238,20 @@ final class IdentityVault implements ReconciliationIdentityStore {
   final String storageDescription;
 
   SecureIdentity? _resolved;
-  final bool _wasPresentAtOpen;
+
+  /// Whether a durable identity exists right now.
+  ///
+  /// Seeded from the read at [open] and cleared by [erase]. It used to be
+  /// `_wasPresentAtOpen` and final, which made [write] refuse forever once an
+  /// identity had ever been seen — correct while the coordinator only ever
+  /// reused an orphan, and wrong the moment it started replacing one. An
+  /// erase followed by a write is now the coordinator's reprovisioning path,
+  /// and a flag that could not observe the erase would have turned it into
+  /// `IdentityAlreadyExists` on a device where nothing exists.
+  ///
+  /// It is still add-only in the sense that matters: nothing overwrites a live
+  /// identity, because the erase has to succeed first.
+  bool _present;
 
   /// The read fault, held rather than thrown from [open].
   ///
@@ -250,7 +280,16 @@ final class IdentityVault implements ReconciliationIdentityStore {
 
     final _Backend backend = secure.isSupported
         ? _KeychainBackend(secure)
-        : _FileBackend(FileIdentityStore(layout));
+        : _FileBackend(
+            FileIdentityStore(
+              layout,
+              // Null here in practice: this backend is the non-iOS path, and
+              // the hook has no platform implementation off iOS. Wired anyway,
+              // so the symmetry holds and the next platform is not a special
+              // case.
+              reapplyExclusion: secure.backupExclusionHook(),
+            ),
+          );
 
     // Applied on every launch, to the directory *and* to every file the layout
     // declares — read out of `StorageLayout.allFiles` rather than from a list
@@ -344,7 +383,7 @@ final class IdentityVault implements ReconciliationIdentityStore {
   Future<ReconciliationIdentity?> read() async {
     final IdentityStoreUnavailable? fault = _fault;
     if (fault != null) throw fault;
-    return _wasPresentAtOpen ? _public(_resolved!) : null;
+    return _present ? _public(_resolved!) : null;
   }
 
   /// Persists the candidate.
@@ -370,19 +409,28 @@ final class IdentityVault implements ReconciliationIdentityStore {
         'the identity vault was asked to write an identity it did not mint',
       );
     }
-    if (_wasPresentAtOpen) {
-      // The coordinator does not do this, but the port allows it, and an
-      // adapter that silently replaced a live key on being asked would undo
-      // the entire control.
+    if (_present) {
+      // An adapter that silently replaced a live key on being asked would undo
+      // the entire control. Replacing one is possible, but only through
+      // [erase] — which is a separate, deliberate act rather than a side effect
+      // of a write.
       throw const IdentityAlreadyExists();
     }
     await _backend.create(candidate);
+    _present = true;
   }
 
-  /// Full reset only, from an explicit player action. Never from a failed read.
+  /// Removes the identity.
+  ///
+  /// Two callers, both deliberate: a full reset from an explicit player action,
+  /// and the coordinator clearing an **orphan** — an identity the load has
+  /// proven has no save and no journal beside it — before provisioning a new
+  /// lineage. Never from a failed read, which is why [mintCandidate] and
+  /// [write] both refuse outright when `_fault` is set.
   @override
   Future<void> erase() async {
     await _backend.erase();
     _resolved = null;
+    _present = false;
   }
 }

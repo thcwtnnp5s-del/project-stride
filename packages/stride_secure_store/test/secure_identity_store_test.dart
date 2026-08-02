@@ -10,6 +10,7 @@
 // covered by the simulator suite in example/ios/RunnerTests, and the backup
 // behaviour it is all for is not covered anywhere — see the report.
 
+import 'dart:io' show File;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show BinaryMessenger;
@@ -67,6 +68,20 @@ final class _FakeHostApi implements SecureStoreHostApi {
     );
   }
 
+  List<List<String>> reapplications = <List<String>>[];
+
+  @override
+  Future<PlatformBackupExclusionReport> reapplyBackupExclusions(
+    List<String> paths,
+  ) async {
+    reapplications.add(List<String>.of(paths));
+    return PlatformBackupExclusionReport(
+      excluded: paths,
+      missing: const <String>[],
+      failed: const <String>[],
+    );
+  }
+
   @override
   Future<PlatformSecureStoreDiagnostics> readDiagnostics(
     List<String> paths,
@@ -81,6 +96,23 @@ final class _FakeHostApi implements SecureStoreHostApi {
 // ignore: library_private_types_in_public_api
 KeychainIdentityStore storeOver(_FakeHostApi api) =>
     KeychainIdentityStore(api: api, supported: true);
+
+/// Reads a source file, relative to the package root.
+///
+/// Fails loudly when the file is not there. A source-scanning assertion that
+/// silently found nothing to scan would pass forever after a rename, which is
+/// the failure mode these particular tests exist to avoid.
+String _read(String relativePath) {
+  final File file = File(relativePath);
+  if (!file.existsSync()) {
+    fail(
+      '$relativePath does not exist relative to ${File('.').absolute.path}. '
+      'This assertion scans source, so a moved file must fail rather than '
+      'quietly stop checking anything.',
+    );
+  }
+  return file.readAsStringSync();
+}
 
 void main() {
   group('read outcomes', () {
@@ -167,19 +199,95 @@ void main() {
       expect(outcome, SecureWriteOutcome.alreadyExists);
     });
 
-    test('the port offers no way to replace an existing record', () {
-      // Enforcement by absence. The interface has create and delete; there is
-      // no update, so a caller whose read just failed cannot express an
-      // overwrite even if it wants to.
-      final List<String> surface = <String>[
-        'read',
-        'create',
-        'delete',
-        'applyBackupExclusions',
-        'readDiagnostics',
-      ];
-      expect(surface, isNot(contains('update')));
-      expect(surface, isNot(contains('write')));
+    test('the port declares no update or upsert method', () {
+      // This replaces a test that asserted a hand-written list of method names
+      // did not contain 'update'. That list was a literal in the test file: it
+      // would have stayed green through an `update` added to the interface on
+      // the very next line, which makes it a test that could only ever pass.
+      // A test that cannot fail is worse than no test, because it reads as
+      // coverage.
+      //
+      // This one reads the actual source. It fails if anyone adds the method.
+      final String source = _read('lib/src/secure_identity_store.dart');
+
+      // Method *declarations* on the port, not the word anywhere: the doc
+      // comments legitimately discuss updates and writes at length.
+      final Iterable<String> declarations = RegExp(
+        r'^\s*(?:Future<[^>]*>|void|bool)\s+([a-zA-Z_]\w*)\s*\(',
+        multiLine: true,
+      ).allMatches(source).map((RegExpMatch m) => m.group(1)!);
+
+      for (final String banned in <String>['update', 'upsert', 'replace']) {
+        expect(
+          declarations.where((String d) => d.toLowerCase().contains(banned)),
+          isEmpty,
+          reason:
+              'Enforcement by absence is the mechanism for "never overwrite an '
+              'existing key because a read failed". A caller that has just had '
+              'a read fail must not be able to express an overwrite. Adding a '
+              '$banned method removes that guarantee no matter what the '
+              'callers currently do.',
+        );
+      }
+      // `reapplyBackupExclusions` contains neither banned word; if a rename
+      // ever makes it collide, this pins that the exemption was deliberate.
+      expect(declarations, contains('create'));
+      expect(declarations, contains('delete'));
+    });
+
+    test('the Swift implementation calls SecItemAdd and never SecItemUpdate', () {
+      // Asserted here as well as in Scripts/check-backup-exclusions.sh, because
+      // this test runs on every platform in the fastest job, and the Swift is
+      // compiled only on the macOS job. A branch that added an update path
+      // should not need a Mac to be caught.
+      final String swift = _read(
+        'ios/stride_secure_store/Sources/stride_secure_store/'
+        'KeychainIdentityStore.swift',
+      );
+
+      expect(swift, contains('SecItemAdd'));
+      expect(
+        swift,
+        isNot(matches(RegExp(r'SecItemUpdate\s*\('))),
+        reason:
+            'An existing keychain item is either the live identity or evidence '
+            'of a crash between minting and the first commit. Replacing it '
+            'orphans the save it belongs to.',
+      );
+    });
+
+    test('every keychain query pins accessibility and synchronizable', () {
+      final String swift = _read(
+        'ios/stride_secure_store/Sources/stride_secure_store/'
+        'KeychainIdentityStore.swift',
+      );
+
+      // The only accessibility constant in the file must be the
+      // ThisDeviceOnly one. Any other is restored onto a second device, which
+      // re-opens the double-grant.
+      expect(
+        swift,
+        contains('kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly'),
+      );
+      expect(
+        swift,
+        isNot(
+          matches(
+            RegExp(
+              r'kSecAttrAccessible(WhenUnlocked|AfterFirstUnlock|Always)'
+              r'([^A-Za-z]|$)',
+            ),
+          ),
+        ),
+        reason: 'an accessibility class without ThisDeviceOnly travels',
+      );
+
+      // Synchronizable false on the shared base query, so no add and no
+      // recreating query can produce an iCloud-Keychain-syncing item. The
+      // delete path widens it to `Any` deliberately, to sweep up a stray
+      // synchronizable item from an older build.
+      expect(swift, contains('kSecAttrSynchronizable as String: false'));
+      expect(swift, contains('kSecAttrSynchronizableAny'));
     });
   });
 
@@ -287,6 +395,242 @@ void main() {
         ..readIsUnavailable = true;
 
       expect((await fake.read()).outcome, SecureReadOutcome.unavailable);
+    });
+  });
+
+  // ==========================================================================
+  // The fail-closed semantics, over the fake, so they are locked down by a
+  // test that runs on every platform.
+  //
+  // These assert the *outcome* each state produces, not the plumbing. The
+  // consumer is `IdentityVault`, which turns `unavailable` into
+  // `IdentityStoreUnavailable` and thus `BootstrapBlockReason
+  // .storageUnavailable`, and `absent` into null and thus a new game or
+  // `originIdentityMissing`. If these three ever collapse into two, that
+  // distinction disappears and a locked device looks like a fresh install.
+  // ==========================================================================
+  group('fail-closed outcome semantics', () {
+    test(
+      'an empty store is absent — a new installation, not a fault',
+      () async {
+        final FakeSecureIdentityStore fake = FakeSecureIdentityStore();
+
+        final SecureReadResult result = await fake.read();
+
+        expect(result.outcome, SecureReadOutcome.absent);
+        expect(result.identity, isNull);
+        // Absence is the only state that may lead to minting, and it must be
+        // reachable only from a store that answered.
+        expect(result.diagnostic, isNull);
+      },
+    );
+
+    test('a populated store is found and carries the salt', () async {
+      final SecureIdentity stored = SecureIdentity(
+        saveId: 'lineage-one',
+        salt: fakeSalt(3),
+      );
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore(
+        initial: stored,
+      );
+
+      final SecureReadResult result = await fake.read();
+
+      expect(result.outcome, SecureReadOutcome.found);
+      expect(result.identity, stored);
+      expect(result.identity!.salt, fakeSalt(3));
+    });
+
+    test('a store that cannot answer is unavailable, never absent', () async {
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore(
+        initial: SecureIdentity(saveId: 'lineage-one', salt: fakeSalt()),
+      )..readIsUnavailable = true;
+
+      final SecureReadResult result = await fake.read();
+
+      expect(result.outcome, SecureReadOutcome.unavailable);
+      expect(result.outcome, isNot(SecureReadOutcome.absent));
+      expect(result.identity, isNull);
+      // The record is still there. `unavailable` over a live identity is
+      // exactly the locked-device case, and the whole safety argument is that
+      // it does not read as "nothing here".
+      expect(fake.stored, isNotNull);
+    });
+
+    test('the three read outcomes are mutually exclusive', () {
+      // Named individually so a future case added without a mapping is a
+      // deliberate edit here rather than a silent fourth state.
+      expect(SecureReadOutcome.values, <SecureReadOutcome>[
+        SecureReadOutcome.found,
+        SecureReadOutcome.absent,
+        SecureReadOutcome.unavailable,
+      ]);
+    });
+
+    test('the first create is created', () async {
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore();
+
+      expect(
+        await fake.create(SecureIdentity(saveId: 'a', salt: fakeSalt())),
+        SecureWriteOutcome.created,
+      );
+      expect(fake.stored!.saveId, 'a');
+    });
+
+    test('a create over an existing record leaves it untouched', () async {
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore(
+        initial: SecureIdentity(saveId: 'live', salt: fakeSalt(1)),
+      );
+
+      expect(
+        await fake.create(SecureIdentity(saveId: 'usurper', salt: fakeSalt(2))),
+        SecureWriteOutcome.alreadyExists,
+      );
+
+      // Both fields. A create that reported alreadyExists and still replaced
+      // the salt would orphan the save just as thoroughly as one that replaced
+      // the id, and only asserting the id would miss it.
+      expect(fake.stored!.saveId, 'live');
+      expect(fake.stored!.salt, fakeSalt(1));
+    });
+
+    test('a refused create writes nothing', () async {
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore()
+        ..createFails = true;
+
+      expect(
+        await fake.create(SecureIdentity(saveId: 'a', salt: fakeSalt())),
+        SecureWriteOutcome.failed,
+      );
+      expect(
+        fake.stored,
+        isNull,
+        reason:
+            'a failed write that left a record behind would let the next '
+            'launch resume under an identity the caller was told it did not '
+            'have',
+      );
+    });
+
+    test('the three write outcomes are mutually exclusive', () {
+      expect(SecureWriteOutcome.values, <SecureWriteOutcome>[
+        SecureWriteOutcome.created,
+        SecureWriteOutcome.alreadyExists,
+        SecureWriteOutcome.failed,
+      ]);
+    });
+
+    test(
+      'an unavailable read does not prevent the port being asked to '
+      'create — the refusal is the caller\'s, and it is tested there',
+      () async {
+        // Stated so the boundary is unambiguous. This port has no memory and no
+        // ordering: it cannot refuse a create because a previous read failed,
+        // and pretending it could would hide where the rule actually lives.
+        //
+        // The rule is enforced in `IdentityVault`, which holds the read fault and
+        // throws from both `mintCandidate` and `write`, and in
+        // `BootstrapCoordinator`, which returns `storageUnavailable` before it
+        // ever reaches the minting path. What this port guarantees is narrower
+        // and structural: `create` is add-only, so even a caller that ignored
+        // every rule cannot overwrite a live identity.
+        final FakeSecureIdentityStore fake = FakeSecureIdentityStore(
+          initial: SecureIdentity(saveId: 'live', salt: fakeSalt(1)),
+        )..readIsUnavailable = true;
+
+        expect((await fake.read()).outcome, SecureReadOutcome.unavailable);
+        expect(
+          await fake.create(
+            SecureIdentity(saveId: 'replacement', salt: fakeSalt(2)),
+          ),
+          SecureWriteOutcome.alreadyExists,
+        );
+        expect(fake.stored!.saveId, 'live');
+        expect(fake.stored!.salt, fakeSalt(1));
+      },
+    );
+  });
+
+  // ==========================================================================
+  // The per-write re-application. See BACKUP_EXCLUSION_CONTRACT.md.
+  // ==========================================================================
+  group('per-write backup-exclusion re-application', () {
+    test('the paths reach the platform unchanged', () async {
+      final _FakeHostApi api = _FakeHostApi();
+
+      final BackupExclusionReport report = await storeOver(api)
+          .reapplyBackupExclusions(<String>[
+            '/root/project_stride/ledger_journal',
+          ]);
+
+      expect(api.reapplications, <List<String>>[
+        <String>['/root/project_stride/ledger_journal'],
+      ]);
+      expect(report.isClean, isTrue);
+      expect(report.excluded, <String>['/root/project_stride/ledger_journal']);
+    });
+
+    test('the hook is null where there is no platform implementation', () {
+      // Null rather than a no-op, so "the control is not active here" and "the
+      // control ran and did nothing" are distinguishable. On Android the
+      // exclusion is declarative and stronger, and calling an unregistered
+      // plugin would raise MissingPluginException on every commit.
+      expect(
+        const UnsupportedSecureIdentityStore().backupExclusionHook(),
+        isNull,
+      );
+      expect(
+        FakeSecureIdentityStore(isSupported: false).backupExclusionHook(),
+        isNull,
+      );
+    });
+
+    test('the hook forwards each operation as its own call', () async {
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore();
+      final ReapplyBackupExclusion hook = fake.backupExclusionHook()!;
+
+      await hook(<String>['/p/save_slot_a']);
+      await hook(<String>['/p/ledger_journal']);
+
+      // Per operation, not accumulated. "The journal was re-excluded after the
+      // compaction that renamed a new node over it" is the claim that matters,
+      // and a flattened set cannot express it.
+      expect(fake.reapplications, <List<String>>[
+        <String>['/p/save_slot_a'],
+        <String>['/p/ledger_journal'],
+      ]);
+    });
+
+    test('a failed re-application is reported and does not throw', () async {
+      // It runs on the commit path. A refused setResourceValues must not turn a
+      // durable save into a failed one — the Keychain identity is the first
+      // control and does not depend on this. But a `failed` entry means a file
+      // that would travel in a restore, so it must not vanish either.
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore()
+        ..plannedReapplicationReport = const BackupExclusionReport(
+          excluded: <String>[],
+          missing: <String>[],
+          failed: <String>['/p/ledger_journal\tattribute did not stick'],
+        );
+
+      final List<BackupExclusionReport> seen = <BackupExclusionReport>[];
+      final ReapplyBackupExclusion hook = fake.backupExclusionHook(
+        onReport: seen.add,
+      )!;
+
+      await expectLater(hook(<String>['/p/ledger_journal']), completes);
+
+      expect(seen, hasLength(1));
+      expect(seen.single.isClean, isFalse);
+      expect(seen.single.failed.single, contains('ledger_journal'));
+    });
+
+    test('the hook is usable without a report callback', () async {
+      final FakeSecureIdentityStore fake = FakeSecureIdentityStore();
+
+      await fake.backupExclusionHook()!(<String>['/p/save_slot_a']);
+
+      expect(fake.reapplications, hasLength(1));
     });
   });
 

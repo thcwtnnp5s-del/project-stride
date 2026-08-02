@@ -723,7 +723,7 @@ void main() {
       );
     });
 
-    test('a busy load throws rather than inventing a safe answer', () async {
+    test('a busy load refuses rather than inventing a safe answer', () async {
       final StorageLayout layout = freshLayout();
       await seedSave(layout, registry);
 
@@ -738,9 +738,19 @@ void main() {
 
       // A load that cannot start has nothing safe to return: `NoSaveFound`
       // would be a wiped character and a `SaveLoaded` would be a fabrication.
-      await expectLater(
-        repo.load(registry: registry),
-        throwsA(isA<StateError>()),
+      //
+      // It used to throw a `StateError`, and this case asserted that. F-06
+      // replaced the throw with `LoadRefusal.storageBusy` — contention is an
+      // ordinary condition, and a caller that must catch an exception to learn
+      // "not now" eventually catches one that meant something else. The
+      // property under test is unchanged: refuse, and invent nothing.
+      final LoadOutcome busy = await repo.load(registry: registry);
+      expect(busy, isA<LoadRefused>());
+      expect((busy as LoadRefused).reason, LoadRefusal.storageBusy);
+      expect(
+        busy.explanation,
+        isNotEmpty,
+        reason: 'a refusal with nothing to show the player is not usable',
       );
 
       await holder.release();
@@ -1140,15 +1150,19 @@ void main() {
         say('observer load  -> ${observerLoad.runtimeType}');
         say('observer commit -> ${_describe(observerCommit!)}');
 
+        // A refusal, not a read. It was a `StateError` until F-06 made
+        // contention a typed outcome; what matters here is unchanged and is
+        // the same in both shapes — the observer did NOT get a state back.
         expect(
           observerLoad,
-          isA<StateError>(),
+          isA<LoadRefused>(),
           reason:
               'a second instance read the save while a transaction was half '
               'written, which means the lock is narrower than the transaction. '
               'It would have read a snapshot older than the journal and then '
-              'committed against a stale head',
+              'committed against a stale head. Got: $observerLoad',
         );
+        expect((observerLoad! as LoadRefused).reason, LoadRefusal.storageBusy);
         expect(
           observerCommit,
           isA<CommitRefused>(),

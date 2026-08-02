@@ -326,7 +326,8 @@ class PlatformSecureStoreDiagnostics {
   });
 
   /// The `kSecAttrAccessible` value on the stored item, as its raw string
-  /// (`ck`/`ak`/`dk`/`akpu`/... ). Null when no item is stored.
+  /// (`cku` for AfterFirstUnlockThisDeviceOnly, `ak` for WhenUnlocked, and so
+  /// on). Null when no item is stored.
   ///
   /// A string rather than an enum because the assertion worth making is
   /// "exactly the constant we asked for", and an enum would silently fold an
@@ -533,6 +534,47 @@ class SecureStoreHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[directoryPath, filePaths]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PlatformBackupExclusionReport;
+  }
+
+  /// Re-applies `NSURLIsExcludedFromBackupKey` to [paths] and nothing else.
+  ///
+  /// **Why a second, narrower method.** Apple documents
+  /// `NSURLIsExcludedFromBackupKey` as a resource value on the filesystem node,
+  /// and resource values do not follow a path: a replacement, an atomic write,
+  /// a rename over the top, or a delete-and-recreate all leave the path
+  /// pointing at a *different* node, which carries whatever attributes it was
+  /// born with — none.
+  ///
+  /// The save layout does all of those. `FileLedgerJournal.replaceLines` writes
+  /// a sidecar and renames it over the journal, so after every compaction the
+  /// journal path names a node that has never been excluded. The snapshot slots
+  /// are created on their first write. So a once-at-launch application is
+  /// correct until the first commit and silently wrong after it.
+  ///
+  /// Separate from [applyBackupExclusions] because that one is the launch
+  /// sweep: it takes the directory as well, and reports the whole layout. This
+  /// is the per-write call — a list of the paths a single operation just
+  /// touched, no directory, so it stays cheap enough to sit on the commit path.
+  /// Two `setResourceValues` round trips per file, against an fsync.
+  ///
+  /// Idempotent. Paths that do not exist come back as `missing`, not `failed`.
+  Future<PlatformBackupExclusionReport> reapplyBackupExclusions(List<String> paths) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_secure_store.SecureStoreHostApi.reapplyBackupExclusions$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[paths]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

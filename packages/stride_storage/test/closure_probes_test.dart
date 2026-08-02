@@ -72,35 +72,38 @@ void main() {
   // `release()` would also release the first holder's lock, letting a genuine
   // second process in while the first still believes it is exclusive.
   group('S1 same-process exclusion', () {
-    test('a second FileTransactionLock over the same file is refused', () async {
-      final StorageLayout l = freshLayout();
-      final FileTransactionLock a = FileTransactionLock(l.transactionLock);
-      final FileTransactionLock b = FileTransactionLock(l.transactionLock);
+    test(
+      'a second FileTransactionLock over the same file is refused',
+      () async {
+        final StorageLayout l = freshLayout();
+        final FileTransactionLock a = FileTransactionLock(l.transactionLock);
+        final FileTransactionLock b = FileTransactionLock(l.transactionLock);
 
-      final TransactionLockHandle? first = await a.acquire(
-        const Duration(seconds: 2),
-      );
-      expect(first, isNotNull, reason: 'the first acquisition must succeed');
+        final TransactionLockHandle? first = await a.acquire(
+          const Duration(seconds: 2),
+        );
+        expect(first, isNotNull, reason: 'the first acquisition must succeed');
 
-      try {
-        final TransactionLockHandle? second = await b.acquire(
-          const Duration(milliseconds: 200),
-        );
-        expect(
-          second,
-          isNull,
-          reason:
-              'a second holder in the same process was granted the lock. On '
-              'POSIX fcntl locks are per-process, so the F-06 transaction '
-              'lock provides no exclusion at all between two isolates -- '
-              'which is precisely the Health Connect background-worker '
-              'configuration it was introduced to make safe.',
-        );
-        await second?.release();
-      } finally {
-        await first!.release();
-      }
-    });
+        try {
+          final TransactionLockHandle? second = await b.acquire(
+            const Duration(milliseconds: 200),
+          );
+          expect(
+            second,
+            isNull,
+            reason:
+                'a second holder in the same process was granted the lock. On '
+                'POSIX fcntl locks are per-process, so the F-06 transaction '
+                'lock provides no exclusion at all between two isolates -- '
+                'which is precisely the Health Connect background-worker '
+                'configuration it was introduced to make safe.',
+          );
+          await second?.release();
+        } finally {
+          await first!.release();
+        }
+      },
+    );
 
     test('release is idempotent and does not throw', () async {
       final StorageLayout l = freshLayout();
@@ -135,10 +138,12 @@ void main() {
   // process rather than an isolate, because an isolate is not a process and
   // the two have different lock semantics on POSIX.
   group('S2 cross-process exclusion', () {
-    test('a second OS process cannot take a held lock', () async {
-      final StorageLayout l = freshLayout();
-      final File helper = File('${l.root.path}/probe_helper.dart')
-        ..writeAsStringSync('''
+    test(
+      'a second OS process cannot take a held lock',
+      () async {
+        final StorageLayout l = freshLayout();
+        final File helper = File('${l.root.path}/probe_helper.dart')
+          ..writeAsStringSync('''
 import 'dart:io';
 
 Future<void> main(List<String> args) async {
@@ -154,39 +159,40 @@ Future<void> main(List<String> args) async {
 }
 ''');
 
-      final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
-      final TransactionLockHandle held = (await lock.acquire(
-        const Duration(seconds: 2),
-      ))!;
+        final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
+        final TransactionLockHandle held = (await lock.acquire(
+          const Duration(seconds: 2),
+        ))!;
 
-      try {
-        final ProcessResult r = await Process.run(Platform.resolvedExecutable, <
-          String
-        >[
-          'run',
-          helper.path,
-          l.transactionLock.path,
-        ]);
-        expect(
-          r.stdout.toString().trim(),
-          'REFUSED',
-          reason:
-              'a separate OS process took a lock this process holds; the '
-              'cross-process exclusivity claim in transaction_lock.dart is '
-              'not delivered. stderr: ${r.stderr}',
-        );
-      } finally {
-        await held.release();
-      }
-    }, timeout: const Timeout(Duration(minutes: 2)));
+        try {
+          final ProcessResult r = await Process.run(
+            Platform.resolvedExecutable,
+            <String>['run', helper.path, l.transactionLock.path],
+          );
+          expect(
+            r.stdout.toString().trim(),
+            'REFUSED',
+            reason:
+                'a separate OS process took a lock this process holds; the '
+                'cross-process exclusivity claim in transaction_lock.dart is '
+                'not delivered. stderr: ${r.stderr}',
+          );
+        } finally {
+          await held.release();
+        }
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
 
-    test('the kernel releases the lock when the holder dies', () async {
-      // The stated reason a sentinel file is unacceptable. If this fails, a
-      // process kill during a commit leaves the game permanently unstartable,
-      // and Android kills apps routinely.
-      final StorageLayout l = freshLayout();
-      final File helper = File('${l.root.path}/holder.dart')
-        ..writeAsStringSync('''
+    test(
+      'the kernel releases the lock when the holder dies',
+      () async {
+        // The stated reason a sentinel file is unacceptable. If this fails, a
+        // process kill during a commit leaves the game permanently unstartable,
+        // and Android kills apps routinely.
+        final StorageLayout l = freshLayout();
+        final File helper = File('${l.root.path}/holder.dart')
+          ..writeAsStringSync('''
 import 'dart:io';
 
 Future<void> main(List<String> args) async {
@@ -198,38 +204,41 @@ Future<void> main(List<String> args) async {
 }
 ''');
 
-      final Process p = await Process.start(Platform.resolvedExecutable, <
-        String
-      >['run', helper.path, l.transactionLock.path]);
-      final Completer<void> held = Completer<void>();
-      p.stdout.transform(utf8.decoder).listen((String s) {
-        if (s.contains('HELD') && !held.isCompleted) held.complete();
-      });
-      await held.future.timeout(const Duration(minutes: 1));
+        final Process p = await Process.start(
+          Platform.resolvedExecutable,
+          <String>['run', helper.path, l.transactionLock.path],
+        );
+        final Completer<void> held = Completer<void>();
+        p.stdout.transform(utf8.decoder).listen((String s) {
+          if (s.contains('HELD') && !held.isCompleted) held.complete();
+        });
+        await held.future.timeout(const Duration(minutes: 1));
 
-      final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
-      expect(
-        await lock.acquire(const Duration(milliseconds: 300)),
-        isNull,
-        reason: 'the held lock must refuse us while the holder lives',
-      );
+        final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
+        expect(
+          await lock.acquire(const Duration(milliseconds: 300)),
+          isNull,
+          reason: 'the held lock must refuse us while the holder lives',
+        );
 
-      p.kill(ProcessSignal.sigkill);
-      await p.exitCode;
+        p.kill(ProcessSignal.sigkill);
+        await p.exitCode;
 
-      final TransactionLockHandle? after = await lock.acquire(
-        const Duration(seconds: 5),
-      );
-      expect(
-        after,
-        isNotNull,
-        reason:
-            'the kernel did not reclaim the lock on process death. That is '
-            'the single property the doc uses to reject a sentinel file, and '
-            'without it a killed app is permanently unstartable.',
-      );
-      await after!.release();
-    }, timeout: const Timeout(Duration(minutes: 2)));
+        final TransactionLockHandle? after = await lock.acquire(
+          const Duration(seconds: 5),
+        );
+        expect(
+          after,
+          isNotNull,
+          reason:
+              'the kernel did not reclaim the lock on process death. That is '
+              'the single property the doc uses to reject a sentinel file, and '
+              'without it a killed app is permanently unstartable.',
+        );
+        await after!.release();
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
   });
 
   // =========================================================================
@@ -425,7 +434,9 @@ Future<void> main(List<String> args) async {
         'packages${Platform.pathSeparator}stride_storage${Platform.pathSeparator}lib',
         'packages${Platform.pathSeparator}stride_storage${Platform.pathSeparator}test',
       ]) {
-        final Directory d = Directory('${repoRoot.path}${Platform.pathSeparator}$dir');
+        final Directory d = Directory(
+          '${repoRoot.path}${Platform.pathSeparator}$dir',
+        );
         if (d.existsSync()) sources.addAll(d.listSync(recursive: true));
       }
 

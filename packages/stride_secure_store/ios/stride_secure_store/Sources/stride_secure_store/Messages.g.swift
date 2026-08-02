@@ -380,7 +380,8 @@ struct PlatformBackupExclusionReport: Hashable, CustomStringConvertible {
 /// Generated class from Pigeon that represents data sent in messages.
 struct PlatformSecureStoreDiagnostics: Hashable, CustomStringConvertible {
   /// The `kSecAttrAccessible` value on the stored item, as its raw string
-  /// (`ck`/`ak`/`dk`/`akpu`/... ). Null when no item is stored.
+  /// (`cku` for AfterFirstUnlockThisDeviceOnly, `ak` for WhenUnlocked, and so
+  /// on). Null when no item is stored.
   ///
   /// A string rather than an enum because the assertion worth making is
   /// "exactly the constant we asked for", and an enum would silently fold an
@@ -527,6 +528,29 @@ protocol SecureStoreHostApi {
   /// restore, by a reinstall, by our own `ensureExists` after a wipe — the
   /// exclusion is gone and nothing reports it.
   func applyBackupExclusions(directoryPath: String, filePaths: [String], completion: @escaping (Result<PlatformBackupExclusionReport, Error>) -> Void)
+  /// Re-applies `NSURLIsExcludedFromBackupKey` to [paths] and nothing else.
+  ///
+  /// **Why a second, narrower method.** Apple documents
+  /// `NSURLIsExcludedFromBackupKey` as a resource value on the filesystem node,
+  /// and resource values do not follow a path: a replacement, an atomic write,
+  /// a rename over the top, or a delete-and-recreate all leave the path
+  /// pointing at a *different* node, which carries whatever attributes it was
+  /// born with — none.
+  ///
+  /// The save layout does all of those. `FileLedgerJournal.replaceLines` writes
+  /// a sidecar and renames it over the journal, so after every compaction the
+  /// journal path names a node that has never been excluded. The snapshot slots
+  /// are created on their first write. So a once-at-launch application is
+  /// correct until the first commit and silently wrong after it.
+  ///
+  /// Separate from [applyBackupExclusions] because that one is the launch
+  /// sweep: it takes the directory as well, and reports the whole layout. This
+  /// is the per-write call — a list of the paths a single operation just
+  /// touched, no directory, so it stays cheap enough to sit on the commit path.
+  /// Two `setResourceValues` round trips per file, against an fsync.
+  ///
+  /// Idempotent. Paths that do not exist come back as `missing`, not `failed`.
+  func reapplyBackupExclusions(paths: [String], completion: @escaping (Result<PlatformBackupExclusionReport, Error>) -> Void)
   /// Reads back what is actually configured. Diagnostics only.
   func readDiagnostics(paths: [String], completion: @escaping (Result<PlatformSecureStoreDiagnostics, Error>) -> Void)
 }
@@ -619,6 +643,45 @@ class SecureStoreHostApiSetup {
       }
     } else {
       applyBackupExclusionsChannel.setMessageHandler(nil)
+    }
+    /// Re-applies `NSURLIsExcludedFromBackupKey` to [paths] and nothing else.
+    ///
+    /// **Why a second, narrower method.** Apple documents
+    /// `NSURLIsExcludedFromBackupKey` as a resource value on the filesystem node,
+    /// and resource values do not follow a path: a replacement, an atomic write,
+    /// a rename over the top, or a delete-and-recreate all leave the path
+    /// pointing at a *different* node, which carries whatever attributes it was
+    /// born with — none.
+    ///
+    /// The save layout does all of those. `FileLedgerJournal.replaceLines` writes
+    /// a sidecar and renames it over the journal, so after every compaction the
+    /// journal path names a node that has never been excluded. The snapshot slots
+    /// are created on their first write. So a once-at-launch application is
+    /// correct until the first commit and silently wrong after it.
+    ///
+    /// Separate from [applyBackupExclusions] because that one is the launch
+    /// sweep: it takes the directory as well, and reports the whole layout. This
+    /// is the per-write call — a list of the paths a single operation just
+    /// touched, no directory, so it stays cheap enough to sit on the commit path.
+    /// Two `setResourceValues` round trips per file, against an fsync.
+    ///
+    /// Idempotent. Paths that do not exist come back as `missing`, not `failed`.
+    let reapplyBackupExclusionsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_secure_store.SecureStoreHostApi.reapplyBackupExclusions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      reapplyBackupExclusionsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let pathsArg = args[0] as! [String]
+        api.reapplyBackupExclusions(paths: pathsArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      reapplyBackupExclusionsChannel.setMessageHandler(nil)
     }
     /// Reads back what is actually configured. Diagnostics only.
     let readDiagnosticsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_secure_store.SecureStoreHostApi.readDiagnostics\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)

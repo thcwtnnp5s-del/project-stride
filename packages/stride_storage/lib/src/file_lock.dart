@@ -27,16 +27,25 @@ import 'dart:io';
 
 import 'package:stride_core/stride_core.dart';
 
-import 'file_storage.dart' show StorageException;
+import 'file_storage.dart' show ReapplyBackupExclusion, StorageException;
 
 /// An exclusive lock on one file, for the lifetime of one transaction.
 final class FileTransactionLock implements TransactionLock {
   const FileTransactionLock(
     this.lockFile, {
     this.pollInterval = const Duration(milliseconds: 15),
+    this.reapplyExclusion,
   });
 
   final File lockFile;
+
+  /// Re-applied after the lock file is opened, which is what creates it.
+  ///
+  /// `transaction.lock` is in `StorageLayout.allFiles` and therefore in the
+  /// audited set, so leaving it unexcluded makes the launch report internally
+  /// inconsistent. It holds no data, so this is consistency rather than a leak.
+  /// See [ReapplyBackupExclusion].
+  final ReapplyBackupExclusion? reapplyExclusion;
 
   /// How often to retry while waiting.
   ///
@@ -65,6 +74,10 @@ final class FileTransactionLock implements TransactionLock {
     } on Object catch (e) {
       throw StorageException('open lock ${lockFile.path}', e);
     }
+
+    // The open above is what creates the lock file, so it is created after the
+    // launch sweep looked for it.
+    await reapplyExclusion?.call(<String>[lockFile.path]);
 
     final DateTime deadline = DateTime.now().add(timeout);
     while (true) {

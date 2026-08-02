@@ -111,6 +111,43 @@ jobs:
           # timing, so parallel files make it contend with itself.
           dart test -j 1
 
+      # -----------------------------------------------------------------------
+      # F-06: the concurrency proofs, named explicitly, on Linux.
+      #
+      # The step above already runs these files. They are named again here for
+      # one reason: POSIX `fcntl` locks are owned by the PROCESS, so Linux is
+      # the only runner on which the shipping platform's real lock semantics
+      # are exercised. A green Windows run proves the opposite of what it looks
+      # like -- Windows `LockFileEx` is per-handle and refuses a second isolate,
+      # so the development machine reports an exclusion that Android does not
+      # have.
+      #
+      # `--reporter expanded` puts the observation from
+      # persistence_owner_test.dart case 6 -- whether a second ISOLATE in one
+      # process is granted a lock the first already holds -- into the CI log,
+      # where it is evidence rather than folklore.
+      #
+      # A SKIP IS NOT A PASS. Neither file skips anything, conditionally or
+      # otherwise, and this step fails if that ever changes: a platform-guarded
+      # skip here would silently retire the only proof that runs on the
+      # semantics we actually ship.
+      - name: stride_storage concurrency proofs (Linux, no skips allowed)
+        working-directory: packages/stride_storage
+        run: |
+          set -o pipefail
+          dart test -j 1 --reporter expanded \
+            test/cross_process_lock_test.dart \
+            test/persistence_owner_test.dart | tee "$RUNNER_TEMP/concurrency-proofs.log"
+          # `dart test` reports a skip two ways and neither uses the word
+          # "skipped": an indented `Skip: <reason>` line, and a `~N` count in
+          # the summary. Both are matched, because matching only the summary
+          # would miss a skip in a run that also failed.
+          if grep -qE '^[[:space:]]*Skip:|~[0-9]+:' "$RUNNER_TEMP/concurrency-proofs.log"; then
+            echo "::error::A concurrency proof was skipped on Linux. Linux fcntl semantics are what these tests exist to prove; a skip here is not a pass."
+            grep -nE '^[[:space:]]*Skip:|~[0-9]+:' "$RUNNER_TEMP/concurrency-proofs.log"
+            exit 1
+          fi
+
       - name: App tests
         run: flutter test
 
@@ -310,6 +347,11 @@ jobs:
       # kSecAttrAccessible value, and NSURLIsExcludedFromBackupKey on real
       # paths -- including re-application after the directory is recreated.
       #
+      # They also prove that an atomic write, a rename over the top, and
+      # replaceItemAt each DESTROY the exclusion -- which is why it is
+      # re-applied per write and not only at launch. See
+      # packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md.
+      #
       # THEY DO NOT PROVE THE THING THIS FEATURE EXISTS FOR. That a
       # ThisDeviceOnly item is omitted from an encrypted iCloud backup, and
       # that the backup exclusion is honoured, are properties of Apple's backup
@@ -325,12 +367,35 @@ jobs:
             | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
               print(next(x['name'] for v in d.values() for x in v if 'iPhone' in x['name']))")
           echo "Simulator: $DEVICE"
-          xcodebuild test \
+
+          # Not -quiet, and captured rather than streamed. -quiet suppresses the
+          # per-suite result lines, and those are the only cheap evidence that
+          # the suites ran at all. The full log is kept out of the CI output
+          # unless something fails.
+          if ! xcodebuild test \
             -workspace Runner.xcworkspace \
             -scheme Runner \
             -destination "platform=iOS Simulator,name=$DEVICE" \
-            CODE_SIGNING_ALLOWED=NO \
-            -quiet
+            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/secure-store-tests.log" 2>&1; then
+            echo "::error::Swift secure-store tests failed."
+            grep -E "error:|failed|XCTAssert" "$RUNNER_TEMP/secure-store-tests.log" | tail -60 || true
+            tail -80 "$RUNNER_TEMP/secure-store-tests.log"
+            exit 1
+          fi
+
+          # A green xcodebuild is not the same claim as "the suites ran". A test
+          # target that builds and hosts nothing exits zero, and so does a
+          # scheme whose testables were dropped -- which is exactly how a
+          # security control comes to be enforced by a suite nobody notices is
+          # empty. These three names are the enforcement.
+          for suite in SecureStoreTests BackupExclusionTests SecureStoreAdapterTests; do
+            if ! grep -q "Test Suite '$suite' passed" "$RUNNER_TEMP/secure-store-tests.log"; then
+              echo "::error::$suite did not run. The device-bound identity and"
+              echo "::error::the backup exclusion are unverified on this build."
+              exit 1
+            fi
+          done
+          grep -E "Test Suite '.*' (passed|failed)" "$RUNNER_TEMP/secure-store-tests.log"
 
       # Simulator-hosted unit tests. Nothing here requests HealthKit
       # authorization: an interactive permission prompt cannot be answered on a

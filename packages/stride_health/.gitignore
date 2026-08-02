@@ -24,8 +24,9 @@ migrate_working_dir/
 #.vscode/
 
 # Flutter/Dart/Pub related
-# Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
-/pubspec.lock
+# pubspec.lock IS committed here, deliberately against the library convention:
+# a publish_to:none package whose Pigeon output is diff-checked in CI, and that
+# check is not reproducible without a lock. See the root .gitignore.
 **/doc/api/
 .dart_tool/
 .flutter-plugins-dependencies

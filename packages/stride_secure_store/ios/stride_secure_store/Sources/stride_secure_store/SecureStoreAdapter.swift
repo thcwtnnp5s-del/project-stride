@@ -99,6 +99,26 @@ final class SecureStoreAdapter: SecureStoreHostApi {
     )
   }
 
+  func reapplyBackupExclusions(
+    paths: [String],
+    completion: @escaping (Result<PlatformBackupExclusionReport, Error>) -> Void
+  ) {
+    // Same helper, same read-back. The per-write call is narrower than the
+    // launch sweep, not weaker: the whole reason it exists is that a rename or
+    // an atomic write leaves the path pointing at a node that never carried the
+    // attribute, and only a read-back can tell.
+    let report = BackupExclusion.apply(paths: paths)
+    completion(
+      .success(
+        PlatformBackupExclusionReport(
+          excluded: report.excluded,
+          missing: report.missing,
+          failed: report.failed
+        )
+      )
+    )
+  }
+
   func readDiagnostics(
     paths: [String],
     completion: @escaping (Result<PlatformSecureStoreDiagnostics, Error>) -> Void

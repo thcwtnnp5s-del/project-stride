@@ -309,13 +309,28 @@ List<Object?> rawSlicesIn(Map<String, Object?> envelope) =>
             as Map<String, Object?>)['grantedSlices']!
         as List<Object?>;
 
+/// A lock that is never available — the other-process-holds-it case.
+///
+/// Needed here because `storageBusy` is a refusal whose explanation reaches the
+/// player, and a refusal that is not in the audit below is a string nobody
+/// privacy-reviewed.
+final class NeverAvailableLock implements TransactionLock {
+  const NeverAvailableLock();
+
+  @override
+  Future<TransactionLockHandle?> acquire(Duration timeout) async => null;
+}
+
 Future<LoadRefused> refusalFrom(
   FaultingDevice device, {
   bool treatAsRelease = false,
+  TransactionLock lock = const UncontendedLock(),
 }) async {
   final SaveRepository repo = SaveRepository(
     snapshots: FaultingSnapshotStore(device),
     journal: FaultingJournal(device),
+    lock: lock,
+    lockTimeout: const Duration(milliseconds: 1),
   );
   final LoadOutcome outcome = await repo.load(
     registry: saveRegistry,
@@ -341,6 +356,8 @@ const Set<LoadRefusal> reachableRefusals = <LoadRefusal>{
   LoadRefusal.unknownContent,
   LoadRefusal.lineageMismatch,
   LoadRefusal.journalForked,
+  LoadRefusal.storageBusy,
+  LoadRefusal.resetIncomplete,
 };
 
 void main() {
@@ -725,10 +742,15 @@ void main() {
     test('every reachable refusal path is clean', () async {
       final Map<LoadRefusal, String> surfaces = <LoadRefusal, String>{};
 
-      Future<void> record(FaultingDevice device, {bool release = false}) async {
+      Future<void> record(
+        FaultingDevice device, {
+        bool release = false,
+        TransactionLock lock = const UncontendedLock(),
+      }) async {
         final LoadRefused refused = await refusalFrom(
           device,
           treatAsRelease: release,
+          lock: lock,
         );
         // A refusal carries repairs, and those are reachable strings too, so
         // they are audited alongside the explanation.
@@ -871,6 +893,18 @@ void main() {
             ]),
           ),
       );
+
+      // storageBusy — the lock is held elsewhere. Nothing on the device is
+      // read, so the fixture is a healthy save and the refusal must still say
+      // nothing derived from it.
+      await record(
+        FaultingDevice()
+          ..seed('save_slot_a', framedFrom(envelopeJsonOf(populatedState()))),
+        lock: const NeverAvailableLock(),
+      );
+
+      // resetIncomplete — a reset intent that survived a death mid-erase.
+      await record(FaultingDevice()..seed('journal', encodeResetMarkerLine()));
 
       // --- the actual assertions -----------------------------------------
 
