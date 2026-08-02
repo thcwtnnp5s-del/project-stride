@@ -1,20 +1,24 @@
 # Project Stride — CI
 #
-# Three jobs. The point of the macOS job is the standing instruction in
-# DECISIONS/0010: the iOS branch must not be allowed to remain uncompiled until
-# the end. A build nobody runs still catches compile breaks, API drift, and a
-# stale Pigeon contract — which is most of the value.
+# Four jobs, per DECISIONS/0010 and the M-4 specification.
 #
-# Linux runners are used for Dart and Android rather than Windows: they are
-# faster and cheaper on GitHub-hosted runners, and nothing in the Dart or
-# Android toolchain is Windows-specific. Local development remains on Windows,
-# and Scripts/verify.sh runs there via Git Bash.
+# The macOS job exists to honour a standing instruction: the iOS branch must not
+# be allowed to remain uncompiled until the end. A build nobody runs still
+# catches compile breaks, API drift, and a stale Pigeon contract — which is most
+# of the value, and all of it available without a Mac on the desk.
+#
+# Linux runners carry the Dart and Android work: faster and cheaper than Windows
+# on GitHub-hosted runners, and nothing in either toolchain is Windows-specific.
+# Local development stays on Windows via Scripts/verify.sh.
+#
+# No production signing anywhere. No TestFlight. Those need real Mac access and
+# Apple credentials (DECISIONS/0011).
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
@@ -24,98 +28,34 @@ concurrency:
 
 env:
   FLUTTER_CHANNEL: stable
+  JAVA_VERSION: '17'
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # The simulation. No Flutter, no emulator, no platform. Should be seconds.
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
+  # 1. Dart / core
+  # ===========================================================================
   core:
     name: Dart core
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dart-lang/setup-dart@v1
-
-      - name: Install dependencies
-        working-directory: packages/stride_core
-        run: dart pub get
-
-      - name: Analyze
-        working-directory: packages/stride_core
-        run: dart analyze --fatal-infos
-
-      - name: Core purity
-        run: ./Scripts/check-core-purity.sh
-
-      - name: Test
-        working-directory: packages/stride_core
-        run: dart test
-
-  # ---------------------------------------------------------------------------
-  # Guards the two rules that are cheap to state and easy to erode.
-  # ---------------------------------------------------------------------------
-  dependency-policy:
-    name: Dependency policy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Risk X-01. A third-party health aggregation package must never own
-      # reconciliation, anchors, deletion handling, or ledger semantics.
-      # Also asserts stride_core declares no Flutter dependency — the purity
-      # rule made structural, not merely tested. DECISIONS/0010.
-      - name: Dependency policy
-        run: ./Scripts/check-dependency-policy.sh
-
-  # ---------------------------------------------------------------------------
-  # The app and the Android adapter. Everything here is what the owner can also
-  # run interactively on Windows.
-  # ---------------------------------------------------------------------------
-  app-android:
-    name: Flutter + Android
-    runs-on: ubuntu-latest
-    needs: [core]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
       - uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
-
-      # Compares only the generated files, not the whole tree, and relies on the
-      # Pigeon version being pinned in pubspec.yaml — otherwise a tool upgrade
-      # fails this step for header-comment churn unrelated to a stale contract.
-      # Compares only the generated files, and relies on the Pigeon version
-      # being pinned exactly in stride_health/pubspec.yaml — otherwise a tool
-      # upgrade fails this step for header churn unrelated to a stale contract.
-      - name: Verify Pigeon output is current
-        working-directory: packages/stride_health
+      - name: Resolve dependencies
         run: |
-          GENERATED="lib/src/messages.g.dart \
-                     android/src/main/kotlin/com/projectstride/stride_health/Messages.g.kt \
-                     ios/stride_health/Sources/stride_health/Messages.g.swift"
-          dart run pigeon --input pigeons/health_api.dart
-          if ! git diff --quiet -- $GENERATED; then
-            echo "::error::Pigeon-generated files are stale. Regenerate and commit:"
-            echo "::error::  cd packages/stride_health && dart run pigeon --input pigeons/health_api.dart"
-            git diff --stat -- $GENERATED
-            exit 1
-          fi
-          echo "pigeon: up to date"
+          flutter pub get
+          (cd packages/stride_core && dart pub get)
+          (cd packages/stride_health && flutter pub get)
+          (cd packages/stride_health/example && flutter pub get)
 
       # Hand-written Dart only. Pigeon output is not dart-format clean, and
-      # formatting it would fail the drift check above on the next regeneration.
-      - name: Verify formatting
+      # formatting it would fail the drift check in the `pigeon` job on the next
+      # regeneration.
+      - name: Format check
         run: |
           dart format --output=none --set-exit-if-changed \
             lib test \
@@ -128,45 +68,33 @@ jobs:
             packages/stride_health/example/lib \
             packages/stride_health/example/integration_test
 
-      - name: Analyze
-        run: flutter analyze --fatal-infos
+      - name: Analyze (fatal warnings and infos)
+        run: flutter analyze --fatal-infos --fatal-warnings
 
-      - name: Widget and unit tests
+      - name: Core purity guard
+        run: ./Scripts/check-core-purity.sh
+
+      - name: Dependency policy guard
+        run: ./Scripts/check-dependency-policy.sh
+
+      # The simulation. No Flutter, no emulator. Should be seconds.
+      - name: stride_core tests
+        working-directory: packages/stride_core
+        run: dart test
+
+      - name: App tests
         run: flutter test
 
-      - name: stride_health tests
+      - name: stride_health Dart tests
         working-directory: packages/stride_health
         run: flutter test
 
-      # Compiles the Kotlin adapter by building its host app. Driven through
-      # `flutter build` rather than ./gradlew: Flutter's generated
-      # android/.gitignore excludes the Gradle wrapper, which Flutter
-      # regenerates on build, so a raw gradlew call fails on a fresh checkout.
-      #
-      # Behavioral Health Connect tests arrive with the real implementation in
-      # S-01. This step is compile-only.
-      - name: Android adapter compilation
-        working-directory: packages/stride_health/example
-        run: flutter build apk --debug
-
-      - name: Build debug APK
-        run: flutter build apk --debug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: stride-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
-
-  # ---------------------------------------------------------------------------
-  # iOS. Compilation and adapter unit tests only — no signing, no simulator UI
-  # tests, no TestFlight. Those need real Mac access and Apple credentials.
-  # ---------------------------------------------------------------------------
-  ios:
-    name: iOS compile
-    runs-on: macos-latest
-    needs: [core]
+  # ===========================================================================
+  # 2. Pigeon — the platform contract must be identical on all three sides
+  # ===========================================================================
+  pigeon:
+    name: Pigeon bindings
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -175,20 +103,148 @@ jobs:
           channel: ${{ env.FLUTTER_CHANNEL }}
           cache: true
 
-      - name: Install dependencies
+      - name: Resolve dependencies
+        working-directory: packages/stride_health
         run: flutter pub get
 
-      # Compiles the app and the Swift HealthKit adapter. No signing, no
-      # simulator UI tests, no TestFlight — those need real Mac access and
-      # Apple credentials.
-      #
-      # This job is the whole point of DECISIONS/0010's standing instruction:
-      # the iOS branch must not be allowed to remain uncompiled until the end.
-      # A build nobody runs still catches compile breaks, API drift, and a
-      # stale Pigeon contract.
-      - name: Build iOS (unsigned)
+      # Compares only the generated files, and relies on the Pigeon version
+      # being pinned exactly in stride_health/pubspec.yaml. Without the pin, a
+      # tool upgrade fails this for header churn unrelated to a stale contract.
+      - name: Regenerate and verify bindings
+        working-directory: packages/stride_health
+        run: |
+          GENERATED="lib/src/messages.g.dart \
+                     android/src/main/kotlin/com/projectstride/stride_health/Messages.g.kt \
+                     ios/stride_health/Sources/stride_health/Messages.g.swift"
+          dart run pigeon --input pigeons/health_api.dart
+          if ! git diff --quiet -- $GENERATED; then
+            echo "::error::Pigeon bindings are stale. Regenerate and commit:"
+            echo "::error::  cd packages/stride_health && dart run pigeon --input pigeons/health_api.dart"
+            git diff -- $GENERATED
+            exit 1
+          fi
+          echo "pigeon: Dart, Kotlin, and Swift bindings all match the contract"
+
+  # ===========================================================================
+  # 3. Android — debug builds and JVM unit tests. No production signing.
+  # ===========================================================================
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    needs: [core, pigeon]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Resolve dependencies
+        run: |
+          flutter pub get
+          (cd packages/stride_health/example && flutter pub get)
+
+      # Debug signing only — the Flutter default. No keystore, no secrets.
+      - name: Build application debug APK
+        run: flutter build apk --debug
+
+      # Also compiles the Kotlin adapter and the Pigeon-generated Kotlin, since
+      # the plugin is built as a dependency of its host app.
+      - name: Build health-plugin example debug APK
+        working-directory: packages/stride_health/example
+        run: flutter build apk --debug
+
+      # The Gradle wrapper is excluded by Flutter's generated android/.gitignore
+      # and regenerated on build, so this must run after the build above.
+      - name: Kotlin adapter unit tests
+        working-directory: packages/stride_health/example/android
+        run: ./gradlew :stride_health:testDebugUnitTest --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: stride-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+
+  # ===========================================================================
+  # 4. macOS / iOS — compilation only. No signing, no TestFlight.
+  # ===========================================================================
+  ios:
+    name: iOS compile
+    runs-on: macos-latest
+    needs: [core, pigeon]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        run: |
+          flutter pub get
+          (cd packages/stride_core && dart pub get)
+          (cd packages/stride_health && flutter pub get)
+          (cd packages/stride_health/example && flutter pub get)
+
+      - name: Regenerate and verify Pigeon output
+        working-directory: packages/stride_health
+        run: |
+          GENERATED="lib/src/messages.g.dart \
+                     android/src/main/kotlin/com/projectstride/stride_health/Messages.g.kt \
+                     ios/stride_health/Sources/stride_health/Messages.g.swift"
+          dart run pigeon --input pigeons/health_api.dart
+          if ! git diff --quiet -- $GENERATED; then
+            echo "::error::Pigeon bindings are stale on macOS."
+            git diff -- $GENERATED
+            exit 1
+          fi
+          echo "pigeon: verified on macOS"
+
+      # Platform-neutral tests, re-run here so a macOS-specific Dart regression
+      # cannot hide behind a green Linux job.
+      - name: Platform-neutral tests
+        run: |
+          (cd packages/stride_core && dart test)
+          flutter test
+          (cd packages/stride_health && flutter test)
+
+      # --no-codesign: compiles and links without any signing identity. The
+      # binary is not installable, which is the point — this proves the code
+      # builds, not that it ships.
+      - name: Compile iOS application shell
         run: flutter build ios --no-codesign --debug
 
-      - name: Build the plugin host app (compiles the Swift adapter)
+      # Compiles the Swift HealthKit adapter and the generated Swift bindings by
+      # building their host app.
+      - name: Compile Swift health adapter
         working-directory: packages/stride_health/example
         run: flutter build ios --no-codesign --debug
+
+      # Simulator-hosted unit tests. Nothing here requests HealthKit
+      # authorization: an interactive permission prompt cannot be answered on a
+      # CI runner, and asserting against real health data needs a physical
+      # device (task V-02b).
+      - name: Unit tests not requiring HealthKit authorization
+        working-directory: packages/stride_health/example/ios
+        run: |
+          if xcodebuild -workspace Runner.xcworkspace -list 2>/dev/null | grep -q RunnerTests; then
+            xcodebuild test \
+              -workspace Runner.xcworkspace \
+              -scheme Runner \
+              -destination 'platform=iOS Simulator,name=iPhone 16' \
+              CODE_SIGNING_ALLOWED=NO \
+              -quiet
+          else
+            echo "No Swift unit-test target yet — it arrives with the real"
+            echo "HealthKit implementation in S-01b. Adapter compilation above"
+            echo "is the current iOS guarantee."
+          fi
