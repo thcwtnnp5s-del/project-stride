@@ -1,0 +1,29 @@
+name: stride
+description: >-
+  Project Stride — a step-powered asynchronous RPG with idle-style planning.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  stride_core:
+    path: packages/stride_core
+  stride_health:
+    path: packages/stride_health
+
+# No third-party health aggregation package may appear here or in any other
+# pubspec. Health integration is first-party, in packages/stride_health.
+# Enforced by the dependency-policy job in CI.
+# See DECISIONS/0010_CROSS_PLATFORM_STACK.md.
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

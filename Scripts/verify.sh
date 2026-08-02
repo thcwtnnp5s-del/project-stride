@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
 # verify.sh
 #
-# The full local verification pass. Run before committing, and as the F-01
-# build-verification step.
+# The full local verification pass. Run before committing.
 #
-# Requires macOS with the current stable Xcode. The core purity check and the
-# StrideCore test suite need only a Swift toolchain; the simulator builds need
-# Xcode.
-
+# Everything here runs on Windows via Git Bash. Nothing in this script needs
+# macOS -- iOS compilation happens in the CI macOS job.
 #
 # Usage:
-#   ./Scripts/verify.sh            # skips simulator builds if Xcode is absent
-#   ./Scripts/verify.sh --strict   # fails if Xcode is absent — use this in CI
+#   ./Scripts/verify.sh            # skips steps whose toolchain is absent
+#   ./Scripts/verify.sh --strict   # fails if any toolchain is absent -- use in CI
 #
-# Without --strict, a CI runner missing Xcode would report success having built
-# nothing.
+# Without --strict, a CI runner missing Flutter would report success having
+# verified nothing.
 
 set -euo pipefail
 
@@ -29,59 +26,64 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# Update these to match the installed simulator names if they differ.
-SMALL_SIM="${STRIDE_SMALL_SIM:-iPhone SE (3rd generation)}"
-STANDARD_SIM="${STRIDE_STANDARD_SIM:-iPhone 16}"
-
 step() { printf '\n=== %s ===\n' "$1"; }
+
+missing_toolchain() {
+  if [ "$STRICT" -eq 1 ]; then
+    echo "error: $1 not found and --strict was requested." >&2
+    exit 1
+  fi
+  echo "$1 not found -- skipping. Install Flutter and re-run."
+  return 1
+}
+
+# Hand-written Dart only. Generated files are excluded: pigeon output is not
+# dart-format clean, and formatting it would fail CI's generated-file drift
+# check on the next regeneration.
+FORMAT_PATHS=(
+  lib
+  test
+  packages/stride_core/lib
+  packages/stride_core/test
+  packages/stride_health/lib/stride_health.dart
+  packages/stride_health/lib/src/mock_step_provider.dart
+  packages/stride_health/lib/src/platform_step_provider.dart
+  packages/stride_health/test
+  packages/stride_health/pigeons
+  packages/stride_health/example/lib
+  packages/stride_health/example/integration_test
+)
 
 step "Core purity"
 ./Scripts/check-core-purity.sh
 
-step "StrideCore tests (no simulator)"
-if command -v swift >/dev/null 2>&1; then
-  swift test --package-path StrideCore
-elif [ "$STRICT" -eq 1 ]; then
-  echo "error: swift not found and --strict was requested." >&2
-  exit 1
-else
-  echo "swift not found — skipping. Requires a Swift toolchain (macOS)."
+step "Dependency policy"
+./Scripts/check-dependency-policy.sh
+
+if ! command -v dart >/dev/null 2>&1; then
+  missing_toolchain "dart" || exit 0
 fi
 
-if ! command -v xcodebuild >/dev/null 2>&1; then
-  if [ "$STRICT" -eq 1 ]; then
-    echo >&2
-    echo "error: xcodebuild not found and --strict was requested." >&2
-    echo "Full verification requires macOS with the current stable Xcode." >&2
-    exit 1
-  fi
-  echo
-  echo "xcodebuild not found — skipping simulator builds."
-  echo "Core verification passed. Full verification requires macOS with Xcode."
-  echo "Run with --strict to make this a failure."
-  exit 0
+step "Format (hand-written Dart only)"
+dart format --output=none --set-exit-if-changed "${FORMAT_PATHS[@]}"
+
+step "stride_core: analyze and test (no Flutter, no emulator)"
+(cd packages/stride_core && dart pub get >/dev/null && dart analyze --fatal-infos && dart test)
+
+if ! command -v flutter >/dev/null 2>&1; then
+  missing_toolchain "flutter" || exit 0
 fi
 
-if [ ! -d "Stride.xcodeproj" ]; then
-  step "Generating Xcode project"
-  if command -v xcodegen >/dev/null 2>&1; then
-    xcodegen generate
-  else
-    echo "error: Stride.xcodeproj missing and xcodegen not installed." >&2
-    echo "Run 'brew install xcodegen', or create the project by hand per" >&2
-    echo "TECHNICAL/PROJECT_SETUP.md." >&2
-    exit 1
-  fi
-fi
+step "Workspace analyze"
+flutter analyze --fatal-infos
 
-for sim in "$SMALL_SIM" "$STANDARD_SIM"; do
-  step "Build + test: $sim"
-  xcodebuild test \
-    -project Stride.xcodeproj \
-    -scheme Stride \
-    -destination "platform=iOS Simulator,name=$sim" \
-    -quiet
-done
+step "Flutter tests"
+flutter test
+
+step "stride_health tests"
+(cd packages/stride_health && flutter test)
 
 echo
 echo "All checks passed."
+echo "Not covered here: Android build (needs the Android SDK and a JDK) and"
+echo "iOS compilation (needs macOS -- see the CI ios job)."

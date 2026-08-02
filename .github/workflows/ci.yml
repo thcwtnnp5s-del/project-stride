@@ -41,10 +41,6 @@ jobs:
         working-directory: packages/stride_core
         run: dart pub get
 
-      - name: Verify formatting
-        working-directory: packages/stride_core
-        run: dart format --output=none --set-exit-if-changed .
-
       - name: Analyze
         working-directory: packages/stride_core
         run: dart analyze --fatal-infos
@@ -67,27 +63,10 @@ jobs:
 
       # Risk X-01. A third-party health aggregation package must never own
       # reconciliation, anchors, deletion handling, or ledger semantics.
-      # DECISIONS/0010.
-      - name: No third-party health aggregation package
-        run: |
-          if grep -rnE '^\s+(health|health_kit|flutter_health_fit|fitkit|google_fit)\s*:' \
-               --include=pubspec.yaml . ; then
-            echo "::error::A third-party health package is prohibited. Health"
-            echo "::error::integration is first-party in packages/stride_health."
-            echo "::error::See DECISIONS/0010_CROSS_PLATFORM_STACK.md."
-            exit 1
-          fi
-          echo "dependency policy: OK"
-
-      # stride_core must not declare a Flutter dependency at all — the purity
-      # rule made structural, not merely tested.
-      - name: stride_core declares no Flutter dependency
-        run: |
-          if grep -qE '^\s+flutter\s*:' packages/stride_core/pubspec.yaml; then
-            echo "::error::stride_core must not depend on Flutter."
-            exit 1
-          fi
-          echo "core independence: OK"
+      # Also asserts stride_core declares no Flutter dependency — the purity
+      # rule made structural, not merely tested. DECISIONS/0010.
+      - name: Dependency policy
+        run: ./Scripts/check-dependency-policy.sh
 
   # ---------------------------------------------------------------------------
   # The app and the Android adapter. Everything here is what the owner can also
@@ -116,22 +95,38 @@ jobs:
       # Compares only the generated files, not the whole tree, and relies on the
       # Pigeon version being pinned in pubspec.yaml — otherwise a tool upgrade
       # fails this step for header-comment churn unrelated to a stale contract.
+      # Compares only the generated files, and relies on the Pigeon version
+      # being pinned exactly in stride_health/pubspec.yaml — otherwise a tool
+      # upgrade fails this step for header churn unrelated to a stale contract.
       - name: Verify Pigeon output is current
+        working-directory: packages/stride_health
         run: |
-          GENERATED="packages/stride_health/lib/src/messages.g.dart \
-                     packages/stride_health/android/src/main/kotlin/Messages.g.kt \
-                     packages/stride_health/ios/Classes/Messages.g.swift"
-          dart run pigeon --input packages/stride_health/pigeons/health_api.dart
+          GENERATED="lib/src/messages.g.dart \
+                     android/src/main/kotlin/com/projectstride/stride_health/Messages.g.kt \
+                     ios/stride_health/Sources/stride_health/Messages.g.swift"
+          dart run pigeon --input pigeons/health_api.dart
           if ! git diff --quiet -- $GENERATED; then
             echo "::error::Pigeon-generated files are stale. Regenerate and commit:"
-            echo "::error::  dart run pigeon --input packages/stride_health/pigeons/health_api.dart"
+            echo "::error::  cd packages/stride_health && dart run pigeon --input pigeons/health_api.dart"
             git diff --stat -- $GENERATED
             exit 1
           fi
           echo "pigeon: up to date"
 
+      # Hand-written Dart only. Pigeon output is not dart-format clean, and
+      # formatting it would fail the drift check above on the next regeneration.
       - name: Verify formatting
-        run: dart format --output=none --set-exit-if-changed .
+        run: |
+          dart format --output=none --set-exit-if-changed \
+            lib test \
+            packages/stride_core/lib packages/stride_core/test \
+            packages/stride_health/lib/stride_health.dart \
+            packages/stride_health/lib/src/mock_step_provider.dart \
+            packages/stride_health/lib/src/platform_step_provider.dart \
+            packages/stride_health/test \
+            packages/stride_health/pigeons \
+            packages/stride_health/example/lib \
+            packages/stride_health/example/integration_test
 
       - name: Analyze
         run: flutter analyze --fatal-infos
@@ -139,9 +134,20 @@ jobs:
       - name: Widget and unit tests
         run: flutter test
 
-      - name: Health Connect adapter unit tests
-        working-directory: packages/stride_health/android
-        run: ./gradlew test
+      - name: stride_health tests
+        working-directory: packages/stride_health
+        run: flutter test
+
+      # Compiles the Kotlin adapter by building its host app. Driven through
+      # `flutter build` rather than ./gradlew: Flutter's generated
+      # android/.gitignore excludes the Gradle wrapper, which Flutter
+      # regenerates on build, so a raw gradlew call fails on a fresh checkout.
+      #
+      # Behavioral Health Connect tests arrive with the real implementation in
+      # S-01. This step is compile-only.
+      - name: Android adapter compilation
+        working-directory: packages/stride_health/example
+        run: flutter build apk --debug
 
       - name: Build debug APK
         run: flutter build apk --debug
@@ -172,14 +178,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Compiles the app and the Swift HealthKit adapter. No signing, no
+      # simulator UI tests, no TestFlight — those need real Mac access and
+      # Apple credentials.
+      #
+      # This job is the whole point of DECISIONS/0010's standing instruction:
+      # the iOS branch must not be allowed to remain uncompiled until the end.
+      # A build nobody runs still catches compile breaks, API drift, and a
+      # stale Pigeon contract.
       - name: Build iOS (unsigned)
         run: flutter build ios --no-codesign --debug
 
-      - name: HealthKit adapter compilation and unit tests
-        working-directory: packages/stride_health/example/ios
-        run: |
-          xcodebuild test \
-            -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -quiet
+      - name: Build the plugin host app (compiles the Swift adapter)
+        working-directory: packages/stride_health/example
+        run: flutter build ios --no-codesign --debug

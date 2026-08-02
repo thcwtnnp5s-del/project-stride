@@ -1,0 +1,27 @@
+name: stride_core
+description: >-
+  Project Stride game rules and simulation. Pure Dart, deterministic, with no
+  dependency on Flutter, plugins, the file system, or the clock.
+version: 0.1.0
+publish_to: 'none'
+
+# This package MUST NOT declare a dependency on `flutter`.
+#
+# The rule is structural here, and enforced by test/core_purity_test.dart, by
+# Scripts/check-core-purity.sh, and by the dependency-policy job in CI.
+#
+# When the core needs a platform capability, define a port in lib/src/ports/ and
+# implement it in the app or in stride_health. Do not add a dependency here.
+#
+# See DECISIONS/0010_CROSS_PLATFORM_STACK.md.
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  collection: ^1.19.0
+  meta: ^1.16.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

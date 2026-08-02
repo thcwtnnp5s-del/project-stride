@@ -1,7 +1,12 @@
 # Project Structure
 
 **Authority:** `DECISIONS/0010_CROSS_PLATFORM_STACK.md`
-**Status:** Specification. Files are created during migration step M-2 (`MIGRATION_EXECUTION_PLAN.md`), not before owner approval.
+**Status:** **Built.** Created at migration step M-2 and verified on Windows — see `MIGRATION_COMPLETION_REPORT.md`.
+
+> Two things differ from the pre-build specification, both discovered by actually running the tooling:
+>
+> * The plugin's iOS side uses the **Swift Package Manager layout** (`ios/stride_health/Sources/stride_health/`), not `ios/Classes/`. Pigeon was writing Swift into a directory that would never have been compiled.
+> * `Messages.g.kt` lives under the full package path, `android/src/main/kotlin/com/projectstride/stride_health/`.
 
 ---
 
@@ -39,19 +44,20 @@ ProjectStride/
 │       │       ├── messages.g.dart           Pigeon-generated Dart
 │       │       ├── platform_step_provider.dart
 │       │       └── mock_step_provider.dart   Deterministic, for tests
-│       ├── android/src/main/kotlin/…/
+│       ├── android/src/main/kotlin/com/projectstride/stride_health/
 │       │   ├── StrideHealthPlugin.kt
 │       │   ├── HealthConnectAdapter.kt       Changes API
 │       │   └── Messages.g.kt                 Pigeon-generated
-│       ├── ios/Classes/
+│       ├── ios/stride_health/Sources/stride_health/   (SPM layout)
 │       │   ├── StrideHealthPlugin.swift
 │       │   ├── HealthKitAdapter.swift        HKAnchoredObjectQuery
 │       │   └── Messages.g.swift              Pigeon-generated
-│       ├── example/                  Minimal host app for adapter tests
+│       ├── example/                  Minimal host app for platform tests
 │       │   ├── lib/main.dart                 Exercises the plugin directly
-│       │   ├── android/                      Hosts Kotlin instrumentation tests
-│       │   └── ios/                          Hosts Swift XCTest — the CI iOS job
-│       └── test/                     Dart tests for the mock adapter
+│       │   ├── integration_test/             On-device channel checks
+│       │   ├── android/                      Hosts Kotlin tests
+│       │   └── ios/                          Compiles the Swift adapter in CI
+│       └── test/                     Dart tests for the mock provider
 │
 ├── assets/content/v1/                Nine JSON files, versioned schemas
 ├── android/                          Flutter Android runner

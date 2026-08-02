@@ -279,7 +279,52 @@ Shortfalls record to `discrepancyDebt`, absorbed against future ingestion, cappe
 
 One selected activity. Unallocated steps bank indefinitely and never expire. **Terminating** activities (travel) bank the remainder on completion; **repeating** activities (gathering) consume until the player's allocation is exhausted.
 
-### 6.6 Testability — and now, cross-platform equivalence
+### 6.6 Cursor invalidation — bounded authoritative rescan
+
+Health Connect can expire or invalidate a changes token. HealthKit anchors do not expire, so this is the one genuinely Android-specific failure mode in the project.
+
+When it happens, the delta stream is broken and the adapter cannot say what changed. The two obvious responses are both wrong: granting everything rescanned double-counts every step already granted, and resetting the ledger erases the player's earned progress.
+
+#### The rule
+
+> When a Health Connect changes token expires or becomes invalid, perform a **bounded authoritative rescan**, rebuild native source state, and reconcile it against the game's monotonic granted-step ledger **without duplicating previously granted progress**.
+
+#### Watermark and overlap arithmetic
+
+The save persists two values alongside the cursor:
+
+| Field | Meaning |
+|---|---|
+| `sourceWatermark` | An instant such that all source data at or before it is fully accounted for |
+| `grantedSinceWatermark` | Steps granted from source data *after* that watermark |
+
+On recovery the adapter re-reads the **authoritative total** for `[sourceWatermark, now]` and reports it as `windowTotal` — a total, not a delta. Reconciliation then grants:
+
+```text
+newlyGrantable = max(0, windowTotal − grantedSinceWatermark)
+```
+
+The subtraction is the overlap correction: whatever was already granted from inside the rescanned window is deducted, so re-read data cannot be re-granted. The `max(0, …)` is the no-clawback rule — if the source now reports *less* than was granted, the shortfall becomes recorded discrepancy rather than lost progress.
+
+`sourceWatermark` advances and `grantedSinceWatermark` resets to zero only after a successful recovery.
+
+#### Bounded
+
+`windowStart` is clamped to `StepRescan.maxRescanWindow` (30 days) before now. If the watermark is older, the window is truncated and `truncated` is set. **Steps in the unreachable gap are recorded, never granted** — they cannot be distinguished from steps already counted, and inventing progress is worse than missing it.
+
+This is what prevents the failure mode of silently discarding the cursor and granting the full history.
+
+#### Interrupted recovery is safe to retry
+
+Recovery reads state and computes a number; it mutates nothing until the ledger batch is committed. **The replacement token is persisted only after that commit.** If the process dies at any point before it, the watermark, `grantedSinceWatermark`, and the old cursor are all unchanged, so the next attempt recomputes exactly the same result. Combined with the ledger's batch-identity replay guard, recovery is idempotent.
+
+#### On record identity
+
+Health Connect exposes per-record UIDs, and deduplicating by UID inside the overlap window would be more precise than arithmetic. It is deliberately not the primary mechanism: retaining identifiers indefinitely is unbounded storage, and it would leave the game holding a shadow copy of health data, which `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Identity may be used as a refinement *within* a single recovery pass; the watermark arithmetic is what the correctness argument rests on.
+
+The contract is expressed in `StepRescan` in `stride_core`, and tested by reconciliation scenario 13.
+
+### 6.7 Testability — and now, cross-platform equivalence
 
 The twelve scenarios (§6.7 of v1.1, unchanged) run against the mock provider in `dart test`, **on Windows, in under a second**.
 

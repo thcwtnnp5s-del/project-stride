@@ -1,0 +1,43 @@
+name: stride_health
+description: >-
+  Project Stride first-party step integration. HealthKit on iOS, Health Connect
+  on Android, behind one Pigeon-typed boundary.
+version: 0.1.0
+publish_to: 'none'
+
+# This package is repository-owned on purpose.
+#
+# No third-party health aggregation plugin may be the source of truth for
+# change tokens or anchors, reconciliation, deletion handling, double-count
+# prevention, or ledger semantics. A general health plugin would place the
+# project's highest-severity system behind a third party's interpretation of
+# anchored queries and change tokens.
+#
+# See DECISIONS/0010_CROSS_PLATFORM_STACK.md.
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  stride_core:
+    path: ../stride_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # Pinned exactly. Without a pin, a tool upgrade rewrites generated headers and
+  # fails CI's freshness check for reasons unrelated to a stale contract.
+  pigeon: 27.3.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.projectstride.stride_health
+        pluginClass: StrideHealthPlugin
+      ios:
+        pluginClass: StrideHealthPlugin

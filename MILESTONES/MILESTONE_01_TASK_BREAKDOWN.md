@@ -74,13 +74,24 @@ All five criteria carry over. Added:
 
 The twelve scenarios from v1.1, written before the feature, plus one the second platform brings with it. Under the Swift plan these could not run on the owner's machine at all; in `dart test` they run in under a second.
 
-**Scenario 13 — anchor/token invalidation** *(TD-F-1)*
+**Scenario 13 — cursor invalidation and bounded authoritative rescan** *(TD-F-1)*
 
-Health Connect can expire a changes token, leaving the adapter unable to know what changed since last sync. HealthKit has no equivalent. The adapter reports `anchorInvalidated`, and reconciliation must resync **without double-counting and without clawing back granted progress**.
+Health Connect can expire a changes token, leaving the adapter unable to say what changed. HealthKit has no equivalent. The recovery rule is specified in `ARCHITECTURE_IMPLEMENTATION_PLAN.md` §6.6 and encoded in `StepRescan`.
 
-The ledger's monotonic counters and `discrepancyDebt` are claimed to handle this by design. That claim is untested until this scenario exists, and "handled by design" is exactly the kind of belief that turns out to be wrong in the one system that must not be.
+The scenario must assert every clause of it:
+
+| # | Assertion |
+|---|---|
+| 13a | The game ledger is **never reset** |
+| 13b | Rescanned history is **never treated as all new** |
+| 13c | Granted progress is **never clawed back** — `max(0, windowTotal − grantedSinceWatermark)` |
+| 13d | The cursor is **never silently discarded in favour of granting full history** |
+| 13e | A replacement token is persisted **only after** the recovery batch is committed |
+| 13f | Recovery interrupted at any point **recomputes the same result on retry** |
+| 13g | A **truncated** window records the unreachable gap rather than granting it |
 
 - **Acceptance:** all thirteen scenarios exist and fail for the right reason before S-02; none touches real health data, the file system, or the wall clock; the suite runs in under a second
+- **Note:** the ledger's monotonic counters were *claimed* to handle this by design. That claim is untested until 13a–13g exist, and "handled by design" is exactly the kind of belief that turns out to be wrong in the one system that must not be.
 
 **Ordering rule stands: F-04 before S-02. Do not reorder it.**
 
@@ -286,12 +297,25 @@ Added: all eight required player experiences pass **on both platforms**; the zer
 - **Objective:** Prove that one ledger over two genuinely different sync primitives produces identical results.
 - **Dependencies:** S-01b
 - **Deliverables:** The thirteen F-04 scenarios executed against **both real adapters** — HealthKit on a physical iPhone, Health Connect on a physical Android device — with seeded health data and identical assertions
-- **Acceptance criteria:**
+- **Acceptance criteria:** normalized outcomes must match across HealthKit and Health Connect for every case below.
+
+  | Case | Compared |
+  |---|---|
+  | New steps | Newly grantable progress, ledger totals |
+  | Duplicates | No double-count on either platform |
+  | Delayed additions | Same total once delivered |
+  | Corrections | Same discrepancy handling |
+  | Deletions | Same absorption, no clawback |
+  | Interrupted sync | Same state after retry |
+  | Invalid/expired cursor recovery | Same newly grantable figure |
+  | No-clawback behavior | Granted progress preserved identically |
+
   1. All thirteen scenarios pass against the real Health Connect adapter
   2. All thirteen pass against the real HealthKit adapter
-  3. **Assertions are identical across platforms** — not merely "both passed their own suite," but the same expected values from the same inputs
-  4. Anchor/token invalidation is exercised on Android, where it actually occurs
-  5. Any behavioral divergence is either eliminated or recorded as a known, bounded difference with player-visible consequences stated
+  3. **Internal native cursor formats need not match** — an archived `HKQueryAnchor` and a Health Connect token are different objects, and that is fine
+  4. **Newly grantable progress and ledger outcomes must match exactly**, from the same logical inputs
+  5. Cursor invalidation is exercised on Android, where it actually occurs
+  6. Any behavioral divergence is either eliminated or recorded as a known, bounded difference with its player-visible consequence stated
 - **Tests:** The suite is the deliverable
 - **Documentation:** `QA_REPORT.md`
 - **Status:** Blocked — needs S-01b and both physical devices

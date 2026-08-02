@@ -1,41 +1,102 @@
-# macOS
-.DS_Store
+# ---------------------------------------------------------------------------
+# Secrets — never commit these. DECISIONS/0011.
+# ---------------------------------------------------------------------------
+*.jks
+*.keystore
+*.p12
+*.pem
+*.cer
+*.certSigningRequest
+*.mobileprovision
+key.properties
+keystore.properties
+Secrets.xcconfig
+.env
+.env.*
+service-account*.json
+google-services.json
+GoogleService-Info.plist
 
-# Generated Xcode project — the spec is project.yml, see TECHNICAL/PROJECT_SETUP.md
-Stride.xcodeproj/
-
-# Xcode
+# ---------------------------------------------------------------------------
+# Dart and Flutter
+# ---------------------------------------------------------------------------
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
 build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# Package lockfiles: committed for the app, ignored for libraries, per Dart
+# convention. Keeping the app's lock makes CI reproducible.
+packages/stride_core/pubspec.lock
+packages/stride_health/pubspec.lock
+
+# ---------------------------------------------------------------------------
+# Android
+# ---------------------------------------------------------------------------
+**/android/.gradle
+**/android/captures/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+
+# Flutter's own generated android/.gitignore excludes gradlew and the wrapper
+# jar, and Flutter regenerates them on build. CI therefore drives Android
+# through `flutter build` rather than calling ./gradlew directly — a raw gradlew
+# invocation would fail on a fresh checkout.
+
+# ---------------------------------------------------------------------------
+# iOS
+# ---------------------------------------------------------------------------
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Pods/
+**/ios/.symlinks/
+
+# ---------------------------------------------------------------------------
+# Xcode
+# ---------------------------------------------------------------------------
 DerivedData/
 *.xcuserstate
-*.xcuserdatad/
 xcuserdata/
 *.moved-aside
 *.hmap
 *.ipa
-*.dSYM.zip
 *.dSYM
-
-# Xcode project user state (keep the project and scheme files themselves)
+*.dSYM.zip
 *.xcodeproj/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcworkspace/xcuserdata/
 
 # Swift Package Manager
 .build/
 .swiftpm/
-Package.resolved.backup
 
-# Provisioning and secrets — never commit these
-*.mobileprovision
-*.p12
-*.cer
-*.certSigningRequest
-Secrets.xcconfig
+# ---------------------------------------------------------------------------
+# Superseded Swift scaffold (retired at M-5; kept in history at 859d0ac)
+# ---------------------------------------------------------------------------
+Stride.xcodeproj/
 
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+
+# ---------------------------------------------------------------------------
 # Test and coverage output
-*.xcresult/
+# ---------------------------------------------------------------------------
 coverage/
+*.xcresult/
 
 # Claude Code local settings (shared settings.json is committed)
 .claude/settings.local.json
