@@ -38,6 +38,9 @@ Completed foundations:
 | 0002 | Native Swift + SwiftUI, iOS 17+, pure `StrideCore` package | `DECISIONS/0002_TECHNOLOGY_STACK.md` |
 | 0003 | Turn-based, retreat-not-death combat; no combat skills in M01 | `DECISIONS/0003_COMBAT_MODEL.md` |
 | 0004 | M01 scope frozen — no currency, no merchants, five skills, six tabs | `DECISIONS/0004_MILESTONE_01_SCOPE.md` |
+| 0006 | One activity at a time; travelling and gathering are a choice | `DECISIONS/0006_SINGLE_ACTIVITY.md` |
+
+*(0005 is reserved for the audio sourcing decision, blocked on owner budget input.)*
 
 ## Current milestone
 

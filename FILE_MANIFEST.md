@@ -7,6 +7,16 @@
 - `PROJECT_STATE.md` — Current project state and next actions
 - `HANDOFF_INSTRUCTIONS.md` — Exact setup and launch instructions
 - `FILE_MANIFEST.md` — Complete package inventory
+- `STUDIO_INITIALIZATION_REPORT.md` — Foundation audit, contradictions, gaps, stack recommendation
+- `ARCHITECTURE_IMPLEMENTATION_PLAN.md` — Approved technical plan for Milestone 01
+- `DESIGN_REVIEW.md` — Technical, creative, and QA review of the plans
+- `CRITIC_REPORT.md` — Critic Agent challenge of the decisions and plans
+
+## Claude Code integration
+
+- `.claude/commands/` — The seven studio workflows, installed as slash commands
+- `.claude/agents/` — The ten studio roles, installed as subagents
+- `.gitignore` — Swift/Xcode ignore rules
 
 ## Project Kernel
 
@@ -79,11 +89,22 @@
 
 - `MILESTONES/MILESTONE_01_FIRST_ADVENTURE.md`
 - `MILESTONES/MILESTONE_01_IMPLEMENTATION_PLAN.md`
-- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_TEMPLATE.md`
+- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md` — The reviewed task plan
+- `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_TEMPLATE.md` — Superseded by the above
+
+## Decisions
+
+- `DECISIONS/0001_PROGRESSION_CLOCK.md` — Step-clocked only
+- `DECISIONS/0002_TECHNOLOGY_STACK.md` — Native Swift + SwiftUI
+- `DECISIONS/0003_COMBAT_MODEL.md` — Turn-based, retreat-not-death
+- `DECISIONS/0004_MILESTONE_01_SCOPE.md` — Scope freeze
+- `DECISIONS/0006_SINGLE_ACTIVITY.md` — One activity at a time
+- *(0005 reserved for audio sourcing — blocked on owner input)*
 
 ## Templates and supporting folders
 
 - `DECISIONS/DECISION_TEMPLATE.md`
 - `JOURNAL/README.md`
+- `JOURNAL/OPEN_QUESTIONS.md`
 - `REFERENCES/README.md`
 - `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_TEMPLATE.md`

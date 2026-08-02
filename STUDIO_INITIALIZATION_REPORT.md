@@ -4,7 +4,9 @@
 **Report version:** 1.0
 **Date:** 2026-08-01
 **Prepared by:** Studio Stride (Claude Code)
-**Status:** Awaiting owner decisions — no production code written
+**Status:** Complete. All five blocking decisions in §6.1 were answered and approved by the owner on 2026-08-01 and are recorded in `DECISIONS/0001`–`0004` and `0006`. Contradictions C-01 – C-09 are resolved across the Kernel and Game Bible; gaps G-01, G-02, G-03, G-08, and G-10 are closed. G-04, G-05, G-06, G-07, and G-09 are scheduled as tasks in `MILESTONES/MILESTONE_01_TASK_BREAKDOWN.md`.
+
+No production code written.
 
 ---
 
