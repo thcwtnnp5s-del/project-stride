@@ -1,0 +1,44 @@
+# Walking Integration
+
+## Design goal
+
+The player should think:
+
+> My walk mattered.
+
+## Initial source
+
+Apple Health / HealthKit step count.
+
+## Core requirements
+
+- Read historical step count with permission
+- Reconcile newly earned steps
+- Never double-count consumed steps
+- Support delayed syncing
+- Work offline after data is available
+- Clearly explain permissions and privacy
+- Avoid shaming or pressure
+
+## Gameplay outputs
+
+Steps may advance:
+
+- Travel
+- Selected gathering activities
+- Exploration
+- Adventure preparation
+
+Expeditions are deferred to Milestone 02 and are not a distinct system in the vertical slice.
+
+Exact conversion rates must be balanced through testing rather than assumed.
+
+## Steps gate rate, never access
+
+Steps determine how *fast* the player progresses. They never determine what the player may *open, see, or attempt*.
+
+Every screen, every recipe the player has materials for, and every encounter the player is prepared for is available at zero available steps. Nothing is ever "locked until you walk." This is the boundary that keeps step spending from becoming an energy system, which `PROJECT_KERNEL/06_ANTI_FEATURES.md` forbids.
+
+## Step-clocked, not time-clocked
+
+Activity progress is a function of consumed steps only. Wall-clock time may be displayed — "last synced", "you were away for three days" — but is never an input to progression. See `DECISIONS/0001_PROGRESSION_CLOCK.md`.

@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Xcode project user state (keep the project and scheme files themselves)
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved.backup
+
+# Provisioning and secrets — never commit these
+*.mobileprovision
+*.p12
+*.cer
+*.certSigningRequest
+Secrets.xcconfig
+
+# Test and coverage output
+*.xcresult/
+coverage/
+
+# Claude Code local settings (shared settings.json is committed)
+.claude/settings.local.json
