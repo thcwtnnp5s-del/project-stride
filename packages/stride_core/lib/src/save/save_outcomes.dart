@@ -51,13 +51,23 @@ enum SaveDiagnosis {
   journalSequenceGap,
   journalDuplicateTransaction,
   journalForked,
-  journalLineageMismatch,
   journalOrphaned,
   snapshotOlderThanJournal,
-  snapshotNewerThanJournal,
   interruptedCompaction,
+
+  /// A slice carried an origin that is not a valid pseudonymous key.
+  ///
+  /// Distinct from generic malformed encoding because the cause and the fix
+  /// differ: this one means an adapter wrote a raw platform identifier past
+  /// the pseudonymization boundary.
   originKeyRejected,
 }
+
+// `journalLineageMismatch` and `snapshotNewerThanJournal` were declared here
+// and never produced. Removed rather than left as aspiration: the first is
+// covered by `LoadRefusal.lineageMismatch`, which *is* produced, and the second
+// described the normal state between a commit and the next compaction — a
+// repair that is always present tells nobody anything.
 
 /// Why a load was refused outright.
 enum LoadRefusal {
@@ -230,12 +240,15 @@ enum CommitRefusal {
   /// committed** and must not release the cursor.
   journalAppendFailed,
 
-  /// Storage is full. The previous state remains loadable and the cursor does
-  /// not advance — F-04's refusal rule, extended to disk.
-  storageFull,
-
-  /// Another writer holds the single-writer lease.
-  writerBusy,
+  // storageFull and writerBusy were declared here and never produced.
+  //
+  // A full disk arrives as an opaque exception the core cannot classify, so it
+  // surfaces as `journalAppendFailed` — which carries exactly the same
+  // obligation: the batch did not commit, and the cursor must not advance.
+  // And the single-writer queue serializes callers rather than refusing them,
+  // so nothing is ever busy.
+  //
+  // Dead members in a safety hierarchy read as coverage that does not exist.
 }
 
 /// The result of compacting the journal.

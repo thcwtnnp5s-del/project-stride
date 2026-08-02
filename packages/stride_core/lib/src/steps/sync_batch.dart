@@ -23,7 +23,29 @@ final class TimeBucket implements Comparable<TimeBucket> {
   final int startMillis;
   final int endMillis;
 
+  /// The narrowest bucket the reconciler will accept.
+  ///
+  /// The privacy ruling bounds retention *length* — seven days — and says
+  /// nothing about *resolution*. One-minute buckets would satisfy it exactly
+  /// as written, and produce roughly ten thousand entries per origin: a
+  /// minute-by-minute record of when the player moved, kept for a week. That
+  /// is a far finer activity log than "coarse recent reconciliation history"
+  /// describes, and nobody would have decided to build it.
+  ///
+  /// One hour is also what the retention document's own sizing estimate
+  /// assumes — *(hours in the window) × (devices)*. Before this constant that
+  /// assumption was uneforced, and the adapter that would have had to honour
+  /// it is not written yet.
+  ///
+  /// Enforced at the reconciler boundary as a typed refusal rather than by
+  /// `assert`, because asserts are stripped from release builds and release is
+  /// exactly where a player's data is.
+  static const int minimumWidthMillis = 60 * 60 * 1000;
+
   int get durationMillis => endMillis - startMillis;
+
+  /// True when this bucket is coarse enough to persist.
+  bool get isPersistable => durationMillis >= minimumWidthMillis;
 
   bool overlaps(TimeBucket other) =>
       startMillis < other.endMillis && other.startMillis < endMillis;

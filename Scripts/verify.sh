@@ -67,6 +67,9 @@ step "Core purity"
 step "Dependency policy"
 ./Scripts/check-dependency-policy.sh
 
+step "Android backup exclusions"
+./Scripts/check-backup-exclusions.sh
+
 if ! command -v dart >/dev/null 2>&1; then
   missing_toolchain "dart" || exit 0
 fi

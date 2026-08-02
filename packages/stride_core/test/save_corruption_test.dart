@@ -837,7 +837,11 @@ void main() {
         final LoadRefused refused = outcome as LoadRefused;
         expect(refused.reason, LoadRefusal.allSlotsUnreadable);
         expect(
-          hasDiagnosis(refused.repairs, SaveDiagnosis.slotMalformedEncoding),
+          // Specifically `originKeyRejected`, not generic malformed encoding.
+          // The distinction is the point: this one means an adapter wrote a
+          // raw platform identifier past the pseudonymization boundary, and
+          // the fix is in the adapter rather than in the save format.
+          hasDiagnosis(refused.repairs, SaveDiagnosis.originKeyRejected),
           isTrue,
           reason: refusalText(refused),
         );

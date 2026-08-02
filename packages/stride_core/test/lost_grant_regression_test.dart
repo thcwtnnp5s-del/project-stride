@@ -206,4 +206,83 @@ void main() {
       );
     });
   });
+
+  _bucketWidth();
+}
+
+// Bucket resolution is a privacy bound, not a correctness one.
+//
+// Found by the F-05 Privacy Auditor: the ruling bounds retention *length* and
+// says nothing about *resolution*. Minute buckets would have been fully
+// compliant as written and would have produced a minute-by-minute record of
+// when the player moved, kept for a week.
+void _bucketWidth() {
+  group('bucket resolution', () {
+    test('a batch finer than the minimum width is refused', () {
+      final GameEngine engine = newEngine();
+      const int minute = 60 * 1000;
+
+      final EngineResult result = sync(
+        engine,
+        IncrementalSync(
+          observations: <StepObservation>[
+            StepObservation(
+              key: ObservationKey(
+                origin: phone,
+                bucket: TimeBucket(startMillis: t0, endMillis: t0 + minute),
+              ),
+              steps: 400,
+            ),
+          ],
+          nextCursor: cursor('fine'),
+        ),
+      );
+
+      expect(result.isRejected, isTrue);
+      expect(
+        engine.state.steps.totalGranted,
+        0,
+        reason: 'a refused batch must not move the ledger at all',
+      );
+      expect(engine.state.steps.checkpoint.cursor, isNull);
+    });
+
+    test('the refusal names no bucket bounds', () {
+      // The explanation reaches diagnostics, and a bucket is health-derived.
+      final GameEngine engine = newEngine();
+      final EngineResult result = sync(
+        engine,
+        IncrementalSync(
+          observations: <StepObservation>[
+            StepObservation(
+              key: ObservationKey(
+                origin: phone,
+                bucket: TimeBucket(startMillis: t0, endMillis: t0 + 1000),
+              ),
+              steps: 5,
+            ),
+          ],
+        ),
+      );
+
+      final String text = result.rejection!.explanation;
+      expect(text, isNot(contains('$t0')));
+      expect(text, isNot(contains(phone.value)));
+    });
+
+    test('an hour bucket is accepted', () {
+      // The boundary itself, so the constant cannot drift upward unnoticed.
+      final GameEngine engine = newEngine();
+      expect(
+        grantedBy(
+          sync(
+            engine,
+            incremental(<StepObservation>[obs(phone, 0, 613)], next: 'ok'),
+          ),
+        ),
+        613,
+      );
+      expect(TimeBucket.minimumWidthMillis, 60 * 60 * 1000);
+    });
+  });
 }

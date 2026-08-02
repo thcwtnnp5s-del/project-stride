@@ -4,6 +4,7 @@
 // a drop, a duplicate, and an off-by-one each produce a *distinguishable*
 // total. Three records of 100, or two grants of 500, would let all three hide.
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:stride_core/stride_core.dart';
@@ -319,6 +320,104 @@ void main() {
       ).repo.load(registry: saveRegistry);
       expect(loaded, isA<SaveLoaded>());
       expect((loaded as SaveLoaded).repairs, isEmpty);
+    });
+  });
+
+  _saltRefusal();
+}
+
+// The origin pseudonymization salt, and what happens when it changes.
+//
+// Wired in response to two sub-agent findings: LoadRefusal.originKeyReset was
+// declared and never produced, while DECISIONS/0012 and the completion report
+// both described it as implemented. Documented-but-absent is worse than either
+// alone, because a reviewer reads it as a safeguard that exists.
+void _saltRefusal() {
+  group('origin salt', () {
+    Future<Uint8List> savedWith(String? fingerprint) async {
+      final GameEngine engine = newEngine();
+      sync(
+        engine,
+        incremental(<StepObservation>[obs(phone, 0, 613)], next: 'c1'),
+      );
+      return encodeSnapshot(
+        state: engine.state,
+        saveId: testSaveId,
+        generation: 0,
+        lastAppliedTransaction: 1,
+        originSaltFingerprint: fingerprint,
+      );
+    }
+
+    Future<LoadOutcome> loadWith(Uint8List slot, String? current) async {
+      final FaultingDevice device = FaultingDevice()..seed('save_slot_a', slot);
+      return newRepo(
+        device,
+      ).repo.load(registry: saveRegistry, originSaltFingerprint: current);
+    }
+
+    test('a changed salt fails closed', () async {
+      // Every origin re-keys, so the live retention window would be granted a
+      // second time. Nothing downstream would ever detect that.
+      final LoadOutcome outcome = await loadWith(
+        await savedWith('aaaaaaaaaaaaaaaa'),
+        'bbbbbbbbbbbbbbbb',
+      );
+
+      expect(outcome, isA<LoadRefused>());
+      expect((outcome as LoadRefused).reason, LoadRefusal.originKeyReset);
+    });
+
+    test('the refusal names neither fingerprint', () async {
+      // Both are derived from health-source identity, and this string reaches
+      // a diagnostic surface.
+      final LoadRefused refused =
+          await loadWith(
+                await savedWith('aaaaaaaaaaaaaaaa'),
+                'bbbbbbbbbbbbbbbb',
+              )
+              as LoadRefused;
+
+      expect(refused.explanation, isNot(contains('aaaaaaaaaaaaaaaa')));
+      expect(refused.explanation, isNot(contains('bbbbbbbbbbbbbbbb')));
+      expect(
+        refused.explanation,
+        contains('Reconnect health'),
+        reason: 'a fail-closed refusal must name the way out of it',
+      );
+    });
+
+    test('a matching salt loads normally', () async {
+      final LoadOutcome outcome = await loadWith(
+        await savedWith('aaaaaaaaaaaaaaaa'),
+        'aaaaaaaaaaaaaaaa',
+      );
+
+      expect(outcome, isA<SaveLoaded>());
+      expect((outcome as SaveLoaded).state.steps.totalGranted, 613);
+    });
+
+    test('a save with no salt has no origins to re-key', () async {
+      // Written before any health source was read. There is nothing to refuse.
+      final LoadOutcome outcome = await loadWith(
+        await savedWith(null),
+        'bbbbbbbbbbbbbbbb',
+      );
+
+      expect(outcome, isA<SaveLoaded>());
+    });
+
+    test('the fingerprint is omitted, not written as null', () async {
+      // An explicit null would mean "deliberately nothing", which is not what
+      // absence means here -- and omitting it keeps saves written before the
+      // field existed byte-identical, which the frozen v1 fixture depends on.
+      final String text = utf8.decode(unframe(await savedWith(null)).payload!);
+      expect(text, isNot(contains('originSaltFingerprint')));
+
+      final String withSalt = utf8.decode(
+        unframe(await savedWith('aaaaaaaaaaaaaaaa')).payload!,
+      );
+      expect(withSalt, contains('originSaltFingerprint'));
     });
   });
 }

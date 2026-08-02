@@ -121,14 +121,20 @@ final class SaveRepository {
   // --- loading ------------------------------------------------------------
 
   /// Reads both slots and the journal, and reconstructs the newest safe state.
+  /// [originSaltFingerprint] is the fingerprint of the salt the app currently
+  /// holds. If it does not match the one the save was written with, the load
+  /// **fails closed** — see [_checkSalt].
   Future<LoadOutcome> load({
     required ContentRegistry registry,
     bool treatAsRelease = false,
-  }) => _serialized(() => _load(registry, treatAsRelease));
+    String? originSaltFingerprint,
+  }) =>
+      _serialized(() => _load(registry, treatAsRelease, originSaltFingerprint));
 
   Future<LoadOutcome> _load(
     ContentRegistry registry,
     bool treatAsRelease,
+    String? originSaltFingerprint,
   ) async {
     final List<SaveRepair> repairs = <SaveRepair>[];
 
@@ -225,6 +231,13 @@ final class SaveRepository {
     );
     final _SlotReading chosen = verified.first;
     final SaveEnvelope envelope = chosen.envelope!;
+
+    final LoadRefused? saltRefusal = _checkSalt(
+      envelope,
+      originSaltFingerprint,
+      repairs,
+    );
+    if (saltRefusal != null) return saltRefusal;
 
     // Step 4. Profile authority. The save's profile governs, not the app's.
     final LoadRefused? profileRefusal = _checkProfile(
@@ -334,12 +347,16 @@ final class SaveRepository {
     try {
       envelope = decodeEnvelope(framed.payload!);
     } on SaveCodecException catch (e) {
-      return _SlotReading.rejected(
-        slot,
-        e.message.contains('gameStateVersion')
-            ? SaveDiagnosis.slotUnsupportedStateVersion
-            : SaveDiagnosis.slotMalformedEncoding,
-      );
+      return _SlotReading.rejected(slot, switch (e.message) {
+        final String m when m.contains('gameStateVersion') =>
+          SaveDiagnosis.slotUnsupportedStateVersion,
+        // Named separately because the cause and the fix differ from generic
+        // malformed encoding: this one means an adapter wrote a raw platform
+        // identifier past the pseudonymization boundary.
+        final String m when m.contains('origin key') =>
+          SaveDiagnosis.originKeyRejected,
+        _ => SaveDiagnosis.slotMalformedEncoding,
+      });
     }
 
     if (!envelope.commitComplete) {
@@ -362,6 +379,40 @@ final class SaveRepository {
     }
 
     return _SlotReading.verified(slot, envelope);
+  }
+
+  /// Refuses when the origin pseudonymization salt has changed.
+  ///
+  /// A changed or lost salt re-keys every origin. The newly-keyed origins have
+  /// no `grantedSlices`, so their recent buckets look ungranted and **the whole
+  /// live retention window would be granted a second time**. No credit is lost
+  /// — `totalGranted` is origin-independent — so this is a bounded double-grant
+  /// rather than a lost grant, and nothing downstream would ever detect it.
+  ///
+  /// Refusing is recoverable: the player can be offered a health reconnect,
+  /// which clears health state and keeps earned progress. A silent double-grant
+  /// is not recoverable, so this fails closed.
+  ///
+  /// A save with no fingerprint has not read a health source yet and has no
+  /// origins to re-key, so there is nothing to refuse.
+  LoadRefused? _checkSalt(
+    SaveEnvelope envelope,
+    String? current,
+    List<SaveRepair> repairs,
+  ) {
+    final String? saved = envelope.originSaltFingerprint;
+    if (saved == null || current == null || saved == current) return null;
+
+    return LoadRefused(
+      reason: LoadRefusal.originKeyReset,
+      // Neither fingerprint appears: both are derived from health-source
+      // identity, and this string reaches a diagnostic surface.
+      explanation:
+          'This save was written with a different health-source key. Loading '
+          'it now could count recent steps twice. Reconnect health to '
+          'continue; your earned progress is kept.',
+      repairs: repairs,
+    );
   }
 
   LoadRefused? _checkProfile(

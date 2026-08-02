@@ -260,6 +260,8 @@ final class StepReconciler {
         :final SyncCursor? nextCursor,
         :final int? completeThroughMillis,
       ):
+        final ReconciliationRefused? tooFine = _refuseFineBuckets(observations);
+        if (tooFine != null) return tooFine;
         return _apply(
           ledger: ledger,
           observations: observations,
@@ -282,6 +284,8 @@ final class StepReconciler {
             retryable: false,
           );
         }
+        final ReconciliationRefused? tooFine = _refuseFineBuckets(observations);
+        if (tooFine != null) return tooFine;
         return _apply(
           ledger: ledger,
           observations: observations,
@@ -293,6 +297,36 @@ final class StepReconciler {
           windowEndMillis: window.endMillis,
         );
     }
+  }
+
+  /// Refuses a batch whose buckets are finer than the ledger may retain.
+  ///
+  /// A privacy control, not a correctness one. Retention bounds how *long*
+  /// slices are kept; nothing bounded how *finely* they were cut, so an
+  /// adapter emitting minute buckets would build a minute-by-minute record of
+  /// when the player moved and keep it for a week — fully compliant with the
+  /// ruling as written, and not something anyone would have chosen.
+  ///
+  /// A refusal rather than a silent widening: merging fine buckets into coarse
+  /// ones would make an adapter bug invisible, and the adapter is the thing
+  /// that needs to be fixed.
+  ReconciliationRefused? _refuseFineBuckets(
+    List<StepObservation> observations,
+  ) {
+    for (final StepObservation observation in observations) {
+      if (!observation.key.bucket.isPersistable) {
+        return const ReconciliationRefused(
+          code: ReconciliationCode.malformedBatch,
+          // No bucket bounds in the message: this reaches diagnostics, and a
+          // bucket is health-derived.
+          explanation:
+              'a bucket is narrower than the minimum persistable width; the '
+              'adapter must aggregate before the boundary',
+          retryable: false,
+        );
+      }
+    }
+    return null;
   }
 
   ReconciliationOutcome _apply({

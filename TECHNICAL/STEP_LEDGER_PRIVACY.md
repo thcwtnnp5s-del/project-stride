@@ -34,7 +34,15 @@ These are read from a provider response, used within a single reconciliation, an
 | Record identifiers / UIDs | Available to an adapter for de-duplication within one read | Adapter only; never crosses the boundary |
 | Precise sample timestamps | Collapsed into a `TimeBucket` by the adapter | Not persisted |
 | `SyncResponse` and its observations | The reconciliation itself | The duration of one `reconcile` call |
-| Rescan window bounds | Deciding what a recovery covers | Recorded only as a truncation *count*, not the window |
+| Rescan window bounds | Deciding what a recovery covers | **Corrected below — this row was wrong** |
+
+> **Correction, 2026-08-02 (F-05 Privacy Auditor).** This row previously read *"Recorded only as a truncation count, not the window."* That was **false**, and it contradicted §3 of this same document.
+>
+> `RecoveryState.windowStartMillis` and `windowEndMillis` **are** persisted, and `StepRecoveryStarted` carries them into the journal. In the snapshot the window is transient — `StepRecoveryCompleted` resets recovery to idle within the same batch — but **the journal record retains it until compaction**, which is at least one commit.
+>
+> A rescan window is an interval of the player's health timeline and can be far wider than a bucket. It is retained because a retry must know whether a recovery began and never finished; without it, an interrupted recovery either repeats unboundedly or silently gives up. It is bounded by compaction like everything else in the journal.
+>
+> The row is left in place rather than deleted so that anyone who read the old claim can see it was withdrawn.
 
 **No raw health history is ever handed to the core, and nothing the core receives is stored verbatim.**
 
@@ -123,6 +131,10 @@ After the active window: time-bucket slices are **removed**, and compaction fold
 - a compacted slice can never be granted again, so forgetting the detail is safe
 
 Steady-state size is roughly *(hours in the window) × (number of devices)* integer entries.
+
+**That estimate assumes hourly buckets, and as of F-05 the code enforces it.** `TimeBucket.minimumWidthMillis` is one hour, checked at the reconciler boundary as a typed refusal rather than an `assert` — asserts are stripped from release builds, and release is where a player's data is.
+
+Before that constant the assumption was unenforced, and it mattered: the ruling bounds retention *length* and says nothing about *resolution*, so minute buckets would have been fully compliant as written and would have produced roughly ten thousand entries per origin — a minute-by-minute record of when the player moved, kept for a week. Nobody would have chosen that; it would simply have been what an adapter happened to emit.
 
 Proven by `bounded retention` in `step_ledger_invariants_test.dart`: fourteen days of syncs leave fewer than fourteen slices retained, with `totalGranted` intact, and a long-settled slice restated by a rescan grants nothing.
 

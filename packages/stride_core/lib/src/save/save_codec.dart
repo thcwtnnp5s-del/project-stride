@@ -62,6 +62,7 @@ final class SaveEnvelope {
     required this.eventSequence,
     required this.commitComplete,
     required this.state,
+    this.originSaltFingerprint,
   });
 
   final int saveFormatVersion;
@@ -94,6 +95,14 @@ final class SaveEnvelope {
   /// marker is absent was interrupted mid-encode and is not a candidate,
   /// even if its digest happens to verify.
   final bool commitComplete;
+
+  /// Fingerprint of the salt that produced this save's origin keys, or null if
+  /// no health source has been read yet.
+  ///
+  /// A changed salt re-keys every origin, so every device looks new and the
+  /// whole live retention window would be granted a second time. Comparing
+  /// this is what turns that into a refusal rather than a silent double-grant.
+  final String? originSaltFingerprint;
 
   final GameState state;
 }
@@ -350,6 +359,7 @@ Uint8List encodeSnapshot({
   required String saveId,
   required int generation,
   required int lastAppliedTransaction,
+  String? originSaltFingerprint,
 }) {
   final Map<String, Object?> envelope = <String, Object?>{
     'saveFormatVersion': SaveFormatVersion.current,
@@ -360,6 +370,11 @@ Uint8List encodeSnapshot({
     'snapshotGeneration': generation,
     'lastAppliedTransaction': lastAppliedTransaction,
     'eventSequence': state.eventSequence,
+    // Omitted entirely when absent rather than written as null. A save with no
+    // health source has no salt, and an explicit null would be a field whose
+    // meaning is "this was deliberately nothing" — which is not what it means.
+    // It also keeps saves written before this field existed byte-identical.
+    'originSaltFingerprint': ?originSaltFingerprint,
     'state': encodeGameState(state),
     // Last field written, and validated on load. A payload that parses without
     // it was interrupted mid-encode.
@@ -418,6 +433,9 @@ SaveEnvelope decodeEnvelope(Uint8List payload) {
     lastAppliedTransaction: intAt('lastAppliedTransaction'),
     eventSequence: intAt('eventSequence'),
     commitComplete: root['commitComplete'] == true,
+    originSaltFingerprint: root['originSaltFingerprint'] is String
+        ? root['originSaltFingerprint']! as String
+        : null,
     state: decoder.decode(stateJson),
   );
 }
