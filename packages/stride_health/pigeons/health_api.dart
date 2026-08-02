@@ -59,9 +59,6 @@ class PlatformRescan {
   /// True when the window was clamped, leaving an unreachable gap. Those steps
   /// are recorded, never granted — inventing progress is worse than missing it.
   final bool truncated;
-
-  /// Deliberate contract drift for the CI failure demonstration.
-  final int demoDriftField;
 }
 
 class PlatformFetchResult {
