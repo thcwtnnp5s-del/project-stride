@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
-**Version:** 1.4
-**Status:** Flutter adopted; revised plans reviewed and awaiting approval before migration
-**Current Phase:** Milestone 01 — pre-migration
+**Version:** 1.5
+**Status:** Migration steps M-1 to M-3 executed; stop gate reached
+**Current Phase:** Milestone 01 — awaiting owner review before M-4 and F-02
 
 ## Project identity
 
@@ -82,7 +82,9 @@ The player must be able to:
 9. ~~Reopen the technology-stack decision.~~ **Done — `ARCHITECTURE_REVIEW_CROSS_PLATFORM.md`**
 10. ~~Owner approval of the Flutter recommendation.~~ **Approved 2026-08-01**
 11. ~~Revise architecture, structure, CI, and task plan; run four-role review.~~ **Done**
-12. **Owner approval of the revised plans, then execute the migration.** ← current state
+12. ~~Owner approval of the revised plans.~~ **Approved 2026-08-01**
+13. ~~Execute migration M-1, M-2, M-3.~~ **Done — `MIGRATION_COMPLETION_REPORT.md`**
+14. **Owner review at the M-3 stop gate.** ← current state
 
 ## Current documents
 
@@ -98,23 +100,39 @@ The player must be able to:
 
 Archived, not deleted: `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVED.md`, `MILESTONES/MILESTONE_01_TASK_BREAKDOWN_SWIFT_ARCHIVED.md`, `DECISIONS/0002` (superseded).
 
-## Migration not yet executed
+## Migration status
 
-Flutter is adopted (`DECISIONS/0010`) and the plans are revised and reviewed, but **no code has been migrated.** The Swift F-01 scaffold remains in the tree, unbuilt and inert, and is retired last — at step M-5, after everything Flutter is green.
+**M-1, M-2, M-3 executed.** M-4 (CI), M-5 (retire the Swift scaffold), M-6 (close) remain.
 
-`MIGRATION_EXECUTION_PLAN.md` sequences M-1 through M-6 with acceptance criteria. Estimated two to three sessions. Until M-5 the tree carries both stacks and the migration can be abandoned by deleting a branch.
+The Flutter workspace exists and is verified on Windows: **17 tests, analyze clean, both enforcement guards demonstrated failing and recovering.** Full detail in `MIGRATION_COMPLETION_REPORT.md`.
 
-**35 of 41 tasks require no Mac.** Roughly 90% of the project becomes verifiable on the owner's machine, against ~0% under the superseded decision.
+The Swift scaffold is still in the tree, unbuilt and inert, retired last at M-5.
 
-### Before the migration can start
+### Two blockers
 
-| Prerequisite | Why |
+| # | Blocker | Effect |
+|---|---|---|
+| 1 | **JDK install failed** — the download stalled twice against its CDN | Blocks `sdkmanager`, adb, the emulator, and every Android build. Recovery steps in `TOOLCHAIN_REPORT_WINDOWS.md` |
+| 2 | **GitHub repo not created** — `gh` login is interactive | Blocks CI. Exact commands in `MIGRATION_COMPLETION_REPORT.md` §7 |
+
+Neither is a design problem, and neither invalidates the work done.
+
+### Toolchain
+
+| | |
 |---|---|
-| A git remote | Required for CI and for GitHub release artifacts |
-| Flutter + Android SDK on the Dell | Step M-1 |
-| A physical Android device | Eventually, for real Health Connect data |
+| Flutter | ✅ 3.44.8 at `C:\Users\jwspa\dev\flutter` |
+| Dart | ✅ 3.12.2 |
+| Android cmdline-tools | ✅ at `C:\Users\jwspa\dev\android-sdk` |
+| JDK, adb, emulator | ⛔ blocked |
+| GitHub CLI | ✅ 2.97.0, not authenticated |
+| Xcode | ➖ iOS-only; CI macOS job covers compilation |
 
-macOS is **not** a prerequisite. GitHub-hosted macOS runners satisfy the iOS-compile job without the owner touching a Mac. Real HealthKit testing, signing, TestFlight, interactive iOS UX, and iOS audio/haptic validation still need one later.
+### Not yet compiled anywhere
+
+**All Apple code.** `HealthKitAdapter.swift` and the generated Swift are authored and never built — the CI macOS job in M-4 is the first time any of it compiles. Treat as unverified until then.
+
+macOS is not needed for the critical path. Real HealthKit testing, signing, TestFlight, interactive iOS UX, and iOS audio/haptic validation need a Mac later.
 
 ## Open gaps to close during Milestone 01
 
