@@ -96,7 +96,28 @@ abstract interface class HapticPlaying  { void emit(GameEvent event); }
 
 That opacity is what lets one ledger serve two platforms with genuinely different sync primitives.
 
-### 2.4 Simulation shape *(unchanged in substance)*
+### 2.4 Simulation shape *(implemented at F-03)*
+
+The engine flow is:
+
+```text
+command → validate against state + ContentRegistry
+        → typed events, or a typed rejection
+        → canonical reducer
+        → new immutable state
+```
+
+**Commands are requests; events are facts.** A command may be refused; an event has already been accepted and applying it cannot fail. That separation is what makes the reducer total, and a total reducer is what makes replay meaningful — re-applying a saved event sequence cannot disagree with the original run, because there is nothing left to re-decide.
+
+**One reducer writes.** Changing state in a command handler and emitting an event afterwards "for logging" produces two implementations of every rule: the one that runs, and the one replay uses. They agree until they don't, and that day a save loads as a different game than it was.
+
+**Rejections are returned, never thrown.** Equipping an item you do not own is ordinary, not exceptional. Exceptions are reserved for programming faults — an out-of-order event, an unreadable state version — so a genuine bug cannot hide inside a handled failure. Reason codes are stable wire strings and may be added but never renamed.
+
+**Deep immutability is enforced, not asserted.** Every collection is copied on construction *and* exposed unmodifiable. `final` in Dart prevents reassignment, not mutation: without the copy, a caller who kept the map they passed in can edit the state afterwards; without the wrapper, a caller who reads a collection off a snapshot can edit the engine and every other snapshot sharing that reference. Both failures are silent and surface far from their cause.
+
+**State stores content IDs, never definitions.** State is the thin, serializable, long-lived half; content is the fat, reloadable half. A save embedding a definition would carry a stale copy of content that has since changed.
+
+*Original v1.1 text follows.*
 
 ```dart
 class GameEngine {
