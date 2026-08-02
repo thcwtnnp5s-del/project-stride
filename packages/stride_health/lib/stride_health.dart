@@ -8,4 +8,5 @@
 library;
 
 export 'src/mock_step_provider.dart';
+export 'src/origin_pseudonymizer.dart';
 export 'src/platform_step_provider.dart';
