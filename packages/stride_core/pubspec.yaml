@@ -25,3 +25,15 @@ dependencies:
 dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.0
+
+  # Dev only, and it must stay that way. stride_storage carries `dart:io`, and
+  # it depends on this package -- so this is a dependency cycle that pub permits
+  # precisely because dev dependencies are not transitive and never reach a
+  # release build.
+  #
+  # It is here for one reason: test/conformance_memory_test.dart runs the shared
+  # persistence-port conformance suite against the in-memory device, so the fast
+  # in-memory implementation and the real filesystem one are held to a single
+  # definition of correct rather than two that drift.
+  stride_storage:
+    path: ../stride_storage

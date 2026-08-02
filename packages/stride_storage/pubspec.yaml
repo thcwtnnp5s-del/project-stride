@@ -1,7 +1,8 @@
 name: stride_storage
 description: >-
   Device-local persistence for Project Stride. Concrete `dart:io` adapters for
-  the pure-Dart ports defined by stride_core.
+  the pure-Dart ports defined by stride_core, plus the reusable conformance
+  suite every implementation of those ports must pass.
 version: 0.1.0
 publish_to: 'none'
 
@@ -21,6 +22,20 @@ dependencies:
   stride_core:
     path: ../stride_core
 
+  # A regular dependency, not a dev dependency, and deliberately so.
+  #
+  # lib/conformance.dart is a *library*, not a test file: it is the single
+  # definition of the persistence-port conformance suite, and it is executed by
+  # test files in this package AND in stride_core. A suite under test/ cannot be
+  # imported by another package, and a suite written twice is two suites that
+  # will eventually disagree — with the one that drifts being the one nobody
+  # runs on a device.
+  #
+  # Acceptable because stride_storage is internal (publish_to: none) and the
+  # suite sits behind its own entry point, so importing
+  # package:stride_storage/stride_storage.dart from the app pulls in no test
+  # framework.
+  test: ^1.25.0
+
 dev_dependencies:
   lints: ^6.0.0
-  test: ^1.25.0

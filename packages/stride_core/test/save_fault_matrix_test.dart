@@ -111,6 +111,7 @@ Uint8List predictedSecondSnapshot(GameState after) => encodeSnapshot(
   saveId: testSaveId,
   generation: 1,
   lastAppliedTransaction: 2,
+  originSaltFingerprint: null,
 );
 
 /// Index just past the framing header line.
@@ -739,6 +740,7 @@ void main() {
               saveId: testSaveId,
               generation: 4,
               lastAppliedTransaction: 7,
+              originSaltFingerprint: null,
             ),
           )
           ..seed(
@@ -748,6 +750,7 @@ void main() {
               saveId: testSaveId,
               generation: 4,
               lastAppliedTransaction: 9,
+              originSaltFingerprint: null,
             ),
           );
 

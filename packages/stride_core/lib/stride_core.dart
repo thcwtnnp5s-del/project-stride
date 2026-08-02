@@ -34,6 +34,7 @@ export 'src/content/reachability.dart';
 export 'src/content/schema_version.dart';
 export 'src/content/validation.dart';
 export 'src/core_info.dart';
+export 'src/diagnostics/save_diagnostics.dart';
 export 'src/ports/identity_store.dart';
 export 'src/ports/save_store.dart';
 export 'src/ports/step_provider.dart';

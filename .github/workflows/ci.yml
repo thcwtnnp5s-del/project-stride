@@ -49,6 +49,7 @@ jobs:
         run: |
           flutter pub get
           (cd packages/stride_core && dart pub get)
+          (cd packages/stride_storage && dart pub get)
           (cd packages/stride_health && flutter pub get)
           (cd packages/stride_health/example && flutter pub get)
 
@@ -60,6 +61,13 @@ jobs:
 
       - name: Dependency policy guard
         run: bash ./Scripts/check-dependency-policy.sh
+
+      # Was local-only via Scripts/verify.sh until F-06, which meant the one
+      # privacy control with no in-code enforcement also had no CI enforcement.
+      # A manifest edit on a branch nobody ran verify.sh against would have
+      # merged green.
+      - name: Storage privacy and backup exclusion guard
+        run: bash ./Scripts/check-backup-exclusions.sh
 
       # Hand-written Dart only. Pigeon output is not dart-format clean, and
       # formatting it would fail the drift check in the `pigeon` job on the next
@@ -84,6 +92,12 @@ jobs:
       - name: stride_core tests
         working-directory: packages/stride_core
         run: dart test
+
+      - name: stride_storage analyze and test
+        working-directory: packages/stride_storage
+        run: |
+          dart analyze --fatal-infos
+          dart test
 
       - name: App tests
         run: flutter test

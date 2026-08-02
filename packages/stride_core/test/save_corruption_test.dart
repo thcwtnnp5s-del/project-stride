@@ -50,6 +50,7 @@ Uint8List snapshotOf(
   saveId: saveId,
   generation: generation,
   lastAppliedTransaction: lastTransaction,
+  originSaltFingerprint: null,
 );
 
 /// Frames [payload] with a correct header, then applies [overrides].

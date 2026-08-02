@@ -370,7 +370,12 @@ Uint8List encodeSnapshot({
   required String saveId,
   required int generation,
   required int lastAppliedTransaction,
-  String? originSaltFingerprint,
+  // **Required, though nullable.** It was optional, and every call site simply
+  // omitted it -- so no snapshot ever carried a fingerprint, and the salt
+  // fail-closed check in SaveRepository could never fire. An optional
+  // parameter carrying a safety-critical value is a defect waiting to be
+  // written; required makes forgetting it a compile error.
+  required String? originSaltFingerprint,
 }) {
   final Map<String, Object?> envelope = <String, Object?>{
     'saveFormatVersion': SaveFormatVersion.current,

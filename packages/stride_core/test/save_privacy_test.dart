@@ -263,6 +263,7 @@ Map<String, Object?> envelopeJsonOf(
                 saveId: saveId,
                 generation: generation,
                 lastAppliedTransaction: transaction,
+                originSaltFingerprint: null,
               ),
             ).payload!,
           ),

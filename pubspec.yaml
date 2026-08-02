@@ -29,6 +29,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # On-device restart checks. Never a dependency of the app itself.
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true

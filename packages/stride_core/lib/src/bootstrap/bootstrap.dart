@@ -289,6 +289,9 @@ final class BootstrapCoordinator {
         expectedSnapshotGeneration: -1,
         expectedLastAppliedTransaction: 0,
       ),
+      // The whole point of the identity: the first snapshot records the
+      // fingerprint that every later load validates against.
+      originSaltFingerprint: identity.saltFingerprint,
     );
 
     if (commit is CommitRefused) {
@@ -326,10 +329,7 @@ final class BootstrapCoordinator {
       );
     }
 
-    final GameEngine engine = GameEngine(
-      registry: registry,
-      state: load.state,
-    );
+    final GameEngine engine = GameEngine(registry: registry, state: load.state);
 
     return BootstrapExistingGame(
       engine: engine,
@@ -347,8 +347,7 @@ final class BootstrapCoordinator {
         BootstrapBlockReason.unsupportedSaveVersion,
       LoadRefusal.qaProfileForbiddenInRelease =>
         BootstrapBlockReason.qaProfileForbidden,
-      LoadRefusal.unknownProfile ||
-      LoadRefusal.profileMigrationRequired =>
+      LoadRefusal.unknownProfile || LoadRefusal.profileMigrationRequired =>
         BootstrapBlockReason.profileMismatch,
       LoadRefusal.unknownContent =>
         BootstrapBlockReason.unknownContentReferences,
@@ -357,8 +356,7 @@ final class BootstrapCoordinator {
       LoadRefusal.divergentSlotsAtSameGeneration =>
         BootstrapBlockReason.bothSlotsInvalid,
       LoadRefusal.lineageMismatch ||
-      LoadRefusal.journalForked =>
-        BootstrapBlockReason.recoveryNotProvable,
+      LoadRefusal.journalForked => BootstrapBlockReason.recoveryNotProvable,
     };
 
     return BootstrapBlocked(

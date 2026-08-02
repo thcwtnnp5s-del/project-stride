@@ -197,6 +197,7 @@ void main() {
         saveId: envelope.saveId,
         generation: envelope.snapshotGeneration,
         lastAppliedTransaction: envelope.lastAppliedTransaction,
+        originSaltFingerprint: null,
       );
 
       // The trap that fires the day someone adds a field to GameState without

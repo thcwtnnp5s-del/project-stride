@@ -91,7 +91,15 @@ final class StorageException implements Exception {
 /// snapshot slots exist to survive, and without reading back, this adapter
 /// would report success and the protocol would advance its generation over
 /// nothing.
-Future<void> _writeVerified(File file, Uint8List bytes) async {
+///
+/// **Public because otherwise the read-back cannot be proved.** Against a real
+/// filesystem there is no way, from pure Dart, to make a write succeed and its
+/// read-back return different bytes — so the only honest demonstration that the
+/// verification happens at all is a test that hands this function a [File]
+/// whose `readAsBytes` lies. A private helper would leave the "read-back
+/// verified" row of the table above as an unverified claim, which is exactly
+/// what that table exists to prevent.
+Future<void> writeVerified(File file, Uint8List bytes) async {
   RandomAccessFile? handle;
   try {
     handle = await file.open(mode: FileMode.write);
@@ -157,7 +165,7 @@ final class FileSnapshotStore implements SnapshotSlotStore {
     await layout.ensureExists();
     // Writes the slot file in place, and touches nothing else. The protocol's
     // atomicity comes from never being asked to write the live slot.
-    await _writeVerified(_fileFor(slot), bytes);
+    await writeVerified(_fileFor(slot), bytes);
   }
 
   @override
@@ -208,6 +216,15 @@ final class FileLedgerJournal implements LedgerJournal {
     await layout.ensureExists();
     final File file = layout.journal;
 
+    // Captured *before* the append, because the check afterwards is relative.
+    //
+    // The previous version compared total file length against record length —
+    // `length < line.length` — which is vacuously satisfied for any journal
+    // already larger than the incoming record, i.e. every append after the
+    // first. It could not detect the failure its own comment claimed it caught.
+    // Found by the F-06 Technical Critic.
+    final int lengthBefore = file.existsSync() ? await file.length() : 0;
+
     RandomAccessFile? handle;
     try {
       handle = await file.open(mode: FileMode.append);
@@ -219,12 +236,37 @@ final class FileLedgerJournal implements LedgerJournal {
       await handle?.close();
     }
 
-    // This is the protocol's commit point, so it gets the same read-back as a
-    // snapshot: the file must now be at least as long as what we appended.
-    // Cheaper than re-reading the whole journal, and it catches the failure
-    // that matters — an append that reported success and landed nothing.
+    // This is the protocol's commit point, so it gets a genuine read-back: the
+    // file must have grown by exactly this record, and the trailing bytes must
+    // be the ones we wrote.
     try {
       final int length = await file.length();
+      if (length != lengthBefore + line.length) {
+        throw StorageException(
+          'append ${file.path}',
+          'file went from $lengthBefore to $length bytes appending '
+              '${line.length}',
+        );
+      }
+
+      final RandomAccessFile tail = await file.open();
+      try {
+        await tail.setPosition(lengthBefore);
+        final Uint8List actual = await tail.read(line.length);
+        for (int i = 0; i < line.length; i++) {
+          if (actual[i] != line[i]) {
+            // Offset only. The bytes are a save payload.
+            throw StorageException(
+              'append read-back ${file.path}',
+              'byte $i of the appended record differs from what was written',
+            );
+          }
+        }
+      } finally {
+        await tail.close();
+      }
+
+      // Retained so the original guard's intent survives the rewrite.
       if (length < line.length) {
         throw StorageException(
           'append ${file.path}',
@@ -251,8 +293,8 @@ final class FileLedgerJournal implements LedgerJournal {
     // Sidecar first. If the swap does not survive, the old and longer journal
     // remains — never a partial one. Replay is idempotent, so a journal that
     // is longer than necessary costs a little startup work and nothing else.
-    await _writeVerified(layout.journalSidecar, bytes);
-    await _writeVerified(layout.journal, bytes);
+    await writeVerified(layout.journalSidecar, bytes);
+    await writeVerified(layout.journal, bytes);
     if (layout.journalSidecar.existsSync()) {
       await layout.journalSidecar.delete();
     }
@@ -335,10 +377,7 @@ final class FileIdentityStore implements ReconciliationIdentityStore {
       'saveId': identity.saveId,
       'salt': base64Encode(identity.salt),
     });
-    await _writeVerified(
-      layout.identity,
-      Uint8List.fromList(utf8.encode(text)),
-    );
+    await writeVerified(layout.identity, Uint8List.fromList(utf8.encode(text)));
   }
 
   Future<Map<String, Object?>> _readJson() async {
@@ -375,22 +414,65 @@ final class FileIdentityStore implements ReconciliationIdentityStore {
 
   @override
   Future<ReconciliationIdentity?> read() async {
-    final StoredIdentity? stored = await readStored();
-    return stored?.public;
+    final Map<String, Object?> json = await _readJson();
+    if (json.isEmpty) return null;
+
+    final Object? saveId = json['saveId'];
+    if (saveId is! String) {
+      throw const StorageException(
+        'decode identity',
+        'the reconciliation identity file has no saveId',
+      );
+    }
+
+    // Prefer the salt when it is present, because deriving the fingerprint
+    // from the salt cannot drift from it. Fall back to a stored fingerprint
+    // for a record written through [write], which has no salt to derive from.
+    final Object? salt = json['salt'];
+    if (salt is String) {
+      return ReconciliationIdentity(
+        saveId: saveId,
+        saltFingerprint: OriginSaltPolicy.fingerprint(base64Decode(salt)),
+      );
+    }
+
+    final Object? fingerprint = json['saltFingerprint'];
+    if (fingerprint is! String) {
+      throw const StorageException(
+        'decode identity',
+        'the reconciliation identity file has neither a salt nor a fingerprint',
+      );
+    }
+    return ReconciliationIdentity(saveId: saveId, saltFingerprint: fingerprint);
   }
 
-  /// Writes an identity the core supplied.
+  /// Writes the core-facing identity: lineage id and salt **fingerprint**.
   ///
-  /// Refused, because the core only ever holds a fingerprint and a fingerprint
-  /// cannot reconstruct the salt. The app writes the identity through
-  /// [writeStored] before startup, so this path exists only to satisfy the
-  /// port and to fail loudly if anyone routes through it by accident.
+  /// An earlier version of this threw, on the reasoning that a fingerprint
+  /// cannot reconstruct a salt and so the core had no business writing one.
+  /// That was wrong — not about salts, but about types. `write` is part of the
+  /// port contract, and an adapter that throws where the contract says it
+  /// writes is a Liskov violation; the conformance suite caught it, which is
+  /// exactly what a conformance suite is for.
+  ///
+  /// It writes what it was given and preserves any salt already on disk, so a
+  /// record written here round-trips through [read] without ever inventing or
+  /// discarding salt material.
   @override
   Future<void> write(ReconciliationIdentity identity) async {
-    throw const StorageException(
-      'write identity',
-      'the salt cannot be recovered from a fingerprint; use writeStored',
-    );
+    await layout.ensureExists();
+
+    final Map<String, Object?> existing = await _readJson();
+    final Object? salt = existing['salt'];
+
+    final String text = jsonEncode(<String, Object?>{
+      'saveId': identity.saveId,
+      'saltFingerprint': identity.saltFingerprint,
+      // Carried forward, never derived. Dropping it would silently re-key
+      // every origin on the next launch.
+      if (salt is String) 'salt': salt,
+    });
+    await writeVerified(layout.identity, Uint8List.fromList(utf8.encode(text)));
   }
 
   @override

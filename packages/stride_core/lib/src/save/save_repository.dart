@@ -329,8 +329,18 @@ final class SaveRepository {
 
   Future<_SlotReading> _readSlot(SnapshotSlot slot) async {
     final Uint8List? bytes = await _snapshots.read(slot);
-    if (bytes == null || bytes.isEmpty) {
+    if (bytes == null) {
       return _SlotReading.rejected(slot, SaveDiagnosis.slotAbsent);
+    }
+    if (bytes.isEmpty) {
+      // Present but empty is **truncated**, not absent.
+      //
+      // A slot write opens with truncate-first semantics, so a death between
+      // the truncate and the write leaves exactly this. Collapsing it into
+      // "absent" let a zero-length *pair* reach the new-game path and hand the
+      // player a wiped character — the precise failure the bootstrap state
+      // machine exists to prevent, arriving underneath it through storage.
+      return _SlotReading.rejected(slot, SaveDiagnosis.slotTruncated);
     }
 
     final FrameResult framed = unframe(bytes);
@@ -562,13 +572,23 @@ final class SaveRepository {
     required List<GameEvent> events,
     required String saveId,
     required CommitExpectation expectation,
-  }) => _serialized(() => _commitWithRetry(after, events, saveId, expectation));
+    required String? originSaltFingerprint,
+  }) => _serialized(
+    () => _commitWithRetry(
+      after,
+      events,
+      saveId,
+      expectation,
+      originSaltFingerprint,
+    ),
+  );
 
   Future<CommitOutcome> _commitWithRetry(
     GameState after,
     List<GameEvent> events,
     String saveId,
     CommitExpectation expectation,
+    String? originSaltFingerprint,
   ) async {
     for (int attempt = 0; attempt <= maxCommitRetries; attempt++) {
       final _DurableHead head = await _readHead();
@@ -593,7 +613,14 @@ final class SaveRepository {
         continue;
       }
 
-      return _commitOnce(after, events, saveId, head, attempt);
+      return _commitOnce(
+        after,
+        events,
+        saveId,
+        head,
+        attempt,
+        originSaltFingerprint,
+      );
     }
     return const CommitRefused(
       reason: CommitRefusal.conflictRetryLimitExhausted,
@@ -607,6 +634,7 @@ final class SaveRepository {
     String saveId,
     _DurableHead head,
     int retries,
+    String? originSaltFingerprint,
   ) async {
     final int transactionId = head.maxJournalTransaction + 1;
     final JournalRecord record = JournalRecord(
@@ -642,6 +670,7 @@ final class SaveRepository {
           saveId: saveId,
           generation: generation,
           lastAppliedTransaction: transactionId,
+          originSaltFingerprint: originSaltFingerprint,
         ),
       );
       // Read back and validate the full envelope before treating the slot as

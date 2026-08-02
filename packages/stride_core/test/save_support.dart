@@ -32,6 +32,7 @@ Future<CommitOutcome> commit(
   required List<GameEvent> events,
   required int generation,
   required int lastTransaction,
+  String? saltFingerprint,
 }) => repo.commit(
   after: after,
   events: events,
@@ -40,6 +41,7 @@ Future<CommitOutcome> commit(
     expectedSnapshotGeneration: generation,
     expectedLastAppliedTransaction: lastTransaction,
   ),
+  originSaltFingerprint: saltFingerprint,
 );
 
 /// Runs a command through the engine and commits the resulting batch.

@@ -51,6 +51,8 @@ FORMAT_PATHS=(
   test
   packages/stride_core/lib
   packages/stride_core/test
+  packages/stride_storage/lib
+  packages/stride_storage/test
   packages/stride_health/lib/stride_health.dart
   packages/stride_health/lib/src/mock_step_provider.dart
   packages/stride_health/lib/src/origin_pseudonymizer.dart
@@ -79,6 +81,12 @@ dart format --output=none --set-exit-if-changed "${FORMAT_PATHS[@]}"
 
 step "stride_core: analyze and test (no Flutter, no emulator)"
 (cd packages/stride_core && dart pub get >/dev/null && dart analyze --fatal-infos && dart test)
+
+step "stride_storage: analyze and test (real files, no emulator)"
+# The whole F-06 filesystem surface. It runs against a real temporary
+# directory, so this is the only place the adapters are exercised at all --
+# leaving it out meant every F-06 regression would land silently.
+(cd packages/stride_storage && dart pub get >/dev/null && dart analyze --fatal-infos && dart test)
 
 if ! command -v flutter >/dev/null 2>&1; then
   missing_toolchain "flutter" || exit 0

@@ -28,6 +28,7 @@ void main() {
         saveId: testSaveId,
         generation: 1,
         lastAppliedTransaction: 1,
+        originSaltFingerprint: null,
       );
 
       final FrameResult framed = unframe(first);
@@ -39,6 +40,7 @@ void main() {
         saveId: testSaveId,
         generation: 1,
         lastAppliedTransaction: 1,
+        originSaltFingerprint: null,
       );
 
       // The assertion that fires the day someone adds a field to GameState
@@ -80,6 +82,7 @@ void main() {
             saveId: testSaveId,
             generation: 1,
             lastAppliedTransaction: 1,
+            originSaltFingerprint: null,
           ),
         ).payload!,
       );
@@ -325,6 +328,7 @@ void main() {
 
   _saltRefusal();
   _watermarkPersistence();
+  _saltReachesTheSnapshot();
 }
 
 // The origin pseudonymization salt, and what happens when it changes.
@@ -491,6 +495,101 @@ void _watermarkPersistence() {
         0,
       );
       expect(resumed.state.steps.totalGranted, 14000);
+    });
+  });
+}
+
+// The salt fingerprint must reach the snapshot through commit().
+//
+// It did not. `encodeSnapshot` took the fingerprint as an OPTIONAL parameter,
+// `SaveRepository.commit` had no such parameter at all, and the call site
+// simply omitted it — so every snapshot the protocol has ever written recorded
+// no fingerprint, `_checkSalt` found null on load, and the fail-closed refusal
+// could never fire.
+//
+// The F-05 salt tests passed throughout, because they seeded slot bytes by
+// calling `encodeSnapshot` directly with a fingerprint. They proved the *load*
+// path and never touched the *commit* path.
+//
+// Found by the F-06 Technical Critic. It is the second inert fix this
+// milestone; the first was LG-3. Both had passing tests that exercised
+// everything except the thing that was broken.
+void _saltReachesTheSnapshot() {
+  group('the salt fingerprint survives a real commit', () {
+    test('a committed snapshot records the fingerprint', () async {
+      final (:SaveRepository repo, :FaultingDevice device) = newRepo();
+      final GameEngine engine = newEngine();
+      final EngineResult r = engine.execute(
+        const GrantSyntheticSteps(steps: 613, reason: 'salt'),
+      );
+
+      await commit(
+        repo,
+        after: engine.state,
+        events: r.events,
+        generation: -1,
+        lastTransaction: 0,
+        saltFingerprint: 'aaaaaaaaaaaaaaaa',
+      );
+
+      // Read the bytes the protocol actually wrote, not bytes a test built.
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(device.committedBytes('save_slot_a')!).payload!,
+      );
+      expect(
+        envelope.originSaltFingerprint,
+        'aaaaaaaaaaaaaaaa',
+        reason:
+            'a snapshot with no fingerprint makes the salt check dead code, '
+            'and a re-keyed origin then re-grants the retention window',
+      );
+    });
+
+    test('a changed salt then fails closed, end to end', () async {
+      final (:SaveRepository repo, :FaultingDevice device) = newRepo();
+      final GameEngine engine = newEngine();
+      final EngineResult r = engine.execute(
+        const GrantSyntheticSteps(steps: 613, reason: 'salt'),
+      );
+      await commit(
+        repo,
+        after: engine.state,
+        events: r.events,
+        generation: -1,
+        lastTransaction: 0,
+        saltFingerprint: 'aaaaaaaaaaaaaaaa',
+      );
+
+      final LoadOutcome outcome = await newRepo(device).repo.load(
+        registry: saveRegistry,
+        originSaltFingerprint: 'bbbbbbbbbbbbbbbb',
+      );
+
+      expect(outcome, isA<LoadRefused>());
+      expect((outcome as LoadRefused).reason, LoadRefusal.originKeyReset);
+    });
+
+    test('the matching salt still loads', () async {
+      final (:SaveRepository repo, :FaultingDevice device) = newRepo();
+      final GameEngine engine = newEngine();
+      final EngineResult r = engine.execute(
+        const GrantSyntheticSteps(steps: 613, reason: 'salt'),
+      );
+      await commit(
+        repo,
+        after: engine.state,
+        events: r.events,
+        generation: -1,
+        lastTransaction: 0,
+        saltFingerprint: 'aaaaaaaaaaaaaaaa',
+      );
+
+      final LoadOutcome outcome = await newRepo(device).repo.load(
+        registry: saveRegistry,
+        originSaltFingerprint: 'aaaaaaaaaaaaaaaa',
+      );
+      expect(outcome, isA<SaveLoaded>());
+      expect((outcome as SaveLoaded).state.steps.totalGranted, 613);
     });
   });
 }
