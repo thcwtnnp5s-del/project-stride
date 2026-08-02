@@ -77,11 +77,23 @@ abstract interface class StepProvider {
   Future<StepFetchResult> fetchNewSteps({StepAnchor? since});
 }
 
-abstract interface class SaveStore {
-  Future<SaveEnvelope?> load();
-  Future<void> save(SaveEnvelope envelope);
-  Future<void> appendLedger(StepLedgerEntry entry);
-  Future<List<StepLedgerEntry>> readLedgerTail(int count);
+// Superseded at F-05 by two narrower ports. The single SaveStore put the
+// transaction protocol in the app layer, where it could not be tested by
+// `dart test` in milliseconds — and the protocol *is* the crash-safety
+// argument. The ports now promise only "bytes, durably"; the protocol lives
+// in stride_core. See DECISIONS/0012.
+abstract interface class SnapshotSlotStore {
+  Future<Uint8List?> read(SnapshotSlot slot);
+  Future<void> write(SnapshotSlot slot, Uint8List bytes);  // returns when durable
+  Future<void> erase(SnapshotSlot slot);
+}
+
+abstract interface class LedgerJournal {
+  Future<List<Uint8List>> readLines();
+  Future<void> appendLine(Uint8List line);                 // the commit point
+  Future<void> replaceLines(List<Uint8List> lines);
+  Future<bool> discardIncompleteCompaction();
+  Future<void> erase();
 }
 
 abstract interface class ContentLoader {
@@ -171,13 +183,21 @@ No `Isolate` use in Milestone 01. If reconciliation of a very long absence ever 
 
 ---
 
-## 4. Local-save strategy *(unchanged in substance)*
+## 4. Local-save strategy
 
-### 4.1 Two artifacts
+> **⚠️ Amended 2026-08-02 by `DECISIONS/0012_SAVE_FORMAT.md`.** §4.1 below described a temp-file-plus-rename snapshot. That is **superseded**: the snapshot is two ping-pong slots. The original text is kept struck through, because "why isn't this just a rename?" is a question someone will ask again.
 
-**A. `save.json`** — the full `GameState` plus `schemaVersion` and `contentPackVersion`. Written atomically: serialize → write `save.json.tmp` → rename. One rolling backup used if the primary fails to decode.
+### 4.1 Three artifacts
 
-**B. `steps.ledger`** — append-only, one line per ingestion batch, flushed **before** the snapshot and before any gameplay consumes the steps.
+**A. `save_slot_a` and `save_slot_b`** — two complete snapshots, each carrying a monotonic generation, save format version, last applied journal transaction, integrity digest, payload, and a commit-complete marker. A commit writes to the older or invalid slot and **never touches the live one**; recovery loads the highest-generation slot that verifies.
+
+~~Written atomically: serialize → write `save.json.tmp` → rename. One rolling backup used if the primary fails to decode.~~
+
+**Why not rename.** Dart cannot fsync a directory, so a rename is not durably ordered against the file's contents — its atomicity is a promise we have no way to verify from where we stand. Ping-pong gets atomicity from never overwriting the live copy, which is a property of the protocol rather than of the filesystem. Cost: ~5 KB and one extra read at launch. Full reasoning in `DECISIONS/0012` §1.
+
+**B. `journal`** — the write-ahead log. Append-and-flush is **the commit point**: it precedes the snapshot write and any gameplay consuming the steps. Bounded, not an event store — records are compacted once their effect is durable in two verified snapshots, which is a privacy control rather than a size optimization (`DECISIONS/0012` §3).
+
+**C. The origin pseudonymization salt** — stored beside the save, covered by the same backup exclusions, and fingerprinted into the envelope so a changed salt fails closed instead of silently re-granting a retention window.
 
 ### 4.2 Why a snapshot, not a database
 
