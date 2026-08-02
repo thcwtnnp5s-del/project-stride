@@ -603,7 +603,21 @@ final class SaveRepository {
       snapshotDurable = false;
     }
 
-    if (snapshotDurable) await _compact();
+    if (snapshotDurable) {
+      // Guarded, and this is not defensive clutter. Compaction is journal
+      // hygiene *after* the commit point: a failure here leaves a longer
+      // journal and nothing else. Letting it escape would turn a durable
+      // transaction into a thrown exception at the call site, and a caller
+      // that sees a throw must assume the batch did not commit and must not
+      // release the cursor - so an unwritable sidecar would stall step
+      // ingestion permanently on a save that is, in fact, committed.
+      try {
+        await _compact();
+      } on Object {
+        // Deliberately swallowed. The next commit tries again, and until then
+        // the retained records are redundant rather than wrong.
+      }
+    }
 
     return CommitDurable(
       transactionId: transactionId,

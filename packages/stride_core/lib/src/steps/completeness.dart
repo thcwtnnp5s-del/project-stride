@@ -119,10 +119,7 @@ final class PartialDelivery extends SyncCompleteness {
 /// indistinguishable, from inside the core, from the data genuinely not
 /// existing — and the consequence is a silent permanent lost grant.
 final class CompleteThrough extends SyncCompleteness {
-  const CompleteThrough({
-    required this.throughMillis,
-    required this.scope,
-  });
+  const CompleteThrough({required this.throughMillis, required this.scope});
 
   /// UTC milliseconds. Everything at or before this, within [scope], has been
   /// delivered.

@@ -40,6 +40,12 @@ missing_toolchain() {
 # Hand-written Dart only. Generated files are excluded: pigeon output is not
 # dart-format clean, and formatting it would fail CI's generated-file drift
 # check on the next regeneration.
+#
+# `stride_health/lib/src` is enumerated file by file rather than as a directory,
+# because `messages.g.dart` lives beside the hand-written sources. That means a
+# NEW hand-written file there is unchecked until it is added to this list —
+# which has already happened once. If a third source ever lands here, move the
+# generated file into its own directory and list `lib/src` wholesale instead.
 FORMAT_PATHS=(
   lib
   test
@@ -47,6 +53,7 @@ FORMAT_PATHS=(
   packages/stride_core/test
   packages/stride_health/lib/stride_health.dart
   packages/stride_health/lib/src/mock_step_provider.dart
+  packages/stride_health/lib/src/origin_pseudonymizer.dart
   packages/stride_health/lib/src/platform_step_provider.dart
   packages/stride_health/test
   packages/stride_health/pigeons

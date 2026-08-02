@@ -149,7 +149,8 @@ void main() {
       expect(
         print,
         matches(RegExp(r'^[0-9a-f]{16}$')),
-        reason: 'a fingerprint that revealed the salt would let any reader '
+        reason:
+            'a fingerprint that revealed the salt would let any reader '
             're-derive every origin mapping',
       );
     });
