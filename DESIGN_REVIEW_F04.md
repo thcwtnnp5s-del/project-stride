@@ -4,6 +4,13 @@
 **Date:** 2026-08-02
 **Reviewers:** Creative Director, Systems Designer, Technical Director, Critic Agent, QA Director
 
+> **⚠️ Amended 2026-08-02, commit `8336774`.** Two findings below are stale:
+>
+> - **CR-1 / CR-2 — retention.** Now **7 days by default with a 48-hour hard floor**, per owner ruling. Every "48 hours" below should read "48-hour minimum". CR-1's privacy escalation is **answered** — see `TECHNICAL/STEP_LEDGER_PRIVACY.md`.
+> - **This review passed a design with three silent lost-grant defects in it.** All five roles read the code; none ran it. The F-05 Technical Critic sub-agent constructed all three by execution. See `F04_COMPLETION_REPORT.md` §14.
+>
+> The lesson is recorded rather than buried: a review that reads code will confirm the arithmetic is right and cannot notice that data which never arrives is never credited.
+
 ## Outcome
 
 > **Approved with changes, and one item escalated to the owner.**

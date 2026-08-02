@@ -2,8 +2,21 @@
 
 **Date:** 2026-08-02
 **Task:** F-04 — platform-neutral step ledger and reconciliation
-**Status:** ✅ **Complete.** 138 `stride_core` tests pass; 147 across the workspace.
+**Status:** ✅ **Complete and corrected.** 149 `stride_core` tests pass; 175 across the workspace.
 **Review:** `DESIGN_REVIEW_F04.md` — approved with changes; **one item escalated**
+
+> ### ⚠️ Amendment record — 2026-08-02, commit `8336774`
+>
+> **This report as originally approved described code that no longer exists, and made two claims that were false.** Read §14 before relying on anything below it.
+>
+> | Claim as approved | Corrected |
+> |---|---|
+> | 48-hour retention window | **7-day prototype default, 48-hour configurable minimum** enforced as a hard floor — the constructor throws below it |
+> | The core derives the settled watermark from observed data | **The adapter asserts completeness** via `SyncResponse.completeThroughMillis`. The core never infers it. Absent an assertion, nothing compacts and the watermark does not move |
+> | Commit ordering makes lost grants impossible | It closed **one** lost-grant path. **Three others were open**, two of which needed no crash at all — see §14 |
+> | A2 (privacy) escalated and unanswered | **Answered** by owner ruling of 2026-08-02 |
+>
+> The F-05 sub-agent review that found the defects is in `F05_DESIGN_RECONCILIATION.md`.
 **Scope held:** no HealthKit, Health Connect, permissions, background work, storage, serialization, UI, or gameplay
 
 > ⚠️ **One decision needs the owner before F-05.** The persisted shape narrows a Game Bible rule. See §9 and `TECHNICAL/STEP_LEDGER_PRIVACY.md` §5.
@@ -38,7 +51,7 @@ Full detail in `TECHNICAL/STEP_LEDGER_PRIVACY.md`. In summary:
 
 **Persisted** — four counters, an opaque cursor, a watermark, a sync count, a recovery state, a source state, two diagnostic counters, and `grantedSlices`.
 
-**`grantedSlices`** maps `(origin, bucket)` → *steps already granted for that slice*, bounded to a 48-hour window and compacted into `grantedBeforeWatermark` as slices age out. It records **what the game credited**, not what the player walked — those diverge the moment a correction arrives. It is what makes replay, overlap, multi-origin, and bounded recovery safe through one rule instead of six special cases.
+**`grantedSlices`** maps `(origin, bucket)` → *steps already granted for that slice*, bounded to a **7-day prototype window with a 48-hour hard floor**, and compacted into `grantedBeforeWatermark` as slices age out — but **only once an adapter asserts how far its delivery is complete**. Absent that assertion the map grows rather than risk settling a bucket whose data has not arrived yet. It records **what the game credited**, not what the player walked — those diverge the moment a correction arrives. It is what makes replay, overlap, multi-origin, and bounded recovery safe through one rule instead of six special cases.
 
 ---
 
@@ -54,7 +67,7 @@ Full detail in `TECHNICAL/STEP_LEDGER_PRIVACY.md`. In summary:
 | 6 | `banked = totalGranted − totalSpent` | Derived, never stored; asserted at every generated step |
 | 7 | `0 ≤ totalSpent ≤ totalGranted` | Constructor throws; spending refuses rather than clamping |
 | 8 | `totalObserved ≥ 0` | Clamped at zero; asserted |
-| 9 | A settled (pre-watermark) slice can never be granted again | Skipped in reconciliation; tested |
+| 9 | A settled (pre-watermark) slice can never be granted again — **and a slice is settled only where an adapter asserted completeness**, never merely because newer data arrived | Skipped in reconciliation; tested. *Corrected: as originally written this permitted settling buckets that had never been observed, which is defect LG-2/LG-3 in §14* |
 | 10 | Compaction never loses granted credit | Dropped amounts fold into `grantedBeforeWatermark`; tested over six days |
 | 11 | No day boundaries or timezone arithmetic exist | Buckets are opaque intervals; no calendar type in the package |
 | 12 | No native type enters `stride_core` | Purity guard, 22 files |
@@ -176,9 +189,9 @@ Nothing throws for an expected condition. A refused sync leaves the ledger untou
 
 ## 9. ⚠️ Assumptions awaiting real-API validation
 
-**A1 — The 48-hour retention window.** *(Escalated: `DESIGN_REVIEW_F04.md` CR-1, privacy doc §5.)* A judgement, not a derivation. If corrections routinely arrive later, steps are silently under-granted — the quietest possible failure, and no test here can catch it because no test here has real health data. **S-01 must measure actual correction latency.**
+**A1 — The retention window: 7 days by default, 48 hours minimum.** *(Owner ruling, 2026-08-02. Originally 48 hours; the escalation is closed.)* A judgement, not a derivation. If corrections routinely arrive later than the window, a slice can be settled before its data lands — now **counted** by `lateDiscardedSlices` rather than silent, but still a real loss. **S-01 must measure actual correction latency, and must investigate every nonzero real-device occurrence of that counter.**
 
-**A2 — `grantedSlices` narrows a Game Bible rule.** `GAME_BIBLE/HEALTH_INTEGRATION` says persist *"ingested total, consumed total, sync anchor"* and **"never a step history"**. Per-device, per-hour granted amounts for 48 hours is more than that list. It is derived, bounded, and compacted — and calling it "not a history" would be a word game. **Three options with a recommendation are in the privacy document §5. This should be answered before F-05, because F-05 serializes whatever shape is settled.**
+**A2 — `grantedSlices` narrows a Game Bible rule. ✅ ANSWERED — owner ruling, 2026-08-02.** Bounded persistence is approved as a **documented exception**. `grantedSlices` **is coarse recent reconciliation history and is described as such**; calling it "not a history" would be a word game. Persist only a pseudonymous origin key, a UTC bucket, the amount already granted, and minimum schema metadata. Never raw records, sub-bucket timestamps, device or source display names, workout categories, location, heart data, or native payloads. Retention 7 days default / 48 hours minimum, provisional until S-01. Local only: no telemetry, no plaintext diagnostic logging, no routine export, no automatic cloud-sync inclusion; Android backup exclusions stand. Full text: `TECHNICAL/STEP_LEDGER_PRIVACY.md`.
 
 **A3 — Bucket granularity is the adapter's choice.** The core treats buckets as opaque. If an adapter emits one bucket per day, precision drops; per minute, `grantedSlices` grows. S-01 and S-01b must pick and justify a granularity.
 
@@ -203,7 +216,7 @@ Nothing throws for an expected condition. A refused sync leaves the ledger untou
 All checks passed.
 ```
 
-**138 `stride_core` tests** — 97 from F-01/F-02/F-03, **41 new**: 23 reconciliation scenarios (13 canonical, 7 recovery sub-cases, 4 provider-unavailability, malformed batch) and 18 invariant/property tests including five seeded 120-step sequences.
+**149 `stride_core` tests** — 97 from F-01/F-02/F-03, **41 from F-04 as approved**, **6 command-classification** and **5 lost-grant regression** added by the 2026-08-02 corrections. Of the 41: 23 reconciliation scenarios (13 canonical, 7 recovery sub-cases, 4 provider-unavailability, malformed batch) and 18 invariant/property tests including five seeded 120-step sequences.
 
 Runtime under one second, on Windows, with no emulator and no Mac.
 
@@ -219,7 +232,7 @@ Runtime under one second, on Windows, with no emulator and no Mac.
 | Old snapshots immutable | 2 tests |
 | Rejected/unavailable sync does not mutate | 3 unavailability reasons + malformed |
 | Cursor not authorized before commit | Scenario 10 + partial-commit replay |
-| Interruption at every recovery boundary | 3 sub-cases of scenario 13 |
+| ~~Interruption at every recovery boundary~~ | **Overstated.** 3 sub-cases of scenario 13, which is 3 cut points out of 5. `commitWithoutCheckpoint` *filtered* one event type rather than truncating, modelling no crash that can actually occur. Corrected to `commitUpTo<T>` using `takeWhile`; F-05's fault matrix covers the rest |
 | Multiple origins do not double-grant | Scenario 11 |
 | Downward corrections | Scenarios 7, 8, 13b |
 | No native types in `stride_core` | Purity guard |
@@ -283,3 +296,53 @@ Health ingestion, cloud sync, UI, activities, and the platform file adapter — 
 The model does what it was asked to. The thirteen scenarios were written first, they assert the contract rather than the arithmetic, and the mechanism could change tomorrow without rewriting one of them.
 
 The finding I would put in front of the owner is not a bug — it is that the safest reconciler the studio could build persists slightly more than the Game Bible said it would, and that trade should be made deliberately rather than discovered later in a diff.
+
+*(That recommendation stands as written and was accepted. §14 records what it missed.)*
+
+---
+
+## 14. Corrections to the approval record — 2026-08-02
+
+**Approved:** commit `8336774`, owner ruling of 2026-08-02.
+
+§13 said the finding worth escalating "is not a bug." That was wrong. There were three, and the F-05 Technical Critic sub-agent found them by **running** the code rather than reading it.
+
+### 14.1 The three defects
+
+All three shared one root cause: **the settled watermark was inferred by the core from whatever data it happened to be handed, rather than asserted by the adapter that knows what it delivered.** Anything arriving later but timestamped older than `newest − retention` was discarded with no event, no counter, and no recovery on retry — because the retry consults `grantedFor(key)`, which by then reports a slice as settled that was never granted.
+
+| | Defect | Trigger | Cost |
+|---|---|---|---|
+| **LG-2** | Newest-first pagination settles the watermark from the newest page's own newest hour; the older page is then already behind it | **No crash.** HealthKit anchored queries and Health Connect change tokens both page, and nothing in the adapter contract forbade newest-first | **55,200 of 64,800 steps destroyed** in a 30-day cold-launch backfill |
+| **LG-3** | The compaction horizon was a global maximum across all origins. Origin separated the *keys* but not the *horizon* | **No crash.** A watch reconnects after being offline while the phone kept syncing | The watch's entire backlog, silently |
+| **W-1** | `watermarkFor` recomputed the horizon independently of `_compact`, so the watermark advanced past slices compaction had correctly declined to drop | Structural — present in every sync | The mechanism that made LG-2 and LG-3 reachable |
+
+**LG-3 is the one that matters most.** Its failure mode is *the player went away, so their steps did not count* — a direct violation of the Kernel's no-punishment-for-absence rule, shipped inside the system built to honour it.
+
+A fourth, **LG-1**, was identified and is *not* a defect today: `StepObservationReconciled` (which records a slice as granted) and `StepsGranted` (which credits the player) are two different events. In-memory they commit in one synchronous `applyAll`, so the gap is unreachable. **F-05 exists specifically to put a disk between them**, which is why the journal record is all-or-nothing per batch.
+
+### 14.2 What changed
+
+| Change | File |
+|---|---|
+| `SyncResponse.completeThroughMillis` — the adapter's completeness assertion, on all three data-carrying response types. The core never infers | `steps/sync_batch.dart` |
+| Compaction happens **only** under an assertion. Horizon = `min(newest − retention, completeThrough)` | `steps/reconciliation.dart` |
+| The persisted watermark is **exactly** the horizon compaction used, carried out of the reconciler. `watermarkFor` deleted | `steps/reconciliation.dart`, `engine/game_engine.dart` |
+| `compactedGranted` computed where the merged pre-compaction map is in hand. `compactedGrantedBetween` deleted — it read the *previous* slices and folded a stale amount for any slice both raised and compacted in one batch | `steps/reconciliation.dart` |
+| **`lateDiscardedSlices`** — counts observations arriving after their bucket was compacted, through the event into the ledger | `steps/step_ledger.dart`, `engine/events.dart`, `engine/event_reducer.dart` |
+| `commitUpTo<T>` truncates with `takeWhile` instead of filtering one event type out of the middle | `test/step_support.dart` |
+| Retention: 7-day default, 48-hour floor enforced by a throwing constructor | `steps/reconciliation.dart` |
+
+### 14.3 The `lateDiscardedSlices` diagnostic
+
+The design still permits one loss: an observation arriving after its bucket was compacted cannot be granted, because the record proving whether it was already credited is gone. That is a defensible trade — bounded storage against a rare late arrival — **but only if it is measurable.**
+
+Per the owner's ruling it increments **only** under that precisely documented condition, is test-visible, produces a typed diagnostic, appears only in redacted opt-in diagnostics, and **never carries slice details or source names**. **S-01 must investigate every nonzero real-device occurrence.**
+
+A loss you can count is a bug. A loss you cannot count is a haunting.
+
+### 14.4 The procedural lesson
+
+Every F-04 test asserted that the arithmetic was right. None asserted that **data the arithmetic never saw would still be credited**. Thirteen scenarios, eighteen invariant tests, five seeded sequences, and a five-role review all passed over a defect that destroys 85% of a backfill — because they all fed the reconciler complete data and checked what it did with it.
+
+The specific habit to carry into F-05: a test that supplies well-formed input and checks the output cannot find a bug whose signature is *input that never arrives*. F-05's fault matrix must include cases where the data is late, partial, out of order, or absent — not only where it is corrupt.

@@ -54,7 +54,29 @@ These are read from a provider response, used within a single reconciliation, an
 | `recovery` | Tells a retry whether a recovery began and never finished | Small enum + two integers |
 | `sourceState` | Lets the UI explain itself calmly when health is unavailable | One enum |
 | `correctionsObserved`, `unreachableGapEvents` | Diagnostic counters, so "why does the game say more than Health does?" has an answer | Two integers |
+| `lateDiscardedSlices` | Counts the one lossy path the design permits — see §4.1 | One integer |
 | **`grantedSlices`** | **The one non-trivial entry — see §4 and §5** | Bounded, see below |
+
+---
+
+## 4.1 Compaction requires an assertion, and `lateDiscardedSlices` counts what it costs
+
+**Added 2026-08-02, commit `8336774`.**
+
+Compaction happens **only** when an adapter asserts how far its delivery is complete (`SyncResponse.completeThroughMillis`). The core never infers completeness from the data it happens to hold. Inferring it destroyed 55,200 steps of a paginated backfill and every backlog a reconnecting watch carried — see `F04_COMPLETION_REPORT.md` §14.
+
+An adapter may assert completeness **only after fully exhausting all pages for the declared scope**, and the assertion is scoped by data type, origin scope, UTC interval, and query/token generation. An unscoped boolean is forbidden: it cannot distinguish a complete response from a partial paginated one, which is exactly the mistake that caused the loss.
+
+One loss remains possible: an observation arriving after its bucket was compacted cannot be granted, because the record proving whether it was already credited is gone. `lateDiscardedSlices` counts it.
+
+| | |
+|---|---|
+| **Increments** | Only when an observation with a nonzero step count keys to a bucket at or behind the settled watermark. Nothing else increments it |
+| **Carries** | A count. **Never** slice details, buckets, origin keys, or source names |
+| **Surfaces** | A typed diagnostic condition, test-visible, and in **opt-in redacted diagnostics only** — never in routine logging or export |
+| **Obligation** | **S-01 must investigate every nonzero occurrence on a real device.** A nonzero value means real steps were probably lost |
+
+A loss you can count is a bug. A loss you cannot count is a haunting.
 
 ---
 
