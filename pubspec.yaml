@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   stride_core:
     path: packages/stride_core
+  health: ^11.0.0
   stride_health:
     path: packages/stride_health
 
