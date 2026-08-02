@@ -20,6 +20,7 @@ export 'src/engine/state_version.dart';
 export 'src/steps/reconciliation.dart';
 
 export 'src/steps/step_ledger.dart';
+export 'src/steps/step_origin_key.dart';
 export 'src/steps/sync_batch.dart';
 
 export 'src/content/balance_profile.dart';
@@ -31,4 +32,11 @@ export 'src/content/reachability.dart';
 export 'src/content/schema_version.dart';
 export 'src/content/validation.dart';
 export 'src/core_info.dart';
+export 'src/ports/save_store.dart';
 export 'src/ports/step_provider.dart';
+export 'src/save/crc32c.dart';
+export 'src/save/event_codec.dart';
+export 'src/save/journal_record.dart';
+export 'src/save/save_codec.dart';
+export 'src/save/save_outcomes.dart';
+export 'src/save/save_repository.dart';

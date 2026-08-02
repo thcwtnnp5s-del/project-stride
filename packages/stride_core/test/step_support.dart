@@ -14,8 +14,13 @@ ContentRegistry get stepRegistry =>
 GameEngine newEngine() => GameEngine.newGame(registry: stepRegistry);
 
 // Two devices, so overlap between origins is expressible.
-const StepOrigin phone = StepOrigin('phone');
-const StepOrigin watch = StepOrigin('watch');
+//
+// These are what a pseudonymizer actually emits. They are not readable, and
+// that is the point: `StepOriginKey('phone')` no longer compiles, because a
+// type that can hold "phone" can hold "Rob's iPhone" — which is a device name,
+// which the privacy ruling forbids persisting.
+final StepOriginKey phone = StepOriginKey('a1b2c3d4e5f60718');
+final StepOriginKey watch = StepOriginKey('0f1e2d3c4b5a6978');
 
 /// One hour, in milliseconds. Buckets are arbitrary intervals; the reconciler
 /// never asks what day one falls on.
@@ -26,16 +31,17 @@ const int hour = 60 * 60 * 1000;
 const int t0 = 1750000000000;
 
 /// An observation for hour [index] after [t0].
-StepObservation obs(StepOrigin origin, int index, int steps) => StepObservation(
-  key: ObservationKey(
-    origin: origin,
-    bucket: TimeBucket(
-      startMillis: t0 + index * hour,
-      endMillis: t0 + (index + 1) * hour,
-    ),
-  ),
-  steps: steps,
-);
+StepObservation obs(StepOriginKey origin, int index, int steps) =>
+    StepObservation(
+      key: ObservationKey(
+        origin: origin,
+        bucket: TimeBucket(
+          startMillis: t0 + index * hour,
+          endMillis: t0 + (index + 1) * hour,
+        ),
+      ),
+      steps: steps,
+    );
 
 SyncCursor cursor(String name) => SyncCursor.ofString(name);
 

@@ -3,37 +3,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
-/// Which app or device wrote a step record.
-///
-/// Opaque to the core. HealthKit calls it a source revision; Health Connect
-/// calls it a data origin. Neither type appears here — the platform adapter
-/// normalizes whatever it has into a stable string.
-///
-/// Origin matters because two devices reporting the same walk must not both be
-/// granted. Overlap between origins is the multi-device double-count, and it is
-/// invisible to any model that only tracks totals.
-@immutable
-final class StepOrigin implements Comparable<StepOrigin> {
-  const StepOrigin(this.id);
-
-  /// The platform's stable identifier for the writing source.
-  final String id;
-
-  /// Used when a platform reports no origin at all.
-  static const StepOrigin unknown = StepOrigin('unknown');
-
-  @override
-  int compareTo(StepOrigin other) => id.compareTo(other.id);
-
-  @override
-  bool operator ==(Object other) => other is StepOrigin && other.id == id;
-
-  @override
-  int get hashCode => id.hashCode;
-
-  @override
-  String toString() => id;
-}
+import 'step_origin_key.dart';
 
 /// A window of time, as data.
 ///
@@ -86,7 +56,7 @@ final class TimeBucket implements Comparable<TimeBucket> {
 final class ObservationKey implements Comparable<ObservationKey> {
   const ObservationKey({required this.origin, required this.bucket});
 
-  final StepOrigin origin;
+  final StepOriginKey origin;
   final TimeBucket bucket;
 
   @override
@@ -104,8 +74,12 @@ final class ObservationKey implements Comparable<ObservationKey> {
   @override
   int get hashCode => Object.hash(origin, bucket);
 
+  /// Diagnostic only. **Never** the serialized form: an origin key and a
+  /// bucket concatenated with a separator can split or merge on round-trip,
+  /// which silently re-grants or under-grants a device's whole window. The
+  /// save encodes the two fields structurally.
   @override
-  String toString() => '${origin.id}@$bucket';
+  String toString() => '${origin.value}@$bucket';
 }
 
 /// What the source currently says about one slice.
@@ -120,7 +94,7 @@ final class StepObservation {
     : assert(steps >= 0, 'an observation cannot be negative');
 
   StepObservation.of({
-    required StepOrigin origin,
+    required StepOriginKey origin,
     required int startMillis,
     required int endMillis,
     required int steps,

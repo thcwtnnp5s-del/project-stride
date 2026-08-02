@@ -124,7 +124,7 @@ void main() {
 
       for (int step = 0; step < 120; step++) {
         final int bucketIndex = random.next(6);
-        final StepOrigin origin = random.chance(30) ? watch : phone;
+        final StepOriginKey origin = random.chance(30) ? watch : phone;
 
         // A mix of new data, restatements, corrections, and deletions.
         final int steps = switch (random.next(10)) {
