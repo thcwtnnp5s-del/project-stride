@@ -412,11 +412,13 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/probe-unsigned.xcresult" \
             CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/probe-unsigned.log" 2>&1
           echo "xcodebuild exit: $? (a non-zero exit here is the expected result)"
+
           echo "--- what an unsigned test host gets from the Keychain ---"
-          grep -a -A 12 -E "\.swift:[0-9]+: error:" \
-            "$RUNNER_TEMP/probe-unsigned.log" | head -120 ||
-            echo "(no assertion text; see the uploaded probe-unsigned.xcresult)"
-          grep -a "KEYCHAIN PROBE" "$RUNNER_TEMP/probe-unsigned.log" | head -20 || true
+          bash "$GITHUB_WORKSPACE/packages/stride_secure_store/tool/xcresult-failures.sh" \
+            "$RUNNER_TEMP/probe-unsigned.xcresult"
+
+          echo "--- failing test names, from the streamed log ---"
+          grep -a -A 6 "^Failing tests:" "$RUNNER_TEMP/probe-unsigned.log" | head -20 || true
 
       - name: Swift secure-store tests (simulator Keychain, no iCloud)
         working-directory: packages/stride_secure_store/example/ios
@@ -443,32 +445,32 @@ jobs:
             > "$RUNNER_TEMP/secure-store-tests.log" 2>&1; then
             echo "::error::Swift secure-store tests failed."
 
-            # The assertion text is the only thing worth reading here, and the
-            # previous version of this step threw it away: it grepped a pattern
-            # that also matches every 'Test case ... failed' line and then took
-            # tail -60, so the summary crowded out the detail entirely and the
-            # log showed which tests failed and nothing about why.
-            #
-            # XCTest writes an assertion as
-            #   /path/File.swift:120: error: -[Suite testName] : XCTAssertEqual
-            #   failed: ("a") is not equal to ("b") - message
-            # possibly continued over several lines, so the message is matched
-            # by its shape and printed with context.
-            echo "--- assertion failures ---"
-            grep -n -A 12 -E "\.swift:[0-9]+: error:" \
-              "$RUNNER_TEMP/secure-store-tests.log" | head -400 || true
-
-            echo "--- probe output (signed host) ---"
-            grep -E "KEYCHAIN PROBE" "$RUNNER_TEMP/secure-store-tests.log" || true
+            # The assertion text is the only thing worth reading here, and it
+            # is NOT in this log. The Xcode on macos-latest writes failing test
+            # NAMES to stdout and puts every message in the result bundle
+            # instead -- established the expensive way across runs 30769049772,
+            # 30771670303 and 30772473185. So the messages, which by convention
+            # in this suite always carry the numeric OSStatus, are read out of
+            # the bundle.
+            echo "--- assertion messages (from the result bundle) ---"
+            bash "$GITHUB_WORKSPACE/packages/stride_secure_store/tool/xcresult-failures.sh" \
+              "$RUNNER_TEMP/secure-store-tests.xcresult"
 
             echo "--- which tests failed ---"
-            grep -E "^Test Case .* failed|^\s+Test case .* failed" \
-              "$RUNNER_TEMP/secure-store-tests.log" | sort -u | head -60 || true
+            grep -a -A 40 "^Failing tests:" \
+              "$RUNNER_TEMP/secure-store-tests.log" | head -60 || true
 
             echo "--- tail ---"
-            tail -400 "$RUNNER_TEMP/secure-store-tests.log"
+            tail -200 "$RUNNER_TEMP/secure-store-tests.log"
             exit 1
           fi
+
+          # Printed on the green path too. The probe's numbers and the recorded
+          # platform observations are evidence, and evidence that only appears
+          # when something breaks is evidence nobody has checked.
+          echo "--- recorded observations and probe results ---"
+          bash "$GITHUB_WORKSPACE/packages/stride_secure_store/tool/xcresult-failures.sh" \
+            "$RUNNER_TEMP/secure-store-tests.xcresult"
 
           # A green xcodebuild is not the same claim as "the suites ran". A test
           # target that builds and hosts nothing exits zero, and so does a
