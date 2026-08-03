@@ -95,9 +95,37 @@ emit "KEYCHAIN PROBE:" 'KEYCHAIN PROBE[^"]*'
 emit "OBSERVED:" 'OBSERVED[^"]*'
 emit "Assertion failures:" '(XCTAssert[A-Za-z]* failed|failed -)[^"]*'
 
+# Attachments are not part of any of the documents above. Run 30773715793
+# confirmed it: the suite passed, the replaceItemAt observation was recorded as
+# an activity and an attachment, and none of the three queries could see it.
+#
+# `export attachments` is the documented way to get at them. The attachment
+# this project cares about is a plain string, so it lands as a text file and a
+# grep finds it.
+attach_dir="$(mktemp -d 2>/dev/null || echo "")"
+if [ -n "$attach_dir" ]; then
+  if xcrun xcresulttool export attachments \
+      --path "$BUNDLE" --output-path "$attach_dir" >/dev/null 2>&1; then
+    hits="$(grep -rhoaE 'OBSERVED[^"]{0,300}' "$attach_dir" 2>/dev/null |
+      sort -u | head -20)"
+    if [ -n "$hits" ]; then
+      echo "OBSERVED (from test attachments):"
+      printf '%s\n' "$hits" | sed 's/^/  /'
+      found=1
+    fi
+  fi
+  rm -rf "$attach_dir"
+fi
+
 if [ "$found" -eq 0 ]; then
   echo "(no failure messages or recorded observations extracted from $BUNDLE)"
   echo "The bundle is uploaded as a CI artifact and opens in Xcode, where"
   echo "activities and attachments are visible whether or not xcresulttool"
   echo "surfaces them here."
 fi
+
+# Explicit, because the alternative is subtle. Without this the exit status is
+# that of the `if` above, which happens to be 0 when its condition is false --
+# correct today and one edit away from turning a diagnostic into the thing that
+# fails a green test suite. The caller in ci.yml runs under `bash -e`.
+exit 0
