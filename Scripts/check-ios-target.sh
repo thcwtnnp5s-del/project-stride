@@ -48,13 +48,27 @@ REQUIRED_IOS="17.0"
 # A plugin left at 13.0 silently lowers nothing, but it lets a contributor
 # write pre-17 compatibility code that the app can never need, and it makes the
 # minimum ambiguous. All seven declarations must agree.
-if [ -f "$PBXPROJ" ]; then
-  wrong="$(grep -n 'IPHONEOS_DEPLOYMENT_TARGET' "$PBXPROJ" | grep -v "= ${REQUIRED_IOS};" || true)"
+# EVERY Xcode project, not just the app's.
+#
+# This checked only `ios/Runner.xcodeproj` and passed while CI failed. The two
+# plugin EXAMPLE apps were left at 13.0, and a plugin declaring iOS 17 cannot be
+# consumed by a host declaring 13.0:
+#
+#   error: increase your app's minimum platform version from 13.0 to at least
+#          17.0 or remove the stride-health dependency
+#
+# The example apps are what the macOS CI job actually builds to compile the
+# Swift, so a guard that ignores them is checking the one target whose failure
+# is cheapest to notice.
+ALL_PBXPROJ="$(find . -name project.pbxproj -not -path './build/*' -not -path '*/ephemeral/*' 2>/dev/null | sort)"
+
+for proj in $ALL_PBXPROJ; do
+  wrong="$(grep -n 'IPHONEOS_DEPLOYMENT_TARGET' "$proj" | grep -v "= ${REQUIRED_IOS};" || true)"
   if [ -n "$wrong" ]; then
-    fail "$PBXPROJ has IPHONEOS_DEPLOYMENT_TARGET != $REQUIRED_IOS (DECISIONS/0009):
+    fail "$proj has IPHONEOS_DEPLOYMENT_TARGET != $REQUIRED_IOS (DECISIONS/0009):
 $wrong"
   fi
-fi
+done
 
 for f in packages/stride_health/ios/stride_health/Package.swift \
          packages/stride_secure_store/ios/stride_secure_store/Package.swift; do
@@ -210,7 +224,21 @@ if [ "${1:-}" = "--self-test" ]; then
   }
 
   sed -i 's/IPHONEOS_DEPLOYMENT_TARGET = 17.0;/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/' "$PBXPROJ"
-  expect_reject "deployment target reverted to 13.0"
+  expect_reject "deployment target reverted to 13.0 in the app"
+
+  # The case that actually escaped: the app is right, an EXAMPLE app is not.
+  # A plugin at iOS 17 cannot be consumed by a host at 13.0, and the example
+  # apps are what the macOS job builds.
+  example_proj="packages/stride_health/example/ios/Runner.xcodeproj/project.pbxproj"
+  cp "$example_proj" "$tmp/example.bak"
+  sed -i 's/IPHONEOS_DEPLOYMENT_TARGET = 17.0;/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/' "$example_proj"
+  if bash "$0" >/dev/null 2>&1; then
+    echo "ios-target SELF-TEST FAILED: the guard accepted an example app left at 13.0" >&2
+    st_failures=$((st_failures + 1))
+  else
+    echo "  rejected as expected: an example app left at 13.0"
+  fi
+  cp "$tmp/example.bak" "$example_proj"
 
   sed -i 's/TARGETED_DEVICE_FAMILY = "1";/TARGETED_DEVICE_FAMILY = "1,2";/' "$PBXPROJ"
   expect_reject "iPad added to the device family"
@@ -245,7 +273,7 @@ if [ "${1:-}" = "--self-test" ]; then
     echo "ios-target: SELF-TEST FAILED -- $st_failures injected violations were not detected" >&2
     exit 1
   fi
-  echo "ios-target: self-test OK -- all 8 injected violations were rejected"
+  echo "ios-target: self-test OK -- all 9 injected violations were rejected"
 fi
 
 if [ "$failures" -gt 0 ]; then
