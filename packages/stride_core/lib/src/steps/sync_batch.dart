@@ -274,6 +274,24 @@ enum ProviderUnavailableReason {
 
   /// The read failed and may succeed later.
   transientFailure,
+
+  /// The adapter has no origin-keying identity, so it cannot pseudonymize a
+  /// source and refused to read anything.
+  ///
+  /// **Fail-closed, and the only member here that is not retryable.** Retrying
+  /// cannot install an identity: the adapter must be reopened or constructed
+  /// with the existing device-bound origin-key identity, which is an
+  /// application action, not a later attempt at the same call.
+  ///
+  /// It is deliberately *not* folded into [serviceUnavailable]. That would
+  /// report the condition as retryable and invite a loop against something
+  /// looping can never clear — and it would hide a configuration fault behind
+  /// "the platform has no health service", which is a different problem with a
+  /// different fix.
+  ///
+  /// Nothing is reconciled, no cursor is authorized, no completeness watermark
+  /// advances, and `GameState` is unchanged.
+  originKeyingUnconfigured,
 }
 
 /// A platform-neutral answer from a step provider.

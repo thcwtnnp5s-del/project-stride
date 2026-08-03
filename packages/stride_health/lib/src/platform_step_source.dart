@@ -378,17 +378,17 @@ final class PlatformStepSource implements StepSyncSource {
       ProviderUnavailableReason.permissionUnavailable,
     PlatformUnavailableReason.transientFailure =>
       ProviderUnavailableReason.transientFailure,
-    // Deliberately NOT transientFailure. Retrying will not install an
-    // identity, and a reconciler that treats this as a blip would retry
-    // forever. `serviceUnavailable` is the honest mapping: the provider
-    // genuinely cannot serve, and `SyncFault.originKeyingUnconfigured`
-    // carries the specific reason to a diagnostic.
+    // Carried through as itself, not folded into anything.
     //
-    // See the report's named ambiguity: the cleaner answer is a fourth
-    // `ProviderUnavailableReason` in stride_core, which was not taken here
-    // because `StepReconciler` switches on that enum and belongs to another
-    // agent's surface this milestone.
+    // This was mapped to `serviceUnavailable` while the core had no member for
+    // it, which reported a fail-closed configuration fault as **retryable** and
+    // disguised it as "the platform has no health service" — a different
+    // problem with a different fix. The owner ruled a fourth member in, with
+    // `retryable: false`; see `ProviderUnavailableReason`.
+    //
+    // Retrying cannot install an identity. Resolution is to reopen or
+    // construct the adapter with the existing device-bound origin-key identity.
     PlatformUnavailableReason.originKeyingUnconfigured =>
-      ProviderUnavailableReason.serviceUnavailable,
+      ProviderUnavailableReason.originKeyingUnconfigured,
   };
 }

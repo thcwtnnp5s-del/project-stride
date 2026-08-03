@@ -630,7 +630,29 @@ Future<void> main(List<String> args) async {
       final StorageLayout l = freshLayout();
       final FileTransactionLock lock = FileTransactionLock(l.transactionLock);
 
-      final List<int> order = <int>[];
+      // Staged explicitly, not by sleeping.
+      //
+      // This test flaked twice across sessions and both causes were in the
+      // TEST, not the mutex:
+      //
+      //   1. It released the holder after a fixed 100ms delay and hoped all
+      //      eight waiters had queued by then. Under `verify.sh` load they had
+      //      not, so the holder released into a partly-formed queue.
+      //   2. Each waiter carried its OWN 10s timeout. A waiter whose timer
+      //      expired before the holder released was refused -- correct mutex
+      //      behaviour, reported as "a waiter was lost".
+      //
+      // Both are fixed by staging: every waiter announces that it has reached
+      // the acquisition boundary, the test waits for all eight announcements,
+      // and only then does the holder release. Waiter timeouts are far longer
+      // than any staging window, and one generous outer watchdog bounds the
+      // whole thing -- so a genuine hang still fails, promptly, and a slow
+      // machine does not.
+      final List<int> served = <int>[];
+      final List<Completer<void>> staged = <Completer<void>>[
+        for (int i = 0; i < 8; i++) Completer<void>(),
+      ];
+
       final TransactionLockHandle first = (await lock.acquire(
         const Duration(seconds: 2),
       ))!;
@@ -638,20 +660,57 @@ Future<void> main(List<String> args) async {
       final List<Future<void>> waiters = <Future<void>>[
         for (int i = 0; i < 8; i++)
           () async {
+            // Step 3: signal that this waiter has reached the boundary. The
+            // acquire below is the very next statement, so the window between
+            // the signal and the enqueue is one microtask.
+            staged[i].complete();
             final TransactionLockHandle? h = await lock.acquire(
-              const Duration(seconds: 10),
+              const Duration(minutes: 2),
             );
             expect(h, isNotNull, reason: 'waiter $i was refused, not served');
-            order.add(i);
+            served.add(i);
             await h!.release();
           }(),
       ];
 
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      await first.release();
-      await Future.wait(waiters);
+      // Step 4: every waiter is staged before the holder yields.
+      await Future.wait(staged.map((Completer<void> c) => c.future));
+      // One turn of the event loop, so the microtask between each signal and
+      // its `acquire` has run and the queue is actually formed.
+      await Future<void>.delayed(Duration.zero);
 
-      expect(order, <int>[0, 1, 2, 3, 4, 5, 6, 7], reason: 'served in order');
+      // Step 5.
+      await first.release();
+
+      // Step 6: one generous outer watchdog for the whole set.
+      await Future.wait(waiters).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw StateError(
+          'waiters did not all complete: served ${served.length} of 8. '
+          'A waiter is stuck, which is a real defect -- the mutex hands '
+          'ownership directly on release and must never strand a queued '
+          'caller.',
+        ),
+      );
+
+      // Step 7: every waiter entered exactly once, and none was lost.
+      expect(served.length, 8, reason: 'every waiter must be served');
+      expect(
+        served.toSet(),
+        <int>{0, 1, 2, 3, 4, 5, 6, 7},
+        reason: 'each waiter entered exactly once, and none was lost',
+      );
+
+      // Ordering is deliberately NOT asserted.
+      //
+      // `_PathMutex` is documented FIFO and implements it with `removeAt(0)`
+      // plus direct handoff -- but FIFO is over QUEUE ARRIVAL, and arrival
+      // order is not spawn order: `FileTransactionLock.acquire` awaits
+      // `_canonicalKey()` (real filesystem I/O) before it ever reaches the
+      // mutex. Asserting `[0..7]` asserted that eight concurrent
+      // `resolveSymbolicLinks` calls complete in spawn order, which nothing
+      // guarantees. That was a latent second flake, passing only because the
+      // path resolves quickly on an unloaded machine.
 
       // And the mutex table did not retain the entry: an unpruned table grows
       // by one per save directory ever locked, which in a long test run or a

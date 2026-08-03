@@ -436,9 +436,53 @@ void main() {
       );
 
       expect(fetch.faults, contains(SyncFault.originKeyingUnconfigured));
+
+      // Asserted exactly, not as "isNot(transientFailure)".
+      //
+      // The weaker form passed while the condition was folded into
+      // `serviceUnavailable` — which reported a fail-closed configuration
+      // fault as RETRYABLE and disguised it as "the platform has no health
+      // service". The owner ruled a dedicated member in; this pins it.
+      expect(
+        (fetch.response as ProviderUnavailableSync).reason,
+        ProviderUnavailableReason.originKeyingUnconfigured,
+      );
+      expect(
+        (fetch.response as ProviderUnavailableSync).reason,
+        isNot(ProviderUnavailableReason.serviceUnavailable),
+      );
       expect(
         (fetch.response as ProviderUnavailableSync).reason,
         isNot(ProviderUnavailableReason.transientFailure),
+      );
+    });
+
+    test('every platform reason maps to a distinct core reason', () {
+      // A many-to-one mapping is how `originKeyingUnconfigured` came to be
+      // reported as `serviceUnavailable` in the first place. If two platform
+      // conditions ever collapse to one core reason again, this fails and the
+      // collapse has to be argued for rather than absorbed.
+      final Map<PlatformUnavailableReason, ProviderUnavailableReason> mapped =
+          <PlatformUnavailableReason, ProviderUnavailableReason>{
+            for (final PlatformUnavailableReason r
+                in PlatformUnavailableReason.values)
+              r:
+                  (PlatformStepSource.translate(
+                            page(
+                              status: PlatformSyncStatus.unavailable,
+                              observations: <PlatformStepObservation>[],
+                              unavailableReason: r,
+                            ),
+                            gateway,
+                          ).response
+                          as ProviderUnavailableSync)
+                      .reason,
+          };
+
+      expect(
+        mapped.values.toSet().length,
+        mapped.length,
+        reason: 'two platform reasons collapsed onto one core reason: $mapped',
       );
     });
 

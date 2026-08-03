@@ -22,6 +22,17 @@ enum SourceState {
 
   /// Failed in a way that may succeed later.
   transientlyUnavailable,
+
+  /// The adapter has no origin-keying identity, so it refused to read.
+  ///
+  /// A **configuration** state, not a platform one: the service may be present
+  /// and authorized. It is held separately from [serviceUnavailable] because
+  /// the fix is different — reconnect the health source so the adapter is
+  /// reopened with the device-bound identity — and because retrying alone can
+  /// never clear it.
+  ///
+  /// The developer harness surfaces this as configuration-blocked.
+  originKeyingUnconfigured,
 }
 
 /// Whether a bounded recovery is in flight.

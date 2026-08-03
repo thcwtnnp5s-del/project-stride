@@ -202,6 +202,12 @@ final class GameEngine {
             SourceState.permissionUnavailable,
           ReconciliationCode.transientFailure =>
             SourceState.transientlyUnavailable,
+          // Distinct from serviceUnavailable on purpose: the service may be
+          // present and authorized, and no amount of retrying fixes it. The
+          // player-facing action is to reconnect the health source; the
+          // developer harness shows it as configuration-blocked.
+          ReconciliationCode.originKeyingUnconfigured =>
+            SourceState.originKeyingUnconfigured,
           ReconciliationCode.malformedBatch => state.steps.sourceState,
         };
 

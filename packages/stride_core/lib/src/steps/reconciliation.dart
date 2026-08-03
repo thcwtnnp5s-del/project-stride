@@ -18,6 +18,13 @@ enum ReconciliationCode {
   /// The read failed; retrying may work.
   transientFailure('transient_failure'),
 
+  /// The adapter has no origin-keying identity and refused to read.
+  ///
+  /// Fail-closed and **not retryable**: the adapter must be reopened with the
+  /// device-bound identity. See
+  /// [ProviderUnavailableReason.originKeyingUnconfigured].
+  originKeyingUnconfigured('origin_keying_unconfigured'),
+
   /// A batch violated an invariant — a negative observation, a malformed
   /// window. A programming or adapter fault, not a gameplay outcome.
   malformedBatch('malformed_batch');
@@ -242,6 +249,21 @@ final class StepReconciler {
                   'the read failed; the cursor is unchanged and the '
                   'next attempt will retry from the same point',
               retryable: true,
+            ),
+          // The only non-retryable refusal in this hierarchy.
+          //
+          // Retrying cannot install an identity. The adapter must be reopened
+          // or constructed with the existing device-bound origin-key identity,
+          // which is an application action, not a later attempt at the same
+          // call. Reporting this as retryable would invite a loop against a
+          // condition looping can never clear.
+          ProviderUnavailableReason.originKeyingUnconfigured =>
+            const ReconciliationRefused(
+              code: ReconciliationCode.originKeyingUnconfigured,
+              explanation:
+                  'step data cannot be read until the health source is '
+                  'reconnected; no progress has been changed',
+              retryable: false,
             ),
         };
 
