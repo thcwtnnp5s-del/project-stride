@@ -1085,10 +1085,20 @@ void main() {
       final LateDiscardFixture run = lateDiscardScenario();
       final StepLedger ledger = run.engine.state.steps;
 
+      // DIAGNOSTIC surfaces only.
+      //
+      // `canonicalDurableGameState` is deliberately not in this list, and the
+      // S-01A migration briefly put it there by substituting it for the removed
+      // `GameState.signature`. That was a category error: it is the save
+      // format, and the save format MUST carry every granted slice with its
+      // origin key, because that is the state the game reloads. A durable
+      // record of what was granted is not a diagnostic that leaks it.
+      //
+      // The rule this test protects is narrower and still holds: a string a
+      // human or a log might see must not say WHICH slice was dropped.
       for (final String surface in <String>[
         ledger.signature,
         ledger.toString(),
-        run.engine.state.signature,
         run.engine.state.toString(),
       ]) {
         expect(

@@ -47,7 +47,10 @@ void main() {
       // without thinking about saves — otherwise an entirely silent change
       // until a player's save fails to load in the field.
       expect(second, first);
-      expect(envelope.state.signature, engine.state.signature);
+      expect(
+        canonicalDurableGameState(envelope.state),
+        canonicalDurableGameState(engine.state),
+      );
     });
 
     test('object key order does not depend on insertion order', () {

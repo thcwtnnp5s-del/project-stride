@@ -79,7 +79,7 @@ void main() {
   testWidgets('a restart resumes with the exact same state', (_) async {
     final StrideRuntime first = await launch();
     final BootstrapNewGame started = first.outcome as BootstrapNewGame;
-    final String signature = started.engine.state.signature;
+    final String signature = canonicalDurableGameState(started.engine.state);
 
     // Everything from the first launch is discarded here.
     final StrideRuntime second = await launch();
@@ -87,7 +87,7 @@ void main() {
     expect(second.outcome, isA<BootstrapExistingGame>());
     final BootstrapExistingGame resumed =
         second.outcome as BootstrapExistingGame;
-    expect(resumed.engine.state.signature, signature);
+    expect(canonicalDurableGameState(resumed.engine.state), signature);
     expect(resumed.identity, started.identity);
     expect(resumed.load.repairs, isEmpty);
   });
@@ -126,7 +126,10 @@ void main() {
         second.outcome as BootstrapExistingGame;
 
     expect(resumed.engine.state.steps.totalGranted, 1041);
-    expect(resumed.engine.state.signature, engine.state.signature);
+    expect(
+      canonicalDurableGameState(resumed.engine.state),
+      canonicalDurableGameState(engine.state),
+    );
   });
 
   testWidgets('an unreadable save is refused, never restarted', (_) async {

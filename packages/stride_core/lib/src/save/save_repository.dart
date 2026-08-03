@@ -43,6 +43,7 @@ import '../engine/game_state.dart';
 import '../engine/state_version.dart';
 import '../ports/save_store.dart';
 import '../ports/transaction_lock.dart';
+import 'durable_state.dart';
 import 'journal_record.dart';
 import 'save_codec.dart';
 import 'save_outcomes.dart';
@@ -323,8 +324,22 @@ final class SaveRepository {
       final SaveEnvelope x = verified[0].envelope!;
       final SaveEnvelope y = verified[1].envelope!;
       if (x.snapshotGeneration == y.snapshotGeneration) {
+        // Compared on the FULL durable encoding, not a summary.
+        //
+        // This read `x.state.signature == y.state.signature` until S-01A. That
+        // summary omitted `checkpoint.cursor` and `checkpoint.originWatermarks`
+        // and carried granted slices only as a count, so two slots that
+        // disagreed about the durable sync position compared equal, this
+        // refusal did not fire, and the sort below picked an arbitrary winner.
+        // Pick the further cursor and the next sync resumes past steps the
+        // chosen ledger never granted — silent and permanent, because no
+        // completeness assertion was violated and nothing was discarded as
+        // late. See the F-06 post-closure addendum.
+        //
+        // `durableGameStatesEqual` compares what the save file itself carries,
+        // so there is no list of fields here to fall out of date.
         final bool identical =
-            x.state.signature == y.state.signature &&
+            durableGameStatesEqual(x.state, y.state) &&
             x.lastAppliedTransaction == y.lastAppliedTransaction;
         if (!identical) {
           repairs.add(const SaveRepair(SaveDiagnosis.slotGenerationTie));

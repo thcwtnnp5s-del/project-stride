@@ -719,18 +719,17 @@ void main() {
           // could have been partly applied.
           //
           // The two assertions after it are NOT independent corroboration, and
-          // an earlier version of this comment claimed they were. `signature`
-          // and `grantedSlices` are pure getters over that same object, so
-          // identity implies both; no mutation exists that they catch and
-          // `identical()` misses. They are kept as cheap failure-message
-          // detail — when identity breaks, they say what moved — not as
-          // evidence.
+          // an earlier version of this comment claimed they were. Both are
+          // pure functions of that same object, so identity implies both; no
+          // mutation exists that they catch and `identical()` misses. They are
+          // kept as cheap failure-message detail — when identity breaks, they
+          // say what moved — not as evidence.
           //
-          // Worth recording, because it is a live defect elsewhere:
-          // `GameState.signature` does NOT cover `checkpoint.cursor` or
-          // `checkpoint.originWatermarks`. Two states differing only in the
-          // durable cursor produce identical signatures. Any test that leans
-          // on the signature alone for "unchanged" is weaker than it reads.
+          // The middle one used to be `GameState.signature`, which did not
+          // cover `checkpoint.cursor` or `checkpoint.originWatermarks`. That
+          // property is gone: it was also gating the save-slot divergence check,
+          // where the omission could discard a slot's progress. It is replaced
+          // here and everywhere by `canonicalDurableGameState`.
           expect(
             identical(engine.state, before),
             isTrue,
@@ -738,7 +737,10 @@ void main() {
                 '${row.name}: a rejected batch must leave the very same state '
                 'object. A rebuilt copy would mean events were applied.',
           );
-          expect(engine.state.signature, before.signature);
+          expect(
+            canonicalDurableGameState(engine.state),
+            canonicalDurableGameState(before),
+          );
           expect(engine.state.steps.grantedSlices, before.steps.grantedSlices);
           expect(
             engine.state.steps.sourceState,

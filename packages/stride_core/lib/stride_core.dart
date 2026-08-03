@@ -39,6 +39,7 @@ export 'src/ports/identity_store.dart';
 export 'src/ports/save_store.dart';
 export 'src/ports/transaction_lock.dart';
 export 'src/save/crc32c.dart';
+export 'src/save/durable_state.dart';
 export 'src/save/event_codec.dart';
 export 'src/save/journal_record.dart';
 export 'src/save/reset.dart';

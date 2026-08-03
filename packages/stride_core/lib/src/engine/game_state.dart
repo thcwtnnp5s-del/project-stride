@@ -333,29 +333,28 @@ final class GameState {
     eventSequence,
   );
 
-  /// A stable, human-readable fingerprint.
-  ///
-  /// Used by determinism and replay tests, where comparing two signatures is a
-  /// far more legible failure than comparing two object graphs.
-  String get signature {
-    final StringBuffer buffer = StringBuffer()
-      ..write('v$stateVersion;profile=$profileId;seq=$eventSequence;')
-      ..write('lvl=${player.level};xp=${player.experience};')
-      ..write('steps=(${steps.signature});')
-      ..write('at=${world.currentLocation};')
-      ..write('open=${world.unlockedLocations.join(',')};')
-      ..write(
-        'inv=${inventory.counts.entries.map((MapEntry<ContentId, int> e) => '${e.key}x${e.value}').join(',')};',
-      )
-      ..write(
-        'eq=${equipment.bySlot.entries.map((MapEntry<EquipmentSlot, ContentId> e) => '${e.key.name}=${e.value}').join(',')};',
-      )
-      ..write(
-        'skills=${skills.experienceBySkill.entries.map((MapEntry<ContentId, int> e) => '${e.key}=${e.value}').join(',')}',
-      );
-    return buffer.toString();
-  }
+  // There is deliberately no `signature` getter here.
+  //
+  // There used to be: a hand-written summary string, used by determinism and
+  // replay tests and — the part that mattered — by `SaveRepository` to decide
+  // whether two save slots at the same snapshot generation had diverged.
+  //
+  // It was incomplete. It omitted `steps.checkpoint.cursor` and
+  // `steps.checkpoint.originWatermarks`, and carried granted slices only as a
+  // count. So two states differing in the durable sync position compared
+  // equal, the equal-generation refusal did not fire, and an arbitrary slot was
+  // chosen; pick the further cursor and the next sync resumes past steps the
+  // chosen ledger never granted, silently and permanently.
+  //
+  // The replacement is `canonicalDurableGameState` in `save/durable_state.dart`
+  // — the exact encoding a save file carries, complete by construction because
+  // the codec must already persist every durable field. It lives beside the
+  // codec rather than here on purpose: a convenience summary sitting where a
+  // complete comparison is assumed is what caused the defect, and a property on
+  // the state object is what invited the assumption.
 
   @override
-  String toString() => 'GameState($signature)';
+  String toString() =>
+      'GameState(v$stateVersion;profile=$profileId;seq=$eventSequence;'
+      'lvl=${player.level};steps=(${steps.signature}))';
 }

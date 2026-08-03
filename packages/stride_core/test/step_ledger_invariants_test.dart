@@ -269,14 +269,14 @@ void main() {
         incremental(<StepObservation>[obs(phone, 0, 500)], next: 'c1'),
       );
       final GameState before = engine.state;
-      final String beforeSignature = before.signature;
+      final String beforeSignature = canonicalDurableGameState(before);
 
       sync(
         engine,
         incremental(<StepObservation>[obs(phone, 1, 700)], next: 'c2'),
       );
 
-      expect(before.signature, beforeSignature);
+      expect(canonicalDurableGameState(before), beforeSignature);
       expect(before.steps.totalGranted, 500);
       expect(engine.state.steps.totalGranted, 1200);
     });

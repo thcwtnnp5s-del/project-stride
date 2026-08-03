@@ -599,3 +599,86 @@ Unchanged by this run, and restated so it is never mistaken for settled:
 
 The first two need two physical iPhones, an iCloud account, and a real backup and
 restore. **A green suite is not evidence for any of them.**
+
+---
+
+# Post-closure corrective addendum — equal-generation save divergence
+
+**Added:** during S-01A, Commit A.1.
+**F-06 remains CLOSED.** Nothing above this line has been altered. The closure
+evidence is the historical record of what was verified at closure and stays as
+it was; this section records a defect found afterwards, in code F-06 owned.
+
+## What was found
+
+`SaveRepository.load` refuses to choose between two save slots that claim the
+same snapshot generation and disagree — invariant P-adjacent, fail-closed by
+design, because choosing wrong duplicates or destroys a grant.
+
+That refusal was gated on `GameState.signature`, which **omitted the durable
+cursor, the per-origin watermarks, and the contents of granted slices** (it
+carried only their count). Two slots differing in exactly those fields compared
+equal. The refusal did not fire. Control fell through to a generation sort that
+is a tie, and `verified.first` — an arbitrary slot — was selected.
+
+## Why it matters
+
+Select the slot whose cursor is further along and the next sync resumes from a
+position the chosen ledger never granted. The steps in that gap are permanently
+unrecoverable, and **nothing counts them**: no completeness assertion was
+violated, so no bucket settled early and `lateDiscardedSlices` never fires.
+Divergent per-origin watermarks fail the same way — the further horizon buries
+buckets the other slot would still have accepted.
+
+This is the same class as the 55,200-step defect, located in the corruption
+check rather than in the platform bridge.
+
+## Why F-06's tests did not expose it
+
+Not an oversight in test *count* — F-06 had a divergent-slot test, and it passed
+for the right reason. Three things hid this:
+
+1. **The existing test diverged the slots by a granted total.** Totals were in
+   the signature, so the refusal fired. It proved the refusal *works*; it could
+   not prove the comparison is *complete*, and no test asked that question.
+2. **The cursor axis had no reason to be under suspicion.** F-06 established P4
+   — the durable cursor never leads the durable granted state — structurally, by
+   putting the cursor and the grant in the same bytes. That argument is sound
+   and remains sound. It says nothing about two slots at one generation
+   disagreeing about those bytes, which is a different failure mode reached only
+   through a torn or interleaved dual-slot write.
+3. **Per-origin watermarks arrived after the check was written.** The signature
+   was not updated when the field was added, and nothing existed to make that
+   omission fail. This is the general hazard of a hand-maintained summary and
+   the reason the replacement is not another one.
+
+The honest one-line version: the test asserted the refusal, not the mechanism
+behind it, and the mechanism silently narrowed underneath it.
+
+## Corrective action
+
+- The comparison is now `durableGameStatesEqual` — canonical-JSON equality over
+  `encodeGameState`, the exact bytes a save file carries. Complete by
+  construction; there is no field list to fall behind.
+- `GameState.signature` is **removed**, not extended. Retaining an incomplete
+  property under that name preserves the invitation to misread it. Every caller
+  moved to `canonicalDurableGameState`.
+- `lastAppliedTransaction` equality remains a separate required conjunct.
+- Regression coverage in
+  `packages/stride_core/test/equal_generation_divergence_test.dart`: divergence
+  in the cursor alone, one origin watermark alone, one slice revised at an
+  unchanged slice count, recovery state, source state, each total, inventory,
+  skills, equipment, world state, and transaction identity — each asserted in
+  **both slot orders**, so no arbitrary winner can be selected. Plus the
+  converse: identical slots still load, and map insertion order does not
+  manufacture divergence.
+
+## Verification
+
+A mutation reproducing the original blind spot exactly — ignoring the cursor,
+the watermarks and slice values while preserving counts — fails precisely the
+three tests that name those fields and no others.
+
+Full evidence, including the compatibility analysis that establishes the
+signature was never persisted and required no migration, is in
+`GAME_STATE_SIGNATURE_COMPATIBILITY.md`.

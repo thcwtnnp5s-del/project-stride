@@ -144,7 +144,7 @@ Future<String> _seed(File marker) async {
     jsonEncode(<String, Object?>{
       'phase': 'seeded',
       'expectedTotal': engine.state.steps.totalGranted,
-      'expectedSignature': engine.state.signature,
+      'expectedSignature': canonicalDurableGameState(engine.state),
       'saveId': outcome.identity.saveId,
       'saltFingerprint': outcome.identity.saltFingerprint,
       'storageRoot': runtime.layout.root.path,
@@ -186,7 +186,8 @@ Future<String> _verify(Map<String, Object?> expected) async {
   if (total != harnessExpectedTotal) {
     failures.add('total granted is $total, expected $harnessExpectedTotal');
   }
-  if (outcome.engine.state.signature != expected['expectedSignature']) {
+  if (canonicalDurableGameState(outcome.engine.state) !=
+      expected['expectedSignature']) {
     failures.add('state signature changed across the kill');
   }
   if (outcome.identity.saveId != expected['saveId']) {

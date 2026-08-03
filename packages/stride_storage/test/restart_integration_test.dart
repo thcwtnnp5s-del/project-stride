@@ -224,8 +224,9 @@ void main() {
 
       final BootstrapOutcome first = await session.start(identity);
       expect(first, isA<BootstrapNewGame>());
-      final String signatureAtStart =
-          (first as BootstrapNewGame).engine.state.signature;
+      final String signatureAtStart = canonicalDurableGameState(
+        (first as BootstrapNewGame).engine.state,
+      );
 
       // The snapshot must be on disk before the first session is even over.
       expect(
@@ -244,7 +245,7 @@ void main() {
         reason: 'the second launch must resume, never restart',
       );
       final BootstrapExistingGame resumed = second as BootstrapExistingGame;
-      expect(resumed.engine.state.signature, signatureAtStart);
+      expect(canonicalDurableGameState(resumed.engine.state), signatureAtStart);
       expect(resumed.identity, identity);
       expect(resumed.load.repairs, isEmpty);
     });
@@ -275,7 +276,7 @@ void main() {
           lastTransaction: game.load.lastAppliedTransaction,
         );
         total += steps;
-        signature = engine.state.signature;
+        signature = canonicalDurableGameState(engine.state);
       }
 
       // One more restart, reading only what is on disk.
@@ -285,7 +286,7 @@ void main() {
 
       expect(finalLaunch.engine.state.steps.totalGranted, total);
       expect(finalLaunch.engine.state.steps.totalGranted, 1041);
-      expect(finalLaunch.engine.state.signature, signature);
+      expect(canonicalDurableGameState(finalLaunch.engine.state), signature);
     });
 
     // This case used to assert the opposite: that a seeded identity survived
@@ -541,7 +542,7 @@ void main() {
           generation = durable.generation;
           lastTransaction = durable.transactionId;
         }
-        final String signatureBefore = engine.state.signature;
+        final String signatureBefore = canonicalDurableGameState(engine.state);
 
         // An append that started and did not finish: bytes with no terminator
         // and a digest that covers nothing. This is what a kill mid-`writeFrom`
@@ -566,7 +567,10 @@ void main() {
           reason: 'a torn tail must be diagnosed, not silently swallowed',
         );
         expect(resumed.engine.state.steps.totalGranted, 904);
-        expect(resumed.engine.state.signature, signatureBefore);
+        expect(
+          canonicalDurableGameState(resumed.engine.state),
+          signatureBefore,
+        );
       },
     );
 
@@ -593,7 +597,7 @@ void main() {
         generation: head.generation,
         lastTransaction: head.lastAppliedTransaction,
       );
-      final String signatureBefore = engine.state.signature;
+      final String signatureBefore = canonicalDurableGameState(engine.state);
 
       // Roll the snapshots back to the genesis state by deleting the newer
       // slot: the journal now leads both snapshots.
@@ -618,7 +622,7 @@ void main() {
         613,
         reason: 'a grant whose journal record is durable is never lost',
       );
-      expect(resumed.engine.state.signature, signatureBefore);
+      expect(canonicalDurableGameState(resumed.engine.state), signatureBefore);
     });
   });
 

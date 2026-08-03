@@ -29,7 +29,10 @@ void main() {
 
       // Nothing in creation reads a clock or generates an identifier, so two
       // new games are indistinguishable.
-      expect(first.signature, second.signature);
+      expect(
+        canonicalDurableGameState(first),
+        canonicalDurableGameState(second),
+      );
       expect(first, second);
     });
 
@@ -98,9 +101,12 @@ void main() {
 
       // The signature is the whole state as text. A definition leaking in would
       // show up as a display name or a stat.
-      expect(state.signature, contains('item.training_sword'));
-      expect(state.signature, isNot(contains('Training Sword')));
-      expect(state.signature, isNot(contains('power')));
+      expect(canonicalDurableGameState(state), contains('item.training_sword'));
+      expect(
+        canonicalDurableGameState(state),
+        isNot(contains('Training Sword')),
+      );
+      expect(canonicalDurableGameState(state), isNot(contains('power')));
     });
   });
 
@@ -130,7 +136,7 @@ void main() {
     test('a snapshot cannot be mutated to change the engine', () {
       final GameEngine engine = GameEngine.newGame(registry: production);
       final GameState snapshot = engine.state;
-      final String before = engine.state.signature;
+      final String before = canonicalDurableGameState(engine.state);
 
       // Every route a caller could take to reach in and edit.
       for (final void Function() attempt in <void Function()>[
@@ -142,21 +148,21 @@ void main() {
         expect(attempt, throwsUnsupportedError);
       }
 
-      expect(engine.state.signature, before);
+      expect(canonicalDurableGameState(engine.state), before);
     });
 
     test('an earlier snapshot is unchanged by later commands', () {
       final GameEngine engine = GameEngine.newGame(registry: production);
       final GameState earlier = engine.state;
-      final String earlierSignature = earlier.signature;
+      final String earlierSignature = canonicalDurableGameState(earlier);
 
       engine.execute(EquipItem(item: trainingSword));
       engine.execute(const GrantSyntheticSteps(steps: 5000, reason: 'test'));
 
-      expect(earlier.signature, earlierSignature);
+      expect(canonicalDurableGameState(earlier), earlierSignature);
       expect(earlier.equipment.bySlot, isEmpty);
       expect(earlier.steps.totalGranted, 0);
-      expect(engine.state.signature, isNot(earlierSignature));
+      expect(canonicalDurableGameState(engine.state), isNot(earlierSignature));
     });
 
     test('a later snapshot is unaffected by mutating an earlier one', () {
@@ -165,14 +171,14 @@ void main() {
 
       engine.execute(EquipItem(item: trainingSword));
       final GameState later = engine.state;
-      final String laterSignature = later.signature;
+      final String laterSignature = canonicalDurableGameState(later);
 
       expect(
         () => earlier.inventory.counts[oakLog] = 1,
         throwsUnsupportedError,
       );
 
-      expect(later.signature, laterSignature);
+      expect(canonicalDurableGameState(later), laterSignature);
       expect(later.inventory.has(oakLog), isFalse);
     });
 
@@ -362,7 +368,10 @@ void main() {
         expect(identical(result.state, before), isTrue, reason: command.name);
       }
 
-      expect(engine.state.signature, before.signature);
+      expect(
+        canonicalDurableGameState(engine.state),
+        canonicalDurableGameState(before),
+      );
     });
 
     test('every rejection carries a stable wire code and an explanation', () {
@@ -513,7 +522,7 @@ void main() {
                 : 'A=${result.events.map((GameEvent e) => '${e.name}@${e.sequence}').join(',')};',
           );
         }
-        return '${log.toString()}|${engine.state.signature}';
+        return '${log.toString()}|${canonicalDurableGameState(engine.state)}';
       }
 
       expect(run(), run());
@@ -540,7 +549,10 @@ void main() {
         second.execute(c);
       }
 
-      expect(first.state.signature, second.state.signature);
+      expect(
+        canonicalDurableGameState(first.state),
+        canonicalDurableGameState(second.state),
+      );
     });
 
     test('executeAll stops at the first rejection', () {
@@ -593,7 +605,10 @@ void main() {
           );
       final GameState replayed = const EventReducer().applyAll(blank, history);
 
-      expect(replayed.signature, engine.state.signature);
+      expect(
+        canonicalDurableGameState(replayed),
+        canonicalDurableGameState(engine.state),
+      );
     });
 
     test('replay is repeatable', () {
@@ -616,7 +631,7 @@ void main() {
       final GameState a = const EventReducer().applyAll(base(), history);
       final GameState b = const EventReducer().applyAll(base(), history);
 
-      expect(a.signature, b.signature);
+      expect(canonicalDurableGameState(a), canonicalDurableGameState(b));
       expect(a, b);
     });
 
@@ -669,10 +684,15 @@ void main() {
           engine.execute(command);
         }
         // Strip the profile ID; everything else must match.
-        return engine.state.signature.replaceAll(
-          RegExp(r'profile=profile\.\w+'),
-          'profile=X',
-        );
+        //
+        // The pattern follows the canonical durable encoding, not the removed
+        // signature string — `"profileId":"profile.x"` rather than
+        // `profile=profile.x`. The comparison is strictly stronger than it was:
+        // it now also covers the durable cursor and the per-origin watermarks,
+        // which the signature never carried.
+        return canonicalDurableGameState(
+          engine.state,
+        ).replaceAll(RegExp(r'"profileId":"profile\.\w+"'), '"profileId":"X"');
       }
 
       expect(run(acceleratedQa), run(production));

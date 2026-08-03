@@ -164,7 +164,8 @@ void _refusals() {
     // -- 2 ------------------------------------------------------------------
     test('2. an unavailable service leaves the ledger and cursor untouched', () {
       final GameEngine engine = engineWithProgress();
-      final String before = engine.state.steps.signature;
+      final GameState atRefusal = engine.state;
+      final String before = canonicalDurableGameState(engine.state);
 
       final EngineResult result = ingest(
         engine,
@@ -177,15 +178,40 @@ void _refusals() {
       expect(engine.state.steps.sourceState, SourceState.serviceUnavailable);
       expect(engine.state.steps.grantedSlices, hasLength(1));
 
-      // Exactly one thing changed. Asserted by reconstructing the whole
-      // signature rather than by `isNot(before)`, which would also pass if the
-      // totals had moved.
+      // Exactly TWO things changed. Asserted by reconstructing the WHOLE
+      // durable state rather than by `isNot(before)`, which would also pass if
+      // the totals had moved.
+      //
+      // This used to reconstruct `steps.signature` and claim the source state
+      // was the *only* field a refusal may move. Both halves were wrong. The
+      // summary omitted `checkpoint.cursor` and `checkpoint.originWatermarks`,
+      // so a refusal that cleared the cursor or moved a per-origin horizon
+      // would have passed it — the cursor was separately asserted above, the
+      // watermarks nowhere. And the claim itself was false: the summary was
+      // ledger-scoped and could not see `eventSequence`, which a refusal moves
+      // too, because an accepted refusal EMITS an event. Switching to the
+      // canonical durable encoding surfaced that on the first run.
+      //
+      // Two fields, named exactly. A refusal is a recorded fact, not a silence.
       expect(
-        engine.state.steps
-            .copyWith(sourceState: SourceState.available)
-            .signature,
+        canonicalDurableGameState(
+          engine.state.copyWith(
+            eventSequence: engine.state.eventSequence - 1,
+            steps: engine.state.steps.copyWith(
+              sourceState: SourceState.available,
+            ),
+          ),
+        ),
         before,
-        reason: 'the source state is the ONLY field a refusal may move',
+        reason:
+            'a refusal may move the source state and the event sequence, and '
+            'nothing else — not the cursor, not a watermark, not a total, not '
+            'a slice',
+      );
+      expect(
+        engine.state.eventSequence,
+        atRefusal.eventSequence + 1,
+        reason: 'exactly one event: the source state changing',
       );
 
       // And a source that is simply absent is still a state, not a throw.
@@ -1627,10 +1653,13 @@ void _privacy() {
       // half its bytes, or that leaked them hex-encoded.
       expect(durable.toString(), 'cursor(${cursorSecret.length}B)');
 
+      // DIAGNOSTIC surfaces. `canonicalDurableGameState` is deliberately absent:
+      // it is the save format, and the save format necessarily carries the
+      // cursor because that is the position the game resumes from. A durable
+      // record is not a leak; a log line would be.
       for (final String surface in <String>[
         ledger.signature,
         ledger.toString(),
-        engine.state.signature,
         engine.state.toString(),
         durable.toString(),
       ]) {

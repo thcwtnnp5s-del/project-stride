@@ -337,11 +337,30 @@ final class PlatformStepSource implements StepSyncSource {
           // No window means no authoritative figure and no safe move. Granting
           // the rescanned content without knowing what it covers is the
           // double-count; discarding it silently is the lost grant.
+          //
+          // A candidate cursor offered here is dropped — `ProviderUnavailableSync`
+          // has no field one could travel in — and the drop is now REPORTED.
+          //
+          // It was not, and the asymmetry was an ordering artefact rather than
+          // a decision: `authorizeCursor` runs before this branch and answers
+          // `authorized` for a page that is final, recovery-complete and
+          // untruncated, so the fault channel had already been settled by the
+          // time the missing window was noticed. The structurally identical
+          // `unavailable` path raised the fault; this one silently did not.
+          // `cursorOfferedWhenProhibited` is documented as "a cursor was
+          // offered on a path that must not advance one", and a recovery that
+          // cannot name its window is exactly such a path.
           return SyncFetch(
             const ProviderUnavailableSync(
               ProviderUnavailableReason.transientFailure,
             ),
-            faults: <SyncFault>[...faults, SyncFault.invalidatedWithoutRescan],
+            faults: <SyncFault>[
+              ...faults,
+              SyncFault.invalidatedWithoutRescan,
+              if (page.nextCursor != null &&
+                  !faults.contains(SyncFault.cursorOfferedWhenProhibited))
+                SyncFault.cursorOfferedWhenProhibited,
+            ],
             cursorAuthorization: authorization,
           );
         }

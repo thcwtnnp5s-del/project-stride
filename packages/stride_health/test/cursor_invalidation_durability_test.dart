@@ -29,6 +29,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/src/messages.g.dart';
+import 'package:stride_health/stride_health.dart';
 
 import 'adapter_ledger_support.dart';
 
@@ -334,6 +335,89 @@ void main() {
         before,
         'without a window there is no authoritative figure and no bound. '
         'Granting from it would be guessing.',
+      );
+    });
+
+    test('an invalidation with NO window REPORTS the dropped cursor', () {
+      // The full disposition, asserted in one place, because the drop and the
+      // report are separate acts and only one of them was happening.
+      //
+      // The candidate was always discarded — `ProviderUnavailableSync` has no
+      // field a cursor could travel in — but no fault named it. The
+      // structurally identical `unavailable` path did raise
+      // `cursorOfferedWhenProhibited`, and the asymmetry was an ordering
+      // artefact rather than a decision: `authorizeCursor` runs first and
+      // answers `authorized` for a page that is final, recovery-complete and
+      // untruncated, so the fault channel was settled before the missing window
+      // was noticed. A cursor silently dropped is a cursor nobody investigates.
+      final (GameEngine engine, SyncCursor before) = engineWithCursor();
+      final GameState atRefusal = engine.state;
+
+      final SyncFetch fetch = translate(
+        pcontractViolationPage(
+          violation:
+              'cursorInvalidated with no rescan window, offering a replacement '
+              'token anyway',
+          status: PlatformSyncStatus.cursorInvalidated,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
+          observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 1200)],
+          throughIndex: 2,
+          toIndex: 2,
+          rescan: null,
+          nextCursor: 'replacement',
+        ),
+      );
+
+      expect(
+        fetch.faults,
+        containsAll(<SyncFault>[
+          SyncFault.invalidatedWithoutRescan,
+          SyncFault.cursorOfferedWhenProhibited,
+        ]),
+        reason:
+            'both faults: one names the missing window, the other names the '
+            'token that was thrown away because of it',
+      );
+
+      final EngineResult result = reconcile(engine, fetch);
+
+      expect(engine.state.steps.checkpoint.cursor, before);
+      expect(
+        engine.state.steps.checkpoint.cursor,
+        isNot(cursor('replacement')),
+      );
+      expect(grantedBy(result), 0, reason: 'a refused page grants nothing');
+      expect(
+        engine.state.steps.checkpoint.originWatermarks,
+        atRefusal.steps.checkpoint.originWatermarks,
+        reason: 'no horizon may move on a delivery that answered nothing',
+      );
+    });
+
+    test('an invalidation with no window and NO candidate is quiet', () {
+      // The fault must name a real event. Raising it on a page that offered
+      // nothing would make it fire on ordinary traffic, and a diagnostic that
+      // fires on ordinary traffic is one nobody reads.
+      // Neither the engine nor the established cursor matters here: the claim
+      // is entirely about which faults the bridge raises.
+
+      final SyncFetch fetch = translate(
+        pcontractViolationPage(
+          violation: 'cursorInvalidated with no rescan window and no token',
+          status: PlatformSyncStatus.cursorInvalidated,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
+          observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 1200)],
+          throughIndex: 2,
+          toIndex: 2,
+          rescan: null,
+        ),
+      );
+
+      expect(fetch.faults, contains(SyncFault.invalidatedWithoutRescan));
+      expect(
+        fetch.faults,
+        isNot(contains(SyncFault.cursorOfferedWhenProhibited)),
+        reason: 'nothing was offered, so nothing was refused',
       );
     });
 

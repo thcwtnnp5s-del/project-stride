@@ -58,21 +58,75 @@ import 'package:test/test.dart';
 import 'content_test_support.dart';
 import 'save_support.dart';
 
-/// The exact signature of the frozen fixture.
+/// The exact durable state of the frozen fixture.
 ///
 /// A literal, not a computation. Deriving it from the fixture would make this
 /// assert that decoding is self-consistent rather than that it is *correct*.
+///
+/// ## Why this literal was replaced, and why that is not fixture-fitting
+///
+/// It used to be the `GameState.signature` string. That property is gone — it
+/// omitted the durable cursor and the per-origin watermarks, and a save-slot
+/// divergence check was relying on it (see `durable_state.dart`). The frozen
+/// value had to move to the replacement encoding with it.
+///
+/// The rule this file states — *fix the decoder, never the fixture and never
+/// this literal* — is intact, because the new literal was not taken on trust
+/// from a passing run. Every field of the old signature was checked to survive
+/// into the new one with the same value:
+///
+/// | old | new | value |
+/// |---|---|---|
+/// | `v1` | `stateVersion` | 1 |
+/// | `profile=` | `profileId` | `profile.production` |
+/// | `seq=` | `eventSequence` | 10 |
+/// | `lvl=`, `xp=` | `player` | 1, 0 |
+/// | `obs=` | `totalObserved` | 1041 |
+/// | `granted=` | `totalGranted` | 1041 |
+/// | `spent=` | `totalSpent` | 400 |
+/// | `banked=641` | *derived* | 1041 − 400 = 641 |
+/// | `pre=` | `grantedBeforeWatermark` | 0 |
+/// | `slices=3` | `grantedSlices` | 3, now enumerated |
+/// | `sync=` | `checkpoint.syncCount` | 2 |
+/// | `wm=null` | `checkpoint.watermarkMillis` | null |
+/// | `recovery=` | `recovery.phase` | idle |
+/// | `source=` | `sourceState` | available |
+/// | `corrections=`, `gaps=`, `late=` | same names | 0, 0, 0 |
+/// | `at=`, `open=` | `world` | havens_rest |
+/// | `inv=`, `eq=`, `skills=` | same names | unchanged |
+///
+/// It is a **strict superset**. Three things the old literal could not pin are
+/// now pinned: `contentPackVersion`, the three granted slices by value rather
+/// than by count, and — the reason any of this happened — the durable cursor,
+/// `Y3Vyc29yLTI=`, which is base64 for `cursor-2`.
 const String expectedV1Signature =
-    'v1;profile=profile.production;seq=10;lvl=1;xp=0;'
-    'steps=(obs=1041;granted=1041;spent=400;banked=641;pre=0;slices=3;'
-    'sync=2;wm=null;recovery=idle;source=available;corrections=0;gaps=0;'
-    'late=0);'
-    'at=location.havens_rest;open=location.havens_rest;'
-    'inv=item.training_axex1,item.training_pickaxex1,item.training_swordx1,'
-    'item.traveler_tunicx1;'
-    'eq=weapon=item.training_sword;'
-    'skills=skill.cooking=0,skill.foraging=0,skill.mining=0,'
-    'skill.smithing=0,skill.woodcutting=0';
+    '{"contentPackVersion":1,'
+    '"equipment":{"weapon":"item.training_sword"},'
+    '"eventSequence":10,'
+    '"inventory":[{"id":"item.training_axe","n":1},'
+    '{"id":"item.training_pickaxe","n":1},'
+    '{"id":"item.training_sword","n":1},'
+    '{"id":"item.traveler_tunic","n":1}],'
+    '"player":{"experience":0,"level":1},'
+    '"profileId":"profile.production",'
+    '"skills":[{"id":"skill.cooking","n":0},{"id":"skill.foraging","n":0},'
+    '{"id":"skill.mining","n":0},{"id":"skill.smithing","n":0},'
+    '{"id":"skill.woodcutting","n":0}],'
+    '"stateVersion":1,'
+    '"steps":{"checkpoint":{"cursor":"Y3Vyc29yLTI=","syncCount":2,'
+    '"watermarkMillis":null},'
+    '"correctionsObserved":0,"grantedBeforeWatermark":0,'
+    '"grantedSlices":['
+    '{"e":1750007200000,"g":137,"o":"0f1e2d3c4b5a6978","s":1750003600000},'
+    '{"e":1750003600000,"g":613,"o":"a1b2c3d4e5f60718","s":1750000000000},'
+    '{"e":1750007200000,"g":291,"o":"a1b2c3d4e5f60718","s":1750003600000}],'
+    '"lateDiscardedSlices":0,'
+    '"recovery":{"attempts":0,"phase":"idle","truncated":false,'
+    '"windowEndMillis":null,"windowStartMillis":null},'
+    '"sourceState":"available","totalGranted":1041,"totalObserved":1041,'
+    '"totalSpent":400,"unreachableGapEvents":0},'
+    '"world":{"currentLocation":"location.havens_rest",'
+    '"unlockedLocations":["location.havens_rest"]}}';
 
 /// The fixture's byte length, asserted so a line-ending translation on
 /// checkout is caught here rather than as a mysterious CRC failure.
@@ -177,7 +231,7 @@ void main() {
       expect(envelope.saveId, 'v1-baseline-0001');
       expect(envelope.commitComplete, isTrue);
       expect(
-        envelope.state.signature,
+        canonicalDurableGameState(envelope.state),
         expectedV1Signature,
         reason:
             'a v1 save must decode to the same state it always has. If this '

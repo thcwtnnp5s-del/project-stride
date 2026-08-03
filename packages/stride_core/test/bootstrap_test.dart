@@ -320,8 +320,8 @@ void _newGame() {
       expect(reloaded, isA<SaveLoaded>());
       final SaveLoaded loaded = reloaded as SaveLoaded;
       expect(
-        loaded.state.signature,
-        game.engine.state.signature,
+        canonicalDurableGameState(loaded.state),
+        canonicalDurableGameState(game.engine.state),
         reason: 'the reloaded state must be the state the player was given',
       );
       expect(loaded.generation, 0);
@@ -342,8 +342,10 @@ void _newGame() {
 
         expect(second.outcome, isA<BootstrapExistingGame>());
         expect(
-          (second.outcome as BootstrapExistingGame).engine.state.signature,
-          first.engine.state.signature,
+          canonicalDurableGameState(
+            (second.outcome as BootstrapExistingGame).engine.state,
+          ),
+          canonicalDurableGameState(first.engine.state),
         );
         expect(second.mintCalls, 0);
       },
@@ -400,7 +402,10 @@ void _existingGame() {
       expect(game.load.generation, 2);
       expect(game.load.fromSlot, SnapshotSlot.a);
       expect(game.engine.state.steps.totalGranted, saved.totalGranted);
-      expect(game.engine.state.signature, saved.state.signature);
+      expect(
+        canonicalDurableGameState(game.engine.state),
+        canonicalDurableGameState(saved.state),
+      );
       expect(result.mintCalls, 0);
     });
 
@@ -468,7 +473,10 @@ void _existingGame() {
         1041,
         reason: 'the grant whose snapshot never landed must survive',
       );
-      expect(game.engine.state.signature, engine.state.signature);
+      expect(
+        canonicalDurableGameState(game.engine.state),
+        canonicalDurableGameState(engine.state),
+      );
     });
 
     test('a torn journal tail is recovered, not refused', () async {
