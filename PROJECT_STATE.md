@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
 **Version:** 2.0
-**Status:** ⚠️ **F-06 work complete; closure blocked on GitHub Actions billing.** Every local gate passes; the final tree has never run in CI.
-**Current Phase:** Milestone 01 — F-06 awaiting a final CI run. See `F06_COMPLETION_REPORT.md` §9.
+**Status:** ✅ **F-06 complete** — device persistence, bootstrap, single-writer concurrency, iOS Keychain identity, backup exclusion, restart validation.
+**Current Phase:** Milestone 01 — F-06 closed; **F-07 (skill framework) is next and not started.**
 
 ## Project identity
 
@@ -101,9 +101,9 @@ The player must be able to:
 26. ~~Answer the four blocking F-05 decisions.~~ **Ruled 2026-08-02**
 27. ~~Execute F-05 — save, ledger persistence, crash recovery.~~ **Done — `F05_COMPLETION_REPORT.md`**
 28. ~~Owner approval before F-06.~~ **Approved 2026-08-02**
-29. ~~Execute F-06 — device persistence, bootstrap, restart validation.~~ **Work done — `F06_COMPLETION_REPORT.md`**
-30. **Resolve GitHub Actions billing; re-run CI on `master` and the Android process-death workflow against the final tree.** ← current state. No code changes expected.
-31. Owner sign-off on F-06, then F-07.
+29. ~~Execute F-06 — device persistence, bootstrap, restart validation.~~ **Done — `F06_COMPLETION_REPORT.md`**
+30. ~~Re-run CI and the Android process-death workflow against the final tree.~~ **Done — both green, `F06_COMPLETION_REPORT.md` §10**
+31. **Execute F-07 — skill framework.** ← current state. Not started.
 
 ## F-05 closed the four decisions
 
@@ -126,10 +126,12 @@ Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 | F-03 — GameState, events, engine | ✅ Done |
 | **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
 | **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
-| **F-06 — device persistence, bootstrap, restart validation** | ⚠️ **Work complete — blocked on a final CI run** |
-| F-07 — skill framework | Blocked on F-06 closure |
+| **F-06 — device persistence, bootstrap, restart validation** | ✅ **Done** |
+| F-07 — skill framework | Next — not started |
 
-**540 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, 27 app, 17 `stride_health` — plus 40 Swift simulator tests and 5 Kotlin in CI.
+**540 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, 27 app, 17 `stride_health` — plus **38 Swift simulator tests** and 5 Kotlin in CI.
+
+Final F-06 verification: CI run **`30780992412`** (all four jobs green) and Android process-death run **`30781003035`** (PASS), both against `2d20280`.
 
 ### The F-06 finding worth carrying forward
 
