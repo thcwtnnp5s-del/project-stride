@@ -13,9 +13,13 @@ import XCTest
 /// What this suite proves: the mapping rules, the typed-boundary conversions,
 /// and that failures are reported rather than trapped.
 ///
-/// What it does not prove: anything about real HealthKit. Anchored queries,
-/// deletions, `wasUserEntered` filtering, locked-device behaviour, and
-/// background delivery need a physical iPhone.
+/// What it does not prove: anything about real HealthKit. `HealthKitStepStore`
+/// is not exercised by a single assertion in this file or any other, because
+/// there is nothing on a runner for it to read. Anchored-query drain behaviour,
+/// deletion reporting, `wasUserEntered` filtering, the statistics engine's
+/// per-source arithmetic, and locked-device behaviour all need a physical
+/// iPhone — evidence category 6 in `DECISIONS/0014`, and simulator evidence is
+/// never to be described as physical-device validation.
 final class HealthKitAdapterTests: XCTestCase {
 
   // MARK: - Fakes
@@ -29,14 +33,30 @@ final class HealthKitAdapterTests: XCTestCase {
 
     var isAvailable: Bool { available }
 
-    func requestAuthorization() throws -> PlatformAuthorizationState {
-      if let authorizationError { throw authorizationError }
-      return authorization
+    // The completion fires synchronously, which is what lets every test below
+    // stay straight-line. The real source answers on a HealthKit queue; that
+    // difference is exactly what a fake cannot exercise, and is listed among
+    // the unverified properties in HealthKitStepStore.swift.
+    func requestAuthorization(
+      completion: @escaping (Result<PlatformAuthorizationState, Error>) -> Void
+    ) {
+      if let authorizationError {
+        completion(.failure(authorizationError))
+        return
+      }
+      completion(.success(authorization))
     }
 
-    func read(request: PlatformSyncRequest, salt: Data) throws -> RawStepReading {
-      if let readError { throw readError }
-      return reading
+    func read(
+      request: PlatformSyncRequest,
+      salt: Data,
+      completion: @escaping (Result<RawStepReading, Error>) -> Void
+    ) {
+      if let readError {
+        completion(.failure(readError))
+        return
+      }
+      completion(.success(reading))
     }
   }
 
@@ -51,11 +71,20 @@ final class HealthKitAdapterTests: XCTestCase {
     }
 
     var isAvailable: Bool { true }
-    func requestAuthorization() throws -> PlatformAuthorizationState { .granted }
 
-    func read(request: PlatformSyncRequest, salt: Data) throws -> RawStepReading {
+    func requestAuthorization(
+      completion: @escaping (Result<PlatformAuthorizationState, Error>) -> Void
+    ) {
+      completion(.success(PlatformAuthorizationState.granted))
+    }
+
+    func read(
+      request: PlatformSyncRequest,
+      salt: Data,
+      completion: @escaping (Result<RawStepReading, Error>) -> Void
+    ) {
       receivedRequest = request
-      return reading
+      completion(.success(reading))
     }
   }
 
@@ -270,56 +299,15 @@ final class HealthKitAdapterTests: XCTestCase {
     XCTAssertEqual(try fetch(adapter).get().unavailableReason, .originKeyingUnconfigured)
   }
 
-  func testOriginKeyingMatchesTheCrossPlatformVectors() {
-    // The shared fixture from packages/stride_health/test/origin_key_vectors.dart.
-    // A divergence between Swift, Kotlin, and the Dart reference is silent and
-    // unbounded: a re-keyed origin looks exactly like a new device. These
-    // numbers are the closest thing to a proof that exists.
-    //
-    // The high-byte salt case is the one that matters most: `UInt64` is
-    // required, and an arithmetic shift on a signed type produces a stable,
-    // self-consistent, completely wrong key.
-    let vectors: [(salt: [UInt8], identifier: String, expected: [UInt8])] = [
-      (
-        Array("stride-device-salt-0001".utf8), "com.apple.health",
-        [0x41, 0x09, 0x1b, 0x75, 0x22, 0x09, 0xa5, 0x34]
-      ),
-      (
-        Array("stride-device-salt-0001".utf8), "com.apple.health.watch",
-        [0xf9, 0x2f, 0xf8, 0x8d, 0x6a, 0x64, 0x5c, 0x0d]
-      ),
-      (
-        Array("stride-device-salt-0001".utf8), "com.google.android.apps.fitness",
-        [0xfb, 0x3c, 0x0d, 0xf6, 0x53, 0xb0, 0x34, 0x6e]
-      ),
-      (
-        Array("stride-device-salt-0001".utf8), "Rob's iPhone",
-        [0xdd, 0x8b, 0x33, 0xf7, 0xcf, 0x0c, 0x5a, 0x07]
-      ),
-      (Array("stride-device-salt-0001".utf8), "", []),
-      (
-        Array("a-second-device-salt-02".utf8), "com.apple.health",
-        [0xe9, 0x02, 0x25, 0x3f, 0x06, 0x5c, 0xbd, 0x74]
-      ),
-      (
-        [0x00, 0x01, 0xfe, 0x7f, 0x80, 0xff], "com.projectstride.app",
-        [0xd0, 0x25, 0x3a, 0x7c, 0x10, 0xac, 0x98, 0x4d]
-      ),
-      (
-        [0x00], "com.apple.health",
-        [0xb2, 0x03, 0x66, 0x7f, 0x1b, 0x3d, 0x15, 0x69]
-      ),
-    ]
-
-    for vector in vectors {
-      let actual = OriginKeying.key(
-        salt: Data(vector.salt), identifier: vector.identifier)
-      XCTAssertEqual(
-        Array(actual), vector.expected,
-        "salt \(vector.salt) + \"\(vector.identifier)\" must key to the shared vector. "
-          + "A change here re-keys every origin on every installed device.")
-    }
-  }
+  // The cross-platform key vectors are asserted in `OriginKeyVectorTests`,
+  // which READS `packages/stride_health/test_fixtures/origin_key_vectors.json`
+  // rather than transcribing it.
+  //
+  // They used to be transcribed here, as a Swift array of expected bytes. That
+  // is a second copy of a canonical value, and a second copy is a chance to
+  // drift — a drift that re-keys every origin, makes every device look new, and
+  // grants the whole retention window a second time, silently. The fixture is
+  // the one copy; three languages read it.
 
   func testTheEmptyIdentifierIsZeroBytesNotEightZeroBytes() {
     // Zero bytes is the wire's "no source reported". Eight zero bytes would be

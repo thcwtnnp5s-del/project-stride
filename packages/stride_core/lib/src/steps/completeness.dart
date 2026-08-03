@@ -128,8 +128,27 @@ final class CompleteThrough extends SyncCompleteness {
   final CompletenessScope scope;
 
   @override
-  int? horizonFor(StepOriginKey origin) =>
-      scope.origins.covers(origin) ? throughMillis : null;
+  int? horizonFor(StepOriginKey origin) {
+    if (!scope.origins.covers(origin)) return null;
+    // Never claim more than the interval actually queried.
+    //
+    // This clamp was present on [RecoveryCompleteThrough] and absent here, and
+    // the asymmetry was not justified by anything: an assertion cannot vouch
+    // for a bucket outside the window it says it read, whoever produced it.
+    //
+    // Unclamped, an adapter whose `throughMillis` is "now" rather than the end
+    // of the sampled interval settles every bucket it never looked at. The
+    // buckets are then compacted as accounted-for, and a later delivery of the
+    // real data arrives behind the horizon and is discarded as late. Measured
+    // end to end, that silently lost 5,000 steps.
+    //
+    // The core's own suite could not have caught it: its `completeThrough`
+    // helper set both figures from one argument, so the divergence was not
+    // representable.
+    return throughMillis < scope.intervalEndMillis
+        ? throughMillis
+        : scope.intervalEndMillis;
+  }
 }
 
 /// A bounded recovery rescan completed and covered its whole window.

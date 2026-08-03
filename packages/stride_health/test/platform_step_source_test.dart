@@ -12,6 +12,18 @@ import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/src/messages.g.dart';
 import 'package:stride_health/stride_health.dart';
 
+import 'adapter_ledger_support.dart'
+    show
+        cursor,
+        didAuthorizeCheckpoint,
+        expectedRefusals,
+        ingest,
+        newEngine,
+        phoneBytes,
+        pobs,
+        ppage,
+        reconcile;
+
 /// The gateway is stateless now: keying happens natively, and this only
 /// validates and decodes. There is no salt on this side of the boundary.
 const OriginGateway gateway = OriginGateway();
@@ -457,11 +469,26 @@ void main() {
       );
     });
 
-    test('every platform reason maps to a distinct core reason', () {
-      // A many-to-one mapping is how `originKeyingUnconfigured` came to be
-      // reported as `serviceUnavailable` in the first place. If two platform
-      // conditions ever collapse to one core reason again, this fails and the
-      // collapse has to be argued for rather than absorbed.
+    test('every platform reason maps to its OWN core reason', () {
+      // Strengthened from "maps to a distinct core reason". Distinctness is a
+      // weaker claim than it looks: a mapping in which `serviceMissing` and
+      // `permissionUnavailable` had been swapped satisfies it exactly, while
+      // telling a player to install a health app they already have. The pairs
+      // are now pinned individually, and `expectedRefusals` also carries the
+      // refusal code, the retryability, and the source state each one must
+      // reach — asserted end to end in `adapter_to_ledger_test.dart`.
+      //
+      // The original property is kept as well: a many-to-one collapse is how
+      // `originKeyingUnconfigured` came to be reported as `serviceUnavailable`
+      // in the first place.
+      expect(
+        expectedRefusals.keys.toSet(),
+        PlatformUnavailableReason.values.toSet(),
+        reason:
+            'a new platform reason must be given an explicit core mapping '
+            'rather than defaulting into an existing one',
+      );
+
       final Map<PlatformUnavailableReason, ProviderUnavailableReason> mapped =
           <PlatformUnavailableReason, ProviderUnavailableReason>{
             for (final PlatformUnavailableReason r
@@ -479,6 +506,17 @@ void main() {
                       .reason,
           };
 
+      expectedRefusals.forEach((
+        PlatformUnavailableReason platform,
+        (ProviderUnavailableReason, ReconciliationCode, bool, SourceState) want,
+      ) {
+        expect(
+          mapped[platform],
+          want.$1,
+          reason: '$platform must reach the core as exactly ${want.$1}',
+        );
+      });
+
       expect(
         mapped.values.toSet().length,
         mapped.length,
@@ -486,21 +524,43 @@ void main() {
       );
     });
 
-    test('a cursor offered while unavailable is dropped', () {
-      // Persisting a cursor the adapter cannot stand behind would make the next
-      // sync claim progress the ledger never recorded.
+    test('a cursor offered while unavailable never becomes durable', () {
+      // Strengthened. The original asserted only that the fault was raised —
+      // which would still pass if the cursor had been carried through in the
+      // response, because the fault and the drop are separate acts. What the
+      // test name claims is a property of the LEDGER, so it is now asserted
+      // there: persisting a cursor the adapter cannot stand behind would make
+      // the next sync claim progress the ledger never recorded.
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
           status: PlatformSyncStatus.unavailable,
           observations: <PlatformStepObservation>[],
           unavailableReason: PlatformUnavailableReason.serviceMissing,
-          nextCursor: Uint8List.fromList(<int>[9]),
+          nextCursor: Uint8List.fromList('poison'.codeUnits),
         ),
         gateway,
       );
 
       expect(fetch.response, isA<ProviderUnavailableSync>());
       expect(fetch.faults, contains(SyncFault.cursorOfferedWhenProhibited));
+
+      // There is no field on `ProviderUnavailableSync` a cursor could travel
+      // in — which is the structural half of the guarantee. The behavioural
+      // half is that the ledger's durable cursor is unchanged afterwards.
+      final GameEngine engine = newEngine();
+      final EngineResult seeded = ingest(
+        engine,
+        ppage(
+          observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 500)],
+          nextCursor: 'good',
+        ),
+      );
+      expect(seeded.isAccepted, isTrue);
+
+      final EngineResult result = reconcile(engine, fetch);
+      expect(didAuthorizeCheckpoint(result), isFalse);
+      expect(engine.state.steps.checkpoint.cursor, cursor('good'));
+      expect(engine.state.steps.checkpoint.syncCount, 1);
     });
   });
 

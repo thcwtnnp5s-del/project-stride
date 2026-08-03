@@ -1,0 +1,95 @@
+{
+  "README": "CANONICAL origin-key vectors. Dart, Swift and Kotlin all read THIS file at test time. Do not transcribe these values into a test in any language: three copies is three chances to drift, and a drift re-keys every origin and re-grants the retention window silently. Regenerate with `dart run tool/genvec.dart` from packages/stride_health.",
+  "algorithm": "FNV-1a 64-bit over salt || 0x1F || utf8(identifier), big-endian, 8 bytes. The empty identifier yields ZERO bytes, not eight zeroes.",
+  "algorithmVersion": 1,
+  "keyLengthBytes": 8,
+  "coreKeyFormat": "16 lowercase hexadecimal characters",
+  "vectors": [
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "com.apple.health",
+      "expectedKeyHex": "41091b752209a534",
+      "why": "the ordinary Apple source"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "com.apple.health.watch",
+      "expectedKeyHex": "f92ff88d6a645c0d",
+      "why": "a second source on one device must not collide with the first"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "com.google.android.apps.fitness",
+      "expectedKeyHex": "fb3c0df653b0346e",
+      "why": "UTF-8 handling of a longer identifier"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "Rob's iPhone",
+      "expectedKeyHex": "dd8b33f7cf0c5a07",
+      "why": "a display name keys like anything else. It must never be SENT, but if one ever is, it must not survive recognisably"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "",
+      "expectedKeyHex": "",
+      "why": "the empty identifier is ZERO bytes on the wire, not eight zero bytes"
+    },
+    {
+      "saltHex": "612d7365636f6e642d6465766963652d73616c742d3032",
+      "identifier": "com.apple.health",
+      "expectedKeyHex": "e902253f065cbd74",
+      "why": "the same source under a second salt must key differently, or the salt is not mixed in and this is a bare digest"
+    },
+    {
+      "saltHex": "0001fe7f80ff",
+      "identifier": "com.projectstride.app",
+      "expectedKeyHex": "d0253a7c10ac984d",
+      "why": "a salt with high bytes. Swift Int64 and Kotlin Long are signed, and an arithmetic shift where a logical one belongs is the likeliest native defect here"
+    },
+    {
+      "saltHex": "00",
+      "identifier": "com.apple.health",
+      "expectedKeyHex": "b203667f1b3d1569",
+      "why": "a one-byte salt, so the separator must be present: salt||id must not be able to collide with salt2||id2"
+    }
+  ],
+  "negativePrivacyVectors": [
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "My Watch",
+      "expectedKeyHex": "9ec054df80ed0198",
+      "why": "exactly 8 bytes of UTF-8",
+      "rawUtf8Hex": "4d79205761746368",
+      "rawUtf8PrefixHex": "4d79205761746368",
+      "rawUtf8ZeroPaddedHex": "4d79205761746368"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "iPhone12",
+      "expectedKeyHex": "8bfebee22d753167",
+      "why": "exactly 8 bytes, alphanumeric",
+      "rawUtf8Hex": "6950686f6e653132",
+      "rawUtf8PrefixHex": "6950686f6e653132",
+      "rawUtf8ZeroPaddedHex": "6950686f6e653132"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "phone",
+      "expectedKeyHex": "9fe825677606834b",
+      "why": "5 bytes — shorter than the key width",
+      "rawUtf8Hex": "70686f6e65",
+      "rawUtf8PrefixHex": "70686f6e65",
+      "rawUtf8ZeroPaddedHex": "70686f6e65000000"
+    },
+    {
+      "saltHex": "7374726964652d6465766963652d73616c742d30303031",
+      "identifier": "Watch",
+      "expectedKeyHex": "fa3bd2647168670c",
+      "why": "5 bytes",
+      "rawUtf8Hex": "5761746368",
+      "rawUtf8PrefixHex": "5761746368",
+      "rawUtf8ZeroPaddedHex": "5761746368000000"
+    }
+  ]
+}

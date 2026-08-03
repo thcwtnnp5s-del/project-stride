@@ -1,44 +1,31 @@
-/// Cross-platform origin-keying test vectors.
+/// Loader for the CANONICAL cross-platform origin-key fixture.
 ///
 /// ===========================================================================
-/// Why these exist
+/// This file holds no expected values
 /// ===========================================================================
 ///
-/// Origin keying happens in Swift and Kotlin now, before the value crosses
-/// Pigeon. That keeps every raw platform identifier inside its own process —
-/// and it means the mapping is implemented **three times**: once in Dart as the
-/// reference (`lib/src/origin_pseudonymizer.dart`), once in Swift, once in
-/// Kotlin.
+/// It parses `test_fixtures/origin_key_vectors.json`, which Swift and Kotlin
+/// read as well. That is the whole design: **one fixture, three readers.**
 ///
-/// A divergence between any two of them is **silent and unbounded**. A re-keyed
-/// origin has no `grantedSlices`, so its recent buckets look ungranted and the
-/// whole retention window is granted a second time. Nothing detects that. It is
-/// the one way this design can double-count, and it would present as "the game
-/// gave me my steps twice", which nobody reports as a bug.
+/// It used to hold the vectors as Dart literals, which meant Swift and Kotlin
+/// would each need a transcribed copy. Three hand-maintained copies is three
+/// chances to drift, and a drift here is silent and unbounded — origin keying
+/// happens natively now, once in Swift and once in Kotlin, against a Dart
+/// reference implementation. A re-keyed origin has no `grantedSlices`, so its
+/// recent buckets look ungranted and the entire retention window is granted a
+/// second time. Nothing downstream detects it, and it reaches the player as
+/// "the game gave me my steps twice", which nobody reports as a bug.
 ///
-/// These vectors are the closest thing to a proof that is available.
-/// **Every adapter must assert them**, and an adapter that cannot reproduce
-/// them fails its own suite instead of a player's ledger.
+/// So: if you find yourself typing an expected hex value into a test in any
+/// language, stop. Read the JSON.
 ///
-/// ## What each case is for
-///
-/// | case | what it would catch |
-/// |---|---|
-/// | two Apple sources under one salt | the ordinary path, and that two sources on one device do not collide |
-/// | an Android package name | UTF-8 handling of a longer identifier |
-/// | a device display name | that a name keys like anything else — it must never be *sent*, but if one is, it must not survive recognisably |
-/// | the empty identifier | zero bytes, not eight zero bytes: the wire's "no source reported" |
-/// | the same source under a second salt | that the salt is actually mixed in, rather than a bare digest |
-/// | a binary salt with high bytes | sign extension. Swift's `Int64` and Kotlin's `Long` are signed, and an arithmetic shift where an unsigned one belongs is the single likeliest native defect here |
-/// | a one-byte salt | that the separator is present, so `salt‖id` cannot collide with `salt'‖id'` |
-///
-/// ## Regenerating
-///
-/// `dart run tool/genvec.dart` from `packages/stride_health`. Regenerate only
-/// when the algorithm version changes — an unexplained change to these numbers
-/// means the mapping moved, which means every origin on every installed device
-/// re-keyed.
+/// Regenerate with `dart run tool/genvec.dart` from `packages/stride_health`,
+/// and only when the algorithm version changes — an unexplained change to
+/// these numbers is a migration, not an edit.
 library;
+
+import 'dart:convert';
+import 'dart:io';
 
 /// One `(salt, identifier) -> key` case.
 final class OriginKeyVector {
@@ -46,6 +33,10 @@ final class OriginKeyVector {
     required this.saltHex,
     required this.identifier,
     required this.expectedKeyHex,
+    required this.why,
+    this.rawUtf8Hex,
+    this.rawUtf8PrefixHex,
+    this.rawUtf8ZeroPaddedHex,
   });
 
   /// The salt, hex-encoded. Hex rather than a string literal so a case can
@@ -58,55 +49,75 @@ final class OriginKeyVector {
   /// The expected eight bytes, hex-encoded. Empty for the empty identifier,
   /// which is zero bytes on the wire.
   final String expectedKeyHex;
+
+  /// What this case would catch.
+  final String why;
+
+  /// Negative fixtures only — the raw UTF-8 of [identifier], and the two
+  /// obvious wrong answers.
+  ///
+  /// Present so a test can assert the key is **none of them**. Eight bytes of
+  /// output is not evidence of hashing: `My Watch` is exactly eight bytes of
+  /// UTF-8, so an implementation that returned the raw bytes would pass a
+  /// width check.
+  final String? rawUtf8Hex;
+  final String? rawUtf8PrefixHex;
+  final String? rawUtf8ZeroPaddedHex;
 }
 
-/// The algorithm these vectors describe.
+Map<String, Object?> _load() {
+  // Resolved relative to the package root, which is the working directory for
+  // both `dart test` and `flutter test` here.
+  for (final String candidate in <String>[
+    'test_fixtures/origin_key_vectors.json',
+    '../test_fixtures/origin_key_vectors.json',
+  ]) {
+    final File f = File(candidate);
+    if (f.existsSync()) {
+      return jsonDecode(f.readAsStringSync()) as Map<String, Object?>;
+    }
+  }
+  throw StateError(
+    'canonical origin-key fixture not found. Run '
+    '`dart run tool/genvec.dart` from packages/stride_health. It must not be '
+    'reconstructed by hand — Swift and Kotlin read the same file.',
+  );
+}
+
+final Map<String, Object?> _doc = _load();
+
+OriginKeyVector _vector(Map<String, Object?> j) => OriginKeyVector(
+  saltHex: j['saltHex']! as String,
+  identifier: j['identifier']! as String,
+  expectedKeyHex: j['expectedKeyHex']! as String,
+  why: j['why']! as String,
+  rawUtf8Hex: j['rawUtf8Hex'] as String?,
+  rawUtf8PrefixHex: j['rawUtf8PrefixHex'] as String?,
+  rawUtf8ZeroPaddedHex: j['rawUtf8ZeroPaddedHex'] as String?,
+);
+
+/// The algorithm the fixture describes.
 ///
 /// Sent to native as `installOriginKeying(salt, algorithmVersion)`. If this
-/// changes, so does every key on every device, and the change is a migration
-/// rather than an edit.
-const int originKeyVectorAlgorithmVersion = 1;
+/// changes, so does every key on every device.
+final int originKeyVectorAlgorithmVersion = _doc['algorithmVersion']! as int;
 
 /// FNV-1a, 64-bit, over `salt || 0x1F || utf8(identifier)`, big-endian.
-const List<OriginKeyVector> originKeyVectors = <OriginKeyVector>[
-  OriginKeyVector(
-    saltHex: '7374726964652d6465766963652d73616c742d30303031',
-    identifier: 'com.apple.health',
-    expectedKeyHex: '41091b752209a534',
-  ),
-  OriginKeyVector(
-    saltHex: '7374726964652d6465766963652d73616c742d30303031',
-    identifier: 'com.apple.health.watch',
-    expectedKeyHex: 'f92ff88d6a645c0d',
-  ),
-  OriginKeyVector(
-    saltHex: '7374726964652d6465766963652d73616c742d30303031',
-    identifier: 'com.google.android.apps.fitness',
-    expectedKeyHex: 'fb3c0df653b0346e',
-  ),
-  OriginKeyVector(
-    saltHex: '7374726964652d6465766963652d73616c742d30303031',
-    identifier: "Rob's iPhone",
-    expectedKeyHex: 'dd8b33f7cf0c5a07',
-  ),
-  OriginKeyVector(
-    saltHex: '7374726964652d6465766963652d73616c742d30303031',
-    identifier: '',
-    expectedKeyHex: '',
-  ),
-  OriginKeyVector(
-    saltHex: '612d7365636f6e642d6465766963652d73616c742d3032',
-    identifier: 'com.apple.health',
-    expectedKeyHex: 'e902253f065cbd74',
-  ),
-  OriginKeyVector(
-    saltHex: '0001fe7f80ff',
-    identifier: 'com.projectstride.app',
-    expectedKeyHex: 'd0253a7c10ac984d',
-  ),
-  OriginKeyVector(
-    saltHex: '00',
-    identifier: 'com.apple.health',
-    expectedKeyHex: 'b203667f1b3d1569',
-  ),
-];
+final List<OriginKeyVector> originKeyVectors =
+    List<OriginKeyVector>.unmodifiable(
+      (_doc['vectors']! as List<Object?>).cast<Map<String, Object?>>().map(
+        _vector,
+      ),
+    );
+
+/// Identifiers at or below the key width.
+///
+/// These are the ones that prove the output is a hash rather than the bytes:
+/// each carries [OriginKeyVector.rawUtf8Hex] plus the prefix and zero-padded
+/// forms, so a test can assert the key equals none of them.
+final List<OriginKeyVector> originKeyNegativeVectors =
+    List<OriginKeyVector>.unmodifiable(
+      (_doc['negativePrivacyVectors']! as List<Object?>)
+          .cast<Map<String, Object?>>()
+          .map(_vector),
+    );

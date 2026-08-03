@@ -183,11 +183,26 @@ void main() {
       expect(engine.state.steps.banked, 1000);
       expect(engine.state.steps.correctionsObserved, 1);
 
-      // No removal event exists to be reacted to.
-      expect(
-        corrected.events.map((GameEvent e) => e.name),
-        isNot(contains('StepsRemoved')),
-      );
+      // No event exists that a listener could react to by removing progress.
+      //
+      // Strengthened from `isNot(contains('StepsRemoved'))`, which named an
+      // event type that has never existed in this codebase — so it could not
+      // fail, and would have gone on not failing beside a `StepsRevoked` or a
+      // `StepsClawedBack` added later. The claim is about the whole event
+      // vocabulary, so it is now asserted over the whole vocabulary: a
+      // downward correction may record and it may checkpoint, and nothing else.
+      for (final GameEvent event in corrected.events) {
+        expect(
+          event,
+          anyOf(
+            isA<StepObservationReconciled>(),
+            isA<StepCheckpointAuthorized>(),
+          ),
+          reason:
+              'a downward correction emitted ${event.name}. Granted progress '
+              'is never revoked, so no event may exist for revoking it.',
+        );
+      }
 
       // And restating the original figure must not re-grant it.
       final EngineResult restored = sync(
@@ -632,7 +647,18 @@ void main() {
         isFalse,
         reason: 'a failed read must not advance the cursor',
       );
-      expect(engine.state.steps.signature, isNot(before)); // only sourceState
+      // Strengthened from `isNot(before)`. That form claims "something
+      // changed" while the comment beside it claimed "only sourceState" — and
+      // it would have passed just as happily if the totals, the slice map, or
+      // the watermark had moved too. Reconstructing the whole signature says
+      // exactly which field is allowed to move, and nothing else can.
+      expect(
+        engine.state.steps
+            .copyWith(sourceState: SourceState.available)
+            .signature,
+        before,
+        reason: 'the source state is the ONLY field a refusal may move',
+      );
     });
 
     test('permission unavailable is reported, not thrown', () {

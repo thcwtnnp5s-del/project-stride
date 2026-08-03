@@ -229,13 +229,36 @@ final class PlatformStepSource implements StepSyncSource {
       );
     }
 
-    final SyncCursor? cursor = page.nextCursor == null
-        ? null
-        : SyncCursor(page.nextCursor!);
     final bool isFinalPage = page.pagination.isFinalPage;
     final Uint8List? continuation = isFinalPage
         ? null
         : page.pagination.continuation;
+
+    // A cursor is only meaningful once the read has drained.
+    //
+    // This is the 55,200-step defect on the CURSOR axis. `DECISIONS/0014`
+    // closed the completeness axis — a non-final page is downgraded to
+    // `PartialDelivery` so nothing settles — but the cursor was built from
+    // `page.nextCursor` without consulting `isFinalPage` at all, so page 1 of 9
+    // authorized a checkpoint meaning "after the whole read". Reconcile page 1,
+    // get backgrounded, resume from that cursor, and pages 2 through 9 are
+    // never delivered again. Nothing counts it: completeness was correctly
+    // partial, so no origin settled and `lateDiscardedSlices` never fired. The
+    // steps are simply gone, silently and permanently.
+    //
+    // Dropped here rather than refused in the core, because `SyncFetch`
+    // deliberately does not expose pagination to the reconciler — the core
+    // cannot see that a page was non-final, so it structurally cannot refuse
+    // this. The bridge is the only place that knows.
+    final SyncCursor? cursor;
+    if (page.nextCursor == null) {
+      cursor = null;
+    } else if (!isFinalPage) {
+      cursor = null;
+      faults.add(SyncFault.cursorOfferedWhenProhibited);
+    } else {
+      cursor = SyncCursor(page.nextCursor!);
+    }
 
     switch (page.status) {
       case PlatformSyncStatus.cursorInvalidated:

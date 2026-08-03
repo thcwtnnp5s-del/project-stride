@@ -89,6 +89,29 @@ S-01A exists to do.
 
 ---
 
+## Save compatibility of the new enum values
+
+S-01A adds `originKeyingUnconfigured` to three enums: `ProviderUnavailableReason`,
+`ReconciliationCode`, and `SourceState`. Only `SourceState` reaches a save.
+
+**Forward compatible.** `SourceState` is serialized **by name**
+(`'sourceState': ledger.sourceState.name`) and decoded by name lookup, so a save
+written by an older build carries a name this build still resolves. Appending a
+member breaks nothing that already exists on disk.
+
+**Downgrade is NOT promised.** A save written by this build while the source
+state is `originKeyingUnconfigured` carries a name an older binary has never
+heard of. That older build refuses the save rather than guessing — which is the
+correct behaviour and the same fail-closed path every other unknown value takes
+— but it *is* a refusal, and the player would see a blocked launch until they
+returned to a current build.
+
+This is recorded rather than fixed. Project Stride has no installed base
+(`DECISIONS/0011` — no iOS build has ever been distributed, Android is APK and
+Play-internal only), so there is no version to downgrade *to*. **Downgrade
+compatibility is not a guarantee this project makes**, and nothing should be
+designed on the assumption that it is.
+
 ## Evidence categories
 
 S-01A must report evidence in these categories and never blur them:

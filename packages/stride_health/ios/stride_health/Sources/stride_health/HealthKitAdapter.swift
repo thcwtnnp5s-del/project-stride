@@ -116,57 +116,33 @@ struct RawStepReading {
   /// under an anchor that has since been invalidated is stale, and acting on it
   /// would settle buckets a rescan is about to restate.
   var queryGeneration: Int64 = 0
+
+  /// Zero-based position within the current read. Diagnostic and cross-check
+  /// only; the bridge never does arithmetic on it.
+  var pageIndex: Int64 = 0
 }
 
 /// Where readings come from. The production implementation talks to HealthKit;
 /// tests substitute a fake.
+///
+/// **Completion-based, not `throws`.** Every HealthKit query answers on its own
+/// queue, and a synchronous protocol could only be satisfied by blocking the
+/// platform thread on a semaphore while HealthKit worked. A foreground backfill
+/// takes as long as it takes; freezing the interface for the duration is not a
+/// trade this project makes for a tidier signature.
 protocol HealthKitStepSource {
   var isAvailable: Bool { get }
-  func requestAuthorization() throws -> PlatformAuthorizationState
+
+  func requestAuthorization(
+    completion: @escaping (Result<PlatformAuthorizationState, Error>) -> Void)
+
   /// [salt] is the device-bound identity, passed per call rather than stored on
   /// the source. The adapter owns its lifetime; a source that kept its own copy
   /// would be a second custodian of the app's identity.
-  func read(request: PlatformSyncRequest, salt: Data) throws -> RawStepReading
-}
-
-/// The real source. **Currently a shell.**
-///
-/// It reports the service as unavailable, which is deliberate rather than a
-/// placeholder throw: it exercises the same graceful-degradation path the game
-/// must handle when authorization is denied or HealthKit is absent, so the app
-/// stays fully playable against it.
-///
-/// The real implementation is `HKAnchoredObjectQuery` over `stepCount`, with the
-/// archived anchor as the opaque cursor, `deletedObjects` handling, and the
-/// `HKMetadataKeyWasUserEntered` filter driven by
-/// `PlatformSyncRequest.includeManualEntries`.
-///
-/// Three obligations govern that work:
-///
-/// 1. **Absolute, not delta.** When `deletedObjects` reports a removal, the
-///    adapter must re-read the affected bucket with `HKStatisticsCollectionQuery`
-///    and send its new absolute total, `steps: 0` if it is now empty. The
-///    boundary carries no "deleted steps" figure to forward, on purpose.
-/// 2. **Buckets no narrower than `bucketWidthMillis`.** The bridge refuses a
-///    narrower one and the refusal costs the whole page.
-/// 3. **The anchor is never native state.** It is returned as a candidate and
-///    forgotten. Writing it to `UserDefaults` would claim progress the ledger
-///    never recorded and make an interrupted sync unrecoverable.
-///
-/// The locked-device constraint governs the rest: HealthKit data is encrypted
-/// at rest and unreadable while the device is locked, so a background wake on a
-/// locked phone cannot read steps. Foreground cold-launch backfill is the
-/// source of truth, and S-01A is foreground only.
-struct HealthKitStepStore: HealthKitStepSource {
-  var isAvailable: Bool { false }
-
-  func requestAuthorization() throws -> PlatformAuthorizationState {
-    .unavailable
-  }
-
-  func read(request: PlatformSyncRequest, salt: Data) throws -> RawStepReading {
-    RawStepReading()
-  }
+  func read(
+    request: PlatformSyncRequest,
+    salt: Data,
+    completion: @escaping (Result<RawStepReading, Error>) -> Void)
 }
 
 /// Maps a `HealthKitStepSource` onto the Pigeon contract.
@@ -236,12 +212,14 @@ final class HealthKitAdapter: HealthHostApi {
   func requestAuthorization(
     completion: @escaping (Result<PlatformAuthorizationResult, Error>) -> Void
   ) {
-    do {
-      let state = try source.requestAuthorization()
-      completion(.success(PlatformAuthorizationResult(state: state, diagnostic: nil)))
-    } catch {
-      // Reported, never thrown past the boundary.
-      completion(.failure(error))
+    source.requestAuthorization { result in
+      switch result {
+      case .success(let state):
+        completion(.success(PlatformAuthorizationResult(state: state, diagnostic: nil)))
+      case .failure(let error):
+        // Reported, never thrown past the boundary.
+        completion(.failure(error))
+      }
     }
   }
 
@@ -260,10 +238,16 @@ final class HealthKitAdapter: HealthHostApi {
       completion(.success(Self.unavailablePage(.serviceMissing)))
       return
     }
-    do {
-      completion(.success(Self.map(try source.read(request: request, salt: salt))))
-    } catch {
-      completion(.failure(error))
+    source.read(request: request, salt: salt) { result in
+      switch result {
+      case .success(let reading):
+        completion(.success(Self.map(reading)))
+      case .failure(let error):
+        // The adapter leaves its own state untouched and reports. A health read
+        // that goes wrong is a normal outcome the game has to survive, not a
+        // reason to take the app down.
+        completion(.failure(error))
+      }
     }
   }
 
@@ -329,7 +313,7 @@ final class HealthKitAdapter: HealthHostApi {
     )
 
     let pagination = PlatformPagination(
-      pageIndex: 0,
+      pageIndex: reading.pageIndex,
       isFinalPage: reading.isFinalPage,
       continuation: reading.isFinalPage
         ? nil
