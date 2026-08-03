@@ -1153,7 +1153,7 @@ void _commitOrder() {
         ),
       );
       final GameState committed = engine.state;
-      final String before = committed.steps.signature;
+      final String before = canonicalDurableStepLedger(committed.steps);
 
       // Events computed and then dropped: the process died before the reducer
       // ran.
@@ -1170,7 +1170,7 @@ void _commitOrder() {
       );
       expect(planned.isAccepted, isTrue);
 
-      expect(committed.steps.signature, before);
+      expect(canonicalDurableStepLedger(committed.steps), before);
       expect(committed.steps.totalGranted, 700);
       expect(committed.steps.checkpoint.cursor, cursor('c1'));
     });
@@ -1258,7 +1258,7 @@ void _commitOrder() {
       for (int attempt = 0; attempt < 3; attempt++) {
         final GameEngine retry = engineAt(committed);
         grants.add(grantedBy(ingest(retry, next)));
-        signatures.add(retry.state.steps.signature);
+        signatures.add(canonicalDurableStepLedger(retry.state.steps));
       }
 
       expect(grants, <int>[300, 300, 300]);

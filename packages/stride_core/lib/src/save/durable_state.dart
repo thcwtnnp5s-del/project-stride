@@ -43,6 +43,7 @@
 library;
 
 import '../engine/game_state.dart';
+import '../steps/step_ledger.dart';
 import 'save_codec.dart';
 
 /// The canonical durable encoding of [state] — byte-for-byte what a save file
@@ -57,6 +58,28 @@ import 'save_codec.dart';
 /// not make two slots look divergent.
 String canonicalDurableGameState(GameState state) =>
     canonicalJson(encodeGameState(state));
+
+/// The canonical durable encoding of one ledger.
+///
+/// The ledger-scoped counterpart to [canonicalDurableGameState], and the right
+/// tool when a claim really is about the ledger alone — a replay that must
+/// credit nothing, a refusal that may move one field, a retry that must land
+/// identically. Whole-state comparison over-asserts there, because an accepted
+/// refusal legitimately advances `eventSequence`.
+///
+/// **Use this rather than [StepLedger.signature] for any "the ledger is
+/// otherwise unchanged" claim.** That property is a diagnostic summary: it
+/// omits `checkpoint.cursor` and `checkpoint.originWatermarks`, and reduces
+/// granted slices to a count. A closure audit found five tests resting
+/// whole-ledger claims on it, one of which reconstructed a `SyncCheckpoint`
+/// while silently dropping `originWatermarks` entirely — an omission that was
+/// invisible precisely because the summary could not see that field either.
+///
+/// `StepLedger.signature` remains, and remains correct, for what it is: a
+/// legible line in a failure message, and the subject of the privacy tests that
+/// assert what it does and does not name.
+String canonicalDurableStepLedger(StepLedger ledger) =>
+    canonicalJson(encodeStepLedger(ledger));
 
 /// Whether [a] and [b] preserve exactly the same durable state.
 ///

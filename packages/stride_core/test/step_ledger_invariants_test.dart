@@ -218,7 +218,7 @@ void main() {
             ], next: 'c$i'),
           );
         }
-        return engine.state.steps.signature;
+        return canonicalDurableStepLedger(engine.state.steps);
       }
 
       expect(run(99), run(99));

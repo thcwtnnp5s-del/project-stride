@@ -68,7 +68,7 @@ void main() {
       ], next: 'c1');
 
       sync(engine, batch);
-      final String afterFirst = engine.state.steps.signature;
+      final String afterFirst = canonicalDurableStepLedger(engine.state.steps);
       final int syncCountAfterFirst = engine.state.steps.checkpoint.syncCount;
 
       final EngineResult replay = sync(engine, batch);
@@ -80,17 +80,90 @@ void main() {
       // The ledger is otherwise identical; only the sync counter advanced,
       // which is how a repeated reconciliation is distinguishable from one
       // that never happened without needing a clock.
+      //
+      // Compared on the full ledger encoding rather than `steps.signature`.
+      //
+      // What that gains HERE is the granted slices by value: the summary
+      // carried `slices=<count>`, so a replay that silently revised a slice
+      // while keeping the count was invisible.
+      //
+      // The reconstruction also now carries `originWatermarks` through, which
+      // it previously dropped. That is a CORRECTNESS requirement of the new
+      // comparison, not a strengthening of this test — this batch asserts
+      // `PartialDelivery`, so it settles nothing and the map is empty either
+      // way. A mutation removing the line passes, and that is why it is not
+      // claimed as evidence. The test below is where a moving horizon has
+      // something to lose.
       expect(
-        engine.state.steps
-            .copyWith(
-              checkpoint: SyncCheckpoint(
-                cursor: engine.state.steps.checkpoint.cursor,
-                watermarkMillis: engine.state.steps.checkpoint.watermarkMillis,
-                syncCount: syncCountAfterFirst,
-              ),
-            )
-            .signature,
+        canonicalDurableStepLedger(
+          engine.state.steps.copyWith(
+            checkpoint: SyncCheckpoint(
+              cursor: engine.state.steps.checkpoint.cursor,
+              watermarkMillis: engine.state.steps.checkpoint.watermarkMillis,
+              originWatermarks: engine.state.steps.checkpoint.originWatermarks,
+              syncCount: syncCountAfterFirst,
+            ),
+          ),
+        ),
         afterFirst,
+      );
+    });
+
+    test('3b. replaying a SETTLING batch moves no per-origin horizon', () {
+      // Scenario 3 with a completeness assertion, so the checkpoint actually
+      // carries a per-origin watermark and "nothing else moved" has something
+      // to lose.
+      //
+      // The audit that produced this test found the whole-ledger claim above
+      // resting on `StepLedger.signature`, which does not carry
+      // `originWatermarks` at all — and on a reconstruction that dropped them
+      // besides. Two independent blind spots over the same field, in an
+      // assertion whose entire job is "nothing else moved". Neither could fail,
+      // and scenario 3's own fixture could not have exposed either, because a
+      // partial delivery settles nothing.
+      //
+      // A horizon that crept forward on a replay is a lost grant: every bucket
+      // behind it is settled, so a later delivery inside that window is
+      // discarded as late and those steps are unreachable forever.
+      final GameEngine engine = newEngine();
+      final IncrementalSync batch = incremental(
+        <StepObservation>[obs(phone, 0, 1200), obs(phone, 1, 800)],
+        next: 'c1',
+        completeThroughIndex: 2,
+      );
+
+      sync(engine, batch);
+      final String afterFirst = canonicalDurableStepLedger(engine.state.steps);
+      final int syncCountAfterFirst = engine.state.steps.checkpoint.syncCount;
+
+      expect(
+        engine.state.steps.checkpoint.originWatermarks,
+        isNotEmpty,
+        reason:
+            'the fixture is worthless unless a horizon exists to move. If this '
+            'fires, the completeness assertion stopped settling and every '
+            'claim below became vacuous.',
+      );
+
+      final EngineResult replay = sync(engine, batch);
+      expect(grantedBy(replay), 0);
+
+      expect(
+        canonicalDurableStepLedger(
+          engine.state.steps.copyWith(
+            checkpoint: SyncCheckpoint(
+              cursor: engine.state.steps.checkpoint.cursor,
+              watermarkMillis: engine.state.steps.checkpoint.watermarkMillis,
+              originWatermarks: engine.state.steps.checkpoint.originWatermarks,
+              syncCount: syncCountAfterFirst,
+            ),
+          ),
+        ),
+        afterFirst,
+        reason:
+            'the sync counter is the ONLY thing a replay may advance. Every '
+            'field here is read from the CURRENT state, so any of them moving '
+            'shows up as a difference against the encoding captured before.',
       );
     });
 
@@ -628,7 +701,7 @@ void main() {
         engine,
         incremental(<StepObservation>[obs(phone, 0, 300)], next: 'c1'),
       );
-      final String before = engine.state.steps.signature;
+      final String before = canonicalDurableStepLedger(engine.state.steps);
 
       final EngineResult result = sync(
         engine,
@@ -647,15 +720,20 @@ void main() {
         isFalse,
         reason: 'a failed read must not advance the cursor',
       );
-      // Strengthened from `isNot(before)`. That form claims "something
-      // changed" while the comment beside it claimed "only sourceState" — and
-      // it would have passed just as happily if the totals, the slice map, or
-      // the watermark had moved too. Reconstructing the whole signature says
-      // exactly which field is allowed to move, and nothing else can.
+      // Strengthened twice. First from `isNot(before)`, which claims "something
+      // changed" while the comment beside it claimed "only sourceState" — that
+      // form would have passed just as happily if the totals, the slice map or
+      // the watermark had moved too.
+      //
+      // Then from `steps.signature` to the full ledger encoding: the summary
+      // omitted `checkpoint.cursor` and `checkpoint.originWatermarks`, so a
+      // refusal that cleared the cursor or moved a per-origin horizon would
+      // have passed the "strengthened" version as well. The cursor is
+      // separately asserted above; the watermarks were asserted nowhere.
       expect(
-        engine.state.steps
-            .copyWith(sourceState: SourceState.available)
-            .signature,
+        canonicalDurableStepLedger(
+          engine.state.steps.copyWith(sourceState: SourceState.available),
+        ),
         before,
         reason: 'the source state is the ONLY field a refusal may move',
       );
