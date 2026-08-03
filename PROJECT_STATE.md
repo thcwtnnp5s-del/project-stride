@@ -2,7 +2,7 @@
 
 **Version:** 2.0
 **Status:** ✅ **F-06 complete** — device persistence, bootstrap, single-writer concurrency, iOS Keychain identity, backup exclusion, restart validation.
-**Current Phase:** Milestone 01 — F-06 closed; **F-07 (skill framework) is next and not started.**
+**Current Phase:** Milestone 01 — **S-01A in progress** (foreground HealthKit and Health Connect + device-validation harness). **F-07 deferred until after foreground health validation** — owner priority decision, `DECISIONS/0014`.
 
 ## Project identity
 
@@ -49,6 +49,7 @@ Completed foundations:
 | 0011 | Staged private distribution — APK → Play internal; TestFlight later | `DECISIONS/0011_DISTRIBUTION_CHANNELS.md` |
 | 0012 | Two slots, CAS, cursor authority, origin privacy | `DECISIONS/0012_SAVE_FORMAT.md` |
 | 0013 | **Single-writer-isolate persistence; no background writer until S-01** | `DECISIONS/0013_SINGLE_WRITER_PERSISTENCE.md` |
+| 0014 | **S-01A precedes F-07; foreground health only, no background delivery** | `DECISIONS/0014_S01A_PRIORITY_AND_SCOPE.md` |
 
 ## Current milestone
 
@@ -103,7 +104,8 @@ The player must be able to:
 28. ~~Owner approval before F-06.~~ **Approved 2026-08-02**
 29. ~~Execute F-06 — device persistence, bootstrap, restart validation.~~ **Done — `F06_COMPLETION_REPORT.md`**
 30. ~~Re-run CI and the Android process-death workflow against the final tree.~~ **Done — both green, `F06_COMPLETION_REPORT.md` §10**
-31. **Execute F-07 — skill framework.** ← current state. Not started.
+31. ~~Execute F-07 — skill framework.~~ **Deferred by owner priority decision — `DECISIONS/0014`**
+32. **Execute S-01A — foreground HealthKit and Health Connect integration with a device-validation harness.** ← current state
 
 ## F-05 closed the four decisions
 
@@ -127,7 +129,9 @@ Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 | **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
 | **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
 | **F-06 — device persistence, bootstrap, restart validation** | ✅ **Done** |
-| F-07 — skill framework | Next — not started |
+| **S-01A — foreground HealthKit + Health Connect, device harness** | **In progress** ← next |
+| F-07 — skill framework | **Deferred** until after foreground health validation (`DECISIONS/0014`) |
+| S-01B — background synchronization | Blocked on S-01A **and** a real persistence coordinator |
 
 **540 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, 27 app, 17 `stride_health` — plus **38 Swift simulator tests** and 5 Kotlin in CI.
 

@@ -349,11 +349,31 @@ The owner's playtest may run on either platform. At least one friend should test
 
 ## Dependency spine
 
+> ### Amendment — 2026-08-03, owner priority decision (`DECISIONS/0014`)
+>
+> **S-01A now precedes F-07.** S-01 has been split:
+>
+> - **S-01A** — *foreground* HealthKit **and** Health Connect, plus a
+>   developer device-validation harness. Both platforms together, not Android
+>   first: the origin-privacy and completeness boundaries have to be settled
+>   once, against both APIs, or they get settled twice and disagree.
+> - **S-01B** — background synchronization. Blocked on S-01A **and** on a real
+>   persistence coordinator (`DECISIONS/0013`). No background delivery,
+>   observers, isolates, or workers in S-01A.
+>
+> **F-07 (skill framework) is deferred** until foreground health validation is
+> complete. Step ingestion is the input to everything F-07 builds on; validating
+> it first is the cheaper order.
+>
+> The diagram below is the **original** ordering, preserved as history. Where it
+> shows `S-01 (Android)` and `S-01b (iOS)` as separate parallel branches, read
+> `S-01A` as covering both, and note that F-06 is complete.
+
 ```text
 P0-10 approval
   └─ F-01 → F-02 → F-03 ─┬─ F-04 ──┐
      (Windows)            ├─ F-05 ──┤
-                          └─ F-06   │
+                          └─ F-06   │   ✅ all complete
                                     ↓
                         S-01 (Android) → S-02 → S-03 → S-04 → S-08
                           │                │       └─ S-06
