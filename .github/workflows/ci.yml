@@ -347,9 +347,11 @@ jobs:
       # kSecAttrAccessible value, and NSURLIsExcludedFromBackupKey on real
       # paths -- including re-application after the directory is recreated.
       #
-      # They also prove that an atomic write, a rename over the top, and
-      # replaceItemAt each DESTROY the exclusion -- which is why it is
-      # re-applied per write and not only at launch. See
+      # They also prove the invariant the project guarantees: after every
+      # create, write, rename, replacement and compaction, the file at the
+      # final path is excluded once the per-write hook has run. An atomic write
+      # and a rename over the top are separately confirmed to DESTROY the
+      # attribute, which is why the hook exists at all. See
       # packages/stride_secure_store/BACKUP_EXCLUSION_CONTRACT.md.
       #
       # THEY DO NOT PROVE THE THING THIS FEATURE EXISTS FOR. That a
@@ -359,7 +361,65 @@ jobs:
       # and restore onto a second device. A locked-device read
       # (errSecInteractionNotAllowed) is also unreachable: a simulator is never
       # locked.
+      #
+      # ## Code signing, and why it is not NO here
+      #
+      # The compile steps above pass --no-codesign deliberately: they prove the
+      # code builds, and an unsigned binary is the honest artifact for that.
+      #
+      # The TEST step cannot do the same. iOS gates every SecItem* call on the
+      # calling process's entitlements, and the entitlements are attached at
+      # signing time. With CODE_SIGNING_ALLOWED=NO the test host is unsigned,
+      # carries no `application-identifier`, and every Keychain call returns
+      # errSecMissingEntitlement (-34018) before it reaches any of the logic
+      # under test. Signing ad-hoc for the simulator (`CODE_SIGN_IDENTITY=-`,
+      # requirement off, no team, no profile) is what Xcode itself does for an
+      # ordinary local simulator run.
+      #
+      # This changes nothing about what is proven: an ad-hoc signature is not a
+      # distribution signature, and no step in this workflow produces an
+      # installable build.
       # ---------------------------------------------------------------------
+
+      # A diagnostic, not a gate. Runs the entitlement probe against a
+      # deliberately UNSIGNED host so the OSStatus an unsigned host gets from
+      # the Keychain is in the log as a number rather than as an assumption in
+      # a comment. It is EXPECTED TO FAIL, and continue-on-error keeps that off
+      # the job result.
+      #
+      # The probe asserts rather than prints. Run 30771670303 established that
+      # stdout from the test process does not reach xcodebuild's streamed log
+      # -- the first version of this step greped for lines the probe had
+      # printed and found none, because they never left the simulator. An
+      # XCTest assertion failure does reach the log, so the numbers ride out on
+      # a failure message.
+      #
+      # Delete this step once the -34018 finding is old news: it costs a build.
+      - name: Keychain entitlement probe (unsigned host, expected to fail)
+        continue-on-error: true
+        working-directory: packages/stride_secure_store/example/ios
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; \
+              print(next(x['name'] for v in d.values() for x in v if 'iPhone' in x['name']))")
+          echo "Simulator: $DEVICE"
+          set +e
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -destination "platform=iOS Simulator,name=$DEVICE" \
+            -only-testing:RunnerTests/KeychainEntitlementProbe \
+            -resultBundlePath "$RUNNER_TEMP/probe-unsigned.xcresult" \
+            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/probe-unsigned.log" 2>&1
+          echo "xcodebuild exit: $? (a non-zero exit here is the expected result)"
+
+          echo "--- what an unsigned test host gets from the Keychain ---"
+          bash "$GITHUB_WORKSPACE/packages/stride_secure_store/tool/xcresult-failures.sh" \
+            "$RUNNER_TEMP/probe-unsigned.xcresult"
+
+          echo "--- failing test names, from the streamed log ---"
+          grep -a -A 6 "^Failing tests:" "$RUNNER_TEMP/probe-unsigned.log" | head -20 || true
+
       - name: Swift secure-store tests (simulator Keychain, no iCloud)
         working-directory: packages/stride_secure_store/example/ios
         run: |
@@ -376,26 +436,102 @@ jobs:
             -workspace Runner.xcworkspace \
             -scheme Runner \
             -destination "platform=iOS Simulator,name=$DEVICE" \
-            CODE_SIGNING_ALLOWED=NO > "$RUNNER_TEMP/secure-store-tests.log" 2>&1; then
+            -resultBundlePath "$RUNNER_TEMP/secure-store-tests.xcresult" \
+            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            PROVISIONING_PROFILE_SPECIFIER= \
+            > "$RUNNER_TEMP/secure-store-tests.log" 2>&1; then
             echo "::error::Swift secure-store tests failed."
-            grep -E "error:|failed|XCTAssert" "$RUNNER_TEMP/secure-store-tests.log" | tail -60 || true
-            tail -80 "$RUNNER_TEMP/secure-store-tests.log"
+
+            # The assertion text is the only thing worth reading here, and it
+            # is NOT in this log. The Xcode on macos-latest writes failing test
+            # NAMES to stdout and puts every message in the result bundle
+            # instead -- established the expensive way across runs 30769049772,
+            # 30771670303 and 30772473185. So the messages, which by convention
+            # in this suite always carry the numeric OSStatus, are read out of
+            # the bundle.
+            echo "--- assertion messages (from the result bundle) ---"
+            bash "$GITHUB_WORKSPACE/packages/stride_secure_store/tool/xcresult-failures.sh" \
+              "$RUNNER_TEMP/secure-store-tests.xcresult"
+
+            echo "--- which tests failed ---"
+            grep -a -A 40 "^Failing tests:" \
+              "$RUNNER_TEMP/secure-store-tests.log" | head -60 || true
+
+            echo "--- tail ---"
+            tail -200 "$RUNNER_TEMP/secure-store-tests.log"
             exit 1
           fi
+
+          # Printed on the green path too. The probe's numbers and the recorded
+          # platform observations are evidence, and evidence that only appears
+          # when something breaks is evidence nobody has checked.
+          echo "--- recorded observations and probe results ---"
+          bash "$GITHUB_WORKSPACE/packages/stride_secure_store/tool/xcresult-failures.sh" \
+            "$RUNNER_TEMP/secure-store-tests.xcresult"
 
           # A green xcodebuild is not the same claim as "the suites ran". A test
           # target that builds and hosts nothing exits zero, and so does a
           # scheme whose testables were dropped -- which is exactly how a
           # security control comes to be enforced by a suite nobody notices is
-          # empty. These three names are the enforcement.
-          for suite in SecureStoreTests BackupExclusionTests SecureStoreAdapterTests; do
-            if ! grep -q "Test Suite '$suite' passed" "$RUNNER_TEMP/secure-store-tests.log"; then
+          # empty. These four names are the enforcement.
+          #
+          # This guard used to grep for "Test Suite '<name>' passed" and was
+          # therefore dead: run 30771670303 passed all forty tests and failed
+          # here, because the toolchain on macos-latest emits
+          #   Test suite '<name>' started on '<device>'
+          #   Test case '<name>.<test>()' passed on '<device>' (0.001 seconds)
+          #   ** TEST SUCCEEDED **
+          # and no per-suite result line in any case. The old pattern could
+          # only ever have matched on a red run that never reached it. Both
+          # spellings are accepted now so a toolchain change breaks this loudly
+          # rather than silently.
+          #
+          # "Started" alone is not enough either -- a suite can start and
+          # contain nothing -- so each name must also account for at least one
+          # executed case and zero failed ones.
+          LOG="$RUNNER_TEMP/secure-store-tests.log"
+          for suite in SecureStoreTests BackupExclusionTests SecureStoreAdapterTests KeychainEntitlementProbe; do
+            if ! grep -qE "Test [Ss]uite '$suite' (started|passed)" "$LOG"; then
               echo "::error::$suite did not run. The device-bound identity and"
               echo "::error::the backup exclusion are unverified on this build."
               exit 1
             fi
+            ran=$(grep -acE "Test [Cc]ase '($suite\.|-\[$suite )" "$LOG" || true)
+            if [ "${ran:-0}" -lt 1 ]; then
+              echo "::error::$suite started but executed no test cases."
+              exit 1
+            fi
+            bad=$(grep -acE "Test [Cc]ase '($suite\.|-\[$suite )[^']*' failed" "$LOG" || true)
+            if [ "${bad:-0}" -ne 0 ]; then
+              echo "::error::$suite reported $bad failed case line(s) despite a zero exit."
+              exit 1
+            fi
+            echo "$suite: $ran case result line(s), 0 failed"
           done
-          grep -E "Test Suite '.*' (passed|failed)" "$RUNNER_TEMP/secure-store-tests.log"
+
+          # The belt to that pair of braces. If xcodebuild ever exits zero
+          # without having succeeded, this is the line that notices.
+          grep -q '\*\* TEST SUCCEEDED \*\*' "$LOG" ||
+            { echo "::error::xcodebuild exited 0 but never printed TEST SUCCEEDED."; exit 1; }
+
+      # Uploaded unconditionally. A failure whose detail only exists inside a
+      # runner that has already been destroyed costs a full CI cycle to
+      # re-learn, and this job's cycle is a quarter of an hour.
+      - name: Upload secure-store test logs and result bundles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secure-store-test-output
+          path: |
+            ${{ runner.temp }}/secure-store-tests.log
+            ${{ runner.temp }}/secure-store-tests.xcresult
+            ${{ runner.temp }}/probe-unsigned.log
+            ${{ runner.temp }}/probe-unsigned.xcresult
+          if-no-files-found: warn
+          retention-days: 14
 
       # Simulator-hosted unit tests. Nothing here requests HealthKit
       # authorization: an interactive permission prompt cannot be answered on a

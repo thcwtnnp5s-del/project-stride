@@ -44,7 +44,28 @@ jobs:
     # Hardware acceleration for the emulator is available on ubuntu-latest
     # runners through KVM, which the enable step below unlocks.
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # ## Why this is 60 and not 45, and why that was the second thing to change
+    #
+    # Run 30767934429 was killed at 45m15s by this timeout, which named no
+    # phase and diagnosed nothing. Raising it would have bought another
+    # forty-five minutes of the same silence.
+    #
+    # Instrumenting first found the actual fault, in run 30771682608:
+    #
+    #     FATAL | Not enough space to create userdata partition.
+    #             Available: 2124.99 MB, need 7372.80 MB.
+    #
+    # The emulator died 0.2 seconds after launch. The emulator action then
+    # polled `adb getprop` against a device that did not exist for ten minutes
+    # before reporting "Timeout waiting for emulator to boot", and the job
+    # burned the rest of the clock. So the defect was disk exhaustion reported
+    # as a timeout -- fixed by the reclaim step below, and made legible by the
+    # per-phase bounds in Scripts/android-process-death.sh.
+    #
+    # 60 is a backstop now rather than the thing that catches failures: every
+    # step below has its own timeout-minutes, and every phase inside the script
+    # has its own bound and its own message.
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -59,12 +80,25 @@ jobs:
           channel: stable
           cache: true
 
+      # A debug Gradle build downloads the Gradle distribution and the whole
+      # dependency graph on a cold runner. That is minutes of the budget spent
+      # on nothing this job is trying to demonstrate.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-process-death-${{ hashFiles('android/**/*.gradle*', 'android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-process-death-
+
       - name: Resolve dependencies
         run: flutter pub get
 
       # Without this the emulator falls back to full software emulation and a
       # boot that takes minutes takes tens of minutes.
       - name: Enable KVM
+        timeout-minutes: 5
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -74,19 +108,83 @@ jobs:
       # The build is done outside the emulator step so a Gradle failure is
       # reported as a build failure rather than as an emulator timeout.
       - name: Build the harness APK
+        timeout-minutes: 25
         run: flutter build apk --debug -t integration_test/process_death_app.dart
 
+      # ## The step this job actually needed
+      #
+      # An android-35 google_apis x86_64 AVD wants 7.2 GB for its userdata
+      # partition alone, on top of the system image, the SDK, the Gradle cache
+      # and a debug build. Run 30771682608 had 2.1 GB left by the time the
+      # emulator launched, and the emulator's response was a single FATAL line
+      # followed by ten minutes of the harness polling a device that had
+      # already exited.
+      #
+      # These are the largest things on a GitHub-hosted Ubuntu runner that this
+      # job provably does not use. The Android SDK itself is NOT touched; the
+      # NDK inside it is, because nothing here compiles native code.
+      - name: Reclaim runner disk
+        timeout-minutes: 10
+        run: |
+          echo "--- before ---"; df -h /
+          sudo rm -rf /usr/share/dotnet \
+                      /usr/share/swift \
+                      /usr/local/lib/android/sdk/ndk \
+                      /usr/local/.ghcup \
+                      /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL \
+                      /usr/local/share/powershell \
+                      /usr/local/share/chromium \
+                      /usr/local/share/boost || true
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+          echo "--- after ---"; df -h /
+
+          # A precise, immediate failure beats a ten-minute poll against a
+          # device that was never going to appear. The emulator needs ~7.2 GB
+          # for userdata plus room for the system image and the AVD itself.
+          avail_kb=$(df --output=avail -k / | tail -1)
+          avail_gb=$(( avail_kb / 1024 / 1024 ))
+          echo "free on /: ${avail_gb} GB"
+          if [ "$avail_gb" -lt 14 ]; then
+            echo "::error::Only ${avail_gb} GB free. The AVD needs about 7.2 GB for"
+            echo "::error::userdata alone; the emulator will die at launch with"
+            echo "::error::'Not enough space to create userdata partition' and this"
+            echo "::error::job will report it as a boot timeout. Free more, or use a"
+            echo "::error::smaller system image."
+            exit 1
+          fi
+
+      # An AVD boot-snapshot cache was tried here and removed. It is the
+      # emulator action's documented speed-up, but on this job it made things
+      # worse in the way that mattered: a cached AVD is several GB on the same
+      # volume that had already run out, and creating the snapshot meant a
+      # second emulator boot before the one that does the work. Run
+      # 30771682608 failed in exactly that extra step. Disk was the constraint,
+      # not repeated boots, so the reclaim above is the fix and this stays a
+      # single emulator start.
       - name: Seed, kill, resume
+        timeout-minutes: 30
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ inputs.api_level || '35' }}
           arch: x86_64
           target: google_apis
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim -no-metrics
           disable-animations: true
           script: bash Scripts/android-process-death.sh --skip-build
 
-      - name: Collect logcat on failure
-        if: failure()
-        run: adb logcat -d | grep -i -E 'STRIDE_HARNESS|flutter' | tail -100 || true
+      # Runs however the emulator step ended. When the emulator dies at launch
+      # the interesting line is a FATAL in its own output, and the harness
+      # cannot see it -- from inside the script the only symptom is that no
+      # device ever appears.
+      - name: Disk after the emulator step
+        if: always()
+        timeout-minutes: 5
+        run: df -h / || true
+
+      # There is deliberately no post-run `adb logcat` step. The emulator action
+      # tears the emulator down when its `script` returns, so a step after it
+      # has no device to talk to and collects nothing while looking like it
+      # collects something. Logcat is dumped from inside the script, in
+      # `wait_for_phase`, where the device is still alive.

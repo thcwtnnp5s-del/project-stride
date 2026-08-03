@@ -12,9 +12,9 @@ applied once at launch and is lost again on the first commit.
 `NSURLIsExcludedFromBackupKey` is a resource value on the **filesystem node**,
 not on a path and not on the app. Apple documents it that way, and the
 consequence is that the attribute does not follow a path across the ordinary
-operations a save system performs. A replacement, an atomic write, a rename over
-the top, or a delete-and-recreate all leave the path naming a *different* node,
-and the new node carries whatever attributes it was born with — none.
+operations a save system performs. An atomic write, a rename over the top, or a
+delete-and-recreate all leave the path naming a *different* node, and the new
+node carries whatever attributes it was born with — none.
 
 Today the exclusion is applied exactly once per launch, in `IdentityVault.open`
 (`lib/runtime/identity_vault.dart`), **before any save file is written or
@@ -29,17 +29,56 @@ replaced**. That is insufficient in three distinct ways:
 The third is the serious one, because it is a regression rather than a gap: the
 file was protected, and a routine maintenance operation silently unprotected it.
 
-This is demonstrated, not argued. `example/ios/RunnerTests/RunnerTests.swift`:
+### 1a. The invariant this project guarantees
 
-* `testARenameOverTheTopDropsTheExclusion` — the journal compaction, exactly.
-* `testAnAtomicWriteDropsTheExclusion`
-* `testReplaceItemAtDropsTheExclusion`
-* `testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied`
-* `testTruncatingInPlaceKeepsTheExclusion` — the counter-case, so the contract
-  is precise rather than superstitious. `writeVerified` opens `FileMode.write`,
-  which truncates the existing inode rather than replacing it, so an *overwrite*
-  of an existing file does keep the attribute. Re-application is still required
-  after it, because the file may not have existed beforehand.
+> **After every create, write, rename, replacement and compaction, the final
+> sensitive file is excluded from backup.**
+
+That is the whole promise, and it is the thing the tests assert. It is stated
+as an end state on purpose. Whether any particular Foundation or libc call
+happens to carry `NSURLIsExcludedFromBackupKey` across is **Apple's** behaviour:
+not ours to promise, not covered by anything we can hold Apple to, and free to
+change between OS versions. Building the contract on those intermediate
+behaviours is how a suite comes to fail a future iOS release over something
+that was never the point.
+
+So the per-write hook re-applies unconditionally and verifies by reading back.
+It does not check first, and it does not depend on knowing which operations
+destroy the attribute.
+
+### 1b. Observed platform behaviour
+
+Recorded because it is the evidence for *why* the hook exists, not because
+anything depends on it. Observed on the iOS Simulator (iPhone 17 Pro,
+`macos-latest`), CI run `30771670303`. `example/ios/RunnerTests/RunnerTests.swift`:
+
+| Operation | Observed | Asserted? |
+|---|---|---|
+| Rename over the top (`rename(2)`) — the journal compaction, exactly | **drops** the exclusion | Yes — `testARenameOverTheTopDropsTheExclusion`. Confirmed green on a real simulator in runs `30769049772` and `30771670303`. This is the case the per-write hook exists for. |
+| Atomic write (`Data.write(options: .atomic)`) | **drops** the exclusion | Yes — `testAnAtomicWriteDropsTheExclusion` |
+| A file created after the launch sweep | never had it | Yes — `testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied` |
+| In-place truncate (`FileMode.write`, what `writeVerified` does) | **keeps** it | Yes — `testTruncatingInPlaceKeepsTheExclusion` |
+| `FileManager.replaceItemAt` | **keeps** it | **No — recorded, not required.** |
+
+**The `replaceItemAt` row is a correction.** Until CI run `30769049772` this
+document and the test both *required* `replaceItemAt` to destroy the exclusion,
+by analogy with the rename. It was the only backup-exclusion case to fail on a
+simulator, while the rename case passed in the same run. The analogy was wrong —
+`replaceItemAt` is the safe-save primitive and, without `.usingNewMetadataOnly`,
+deliberately carries the *original* item's metadata onto the replacement — and
+so was the shape of the test.
+
+`testTheFileIsExcludedAfterAReplaceItemAt` now records the observed value as an
+XCTest activity and attachment in the result bundle, asserts nothing about it,
+and asserts the invariant in §1a instead: after `BackupExclusion.apply` runs,
+the file at the final path is excluded. It reads the bytes back to prove the
+replacement actually happened, and lets a `replaceItemAt` failure throw rather
+than be swallowed into looking like a finding.
+
+Nothing in the project depends on the row either way. `replaceItemAt` is a
+Foundation API; Dart's `File.rename` is `rename(2)` and `stride_storage`
+performs no equivalent, so no call site depends on the behaviour and
+re-application after it is a cheap no-op.
 
 These run on the macOS CI job and have never been executed on this machine.
 

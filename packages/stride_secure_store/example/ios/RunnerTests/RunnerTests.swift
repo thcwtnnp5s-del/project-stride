@@ -5,6 +5,160 @@ import XCTest
 
 @testable import stride_secure_store
 
+// =============================================================================
+// Diagnostics
+//
+// Every assertion in this file that touches a `SecItem*` API reports the
+// numeric OSStatus. This is not decoration. The first CI run of this suite
+// failed twelve tests and the log said only which ones; "expected absent"
+// tells you nothing, and "expected absent, got unavailable(-34018
+// errSecMissingEntitlement)" tells you the host was unsigned and none of the
+// logic under test was ever reached. One is a cycle of guessing and one is the
+// answer.
+// =============================================================================
+
+/// An OSStatus as a number plus, where the platform knows one, a name.
+///
+/// The number comes first and is never omitted: `SecCopyErrorMessageString`
+/// returns nil for plenty of real statuses, and a failure message that degrades
+/// to "unknown error" is the failure this function exists to prevent.
+func describe(_ status: OSStatus) -> String {
+  // A small table for the statuses this code actually reasons about, because
+  // these are the ones whose names carry the diagnosis.
+  //
+  // Written as literals rather than as the `errSec*` symbols on purpose: the
+  // per-platform availability of some of those constants varies by SDK, and a
+  // diagnostic helper that fails to compile costs a whole CI cycle to find out
+  // about. The numbers are the stable part — they are what appears in a log.
+  let known: [OSStatus: String] = [
+    0: "errSecSuccess",
+    -25300: "errSecItemNotFound",
+    -25299: "errSecDuplicateItem",
+    -25308: "errSecInteractionNotAllowed",
+    -26275: "errSecDecode",
+    -50: "errSecParam",
+    -34018: "errSecMissingEntitlement",
+  ]
+  if let name = known[status] { return "\(status) \(name)" }
+  if let message = SecCopyErrorMessageString(status, nil) {
+    return "\(status) (\(message))"
+  }
+  return "\(status)"
+}
+
+func describe(_ outcome: SecureReadOutcome) -> String {
+  switch outcome {
+  case .found(let record):
+    return ".found(saveId: \(record.saveId), salt: \(record.salt.count) bytes)"
+  case .absent:
+    return ".absent"
+  case .unavailable(let status):
+    return ".unavailable(\(describe(status)))"
+  }
+}
+
+func describe(_ outcome: SecureWriteOutcome) -> String {
+  switch outcome {
+  case .created: return ".created"
+  case .alreadyExists: return ".alreadyExists"
+  case .failed(let status): return ".failed(\(describe(status)))"
+  }
+}
+
+/// Whether the test host can reach the Keychain at all — asserted, so the
+/// answer reaches the log.
+///
+/// This suite exists because a Keychain test that fails for an environmental
+/// reason looks exactly like a Keychain test that fails for a real one. It
+/// performs the three calls the store performs, against its own service
+/// string, and asserts each returned the status a working host returns — with
+/// the numeric OSStatus in every message.
+///
+/// It was first written to `print` the statuses instead. That did not work:
+/// run 30771670303 confirmed that stdout from the test process does not reach
+/// xcodebuild's streamed output, so the probe ran, passed, and told nobody
+/// anything. An XCTest assertion failure *does* reach the log, so the check is
+/// an assertion.
+///
+/// The workflow runs this suite on its own against a deliberately UNSIGNED
+/// host (`CODE_SIGNING_ALLOWED=NO`) as a non-gating diagnostic step. It is
+/// expected to fail there, and the numbers in its failure are the evidence for
+/// the entitlement claim in the workflow comments.
+final class KeychainEntitlementProbe: XCTestCase {
+
+  /// Deliberately not `KeychainIdentityStore.service`. A probe that shared the
+  /// real item's identity could leave state behind that made a real test pass
+  /// or fail for a reason that had nothing to do with it.
+  private static let service = "com.projectstride.stride.ci-entitlement-probe"
+  private static let account = "probe"
+
+  private func query(_ extra: [String: Any] = [:]) -> CFDictionary {
+    var q: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: Self.service,
+      kSecAttrAccount as String: Self.account,
+    ]
+    for (k, v) in extra { q[k] = v }
+    return q as CFDictionary
+  }
+
+  override func setUp() {
+    super.setUp()
+    _ = SecItemDelete(query())
+  }
+
+  override func tearDown() {
+    _ = SecItemDelete(query())
+    super.tearDown()
+  }
+
+  /// The whole diagnosis, in one line of failure text per call.
+  ///
+  /// A failing message here reads, for example:
+  ///
+  ///     KEYCHAIN PROBE: SecItemCopyMatching with nothing stored returned
+  ///     -34018 errSecMissingEntitlement, expected -25300 errSecItemNotFound.
+  ///     ...
+  func testTheTestHostCanReachTheKeychain() {
+    var item: CFTypeRef?
+
+    let emptyRead = SecItemCopyMatching(
+      query([kSecReturnData as String: true]), &item)
+    let add = SecItemAdd(
+      query([
+        kSecValueData as String: Data([0x01]),
+        kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+      ]), nil)
+    let readBack = SecItemCopyMatching(
+      query([kSecReturnData as String: true]), &item)
+
+    let diagnosis = """
+
+      All three statuses above coming back \(describe(-34018)) means the test \
+      host carries no application-identifier entitlement. That happens when \
+      code signing is disabled for the test step \
+      (CODE_SIGNING_ALLOWED=NO), and it means the Keychain refused every call \
+      before any logic under test ran — so the other failures in this run are \
+      environmental, not defects in KeychainIdentityStore.
+      """
+
+    XCTAssertEqual(
+      emptyRead, errSecItemNotFound,
+      "KEYCHAIN PROBE: SecItemCopyMatching with nothing stored returned "
+        + "\(describe(emptyRead)), expected \(describe(errSecItemNotFound))."
+        + diagnosis)
+    XCTAssertEqual(
+      add, errSecSuccess,
+      "KEYCHAIN PROBE: SecItemAdd returned \(describe(add)), expected "
+        + "\(describe(errSecSuccess))." + diagnosis)
+    XCTAssertEqual(
+      readBack, errSecSuccess,
+      "KEYCHAIN PROBE: SecItemCopyMatching after the add returned "
+        + "\(describe(readBack)), expected \(describe(errSecSuccess))."
+        + diagnosis)
+  }
+}
+
 /// Simulator tests for the device-bound identity store.
 ///
 /// ===========================================================================
@@ -31,9 +185,15 @@ import XCTest
 ///     paths named the way `StorageLayout` names them
 ///   * that the exclusion is re-applied after the directory is deleted and
 ///     recreated, which is the case a one-shot implementation gets wrong
-///   * **that an atomic write, a rename over the top, and `replaceItemAt` each
-///     destroy the exclusion**, which is why a launch-only application is not
-///     enough and `BACKUP_EXCLUSION_CONTRACT.md` exists
+///   * **that an atomic write and a rename over the top each destroy the
+///     exclusion**, which is why a launch-only application is not enough and
+///     `BACKUP_EXCLUSION_CONTRACT.md` exists
+///   * **that after every create, write, rename, replacement and compaction,
+///     the file at the final path is excluded once the per-write hook has
+///     run.** That is the invariant this project guarantees. What the platform
+///     does in between is recorded as an observation and asserted only where
+///     it is already confirmed on this OS, because it is Apple's behaviour and
+///     not ours to promise.
 ///
 /// ===========================================================================
 /// What these CANNOT prove — read this before quoting the suite as evidence
@@ -94,10 +254,12 @@ final class SecureStoreTests: XCTestCase {
   func testCreateThenRead() {
     let expected = record()
 
-    XCTAssertEqual(store.create(expected), .created)
+    let created = store.create(expected)
+    XCTAssertEqual(created, .created, "create returned \(describe(created))")
 
-    guard case .found(let actual) = store.read() else {
-      return XCTFail("a created item must read back as .found")
+    let outcome = store.read()
+    guard case .found(let actual) = outcome else {
+      return XCTFail("a created item must read back as .found, got \(describe(outcome))")
     }
     XCTAssertEqual(actual.saveId, expected.saveId)
     // Every byte. A salt that comes back with one byte changed re-keys every
@@ -108,13 +270,23 @@ final class SecureStoreTests: XCTestCase {
   func testReadWithNothingStoredIsAbsentNotAnError() {
     // Absence is a normal state — it is what a genuinely new installation looks
     // like — and it must be distinguishable from a store that could not answer.
-    guard case .absent = store.read() else {
-      return XCTFail("an empty keychain must report .absent")
+    let outcome = store.read()
+    guard case .absent = outcome else {
+      return XCTFail(
+        """
+        An empty keychain must report .absent, got \(describe(outcome)).
+
+        errSecMissingEntitlement here is not a defect in this store: it means \
+        the test host was built without a signature and so has no \
+        application-identifier entitlement, and the Keychain refused the call \
+        before any of the logic under test ran.
+        """)
     }
   }
 
   func testItemSurvivesANewStoreInstance() {
-    XCTAssertEqual(store.create(record()), .created)
+    let created = store.create(record())
+    XCTAssertEqual(created, .created, "create returned \(describe(created))")
 
     // A different object, reading the same platform store. This proves the
     // record is not in-process state.
@@ -123,8 +295,10 @@ final class SecureStoreTests: XCTestCase {
     // cold-launch read after a device reboot needs a physical device. See the
     // class comment.
     let second = KeychainIdentityStore()
-    guard case .found(let actual) = second.read() else {
-      return XCTFail("the item must outlive the object that wrote it")
+    let outcome = second.read()
+    guard case .found(let actual) = outcome else {
+      return XCTFail(
+        "the item must outlive the object that wrote it, got \(describe(outcome))")
     }
     XCTAssertEqual(actual.saveId, "lineage-one")
   }
@@ -132,17 +306,19 @@ final class SecureStoreTests: XCTestCase {
   // MARK: - 2. Add-only — the rule the whole design rests on
 
   func testSecondCreateDoesNotOverwriteTheFirst() {
-    XCTAssertEqual(store.create(record("first")), .created)
+    let first = store.create(record("first"))
+    XCTAssertEqual(first, .created, "the first create returned \(describe(first))")
 
     let outcome = store.create(record("second"))
 
     XCTAssertEqual(
       outcome, .alreadyExists,
-      "a second create must be reported, never applied"
+      "a second create must be reported, never applied; got \(describe(outcome))"
     )
 
-    guard case .found(let actual) = store.read() else {
-      return XCTFail("the original must still be there")
+    let read = store.read()
+    guard case .found(let actual) = read else {
+      return XCTFail("the original must still be there, got \(describe(read))")
     }
     XCTAssertEqual(
       actual.saveId, "first",
@@ -151,18 +327,21 @@ final class SecureStoreTests: XCTestCase {
   }
 
   func testDeleteRemovesTheItem() {
-    XCTAssertEqual(store.create(record()), .created)
-    XCTAssertTrue(store.delete())
+    let created = store.create(record())
+    XCTAssertEqual(created, .created, "create returned \(describe(created))")
+    XCTAssertTrue(store.delete(), "delete reported failure")
 
-    guard case .absent = store.read() else {
-      return XCTFail("a deleted item must read back as .absent")
+    let outcome = store.read()
+    guard case .absent = outcome else {
+      return XCTFail("a deleted item must read back as .absent, got \(describe(outcome))")
     }
   }
 
   // MARK: - 3. Accessibility — ThisDeviceOnly is the entire control
 
   func testStoredItemIsAfterFirstUnlockThisDeviceOnly() {
-    XCTAssertEqual(store.create(record()), .created)
+    let created = store.create(record())
+    XCTAssertEqual(created, .created, "create returned \(describe(created))")
 
     XCTAssertEqual(
       store.storedAccessibility(),
@@ -193,7 +372,8 @@ final class SecureStoreTests: XCTestCase {
   }
 
   func testStoredItemIsNotSynchronizable() {
-    XCTAssertEqual(store.create(record()), .created)
+    let created = store.create(record())
+    XCTAssertEqual(created, .created, "create returned \(describe(created))")
 
     // iCloud Keychain sync would be a second way for the identity to reach
     // another device, and it would defeat the control just as thoroughly as a
@@ -210,10 +390,13 @@ final class SecureStoreTests: XCTestCase {
     let status = SecItemCopyMatching(query as CFDictionary, &item)
     XCTAssertEqual(
       status, errSecItemNotFound,
-      "no synchronizable copy of the identity may exist")
+      "no synchronizable copy of the identity may exist; got \(describe(status))")
 
     query[kSecAttrSynchronizable as String] = false
-    XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
+    let nonSync = SecItemCopyMatching(query as CFDictionary, &item)
+    XCTAssertEqual(
+      nonSync, errSecSuccess,
+      "the non-synchronizable item must be readable; got \(describe(nonSync))")
   }
 
   // MARK: - 3b. Nothing but a create may write, and nothing recreates
@@ -265,11 +448,15 @@ final class SecureStoreTests: XCTestCase {
     // errSecItemNotFound is `unavailable` — and getting it wrong for a corrupt
     // record is the same defect as getting it wrong for a locked device: the
     // bootstrap is told a phone with a live save is a new installation.
-    XCTAssertEqual(addRaw(data: Data([0xDE, 0xAD, 0xBE, 0xEF])), errSecSuccess)
+    let added = addRaw(data: Data([0xDE, 0xAD, 0xBE, 0xEF]))
+    XCTAssertEqual(added, errSecSuccess, "SecItemAdd returned \(describe(added))")
 
     switch store.read() {
     case .unavailable(let status):
-      XCTAssertEqual(status, errSecDecode)
+      XCTAssertEqual(
+        status, errSecDecode,
+        "an item that is present and does not decode must report errSecDecode; "
+          + "got \(describe(status))")
     case .absent:
       XCTFail(
         """
@@ -287,17 +474,20 @@ final class SecureStoreTests: XCTestCase {
     // situation the rule names: an item is present, a read of it fails, and a
     // caller then tries to create a replacement.
     let existing = Data([0xDE, 0xAD, 0xBE, 0xEF])
-    XCTAssertEqual(addRaw(data: existing), errSecSuccess)
+    let added = addRaw(data: existing)
+    XCTAssertEqual(added, errSecSuccess, "SecItemAdd returned \(describe(added))")
 
-    guard case .unavailable = store.read() else {
-      return XCTFail("precondition: the read must fail")
+    let before = store.read()
+    guard case .unavailable = before else {
+      return XCTFail("precondition: the read must fail, got \(describe(before))")
     }
 
     let outcome = store.create(record("replacement"))
 
     XCTAssertEqual(
       outcome, .alreadyExists,
-      "SecItemAdd must refuse, because there is no update path to fall back on")
+      "SecItemAdd must refuse, because there is no update path to fall back on; "
+        + "got \(describe(outcome))")
     XCTAssertEqual(
       rawStoredData(), existing,
       """
@@ -313,9 +503,9 @@ final class SecureStoreTests: XCTestCase {
     // either. `SecItemAdd` returning errSecDuplicateItem is documented as
     // making no change; this pins it, because a variant that relaxed
     // accessibility on the existing item would be invisible everywhere else.
-    XCTAssertEqual(
-      addRaw(data: Data([0x01]), accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly),
-      errSecSuccess)
+    let added = addRaw(
+      data: Data([0x01]), accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
+    XCTAssertEqual(added, errSecSuccess, "SecItemAdd returned \(describe(added))")
 
     _ = store.create(record())
 
@@ -341,7 +531,8 @@ final class SecureStoreTests: XCTestCase {
     // Checked after every operation rather than only after a create. iCloud
     // Keychain sync is a second transport to another device and would defeat
     // the control exactly as a backup does.
-    XCTAssertEqual(store.create(record()), .created)
+    let created = store.create(record())
+    XCTAssertEqual(created, .created, "create returned \(describe(created))")
     _ = store.read()
     _ = store.storedAccessibility()
     _ = store.create(record("second"))
@@ -354,21 +545,27 @@ final class SecureStoreTests: XCTestCase {
       kSecReturnData as String: true,
     ]
     var item: CFTypeRef?
+    let sync = SecItemCopyMatching(query as CFDictionary, &item)
     XCTAssertEqual(
-      SecItemCopyMatching(query as CFDictionary, &item), errSecItemNotFound,
-      "no synchronizable copy of the identity may exist after any operation")
+      sync, errSecItemNotFound,
+      "no synchronizable copy of the identity may exist after any operation; "
+        + "got \(describe(sync))")
 
     query[kSecAttrSynchronizable as String] = false
-    XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
+    let nonSync = SecItemCopyMatching(query as CFDictionary, &item)
+    XCTAssertEqual(
+      nonSync, errSecSuccess,
+      "the non-synchronizable item must be readable; got \(describe(nonSync))")
   }
 
   func testDeleteSweepsUpAStraySynchronizableItem() {
     // The one place the base query is deliberately widened. An older build, or
     // a bug, could have left a synchronizable item behind; a reset that left it
     // in place would let it reappear afterwards as a second identity.
-    XCTAssertEqual(addRaw(data: Data([0x01]), synchronizable: true), errSecSuccess)
+    let added = addRaw(data: Data([0x01]), synchronizable: true)
+    XCTAssertEqual(added, errSecSuccess, "SecItemAdd returned \(describe(added))")
 
-    XCTAssertTrue(store.delete())
+    XCTAssertTrue(store.delete(), "delete reported failure")
     XCTAssertNil(rawStoredData())
   }
 
@@ -517,8 +714,22 @@ final class BackupExclusionTests: XCTestCase {
   // naming a different node, and the new node was never excluded.
   //
   // This is the evidence for BACKUP_EXCLUSION_CONTRACT.md. Without the
-  // per-write re-application, every one of these leaves a file that would
-  // travel in a restore, with nothing anywhere reporting it.
+  // per-write re-application, an atomic write, a rename over the top, or a
+  // file created after the launch sweep each leaves a file that would travel in
+  // a restore, with nothing anywhere reporting it.
+  //
+  // The rule these tests enforce is the END STATE, not the platform's
+  // intermediate behaviour:
+  //
+  //     After every create, write, rename, replacement and compaction, the
+  //     file at the final path is excluded from backup.
+  //
+  // Every test in this section ends on that assertion. The drop itself is
+  // asserted only for the atomic write and the rename, where it is confirmed on
+  // this OS and is the motivation for the hook; for `replaceItemAt` and the
+  // in-place truncate the platform behaviour is recorded and not required,
+  // because whether a Foundation call preserves a resource value is Apple's to
+  // change and not ours to promise.
 
   func testAnAtomicWriteDropsTheExclusion() {
     let path = create(["save_slot_a"])[0]
@@ -568,19 +779,94 @@ final class BackupExclusionTests: XCTestCase {
     XCTAssertTrue(isExcluded(journal.path))
   }
 
-  func testReplaceItemAtDropsTheExclusion() {
+  /// `replaceItemAt`: the platform behaviour is **recorded**, the end state is
+  /// **asserted**.
+  ///
+  /// This was `testReplaceItemAtDropsTheExclusion`, and it required
+  /// `replaceItemAt` to destroy the attribute, by analogy with the atomic
+  /// write and the rename above. CI run 30769049772 disagreed: it was the only
+  /// `BackupExclusionTests` case to fail, while
+  /// `testARenameOverTheTopDropsTheExclusion` — the case the per-write hook
+  /// actually exists for — passed on the same simulator.
+  ///
+  /// The analogy was the mistake, and so was the shape of the test. Whether a
+  /// given Foundation call preserves a resource value is **Apple's** behaviour.
+  /// It is not ours to promise, no contract we can hold Apple to covers it, and
+  /// it may differ between OS versions — so pinning it as a requirement means a
+  /// future iOS release fails this suite over something that was never the
+  /// point.
+  ///
+  /// What IS ours to guarantee is the end state:
+  ///
+  ///   > After every create, write, rename, replacement and compaction, the
+  ///   > final sensitive file is excluded from backup.
+  ///
+  /// So the intermediate observation is printed rather than asserted — it is
+  /// evidence, and it is why the per-write hook exists — and the assertion is
+  /// on the state after `BackupExclusion.apply` has run, which is the state
+  /// this project actually controls.
+  ///
+  /// Two things keep that from being a test bent to fit:
+  ///
+  ///   * `try`, not `try?`. A `replaceItemAt` that threw would leave the
+  ///     original in place with its attribute intact, which is
+  ///     indistinguishable from preservation; swallowing the error would let a
+  ///     failed replacement masquerade as a finding.
+  ///   * the bytes are read back, so the replacement is proven to have happened
+  ///     at all.
+  func testTheFileIsExcludedAfterAReplaceItemAt() throws {
     let target = root.appendingPathComponent("save_slot_a")
     let replacement = root.appendingPathComponent("save_slot_a.new")
     FileManager.default.createFile(atPath: target.path, contents: Data([0x01]))
     FileManager.default.createFile(atPath: replacement.path, contents: Data([0x02]))
     _ = BackupExclusion.apply(paths: [target.path])
-    XCTAssertTrue(isExcluded(target.path))
+    XCTAssertTrue(isExcluded(target.path), "precondition: the target must be excluded")
 
-    _ = try? FileManager.default.replaceItemAt(target, withItemAt: replacement)
+    // Throws rather than swallows: see the comment above.
+    _ = try FileManager.default.replaceItemAt(target, withItemAt: replacement)
 
-    XCTAssertFalse(isExcluded(target.path))
-    XCTAssertTrue(BackupExclusion.apply(paths: [target.path]).failed.isEmpty)
-    XCTAssertTrue(isExcluded(target.path))
+    // The replacement really happened. Without this, a no-op would read as
+    // "the attribute was preserved".
+    XCTAssertEqual(
+      try Data(contentsOf: target), Data([0x02]),
+      "the replacement's bytes must be at the target path")
+
+    // ---- the observation: recorded, never required ----
+    //
+    // Apple documents `replaceItemAt` as the safe-save primitive that carries
+    // the ORIGINAL item's metadata onto the replacement unless
+    // `.usingNewMetadataOnly` is given, which would mean preservation. This
+    // records what the runner actually did, and asserts nothing about it.
+    //
+    // Recorded as an XCTest activity and attachment rather than with `print`.
+    // Run 30771670303 established that stdout from the test process does not
+    // reach xcodebuild's streamed log — the earlier `print` here ran and was
+    // never seen. An activity name and an attachment are both written into the
+    // .xcresult bundle, which CI uploads and keeps.
+    let afterReplacement = isExcluded(target.path)
+    let observation =
+      "OBSERVED: after FileManager.replaceItemAt, isExcludedFromBackup == "
+      + "\(afterReplacement). Recorded, not asserted: this is Apple's "
+      + "behaviour and may differ between OS versions."
+    XCTContext.runActivity(named: observation) { activity in
+      let note = XCTAttachment(string: observation)
+      note.name = "replaceItemAt-backup-exclusion-observation"
+      note.lifetime = .keepAlways
+      activity.add(note)
+    }
+
+    // ---- the invariant: asserted ----
+    let report = BackupExclusion.apply(paths: [target.path])
+    XCTAssertTrue(report.failed.isEmpty, "failed: \(report.failed)")
+    XCTAssertTrue(
+      isExcluded(target.path),
+      """
+      The file at the final path must be excluded once the per-write hook has \
+      run. That is the invariant this project guarantees, and it holds whether \
+      or not the platform preserved the attribute across the replacement — \
+      which is exactly why the hook re-applies unconditionally instead of \
+      checking first.
+      """)
   }
 
   func testAFileCreatedAfterTheSweepIsNotExcludedUntilReapplied() {
