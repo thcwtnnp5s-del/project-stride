@@ -1,8 +1,8 @@
 # Project Stride — Project State
 
 **Version:** 2.0
-**Status:** ✅ **F-05 complete** — local save, ledger persistence, transactional commit, crash recovery.
-**Current Phase:** Milestone 01 — F-06 in progress (device persistence, bootstrap, restart validation)
+**Status:** ⚠️ **F-06 work complete; closure blocked on GitHub Actions billing.** Every local gate passes; the final tree has never run in CI.
+**Current Phase:** Milestone 01 — F-06 awaiting a final CI run. See `F06_COMPLETION_REPORT.md` §9.
 
 ## Project identity
 
@@ -47,6 +47,8 @@ Completed foundations:
 | 0009 | Portrait only, phone only, no store launch — *amended for Android* | `DECISIONS/0009_PLATFORM_AND_DISTRIBUTION.md` |
 | 0010 | **Flutter, pure Dart core, first-party health adapters, Android first** | `DECISIONS/0010_CROSS_PLATFORM_STACK.md` |
 | 0011 | Staged private distribution — APK → Play internal; TestFlight later | `DECISIONS/0011_DISTRIBUTION_CHANNELS.md` |
+| 0012 | Two slots, CAS, cursor authority, origin privacy | `DECISIONS/0012_SAVE_FORMAT.md` |
+| 0013 | **Single-writer-isolate persistence; no background writer until S-01** | `DECISIONS/0013_SINGLE_WRITER_PERSISTENCE.md` |
 
 ## Current milestone
 
@@ -99,7 +101,9 @@ The player must be able to:
 26. ~~Answer the four blocking F-05 decisions.~~ **Ruled 2026-08-02**
 27. ~~Execute F-05 — save, ledger persistence, crash recovery.~~ **Done — `F05_COMPLETION_REPORT.md`**
 28. ~~Owner approval before F-06.~~ **Approved 2026-08-02**
-29. **Execute F-06 — device persistence, bootstrap, restart validation.** ← current state
+29. ~~Execute F-06 — device persistence, bootstrap, restart validation.~~ **Work done — `F06_COMPLETION_REPORT.md`**
+30. **Resolve GitHub Actions billing; re-run CI on `master` and the Android process-death workflow against the final tree.** ← current state. No code changes expected.
+31. Owner sign-off on F-06, then F-07.
 
 ## F-05 closed the four decisions
 
@@ -122,10 +126,19 @@ Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 | F-03 — GameState, events, engine | ✅ Done |
 | **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
 | **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
-| **F-06 — device persistence, bootstrap, restart validation** | In progress |
-| F-07 — skill framework | Blocked on F-06 |
+| **F-06 — device persistence, bootstrap, restart validation** | ⚠️ **Work complete — blocked on a final CI run** |
+| F-07 — skill framework | Blocked on F-06 closure |
 
-**283 automated tests** across the workspace: 247 Dart in `stride_core`, 2 app widget, 17 `stride_health`, plus 5 Kotlin and 12 Swift in CI.
+**540 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, 27 app, 17 `stride_health` — plus 40 Swift simulator tests and 5 Kotlin in CI.
+
+### The F-06 finding worth carrying forward
+
+A green **Windows** run is not evidence for anything lock-shaped. POSIX `fcntl`
+locks are owned by the *process*; Windows `LockFileEx` locks are owned by the
+*handle*. CI run `30767931205` was the first time four storage test files ran on
+Linux: 94 passed, **11 failed**, against 105/105 on Windows — including
+`totalGranted` of 7 where 0 was required. **Linux is the signal.** See
+`DECISIONS/0013` and `TECHNICAL/PERSISTENCE_CONCURRENCY.md`.
 
 `stride_core` is 31 files of pure Dart — no Flutter, no plugins, no `dart:io`, and now no clock, randomness, locale, or platform reads either, enforced by a static source scan.
 
