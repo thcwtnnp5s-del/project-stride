@@ -53,6 +53,18 @@ After design and architecture reviews are approved:
 /qa-check
 ```
 
+## License
+
+**None is granted.** Project Stride is **source-available, not open source**:
+the repository is publicly viewable, and copyright is reserved in full by
+Rob Hathaway.
+
+There is no MIT, Apache, Creative Commons, or other open-source licence here.
+Reuse, modification, redistribution, and commercial use of the code,
+documentation, Game Bible, lore, content, art, and audio are **not** permitted.
+
+See [COPYRIGHT.md](COPYRIGHT.md) for the full notice.
+
 ## Recommended handoff order
 
 1. Give Claude Code the entire repository.

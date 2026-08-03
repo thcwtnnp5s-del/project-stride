@@ -22,6 +22,18 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege, declared rather than inherited.
+#
+# The repository is public, so `pull_request` runs fork-authored code. GitHub's
+# default token for a fork PR is already read-only, but that is a repository
+# *setting* someone can change; this is the workflow stating what it needs.
+#
+# Nothing here writes to the repository: no releases, no PR comments, no package
+# publishing, no commits. Read access to contents is the whole requirement. If a
+# future job needs more, it should request it at the JOB level, not here.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -274,7 +286,10 @@ jobs:
         with:
           name: stride-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
+          # A debug APK is a throwaway build artifact, ~70 MB, superseded by the
+          # next push. On a public repository it is also publicly downloadable,
+          # so a short life is both hygiene and storage.
+          retention-days: 7
 
   # ===========================================================================
   # 4. macOS / iOS — compilation only. No signing, no TestFlight.
@@ -543,7 +558,9 @@ jobs:
             ${{ runner.temp }}/probe-unsigned.log
             ${{ runner.temp }}/probe-unsigned.xcresult
           if-no-files-found: warn
-          retention-days: 14
+          # Diagnostic output for one run, not an archive. `.xcresult` bundles
+          # reach ~90 MB and are only ever read while investigating that run.
+          retention-days: 7
 
       # Simulator-hosted unit tests. Nothing here requests HealthKit
       # authorization: an interactive permission prompt cannot be answered on a

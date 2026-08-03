@@ -51,7 +51,7 @@ Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on "windows_x6
 ```text
 Android Debug Bridge version 1.0.41
 Version 37.0.1-15733141
-Installed as C:\Users\jwspa\dev\android-sdk\platform-tools\adb.exe
+Installed as C:\Users\<username>\dev\android-sdk\platform-tools\adb.exe
 Running on Windows 10.0.26200
 ```
 
@@ -66,7 +66,7 @@ OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
 
 ```text
 [√] Flutter (Channel stable, 3.44.8, on Microsoft Windows [Version 10.0.26200.8894], locale en-US) [163ms]
-    • Flutter version 3.44.8 on channel stable at C:\Users\jwspa\dev\flutter
+    • Flutter version 3.44.8 on channel stable at C:\Users\<username>\dev\flutter
     • Upstream repository https://github.com/flutter/flutter.git
     • Framework revision 058e0af2c2 (9 days ago), 2026-07-23 10:56:21 -0700
     • Engine revision 0cd610717b
@@ -77,10 +77,10 @@ OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
 [√] Windows Version (Windows 11 or higher, 25H2, 2009) [575ms]
 
 [√] Android toolchain - develop for Android devices (Android SDK version 36.1.0) [1,382ms]
-    • Android SDK at C:\Users\jwspa\dev\android-sdk
+    • Android SDK at C:\Users\<username>\dev\android-sdk
     • Emulator version 37.1.11.0 (build_id 15917651) (CL:N/A)
     • Platform android-36, build-tools 36.1.0
-    • ANDROID_HOME = C:/Users/jwspa/dev/android-sdk
+    • ANDROID_HOME = C:/Users/<username>/dev/android-sdk
     • Java binary at: C:/Program Files/Eclipse Adoptium/jdk-17.0.20.8-hotspot\bin\java
       This JDK is specified by the JAVA_HOME environment variable.
       To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
@@ -148,10 +148,10 @@ Screenshot: `MILESTONES/evidence/m2_android_emulator.png` — portrait, renderin
 
 | Item | Path |
 |---|---|
-| Flutter SDK | `C:\Users\jwspa\dev\flutter` (git clone, `stable`, `--depth 1`) |
+| Flutter SDK | `C:\Users\<username>\dev\flutter` (git clone, `stable`, `--depth 1`) |
 | Dart SDK | bundled at `flutter\bin\cache\dart-sdk` |
 | JDK 17 | `C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot` |
-| Android SDK root | `C:\Users\jwspa\dev\android-sdk` |
+| Android SDK root | `C:\Users\<username>\dev\android-sdk` |
 | Android cmdline-tools | `…\android-sdk\cmdline-tools\latest` |
 | AVD | `stride_pixel` — Pixel 7, API 36, google_apis, x86_64 |
 | GitHub CLI | `C:\Program Files\GitHub CLI` (2.97.0) |

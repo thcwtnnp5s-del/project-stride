@@ -38,6 +38,12 @@ on:
         required: false
         default: '35'
 
+# Least privilege, declared rather than inherited. This workflow builds an APK,
+# drives an emulator, and reads a verdict. It writes nothing back to the
+# repository.
+permissions:
+  contents: read
+
 jobs:
   process-death:
     name: force-stop and resume

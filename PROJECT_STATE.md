@@ -193,7 +193,7 @@ Physical devices are needed for real health data, background sync, process-kill,
 
 | | |
 |---|---|
-| Flutter | ✅ 3.44.8 at `C:\Users\jwspa\dev\flutter` |
+| Flutter | ✅ 3.44.8 at `C:\Users\<username>\dev\flutter` |
 | Dart | ✅ 3.12.2 |
 | JDK | ✅ Temurin 17.0.20 |
 | Android SDK | ✅ platform-36, build-tools 36.1.0, adb, emulator |
