@@ -10,12 +10,21 @@ Pod::Spec.new do |s|
 A new Flutter plugin project.
                        DESC
   s.homepage         = 'http://example.com'
-  s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  # Inline, not a :file reference.
+  #
+  # This was `{ :file => '../LICENSE' }`, pointing at a Flutter-template stub
+  # that was deleted when the repository went public and adopted an
+  # all-rights-reserved policy (COPYRIGHT.md). A podspec whose license file is
+  # missing fails to parse, and nothing caught it because the iOS builds here
+  # resolve through Swift Package Manager -- the break only surfaces on a
+  # CocoaPods fallback, which is exactly what a first device build on an
+  # unfamiliar Mac does.
+  s.license          = { :type => 'Proprietary', :text => 'Copyright (c) Rob Hathaway. All rights reserved. See COPYRIGHT.md.' }
+  s.author           = { 'Studio Stride' => 'noreply@example.com' }
   s.source           = { :path => '.' }
   s.source_files = 'stride_health/Sources/stride_health/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '13.0'
+  s.platform = :ios, '17.0'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }

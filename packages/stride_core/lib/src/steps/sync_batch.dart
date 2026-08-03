@@ -180,7 +180,59 @@ final class SyncCursor {
   String toString() => 'cursor(${bytes.length}B)';
 }
 
-/// The bounded window a rescan covers.
+/// The bounded window a rescan covers, and the recovery contract behind it.
+///
+/// ## The problem
+///
+/// Incremental sync reports change since a cursor. When the platform
+/// invalidates that cursor, the change stream is broken and the adapter cannot
+/// say what changed. The two obvious responses are both wrong:
+///
+/// * Grant everything rescanned — double-counts every step already granted.
+/// * Reset the ledger and start over — erases the player's earned progress.
+///
+/// ## The binding contract
+///
+/// Recovery must, by whatever mechanism:
+///
+/// 1. never reset the game ledger
+/// 2. never treat rescanned history as all new
+/// 3. never claw back granted progress
+/// 4. never silently discard the cursor and grant full history
+/// 5. persist a replacement cursor only after the batch is committed
+/// 6. be safe to retry after interruption, recomputing the same result
+///
+/// Reconciliation scenario 13 (F-04) asserts that contract, not any particular
+/// arithmetic, so the mechanism can change without the guarantees moving.
+///
+/// ## How it is satisfied here
+///
+/// The adapter re-reads the window authoritatively, **per origin and per
+/// bucket**, and sends those absolute figures as ordinary [StepObservation]s
+/// alongside this window. The reconciler already knows what it granted for each
+/// `(origin, bucket)` slice, so the overlap correction is per-slice
+/// subtraction rather than a single global watermark — which is the fix that
+/// closed LG-3, where one global watermark could not express "settled for the
+/// phone, still open for the watch". The no-clawback rule turns any shortfall
+/// into recorded discrepancy rather than lost progress.
+///
+/// ## Why interrupted recovery is safe to retry
+///
+/// Recovery reads state and computes a number; it mutates nothing until the
+/// ledger batch is committed. If the process dies at any point before that, the
+/// ledger and the old cursor are unchanged, so the next attempt recomputes
+/// exactly the same result. Combined with the ledger's batch-identity replay
+/// guard, recovery is idempotent.
+///
+/// ## On record identity
+///
+/// Health Connect exposes per-record UIDs, and deduplicating by UID inside the
+/// overlap window would be more precise than per-slice arithmetic. It is
+/// deliberately not the primary mechanism: retaining identifiers indefinitely is
+/// unbounded storage, and it would leave the game holding a shadow copy of
+/// health data, which `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Identity may be
+/// used *within* a single recovery pass as a refinement; the per-slice absolute
+/// figures are what the correctness argument rests on.
 @immutable
 final class RescanWindow {
   const RescanWindow({
@@ -189,6 +241,14 @@ final class RescanWindow {
     required this.truncated,
   });
 
+  /// The longest window the game will ever ask to re-read.
+  ///
+  /// Steps older than this are unreachable after cursor loss and are recorded
+  /// rather than granted. Milliseconds, not a `Duration`: the core takes time
+  /// as data and never reads a clock, and this figure crosses the platform
+  /// boundary as a number.
+  static const int maxWindowMillis = 30 * 24 * 60 * 60 * 1000;
+
   final int startMillis;
   final int endMillis;
 
@@ -196,7 +256,7 @@ final class RescanWindow {
   ///
   /// Steps in that gap are recorded and **never granted**: they cannot be
   /// distinguished from steps already counted, and inventing progress is worse
-  /// than missing it.
+  /// than missing it. The truncation is reported, not silently dropped.
   final bool truncated;
 }
 

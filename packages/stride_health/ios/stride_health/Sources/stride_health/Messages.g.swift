@@ -184,137 +184,840 @@ private func nilOrValue<T>(_ value: Any?) -> T? {
 }
 
 
-/// Mirrors `StepAuthorization` in stride_core.
-enum PlatformAuthorization: Int, CaseIterable {
+/// Mirrors `HealthDataType` in stride_core.
+///
+/// Only steps exist today. It is on the wire so that an adapter which later
+/// reads distance or workouts cannot have its step-completeness assertion
+/// silently widened to cover them.
+enum PlatformHealthDataType: Int, CaseIterable {
+  case steps = 0
+}
+
+/// Whether the platform will give us step data.
+///
+/// Neither platform reliably distinguishes "denied" from "granted but empty" —
+/// HealthKit deliberately hides read denial so an app cannot infer that a user
+/// has no data. The game therefore treats both identically, and nothing about a
+/// missing permission ever blocks a screen, a craft, or a fight.
+enum PlatformAuthorizationState: Int, CaseIterable {
   case granted = 0
   case denied = 1
   case unavailable = 2
 }
 
-/// Mirrors `CursorStatus` in stride_core.
-enum PlatformCursorStatus: Int, CaseIterable {
-  case valid = 0
-  case invalidated = 1
+/// Why a provider could not answer. Mirrors `ProviderUnavailableReason`.
+enum PlatformUnavailableReason: Int, CaseIterable {
+  /// Health Connect is not installed; HealthKit is unavailable on this device.
+  case serviceMissing = 0
+  /// Authorization has not been granted, or cannot be determined.
+  case permissionUnavailable = 1
+  /// The read failed and may succeed later.
+  case transientFailure = 2
+  /// The device-bound origin-keying salt has not been installed, or was
+  /// rejected.
+  ///
+  /// **Fail-closed, and not a transient condition.** An adapter in this state
+  /// must refuse to read: observations keyed under no salt, or under the wrong
+  /// one, would re-key every origin and grant the whole retention window a
+  /// second time. Retrying will not fix it; installing the identity will.
+  case originKeyingUnconfigured = 3
 }
 
-/// An authoritative re-read of a bounded window, sent only when the cursor was
-/// invalidated. See `StepRescan` in stride_core for the recovery strategy.
+/// The outcome of installing the device-bound keying salt.
+enum PlatformOriginKeyingOutcome: Int, CaseIterable {
+  /// The salt is held in memory for this engine attachment. Reads may proceed.
+  case installed = 0
+  /// The adapter does not implement the requested `algorithmVersion`.
+  ///
+  /// A typed refusal rather than a silent fallback. A version mismatch that
+  /// degraded quietly would produce keys that differ from every other
+  /// platform's — which looks exactly like a new device, and re-grants the
+  /// retention window.
+  case unsupportedAlgorithm = 1
+  /// The salt was malformed — empty, or outside the accepted length.
+  case rejected = 2
+}
+
+/// The shape of one page's answer. Mirrors the `SyncResponse` hierarchy.
+enum PlatformSyncStatus: Int, CaseIterable {
+  /// The source reported observations. Covers the ordinary case and, without a
+  /// separate shape, delayed records, overlapping batches, upward and downward
+  /// corrections, and deletions — because every observation is absolute.
+  case incremental = 0
+  /// Nothing changed since the cursor.
+  case noChange = 1
+  /// The cursor was rejected. [PlatformSyncPage.rescan] is then mandatory and
+  /// [PlatformSyncPage.observations] is the authoritative content of the window.
+  case cursorInvalidated = 2
+  /// The provider could not answer. [PlatformSyncPage.unavailableReason] is
+  /// then mandatory, and no cursor is offered.
+  case unavailable = 3
+}
+
+/// Which sources a completeness assertion speaks for.
+enum PlatformOriginScopeKind: Int, CaseIterable {
+  /// The adapter asked the platform for its FULL source list and drained every
+  /// one of them. Legitimate only then.
+  case allOrigins = 0
+  /// The adapter vouches only for the sources it names. Use this whenever the
+  /// full source list was not enumerated — including the common case of "these
+  /// are the sources that happened to appear in this batch".
+  case someOrigins = 1
+}
+
+/// How complete a page is. Mirrors `SyncCompleteness`.
+enum PlatformCompletenessKind: Int, CaseIterable {
+  /// Pages remain outstanding, or the adapter cannot vouch for the interval.
+  /// **Nothing may be settled.** This is the correct and safe default, and the
+  /// correct value for every page but the last of a paginated read.
+  case partial = 0
+  /// Every page for the declared scope has been drained. Everything at or
+  /// before `throughMillis`, within the scope, has been delivered.
+  case completeThrough = 1
+  /// A bounded recovery rescan completed and covered its whole window. Distinct
+  /// from [completeThrough] because a recovery's authority stops at the window
+  /// it could actually reach. A truncated rescan is [partial].
+  case recoveryCompleteThrough = 2
+}
+
+/// What installing the salt achieved.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
-struct PlatformRescan: Hashable, CustomStringConvertible {
-  /// Start of the rescanned window — the watermark the caller supplied,
-  /// clamped by the adapter to its maximum window.
-  var windowStartMillis: Int64
-  var windowEndMillis: Int64
-  /// The authoritative total for the window. A total, not a delta: after cursor
-  /// loss only an absolute figure can be reconciled against what was already
-  /// granted.
-  var windowTotal: Int64
-  /// True when the window was clamped, leaving an unreachable gap. Those steps
-  /// are recorded, never granted — inventing progress is worse than missing it.
+struct PlatformOriginKeyingResult: Hashable, CustomStringConvertible {
+  var outcome: PlatformOriginKeyingOutcome
+  /// A short technical note. **Never the salt, never a fingerprint of it, and
+  /// never a source identifier.**
+  var diagnostic: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformOriginKeyingResult? {
+    let outcome = pigeonVar_list[0] as! PlatformOriginKeyingOutcome
+    let diagnostic: String? = nilOrValue(pigeonVar_list[1])
+
+    return PlatformOriginKeyingResult(
+      outcome: outcome,
+      diagnostic: diagnostic
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      outcome,
+      diagnostic,
+    ]
+  }
+  static func == (lhs: PlatformOriginKeyingResult, rhs: PlatformOriginKeyingResult) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.outcome, rhs.outcome) && MessagesPigeonInternal.deepEquals(lhs.diagnostic, rhs.diagnostic)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformOriginKeyingResult")
+    MessagesPigeonInternal.deepHash(value: outcome, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: diagnostic, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformOriginKeyingResult(outcome: \(String(describing: outcome)), diagnostic: \(String(describing: diagnostic)))"
+  }
+}
+
+/// A closed-open UTC interval, in milliseconds since the Unix epoch.
+///
+/// No day boundaries and no local calendar anywhere in this contract. That is
+/// what makes daylight saving, travel across timezones, and midnight into
+/// non-events.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformTimeBucket: Hashable, CustomStringConvertible {
+  var startMillis: Int64
+  var endMillis: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformTimeBucket? {
+    let startMillis = pigeonVar_list[0] as! Int64
+    let endMillis = pigeonVar_list[1] as! Int64
+
+    return PlatformTimeBucket(
+      startMillis: startMillis,
+      endMillis: endMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      startMillis,
+      endMillis,
+    ]
+  }
+  static func == (lhs: PlatformTimeBucket, rhs: PlatformTimeBucket) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.startMillis, rhs.startMillis) && MessagesPigeonInternal.deepEquals(lhs.endMillis, rhs.endMillis)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformTimeBucket")
+    MessagesPigeonInternal.deepHash(value: startMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: endMillis, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformTimeBucket(startMillis: \(String(describing: startMillis)), endMillis: \(String(describing: endMillis)))"
+  }
+}
+
+/// What one source currently says about one slice of time.
+///
+/// **Absolute, not a delta.** A restated observation of 400 steps means the
+/// source now believes that slice contains 400 steps, whether it previously said
+/// 0, 300, or 900. Deltas cannot express a correction and cannot be replayed
+/// safely.
+///
+/// **A deletion is `steps: 0`.** Corrections and deletions carry origin
+/// attribution for free, because every observation names its source.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformStepObservation: Hashable, CustomStringConvertible {
+  /// The pseudonymized origin, as **exactly eight bytes**.
+  ///
+  /// Already keyed when it arrives here. The raw platform identifier —
+  /// `HKSource.bundleIdentifier` on iOS, `metadata.dataOrigin.packageName` on
+  /// Android — lived inside one native function call and is gone. There is no
+  /// field on this contract that could carry it, which is the point: a
+  /// `String` here would have been an invitation, and the obvious wrong value
+  /// to put in one is `HKSource.name`, which is a device name a player may have
+  /// called anything at all.
+  ///
+  /// Eight bytes is 64 bits, which the bridge renders as the sixteen lowercase
+  /// hex characters `StepOriginKey` accepts.
+  ///
+  /// **Exactly two lengths are legal: eight, or zero.** Zero means the platform
+  /// reported no source at all, and becomes `StepOriginKey.unknown` — which is
+  /// the reserved literal `unknown`, deliberately not hex, so the keying
+  /// function can never produce it and confuse it with a real source. Any other
+  /// length is a malformed observation and refuses the whole page. That length
+  /// check is the only thing standing between a truncated raw string and the
+  /// ledger, so it is not negotiable and it is not a warning.
+  var originKey: FlutterStandardTypedData
+  var bucket: PlatformTimeBucket
+  /// The source's current total for this slice. Never negative. Zero means the
+  /// slice is now empty — a deletion or a correction to nothing.
+  var steps: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformStepObservation? {
+    let originKey = pigeonVar_list[0] as! FlutterStandardTypedData
+    let bucket = pigeonVar_list[1] as! PlatformTimeBucket
+    let steps = pigeonVar_list[2] as! Int64
+
+    return PlatformStepObservation(
+      originKey: originKey,
+      bucket: bucket,
+      steps: steps
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      originKey,
+      bucket,
+      steps,
+    ]
+  }
+  static func == (lhs: PlatformStepObservation, rhs: PlatformStepObservation) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.originKey, rhs.originKey) && MessagesPigeonInternal.deepEquals(lhs.bucket, rhs.bucket) && MessagesPigeonInternal.deepEquals(lhs.steps, rhs.steps)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformStepObservation")
+    MessagesPigeonInternal.deepHash(value: originKey, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: bucket, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: steps, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformStepObservation(originKey: \(String(describing: originKey)), bucket: \(String(describing: bucket)), steps: \(String(describing: steps)))"
+  }
+}
+
+/// The sources a completeness assertion covers.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformOriginScope: Hashable, CustomStringConvertible {
+  var kind: PlatformOriginScopeKind
+  /// Pseudonymized origins, meaningful only when [kind] is
+  /// [PlatformOriginScopeKind.someOrigins]; empty otherwise.
+  ///
+  /// Each entry obeys the same rule as [PlatformStepObservation.originKey]:
+  /// eight bytes, or zero for the unknown origin. A completeness assertion
+  /// names the sources it vouches for, and it must name them in the same
+  /// vocabulary the observations use or it would settle nothing it meant to.
+  var originKeys: [FlutterStandardTypedData]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformOriginScope? {
+    let kind = pigeonVar_list[0] as! PlatformOriginScopeKind
+    let originKeys = pigeonVar_list[1] as! [FlutterStandardTypedData]
+
+    return PlatformOriginScope(
+      kind: kind,
+      originKeys: originKeys
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      kind,
+      originKeys,
+    ]
+  }
+  static func == (lhs: PlatformOriginScope, rhs: PlatformOriginScope) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.kind, rhs.kind) && MessagesPigeonInternal.deepEquals(lhs.originKeys, rhs.originKeys)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformOriginScope")
+    MessagesPigeonInternal.deepHash(value: kind, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: originKeys, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformOriginScope(kind: \(String(describing: kind)), originKeys: \(String(describing: originKeys)))"
+  }
+}
+
+/// A completeness assertion, with the scope that makes it actionable.
+///
+/// A bare boolean cannot distinguish these, and the difference between them is
+/// a player's lost walk:
+///
+///  - "I delivered every page for every source through Tuesday"
+///  - "I delivered page 1 of 9, whose newest record happens to be Tuesday"
+///  - "I delivered everything the *phone* wrote through Tuesday, and the watch
+///    has been offline for a week"
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformCompleteness: Hashable, CustomStringConvertible {
+  var kind: PlatformCompletenessKind
+  var dataType: PlatformHealthDataType
+  var scope: PlatformOriginScope
+  /// UTC milliseconds. The interval the adapter actually queried — not the
+  /// interval it was asked for, if those differ.
+  var intervalStartMillis: Int64
+  var intervalEndMillis: Int64
+  /// Which query or token produced this.
+  ///
+  /// The adapter increments it whenever it starts a new anchored query or
+  /// acquires a new changes token. An assertion made under an anchor that has
+  /// since been invalidated is stale, and acting on it would settle buckets a
+  /// rescan is about to restate.
+  var queryGeneration: Int64
+  /// UTC milliseconds through which the scope is vouched for. Ignored when
+  /// [kind] is [PlatformCompletenessKind.partial].
+  var throughMillis: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformCompleteness? {
+    let kind = pigeonVar_list[0] as! PlatformCompletenessKind
+    let dataType = pigeonVar_list[1] as! PlatformHealthDataType
+    let scope = pigeonVar_list[2] as! PlatformOriginScope
+    let intervalStartMillis = pigeonVar_list[3] as! Int64
+    let intervalEndMillis = pigeonVar_list[4] as! Int64
+    let queryGeneration = pigeonVar_list[5] as! Int64
+    let throughMillis = pigeonVar_list[6] as! Int64
+
+    return PlatformCompleteness(
+      kind: kind,
+      dataType: dataType,
+      scope: scope,
+      intervalStartMillis: intervalStartMillis,
+      intervalEndMillis: intervalEndMillis,
+      queryGeneration: queryGeneration,
+      throughMillis: throughMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      kind,
+      dataType,
+      scope,
+      intervalStartMillis,
+      intervalEndMillis,
+      queryGeneration,
+      throughMillis,
+    ]
+  }
+  static func == (lhs: PlatformCompleteness, rhs: PlatformCompleteness) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.kind, rhs.kind) && MessagesPigeonInternal.deepEquals(lhs.dataType, rhs.dataType) && MessagesPigeonInternal.deepEquals(lhs.scope, rhs.scope) && MessagesPigeonInternal.deepEquals(lhs.intervalStartMillis, rhs.intervalStartMillis) && MessagesPigeonInternal.deepEquals(lhs.intervalEndMillis, rhs.intervalEndMillis) && MessagesPigeonInternal.deepEquals(lhs.queryGeneration, rhs.queryGeneration) && MessagesPigeonInternal.deepEquals(lhs.throughMillis, rhs.throughMillis)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformCompleteness")
+    MessagesPigeonInternal.deepHash(value: kind, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: dataType, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: scope, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: intervalStartMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: intervalEndMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: queryGeneration, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: throughMillis, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformCompleteness(kind: \(String(describing: kind)), dataType: \(String(describing: dataType)), scope: \(String(describing: scope)), intervalStartMillis: \(String(describing: intervalStartMillis)), intervalEndMillis: \(String(describing: intervalEndMillis)), queryGeneration: \(String(describing: queryGeneration)), throughMillis: \(String(describing: throughMillis)))"
+  }
+}
+
+/// Where this page sits in a paginated read.
+///
+/// The reason this is on the wire at all: without it, a first page and a last
+/// page are byte-identical, and a completeness assertion on page one is
+/// indistinguishable from one on page nine. The bridge cross-checks it — a page
+/// that claims [PlatformCompletenessKind.completeThrough] while
+/// [isFinalPage] is false is downgraded to partial and counted, because
+/// settling on a mid-page assertion is how 55,200 steps were lost.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformPagination: Hashable, CustomStringConvertible {
+  /// Zero-based. Diagnostic and cross-check only; the bridge never does
+  /// arithmetic on it.
+  var pageIndex: Int64
+  /// True only when the adapter has drained the read. Default to false when
+  /// unsure — an over-cautious partial costs a little ledger growth, and a
+  /// wrong `true` costs a grant permanently.
+  var isFinalPage: Bool
+  /// Opaque resume token for the NEXT page of the SAME read, or null when
+  /// [isFinalPage] is true.
+  ///
+  /// Distinct from [PlatformSyncPage.nextCursor], and the distinction matters:
+  /// a continuation is in-flight read state that is never persisted, while a
+  /// cursor is durable sync position that is persisted only after the ledger
+  /// commits. Conflating them would persist a position mid-read.
+  var continuation: FlutterStandardTypedData? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformPagination? {
+    let pageIndex = pigeonVar_list[0] as! Int64
+    let isFinalPage = pigeonVar_list[1] as! Bool
+    let continuation: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[2])
+
+    return PlatformPagination(
+      pageIndex: pageIndex,
+      isFinalPage: isFinalPage,
+      continuation: continuation
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      pageIndex,
+      isFinalPage,
+      continuation,
+    ]
+  }
+  static func == (lhs: PlatformPagination, rhs: PlatformPagination) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.pageIndex, rhs.pageIndex) && MessagesPigeonInternal.deepEquals(lhs.isFinalPage, rhs.isFinalPage) && MessagesPigeonInternal.deepEquals(lhs.continuation, rhs.continuation)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformPagination")
+    MessagesPigeonInternal.deepHash(value: pageIndex, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isFinalPage, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: continuation, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformPagination(pageIndex: \(String(describing: pageIndex)), isFinalPage: \(String(describing: isFinalPage)), continuation: \(String(describing: continuation)))"
+  }
+}
+
+/// The bounded window a recovery rescan covers.
+///
+/// Sent only with [PlatformSyncStatus.cursorInvalidated], where it is mandatory.
+///
+/// ## Why bounded, and why the gap is never granted
+///
+/// Incremental sync reports change since a cursor. When the platform
+/// invalidates that cursor, the change stream is broken and the adapter cannot
+/// say what changed. The two obvious responses are both wrong: granting
+/// everything rescanned double-counts every step already granted, and resetting
+/// the ledger erases the player's earned progress.
+///
+/// So the adapter re-reads the window authoritatively, per origin and per
+/// bucket, and the core reconciles those absolute figures against what it has
+/// already granted for the same slices. The subtraction is the overlap
+/// correction; the no-clawback rule is what turns a shortfall into recorded
+/// discrepancy rather than lost progress.
+///
+/// The window is clamped to `PlatformSyncRequest.maxRescanWindowMillis`. If the
+/// caller's floor is older than that, the window is truncated and [truncated] is
+/// set. **Steps in the unreachable gap are recorded and never granted**: they
+/// cannot be distinguished from steps already counted, and inventing progress is
+/// worse than missing it. The truncation is reported, not silently dropped.
+///
+/// ## Why interrupted recovery is safe to retry
+///
+/// Recovery reads state and computes a number; it mutates nothing until the
+/// ledger batch commits. If the process dies at any point before that, the
+/// ledger and the old cursor are unchanged, so the next attempt recomputes
+/// exactly the same result. Combined with the ledger's batch-identity replay
+/// guard, recovery is idempotent.
+///
+/// ## On record identity
+///
+/// Health Connect exposes per-record UIDs, and deduplicating by UID inside the
+/// overlap window would be more precise. It is deliberately not the primary
+/// mechanism: retaining identifiers indefinitely is unbounded storage, and it
+/// would leave the game holding a shadow copy of health data, which
+/// `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Identity may be used *within* a
+/// single recovery pass as a refinement; the per-slice absolute arithmetic is
+/// what the correctness argument rests on.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformRescanWindow: Hashable, CustomStringConvertible {
+  var startMillis: Int64
+  var endMillis: Int64
+  /// True when the adapter clamped the window, leaving an unreachable gap.
   var truncated: Bool
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformRescan? {
-    let windowStartMillis = pigeonVar_list[0] as! Int64
-    let windowEndMillis = pigeonVar_list[1] as! Int64
-    let windowTotal = pigeonVar_list[2] as! Int64
-    let truncated = pigeonVar_list[3] as! Bool
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformRescanWindow? {
+    let startMillis = pigeonVar_list[0] as! Int64
+    let endMillis = pigeonVar_list[1] as! Int64
+    let truncated = pigeonVar_list[2] as! Bool
 
-    return PlatformRescan(
-      windowStartMillis: windowStartMillis,
-      windowEndMillis: windowEndMillis,
-      windowTotal: windowTotal,
+    return PlatformRescanWindow(
+      startMillis: startMillis,
+      endMillis: endMillis,
       truncated: truncated
     )
   }
   func toList() -> [Any?] {
     return [
-      windowStartMillis,
-      windowEndMillis,
-      windowTotal,
+      startMillis,
+      endMillis,
       truncated,
     ]
   }
-  static func == (lhs: PlatformRescan, rhs: PlatformRescan) -> Bool {
+  static func == (lhs: PlatformRescanWindow, rhs: PlatformRescanWindow) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.windowStartMillis, rhs.windowStartMillis) && MessagesPigeonInternal.deepEquals(lhs.windowEndMillis, rhs.windowEndMillis) && MessagesPigeonInternal.deepEquals(lhs.windowTotal, rhs.windowTotal) && MessagesPigeonInternal.deepEquals(lhs.truncated, rhs.truncated)
+    return MessagesPigeonInternal.deepEquals(lhs.startMillis, rhs.startMillis) && MessagesPigeonInternal.deepEquals(lhs.endMillis, rhs.endMillis) && MessagesPigeonInternal.deepEquals(lhs.truncated, rhs.truncated)
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine("PlatformRescan")
-    MessagesPigeonInternal.deepHash(value: windowStartMillis, hasher: &hasher)
-    MessagesPigeonInternal.deepHash(value: windowEndMillis, hasher: &hasher)
-    MessagesPigeonInternal.deepHash(value: windowTotal, hasher: &hasher)
+    hasher.combine("PlatformRescanWindow")
+    MessagesPigeonInternal.deepHash(value: startMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: endMillis, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: truncated, hasher: &hasher)
   }
 
   public var description: String {
-    return "PlatformRescan(windowStartMillis: \(String(describing: windowStartMillis)), windowEndMillis: \(String(describing: windowEndMillis)), windowTotal: \(String(describing: windowTotal)), truncated: \(String(describing: truncated)))"
+    return "PlatformRescanWindow(startMillis: \(String(describing: startMillis)), endMillis: \(String(describing: endMillis)), truncated: \(String(describing: truncated)))"
   }
 }
 
+/// What the caller is asking for.
+///
+/// A request object rather than positional arguments, so a field can be added
+/// without a three-language signature change — and so every field arrives with
+/// its own name at each call site rather than as the third `int?`.
+///
 /// Generated class from Pigeon that represents data sent in messages.
-struct PlatformFetchResult: Hashable, CustomStringConvertible {
-  var status: PlatformCursorStatus
-  /// A true delta only when [status] is `valid`. Meaningless otherwise.
-  var newSteps: Int64
-  /// Steps removed by corrections since the cursor. Information, not an
-  /// instruction — reconciliation never revokes granted progress.
-  var deletedSteps: Int64
-  /// Opaque. An archived HKQueryAnchor on iOS, a changes token on Android.
-  /// The caller stores and returns it without inspecting it, and persists it
-  /// only after the resulting batch is committed to the ledger.
+struct PlatformSyncRequest: Hashable, CustomStringConvertible {
+  var dataType: PlatformHealthDataType
+  /// The bucket resolution the caller will accept, in milliseconds.
+  ///
+  /// **The adapter must not send narrower buckets than this.** The privacy
+  /// ruling bounds retention *length* — seven days — and says nothing about
+  /// *resolution*. One-minute buckets satisfy it exactly as written and produce
+  /// roughly ten thousand entries per origin: a minute-by-minute record of when
+  /// the player moved, kept for a week. Nobody would have decided to build that.
+  /// `TimeBucket.minimumWidthMillis` is one hour and the bridge refuses
+  /// anything narrower.
+  var bucketWidthMillis: Int64
+  /// The longest window a recovery rescan may cover. The adapter clamps to this
+  /// and reports `truncated`.
+  var maxRescanWindowMillis: Int64
+  /// Whether manually-entered samples count.
+  ///
+  /// False by default in the game: `HKMetadataKeyWasUserEntered` on iOS,
+  /// `Metadata.recordingMethod` on Android. The default reflects real movement;
+  /// the choice belongs to the player.
+  var includeManualEntries: Bool
+  /// The durable sync position, or null for a first read. Opaque: an archived
+  /// `HKQueryAnchor` on iOS, a Health Connect changes token on Android.
   var cursor: FlutterStandardTypedData? = nil
-  var rescan: PlatformRescan? = nil
+  /// Resume token from the previous page's [PlatformPagination.continuation].
+  /// Null starts a fresh read.
+  var continuation: FlutterStandardTypedData? = nil
+  /// The oldest instant a recovery rescan need reach, if the cursor turns out
+  /// to be invalid. Null means the adapter uses its full
+  /// [maxRescanWindowMillis].
+  var rescanFloorMillis: Int64? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformFetchResult? {
-    let status = pigeonVar_list[0] as! PlatformCursorStatus
-    let newSteps = pigeonVar_list[1] as! Int64
-    let deletedSteps = pigeonVar_list[2] as! Int64
-    let cursor: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[3])
-    let rescan: PlatformRescan? = nilOrValue(pigeonVar_list[4])
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformSyncRequest? {
+    let dataType = pigeonVar_list[0] as! PlatformHealthDataType
+    let bucketWidthMillis = pigeonVar_list[1] as! Int64
+    let maxRescanWindowMillis = pigeonVar_list[2] as! Int64
+    let includeManualEntries = pigeonVar_list[3] as! Bool
+    let cursor: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[4])
+    let continuation: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[5])
+    let rescanFloorMillis: Int64? = nilOrValue(pigeonVar_list[6])
 
-    return PlatformFetchResult(
-      status: status,
-      newSteps: newSteps,
-      deletedSteps: deletedSteps,
+    return PlatformSyncRequest(
+      dataType: dataType,
+      bucketWidthMillis: bucketWidthMillis,
+      maxRescanWindowMillis: maxRescanWindowMillis,
+      includeManualEntries: includeManualEntries,
       cursor: cursor,
-      rescan: rescan
+      continuation: continuation,
+      rescanFloorMillis: rescanFloorMillis
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      dataType,
+      bucketWidthMillis,
+      maxRescanWindowMillis,
+      includeManualEntries,
+      cursor,
+      continuation,
+      rescanFloorMillis,
+    ]
+  }
+  static func == (lhs: PlatformSyncRequest, rhs: PlatformSyncRequest) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.dataType, rhs.dataType) && MessagesPigeonInternal.deepEquals(lhs.bucketWidthMillis, rhs.bucketWidthMillis) && MessagesPigeonInternal.deepEquals(lhs.maxRescanWindowMillis, rhs.maxRescanWindowMillis) && MessagesPigeonInternal.deepEquals(lhs.includeManualEntries, rhs.includeManualEntries) && MessagesPigeonInternal.deepEquals(lhs.cursor, rhs.cursor) && MessagesPigeonInternal.deepEquals(lhs.continuation, rhs.continuation) && MessagesPigeonInternal.deepEquals(lhs.rescanFloorMillis, rhs.rescanFloorMillis)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformSyncRequest")
+    MessagesPigeonInternal.deepHash(value: dataType, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: bucketWidthMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: maxRescanWindowMillis, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: includeManualEntries, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: cursor, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: continuation, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: rescanFloorMillis, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformSyncRequest(dataType: \(String(describing: dataType)), bucketWidthMillis: \(String(describing: bucketWidthMillis)), maxRescanWindowMillis: \(String(describing: maxRescanWindowMillis)), includeManualEntries: \(String(describing: includeManualEntries)), cursor: \(String(describing: cursor)), continuation: \(String(describing: continuation)), rescanFloorMillis: \(String(describing: rescanFloorMillis)))"
+  }
+}
+
+/// Whether the platform's health service is present and usable.
+///
+/// A result rather than a bare bool so that "no" arrives with a reason, and a
+/// typed result rather than an exception because absence is a NORMAL state the
+/// game stays fully playable through — Android without Health Connect installed
+/// is the ordinary case, not an error.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformAvailabilityResult: Hashable, CustomStringConvertible {
+  var available: Bool
+  /// Set when [available] is false.
+  var reason: PlatformUnavailableReason? = nil
+  /// A short technical note for a log line. **Never player-facing, and never a
+  /// source identifier, device name, or health value.**
+  var diagnostic: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformAvailabilityResult? {
+    let available = pigeonVar_list[0] as! Bool
+    let reason: PlatformUnavailableReason? = nilOrValue(pigeonVar_list[1])
+    let diagnostic: String? = nilOrValue(pigeonVar_list[2])
+
+    return PlatformAvailabilityResult(
+      available: available,
+      reason: reason,
+      diagnostic: diagnostic
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      available,
+      reason,
+      diagnostic,
+    ]
+  }
+  static func == (lhs: PlatformAvailabilityResult, rhs: PlatformAvailabilityResult) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.available, rhs.available) && MessagesPigeonInternal.deepEquals(lhs.reason, rhs.reason) && MessagesPigeonInternal.deepEquals(lhs.diagnostic, rhs.diagnostic)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformAvailabilityResult")
+    MessagesPigeonInternal.deepHash(value: available, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: reason, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: diagnostic, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformAvailabilityResult(available: \(String(describing: available)), reason: \(String(describing: reason)), diagnostic: \(String(describing: diagnostic)))"
+  }
+}
+
+/// The outcome of an authorization request. Typed, never an exception.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformAuthorizationResult: Hashable, CustomStringConvertible {
+  var state: PlatformAuthorizationState
+  /// See [PlatformAvailabilityResult.diagnostic]. Same prohibition.
+  var diagnostic: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformAuthorizationResult? {
+    let state = pigeonVar_list[0] as! PlatformAuthorizationState
+    let diagnostic: String? = nilOrValue(pigeonVar_list[1])
+
+    return PlatformAuthorizationResult(
+      state: state,
+      diagnostic: diagnostic
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      state,
+      diagnostic,
+    ]
+  }
+  static func == (lhs: PlatformAuthorizationResult, rhs: PlatformAuthorizationResult) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.state, rhs.state) && MessagesPigeonInternal.deepEquals(lhs.diagnostic, rhs.diagnostic)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("PlatformAuthorizationResult")
+    MessagesPigeonInternal.deepHash(value: state, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: diagnostic, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "PlatformAuthorizationResult(state: \(String(describing: state)), diagnostic: \(String(describing: diagnostic)))"
+  }
+}
+
+/// One page of an answer.
+///
+/// Every field's applicability is stated by [status]; the bridge validates the
+/// combination rather than trusting it, and reports a malformed page as a typed
+/// refusal instead of guessing what the adapter meant.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PlatformSyncPage: Hashable, CustomStringConvertible {
+  var status: PlatformSyncStatus
+  /// Absolute per-`(source, bucket)` figures. Empty for
+  /// [PlatformSyncStatus.noChange] and [PlatformSyncStatus.unavailable].
+  ///
+  /// For [PlatformSyncStatus.cursorInvalidated] these are the AUTHORITATIVE
+  /// contents of [rescan]'s window, not a delta.
+  var observations: [PlatformStepObservation]
+  var completeness: PlatformCompleteness
+  var pagination: PlatformPagination
+  /// The candidate durable cursor.
+  ///
+  /// **Returned and forgotten.** The adapter must not persist it. The caller
+  /// makes it durable only after the ledger and snapshot have committed; see
+  /// the commit-order note at the top of this file. Null when the adapter has
+  /// nothing to offer — which is always the case for
+  /// [PlatformSyncStatus.unavailable], and the case for
+  /// [PlatformSyncStatus.cursorInvalidated] until recovery has been committed.
+  var nextCursor: FlutterStandardTypedData? = nil
+  /// Mandatory when [status] is [PlatformSyncStatus.cursorInvalidated], absent
+  /// otherwise. A bare invalidation would leave the core with no authoritative
+  /// figure and no safe move.
+  var rescan: PlatformRescanWindow? = nil
+  /// Mandatory when [status] is [PlatformSyncStatus.unavailable].
+  var unavailableReason: PlatformUnavailableReason? = nil
+  /// See [PlatformAvailabilityResult.diagnostic]. Same prohibition.
+  var diagnostic: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PlatformSyncPage? {
+    let status = pigeonVar_list[0] as! PlatformSyncStatus
+    let observations = pigeonVar_list[1] as! [PlatformStepObservation]
+    let completeness = pigeonVar_list[2] as! PlatformCompleteness
+    let pagination = pigeonVar_list[3] as! PlatformPagination
+    let nextCursor: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[4])
+    let rescan: PlatformRescanWindow? = nilOrValue(pigeonVar_list[5])
+    let unavailableReason: PlatformUnavailableReason? = nilOrValue(pigeonVar_list[6])
+    let diagnostic: String? = nilOrValue(pigeonVar_list[7])
+
+    return PlatformSyncPage(
+      status: status,
+      observations: observations,
+      completeness: completeness,
+      pagination: pagination,
+      nextCursor: nextCursor,
+      rescan: rescan,
+      unavailableReason: unavailableReason,
+      diagnostic: diagnostic
     )
   }
   func toList() -> [Any?] {
     return [
       status,
-      newSteps,
-      deletedSteps,
-      cursor,
+      observations,
+      completeness,
+      pagination,
+      nextCursor,
       rescan,
+      unavailableReason,
+      diagnostic,
     ]
   }
-  static func == (lhs: PlatformFetchResult, rhs: PlatformFetchResult) -> Bool {
+  static func == (lhs: PlatformSyncPage, rhs: PlatformSyncPage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.status, rhs.status) && MessagesPigeonInternal.deepEquals(lhs.newSteps, rhs.newSteps) && MessagesPigeonInternal.deepEquals(lhs.deletedSteps, rhs.deletedSteps) && MessagesPigeonInternal.deepEquals(lhs.cursor, rhs.cursor) && MessagesPigeonInternal.deepEquals(lhs.rescan, rhs.rescan)
+    return MessagesPigeonInternal.deepEquals(lhs.status, rhs.status) && MessagesPigeonInternal.deepEquals(lhs.observations, rhs.observations) && MessagesPigeonInternal.deepEquals(lhs.completeness, rhs.completeness) && MessagesPigeonInternal.deepEquals(lhs.pagination, rhs.pagination) && MessagesPigeonInternal.deepEquals(lhs.nextCursor, rhs.nextCursor) && MessagesPigeonInternal.deepEquals(lhs.rescan, rhs.rescan) && MessagesPigeonInternal.deepEquals(lhs.unavailableReason, rhs.unavailableReason) && MessagesPigeonInternal.deepEquals(lhs.diagnostic, rhs.diagnostic)
   }
 
   func hash(into hasher: inout Hasher) {
-    hasher.combine("PlatformFetchResult")
+    hasher.combine("PlatformSyncPage")
     MessagesPigeonInternal.deepHash(value: status, hasher: &hasher)
-    MessagesPigeonInternal.deepHash(value: newSteps, hasher: &hasher)
-    MessagesPigeonInternal.deepHash(value: deletedSteps, hasher: &hasher)
-    MessagesPigeonInternal.deepHash(value: cursor, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: observations, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: completeness, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: pagination, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: nextCursor, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: rescan, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: unavailableReason, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: diagnostic, hasher: &hasher)
   }
 
   public var description: String {
-    return "PlatformFetchResult(status: \(String(describing: status)), newSteps: \(String(describing: newSteps)), deletedSteps: \(String(describing: deletedSteps)), cursor: \(String(describing: cursor)), rescan: \(String(describing: rescan)))"
+    return "PlatformSyncPage(status: \(String(describing: status)), observations: \(String(describing: observations)), completeness: \(String(describing: completeness)), pagination: \(String(describing: pagination)), nextCursor: \(String(describing: nextCursor)), rescan: \(String(describing: rescan)), unavailableReason: \(String(describing: unavailableReason)), diagnostic: \(String(describing: diagnostic)))"
   }
 }
 
@@ -324,19 +1027,67 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 129:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return PlatformAuthorization(rawValue: enumResultAsInt)
+        return PlatformHealthDataType(rawValue: enumResultAsInt)
       }
       return nil
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return PlatformCursorStatus(rawValue: enumResultAsInt)
+        return PlatformAuthorizationState(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
-      return PlatformRescan.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformUnavailableReason(rawValue: enumResultAsInt)
+      }
+      return nil
     case 132:
-      return PlatformFetchResult.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformOriginKeyingOutcome(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 133:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformSyncStatus(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 134:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformOriginScopeKind(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 135:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return PlatformCompletenessKind(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 136:
+      return PlatformOriginKeyingResult.fromList(self.readValue() as! [Any?])
+    case 137:
+      return PlatformTimeBucket.fromList(self.readValue() as! [Any?])
+    case 138:
+      return PlatformStepObservation.fromList(self.readValue() as! [Any?])
+    case 139:
+      return PlatformOriginScope.fromList(self.readValue() as! [Any?])
+    case 140:
+      return PlatformCompleteness.fromList(self.readValue() as! [Any?])
+    case 141:
+      return PlatformPagination.fromList(self.readValue() as! [Any?])
+    case 142:
+      return PlatformRescanWindow.fromList(self.readValue() as! [Any?])
+    case 143:
+      return PlatformSyncRequest.fromList(self.readValue() as! [Any?])
+    case 144:
+      return PlatformAvailabilityResult.fromList(self.readValue() as! [Any?])
+    case 145:
+      return PlatformAuthorizationResult.fromList(self.readValue() as! [Any?])
+    case 146:
+      return PlatformSyncPage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -345,17 +1096,59 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
 
 private class MessagesPigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
-    if let value = value as? PlatformAuthorization {
+    if let value = value as? PlatformHealthDataType {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformCursorStatus {
+    } else if let value = value as? PlatformAuthorizationState {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? PlatformRescan {
+    } else if let value = value as? PlatformUnavailableReason {
       super.writeByte(131)
-      super.writeValue(value.toList())
-    } else if let value = value as? PlatformFetchResult {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformOriginKeyingOutcome {
       super.writeByte(132)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformSyncStatus {
+      super.writeByte(133)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformOriginScopeKind {
+      super.writeByte(134)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformCompletenessKind {
+      super.writeByte(135)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? PlatformOriginKeyingResult {
+      super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformTimeBucket {
+      super.writeByte(137)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformStepObservation {
+      super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformOriginScope {
+      super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformCompleteness {
+      super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformPagination {
+      super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformRescanWindow {
+      super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformSyncRequest {
+      super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformAvailabilityResult {
+      super.writeByte(144)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformAuthorizationResult {
+      super.writeByte(145)
+      super.writeValue(value.toList())
+    } else if let value = value as? PlatformSyncPage {
+      super.writeByte(146)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -380,13 +1173,59 @@ class MessagesPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol HealthHostApi {
-  /// Whether the platform's health service is present and usable. False on
-  /// Android without Health Connect installed — a normal state, not an error.
-  func isAvailable() throws -> Bool
-  func requestAuthorization(completion: @escaping (Result<PlatformAuthorization, Error>) -> Void)
-  /// Fetch steps since [cursor]. [watermarkMillis] bounds the rescan window if
-  /// the cursor turns out to be invalid.
-  func fetchNewSteps(cursor: FlutterStandardTypedData?, watermarkMillis: Int64?, completion: @escaping (Result<PlatformFetchResult, Error>) -> Void)
+  /// Installs the device-bound origin-keying salt for this engine attachment.
+  ///
+  /// **The smallest surface that can work**, and it was chosen as the smallest:
+  /// one method, one direction, one value, no reply channel, no storage.
+  ///
+  /// * **In memory only.** Native holds the salt for the lifetime of the engine
+  ///   attachment and drops it on detach. It must not be written to
+  ///   `UserDefaults`, `SharedPreferences`, a DataStore, a file, or the
+  ///   Keychain — this plugin is a *consumer* of the app's identity, never a
+  ///   second custodian of one.
+  /// * **Never generated natively.** There is no "mint if absent" path and
+  ///   there must never be one. `IdentityVault` owns the lifecycle, and a
+  ///   launch that could not resolve the identity has already been blocked by
+  ///   `BootstrapCoordinator` with
+  ///   `BootstrapBlockReason.originIdentityMissing`.
+  /// * **Fail-closed before it is called.** Until this returns
+  ///   [PlatformOriginKeyingOutcome.installed], `fetchSteps` must answer
+  ///   [PlatformUnavailableReason.originKeyingUnconfigured] and read nothing.
+  ///
+  /// [algorithmVersion] is the keying scheme the caller expects. An adapter
+  /// that does not implement it refuses with
+  /// [PlatformOriginKeyingOutcome.unsupportedAlgorithm] rather than falling
+  /// back — a silent fallback produces keys nothing else on the device agrees
+  /// with, which is indistinguishable from a new device and re-grants the whole
+  /// retention window.
+  ///
+  /// ## Why the salt crosses at all
+  ///
+  /// It is the direct cost of pseudonymizing natively, and it is worth naming
+  /// rather than burying. Keying in Dart would keep the salt in one address
+  /// space, at the price of a raw identifier crossing the wire on every
+  /// observation. Keying natively keeps every raw identifier inside its own
+  /// process, at the price of the salt crossing once per attachment. The owner
+  /// ruled for the second trade: an identifier crosses thousands of times and a
+  /// salt crosses once, and the salt is not itself identifying — losing it
+  /// costs a fail-closed refusal, which is recoverable, while a leaked device
+  /// name is not.
+  func installOriginKeying(salt: FlutterStandardTypedData, algorithmVersion: Int64, completion: @escaping (Result<PlatformOriginKeyingResult, Error>) -> Void)
+  /// Whether the platform's health service is present and usable.
+  ///
+  /// False on Android without Health Connect installed — a normal state, not an
+  /// error, and one the game must remain fully playable through.
+  func availability(completion: @escaping (Result<PlatformAvailabilityResult, Error>) -> Void)
+  /// Requests read-only step authorization. Never throws for denial.
+  func requestAuthorization(completion: @escaping (Result<PlatformAuthorizationResult, Error>) -> Void)
+  /// Reads one page.
+  ///
+  /// Must never throw for an expected condition — denial, absence, an invalid
+  /// cursor, an empty result — all of which are reported through
+  /// [PlatformSyncPage]. On genuine error the adapter leaves its own state
+  /// untouched and returns [PlatformSyncStatus.unavailable] with
+  /// [PlatformUnavailableReason.transientFailure].
+  func fetchSteps(request: PlatformSyncRequest, completion: @escaping (Result<PlatformSyncPage, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -395,21 +1234,81 @@ class HealthHostApiSetup {
   /// Sets up an instance of `HealthHostApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: HealthHostApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    /// Whether the platform's health service is present and usable. False on
-    /// Android without Health Connect installed — a normal state, not an error.
-    let isAvailableChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_health.HealthHostApi.isAvailable\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    /// Installs the device-bound origin-keying salt for this engine attachment.
+    ///
+    /// **The smallest surface that can work**, and it was chosen as the smallest:
+    /// one method, one direction, one value, no reply channel, no storage.
+    ///
+    /// * **In memory only.** Native holds the salt for the lifetime of the engine
+    ///   attachment and drops it on detach. It must not be written to
+    ///   `UserDefaults`, `SharedPreferences`, a DataStore, a file, or the
+    ///   Keychain — this plugin is a *consumer* of the app's identity, never a
+    ///   second custodian of one.
+    /// * **Never generated natively.** There is no "mint if absent" path and
+    ///   there must never be one. `IdentityVault` owns the lifecycle, and a
+    ///   launch that could not resolve the identity has already been blocked by
+    ///   `BootstrapCoordinator` with
+    ///   `BootstrapBlockReason.originIdentityMissing`.
+    /// * **Fail-closed before it is called.** Until this returns
+    ///   [PlatformOriginKeyingOutcome.installed], `fetchSteps` must answer
+    ///   [PlatformUnavailableReason.originKeyingUnconfigured] and read nothing.
+    ///
+    /// [algorithmVersion] is the keying scheme the caller expects. An adapter
+    /// that does not implement it refuses with
+    /// [PlatformOriginKeyingOutcome.unsupportedAlgorithm] rather than falling
+    /// back — a silent fallback produces keys nothing else on the device agrees
+    /// with, which is indistinguishable from a new device and re-grants the whole
+    /// retention window.
+    ///
+    /// ## Why the salt crosses at all
+    ///
+    /// It is the direct cost of pseudonymizing natively, and it is worth naming
+    /// rather than burying. Keying in Dart would keep the salt in one address
+    /// space, at the price of a raw identifier crossing the wire on every
+    /// observation. Keying natively keeps every raw identifier inside its own
+    /// process, at the price of the salt crossing once per attachment. The owner
+    /// ruled for the second trade: an identifier crosses thousands of times and a
+    /// salt crosses once, and the salt is not itself identifying — losing it
+    /// costs a fail-closed refusal, which is recoverable, while a leaked device
+    /// name is not.
+    let installOriginKeyingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_health.HealthHostApi.installOriginKeying\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      isAvailableChannel.setMessageHandler { _, reply in
-        do {
-          let result = try api.isAvailable()
-          reply(wrapResult(result))
-        } catch {
-          reply(wrapError(error))
+      installOriginKeyingChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let saltArg = args[0] as! FlutterStandardTypedData
+        let algorithmVersionArg = args[1] as! Int64
+        api.installOriginKeying(salt: saltArg, algorithmVersion: algorithmVersionArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
         }
       }
     } else {
-      isAvailableChannel.setMessageHandler(nil)
+      installOriginKeyingChannel.setMessageHandler(nil)
     }
+    /// Whether the platform's health service is present and usable.
+    ///
+    /// False on Android without Health Connect installed — a normal state, not an
+    /// error, and one the game must remain fully playable through.
+    let availabilityChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_health.HealthHostApi.availability\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      availabilityChannel.setMessageHandler { _, reply in
+        api.availability { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      availabilityChannel.setMessageHandler(nil)
+    }
+    /// Requests read-only step authorization. Never throws for denial.
     let requestAuthorizationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_health.HealthHostApi.requestAuthorization\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       requestAuthorizationChannel.setMessageHandler { _, reply in
@@ -425,15 +1324,19 @@ class HealthHostApiSetup {
     } else {
       requestAuthorizationChannel.setMessageHandler(nil)
     }
-    /// Fetch steps since [cursor]. [watermarkMillis] bounds the rescan window if
-    /// the cursor turns out to be invalid.
-    let fetchNewStepsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_health.HealthHostApi.fetchNewSteps\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    /// Reads one page.
+    ///
+    /// Must never throw for an expected condition — denial, absence, an invalid
+    /// cursor, an empty result — all of which are reported through
+    /// [PlatformSyncPage]. On genuine error the adapter leaves its own state
+    /// untouched and returns [PlatformSyncStatus.unavailable] with
+    /// [PlatformUnavailableReason.transientFailure].
+    let fetchStepsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.stride_health.HealthHostApi.fetchSteps\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      fetchNewStepsChannel.setMessageHandler { message, reply in
+      fetchStepsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let cursorArg: FlutterStandardTypedData? = nilOrValue(args[0])
-        let watermarkMillisArg: Int64? = nilOrValue(args[1])
-        api.fetchNewSteps(cursor: cursorArg, watermarkMillis: watermarkMillisArg) { result in
+        let requestArg = args[0] as! PlatformSyncRequest
+        api.fetchSteps(request: requestArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -443,7 +1346,7 @@ class HealthHostApiSetup {
         }
       }
     } else {
-      fetchNewStepsChannel.setMessageHandler(nil)
+      fetchStepsChannel.setMessageHandler(nil)
     }
   }
 }

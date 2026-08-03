@@ -11,45 +11,54 @@ void main() {
     });
   });
 
-  group('StepProvider contract', () {
-    test('rescan window is bounded', () {
+  group('recovery contract', () {
+    test('the rescan window is bounded', () {
       // After cursor loss, an unbounded rescan would either double-count or
       // invent progress. The bound is what makes recovery safe.
-      expect(StepRescan.maxRescanWindow.inDays, greaterThan(0));
-      expect(StepRescan.maxRescanWindow.inDays, lessThanOrEqualTo(90));
+      const int day = 24 * 60 * 60 * 1000;
+      expect(RescanWindow.maxWindowMillis, greaterThan(0));
+      expect(RescanWindow.maxWindowMillis, lessThanOrEqualTo(90 * day));
     });
 
     test('a truncated rescan is flagged, not silently accepted', () {
-      final StepRescan rescan = StepRescan(
-        windowStart: DateTime.utc(2026, 7, 1),
-        windowEnd: DateTime.utc(2026, 8, 1),
-        windowTotal: 120000,
+      const RescanWindow window = RescanWindow(
+        startMillis: 1751328000000,
+        endMillis: 1754006400000,
         truncated: true,
       );
-      expect(rescan.truncated, isTrue);
-      expect(rescan.windowTotal, greaterThan(0));
+      expect(window.truncated, isTrue);
+      expect(window.endMillis, greaterThan(window.startMillis));
     });
 
-    test('an invalidated fetch carries a rescan', () {
-      final StepFetchResult result = StepFetchResult(
-        status: CursorStatus.invalidated,
-        newSteps: 0,
-        deletedSteps: 0,
-        cursor: null,
-        rescan: StepRescan(
-          windowStart: DateTime.utc(2026, 7, 25),
-          windowEnd: DateTime.utc(2026, 8, 1),
-          windowTotal: 42000,
+    test('an invalidated cursor carries the window and the authority', () {
+      // The observations on this path are the AUTHORITATIVE contents of the
+      // window, per origin and per bucket — not a delta. Treating them as a
+      // delta is exactly the double-count scenario 13 exists to prevent, and
+      // the type is what makes that mistake unavailable: there is no flat
+      // total on this response to misread.
+      final CursorInvalidatedSync response = CursorInvalidatedSync(
+        window: const RescanWindow(
+          startMillis: 1753401600000,
+          endMillis: 1754006400000,
           truncated: false,
         ),
+        observations: <StepObservation>[
+          StepObservation.of(
+            origin: StepOriginKey('00112233aabbccdd'),
+            startMillis: 1753401600000,
+            endMillis: 1753405200000,
+            steps: 42000,
+          ),
+        ],
       );
 
-      expect(result.status, CursorStatus.invalidated);
-      expect(result.rescan, isNotNull);
-      // newSteps is meaningless on this path — the delta stream is broken, and
-      // treating it as a delta is exactly the double-count scenario 13 exists
-      // to prevent.
-      expect(result.newSteps, 0);
+      expect(response.kind, 'cursor_invalidated');
+      expect(response.window.truncated, isFalse);
+      expect(response.observations.single.steps, 42000);
+      // No replacement cursor until recovery has been committed to the ledger.
+      expect(response.nextCursor, isNull);
+      // And nothing may be settled until the adapter says the read is drained.
+      expect(response.completeness, isA<PartialDelivery>());
     });
   });
 }

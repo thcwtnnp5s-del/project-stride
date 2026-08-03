@@ -22,6 +22,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Annotations only -- `@immutable` on the boundary value types, so a mutable
+  # field added to one is an analyzer error rather than a review catch. No
+  # runtime code, and it is already a transitive dependency through stride_core;
+  # declared here because the analyzer requires a direct dependency for a direct
+  # import.
+  meta: ^1.16.0
   stride_core:
     path: ../stride_core
 

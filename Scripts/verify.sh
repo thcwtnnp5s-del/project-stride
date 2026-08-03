@@ -54,10 +54,13 @@ FORMAT_PATHS=(
   packages/stride_storage/lib
   packages/stride_storage/test
   packages/stride_health/lib/stride_health.dart
-  packages/stride_health/lib/src/mock_step_provider.dart
+  packages/stride_health/lib/src/mock_step_source.dart
+  packages/stride_health/lib/src/origin_gateway.dart
   packages/stride_health/lib/src/origin_pseudonymizer.dart
-  packages/stride_health/lib/src/platform_step_provider.dart
+  packages/stride_health/lib/src/platform_step_source.dart
+  packages/stride_health/lib/src/step_sync_source.dart
   packages/stride_health/test
+  packages/stride_health/tool
   packages/stride_health/pigeons
   packages/stride_health/example/lib
   packages/stride_health/example/integration_test
@@ -81,11 +84,32 @@ step "Dependency policy"
 step "Storage privacy and backup exclusions"
 ./Scripts/check-backup-exclusions.sh
 
+step "iOS target shape and foreground HealthKit config (with self-test)"
+# DECISIONS/0009 fixed portrait-only, phone-only, iOS 17 and claimed a
+# build-time check that did not exist for six tasks. DECISIONS/0014 fixes S-01A
+# as foreground only, so the background-delivery entitlement is checked for
+# ABSENCE.
+./Scripts/check-ios-target.sh --self-test
+
 step "Single-writer persistence rule (with self-test)"
 # Nothing at runtime serializes two isolates -- see DECISIONS/0013. This guard
 # is the guarantee. --self-test injects three violations and asserts each is
 # rejected, because a guard that has never been falsified is not evidence.
 ./Scripts/check-single-writer.sh --self-test
+
+step "One step-ingestion model (with mutation test)"
+# DECISIONS/0014: the repository held two parallel ingestion models and the
+# platform boundary was wired to the dead one. This guard is what keeps there
+# being one. --self-test injects seven violations, one per rule, and asserts
+# each is rejected.
+./Scripts/check-step-model.sh --self-test
+
+step "Origin privacy (with self-test)"
+# Keying happens natively, before the value crosses Pigeon, so no raw platform
+# identifier reaches Dart at all. That is a property of source text in three
+# languages, which no type can hold. --self-test injects ten violations and
+# asserts each is rejected.
+./Scripts/check-origin-privacy.sh --self-test
 
 if ! command -v dart >/dev/null 2>&1; then
   missing_toolchain "dart" || exit 0

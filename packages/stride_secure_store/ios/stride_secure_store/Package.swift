@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "stride_secure_store",
     platforms: [
-        .iOS("13.0")
+        .iOS("17.0")
     ],
     products: [
         .library(name: "stride-secure-store", targets: ["stride_secure_store"])

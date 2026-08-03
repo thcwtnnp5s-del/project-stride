@@ -192,71 +192,630 @@ class FlutterError (
   val details: Any? = null
 ) : RuntimeException()
 
-/** Mirrors `StepAuthorization` in stride_core. */
-enum class PlatformAuthorization(val raw: Int) {
-  GRANTED(0),
-  DENIED(1),
-  UNAVAILABLE(2);
+/**
+ * Mirrors `HealthDataType` in stride_core.
+ *
+ * Only steps exist today. It is on the wire so that an adapter which later
+ * reads distance or workouts cannot have its step-completeness assertion
+ * silently widened to cover them.
+ */
+enum class PlatformHealthDataType(val raw: Int) {
+  STEPS(0);
 
   companion object {
-    fun ofRaw(raw: Int): PlatformAuthorization? {
-      return values().firstOrNull { it.raw == raw }
-    }
-  }
-}
-
-/** Mirrors `CursorStatus` in stride_core. */
-enum class PlatformCursorStatus(val raw: Int) {
-  VALID(0),
-  INVALIDATED(1);
-
-  companion object {
-    fun ofRaw(raw: Int): PlatformCursorStatus? {
+    fun ofRaw(raw: Int): PlatformHealthDataType? {
       return values().firstOrNull { it.raw == raw }
     }
   }
 }
 
 /**
- * An authoritative re-read of a bounded window, sent only when the cursor was
- * invalidated. See `StepRescan` in stride_core for the recovery strategy.
+ * Whether the platform will give us step data.
+ *
+ * Neither platform reliably distinguishes "denied" from "granted but empty" —
+ * HealthKit deliberately hides read denial so an app cannot infer that a user
+ * has no data. The game therefore treats both identically, and nothing about a
+ * missing permission ever blocks a screen, a craft, or a fight.
+ */
+enum class PlatformAuthorizationState(val raw: Int) {
+  GRANTED(0),
+  DENIED(1),
+  UNAVAILABLE(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformAuthorizationState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Why a provider could not answer. Mirrors `ProviderUnavailableReason`. */
+enum class PlatformUnavailableReason(val raw: Int) {
+  /** Health Connect is not installed; HealthKit is unavailable on this device. */
+  SERVICE_MISSING(0),
+  /** Authorization has not been granted, or cannot be determined. */
+  PERMISSION_UNAVAILABLE(1),
+  /** The read failed and may succeed later. */
+  TRANSIENT_FAILURE(2),
+  /**
+   * The device-bound origin-keying salt has not been installed, or was
+   * rejected.
+   *
+   * **Fail-closed, and not a transient condition.** An adapter in this state
+   * must refuse to read: observations keyed under no salt, or under the wrong
+   * one, would re-key every origin and grant the whole retention window a
+   * second time. Retrying will not fix it; installing the identity will.
+   */
+  ORIGIN_KEYING_UNCONFIGURED(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformUnavailableReason? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** The outcome of installing the device-bound keying salt. */
+enum class PlatformOriginKeyingOutcome(val raw: Int) {
+  /** The salt is held in memory for this engine attachment. Reads may proceed. */
+  INSTALLED(0),
+  /**
+   * The adapter does not implement the requested `algorithmVersion`.
+   *
+   * A typed refusal rather than a silent fallback. A version mismatch that
+   * degraded quietly would produce keys that differ from every other
+   * platform's — which looks exactly like a new device, and re-grants the
+   * retention window.
+   */
+  UNSUPPORTED_ALGORITHM(1),
+  /** The salt was malformed — empty, or outside the accepted length. */
+  REJECTED(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformOriginKeyingOutcome? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** The shape of one page's answer. Mirrors the `SyncResponse` hierarchy. */
+enum class PlatformSyncStatus(val raw: Int) {
+  /**
+   * The source reported observations. Covers the ordinary case and, without a
+   * separate shape, delayed records, overlapping batches, upward and downward
+   * corrections, and deletions — because every observation is absolute.
+   */
+  INCREMENTAL(0),
+  /** Nothing changed since the cursor. */
+  NO_CHANGE(1),
+  /**
+   * The cursor was rejected. [PlatformSyncPage.rescan] is then mandatory and
+   * [PlatformSyncPage.observations] is the authoritative content of the window.
+   */
+  CURSOR_INVALIDATED(2),
+  /**
+   * The provider could not answer. [PlatformSyncPage.unavailableReason] is
+   * then mandatory, and no cursor is offered.
+   */
+  UNAVAILABLE(3);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformSyncStatus? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Which sources a completeness assertion speaks for. */
+enum class PlatformOriginScopeKind(val raw: Int) {
+  /**
+   * The adapter asked the platform for its FULL source list and drained every
+   * one of them. Legitimate only then.
+   */
+  ALL_ORIGINS(0),
+  /**
+   * The adapter vouches only for the sources it names. Use this whenever the
+   * full source list was not enumerated — including the common case of "these
+   * are the sources that happened to appear in this batch".
+   */
+  SOME_ORIGINS(1);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformOriginScopeKind? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** How complete a page is. Mirrors `SyncCompleteness`. */
+enum class PlatformCompletenessKind(val raw: Int) {
+  /**
+   * Pages remain outstanding, or the adapter cannot vouch for the interval.
+   * **Nothing may be settled.** This is the correct and safe default, and the
+   * correct value for every page but the last of a paginated read.
+   */
+  PARTIAL(0),
+  /**
+   * Every page for the declared scope has been drained. Everything at or
+   * before `throughMillis`, within the scope, has been delivered.
+   */
+  COMPLETE_THROUGH(1),
+  /**
+   * A bounded recovery rescan completed and covered its whole window. Distinct
+   * from [completeThrough] because a recovery's authority stops at the window
+   * it could actually reach. A truncated rescan is [partial].
+   */
+  RECOVERY_COMPLETE_THROUGH(2);
+
+  companion object {
+    fun ofRaw(raw: Int): PlatformCompletenessKind? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
+ * What installing the salt achieved.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
-data class PlatformRescan (
+data class PlatformOriginKeyingResult (
+  val outcome: PlatformOriginKeyingOutcome,
   /**
-   * Start of the rescanned window — the watermark the caller supplied,
-   * clamped by the adapter to its maximum window.
+   * A short technical note. **Never the salt, never a fingerprint of it, and
+   * never a source identifier.**
    */
-  val windowStartMillis: Long,
-  val windowEndMillis: Long,
-  /**
-   * The authoritative total for the window. A total, not a delta: after cursor
-   * loss only an absolute figure can be reconciled against what was already
-   * granted.
-   */
-  val windowTotal: Long,
-  /**
-   * True when the window was clamped, leaving an unreachable gap. Those steps
-   * are recorded, never granted — inventing progress is worse than missing it.
-   */
-  val truncated: Boolean
+  val diagnostic: String? = null
 )
  {
   companion object {
-    fun fromList(pigeonVar_list: List<Any?>): PlatformRescan {
-      val windowStartMillis = pigeonVar_list[0] as Long
-      val windowEndMillis = pigeonVar_list[1] as Long
-      val windowTotal = pigeonVar_list[2] as Long
-      val truncated = pigeonVar_list[3] as Boolean
-      return PlatformRescan(windowStartMillis, windowEndMillis, windowTotal, truncated)
+    fun fromList(pigeonVar_list: List<Any?>): PlatformOriginKeyingResult {
+      val outcome = pigeonVar_list[0] as PlatformOriginKeyingOutcome
+      val diagnostic = pigeonVar_list[1] as String?
+      return PlatformOriginKeyingResult(outcome, diagnostic)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
-      windowStartMillis,
-      windowEndMillis,
-      windowTotal,
+      outcome,
+      diagnostic,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformOriginKeyingResult
+    return MessagesPigeonUtils.deepEquals(this.outcome, other.outcome) && MessagesPigeonUtils.deepEquals(this.diagnostic, other.diagnostic)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.outcome)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.diagnostic)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformOriginKeyingResult(outcome=$outcome, diagnostic=$diagnostic)"
+  }
+}
+
+/**
+ * A closed-open UTC interval, in milliseconds since the Unix epoch.
+ *
+ * No day boundaries and no local calendar anywhere in this contract. That is
+ * what makes daylight saving, travel across timezones, and midnight into
+ * non-events.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformTimeBucket (
+  val startMillis: Long,
+  val endMillis: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformTimeBucket {
+      val startMillis = pigeonVar_list[0] as Long
+      val endMillis = pigeonVar_list[1] as Long
+      return PlatformTimeBucket(startMillis, endMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startMillis,
+      endMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformTimeBucket
+    return MessagesPigeonUtils.deepEquals(this.startMillis, other.startMillis) && MessagesPigeonUtils.deepEquals(this.endMillis, other.endMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformTimeBucket(startMillis=$startMillis, endMillis=$endMillis)"
+  }
+}
+
+/**
+ * What one source currently says about one slice of time.
+ *
+ * **Absolute, not a delta.** A restated observation of 400 steps means the
+ * source now believes that slice contains 400 steps, whether it previously said
+ * 0, 300, or 900. Deltas cannot express a correction and cannot be replayed
+ * safely.
+ *
+ * **A deletion is `steps: 0`.** Corrections and deletions carry origin
+ * attribution for free, because every observation names its source.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformStepObservation (
+  /**
+   * The pseudonymized origin, as **exactly eight bytes**.
+   *
+   * Already keyed when it arrives here. The raw platform identifier —
+   * `HKSource.bundleIdentifier` on iOS, `metadata.dataOrigin.packageName` on
+   * Android — lived inside one native function call and is gone. There is no
+   * field on this contract that could carry it, which is the point: a
+   * `String` here would have been an invitation, and the obvious wrong value
+   * to put in one is `HKSource.name`, which is a device name a player may have
+   * called anything at all.
+   *
+   * Eight bytes is 64 bits, which the bridge renders as the sixteen lowercase
+   * hex characters `StepOriginKey` accepts.
+   *
+   * **Exactly two lengths are legal: eight, or zero.** Zero means the platform
+   * reported no source at all, and becomes `StepOriginKey.unknown` — which is
+   * the reserved literal `unknown`, deliberately not hex, so the keying
+   * function can never produce it and confuse it with a real source. Any other
+   * length is a malformed observation and refuses the whole page. That length
+   * check is the only thing standing between a truncated raw string and the
+   * ledger, so it is not negotiable and it is not a warning.
+   */
+  val originKey: ByteArray,
+  val bucket: PlatformTimeBucket,
+  /**
+   * The source's current total for this slice. Never negative. Zero means the
+   * slice is now empty — a deletion or a correction to nothing.
+   */
+  val steps: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformStepObservation {
+      val originKey = pigeonVar_list[0] as ByteArray
+      val bucket = pigeonVar_list[1] as PlatformTimeBucket
+      val steps = pigeonVar_list[2] as Long
+      return PlatformStepObservation(originKey, bucket, steps)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      originKey,
+      bucket,
+      steps,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformStepObservation
+    return MessagesPigeonUtils.deepEquals(this.originKey, other.originKey) && MessagesPigeonUtils.deepEquals(this.bucket, other.bucket) && MessagesPigeonUtils.deepEquals(this.steps, other.steps)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.originKey)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.bucket)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.steps)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformStepObservation(originKey=${originKey.contentToString()}, bucket=$bucket, steps=$steps)"
+  }
+}
+
+/**
+ * The sources a completeness assertion covers.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformOriginScope (
+  val kind: PlatformOriginScopeKind,
+  /**
+   * Pseudonymized origins, meaningful only when [kind] is
+   * [PlatformOriginScopeKind.someOrigins]; empty otherwise.
+   *
+   * Each entry obeys the same rule as [PlatformStepObservation.originKey]:
+   * eight bytes, or zero for the unknown origin. A completeness assertion
+   * names the sources it vouches for, and it must name them in the same
+   * vocabulary the observations use or it would settle nothing it meant to.
+   */
+  val originKeys: List<ByteArray>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformOriginScope {
+      val kind = pigeonVar_list[0] as PlatformOriginScopeKind
+      val originKeys = pigeonVar_list[1] as List<ByteArray>
+      return PlatformOriginScope(kind, originKeys)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kind,
+      originKeys,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformOriginScope
+    return MessagesPigeonUtils.deepEquals(this.kind, other.kind) && MessagesPigeonUtils.deepEquals(this.originKeys, other.originKeys)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.kind)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.originKeys)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformOriginScope(kind=$kind, originKeys=$originKeys)"
+  }
+}
+
+/**
+ * A completeness assertion, with the scope that makes it actionable.
+ *
+ * A bare boolean cannot distinguish these, and the difference between them is
+ * a player's lost walk:
+ *
+ *  - "I delivered every page for every source through Tuesday"
+ *  - "I delivered page 1 of 9, whose newest record happens to be Tuesday"
+ *  - "I delivered everything the *phone* wrote through Tuesday, and the watch
+ *    has been offline for a week"
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformCompleteness (
+  val kind: PlatformCompletenessKind,
+  val dataType: PlatformHealthDataType,
+  val scope: PlatformOriginScope,
+  /**
+   * UTC milliseconds. The interval the adapter actually queried — not the
+   * interval it was asked for, if those differ.
+   */
+  val intervalStartMillis: Long,
+  val intervalEndMillis: Long,
+  /**
+   * Which query or token produced this.
+   *
+   * The adapter increments it whenever it starts a new anchored query or
+   * acquires a new changes token. An assertion made under an anchor that has
+   * since been invalidated is stale, and acting on it would settle buckets a
+   * rescan is about to restate.
+   */
+  val queryGeneration: Long,
+  /**
+   * UTC milliseconds through which the scope is vouched for. Ignored when
+   * [kind] is [PlatformCompletenessKind.partial].
+   */
+  val throughMillis: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformCompleteness {
+      val kind = pigeonVar_list[0] as PlatformCompletenessKind
+      val dataType = pigeonVar_list[1] as PlatformHealthDataType
+      val scope = pigeonVar_list[2] as PlatformOriginScope
+      val intervalStartMillis = pigeonVar_list[3] as Long
+      val intervalEndMillis = pigeonVar_list[4] as Long
+      val queryGeneration = pigeonVar_list[5] as Long
+      val throughMillis = pigeonVar_list[6] as Long
+      return PlatformCompleteness(kind, dataType, scope, intervalStartMillis, intervalEndMillis, queryGeneration, throughMillis)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kind,
+      dataType,
+      scope,
+      intervalStartMillis,
+      intervalEndMillis,
+      queryGeneration,
+      throughMillis,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformCompleteness
+    return MessagesPigeonUtils.deepEquals(this.kind, other.kind) && MessagesPigeonUtils.deepEquals(this.dataType, other.dataType) && MessagesPigeonUtils.deepEquals(this.scope, other.scope) && MessagesPigeonUtils.deepEquals(this.intervalStartMillis, other.intervalStartMillis) && MessagesPigeonUtils.deepEquals(this.intervalEndMillis, other.intervalEndMillis) && MessagesPigeonUtils.deepEquals(this.queryGeneration, other.queryGeneration) && MessagesPigeonUtils.deepEquals(this.throughMillis, other.throughMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.kind)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dataType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.scope)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.intervalStartMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.intervalEndMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.queryGeneration)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.throughMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformCompleteness(kind=$kind, dataType=$dataType, scope=$scope, intervalStartMillis=$intervalStartMillis, intervalEndMillis=$intervalEndMillis, queryGeneration=$queryGeneration, throughMillis=$throughMillis)"
+  }
+}
+
+/**
+ * Where this page sits in a paginated read.
+ *
+ * The reason this is on the wire at all: without it, a first page and a last
+ * page are byte-identical, and a completeness assertion on page one is
+ * indistinguishable from one on page nine. The bridge cross-checks it — a page
+ * that claims [PlatformCompletenessKind.completeThrough] while
+ * [isFinalPage] is false is downgraded to partial and counted, because
+ * settling on a mid-page assertion is how 55,200 steps were lost.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformPagination (
+  /**
+   * Zero-based. Diagnostic and cross-check only; the bridge never does
+   * arithmetic on it.
+   */
+  val pageIndex: Long,
+  /**
+   * True only when the adapter has drained the read. Default to false when
+   * unsure — an over-cautious partial costs a little ledger growth, and a
+   * wrong `true` costs a grant permanently.
+   */
+  val isFinalPage: Boolean,
+  /**
+   * Opaque resume token for the NEXT page of the SAME read, or null when
+   * [isFinalPage] is true.
+   *
+   * Distinct from [PlatformSyncPage.nextCursor], and the distinction matters:
+   * a continuation is in-flight read state that is never persisted, while a
+   * cursor is durable sync position that is persisted only after the ledger
+   * commits. Conflating them would persist a position mid-read.
+   */
+  val continuation: ByteArray? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformPagination {
+      val pageIndex = pigeonVar_list[0] as Long
+      val isFinalPage = pigeonVar_list[1] as Boolean
+      val continuation = pigeonVar_list[2] as ByteArray?
+      return PlatformPagination(pageIndex, isFinalPage, continuation)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      pageIndex,
+      isFinalPage,
+      continuation,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformPagination
+    return MessagesPigeonUtils.deepEquals(this.pageIndex, other.pageIndex) && MessagesPigeonUtils.deepEquals(this.isFinalPage, other.isFinalPage) && MessagesPigeonUtils.deepEquals(this.continuation, other.continuation)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.pageIndex)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.isFinalPage)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.continuation)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformPagination(pageIndex=$pageIndex, isFinalPage=$isFinalPage, continuation=${continuation?.contentToString()})"
+  }
+}
+
+/**
+ * The bounded window a recovery rescan covers.
+ *
+ * Sent only with [PlatformSyncStatus.cursorInvalidated], where it is mandatory.
+ *
+ * ## Why bounded, and why the gap is never granted
+ *
+ * Incremental sync reports change since a cursor. When the platform
+ * invalidates that cursor, the change stream is broken and the adapter cannot
+ * say what changed. The two obvious responses are both wrong: granting
+ * everything rescanned double-counts every step already granted, and resetting
+ * the ledger erases the player's earned progress.
+ *
+ * So the adapter re-reads the window authoritatively, per origin and per
+ * bucket, and the core reconciles those absolute figures against what it has
+ * already granted for the same slices. The subtraction is the overlap
+ * correction; the no-clawback rule is what turns a shortfall into recorded
+ * discrepancy rather than lost progress.
+ *
+ * The window is clamped to `PlatformSyncRequest.maxRescanWindowMillis`. If the
+ * caller's floor is older than that, the window is truncated and [truncated] is
+ * set. **Steps in the unreachable gap are recorded and never granted**: they
+ * cannot be distinguished from steps already counted, and inventing progress is
+ * worse than missing it. The truncation is reported, not silently dropped.
+ *
+ * ## Why interrupted recovery is safe to retry
+ *
+ * Recovery reads state and computes a number; it mutates nothing until the
+ * ledger batch commits. If the process dies at any point before that, the
+ * ledger and the old cursor are unchanged, so the next attempt recomputes
+ * exactly the same result. Combined with the ledger's batch-identity replay
+ * guard, recovery is idempotent.
+ *
+ * ## On record identity
+ *
+ * Health Connect exposes per-record UIDs, and deduplicating by UID inside the
+ * overlap window would be more precise. It is deliberately not the primary
+ * mechanism: retaining identifiers indefinitely is unbounded storage, and it
+ * would leave the game holding a shadow copy of health data, which
+ * `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Identity may be used *within* a
+ * single recovery pass as a refinement; the per-slice absolute arithmetic is
+ * what the correctness argument rests on.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformRescanWindow (
+  val startMillis: Long,
+  val endMillis: Long,
+  /** True when the adapter clamped the window, leaving an unreachable gap. */
+  val truncated: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformRescanWindow {
+      val startMillis = pigeonVar_list[0] as Long
+      val endMillis = pigeonVar_list[1] as Long
+      val truncated = pigeonVar_list[2] as Boolean
+      return PlatformRescanWindow(startMillis, endMillis, truncated)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startMillis,
+      endMillis,
       truncated,
     )
   }
@@ -267,59 +826,97 @@ data class PlatformRescan (
     if (this === other) {
       return true
     }
-    val other = other as PlatformRescan
-    return MessagesPigeonUtils.deepEquals(this.windowStartMillis, other.windowStartMillis) && MessagesPigeonUtils.deepEquals(this.windowEndMillis, other.windowEndMillis) && MessagesPigeonUtils.deepEquals(this.windowTotal, other.windowTotal) && MessagesPigeonUtils.deepEquals(this.truncated, other.truncated)
+    val other = other as PlatformRescanWindow
+    return MessagesPigeonUtils.deepEquals(this.startMillis, other.startMillis) && MessagesPigeonUtils.deepEquals(this.endMillis, other.endMillis) && MessagesPigeonUtils.deepEquals(this.truncated, other.truncated)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.windowStartMillis)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.windowEndMillis)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.windowTotal)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.startMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.endMillis)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.truncated)
     return result
   }
   override fun toString(): String {
-    return "PlatformRescan(windowStartMillis=$windowStartMillis, windowEndMillis=$windowEndMillis, windowTotal=$windowTotal, truncated=$truncated)"
+    return "PlatformRescanWindow(startMillis=$startMillis, endMillis=$endMillis, truncated=$truncated)"
   }
 }
 
-/** Generated class from Pigeon that represents data sent in messages. */
-data class PlatformFetchResult (
-  val status: PlatformCursorStatus,
-  /** A true delta only when [status] is `valid`. Meaningless otherwise. */
-  val newSteps: Long,
+/**
+ * What the caller is asking for.
+ *
+ * A request object rather than positional arguments, so a field can be added
+ * without a three-language signature change — and so every field arrives with
+ * its own name at each call site rather than as the third `int?`.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformSyncRequest (
+  val dataType: PlatformHealthDataType,
   /**
-   * Steps removed by corrections since the cursor. Information, not an
-   * instruction — reconciliation never revokes granted progress.
+   * The bucket resolution the caller will accept, in milliseconds.
+   *
+   * **The adapter must not send narrower buckets than this.** The privacy
+   * ruling bounds retention *length* — seven days — and says nothing about
+   * *resolution*. One-minute buckets satisfy it exactly as written and produce
+   * roughly ten thousand entries per origin: a minute-by-minute record of when
+   * the player moved, kept for a week. Nobody would have decided to build that.
+   * `TimeBucket.minimumWidthMillis` is one hour and the bridge refuses
+   * anything narrower.
    */
-  val deletedSteps: Long,
+  val bucketWidthMillis: Long,
   /**
-   * Opaque. An archived HKQueryAnchor on iOS, a changes token on Android.
-   * The caller stores and returns it without inspecting it, and persists it
-   * only after the resulting batch is committed to the ledger.
+   * The longest window a recovery rescan may cover. The adapter clamps to this
+   * and reports `truncated`.
+   */
+  val maxRescanWindowMillis: Long,
+  /**
+   * Whether manually-entered samples count.
+   *
+   * False by default in the game: `HKMetadataKeyWasUserEntered` on iOS,
+   * `Metadata.recordingMethod` on Android. The default reflects real movement;
+   * the choice belongs to the player.
+   */
+  val includeManualEntries: Boolean,
+  /**
+   * The durable sync position, or null for a first read. Opaque: an archived
+   * `HKQueryAnchor` on iOS, a Health Connect changes token on Android.
    */
   val cursor: ByteArray? = null,
-  val rescan: PlatformRescan? = null
+  /**
+   * Resume token from the previous page's [PlatformPagination.continuation].
+   * Null starts a fresh read.
+   */
+  val continuation: ByteArray? = null,
+  /**
+   * The oldest instant a recovery rescan need reach, if the cursor turns out
+   * to be invalid. Null means the adapter uses its full
+   * [maxRescanWindowMillis].
+   */
+  val rescanFloorMillis: Long? = null
 )
  {
   companion object {
-    fun fromList(pigeonVar_list: List<Any?>): PlatformFetchResult {
-      val status = pigeonVar_list[0] as PlatformCursorStatus
-      val newSteps = pigeonVar_list[1] as Long
-      val deletedSteps = pigeonVar_list[2] as Long
-      val cursor = pigeonVar_list[3] as ByteArray?
-      val rescan = pigeonVar_list[4] as PlatformRescan?
-      return PlatformFetchResult(status, newSteps, deletedSteps, cursor, rescan)
+    fun fromList(pigeonVar_list: List<Any?>): PlatformSyncRequest {
+      val dataType = pigeonVar_list[0] as PlatformHealthDataType
+      val bucketWidthMillis = pigeonVar_list[1] as Long
+      val maxRescanWindowMillis = pigeonVar_list[2] as Long
+      val includeManualEntries = pigeonVar_list[3] as Boolean
+      val cursor = pigeonVar_list[4] as ByteArray?
+      val continuation = pigeonVar_list[5] as ByteArray?
+      val rescanFloorMillis = pigeonVar_list[6] as Long?
+      return PlatformSyncRequest(dataType, bucketWidthMillis, maxRescanWindowMillis, includeManualEntries, cursor, continuation, rescanFloorMillis)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
-      status,
-      newSteps,
-      deletedSteps,
+      dataType,
+      bucketWidthMillis,
+      maxRescanWindowMillis,
+      includeManualEntries,
       cursor,
-      rescan,
+      continuation,
+      rescanFloorMillis,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -329,21 +926,225 @@ data class PlatformFetchResult (
     if (this === other) {
       return true
     }
-    val other = other as PlatformFetchResult
-    return MessagesPigeonUtils.deepEquals(this.status, other.status) && MessagesPigeonUtils.deepEquals(this.newSteps, other.newSteps) && MessagesPigeonUtils.deepEquals(this.deletedSteps, other.deletedSteps) && MessagesPigeonUtils.deepEquals(this.cursor, other.cursor) && MessagesPigeonUtils.deepEquals(this.rescan, other.rescan)
+    val other = other as PlatformSyncRequest
+    return MessagesPigeonUtils.deepEquals(this.dataType, other.dataType) && MessagesPigeonUtils.deepEquals(this.bucketWidthMillis, other.bucketWidthMillis) && MessagesPigeonUtils.deepEquals(this.maxRescanWindowMillis, other.maxRescanWindowMillis) && MessagesPigeonUtils.deepEquals(this.includeManualEntries, other.includeManualEntries) && MessagesPigeonUtils.deepEquals(this.cursor, other.cursor) && MessagesPigeonUtils.deepEquals(this.continuation, other.continuation) && MessagesPigeonUtils.deepEquals(this.rescanFloorMillis, other.rescanFloorMillis)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.dataType)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.bucketWidthMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.maxRescanWindowMillis)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.includeManualEntries)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.cursor)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.continuation)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.rescanFloorMillis)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformSyncRequest(dataType=$dataType, bucketWidthMillis=$bucketWidthMillis, maxRescanWindowMillis=$maxRescanWindowMillis, includeManualEntries=$includeManualEntries, cursor=${cursor?.contentToString()}, continuation=${continuation?.contentToString()}, rescanFloorMillis=$rescanFloorMillis)"
+  }
+}
+
+/**
+ * Whether the platform's health service is present and usable.
+ *
+ * A result rather than a bare bool so that "no" arrives with a reason, and a
+ * typed result rather than an exception because absence is a NORMAL state the
+ * game stays fully playable through — Android without Health Connect installed
+ * is the ordinary case, not an error.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformAvailabilityResult (
+  val available: Boolean,
+  /** Set when [available] is false. */
+  val reason: PlatformUnavailableReason? = null,
+  /**
+   * A short technical note for a log line. **Never player-facing, and never a
+   * source identifier, device name, or health value.**
+   */
+  val diagnostic: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformAvailabilityResult {
+      val available = pigeonVar_list[0] as Boolean
+      val reason = pigeonVar_list[1] as PlatformUnavailableReason?
+      val diagnostic = pigeonVar_list[2] as String?
+      return PlatformAvailabilityResult(available, reason, diagnostic)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      available,
+      reason,
+      diagnostic,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformAvailabilityResult
+    return MessagesPigeonUtils.deepEquals(this.available, other.available) && MessagesPigeonUtils.deepEquals(this.reason, other.reason) && MessagesPigeonUtils.deepEquals(this.diagnostic, other.diagnostic)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.available)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.reason)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.diagnostic)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformAvailabilityResult(available=$available, reason=$reason, diagnostic=$diagnostic)"
+  }
+}
+
+/**
+ * The outcome of an authorization request. Typed, never an exception.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformAuthorizationResult (
+  val state: PlatformAuthorizationState,
+  /** See [PlatformAvailabilityResult.diagnostic]. Same prohibition. */
+  val diagnostic: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformAuthorizationResult {
+      val state = pigeonVar_list[0] as PlatformAuthorizationState
+      val diagnostic = pigeonVar_list[1] as String?
+      return PlatformAuthorizationResult(state, diagnostic)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      state,
+      diagnostic,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformAuthorizationResult
+    return MessagesPigeonUtils.deepEquals(this.state, other.state) && MessagesPigeonUtils.deepEquals(this.diagnostic, other.diagnostic)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.state)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.diagnostic)
+    return result
+  }
+  override fun toString(): String {
+    return "PlatformAuthorizationResult(state=$state, diagnostic=$diagnostic)"
+  }
+}
+
+/**
+ * One page of an answer.
+ *
+ * Every field's applicability is stated by [status]; the bridge validates the
+ * combination rather than trusting it, and reports a malformed page as a typed
+ * refusal instead of guessing what the adapter meant.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PlatformSyncPage (
+  val status: PlatformSyncStatus,
+  /**
+   * Absolute per-`(source, bucket)` figures. Empty for
+   * [PlatformSyncStatus.noChange] and [PlatformSyncStatus.unavailable].
+   *
+   * For [PlatformSyncStatus.cursorInvalidated] these are the AUTHORITATIVE
+   * contents of [rescan]'s window, not a delta.
+   */
+  val observations: List<PlatformStepObservation>,
+  val completeness: PlatformCompleteness,
+  val pagination: PlatformPagination,
+  /**
+   * The candidate durable cursor.
+   *
+   * **Returned and forgotten.** The adapter must not persist it. The caller
+   * makes it durable only after the ledger and snapshot have committed; see
+   * the commit-order note at the top of this file. Null when the adapter has
+   * nothing to offer — which is always the case for
+   * [PlatformSyncStatus.unavailable], and the case for
+   * [PlatformSyncStatus.cursorInvalidated] until recovery has been committed.
+   */
+  val nextCursor: ByteArray? = null,
+  /**
+   * Mandatory when [status] is [PlatformSyncStatus.cursorInvalidated], absent
+   * otherwise. A bare invalidation would leave the core with no authoritative
+   * figure and no safe move.
+   */
+  val rescan: PlatformRescanWindow? = null,
+  /** Mandatory when [status] is [PlatformSyncStatus.unavailable]. */
+  val unavailableReason: PlatformUnavailableReason? = null,
+  /** See [PlatformAvailabilityResult.diagnostic]. Same prohibition. */
+  val diagnostic: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PlatformSyncPage {
+      val status = pigeonVar_list[0] as PlatformSyncStatus
+      val observations = pigeonVar_list[1] as List<PlatformStepObservation>
+      val completeness = pigeonVar_list[2] as PlatformCompleteness
+      val pagination = pigeonVar_list[3] as PlatformPagination
+      val nextCursor = pigeonVar_list[4] as ByteArray?
+      val rescan = pigeonVar_list[5] as PlatformRescanWindow?
+      val unavailableReason = pigeonVar_list[6] as PlatformUnavailableReason?
+      val diagnostic = pigeonVar_list[7] as String?
+      return PlatformSyncPage(status, observations, completeness, pagination, nextCursor, rescan, unavailableReason, diagnostic)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      status,
+      observations,
+      completeness,
+      pagination,
+      nextCursor,
+      rescan,
+      unavailableReason,
+      diagnostic,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as PlatformSyncPage
+    return MessagesPigeonUtils.deepEquals(this.status, other.status) && MessagesPigeonUtils.deepEquals(this.observations, other.observations) && MessagesPigeonUtils.deepEquals(this.completeness, other.completeness) && MessagesPigeonUtils.deepEquals(this.pagination, other.pagination) && MessagesPigeonUtils.deepEquals(this.nextCursor, other.nextCursor) && MessagesPigeonUtils.deepEquals(this.rescan, other.rescan) && MessagesPigeonUtils.deepEquals(this.unavailableReason, other.unavailableReason) && MessagesPigeonUtils.deepEquals(this.diagnostic, other.diagnostic)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + MessagesPigeonUtils.deepHash(this.status)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.newSteps)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.deletedSteps)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.cursor)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.observations)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.completeness)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.pagination)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.nextCursor)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.rescan)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.unavailableReason)
+    result = 31 * result + MessagesPigeonUtils.deepHash(this.diagnostic)
     return result
   }
   override fun toString(): String {
-    return "PlatformFetchResult(status=$status, newSteps=$newSteps, deletedSteps=$deletedSteps, cursor=${cursor?.contentToString()}, rescan=$rescan)"
+    return "PlatformSyncPage(status=$status, observations=$observations, completeness=$completeness, pagination=$pagination, nextCursor=${nextCursor?.contentToString()}, rescan=$rescan, unavailableReason=$unavailableReason, diagnostic=$diagnostic)"
   }
 }
 private open class MessagesPigeonCodec : StandardMessageCodec() {
@@ -351,22 +1152,92 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
     return when (type) {
       129.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformAuthorization.ofRaw(it.toInt())
+          PlatformHealthDataType.ofRaw(it.toInt())
         }
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          PlatformCursorStatus.ofRaw(it.toInt())
+          PlatformAuthorizationState.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformRescan.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          PlatformUnavailableReason.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          PlatformOriginKeyingOutcome.ofRaw(it.toInt())
+        }
+      }
+      133.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          PlatformSyncStatus.ofRaw(it.toInt())
+        }
+      }
+      134.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          PlatformOriginScopeKind.ofRaw(it.toInt())
+        }
+      }
+      135.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          PlatformCompletenessKind.ofRaw(it.toInt())
+        }
+      }
+      136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PlatformFetchResult.fromList(it)
+          PlatformOriginKeyingResult.fromList(it)
+        }
+      }
+      137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformTimeBucket.fromList(it)
+        }
+      }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformStepObservation.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformOriginScope.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformCompleteness.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformPagination.fromList(it)
+        }
+      }
+      142.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformRescanWindow.fromList(it)
+        }
+      }
+      143.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformSyncRequest.fromList(it)
+        }
+      }
+      144.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformAvailabilityResult.fromList(it)
+        }
+      }
+      145.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformAuthorizationResult.fromList(it)
+        }
+      }
+      146.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          PlatformSyncPage.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -374,20 +1245,76 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
   }
   override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
     when (value) {
-      is PlatformAuthorization -> {
+      is PlatformHealthDataType -> {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformCursorStatus -> {
+      is PlatformAuthorizationState -> {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformRescan -> {
+      is PlatformUnavailableReason -> {
         stream.write(131)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PlatformOriginKeyingOutcome -> {
+        stream.write(132)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PlatformSyncStatus -> {
+        stream.write(133)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PlatformOriginScopeKind -> {
+        stream.write(134)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PlatformCompletenessKind -> {
+        stream.write(135)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PlatformOriginKeyingResult -> {
+        stream.write(136)
         writeValue(stream, value.toList())
       }
-      is PlatformFetchResult -> {
-        stream.write(132)
+      is PlatformTimeBucket -> {
+        stream.write(137)
+        writeValue(stream, value.toList())
+      }
+      is PlatformStepObservation -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is PlatformOriginScope -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is PlatformCompleteness -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is PlatformPagination -> {
+        stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is PlatformRescanWindow -> {
+        stream.write(142)
+        writeValue(stream, value.toList())
+      }
+      is PlatformSyncRequest -> {
+        stream.write(143)
+        writeValue(stream, value.toList())
+      }
+      is PlatformAvailabilityResult -> {
+        stream.write(144)
+        writeValue(stream, value.toList())
+      }
+      is PlatformAuthorizationResult -> {
+        stream.write(145)
+        writeValue(stream, value.toList())
+      }
+      is PlatformSyncPage -> {
+        stream.write(146)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -399,16 +1326,64 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface HealthHostApi {
   /**
-   * Whether the platform's health service is present and usable. False on
-   * Android without Health Connect installed — a normal state, not an error.
+   * Installs the device-bound origin-keying salt for this engine attachment.
+   *
+   * **The smallest surface that can work**, and it was chosen as the smallest:
+   * one method, one direction, one value, no reply channel, no storage.
+   *
+   * * **In memory only.** Native holds the salt for the lifetime of the engine
+   *   attachment and drops it on detach. It must not be written to
+   *   `UserDefaults`, `SharedPreferences`, a DataStore, a file, or the
+   *   Keychain — this plugin is a *consumer* of the app's identity, never a
+   *   second custodian of one.
+   * * **Never generated natively.** There is no "mint if absent" path and
+   *   there must never be one. `IdentityVault` owns the lifecycle, and a
+   *   launch that could not resolve the identity has already been blocked by
+   *   `BootstrapCoordinator` with
+   *   `BootstrapBlockReason.originIdentityMissing`.
+   * * **Fail-closed before it is called.** Until this returns
+   *   [PlatformOriginKeyingOutcome.installed], `fetchSteps` must answer
+   *   [PlatformUnavailableReason.originKeyingUnconfigured] and read nothing.
+   *
+   * [algorithmVersion] is the keying scheme the caller expects. An adapter
+   * that does not implement it refuses with
+   * [PlatformOriginKeyingOutcome.unsupportedAlgorithm] rather than falling
+   * back — a silent fallback produces keys nothing else on the device agrees
+   * with, which is indistinguishable from a new device and re-grants the whole
+   * retention window.
+   *
+   * ## Why the salt crosses at all
+   *
+   * It is the direct cost of pseudonymizing natively, and it is worth naming
+   * rather than burying. Keying in Dart would keep the salt in one address
+   * space, at the price of a raw identifier crossing the wire on every
+   * observation. Keying natively keeps every raw identifier inside its own
+   * process, at the price of the salt crossing once per attachment. The owner
+   * ruled for the second trade: an identifier crosses thousands of times and a
+   * salt crosses once, and the salt is not itself identifying — losing it
+   * costs a fail-closed refusal, which is recoverable, while a leaked device
+   * name is not.
    */
-  fun isAvailable(): Boolean
-  fun requestAuthorization(callback: (Result<PlatformAuthorization>) -> Unit)
+  fun installOriginKeying(salt: ByteArray, algorithmVersion: Long, callback: (Result<PlatformOriginKeyingResult>) -> Unit)
   /**
-   * Fetch steps since [cursor]. [watermarkMillis] bounds the rescan window if
-   * the cursor turns out to be invalid.
+   * Whether the platform's health service is present and usable.
+   *
+   * False on Android without Health Connect installed — a normal state, not an
+   * error, and one the game must remain fully playable through.
    */
-  fun fetchNewSteps(cursor: ByteArray?, watermarkMillis: Long?, callback: (Result<PlatformFetchResult>) -> Unit)
+  fun availability(callback: (Result<PlatformAvailabilityResult>) -> Unit)
+  /** Requests read-only step authorization. Never throws for denial. */
+  fun requestAuthorization(callback: (Result<PlatformAuthorizationResult>) -> Unit)
+  /**
+   * Reads one page.
+   *
+   * Must never throw for an expected condition — denial, absence, an invalid
+   * cursor, an empty result — all of which are reported through
+   * [PlatformSyncPage]. On genuine error the adapter leaves its own state
+   * untouched and returns [PlatformSyncStatus.unavailable] with
+   * [PlatformUnavailableReason.transientFailure].
+   */
+  fun fetchSteps(request: PlatformSyncRequest, callback: (Result<PlatformSyncPage>) -> Unit)
 
   companion object {
     /** The codec used by HealthHostApi. */
@@ -420,25 +1395,13 @@ interface HealthHostApi {
     fun setUp(binaryMessenger: BinaryMessenger, api: HealthHostApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.isAvailable$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.installOriginKeying$separatedMessageChannelSuffix", codec)
         if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              listOf(api.isAvailable())
-            } catch (exception: Throwable) {
-              MessagesPigeonUtils.wrapError(exception)
-            }
-            reply.reply(wrapped)
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.requestAuthorization$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            api.requestAuthorization{ result: Result<PlatformAuthorization> ->
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val saltArg = args[0] as ByteArray
+            val algorithmVersionArg = args[1] as Long
+            api.installOriginKeying(saltArg, algorithmVersionArg) { result: Result<PlatformOriginKeyingResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))
@@ -453,13 +1416,48 @@ interface HealthHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.fetchNewSteps$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.availability$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.availability{ result: Result<PlatformAvailabilityResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.requestAuthorization$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestAuthorization{ result: Result<PlatformAuthorizationResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.stride_health.HealthHostApi.fetchSteps$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val cursorArg = args[0] as ByteArray?
-            val watermarkMillisArg = args[1] as Long?
-            api.fetchNewSteps(cursorArg, watermarkMillisArg) { result: Result<PlatformFetchResult> ->
+            val requestArg = args[0] as PlatformSyncRequest
+            api.fetchSteps(requestArg) { result: Result<PlatformSyncPage> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

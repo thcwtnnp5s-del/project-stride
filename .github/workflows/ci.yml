@@ -94,6 +94,36 @@ jobs:
       - name: Single-writer persistence guard
         run: bash ./Scripts/check-single-writer.sh --self-test
 
+      # DECISIONS/0014: the repository held two parallel step-ingestion models
+      # and the platform boundary was wired to the one nothing used. A flat
+      # total cannot express per-origin attribution, scoped completeness, or
+      # partial pages, so an adapter satisfying it could not satisfy the core.
+      # This guard is what keeps there being exactly one model.
+      #
+      # `--self-test` is a mutation test: it injects each of the violations
+      # separately and asserts each is rejected.
+      - name: One step-ingestion model
+        run: bash ./Scripts/check-step-model.sh --self-test
+
+      # Origin keying happens natively, before the value crosses Pigeon, so no
+      # raw platform identifier reaches Dart at all. That is a property of
+      # source text across Dart, Swift, and Kotlin -- no type can hold it.
+      #
+      # `--self-test` injects ten violations, at least one per rule.
+      - name: Origin privacy guard
+        run: bash ./Scripts/check-origin-privacy.sh --self-test
+
+      # Runs on Linux deliberately: these are text assertions over the Xcode
+      # project, the Info.plist and the entitlements file, so they need no Mac
+      # and should fail in seconds rather than 17 minutes into the macOS job.
+      #
+      # The background-delivery entitlement is checked for ABSENCE. S-01A is
+      # foreground only (DECISIONS/0014); adding that key alone would let iOS
+      # wake the app into a second execution context outside the single-writer
+      # persistence model, with no Dart code changing.
+      - name: iOS target and foreground HealthKit guard
+        run: bash ./Scripts/check-ios-target.sh --self-test
+
       # Hand-written Dart only. Pigeon output is not dart-format clean, and
       # formatting it would fail the drift check in the `pigeon` job on the next
       # regeneration.
@@ -104,9 +134,13 @@ jobs:
             packages/stride_storage/lib packages/stride_storage/test \
             packages/stride_core/lib packages/stride_core/test \
             packages/stride_health/lib/stride_health.dart \
-            packages/stride_health/lib/src/mock_step_provider.dart \
-            packages/stride_health/lib/src/platform_step_provider.dart \
+            packages/stride_health/lib/src/mock_step_source.dart \
+            packages/stride_health/lib/src/origin_gateway.dart \
+            packages/stride_health/lib/src/origin_pseudonymizer.dart \
+            packages/stride_health/lib/src/platform_step_source.dart \
+            packages/stride_health/lib/src/step_sync_source.dart \
             packages/stride_health/test \
+            packages/stride_health/tool \
             packages/stride_health/pigeons \
             packages/stride_health/example/lib \
             packages/stride_health/example/integration_test \

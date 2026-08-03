@@ -22,6 +22,12 @@ class StrideHealthPlugin : FlutterPlugin {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         HealthHostApi.setUp(binding.binaryMessenger, null)
+        // The keying salt is the app's device-bound identity, held here only
+        // for the lifetime of the attachment. Dropping it on detach is what
+        // makes "in memory only" true rather than merely intended -- and it
+        // means the next attachment must install it again, which is the
+        // fail-closed path.
+        adapter?.forgetOriginKeying()
         adapter = null
     }
 }

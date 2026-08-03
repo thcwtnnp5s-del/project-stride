@@ -10,8 +10,79 @@ enum StrideHealthError: Error {
   /// The platform's health service is absent or unusable.
   case unavailable
   /// The underlying store failed. Carries the message for logging only —
-  /// reconciliation reacts to the failure, never to the text.
+  /// reconciliation reacts to the failure, never to the text. **Never an origin
+  /// identifier, a device name, or a step count.**
   case readFailed(String)
+}
+
+/// One source's absolute total for one bucket, before it is mapped onto the
+/// Pigeon contract.
+///
+/// ## The origin is already keyed by the time it gets here
+///
+/// `originKey` is eight bytes: `OriginKeying.key(salt:identifier:)` applied to
+/// `HKSource.bundleIdentifier`. The raw identifier lives inside that one call
+/// and is never stored in a field, logged, or sent — there is no field on the
+/// Pigeon contract that could carry one.
+///
+/// **Never derive it from `HKSource.name`.** That is a device name, which a
+/// player may have called anything at all, and which
+/// `GAME_BIBLE/HEALTH_INTEGRATION` forbids persisting. Never `HKDevice.name`,
+/// `.model`, or `.localIdentifier` either. `Scripts/check-origin-privacy.sh`
+/// rejects those APIs in this file.
+struct RawStepSlice {
+  /// Eight bytes, or empty when HealthKit reported no source at all.
+  var originKey: Data
+  var startMillis: Int64
+  var endMillis: Int64
+  /// The source's CURRENT total for this slice. Absolute, never a delta. Zero
+  /// means the slice is now empty — a deletion or a correction to nothing.
+  var steps: Int64
+}
+
+/// The origin-keying function, and the only place a raw identifier exists.
+///
+/// FNV-1a, 64-bit, over `salt || 0x1F || utf8(identifier)`, rendered
+/// big-endian. Keyed rather than a bare digest: an unkeyed hash of a bundle
+/// identifier is trivially reversible by anyone with a list of bundle
+/// identifiers, which is everyone.
+///
+/// **This must agree byte for byte with `lib/src/origin_pseudonymizer.dart` and
+/// with the Kotlin implementation.** A divergence is silent — a re-keyed origin
+/// looks exactly like a new device, its recent buckets look ungranted, and the
+/// retention window is granted a second time. Assert against
+/// `packages/stride_health/test/origin_key_vectors.dart`, which exists for
+/// exactly this reason.
+///
+/// `UInt64` throughout, deliberately. `Int64` with an arithmetic shift
+/// sign-extends for half of all hash values and produces a stable,
+/// self-consistent, completely wrong key.
+enum OriginKeying {
+  /// The scheme implemented here. Must match `originKeyingAlgorithmVersion` in
+  /// `lib/src/origin_pseudonymizer.dart`.
+  static let algorithmVersion: Int64 = 1
+
+  static func key(salt: Data, identifier: String) -> Data {
+    // Empty means "no source reported" and is ZERO bytes on the wire, not eight
+    // zero bytes — those would be an ordinary key the hash could produce.
+    guard !identifier.isEmpty else { return Data() }
+
+    var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+    var message = Data(salt)
+    message.append(0x1F)  // separator: salt‖id cannot collide with salt'‖id'
+    message.append(contentsOf: Array(identifier.utf8))
+
+    for byte in message {
+      hash ^= UInt64(byte)
+      hash = hash &* 0x0000_0100_0000_01b3
+    }
+
+    var out = Data(count: 8)
+    for i in 0..<8 {
+      out[i] = UInt8((hash >> UInt64(56 - i * 8)) & 0xFF)
+    }
+    return out
+  }
 }
 
 /// A raw reading, before it is mapped onto the Pigeon contract.
@@ -20,45 +91,80 @@ enum StrideHealthError: Error {
 /// with fabricated data on a CI runner, with no HealthKit, no entitlement, and
 /// no authorization prompt — which cannot be answered on a runner anyway.
 struct RawStepReading {
-  var newSteps: Int64 = 0
-  var deletedSteps: Int64 = 0
+  var slices: [RawStepSlice] = []
   var anchor: Data?
   var invalidated: Bool = false
-  var rescan: PlatformRescan?
+  var rescan: PlatformRescanWindow?
+
+  /// True only when the anchored query has been drained. Defaults to false:
+  /// an over-cautious partial costs a little ledger growth, and a wrong `true`
+  /// costs a grant permanently.
+  var isFinalPage: Bool = false
+  var continuation: Data?
+
+  /// Set only after full pagination for the declared scope. Nil means partial,
+  /// which is the safe default and the correct value for every page but the
+  /// last.
+  var completeThroughMillis: Int64?
+  var scopeIsAllOrigins: Bool = false
+  /// Already-keyed origins, same rule as `RawStepSlice.originKey`.
+  var scopedOriginKeys: [Data] = []
+  var intervalStartMillis: Int64 = 0
+  var intervalEndMillis: Int64 = 0
+
+  /// Incremented whenever a new anchored query is started. An assertion made
+  /// under an anchor that has since been invalidated is stale, and acting on it
+  /// would settle buckets a rescan is about to restate.
+  var queryGeneration: Int64 = 0
 }
 
 /// Where readings come from. The production implementation talks to HealthKit;
 /// tests substitute a fake.
 protocol HealthKitStepSource {
   var isAvailable: Bool { get }
-  func requestAuthorization() throws -> PlatformAuthorization
-  func read(cursor: Data?, watermarkMillis: Int64?) throws -> RawStepReading
+  func requestAuthorization() throws -> PlatformAuthorizationState
+  /// [salt] is the device-bound identity, passed per call rather than stored on
+  /// the source. The adapter owns its lifetime; a source that kept its own copy
+  /// would be a second custodian of the app's identity.
+  func read(request: PlatformSyncRequest, salt: Data) throws -> RawStepReading
 }
 
-/// The real source. **M-2/M-6 scope: a shell.**
+/// The real source. **Currently a shell.**
 ///
 /// It reports the service as unavailable, which is deliberate rather than a
 /// placeholder throw: it exercises the same graceful-degradation path the game
 /// must handle when authorization is denied or HealthKit is absent, so the app
 /// stays fully playable against it.
 ///
-/// Task **S-01b** replaces this with `HKAnchoredObjectQuery` over `stepCount`:
-/// archived anchor as the opaque cursor, `deletedObjects` handling, the
-/// `HKMetadataKeyWasUserEntered` filter on by default, read-only authorization,
-/// and opportunistic background delivery.
+/// The real implementation is `HKAnchoredObjectQuery` over `stepCount`, with the
+/// archived anchor as the opaque cursor, `deletedObjects` handling, and the
+/// `HKMetadataKeyWasUserEntered` filter driven by
+/// `PlatformSyncRequest.includeManualEntries`.
 ///
-/// The locked-device constraint governs that work: HealthKit data is encrypted
+/// Three obligations govern that work:
+///
+/// 1. **Absolute, not delta.** When `deletedObjects` reports a removal, the
+///    adapter must re-read the affected bucket with `HKStatisticsCollectionQuery`
+///    and send its new absolute total, `steps: 0` if it is now empty. The
+///    boundary carries no "deleted steps" figure to forward, on purpose.
+/// 2. **Buckets no narrower than `bucketWidthMillis`.** The bridge refuses a
+///    narrower one and the refusal costs the whole page.
+/// 3. **The anchor is never native state.** It is returned as a candidate and
+///    forgotten. Writing it to `UserDefaults` would claim progress the ledger
+///    never recorded and make an interrupted sync unrecoverable.
+///
+/// The locked-device constraint governs the rest: HealthKit data is encrypted
 /// at rest and unreadable while the device is locked, so a background wake on a
 /// locked phone cannot read steps. Foreground cold-launch backfill is the
-/// source of truth.
+/// source of truth, and S-01A is foreground only.
 struct HealthKitStepStore: HealthKitStepSource {
   var isAvailable: Bool { false }
 
-  func requestAuthorization() throws -> PlatformAuthorization {
+  func requestAuthorization() throws -> PlatformAuthorizationState {
     .unavailable
   }
 
-  func read(cursor: Data?, watermarkMillis: Int64?) throws -> RawStepReading {
+  func read(request: PlatformSyncRequest, salt: Data) throws -> RawStepReading {
     RawStepReading()
   }
 }
@@ -71,65 +177,196 @@ final class HealthKitAdapter: HealthHostApi {
 
   private let source: HealthKitStepSource
 
+  /// The device-bound keying salt, in memory only.
+  ///
+  /// Never written to `UserDefaults`, a file, or the Keychain. This plugin is a
+  /// consumer of the app's identity, never a second custodian of one: a second
+  /// identity would re-key every origin, and a re-keyed origin looks exactly
+  /// like a new device — its recent buckets look ungranted and the whole
+  /// retention window is granted again.
+  private var originSalt: Data?
+
   init(source: HealthKitStepSource = HealthKitStepStore()) {
     self.source = source
   }
 
-  func isAvailable() throws -> Bool {
-    source.isAvailable
+  func installOriginKeying(
+    salt: FlutterStandardTypedData,
+    algorithmVersion: Int64,
+    completion: @escaping (Result<PlatformOriginKeyingResult, Error>) -> Void
+  ) {
+    guard algorithmVersion == OriginKeying.algorithmVersion else {
+      // A typed refusal rather than a silent fallback. Keys that nothing else
+      // on the device agrees with look exactly like a new device.
+      completion(
+        .success(
+          PlatformOriginKeyingResult(outcome: .unsupportedAlgorithm, diagnostic: nil)))
+      return
+    }
+    guard !salt.data.isEmpty else {
+      completion(
+        .success(PlatformOriginKeyingResult(outcome: .rejected, diagnostic: nil)))
+      return
+    }
+    originSalt = salt.data
+    completion(
+      .success(PlatformOriginKeyingResult(outcome: .installed, diagnostic: nil)))
+  }
+
+  /// Drops the salt. Called when the engine detaches.
+  func forgetOriginKeying() {
+    originSalt = nil
+  }
+
+  func availability(
+    completion: @escaping (Result<PlatformAvailabilityResult, Error>) -> Void
+  ) {
+    let available = source.isAvailable
+    completion(
+      .success(
+        PlatformAvailabilityResult(
+          available: available,
+          reason: available ? nil : .serviceMissing,
+          diagnostic: nil
+        )
+      )
+    )
   }
 
   func requestAuthorization(
-    completion: @escaping (Result<PlatformAuthorization, Error>) -> Void
+    completion: @escaping (Result<PlatformAuthorizationResult, Error>) -> Void
   ) {
     do {
-      completion(.success(try source.requestAuthorization()))
+      let state = try source.requestAuthorization()
+      completion(.success(PlatformAuthorizationResult(state: state, diagnostic: nil)))
     } catch {
       // Reported, never thrown past the boundary.
       completion(.failure(error))
     }
   }
 
-  func fetchNewSteps(
-    cursor: FlutterStandardTypedData?,
-    watermarkMillis: Int64?,
-    completion: @escaping (Result<PlatformFetchResult, Error>) -> Void
+  func fetchSteps(
+    request: PlatformSyncRequest,
+    completion: @escaping (Result<PlatformSyncPage, Error>) -> Void
   ) {
+    // Fail-closed, and checked before anything is read. Observations keyed
+    // under no salt would re-key every origin and grant the retention window a
+    // second time -- and nothing would detect it.
+    guard let salt = originSalt else {
+      completion(.success(Self.unavailablePage(.originKeyingUnconfigured)))
+      return
+    }
+    guard source.isAvailable else {
+      completion(.success(Self.unavailablePage(.serviceMissing)))
+      return
+    }
     do {
-      let reading = try source.read(
-        cursor: cursor?.data,
-        watermarkMillis: watermarkMillis
-      )
-      completion(.success(Self.map(reading)))
+      completion(.success(Self.map(try source.read(request: request, salt: salt))))
     } catch {
       completion(.failure(error))
     }
   }
 
+  /// The answer when the service cannot be reached.
+  ///
+  /// No cursor, no rescan, `partial` completeness. Each is load-bearing: a
+  /// cursor here would claim progress the ledger never recorded, and any
+  /// completeness assertion would settle buckets on the strength of a read that
+  /// never happened.
+  static func unavailablePage(_ reason: PlatformUnavailableReason) -> PlatformSyncPage {
+    PlatformSyncPage(
+      status: .unavailable,
+      observations: [],
+      completeness: PlatformCompleteness(
+        kind: .partial,
+        dataType: .steps,
+        scope: PlatformOriginScope(kind: .someOrigins, originKeys: []),
+        intervalStartMillis: 0,
+        intervalEndMillis: 0,
+        queryGeneration: 0,
+        throughMillis: 0
+      ),
+      pagination: PlatformPagination(pageIndex: 0, isFinalPage: true, continuation: nil),
+      nextCursor: nil,
+      rescan: nil,
+      unavailableReason: reason,
+      diagnostic: nil
+    )
+  }
+
   /// The mapping rules, isolated so they can be asserted directly.
-  static func map(_ reading: RawStepReading) -> PlatformFetchResult {
-    if reading.invalidated {
-      // The delta stream is broken. `newSteps` must be zero here: treating a
-      // rescan total as a delta is precisely the double-count scenario 13
-      // exists to prevent. No replacement cursor is offered until recovery has
-      // been committed to the ledger.
-      return PlatformFetchResult(
-        status: .invalidated,
-        newSteps: 0,
-        deletedSteps: reading.deletedSteps,
-        cursor: nil,
-        rescan: reading.rescan
+  static func map(_ reading: RawStepReading) -> PlatformSyncPage {
+    let observations = reading.slices.map { slice in
+      PlatformStepObservation(
+        originKey: FlutterStandardTypedData(bytes: slice.originKey),
+        bucket: PlatformTimeBucket(
+          startMillis: slice.startMillis,
+          endMillis: slice.endMillis
+        ),
+        steps: slice.steps
       )
     }
 
-    // A healthy incremental fetch never carries a rescan. Attaching one would
-    // invite reconciliation to apply an absolute window total as a delta.
-    return PlatformFetchResult(
-      status: .valid,
-      newSteps: reading.newSteps,
-      deletedSteps: reading.deletedSteps,
-      cursor: reading.anchor.map { FlutterStandardTypedData(bytes: $0) },
-      rescan: nil
+    // A completeness assertion is only ever made on a drained final page. On
+    // any other page it is `partial`, which settles nothing — page one of nine
+    // looked exactly like page nine of nine under the old flat contract, and
+    // that is how 55,200 steps were lost.
+    let asserted = reading.isFinalPage ? reading.completeThroughMillis : nil
+    let completeness = PlatformCompleteness(
+      kind: asserted == nil
+        ? .partial
+        : (reading.invalidated ? .recoveryCompleteThrough : .completeThrough),
+      dataType: .steps,
+      scope: PlatformOriginScope(
+        kind: reading.scopeIsAllOrigins ? .allOrigins : .someOrigins,
+        originKeys: (reading.scopeIsAllOrigins ? [] : reading.scopedOriginKeys)
+          .map { FlutterStandardTypedData(bytes: $0) }
+      ),
+      intervalStartMillis: reading.intervalStartMillis,
+      intervalEndMillis: reading.intervalEndMillis,
+      queryGeneration: reading.queryGeneration,
+      throughMillis: asserted ?? 0
+    )
+
+    let pagination = PlatformPagination(
+      pageIndex: 0,
+      isFinalPage: reading.isFinalPage,
+      continuation: reading.isFinalPage
+        ? nil
+        : reading.continuation.map { FlutterStandardTypedData(bytes: $0) }
+    )
+
+    if reading.invalidated {
+      // The change stream is broken. The observations here are the
+      // AUTHORITATIVE contents of the rescan window, per origin and per bucket
+      // — never a delta. No replacement anchor is offered until recovery has
+      // been committed to the ledger.
+      return PlatformSyncPage(
+        status: .cursorInvalidated,
+        observations: observations,
+        completeness: completeness,
+        pagination: pagination,
+        nextCursor: nil,
+        rescan: reading.rescan,
+        unavailableReason: nil,
+        diagnostic: nil
+      )
+    }
+
+    return PlatformSyncPage(
+      status: observations.isEmpty ? .noChange : .incremental,
+      observations: observations,
+      completeness: completeness,
+      pagination: pagination,
+      // Returned and forgotten. Never written to UserDefaults: the caller makes
+      // it durable only after the ledger and snapshot have committed.
+      nextCursor: reading.anchor.map { FlutterStandardTypedData(bytes: $0) },
+      // A healthy fetch never carries a rescan. Attaching one would invite the
+      // bridge to treat authoritative window content as ordinary incremental
+      // data.
+      rescan: nil,
+      unavailableReason: nil,
+      diagnostic: nil
     )
   }
 }

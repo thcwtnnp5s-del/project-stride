@@ -1,17 +1,30 @@
-/// The boundary where a platform's source identity becomes a pseudonym.
+/// The **reference implementation** of origin keying.
 ///
-/// HealthKit hands us `HKSource.name` — which is a device name, which a player
-/// may have called anything at all, and which the owner's privacy ruling
-/// explicitly forbids persisting. Health Connect hands us a package name and a
-/// device identifier. **None of those may cross into `stride_core`.**
+/// ===========================================================================
+/// This is no longer the production path
+/// ===========================================================================
 ///
-/// This is the only place a raw platform identifier exists in Dart, and it
-/// exists here for exactly as long as one call takes.
+/// Keying happens in Swift and Kotlin now, before the value crosses Pigeon
+/// (owner ruling — see `origin_gateway.dart` for the trade and its cost). A raw
+/// platform identifier does not reach Dart at all, so nothing in the shipping
+/// Dart path calls this class.
 ///
-/// The core cannot enforce this by inspection — a `String` is a `String`. It
-/// enforces it by *type*: `StepOriginKey` accepts only sixteen lowercase hex
-/// characters, so a device name is not a representable value and this class is
-/// the only thing that can produce one.
+/// It is kept, and kept exact, for the job that replaced its old one: **it is
+/// the specification the two native implementations must match.** Two native
+/// implementations are two chances to diverge, and a divergence is silent — a
+/// re-keyed origin looks exactly like a new device, its recent buckets look
+/// ungranted, and the retention window is granted a second time. Nothing
+/// detects that.
+///
+/// So this file is the definition, `origin_key_vectors.dart` is the fixture
+/// generated from it, and the Swift and Kotlin suites assert against those
+/// vectors. A native adapter that disagrees with this function fails its own
+/// tests rather than a player's ledger.
+///
+/// The algorithm: FNV-1a, 64-bit, over `salt || 0x1F || utf8(identifier)`,
+/// rendered big-endian. Keyed rather than a bare digest — an unkeyed hash of a
+/// package name is trivially reversible by anyone with a list of package names,
+/// which is everyone.
 library;
 
 import 'dart:convert';
@@ -49,22 +62,49 @@ final class OriginPseudonymizer {
   /// re-granted.
   StepOriginKey pseudonymize(String rawPlatformIdentifier) {
     if (rawPlatformIdentifier.isEmpty) return StepOriginKey.unknown;
-
-    final List<int> message = <int>[
-      ..._key,
-      0x1F, // separator, so key||message cannot collide with key'||message'
-      ...utf8.encode(rawPlatformIdentifier),
-    ];
-
-    // FNV-1a, 64-bit. Not a cryptographic hash, and deliberately so: the
-    // threat is casual identifiability of a device name inside a local save,
-    // not a motivated attacker who already has the device and could read the
-    // salt beside it. A dependency on package:crypto to defend against an
-    // adversary who has already won is the wrong trade — the same reasoning
-    // that chose CRC-32C for save integrity.
-    return StepOriginKey(_hex64(_fnv1a(message)));
+    return StepOriginKey(_hex64(_fnv1a(_message(rawPlatformIdentifier))));
   }
+
+  /// The same value in the shape the platform boundary carries.
+  ///
+  /// Eight bytes, big-endian, most significant first — the byte order is part
+  /// of the specification, not an implementation detail. Swift's `Int64` and
+  /// Kotlin's `Long` are both signed and both tempting to shift arithmetically;
+  /// a native implementation that got the order or the sign wrong would produce
+  /// a stable, self-consistent, and completely different key on that platform.
+  ///
+  /// An empty identifier returns **zero bytes**, which is the wire's way of
+  /// saying "no source reported" and becomes `StepOriginKey.unknown`. It is not
+  /// eight zero bytes: those would be a legal, ordinary key that the hash could
+  /// in principle produce.
+  Uint8List keyBytes(String rawPlatformIdentifier) {
+    if (rawPlatformIdentifier.isEmpty) return Uint8List(0);
+
+    final int hash = _fnv1a(_message(rawPlatformIdentifier));
+    final Uint8List bytes = Uint8List(8);
+    for (int i = 0; i < 8; i++) {
+      // Unsigned shift. Dart's int is 64-bit SIGNED, and an arithmetic shift
+      // here sign-extends for half of all hash values — which is the same class
+      // of bug that once made this function emit seventeen characters.
+      bytes[i] = (hash >>> (56 - i * 8)) & 0xFF;
+    }
+    return bytes;
+  }
+
+  List<int> _message(String rawPlatformIdentifier) => <int>[
+    ..._key,
+    0x1F, // separator, so key||message cannot collide with key'||message'
+    ...utf8.encode(rawPlatformIdentifier),
+  ];
 }
+
+/// The keying scheme this file implements.
+///
+/// Sent to native on `installOriginKeying`. An adapter that does not implement
+/// this version refuses with `PlatformOriginKeyingOutcome.unsupportedAlgorithm`
+/// rather than falling back — a silent fallback produces keys nothing else on
+/// the device agrees with.
+const int originKeyingAlgorithmVersion = 1;
 
 int _fnv1a(List<int> message) {
   int hash = 0xcbf29ce484222325;

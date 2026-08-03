@@ -97,49 +97,582 @@ int _deepHash(Object? value) {
 }
 
 
-/// Mirrors `StepAuthorization` in stride_core.
-enum PlatformAuthorization {
+/// Mirrors `HealthDataType` in stride_core.
+///
+/// Only steps exist today. It is on the wire so that an adapter which later
+/// reads distance or workouts cannot have its step-completeness assertion
+/// silently widened to cover them.
+enum PlatformHealthDataType {
+  steps,
+}
+
+/// Whether the platform will give us step data.
+///
+/// Neither platform reliably distinguishes "denied" from "granted but empty" —
+/// HealthKit deliberately hides read denial so an app cannot infer that a user
+/// has no data. The game therefore treats both identically, and nothing about a
+/// missing permission ever blocks a screen, a craft, or a fight.
+enum PlatformAuthorizationState {
   granted,
   denied,
   unavailable,
 }
 
-/// Mirrors `CursorStatus` in stride_core.
-enum PlatformCursorStatus {
-  valid,
-  invalidated,
+/// Why a provider could not answer. Mirrors `ProviderUnavailableReason`.
+enum PlatformUnavailableReason {
+  /// Health Connect is not installed; HealthKit is unavailable on this device.
+  serviceMissing,
+  /// Authorization has not been granted, or cannot be determined.
+  permissionUnavailable,
+  /// The read failed and may succeed later.
+  transientFailure,
+  /// The device-bound origin-keying salt has not been installed, or was
+  /// rejected.
+  ///
+  /// **Fail-closed, and not a transient condition.** An adapter in this state
+  /// must refuse to read: observations keyed under no salt, or under the wrong
+  /// one, would re-key every origin and grant the whole retention window a
+  /// second time. Retrying will not fix it; installing the identity will.
+  originKeyingUnconfigured,
 }
 
-/// An authoritative re-read of a bounded window, sent only when the cursor was
-/// invalidated. See `StepRescan` in stride_core for the recovery strategy.
-class PlatformRescan {
-  PlatformRescan({
-    required this.windowStartMillis,
-    required this.windowEndMillis,
-    required this.windowTotal,
+/// The outcome of installing the device-bound keying salt.
+enum PlatformOriginKeyingOutcome {
+  /// The salt is held in memory for this engine attachment. Reads may proceed.
+  installed,
+  /// The adapter does not implement the requested `algorithmVersion`.
+  ///
+  /// A typed refusal rather than a silent fallback. A version mismatch that
+  /// degraded quietly would produce keys that differ from every other
+  /// platform's — which looks exactly like a new device, and re-grants the
+  /// retention window.
+  unsupportedAlgorithm,
+  /// The salt was malformed — empty, or outside the accepted length.
+  rejected,
+}
+
+/// The shape of one page's answer. Mirrors the `SyncResponse` hierarchy.
+enum PlatformSyncStatus {
+  /// The source reported observations. Covers the ordinary case and, without a
+  /// separate shape, delayed records, overlapping batches, upward and downward
+  /// corrections, and deletions — because every observation is absolute.
+  incremental,
+  /// Nothing changed since the cursor.
+  noChange,
+  /// The cursor was rejected. [PlatformSyncPage.rescan] is then mandatory and
+  /// [PlatformSyncPage.observations] is the authoritative content of the window.
+  cursorInvalidated,
+  /// The provider could not answer. [PlatformSyncPage.unavailableReason] is
+  /// then mandatory, and no cursor is offered.
+  unavailable,
+}
+
+/// Which sources a completeness assertion speaks for.
+enum PlatformOriginScopeKind {
+  /// The adapter asked the platform for its FULL source list and drained every
+  /// one of them. Legitimate only then.
+  allOrigins,
+  /// The adapter vouches only for the sources it names. Use this whenever the
+  /// full source list was not enumerated — including the common case of "these
+  /// are the sources that happened to appear in this batch".
+  someOrigins,
+}
+
+/// How complete a page is. Mirrors `SyncCompleteness`.
+enum PlatformCompletenessKind {
+  /// Pages remain outstanding, or the adapter cannot vouch for the interval.
+  /// **Nothing may be settled.** This is the correct and safe default, and the
+  /// correct value for every page but the last of a paginated read.
+  partial,
+  /// Every page for the declared scope has been drained. Everything at or
+  /// before `throughMillis`, within the scope, has been delivered.
+  completeThrough,
+  /// A bounded recovery rescan completed and covered its whole window. Distinct
+  /// from [completeThrough] because a recovery's authority stops at the window
+  /// it could actually reach. A truncated rescan is [partial].
+  recoveryCompleteThrough,
+}
+
+/// What installing the salt achieved.
+class PlatformOriginKeyingResult {
+  PlatformOriginKeyingResult({
+    required this.outcome,
+    this.diagnostic,
+  });
+
+  PlatformOriginKeyingOutcome outcome;
+
+  /// A short technical note. **Never the salt, never a fingerprint of it, and
+  /// never a source identifier.**
+  String? diagnostic;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      outcome,
+      diagnostic,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformOriginKeyingResult decode(Object result) {
+    result as List<Object?>;
+    return PlatformOriginKeyingResult(
+      outcome: result[0]! as PlatformOriginKeyingOutcome,
+      diagnostic: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformOriginKeyingResult || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(outcome, other.outcome) && _deepEquals(diagnostic, other.diagnostic);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformOriginKeyingResult(outcome: $outcome, diagnostic: $diagnostic)';
+  }
+}
+
+/// A closed-open UTC interval, in milliseconds since the Unix epoch.
+///
+/// No day boundaries and no local calendar anywhere in this contract. That is
+/// what makes daylight saving, travel across timezones, and midnight into
+/// non-events.
+class PlatformTimeBucket {
+  PlatformTimeBucket({
+    required this.startMillis,
+    required this.endMillis,
+  });
+
+  int startMillis;
+
+  int endMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startMillis,
+      endMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformTimeBucket decode(Object result) {
+    result as List<Object?>;
+    return PlatformTimeBucket(
+      startMillis: result[0]! as int,
+      endMillis: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformTimeBucket || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(startMillis, other.startMillis) && _deepEquals(endMillis, other.endMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformTimeBucket(startMillis: $startMillis, endMillis: $endMillis)';
+  }
+}
+
+/// What one source currently says about one slice of time.
+///
+/// **Absolute, not a delta.** A restated observation of 400 steps means the
+/// source now believes that slice contains 400 steps, whether it previously said
+/// 0, 300, or 900. Deltas cannot express a correction and cannot be replayed
+/// safely.
+///
+/// **A deletion is `steps: 0`.** Corrections and deletions carry origin
+/// attribution for free, because every observation names its source.
+class PlatformStepObservation {
+  PlatformStepObservation({
+    required this.originKey,
+    required this.bucket,
+    required this.steps,
+  });
+
+  /// The pseudonymized origin, as **exactly eight bytes**.
+  ///
+  /// Already keyed when it arrives here. The raw platform identifier —
+  /// `HKSource.bundleIdentifier` on iOS, `metadata.dataOrigin.packageName` on
+  /// Android — lived inside one native function call and is gone. There is no
+  /// field on this contract that could carry it, which is the point: a
+  /// `String` here would have been an invitation, and the obvious wrong value
+  /// to put in one is `HKSource.name`, which is a device name a player may have
+  /// called anything at all.
+  ///
+  /// Eight bytes is 64 bits, which the bridge renders as the sixteen lowercase
+  /// hex characters `StepOriginKey` accepts.
+  ///
+  /// **Exactly two lengths are legal: eight, or zero.** Zero means the platform
+  /// reported no source at all, and becomes `StepOriginKey.unknown` — which is
+  /// the reserved literal `unknown`, deliberately not hex, so the keying
+  /// function can never produce it and confuse it with a real source. Any other
+  /// length is a malformed observation and refuses the whole page. That length
+  /// check is the only thing standing between a truncated raw string and the
+  /// ledger, so it is not negotiable and it is not a warning.
+  Uint8List originKey;
+
+  PlatformTimeBucket bucket;
+
+  /// The source's current total for this slice. Never negative. Zero means the
+  /// slice is now empty — a deletion or a correction to nothing.
+  int steps;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      originKey,
+      bucket,
+      steps,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformStepObservation decode(Object result) {
+    result as List<Object?>;
+    return PlatformStepObservation(
+      originKey: result[0]! as Uint8List,
+      bucket: result[1]! as PlatformTimeBucket,
+      steps: result[2]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformStepObservation || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(originKey, other.originKey) && _deepEquals(bucket, other.bucket) && _deepEquals(steps, other.steps);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformStepObservation(originKey: $originKey, bucket: $bucket, steps: $steps)';
+  }
+}
+
+/// The sources a completeness assertion covers.
+class PlatformOriginScope {
+  PlatformOriginScope({
+    required this.kind,
+    required this.originKeys,
+  });
+
+  PlatformOriginScopeKind kind;
+
+  /// Pseudonymized origins, meaningful only when [kind] is
+  /// [PlatformOriginScopeKind.someOrigins]; empty otherwise.
+  ///
+  /// Each entry obeys the same rule as [PlatformStepObservation.originKey]:
+  /// eight bytes, or zero for the unknown origin. A completeness assertion
+  /// names the sources it vouches for, and it must name them in the same
+  /// vocabulary the observations use or it would settle nothing it meant to.
+  List<Uint8List> originKeys;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      kind,
+      originKeys,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformOriginScope decode(Object result) {
+    result as List<Object?>;
+    return PlatformOriginScope(
+      kind: result[0]! as PlatformOriginScopeKind,
+      originKeys: (result[1]! as List<Object?>).cast<Uint8List>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformOriginScope || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(kind, other.kind) && _deepEquals(originKeys, other.originKeys);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformOriginScope(kind: $kind, originKeys: $originKeys)';
+  }
+}
+
+/// A completeness assertion, with the scope that makes it actionable.
+///
+/// A bare boolean cannot distinguish these, and the difference between them is
+/// a player's lost walk:
+///
+///  - "I delivered every page for every source through Tuesday"
+///  - "I delivered page 1 of 9, whose newest record happens to be Tuesday"
+///  - "I delivered everything the *phone* wrote through Tuesday, and the watch
+///    has been offline for a week"
+class PlatformCompleteness {
+  PlatformCompleteness({
+    required this.kind,
+    required this.dataType,
+    required this.scope,
+    required this.intervalStartMillis,
+    required this.intervalEndMillis,
+    required this.queryGeneration,
+    required this.throughMillis,
+  });
+
+  PlatformCompletenessKind kind;
+
+  PlatformHealthDataType dataType;
+
+  PlatformOriginScope scope;
+
+  /// UTC milliseconds. The interval the adapter actually queried — not the
+  /// interval it was asked for, if those differ.
+  int intervalStartMillis;
+
+  int intervalEndMillis;
+
+  /// Which query or token produced this.
+  ///
+  /// The adapter increments it whenever it starts a new anchored query or
+  /// acquires a new changes token. An assertion made under an anchor that has
+  /// since been invalidated is stale, and acting on it would settle buckets a
+  /// rescan is about to restate.
+  int queryGeneration;
+
+  /// UTC milliseconds through which the scope is vouched for. Ignored when
+  /// [kind] is [PlatformCompletenessKind.partial].
+  int throughMillis;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      kind,
+      dataType,
+      scope,
+      intervalStartMillis,
+      intervalEndMillis,
+      queryGeneration,
+      throughMillis,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformCompleteness decode(Object result) {
+    result as List<Object?>;
+    return PlatformCompleteness(
+      kind: result[0]! as PlatformCompletenessKind,
+      dataType: result[1]! as PlatformHealthDataType,
+      scope: result[2]! as PlatformOriginScope,
+      intervalStartMillis: result[3]! as int,
+      intervalEndMillis: result[4]! as int,
+      queryGeneration: result[5]! as int,
+      throughMillis: result[6]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformCompleteness || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(kind, other.kind) && _deepEquals(dataType, other.dataType) && _deepEquals(scope, other.scope) && _deepEquals(intervalStartMillis, other.intervalStartMillis) && _deepEquals(intervalEndMillis, other.intervalEndMillis) && _deepEquals(queryGeneration, other.queryGeneration) && _deepEquals(throughMillis, other.throughMillis);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformCompleteness(kind: $kind, dataType: $dataType, scope: $scope, intervalStartMillis: $intervalStartMillis, intervalEndMillis: $intervalEndMillis, queryGeneration: $queryGeneration, throughMillis: $throughMillis)';
+  }
+}
+
+/// Where this page sits in a paginated read.
+///
+/// The reason this is on the wire at all: without it, a first page and a last
+/// page are byte-identical, and a completeness assertion on page one is
+/// indistinguishable from one on page nine. The bridge cross-checks it — a page
+/// that claims [PlatformCompletenessKind.completeThrough] while
+/// [isFinalPage] is false is downgraded to partial and counted, because
+/// settling on a mid-page assertion is how 55,200 steps were lost.
+class PlatformPagination {
+  PlatformPagination({
+    required this.pageIndex,
+    required this.isFinalPage,
+    this.continuation,
+  });
+
+  /// Zero-based. Diagnostic and cross-check only; the bridge never does
+  /// arithmetic on it.
+  int pageIndex;
+
+  /// True only when the adapter has drained the read. Default to false when
+  /// unsure — an over-cautious partial costs a little ledger growth, and a
+  /// wrong `true` costs a grant permanently.
+  bool isFinalPage;
+
+  /// Opaque resume token for the NEXT page of the SAME read, or null when
+  /// [isFinalPage] is true.
+  ///
+  /// Distinct from [PlatformSyncPage.nextCursor], and the distinction matters:
+  /// a continuation is in-flight read state that is never persisted, while a
+  /// cursor is durable sync position that is persisted only after the ledger
+  /// commits. Conflating them would persist a position mid-read.
+  Uint8List? continuation;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      pageIndex,
+      isFinalPage,
+      continuation,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformPagination decode(Object result) {
+    result as List<Object?>;
+    return PlatformPagination(
+      pageIndex: result[0]! as int,
+      isFinalPage: result[1]! as bool,
+      continuation: result[2] as Uint8List?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformPagination || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(pageIndex, other.pageIndex) && _deepEquals(isFinalPage, other.isFinalPage) && _deepEquals(continuation, other.continuation);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformPagination(pageIndex: $pageIndex, isFinalPage: $isFinalPage, continuation: $continuation)';
+  }
+}
+
+/// The bounded window a recovery rescan covers.
+///
+/// Sent only with [PlatformSyncStatus.cursorInvalidated], where it is mandatory.
+///
+/// ## Why bounded, and why the gap is never granted
+///
+/// Incremental sync reports change since a cursor. When the platform
+/// invalidates that cursor, the change stream is broken and the adapter cannot
+/// say what changed. The two obvious responses are both wrong: granting
+/// everything rescanned double-counts every step already granted, and resetting
+/// the ledger erases the player's earned progress.
+///
+/// So the adapter re-reads the window authoritatively, per origin and per
+/// bucket, and the core reconciles those absolute figures against what it has
+/// already granted for the same slices. The subtraction is the overlap
+/// correction; the no-clawback rule is what turns a shortfall into recorded
+/// discrepancy rather than lost progress.
+///
+/// The window is clamped to `PlatformSyncRequest.maxRescanWindowMillis`. If the
+/// caller's floor is older than that, the window is truncated and [truncated] is
+/// set. **Steps in the unreachable gap are recorded and never granted**: they
+/// cannot be distinguished from steps already counted, and inventing progress is
+/// worse than missing it. The truncation is reported, not silently dropped.
+///
+/// ## Why interrupted recovery is safe to retry
+///
+/// Recovery reads state and computes a number; it mutates nothing until the
+/// ledger batch commits. If the process dies at any point before that, the
+/// ledger and the old cursor are unchanged, so the next attempt recomputes
+/// exactly the same result. Combined with the ledger's batch-identity replay
+/// guard, recovery is idempotent.
+///
+/// ## On record identity
+///
+/// Health Connect exposes per-record UIDs, and deduplicating by UID inside the
+/// overlap window would be more precise. It is deliberately not the primary
+/// mechanism: retaining identifiers indefinitely is unbounded storage, and it
+/// would leave the game holding a shadow copy of health data, which
+/// `GAME_BIBLE/HEALTH_INTEGRATION` forbids. Identity may be used *within* a
+/// single recovery pass as a refinement; the per-slice absolute arithmetic is
+/// what the correctness argument rests on.
+class PlatformRescanWindow {
+  PlatformRescanWindow({
+    required this.startMillis,
+    required this.endMillis,
     required this.truncated,
   });
 
-  /// Start of the rescanned window — the watermark the caller supplied,
-  /// clamped by the adapter to its maximum window.
-  int windowStartMillis;
+  int startMillis;
 
-  int windowEndMillis;
+  int endMillis;
 
-  /// The authoritative total for the window. A total, not a delta: after cursor
-  /// loss only an absolute figure can be reconciled against what was already
-  /// granted.
-  int windowTotal;
-
-  /// True when the window was clamped, leaving an unreachable gap. Those steps
-  /// are recorded, never granted — inventing progress is worse than missing it.
+  /// True when the adapter clamped the window, leaving an unreachable gap.
   bool truncated;
 
   List<Object?> _toList() {
     return <Object?>[
-      windowStartMillis,
-      windowEndMillis,
-      windowTotal,
+      startMillis,
+      endMillis,
       truncated,
     ];
   }
@@ -147,26 +680,25 @@ class PlatformRescan {
   Object encode() {
     return _toList();  }
 
-  static PlatformRescan decode(Object result) {
+  static PlatformRescanWindow decode(Object result) {
     result as List<Object?>;
-    return PlatformRescan(
-      windowStartMillis: result[0]! as int,
-      windowEndMillis: result[1]! as int,
-      windowTotal: result[2]! as int,
-      truncated: result[3]! as bool,
+    return PlatformRescanWindow(
+      startMillis: result[0]! as int,
+      endMillis: result[1]! as int,
+      truncated: result[2]! as bool,
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! PlatformRescan || other.runtimeType != runtimeType) {
+    if (other is! PlatformRescanWindow || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(windowStartMillis, other.windowStartMillis) && _deepEquals(windowEndMillis, other.windowEndMillis) && _deepEquals(windowTotal, other.windowTotal) && _deepEquals(truncated, other.truncated);
+    return _deepEquals(startMillis, other.startMillis) && _deepEquals(endMillis, other.endMillis) && _deepEquals(truncated, other.truncated);
   }
 
   @override
@@ -175,69 +707,101 @@ class PlatformRescan {
 
   @override
   String toString() {
-    return 'PlatformRescan(windowStartMillis: $windowStartMillis, windowEndMillis: $windowEndMillis, windowTotal: $windowTotal, truncated: $truncated)';
+    return 'PlatformRescanWindow(startMillis: $startMillis, endMillis: $endMillis, truncated: $truncated)';
   }
 }
 
-class PlatformFetchResult {
-  PlatformFetchResult({
-    required this.status,
-    required this.newSteps,
-    required this.deletedSteps,
+/// What the caller is asking for.
+///
+/// A request object rather than positional arguments, so a field can be added
+/// without a three-language signature change — and so every field arrives with
+/// its own name at each call site rather than as the third `int?`.
+class PlatformSyncRequest {
+  PlatformSyncRequest({
+    required this.dataType,
+    required this.bucketWidthMillis,
+    required this.maxRescanWindowMillis,
+    required this.includeManualEntries,
     this.cursor,
-    this.rescan,
+    this.continuation,
+    this.rescanFloorMillis,
   });
 
-  PlatformCursorStatus status;
+  PlatformHealthDataType dataType;
 
-  /// A true delta only when [status] is `valid`. Meaningless otherwise.
-  int newSteps;
+  /// The bucket resolution the caller will accept, in milliseconds.
+  ///
+  /// **The adapter must not send narrower buckets than this.** The privacy
+  /// ruling bounds retention *length* — seven days — and says nothing about
+  /// *resolution*. One-minute buckets satisfy it exactly as written and produce
+  /// roughly ten thousand entries per origin: a minute-by-minute record of when
+  /// the player moved, kept for a week. Nobody would have decided to build that.
+  /// `TimeBucket.minimumWidthMillis` is one hour and the bridge refuses
+  /// anything narrower.
+  int bucketWidthMillis;
 
-  /// Steps removed by corrections since the cursor. Information, not an
-  /// instruction — reconciliation never revokes granted progress.
-  int deletedSteps;
+  /// The longest window a recovery rescan may cover. The adapter clamps to this
+  /// and reports `truncated`.
+  int maxRescanWindowMillis;
 
-  /// Opaque. An archived HKQueryAnchor on iOS, a changes token on Android.
-  /// The caller stores and returns it without inspecting it, and persists it
-  /// only after the resulting batch is committed to the ledger.
+  /// Whether manually-entered samples count.
+  ///
+  /// False by default in the game: `HKMetadataKeyWasUserEntered` on iOS,
+  /// `Metadata.recordingMethod` on Android. The default reflects real movement;
+  /// the choice belongs to the player.
+  bool includeManualEntries;
+
+  /// The durable sync position, or null for a first read. Opaque: an archived
+  /// `HKQueryAnchor` on iOS, a Health Connect changes token on Android.
   Uint8List? cursor;
 
-  PlatformRescan? rescan;
+  /// Resume token from the previous page's [PlatformPagination.continuation].
+  /// Null starts a fresh read.
+  Uint8List? continuation;
+
+  /// The oldest instant a recovery rescan need reach, if the cursor turns out
+  /// to be invalid. Null means the adapter uses its full
+  /// [maxRescanWindowMillis].
+  int? rescanFloorMillis;
 
   List<Object?> _toList() {
     return <Object?>[
-      status,
-      newSteps,
-      deletedSteps,
+      dataType,
+      bucketWidthMillis,
+      maxRescanWindowMillis,
+      includeManualEntries,
       cursor,
-      rescan,
+      continuation,
+      rescanFloorMillis,
     ];
   }
 
   Object encode() {
     return _toList();  }
 
-  static PlatformFetchResult decode(Object result) {
+  static PlatformSyncRequest decode(Object result) {
     result as List<Object?>;
-    return PlatformFetchResult(
-      status: result[0]! as PlatformCursorStatus,
-      newSteps: result[1]! as int,
-      deletedSteps: result[2]! as int,
-      cursor: result[3] as Uint8List?,
-      rescan: result[4] as PlatformRescan?,
+    return PlatformSyncRequest(
+      dataType: result[0]! as PlatformHealthDataType,
+      bucketWidthMillis: result[1]! as int,
+      maxRescanWindowMillis: result[2]! as int,
+      includeManualEntries: result[3]! as bool,
+      cursor: result[4] as Uint8List?,
+      continuation: result[5] as Uint8List?,
+      rescanFloorMillis: result[6] as int?,
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! PlatformFetchResult || other.runtimeType != runtimeType) {
+    if (other is! PlatformSyncRequest || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(status, other.status) && _deepEquals(newSteps, other.newSteps) && _deepEquals(deletedSteps, other.deletedSteps) && _deepEquals(cursor, other.cursor) && _deepEquals(rescan, other.rescan);
+    return _deepEquals(dataType, other.dataType) && _deepEquals(bucketWidthMillis, other.bucketWidthMillis) && _deepEquals(maxRescanWindowMillis, other.maxRescanWindowMillis) && _deepEquals(includeManualEntries, other.includeManualEntries) && _deepEquals(cursor, other.cursor) && _deepEquals(continuation, other.continuation) && _deepEquals(rescanFloorMillis, other.rescanFloorMillis);
   }
 
   @override
@@ -246,7 +810,226 @@ class PlatformFetchResult {
 
   @override
   String toString() {
-    return 'PlatformFetchResult(status: $status, newSteps: $newSteps, deletedSteps: $deletedSteps, cursor: $cursor, rescan: $rescan)';
+    return 'PlatformSyncRequest(dataType: $dataType, bucketWidthMillis: $bucketWidthMillis, maxRescanWindowMillis: $maxRescanWindowMillis, includeManualEntries: $includeManualEntries, cursor: $cursor, continuation: $continuation, rescanFloorMillis: $rescanFloorMillis)';
+  }
+}
+
+/// Whether the platform's health service is present and usable.
+///
+/// A result rather than a bare bool so that "no" arrives with a reason, and a
+/// typed result rather than an exception because absence is a NORMAL state the
+/// game stays fully playable through — Android without Health Connect installed
+/// is the ordinary case, not an error.
+class PlatformAvailabilityResult {
+  PlatformAvailabilityResult({
+    required this.available,
+    this.reason,
+    this.diagnostic,
+  });
+
+  bool available;
+
+  /// Set when [available] is false.
+  PlatformUnavailableReason? reason;
+
+  /// A short technical note for a log line. **Never player-facing, and never a
+  /// source identifier, device name, or health value.**
+  String? diagnostic;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      available,
+      reason,
+      diagnostic,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformAvailabilityResult decode(Object result) {
+    result as List<Object?>;
+    return PlatformAvailabilityResult(
+      available: result[0]! as bool,
+      reason: result[1] as PlatformUnavailableReason?,
+      diagnostic: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformAvailabilityResult || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(available, other.available) && _deepEquals(reason, other.reason) && _deepEquals(diagnostic, other.diagnostic);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformAvailabilityResult(available: $available, reason: $reason, diagnostic: $diagnostic)';
+  }
+}
+
+/// The outcome of an authorization request. Typed, never an exception.
+class PlatformAuthorizationResult {
+  PlatformAuthorizationResult({
+    required this.state,
+    this.diagnostic,
+  });
+
+  PlatformAuthorizationState state;
+
+  /// See [PlatformAvailabilityResult.diagnostic]. Same prohibition.
+  String? diagnostic;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      state,
+      diagnostic,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformAuthorizationResult decode(Object result) {
+    result as List<Object?>;
+    return PlatformAuthorizationResult(
+      state: result[0]! as PlatformAuthorizationState,
+      diagnostic: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformAuthorizationResult || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(state, other.state) && _deepEquals(diagnostic, other.diagnostic);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformAuthorizationResult(state: $state, diagnostic: $diagnostic)';
+  }
+}
+
+/// One page of an answer.
+///
+/// Every field's applicability is stated by [status]; the bridge validates the
+/// combination rather than trusting it, and reports a malformed page as a typed
+/// refusal instead of guessing what the adapter meant.
+class PlatformSyncPage {
+  PlatformSyncPage({
+    required this.status,
+    required this.observations,
+    required this.completeness,
+    required this.pagination,
+    this.nextCursor,
+    this.rescan,
+    this.unavailableReason,
+    this.diagnostic,
+  });
+
+  PlatformSyncStatus status;
+
+  /// Absolute per-`(source, bucket)` figures. Empty for
+  /// [PlatformSyncStatus.noChange] and [PlatformSyncStatus.unavailable].
+  ///
+  /// For [PlatformSyncStatus.cursorInvalidated] these are the AUTHORITATIVE
+  /// contents of [rescan]'s window, not a delta.
+  List<PlatformStepObservation> observations;
+
+  PlatformCompleteness completeness;
+
+  PlatformPagination pagination;
+
+  /// The candidate durable cursor.
+  ///
+  /// **Returned and forgotten.** The adapter must not persist it. The caller
+  /// makes it durable only after the ledger and snapshot have committed; see
+  /// the commit-order note at the top of this file. Null when the adapter has
+  /// nothing to offer — which is always the case for
+  /// [PlatformSyncStatus.unavailable], and the case for
+  /// [PlatformSyncStatus.cursorInvalidated] until recovery has been committed.
+  Uint8List? nextCursor;
+
+  /// Mandatory when [status] is [PlatformSyncStatus.cursorInvalidated], absent
+  /// otherwise. A bare invalidation would leave the core with no authoritative
+  /// figure and no safe move.
+  PlatformRescanWindow? rescan;
+
+  /// Mandatory when [status] is [PlatformSyncStatus.unavailable].
+  PlatformUnavailableReason? unavailableReason;
+
+  /// See [PlatformAvailabilityResult.diagnostic]. Same prohibition.
+  String? diagnostic;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      status,
+      observations,
+      completeness,
+      pagination,
+      nextCursor,
+      rescan,
+      unavailableReason,
+      diagnostic,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static PlatformSyncPage decode(Object result) {
+    result as List<Object?>;
+    return PlatformSyncPage(
+      status: result[0]! as PlatformSyncStatus,
+      observations: (result[1]! as List<Object?>).cast<PlatformStepObservation>(),
+      completeness: result[2]! as PlatformCompleteness,
+      pagination: result[3]! as PlatformPagination,
+      nextCursor: result[4] as Uint8List?,
+      rescan: result[5] as PlatformRescanWindow?,
+      unavailableReason: result[6] as PlatformUnavailableReason?,
+      diagnostic: result[7] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! PlatformSyncPage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(status, other.status) && _deepEquals(observations, other.observations) && _deepEquals(completeness, other.completeness) && _deepEquals(pagination, other.pagination) && _deepEquals(nextCursor, other.nextCursor) && _deepEquals(rescan, other.rescan) && _deepEquals(unavailableReason, other.unavailableReason) && _deepEquals(diagnostic, other.diagnostic);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'PlatformSyncPage(status: $status, observations: $observations, completeness: $completeness, pagination: $pagination, nextCursor: $nextCursor, rescan: $rescan, unavailableReason: $unavailableReason, diagnostic: $diagnostic)';
   }
 }
 
@@ -258,17 +1041,59 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is PlatformAuthorization) {
+    }    else if (value is PlatformHealthDataType) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformCursorStatus) {
+    }    else if (value is PlatformAuthorizationState) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is PlatformRescan) {
+    }    else if (value is PlatformUnavailableReason) {
       buffer.putUint8(131);
-      writeValue(buffer, value.encode());
-    }    else if (value is PlatformFetchResult) {
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformOriginKeyingOutcome) {
       buffer.putUint8(132);
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformSyncStatus) {
+      buffer.putUint8(133);
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformOriginScopeKind) {
+      buffer.putUint8(134);
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformCompletenessKind) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.index);
+    }    else if (value is PlatformOriginKeyingResult) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformTimeBucket) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformStepObservation) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformOriginScope) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformCompleteness) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformPagination) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformRescanWindow) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformSyncRequest) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformAvailabilityResult) {
+      buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformAuthorizationResult) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    }    else if (value is PlatformSyncPage) {
+      buffer.putUint8(146);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -280,14 +1105,47 @@ class _PigeonCodec extends StandardMessageCodec {
     switch (type) {
       case 129:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformAuthorization.values[value];
+        return value == null ? null : PlatformHealthDataType.values[value];
       case 130:
         final value = readValue(buffer) as int?;
-        return value == null ? null : PlatformCursorStatus.values[value];
+        return value == null ? null : PlatformAuthorizationState.values[value];
       case 131:
-        return PlatformRescan.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformUnavailableReason.values[value];
       case 132:
-        return PlatformFetchResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformOriginKeyingOutcome.values[value];
+      case 133:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformSyncStatus.values[value];
+      case 134:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformOriginScopeKind.values[value];
+      case 135:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : PlatformCompletenessKind.values[value];
+      case 136:
+        return PlatformOriginKeyingResult.decode(readValue(buffer)!);
+      case 137:
+        return PlatformTimeBucket.decode(readValue(buffer)!);
+      case 138:
+        return PlatformStepObservation.decode(readValue(buffer)!);
+      case 139:
+        return PlatformOriginScope.decode(readValue(buffer)!);
+      case 140:
+        return PlatformCompleteness.decode(readValue(buffer)!);
+      case 141:
+        return PlatformPagination.decode(readValue(buffer)!);
+      case 142:
+        return PlatformRescanWindow.decode(readValue(buffer)!);
+      case 143:
+        return PlatformSyncRequest.decode(readValue(buffer)!);
+      case 144:
+        return PlatformAvailabilityResult.decode(readValue(buffer)!);
+      case 145:
+        return PlatformAuthorizationResult.decode(readValue(buffer)!);
+      case 146:
+        return PlatformSyncPage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -307,10 +1165,68 @@ class HealthHostApi {
 
   final String pigeonVar_messageChannelSuffix;
 
-  /// Whether the platform's health service is present and usable. False on
-  /// Android without Health Connect installed — a normal state, not an error.
-  Future<bool> isAvailable() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.isAvailable$pigeonVar_messageChannelSuffix';
+  /// Installs the device-bound origin-keying salt for this engine attachment.
+  ///
+  /// **The smallest surface that can work**, and it was chosen as the smallest:
+  /// one method, one direction, one value, no reply channel, no storage.
+  ///
+  /// * **In memory only.** Native holds the salt for the lifetime of the engine
+  ///   attachment and drops it on detach. It must not be written to
+  ///   `UserDefaults`, `SharedPreferences`, a DataStore, a file, or the
+  ///   Keychain — this plugin is a *consumer* of the app's identity, never a
+  ///   second custodian of one.
+  /// * **Never generated natively.** There is no "mint if absent" path and
+  ///   there must never be one. `IdentityVault` owns the lifecycle, and a
+  ///   launch that could not resolve the identity has already been blocked by
+  ///   `BootstrapCoordinator` with
+  ///   `BootstrapBlockReason.originIdentityMissing`.
+  /// * **Fail-closed before it is called.** Until this returns
+  ///   [PlatformOriginKeyingOutcome.installed], `fetchSteps` must answer
+  ///   [PlatformUnavailableReason.originKeyingUnconfigured] and read nothing.
+  ///
+  /// [algorithmVersion] is the keying scheme the caller expects. An adapter
+  /// that does not implement it refuses with
+  /// [PlatformOriginKeyingOutcome.unsupportedAlgorithm] rather than falling
+  /// back — a silent fallback produces keys nothing else on the device agrees
+  /// with, which is indistinguishable from a new device and re-grants the whole
+  /// retention window.
+  ///
+  /// ## Why the salt crosses at all
+  ///
+  /// It is the direct cost of pseudonymizing natively, and it is worth naming
+  /// rather than burying. Keying in Dart would keep the salt in one address
+  /// space, at the price of a raw identifier crossing the wire on every
+  /// observation. Keying natively keeps every raw identifier inside its own
+  /// process, at the price of the salt crossing once per attachment. The owner
+  /// ruled for the second trade: an identifier crosses thousands of times and a
+  /// salt crosses once, and the salt is not itself identifying — losing it
+  /// costs a fail-closed refusal, which is recoverable, while a leaked device
+  /// name is not.
+  Future<PlatformOriginKeyingResult> installOriginKeying(Uint8List salt, int algorithmVersion) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.installOriginKeying$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[salt, algorithmVersion]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as PlatformOriginKeyingResult;
+  }
+
+  /// Whether the platform's health service is present and usable.
+  ///
+  /// False on Android without Health Connect installed — a normal state, not an
+  /// error, and one the game must remain fully playable through.
+  Future<PlatformAvailabilityResult> availability() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.availability$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -325,10 +1241,11 @@ class HealthHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as bool;
+    return pigeonVar_replyValue! as PlatformAvailabilityResult;
   }
 
-  Future<PlatformAuthorization> requestAuthorization() async {
+  /// Requests read-only step authorization. Never throws for denial.
+  Future<PlatformAuthorizationResult> requestAuthorization() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.requestAuthorization$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -344,19 +1261,24 @@ class HealthHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as PlatformAuthorization;
+    return pigeonVar_replyValue! as PlatformAuthorizationResult;
   }
 
-  /// Fetch steps since [cursor]. [watermarkMillis] bounds the rescan window if
-  /// the cursor turns out to be invalid.
-  Future<PlatformFetchResult> fetchNewSteps(Uint8List? cursor, int? watermarkMillis) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.fetchNewSteps$pigeonVar_messageChannelSuffix';
+  /// Reads one page.
+  ///
+  /// Must never throw for an expected condition — denial, absence, an invalid
+  /// cursor, an empty result — all of which are reported through
+  /// [PlatformSyncPage]. On genuine error the adapter leaves its own state
+  /// untouched and returns [PlatformSyncStatus.unavailable] with
+  /// [PlatformUnavailableReason.transientFailure].
+  Future<PlatformSyncPage> fetchSteps(PlatformSyncRequest request) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.stride_health.HealthHostApi.fetchSteps$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[cursor, watermarkMillis]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[request]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -365,6 +1287,6 @@ class HealthHostApi {
         isNullValid: false,
     )
     ;
-    return pigeonVar_replyValue! as PlatformFetchResult;
+    return pigeonVar_replyValue! as PlatformSyncPage;
   }
 }

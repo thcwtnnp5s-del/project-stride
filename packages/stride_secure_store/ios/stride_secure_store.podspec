@@ -10,12 +10,16 @@ Pod::Spec.new do |s|
 Project Stride device-bound secure storage: the iOS Keychain reconciliation identity (AfterFirstUnlockThisDeviceOnly) and NSURLIsExcludedFromBackupKey for the save directory, behind a Pigeon-typed boundary.
                        DESC
   s.homepage         = 'https://github.com/thcwtnnp5s-del/project-stride'
-  s.license          = { :file => '../LICENSE' }
+  # Inline, not a :file reference — the referenced stub was deleted when the
+  # repository went public (COPYRIGHT.md). A missing license file makes the
+  # podspec fail to parse, and SPM resolution hides it until a CocoaPods
+  # fallback on a first device build.
+  s.license          = { :type => 'Proprietary', :text => 'Copyright (c) Rob Hathaway. All rights reserved. See COPYRIGHT.md.' }
   s.author           = { 'Project Stride' => 'noreply@example.com' }
   s.source           = { :path => '.' }
   s.source_files = 'stride_secure_store/Sources/stride_secure_store/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '13.0'
+  s.platform = :ios, '17.0'
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }

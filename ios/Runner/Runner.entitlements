@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Foreground, read-only HealthKit.
+
+	  DELIBERATELY ABSENT, and a build-time check enforces it:
+
+	    com.apple.developer.healthkit.background-delivery
+
+	  Background delivery is S-01B, and it is blocked on a real persistence
+	  coordinator (DECISIONS/0013, DECISIONS/0014). Adding the entitlement here
+	  would let iOS wake the app into a second execution context that the
+	  single-writer persistence model does not cover.
+
+	  There is no NSHealthUpdateUsageDescription and no share-type set anywhere:
+	  Stride reads steps and never writes health data.
+	-->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
+	<key>com.apple.developer.healthkit.access</key>
+	<array/>
+</dict>
+</plist>
