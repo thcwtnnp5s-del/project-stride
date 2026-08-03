@@ -98,14 +98,51 @@ PlatformStepObservation pobs(
   steps: steps,
 );
 
-/// A completeness declaration, exactly as native would send it.
+// ---------------------------------------------------------------------------
+// The page builders are SEMANTIC, and there is no general-purpose one
+// ---------------------------------------------------------------------------
+//
+// There used to be `ppage` and `pcomplete`. Between them they took a status, a
+// completeness kind, a pagination flag, a window and a cursor as independent
+// parameters, each with a default — and the completeness default was
+// `partial`. So the shortest way to write a page was also a page that vouched
+// for nothing, and the shortest way to write a page was what most tests wrote.
+//
+// That produced tests whose NAME said one thing and whose DATA said another:
+// "a failure between the grant and the commit leaves the cursor back" asserted
+// that a cursor became durable, on a page that declared the read unfinished.
+// They passed because the bridge handed the cursor over regardless. When
+// `authorizeCursor` closed that hole, the tests failed — not because the
+// behaviour regressed, but because the fixtures had never said what the tests
+// claimed. Ten of them.
+//
+// So the builders below are named for what a delivery IS, each one requires the
+// facts that decide its outcome, and each REFUSES AT CONSTRUCTION the
+// completeness variant its kind cannot legally carry. An ordinary test can no
+// longer express an impossible page by leaving a parameter out.
+//
+// The line they draw: a builder refuses exactly the combinations the bridge
+// rejects as `ContractViolationSync`. Combinations the bridge *corrects* —
+// completeness on a non-final page, a cursor offered where authorization will
+// refuse it — stay expressible, because they are legitimate things an adapter
+// does and the correction is what several tests are about. Offering a cursor is
+// never itself a defect: adapters OFFER candidates, `authorizeCursor` decides.
+
+/// The completeness declaration, exactly as native would send it.
+///
+/// Private, and [kind] is a required positional. Every public builder passes
+/// the kind it is allowed to express, so there is no path on which a page
+/// acquires a completeness kind by default. That default is what made three
+/// tests assert completed-read behaviour on data that said the read was still
+/// going.
 ///
 /// [throughIndex] is the assertion; [fromIndex]/[toIndex] are the interval the
-/// adapter says it actually queried. They are separate parameters on purpose:
-/// an adapter that vouches beyond what it queried is a case a test must be able
-/// to express.
-PlatformCompleteness pcomplete({
-  PlatformCompletenessKind kind = PlatformCompletenessKind.partial,
+/// adapter says it actually queried. Separate on purpose: an adapter that
+/// vouches beyond what it queried is a case a test must be able to express, and
+/// the core's own suite could not, because its helper set both from one
+/// argument.
+PlatformCompleteness _pcompleteness(
+  PlatformCompletenessKind kind, {
   PlatformOriginScopeKind scopeKind = PlatformOriginScopeKind.someOrigins,
   List<Uint8List>? scoped,
   int throughIndex = 1,
@@ -125,13 +162,11 @@ PlatformCompleteness pcomplete({
   throughMillis: t0 + throughIndex * hour,
 );
 
-/// One page from the platform.
-PlatformSyncPage ppage({
-  PlatformSyncStatus status = PlatformSyncStatus.incremental,
-  List<PlatformStepObservation> observations =
-      const <PlatformStepObservation>[],
-  PlatformCompleteness? complete,
-  bool isFinalPage = true,
+PlatformSyncPage _ppage({
+  required PlatformSyncStatus status,
+  required List<PlatformStepObservation> observations,
+  required PlatformCompleteness completeness,
+  required bool isFinalPage,
   String? continuation,
   String? nextCursor,
   PlatformRescanWindow? rescan,
@@ -139,7 +174,7 @@ PlatformSyncPage ppage({
 }) => PlatformSyncPage(
   status: status,
   observations: observations,
-  completeness: complete ?? pcomplete(),
+  completeness: completeness,
   pagination: PlatformPagination(
     pageIndex: 0,
     isFinalPage: isFinalPage,
@@ -149,6 +184,223 @@ PlatformSyncPage ppage({
   rescan: rescan,
   unavailableReason: unavailableReason,
 );
+
+/// An ordinary incremental read.
+///
+/// [isFinalPage] and [completeness] are required because they are the two facts
+/// that decide whether anything settles and whether a cursor may advance.
+///
+/// [completeness] accepts only [PlatformCompletenessKind.partial] or
+/// [PlatformCompletenessKind.completeThrough]. An incremental read asserting
+/// recovery completeness is
+/// [SyncContractViolation.mismatchedCompleteness] and belongs in
+/// [pcontractViolationPage].
+PlatformSyncPage pincrementalPage({
+  required bool isFinalPage,
+  required PlatformCompletenessKind completeness,
+  List<PlatformStepObservation> observations =
+      const <PlatformStepObservation>[],
+  PlatformOriginScopeKind scopeKind = PlatformOriginScopeKind.someOrigins,
+  List<Uint8List>? scoped,
+  int throughIndex = 1,
+  int fromIndex = 0,
+  int? toIndex,
+  int queryGeneration = 1,
+  String? continuation,
+  String? nextCursor,
+}) {
+  if (completeness == PlatformCompletenessKind.recoveryCompleteThrough) {
+    throw ArgumentError.value(
+      completeness,
+      'completeness',
+      'an incremental read has no rescan window, so a recovery completeness '
+          'assertion has no bound to be read against. That is '
+          'SyncContractViolation.mismatchedCompleteness — build it with '
+          'pcontractViolationPage and say so.',
+    );
+  }
+  return _ppage(
+    status: PlatformSyncStatus.incremental,
+    observations: observations,
+    completeness: _pcompleteness(
+      completeness,
+      scopeKind: scopeKind,
+      scoped: scoped,
+      throughIndex: throughIndex,
+      fromIndex: fromIndex,
+      toIndex: toIndex,
+      queryGeneration: queryGeneration,
+    ),
+    isFinalPage: isFinalPage,
+    continuation: continuation,
+    nextCursor: nextCursor,
+  );
+}
+
+/// A bounded authoritative rescan after the platform invalidated the cursor.
+///
+/// [isTruncated] is required and builds the window, so a recovery cannot exist
+/// here without one: an invalidation with no rescan window is an adapter defect
+/// and belongs in [pcontractViolationPage].
+///
+/// [completeness] accepts only [PlatformCompletenessKind.partial] or
+/// [PlatformCompletenessKind.recoveryCompleteThrough]. A recovery asserting
+/// ordinary [PlatformCompletenessKind.completeThrough] is the more dangerous
+/// half of [SyncContractViolation.mismatchedCompleteness] — ordinary
+/// completeness is unbounded, so adopting it from a rescan settles past the
+/// window the rescan covered.
+///
+/// A truncated window asserting recovery completeness is deliberately still
+/// buildable: the bridge downgrades it, and that downgrade is what several
+/// tests are about.
+PlatformSyncPage precoveryPage({
+  required bool isFinalPage,
+  required bool isTruncated,
+  required PlatformCompletenessKind completeness,
+  List<PlatformStepObservation> observations =
+      const <PlatformStepObservation>[],
+  int windowFromIndex = 0,
+  int windowToIndex = 2,
+  PlatformOriginScopeKind scopeKind = PlatformOriginScopeKind.someOrigins,
+  List<Uint8List>? scoped,
+  int throughIndex = 1,
+  int fromIndex = 0,
+  int? toIndex,
+  int queryGeneration = 1,
+  String? continuation,
+  String? nextCursor,
+}) {
+  if (completeness == PlatformCompletenessKind.completeThrough) {
+    throw ArgumentError.value(
+      completeness,
+      'completeness',
+      'a recovery may only vouch for the window it could reach. Ordinary '
+          'completeThrough is unbounded, so adopting it here settles past the '
+          'rescan. That is SyncContractViolation.mismatchedCompleteness — '
+          'build it with pcontractViolationPage and say so.',
+    );
+  }
+  return _ppage(
+    status: PlatformSyncStatus.cursorInvalidated,
+    observations: observations,
+    completeness: _pcompleteness(
+      completeness,
+      scopeKind: scopeKind,
+      scoped: scoped,
+      throughIndex: throughIndex,
+      fromIndex: fromIndex,
+      toIndex: toIndex,
+      queryGeneration: queryGeneration,
+    ),
+    isFinalPage: isFinalPage,
+    rescan: pwindow(
+      fromIndex: windowFromIndex,
+      toIndex: windowToIndex,
+      truncated: isTruncated,
+    ),
+    continuation: continuation,
+    nextCursor: nextCursor,
+  );
+}
+
+/// The platform reported no change since the cursor.
+///
+/// Emptiness is **structural**, not a default: there is no observations
+/// parameter, no completeness parameter and no rescan parameter, so a no-change
+/// page cannot acquire a payload by being written carelessly. All three of
+/// those are [SyncContractViolation]s and all three must be written out
+/// deliberately, in [pcontractViolationPage].
+///
+/// [PlatformCompletenessKind.partial] is the only honest declaration here:
+/// knowing that nothing arrived says nothing about what the window held. That
+/// is also precisely what makes the no-change cursor exception safe — nothing
+/// is settled, so a later delivery inside the window is still grantable.
+PlatformSyncPage pnoChangePage({
+  required bool isFinalPage,
+  String? continuation,
+  String? nextCursor,
+}) => _ppage(
+  status: PlatformSyncStatus.noChange,
+  observations: const <PlatformStepObservation>[],
+  completeness: _pcompleteness(PlatformCompletenessKind.partial),
+  isFinalPage: isFinalPage,
+  continuation: continuation,
+  nextCursor: nextCursor,
+);
+
+/// The provider could not answer.
+///
+/// Carries no observations and no completeness worth asserting; the reason is
+/// the entire content. [nextCursor] exists because an adapter offering one on a
+/// path that answers nothing is a real defect the bridge drops and faults.
+PlatformSyncPage punavailablePage({
+  required PlatformUnavailableReason reason,
+  String? nextCursor,
+}) => _ppage(
+  status: PlatformSyncStatus.unavailable,
+  observations: const <PlatformStepObservation>[],
+  completeness: _pcompleteness(PlatformCompletenessKind.partial),
+  isFinalPage: true,
+  nextCursor: nextCursor,
+  unavailableReason: reason,
+);
+
+/// The **only** builder permitted to express a page the contract forbids.
+///
+/// [violation] is required and must name, in prose, what is deliberately being
+/// broken. It is not decoration and it is not a comment that can drift away
+/// from the call: a helper that can build anything becomes the helper everyone
+/// reaches for, and the value of the builders above is exactly that they cannot
+/// build these. Requiring the caller to write the defect down is what keeps
+/// this from becoming `ppage` again under a longer name.
+///
+/// Everything is explicit here — status, completeness kind, pagination, window
+/// — because a defect fixture that inherited a default would be a defect
+/// fixture nobody could read.
+PlatformSyncPage pcontractViolationPage({
+  required String violation,
+  required PlatformSyncStatus status,
+  required PlatformCompletenessKind completeness,
+  List<PlatformStepObservation> observations =
+      const <PlatformStepObservation>[],
+  bool isFinalPage = true,
+  PlatformRescanWindow? rescan,
+  PlatformOriginScopeKind scopeKind = PlatformOriginScopeKind.someOrigins,
+  List<Uint8List>? scoped,
+  int throughIndex = 1,
+  int fromIndex = 0,
+  int? toIndex,
+  int queryGeneration = 1,
+  String? continuation,
+  String? nextCursor,
+  PlatformUnavailableReason? unavailableReason,
+}) {
+  if (violation.trim().isEmpty) {
+    throw ArgumentError.value(
+      violation,
+      'violation',
+      'name the contract this page deliberately breaks',
+    );
+  }
+  return _ppage(
+    status: status,
+    observations: observations,
+    completeness: _pcompleteness(
+      completeness,
+      scopeKind: scopeKind,
+      scoped: scoped,
+      throughIndex: throughIndex,
+      fromIndex: fromIndex,
+      toIndex: toIndex,
+      queryGeneration: queryGeneration,
+    ),
+    isFinalPage: isFinalPage,
+    rescan: rescan,
+    continuation: continuation,
+    nextCursor: nextCursor,
+    unavailableReason: unavailableReason,
+  );
+}
 
 /// Every platform refusal, and everything it must become.
 ///

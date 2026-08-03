@@ -50,8 +50,17 @@ void _refusals() {
       final GameEngine engine = newEngine();
       final EngineResult seeded = ingest(
         engine,
-        ppage(
+        // A DRAINED read. Test 2 asserts that the durable cursor is still
+        // `seed` after a refusal, which is only a claim with something to lose
+        // if `seed` ever became durable — and a cursor becomes durable only
+        // when the read that offered it says it finished. The old fixture
+        // declared `partial` here and asserted the cursor anyway.
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 2000)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'seed',
         ),
       );
@@ -77,12 +86,7 @@ void _refusals() {
           (ProviderUnavailableReason, ReconciliationCode, bool, SourceState)
           want,
         ) {
-          final SyncFetch fetch = translate(
-            ppage(
-              status: PlatformSyncStatus.unavailable,
-              unavailableReason: platform,
-            ),
-          );
+          final SyncFetch fetch = translate(punavailablePage(reason: platform));
 
           expect(
             (fetch.response as ProviderUnavailableSync).reason,
@@ -125,9 +129,8 @@ void _refusals() {
 
       final EngineResult result = ingest(
         engine,
-        ppage(
-          status: PlatformSyncStatus.unavailable,
-          unavailableReason: PlatformUnavailableReason.permissionUnavailable,
+        punavailablePage(
+          reason: PlatformUnavailableReason.permissionUnavailable,
         ),
       );
 
@@ -165,10 +168,7 @@ void _refusals() {
 
       final EngineResult result = ingest(
         engine,
-        ppage(
-          status: PlatformSyncStatus.unavailable,
-          unavailableReason: PlatformUnavailableReason.serviceMissing,
-        ),
+        punavailablePage(reason: PlatformUnavailableReason.serviceMissing),
       );
 
       expect(result.isAccepted, isTrue, reason: 'absence is not an error');
@@ -205,9 +205,8 @@ void _refusals() {
 
     test('a repeated refusal does not fill the event stream', () {
       final GameEngine engine = engineWithProgress();
-      final PlatformSyncPage down = ppage(
-        status: PlatformSyncStatus.unavailable,
-        unavailableReason: PlatformUnavailableReason.transientFailure,
+      final PlatformSyncPage down = punavailablePage(
+        reason: PlatformUnavailableReason.transientFailure,
       );
 
       expect(ingest(engine, down).events, isNotEmpty);
@@ -232,7 +231,7 @@ void _ordinaryTraffic() {
 
       final EngineResult result = ingest(
         engine,
-        ppage(status: PlatformSyncStatus.noChange, nextCursor: 'c1'),
+        pnoChangePage(isFinalPage: true, nextCursor: 'c1'),
       );
 
       expect(result.isAccepted, isTrue);
@@ -259,11 +258,18 @@ void _ordinaryTraffic() {
 
       final EngineResult result = ingest(
         engine,
-        ppage(
+        // "credits exactly what the page reported" and `authorizedCursor ==
+        // c1`: a finished read. Declared `partial` before, which is a page
+        // saying it has not finished.
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 1200),
             pobs(phoneBytes, 1, 800),
           ],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c1',
         ),
       );
@@ -290,16 +296,24 @@ void _ordinaryTraffic() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 1200)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
 
       final EngineResult second = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 1, 500)],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c2',
         ),
       );
@@ -313,11 +327,15 @@ void _ordinaryTraffic() {
     // -- 6 ------------------------------------------------------------------
     test('6. the same page twice grants exactly once', () {
       final GameEngine engine = newEngine();
-      final PlatformSyncPage batch = ppage(
+      final PlatformSyncPage batch = pincrementalPage(
+        isFinalPage: true,
+        completeness: PlatformCompletenessKind.completeThrough,
         observations: <PlatformStepObservation>[
           pobs(phoneBytes, 0, 1200),
           pobs(phoneBytes, 1, 800),
         ],
+        throughIndex: 2,
+        toIndex: 2,
         nextCursor: 'c1',
       );
 
@@ -348,16 +366,24 @@ void _ordinaryTraffic() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 2, 900)],
+          throughIndex: 3,
+          toIndex: 3,
           nextCursor: 'c1',
         ),
       );
 
       final EngineResult late = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 400)],
+          throughIndex: 3,
+          toIndex: 3,
           nextCursor: 'c2',
         ),
       );
@@ -378,16 +404,24 @@ void _ordinaryTraffic() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 500)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
 
       final EngineResult corrected = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 800)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c2',
         ),
       );
@@ -409,16 +443,24 @@ void _ordinaryTraffic() {
         final GameEngine engine = newEngine();
         ingest(
           engine,
-          ppage(
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 1000)],
+            throughIndex: 1,
+            toIndex: 1,
             nextCursor: 'c1',
           ),
         );
 
         final EngineResult corrected = ingest(
           engine,
-          ppage(
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 400)],
+            throughIndex: 1,
+            toIndex: 1,
             nextCursor: 'c2',
           ),
         );
@@ -454,8 +496,12 @@ void _ordinaryTraffic() {
         // Restating the original figure must not re-grant it.
         final EngineResult restored = ingest(
           engine,
-          ppage(
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 1000)],
+            throughIndex: 1,
+            toIndex: 1,
             nextCursor: 'c3',
           ),
         );
@@ -469,11 +515,15 @@ void _ordinaryTraffic() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 600),
             pobs(phoneBytes, 1, 600),
           ],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c1',
         ),
       );
@@ -483,8 +533,12 @@ void _ordinaryTraffic() {
       // correction, deletion and overlap are one path rather than four.
       final EngineResult deleted = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 0)],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c2',
         ),
       );
@@ -498,8 +552,12 @@ void _ordinaryTraffic() {
       // restatement re-granting it.
       final EngineResult undeleted = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 600)],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c3',
         ),
       );
@@ -522,34 +580,37 @@ void _pagination() {
       // newest bucket it happened to hold.
       final GameEngine engine = newEngine();
 
+      // Pages 1 and 2 declare `partial` because they ARE partial, and they
+      // offer no cursor because an undrained read has no position to offer.
       final SyncFetch p1 = translate(
-        ppage(
+        pincrementalPage(
+          isFinalPage: false,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[
             for (int h = 40; h < 48; h++) pobs(phoneBytes, h, 100),
           ],
-          isFinalPage: false,
           continuation: 'p2',
         ),
       );
       final SyncFetch p2 = translate(
-        ppage(
+        pincrementalPage(
+          isFinalPage: false,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[
             for (int h = 20; h < 40; h++) pobs(phoneBytes, h, 100),
           ],
-          isFinalPage: false,
           continuation: 'p3',
         ),
       );
       final SyncFetch p3 = translate(
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             for (int h = 0; h < 20; h++) pobs(phoneBytes, h, 100),
           ],
-          complete: pcomplete(
-            kind: PlatformCompletenessKind.completeThrough,
-            throughIndex: 48,
-            toIndex: 48,
-          ),
+          throughIndex: 48,
+          toIndex: 48,
           nextCursor: 'drained',
         ),
       );
@@ -602,21 +663,39 @@ void _pagination() {
 
     // -- 13 -----------------------------------------------------------------
     test('13. a partial page cannot assert completeness', () {
-      // The contrast pair. The two pages are identical in every field except
-      // `isFinalPage`, so nothing but the page state can explain the
-      // difference in what settles.
-      PlatformSyncPage claiming({required bool isFinalPage}) => ppage(
-        observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 1000)],
-        complete: pcomplete(
-          kind: PlatformCompletenessKind.completeThrough,
-          throughIndex: 1,
-          toIndex: 1,
-        ),
-        isFinalPage: isFinalPage,
-        continuation: isFinalPage ? null : 'more',
+      // The contrast pair. The two pages carry identical values in every
+      // field except `isFinalPage`, so nothing but the page state can explain
+      // the difference in what settles.
+      //
+      // They come from different builders, and that is the point rather than
+      // an inconsistency: a page that asserts it delivered everything while
+      // saying more pages are coming is an adapter defect, and the fixture now
+      // has to say so out loud. Both builders forward to the same page
+      // constructor, so the values really are identical.
+      final List<PlatformStepObservation> oneThousand =
+          <PlatformStepObservation>[pobs(phoneBytes, 0, 1000)];
+
+      final PlatformSyncPage midPage = pcontractViolationPage(
+        violation:
+            'completeThrough asserted on a page that declares itself '
+            'non-final — the 55,200-step defect in contract form',
+        status: PlatformSyncStatus.incremental,
+        completeness: PlatformCompletenessKind.completeThrough,
+        observations: oneThousand,
+        throughIndex: 1,
+        toIndex: 1,
+        isFinalPage: false,
+        continuation: 'more',
+      );
+      final PlatformSyncPage lastPage = pincrementalPage(
+        isFinalPage: true,
+        completeness: PlatformCompletenessKind.completeThrough,
+        observations: oneThousand,
+        throughIndex: 1,
+        toIndex: 1,
       );
 
-      final SyncFetch mid = translate(claiming(isFinalPage: false));
+      final SyncFetch mid = translate(midPage);
       expect(
         (mid.response as IncrementalSync).completeness,
         isA<PartialDelivery>(),
@@ -644,7 +723,7 @@ void _pagination() {
       // reconciler that never advanced a watermark at all, and would therefore
       // be proving nothing.
       final GameEngine drained = newEngine();
-      final SyncFetch last = translate(claiming(isFinalPage: true));
+      final SyncFetch last = translate(lastPage);
       expect(last.isClean, isTrue);
       expect(grantedBy(reconcile(drained, last)), 1000);
       expect(
@@ -703,14 +782,23 @@ void _origins() {
       // Both devices report. Both are real; neither cancels the other. The
       // watch reports two widely separated hours, which is what a device that
       // syncs sporadically actually looks like.
+      // A drained read that vouches for the PHONE only. Scoped deliberately:
+      // if day zero vouched for every source, it would settle the watch before
+      // the experiment began and the someOrigins run would fail for a reason
+      // that has nothing to do with what it is testing.
       final EngineResult first = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 1000),
             pobs(watchBytes, 0, 900),
             pobs(watchBytes, 100, 100),
           ],
+          scoped: <Uint8List>[phoneBytes],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'day0',
         ),
       );
@@ -721,19 +809,18 @@ void _origins() {
       for (int day = 1; day < 14; day++) {
         ingest(
           engine,
-          ppage(
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[
               pobs(phoneBytes, day * 24, 1000),
             ],
-            complete: pcomplete(
-              kind: PlatformCompletenessKind.completeThrough,
-              scopeKind: scopeKind,
-              scoped: scopeKind == PlatformOriginScopeKind.allOrigins
-                  ? const <Uint8List>[]
-                  : <Uint8List>[phoneBytes],
-              throughIndex: day * 24 + 1,
-              toIndex: day * 24 + 1,
-            ),
+            scopeKind: scopeKind,
+            scoped: scopeKind == PlatformOriginScopeKind.allOrigins
+                ? const <Uint8List>[]
+                : <Uint8List>[phoneBytes],
+            throughIndex: day * 24 + 1,
+            toIndex: day * 24 + 1,
             nextCursor: 'day$day',
           ),
         );
@@ -756,11 +843,17 @@ void _origins() {
 
       // The watch finally reconnects and uploads the walk it recorded while it
       // was away.
+      // A backlog delivery. It declares `partial` and offers no cursor,
+      // because that is what a source catching up after a week offline
+      // honestly is — it has not drained, and it has no position to hand over.
+      // Under the old default it declared `partial` while offering a cursor,
+      // which is a combination the bridge now faults.
       final EngineResult backfill = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[pobs(watchBytes, 5, 8000)],
-          nextCursor: 'watch',
         ),
       );
 
@@ -794,11 +887,14 @@ void _origins() {
         reason: 'an allOrigins assertion does vouch for the watch',
       );
 
+      // Field-for-field the same backlog page as the test above. The only
+      // difference between the two tests remains one enum value on the wire.
       final EngineResult backfill = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[pobs(watchBytes, 5, 8000)],
-          nextCursor: 'watch',
         ),
       );
 
@@ -816,19 +912,28 @@ void _origins() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 1000),
             pobs(watchBytes, 0, 900),
           ],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
 
       final EngineResult corrected = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(watchBytes, 0, 200)],
+          scoped: <Uint8List>[watchBytes],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c2',
         ),
       );
@@ -850,11 +955,15 @@ void _origins() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 1000),
             pobs(watchBytes, 0, 900),
           ],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
@@ -878,35 +987,41 @@ void _commitOrder() {
   group('14. the cursor is not committed before the ledger', () {
     /// Every accepted shape the bridge can produce, so the ordering claim is
     /// made about the whole surface rather than about one convenient page.
+    ///
+    /// A sixth shape used to sit here: `noChange` carrying observations, which
+    /// the bridge promoted to `incremental`. That promotion is gone — the owner
+    /// ruled the whole delivery rejected as
+    /// `SyncContractViolation.noChangeWithPayload` — so it is no longer an
+    /// accepted shape and asserting a commit order for it would be asserting an
+    /// order for something that never commits. Its refusal is pinned in the
+    /// matrix test instead.
     List<PlatformSyncPage> acceptedShapes() => <PlatformSyncPage>[
-      ppage(
+      pincrementalPage(
+        isFinalPage: true,
+        completeness: PlatformCompletenessKind.completeThrough,
         observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 900)],
+        throughIndex: 1,
+        toIndex: 1,
         nextCursor: 'a',
       ),
-      ppage(status: PlatformSyncStatus.noChange, nextCursor: 'b'),
-      ppage(
-        status: PlatformSyncStatus.noChange,
-        observations: <PlatformStepObservation>[pobs(phoneBytes, 1, 50)],
-        nextCursor: 'c',
-      ),
-      ppage(
+      pnoChangePage(isFinalPage: true, nextCursor: 'b'),
+      pincrementalPage(
+        isFinalPage: true,
+        completeness: PlatformCompletenessKind.completeThrough,
         observations: <PlatformStepObservation>[pobs(phoneBytes, 2, 700)],
-        complete: pcomplete(
-          kind: PlatformCompletenessKind.completeThrough,
-          throughIndex: 3,
-          toIndex: 3,
-        ),
+        throughIndex: 3,
+        toIndex: 3,
         nextCursor: 'd',
       ),
-      ppage(
-        status: PlatformSyncStatus.cursorInvalidated,
+      precoveryPage(
+        isFinalPage: true,
+        isTruncated: false,
+        completeness: PlatformCompletenessKind.recoveryCompleteThrough,
         observations: <PlatformStepObservation>[pobs(phoneBytes, 3, 400)],
-        rescan: pwindow(fromIndex: 0, toIndex: 4),
-        complete: pcomplete(
-          kind: PlatformCompletenessKind.recoveryCompleteThrough,
-          throughIndex: 4,
-          toIndex: 4,
-        ),
+        windowFromIndex: 0,
+        windowToIndex: 4,
+        throughIndex: 4,
+        toIndex: 4,
         nextCursor: 'e',
       ),
     ];
@@ -938,19 +1053,31 @@ void _commitOrder() {
     test(
       'a failure between the grant and the commit leaves the cursor back',
       () {
+        // Both reads DRAINED. The test's whole subject is which cursor is
+        // durable at each instant, and a cursor is only ever durable if the
+        // read that offered it finished. The old fixture declared `partial`
+        // on both pages and asserted cursor durability anyway.
         final GameEngine engine = newEngine();
         ingest(
           engine,
-          ppage(
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 700)],
+            throughIndex: 1,
+            toIndex: 1,
             nextCursor: 'c1',
           ),
         );
         final GameState committed = engine.state;
         expect(committed.steps.checkpoint.cursor, cursor('c1'));
 
-        final PlatformSyncPage next = ppage(
+        final PlatformSyncPage next = pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 1, 500)],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c2',
         );
         final EngineResult planned = ingest(engineAt(committed), next);
@@ -984,11 +1111,18 @@ void _commitOrder() {
     );
 
     test('a failure before the ledger commits moves nothing at all', () {
+      // Drained reads, for the same reason as the test above: the assertion is
+      // that `c1` is still the durable cursor, which requires that `c1` ever
+      // became durable.
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 700)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
@@ -999,8 +1133,12 @@ void _commitOrder() {
       // ran.
       final EngineResult planned = ingest(
         engineAt(committed),
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 1, 300)],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c2',
         ),
       );
@@ -1015,8 +1153,14 @@ void _commitOrder() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        // Drained: the assertion below is that the durable cursor is still
+        // `c1` after the refusal, which needs `c1` to have become durable.
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 700)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
@@ -1024,10 +1168,22 @@ void _commitOrder() {
       // An invalidated cursor with no rescan window: refused by the bridge, so
       // the core sees a transient failure and the cursor the adapter offered is
       // never seen at all.
+      //
+      // The page declares a COMPLETED recovery, so the missing window is the
+      // only thing wrong with it. Under the old `partial` default the cursor
+      // would have been refused for a second, unrelated reason, and the test
+      // could not have told which refusal it was observing.
       final SyncFetch refused = translate(
-        ppage(
+        pcontractViolationPage(
+          violation:
+              'cursorInvalidated with no rescan window — a recovery that '
+              'claims to have completed a window it never names',
           status: PlatformSyncStatus.cursorInvalidated,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 1, 5000)],
+          throughIndex: 2,
+          toIndex: 2,
+          rescan: null,
           nextCursor: 'poison',
         ),
       );
@@ -1045,18 +1201,26 @@ void _commitOrder() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 700)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
       final GameState committed = engine.state;
 
-      final PlatformSyncPage next = ppage(
+      final PlatformSyncPage next = pincrementalPage(
+        isFinalPage: true,
+        completeness: PlatformCompletenessKind.completeThrough,
         observations: <PlatformStepObservation>[
           pobs(phoneBytes, 0, 700),
           pobs(phoneBytes, 1, 300),
         ],
+        throughIndex: 2,
+        toIndex: 2,
         nextCursor: 'c2',
       );
 
@@ -1093,29 +1257,33 @@ void _recovery() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 500),
             pobs(phoneBytes, 1, 500),
           ],
+          throughIndex: 2,
+          toIndex: 2,
           nextCursor: 'c1',
         ),
       );
 
       final SyncFetch fetch = translate(
-        ppage(
-          status: PlatformSyncStatus.cursorInvalidated,
+        precoveryPage(
+          isFinalPage: true,
+          isTruncated: false,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 500),
             pobs(phoneBytes, 1, 500),
             pobs(phoneBytes, 2, 300),
           ],
-          rescan: pwindow(fromIndex: 0, toIndex: 3),
-          complete: pcomplete(
-            kind: PlatformCompletenessKind.recoveryCompleteThrough,
-            throughIndex: 3,
-            toIndex: 3,
-          ),
+          windowFromIndex: 0,
+          windowToIndex: 3,
+          throughIndex: 3,
+          toIndex: 3,
           nextCursor: 'c2',
         ),
       );
@@ -1139,18 +1307,30 @@ void _recovery() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 900)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
 
+      // A completed rescan of a window it fully covered — which is what makes
+      // "reporting less than was granted" a restatement the adapter stands
+      // behind, rather than a page that simply had not finished reading.
       ingest(
         engine,
-        ppage(
-          status: PlatformSyncStatus.cursorInvalidated,
+        precoveryPage(
+          isFinalPage: true,
+          isTruncated: false,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 100)],
-          rescan: pwindow(fromIndex: 0, toIndex: 1),
+          windowFromIndex: 0,
+          windowToIndex: 1,
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c2',
         ),
       );
@@ -1166,15 +1346,30 @@ void _recovery() {
         for (int h = 0; h < 12; h++) pobs(phoneBytes, h, 100),
       ];
 
-      ingest(engine, ppage(observations: history, nextCursor: 'c1'));
+      ingest(
+        engine,
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
+          observations: history,
+          throughIndex: 12,
+          toIndex: 12,
+          nextCursor: 'c1',
+        ),
+      );
       expect(engine.state.steps.totalGranted, 1200);
 
       final EngineResult recovered = ingest(
         engine,
-        ppage(
-          status: PlatformSyncStatus.cursorInvalidated,
+        precoveryPage(
+          isFinalPage: true,
+          isTruncated: false,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
           observations: history,
-          rescan: pwindow(fromIndex: 0, toIndex: 12),
+          windowFromIndex: 0,
+          windowToIndex: 12,
+          throughIndex: 12,
+          toIndex: 12,
           nextCursor: 'c2',
         ),
       );
@@ -1195,15 +1390,15 @@ void _recovery() {
       // a truncated rescan buries whatever fell outside the truncation, and
       // those steps are then unreachable forever.
       final SyncFetch fetch = translate(
-        ppage(
-          status: PlatformSyncStatus.cursorInvalidated,
+        precoveryPage(
+          isFinalPage: true,
+          isTruncated: true,
+          completeness: PlatformCompletenessKind.recoveryCompleteThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 5, 400)],
-          rescan: pwindow(fromIndex: 5, toIndex: 6, truncated: true),
-          complete: pcomplete(
-            kind: PlatformCompletenessKind.recoveryCompleteThrough,
-            throughIndex: 6,
-            toIndex: 6,
-          ),
+          windowFromIndex: 5,
+          windowToIndex: 6,
+          throughIndex: 6,
+          toIndex: 6,
           nextCursor: 'c1',
         ),
       );
@@ -1236,8 +1431,12 @@ void _recovery() {
       // which is the difference between "recorded" and "invented".
       final EngineResult inGap = ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 250)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c2',
         ),
       );
@@ -1249,20 +1448,35 @@ void _recovery() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        // Drained: `before.steps.checkpoint.cursor == cursor('c1')` is
+        // asserted below, and a cursor from an unfinished read never gets
+        // there.
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 500)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
       final GameState before = engine.state;
 
-      final PlatformSyncPage rescanPage = ppage(
-        status: PlatformSyncStatus.cursorInvalidated,
+      // The recovery must declare that it COMPLETED, or its replacement
+      // cursor is not eligible to become durable. `precoveryPage` now requires
+      // the declaration rather than defaulting it.
+      final PlatformSyncPage rescanPage = precoveryPage(
+        isFinalPage: true,
+        isTruncated: false,
+        completeness: PlatformCompletenessKind.recoveryCompleteThrough,
         observations: <PlatformStepObservation>[
           pobs(phoneBytes, 0, 500),
           pobs(phoneBytes, 1, 400),
         ],
-        rescan: pwindow(fromIndex: 0, toIndex: 2),
+        windowFromIndex: 0,
+        windowToIndex: 2,
+        throughIndex: 2,
+        toIndex: 2,
         nextCursor: 'c2',
       );
 
@@ -1285,20 +1499,34 @@ void _recovery() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        // Drained: `midFlight.steps.checkpoint.cursor == cursor('c1')` is
+        // asserted below.
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 500)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
       final GameState before = engine.state;
 
-      final PlatformSyncPage rescanPage = ppage(
-        status: PlatformSyncStatus.cursorInvalidated,
+      // A completed recovery. The interruption being modelled is a CRASH — the
+      // events are truncated below — not an adapter that stopped half way, so
+      // the page must describe a rescan that finished.
+      final PlatformSyncPage rescanPage = precoveryPage(
+        isFinalPage: true,
+        isTruncated: false,
+        completeness: PlatformCompletenessKind.recoveryCompleteThrough,
         observations: <PlatformStepObservation>[
           pobs(phoneBytes, 0, 500),
           pobs(phoneBytes, 1, 400),
         ],
-        rescan: pwindow(fromIndex: 0, toIndex: 2),
+        windowFromIndex: 0,
+        windowToIndex: 2,
+        throughIndex: 2,
+        toIndex: 2,
         nextCursor: 'c2',
       );
       final EngineResult planned = ingest(engineAt(before), rescanPage);
@@ -1331,17 +1559,26 @@ void _recovery() {
       final GameEngine engine = newEngine();
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 500)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'c1',
         ),
       );
 
       final EngineResult result = ingest(
         engine,
-        ppage(
+        pcontractViolationPage(
+          violation:
+              'cursorInvalidated with no rescan window — there is no '
+              'authoritative figure and no bound to grant against',
           status: PlatformSyncStatus.cursorInvalidated,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 1, 9999)],
+          rescan: null,
         ),
       );
 
@@ -1369,16 +1606,15 @@ void _privacy() {
 
       ingest(
         engine,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[
             pobs(phoneBytes, 0, 1000),
             pobs(watchBytes, 0, 900),
           ],
-          complete: pcomplete(
-            kind: PlatformCompletenessKind.completeThrough,
-            throughIndex: 1,
-            toIndex: 1,
-          ),
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: cursorSecret,
         ),
       );
@@ -1483,9 +1719,18 @@ void _privacy() {
         final Uint8List asBytes = Uint8List.fromList(name.codeUnits);
         ingest(
           engine,
-          ppage(
+          // `completeThrough`, not the old `partial` default. Under `partial`
+          // the bridge returns before it ever decodes the scope, so
+          // `scoped: [asBytes]` — the whole point of putting a device name in
+          // the scope — was inert. The second half of this test was testing
+          // nothing.
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[pobs(asBytes, 0, 100)],
-            complete: pcomplete(scoped: <Uint8List>[asBytes]),
+            scoped: <Uint8List>[asBytes],
+            throughIndex: 1,
+            toIndex: 1,
             nextCursor: 'c',
           ),
         );

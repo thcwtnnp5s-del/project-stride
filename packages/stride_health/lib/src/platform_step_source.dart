@@ -35,6 +35,7 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 import 'package:stride_core/stride_core.dart';
 
+import 'cursor_authorization.dart';
 import 'messages.g.dart';
 import 'origin_gateway.dart';
 import 'origin_pseudonymizer.dart';
@@ -250,15 +251,84 @@ final class PlatformStepSource implements StepSyncSource {
     // deliberately does not expose pagination to the reconciler — the core
     // cannot see that a page was non-final, so it structurally cannot refuse
     // this. The bridge is the only place that knows.
-    final SyncCursor? cursor;
-    if (page.nextCursor == null) {
-      cursor = null;
-    } else if (!isFinalPage) {
-      cursor = null;
-      faults.add(SyncFault.cursorOfferedWhenProhibited);
-    } else {
-      cursor = SyncCursor(page.nextCursor!);
+    // ONE decision, made once, in `cursor_authorization.dart`.
+    //
+    // It used to be answered in three places — here for pagination, again in
+    // the recovery branch for truncation, and implicitly by whichever
+    // completeness happened to be attached. Three defects came out of that, the
+    // third of them after the first two were fixed, because each fix landed
+    // where its symptom appeared rather than where the rule lived.
+    //
+    // Native adapters OFFER a candidate. This authorizes it. Snapshot commit
+    // determines durability.
+    final SyncKind syncKind = switch (page.status) {
+      PlatformSyncStatus.cursorInvalidated => SyncKind.recovery,
+      PlatformSyncStatus.noChange => SyncKind.noChange,
+      _ => SyncKind.incremental,
+    };
+
+    // The whole delivery, or nothing.
+    //
+    // A page whose status and completeness disagree about what was read cannot
+    // be interpreted at all, and every interpretation of it is a guess. The
+    // earlier behaviour guessed twice: a `noChange` page carrying observations
+    // was promoted to `incremental`, and a mismatched completeness variant was
+    // simply carried through. Both kept part of a page that had already proved
+    // it could not be trusted about the other part.
+    //
+    // The owner ruled that back. `ContractViolationSync` reaches the reconciler
+    // as `malformedBatch`, which `GameEngine` REJECTS — so no event is applied
+    // and `GameState` is not touched, which is a stronger guarantee than
+    // `ProviderUnavailableSync` gives (that one still moves `sourceState`).
+    //
+    // Checked on the DECLARED completeness kind, not the effective one. The
+    // non-final-page downgrade below is a correction for pagination; it does
+    // not make a contradictory statement non-contradictory, and reading the
+    // corrected value here would let a mismatch hide behind an unrelated fix.
+    final SyncContractViolation? violation = _violation(
+      kind: syncKind,
+      hasObservations: observations.isNotEmpty,
+      hasRescanWindow: page.rescan != null,
+      declared: page.completeness.kind,
+    );
+    if (violation != null) {
+      if (syncKind == SyncKind.noChange && observations.isNotEmpty) {
+        faults.add(SyncFault.observationsOnNoChange);
+      }
+      faults.add(switch (violation) {
+        SyncContractViolation.noChangeWithPayload =>
+          SyncFault.noChangeWithPayload,
+        SyncContractViolation.mismatchedCompleteness =>
+          SyncFault.mismatchedCompleteness,
+      });
+      // No continuation, and final by declaration. The delivery was rejected
+      // whole, so there is no page to resume and nothing to wait for; handing
+      // back a resume token would carry a rejected read forward.
+      return SyncFetch(ContractViolationSync(violation), faults: faults);
     }
+
+    // A truncated rescan covered less than it was asked to. Settling on it
+    // would bury whatever fell outside the truncation, so completeness is
+    // downgraded before the authorization sees it.
+    final bool truncated = page.rescan?.truncated ?? false;
+    final SyncCompleteness effectiveCompleteness =
+        syncKind == SyncKind.recovery && truncated
+        ? const PartialDelivery()
+        : completeness;
+
+    final CursorAuthorization authorization = authorizeCursor(
+      hasCandidate: page.nextCursor != null,
+      kind: syncKind,
+      isFinalPage: isFinalPage,
+      completeness: effectiveCompleteness,
+      truncated: truncated,
+    );
+    if (authorization.raisesProhibitedFault) {
+      faults.add(SyncFault.cursorOfferedWhenProhibited);
+    }
+    final SyncCursor? cursor = authorization.isAuthorized
+        ? SyncCursor(page.nextCursor!)
+        : null;
 
     switch (page.status) {
       case PlatformSyncStatus.cursorInvalidated:
@@ -272,8 +342,11 @@ final class PlatformStepSource implements StepSyncSource {
               ProviderUnavailableReason.transientFailure,
             ),
             faults: <SyncFault>[...faults, SyncFault.invalidatedWithoutRescan],
+            cursorAuthorization: authorization,
           );
         }
+        // Truncation and cursor eligibility are both settled above, by the one
+        // authorization. This branch only assembles the response.
         return SyncFetch(
           CursorInvalidatedSync(
             window: RescanWindow(
@@ -283,38 +356,24 @@ final class PlatformStepSource implements StepSyncSource {
             ),
             observations: observations,
             nextCursor: cursor,
-            // A truncated rescan covered less than it was asked to. Settling on
-            // it would bury whatever fell outside the truncation.
-            completeness: window.truncated
-                ? const PartialDelivery()
-                : completeness,
+            completeness: effectiveCompleteness,
           ),
           faults: faults,
           isFinalPage: isFinalPage,
           continuation: continuation,
+          cursorAuthorization: authorization,
         );
 
       case PlatformSyncStatus.noChange:
-        if (observations.isNotEmpty) {
-          // Real steps are never thrown away over a status mismatch. The
-          // response is promoted rather than the observations discarded.
-          faults.add(SyncFault.observationsOnNoChange);
-          return SyncFetch(
-            IncrementalSync(
-              observations: observations,
-              nextCursor: cursor,
-              completeness: completeness,
-            ),
-            faults: faults,
-            isFinalPage: isFinalPage,
-            continuation: continuation,
-          );
-        }
+        // Observations, a rescan window, and a settling completeness are all
+        // rejected above as contract violations, so what reaches here is a
+        // structurally empty no-change page and nothing else.
         return SyncFetch(
           NoChangeSync(nextCursor: cursor, completeness: completeness),
           faults: faults,
           isFinalPage: isFinalPage,
           continuation: continuation,
+          cursorAuthorization: authorization,
         );
 
       case PlatformSyncStatus.incremental:
@@ -327,11 +386,65 @@ final class PlatformStepSource implements StepSyncSource {
           faults: faults,
           isFinalPage: isFinalPage,
           continuation: continuation,
+          cursorAuthorization: authorization,
         );
 
       case PlatformSyncStatus.unavailable:
         // Handled above, before any conversion. Unreachable.
         throw StateError('unavailable pages are handled before translation');
+    }
+  }
+
+  /// Which part of the contract this page broke, or null if it broke none.
+  ///
+  /// ## Why `noChange` + a complete variant is a *mismatch* and not a *payload*
+  ///
+  /// Both enum members were documented as covering it —
+  /// [SyncContractViolation.noChangeWithPayload] says "or a complete-through
+  /// assertion", and [SyncContractViolation.mismatchedCompleteness] says "or a
+  /// no-change asserting either". One of the two had to give, because the point
+  /// of having two members is that a diagnostic can tell them apart.
+  ///
+  /// The split made here: **payload is structure, mismatch is completeness.**
+  /// A no-change page that carries observations or a rescan window has a
+  /// payload it cannot have; a no-change page that vouches for a window has a
+  /// completeness variant that does not match its kind, which is what
+  /// `mismatchedCompleteness` is named for. Each violation then names the field
+  /// that is actually wrong. The doc comments on both members were corrected to
+  /// match.
+  static SyncContractViolation? _violation({
+    required SyncKind kind,
+    required bool hasObservations,
+    required bool hasRescanWindow,
+    required PlatformCompletenessKind declared,
+  }) {
+    switch (kind) {
+      case SyncKind.noChange:
+        if (hasObservations || hasRescanWindow) {
+          return SyncContractViolation.noChangeWithPayload;
+        }
+        if (declared != PlatformCompletenessKind.partial) {
+          return SyncContractViolation.mismatchedCompleteness;
+        }
+        return null;
+
+      case SyncKind.incremental:
+        // Recovery completeness is bounded by the window a rescan could reach.
+        // An ordinary incremental read has no such window, so the assertion has
+        // no bound to be read against.
+        if (declared == PlatformCompletenessKind.recoveryCompleteThrough) {
+          return SyncContractViolation.mismatchedCompleteness;
+        }
+        return null;
+
+      case SyncKind.recovery:
+        // The reverse, and the more dangerous direction: ordinary completeness
+        // is unbounded, so adopting it from a rescan settles past the window
+        // the rescan actually covered.
+        if (declared == PlatformCompletenessKind.completeThrough) {
+          return SyncContractViolation.mismatchedCompleteness;
+        }
+        return null;
     }
   }
 

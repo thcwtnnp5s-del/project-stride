@@ -20,8 +20,8 @@ import 'adapter_ledger_support.dart'
         ingest,
         newEngine,
         phoneBytes,
+        pincrementalPage,
         pobs,
-        ppage,
         reconcile;
 
 /// The gateway is stateless now: keying happens natively, and this only
@@ -49,8 +49,17 @@ PlatformStepObservation observation({
   steps: steps,
 );
 
+/// A completeness assertion. **[kind] is required, and deliberately so.**
+///
+/// It used to default to `partial` — the same silent default the semantic
+/// builders in `adapter_ledger_support.dart` were built to remove, surviving in
+/// the one file that rename did not touch. A fixture that never states its
+/// completeness cannot contradict its own test name, which is not the same as
+/// agreeing with it: one test here pushed a device name through a scope on a
+/// `partial` page, and `_completeness` returns before decoding the scope, so
+/// the privacy path it existed to exercise was never reached.
 PlatformCompleteness completeness({
-  PlatformCompletenessKind kind = PlatformCompletenessKind.partial,
+  required PlatformCompletenessKind kind,
   PlatformOriginScopeKind scopeKind = PlatformOriginScopeKind.someOrigins,
   List<Uint8List>? scoped,
   int through = t0 + hour,
@@ -67,10 +76,27 @@ PlatformCompleteness completeness({
   throughMillis: through,
 );
 
+/// "This delivery vouches for nothing" — the honest declaration for a page
+/// whose test is not about settling at all.
+///
+/// Named rather than defaulted. It is the same value the old default supplied,
+/// but a call site that writes `complete: partial` has stated it, and a fixture
+/// that states its completeness is one whose name can be checked against it.
+final PlatformCompleteness partial = completeness(
+  kind: PlatformCompletenessKind.partial,
+);
+
+/// A raw page, permitting combinations the semantic builders forbid.
+///
+/// That freedom is the point HERE and nowhere else: this file tests the bridge's
+/// handling of illegal pages, so it needs to build them. [complete] is required
+/// for the reason given on [completeness] — the builder may permit anything, but
+/// it may not let a fixture stay silent about the field the whole contract turns
+/// on.
 PlatformSyncPage page({
+  required PlatformCompleteness complete,
   PlatformSyncStatus status = PlatformSyncStatus.incremental,
   List<PlatformStepObservation>? observations,
-  PlatformCompleteness? complete,
   bool isFinalPage = true,
   Uint8List? continuation,
   Uint8List? nextCursor,
@@ -79,7 +105,7 @@ PlatformSyncPage page({
 }) => PlatformSyncPage(
   status: status,
   observations: observations ?? <PlatformStepObservation>[observation()],
-  completeness: complete ?? completeness(),
+  completeness: complete,
   pagination: PlatformPagination(
     pageIndex: 0,
     isFinalPage: isFinalPage,
@@ -93,8 +119,18 @@ PlatformSyncPage page({
 void main() {
   group('the ordinary case', () {
     test('observations become origin-attributed core observations', () {
+      // `completeThrough`, because the test asserts `nextCursor` survived and
+      // a partial delivery may not authorize a cursor. The fixture used to say
+      // `partial` — inherited from a default, never chosen — and so asserted a
+      // cursor on a page that said the read had not finished. That default is
+      // gone; every page in this file now states its own completeness.
       final SyncFetch fetch = PlatformStepSource.translate(
-        page(nextCursor: Uint8List.fromList(<int>[1, 2])),
+        page(
+          complete: completeness(
+            kind: PlatformCompletenessKind.completeThrough,
+          ),
+          nextCursor: Uint8List.fromList(<int>[1, 2]),
+        ),
         gateway,
       );
 
@@ -109,6 +145,7 @@ void main() {
     test('an empty page with noChange stays noChange', () {
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           status: PlatformSyncStatus.noChange,
           observations: <PlatformStepObservation>[],
         ),
@@ -121,7 +158,10 @@ void main() {
 
     test('a deletion is an absolute zero, not a separate figure', () {
       final SyncFetch fetch = PlatformStepSource.translate(
-        page(observations: <PlatformStepObservation>[observation(steps: 0)]),
+        page(
+          complete: partial,
+          observations: <PlatformStepObservation>[observation(steps: 0)],
+        ),
         gateway,
       );
 
@@ -235,6 +275,7 @@ void main() {
     test('an inverted bucket is refused', () {
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           observations: <PlatformStepObservation>[
             observation(start: t0 + hour, end: t0),
           ],
@@ -248,7 +289,10 @@ void main() {
 
     test('a negative count is refused', () {
       final SyncFetch fetch = PlatformStepSource.translate(
-        page(observations: <PlatformStepObservation>[observation(steps: -1)]),
+        page(
+          complete: partial,
+          observations: <PlatformStepObservation>[observation(steps: -1)],
+        ),
         gateway,
       );
 
@@ -264,6 +308,7 @@ void main() {
       for (final int length in <int>[1, 4, 7, 9, 16, 32]) {
         final SyncFetch fetch = PlatformStepSource.translate(
           page(
+            complete: partial,
             observations: <PlatformStepObservation>[
               observation(originKey: Uint8List(length)),
             ],
@@ -286,6 +331,7 @@ void main() {
       // produce.
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           observations: <PlatformStepObservation>[
             observation(originKey: Uint8List(0)),
           ],
@@ -390,7 +436,7 @@ void main() {
       // Without the window there is no authoritative figure and no safe move:
       // granting is the double-count, discarding is the lost grant.
       final SyncFetch fetch = PlatformStepSource.translate(
-        page(status: PlatformSyncStatus.cursorInvalidated),
+        page(complete: partial, status: PlatformSyncStatus.cursorInvalidated),
         gateway,
       );
 
@@ -403,6 +449,7 @@ void main() {
     test('a named reason survives', () {
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           status: PlatformSyncStatus.unavailable,
           observations: <PlatformStepObservation>[],
           unavailableReason: PlatformUnavailableReason.permissionUnavailable,
@@ -420,6 +467,7 @@ void main() {
     test('a missing reason becomes transient and is recorded as a fault', () {
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           status: PlatformSyncStatus.unavailable,
           observations: <PlatformStepObservation>[],
         ),
@@ -440,6 +488,7 @@ void main() {
       // window.
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           status: PlatformSyncStatus.unavailable,
           observations: <PlatformStepObservation>[],
           unavailableReason: PlatformUnavailableReason.originKeyingUnconfigured,
@@ -496,6 +545,7 @@ void main() {
               r:
                   (PlatformStepSource.translate(
                             page(
+                              complete: partial,
                               status: PlatformSyncStatus.unavailable,
                               observations: <PlatformStepObservation>[],
                               unavailableReason: r,
@@ -533,6 +583,7 @@ void main() {
       // the next sync claim progress the ledger never recorded.
       final SyncFetch fetch = PlatformStepSource.translate(
         page(
+          complete: partial,
           status: PlatformSyncStatus.unavailable,
           observations: <PlatformStepObservation>[],
           unavailableReason: PlatformUnavailableReason.serviceMissing,
@@ -550,8 +601,15 @@ void main() {
       final GameEngine engine = newEngine();
       final EngineResult seeded = ingest(
         engine,
-        ppage(
+        // A DRAINED read: `checkpoint.cursor == cursor('good')` is asserted
+        // below, and a cursor from a page that declared itself incomplete
+        // never becomes durable. This fixture used to declare `partial`.
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.completeThrough,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 0, 500)],
+          throughIndex: 1,
+          toIndex: 1,
           nextCursor: 'good',
         ),
       );
@@ -564,15 +622,29 @@ void main() {
     });
   });
 
-  test('observations alongside noChange are kept, not discarded', () {
-    // Real steps are never thrown away over a status mismatch.
+  test('observations alongside noChange reject the whole delivery', () {
+    // This used to assert the opposite: the response was PROMOTED to
+    // `incremental` on the reasoning that real steps must never be thrown away
+    // over a status mismatch. The owner ruled that back, and the reasoning was
+    // the weaker half of the argument — a page whose status says "nothing
+    // arrived since your cursor" while carrying what arrived has two halves
+    // that cannot both be true, and promoting it keeps one of them by
+    // guessing. It is the adapter that has to change.
+    //
+    // Rejecting is also strictly safer than refusing as `unavailable`:
+    // `ContractViolationSync` reaches `GameEngine` as a malformed batch, which
+    // is REJECTED, so not even `sourceState` moves.
     final SyncFetch fetch = PlatformStepSource.translate(
-      page(status: PlatformSyncStatus.noChange),
+      page(complete: partial, status: PlatformSyncStatus.noChange),
       gateway,
     );
 
-    expect(fetch.response, isA<IncrementalSync>());
-    expect((fetch.response as IncrementalSync).observations, hasLength(1));
+    expect(
+      (fetch.response as ContractViolationSync).violation,
+      SyncContractViolation.noChangeWithPayload,
+    );
+    // Both faults: one names the category, the other names the field.
     expect(fetch.faults, contains(SyncFault.observationsOnNoChange));
+    expect(fetch.faults, contains(SyncFault.noChangeWithPayload));
   });
 }

@@ -408,6 +408,62 @@ final class ProviderUnavailableSync extends SyncResponse {
   String get kind => 'unavailable';
 }
 
+/// The adapter sent a combination of fields the contract forbids.
+///
+/// Not "the provider could not answer" — it answered, with something
+/// self-contradictory. A no-change page carrying observations or a rescan
+/// window; a no-change page *asserting* a settling completeness; a recovery
+/// asserting [CompleteThrough]; an incremental asserting
+/// [RecoveryCompleteThrough]. Each is an adapter defect, and each means the
+/// page cannot be interpreted at all: the status says one thing about what was
+/// read and the completeness says another, so any reading of it is a guess.
+///
+/// **The whole delivery is rejected.** No reconciliation, no grant, no cursor,
+/// no watermark movement, and — unlike [ProviderUnavailableSync], which moves
+/// `sourceState` — no state mutation whatsoever. `StepReconciler` maps this to
+/// [ReconciliationCode.malformedBatch], and `GameEngine` rejects a malformed
+/// batch outright rather than accepting it with zero events, so nothing is
+/// applied.
+///
+/// Non-retryable on purpose. Retrying reproduces the same contradiction; the
+/// adapter is what has to change. It is deliberately NOT folded into
+/// `transientFailure`, which is the mistake `originKeyingUnconfigured` was
+/// corrected for: reporting a permanent fault as a blip invites a loop against
+/// a condition looping can never clear.
+final class ContractViolationSync extends SyncResponse {
+  const ContractViolationSync(this.violation);
+
+  final SyncContractViolation violation;
+
+  @override
+  String get kind => 'contract_violation';
+}
+
+/// Which part of the contract the adapter broke.
+enum SyncContractViolation {
+  /// A `noChange` page carried observations or a rescan window. No-change is
+  /// change-stream-drain evidence — "nothing arrived since the cursor" — and it
+  /// cannot simultaneously carry what did arrive.
+  ///
+  /// **Payload is structure.** A no-change page that instead *asserts* a
+  /// settling completeness is [mismatchedCompleteness], not this: the wrong
+  /// thing about it is the completeness variant, and naming the field that is
+  /// actually wrong is the whole reason there are two members here. Both
+  /// members were originally documented as covering that case, which made them
+  /// indistinguishable in exactly the situation where telling them apart
+  /// matters.
+  noChangeWithPayload,
+
+  /// The completeness variant does not match the delivery kind: an incremental
+  /// asserting [RecoveryCompleteThrough], a recovery asserting
+  /// [CompleteThrough], or a no-change asserting either of them.
+  ///
+  /// Recovery completeness is bounded by the window it could reach; ordinary
+  /// completeness is not. Adopting the wrong one settles the wrong horizon, and
+  /// there is no safe way to guess which the adapter meant.
+  mismatchedCompleteness,
+}
+
 /// Groups observations by key, keeping the last value for a repeated key.
 ///
 /// A batch that restates the same slice twice is answering with its final

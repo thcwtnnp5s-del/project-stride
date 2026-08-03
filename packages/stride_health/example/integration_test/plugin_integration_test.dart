@@ -99,6 +99,12 @@ void main() {
           // player moved. The bridge refuses them before they reach here.
           expect(observation.key.bucket.isPersistable, isTrue);
         }
+      case ContractViolationSync(:final SyncContractViolation violation):
+        // Never a legitimate answer from a real adapter: it means the page's
+        // status and its completeness disagreed about what was read, so no
+        // reading of it is better than a guess. On a device this is a native
+        // defect, and it is worth failing loudly for.
+        fail('the adapter sent a self-contradictory page: $violation');
       case CursorInvalidatedSync(:final RescanWindow window):
         // A bare invalidation would leave reconciliation with no authoritative
         // figure and no safe move.

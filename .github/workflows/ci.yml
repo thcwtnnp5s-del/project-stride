@@ -134,6 +134,7 @@ jobs:
             packages/stride_storage/lib packages/stride_storage/test \
             packages/stride_core/lib packages/stride_core/test \
             packages/stride_health/lib/stride_health.dart \
+            packages/stride_health/lib/src/cursor_authorization.dart \
             packages/stride_health/lib/src/mock_step_source.dart \
             packages/stride_health/lib/src/origin_gateway.dart \
             packages/stride_health/lib/src/origin_pseudonymizer.dart \

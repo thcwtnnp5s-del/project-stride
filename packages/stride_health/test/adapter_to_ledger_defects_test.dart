@@ -1,4 +1,15 @@
-// TWO FAILING TESTS. EACH NAMES A PRODUCTION DEFECT. DO NOT ADJUST THEM.
+// TWO DEFECTS, WRITTEN AS TESTS BEFORE EITHER WAS FIXED. BOTH NOW PASS.
+//
+// This file was headed "TWO FAILING TESTS ... DO NOT ADJUST THEM", and the
+// instruction held: neither test was adjusted, and both went green when the
+// production code moved to meet them. `authorizeCursor` closed defect 1, and
+// `CompleteThrough.horizonFor` now clamps, which closed defect 2 — the "not
+// applied here" notes below describe fixes that have since been applied
+// exactly as written. They are kept, unedited, as the record of what the
+// defect was and what it cost, which is the part a diff six months from now
+// will not otherwise carry.
+//
+// What must NOT change is the assertions. They are the regression pins.
 //
 // Both were found while building the S-01A adapter-to-ledger evidence suite.
 // Both are reachable from an ordinary, well-meaning native adapter — neither
@@ -97,9 +108,14 @@ void main() {
 
 void _cursorOnANonFinalPage() {
   group('DEFECT: a non-final page advances the durable cursor', () {
-    PlatformSyncPage midRead() => ppage(
-      observations: <PlatformStepObservation>[pobs(phoneBytes, 40, 800)],
+    // An ordinary mid-read page: `partial`, because it is, and offering a
+    // candidate cursor anyway — which adapters do, and which is exactly what
+    // `authorizeCursor` exists to refuse. Offering is not the defect; adopting
+    // it would be.
+    PlatformSyncPage midRead() => pincrementalPage(
       isFinalPage: false,
+      completeness: PlatformCompletenessKind.partial,
+      observations: <PlatformStepObservation>[pobs(phoneBytes, 40, 800)],
       continuation: 'page2',
       nextCursor: 'drained-anchor',
     );
@@ -149,10 +165,7 @@ void _cursorOnANonFinalPage() {
       // read completed.
       final EngineResult resumed = ingest(
         engineAt(engine.state),
-        ppage(
-          status: PlatformSyncStatus.noChange,
-          nextCursor: 'drained-anchor',
-        ),
+        pnoChangePage(isFinalPage: true, nextCursor: 'drained-anchor'),
       );
       expect(grantedBy(resumed), 0);
 
@@ -258,19 +271,18 @@ void _completenessBeyondTheQueriedInterval() {
         // ahead that retention alone is not what decides this.
         ingest(
           engine,
-          ppage(
+          pincrementalPage(
+            isFinalPage: true,
+            completeness: PlatformCompletenessKind.completeThrough,
             observations: <PlatformStepObservation>[
               pobs(phoneBytes, 0, 100),
               pobs(phoneBytes, 700, 100),
             ],
-            complete: pcomplete(
-              kind: PlatformCompletenessKind.completeThrough,
-              throughIndex: throughIndex,
-              // The adapter says it queried ten hours, and says so honestly.
-              // Only its completeness claim differs between the two runs.
-              fromIndex: 0,
-              toIndex: 10,
-            ),
+            throughIndex: throughIndex,
+            // The adapter says it queried ten hours, and says so honestly.
+            // Only its completeness claim differs between the two runs.
+            fromIndex: 0,
+            toIndex: 10,
             nextCursor: 'c1',
           ),
         );
@@ -279,11 +291,15 @@ void _completenessBeyondTheQueriedInterval() {
 
       // Honest: vouches for the ten hours it queried.
       final GameEngine honest = run(throughIndex: 10);
+      // A later delivery, and nothing more. It vouches for nothing and offers
+      // no cursor: the question is whether the EARLIER assertion settled hour
+      // 400, so this page must not make an assertion of its own.
       final EngineResult honestLate = ingest(
         honest,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 400, 5000)],
-          nextCursor: 'c2',
         ),
       );
       expect(
@@ -297,9 +313,10 @@ void _completenessBeyondTheQueriedInterval() {
       final GameEngine overclaiming = run(throughIndex: 600);
       final EngineResult overclaimedLate = ingest(
         overclaiming,
-        ppage(
+        pincrementalPage(
+          isFinalPage: true,
+          completeness: PlatformCompletenessKind.partial,
           observations: <PlatformStepObservation>[pobs(phoneBytes, 400, 5000)],
-          nextCursor: 'c2',
         ),
       );
 

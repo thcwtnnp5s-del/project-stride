@@ -267,6 +267,29 @@ final class StepReconciler {
             ),
         };
 
+      // The adapter answered with something self-contradictory. Rejected
+      // whole: the status and the completeness disagree about what was read,
+      // so every reading of the page is a guess.
+      //
+      // `malformedBatch` rather than an unavailability, because `GameEngine`
+      // REJECTS a malformed batch instead of accepting it with no events —
+      // which is the difference between "no state mutation" and "no grant but
+      // the source state moved".
+      case ContractViolationSync(:final SyncContractViolation violation):
+        return ReconciliationRefused(
+          code: ReconciliationCode.malformedBatch,
+          explanation: switch (violation) {
+            SyncContractViolation.noChangeWithPayload =>
+              'the provider reported no change while sending data; the batch '
+                  'cannot be interpreted and nothing has been changed',
+            SyncContractViolation.mismatchedCompleteness =>
+              'the provider\'s completeness assertion does not match the kind '
+                  'of read it performed; nothing has been changed',
+          },
+          // The adapter is what must change. Retrying reproduces it.
+          retryable: false,
+        );
+
       case NoChangeSync(:final SyncCursor? nextCursor):
         return ReconciliationAccepted(
           newlyGranted: 0,

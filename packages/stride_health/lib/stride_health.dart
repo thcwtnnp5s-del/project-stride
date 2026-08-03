@@ -15,6 +15,7 @@
 /// reachable from outside this package. See `src/origin_gateway.dart`.
 library;
 
+export 'src/cursor_authorization.dart';
 export 'src/mock_step_source.dart';
 export 'src/origin_gateway.dart';
 export 'src/origin_pseudonymizer.dart';

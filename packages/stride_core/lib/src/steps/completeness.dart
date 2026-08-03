@@ -86,11 +86,22 @@ final class CompletenessScope {
   final int queryGeneration;
 
   /// True when this scope vouches for [origin] at [bucketEndMillis].
-  bool coversBucket(StepOriginKey origin, int bucketEndMillis) =>
-      origins.covers(origin) &&
-      bucketEndMillis > intervalStartMillis &&
-      bucketEndMillis <= intervalEndMillis;
 }
+
+// `coversBucket` was declared here and called by nothing — not by production,
+// not by a test. It encoded the right rule ("a bucket is covered only inside
+// the interval actually queried") while the rule went unenforced: the live
+// path is `horizonFor`, and `CompleteThrough.horizonFor` returned its
+// `throughMillis` unclamped. An adapter reporting "now" instead of the end of
+// the sampled interval therefore settled buckets it never read, and the real
+// data arrived behind the horizon and was discarded as late. Measured end to
+// end, that lost 5,000 steps.
+//
+// The rule now lives where the decision is made — both `horizonFor`
+// implementations clamp — so a second, uncalled expression of it is not a
+// safety net. It is the same shape as the DECISIONS/0014 finding: code that
+// reads as a live check and is reachable by nothing. Removed rather than
+// wired, because nothing in the protocol asks a scope about a single bucket.
 
 /// How complete a provider response is.
 @immutable

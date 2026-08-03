@@ -27,6 +27,8 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 import 'package:stride_core/stride_core.dart';
 
+import 'cursor_authorization.dart';
+
 /// Whether the platform's health service is present and usable.
 ///
 /// A value rather than a bare bool, so "no" arrives with a reason and a caller
@@ -153,9 +155,35 @@ enum SyncFault {
 
   /// Observations arrived alongside `noChange`.
   ///
-  /// The response is promoted to `incremental` rather than the observations
-  /// discarded — real steps must not be thrown away over a status mismatch.
+  /// **The whole delivery is rejected.** This used to promote the response to
+  /// `incremental` on the reasoning that real steps must not be thrown away
+  /// over a status mismatch. The owner ruled that back: a page whose status
+  /// says "nothing arrived since your cursor" while carrying what arrived is a
+  /// page whose two halves cannot both be believed, and promoting it picks one
+  /// half by guessing. Nothing is granted, no cursor is authorized, and
+  /// `GameState` is not touched at all.
+  ///
+  /// Raised alongside [noChangeWithPayload], which names the category; this one
+  /// names the field.
   observationsOnNoChange,
+
+  /// A `noChange` page carried observations or a rescan window.
+  ///
+  /// The delivery is rejected whole as
+  /// [SyncContractViolation.noChangeWithPayload]. No-change is
+  /// change-stream-drain evidence, and it cannot simultaneously carry what
+  /// drained.
+  noChangeWithPayload,
+
+  /// The completeness variant contradicts the kind of read that was performed.
+  ///
+  /// An incremental asserting `RecoveryCompleteThrough`, a recovery asserting
+  /// `CompleteThrough`, or a no-change asserting either. Rejected whole as
+  /// [SyncContractViolation.mismatchedCompleteness]: recovery completeness is
+  /// bounded by the window it could reach and ordinary completeness is not, so
+  /// adopting the wrong one settles the wrong horizon and there is no safe way
+  /// to guess which was meant.
+  mismatchedCompleteness,
 }
 
 /// One read's outcome: the value the core consumes, plus what went wrong.
@@ -171,10 +199,28 @@ final class SyncFetch {
     List<SyncFault> faults = const <SyncFault>[],
     this.isFinalPage = true,
     this.continuation,
+    this.cursorAuthorization,
   }) : faults = List<SyncFault>.unmodifiable(faults);
 
   /// The platform-neutral answer, ready for `ReconcileStepSync`.
   final SyncResponse response;
+
+  /// Why the candidate cursor was or was not admitted.
+  ///
+  /// Diagnostic only — the reconciler never reads it, and admitting the cursor
+  /// has already happened by the time this is visible.
+  ///
+  /// It exists because the decision was otherwise **unobservable**. The
+  /// authorization matrix could assert that a cursor was refused but not *which
+  /// rule refused it*, so an audit was able to swap the expected reasons on two
+  /// rows and keep the suite green. A refusal for the wrong-but-still-refusing
+  /// reason is indistinguishable from a correct one, which is precisely the
+  /// over-determination the matrix exists to rule out.
+  ///
+  /// Null only for deliveries rejected before authorization runs — a malformed
+  /// observation, an unusable scope, a contract violation. Those never reach
+  /// the decision, and saying "absent" would imply they did.
+  final CursorAuthorization? cursorAuthorization;
 
   /// Adapter faults the bridge corrected or refused. Empty on a clean read.
   final List<SyncFault> faults;

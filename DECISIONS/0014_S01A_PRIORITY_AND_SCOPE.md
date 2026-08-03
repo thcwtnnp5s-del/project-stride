@@ -130,6 +130,62 @@ because a green run on the wrong platform was read as verification.
 
 ---
 
+## Open defects, found by audit, deliberately not fixed in Commit A
+
+Both were found by the fixture audit. Neither loses steps, and neither blocks
+the contract work, so fixing them inside a commit scoped to *the contract and
+its fixtures* would have widened it past what was approved. They are recorded
+here so they are not rediscovered.
+
+### D-1 — `invalidatedWithoutRescan` drops a cursor without saying so
+
+A `cursorInvalidated` page with no rescan window is refused, and any candidate
+cursor it offered is discarded — correctly. But it does **not** raise
+`SyncFault.cursorOfferedWhenProhibited`, while the structurally identical
+`unavailable` path does:
+
+```
+noWindow faults    : [SyncFault.invalidatedWithoutRescan]
+unavailable faults : [SyncFault.cursorOfferedWhenProhibited]
+```
+
+The asymmetry is an ordering artefact: `authorizeCursor` runs first and returns
+`authorized` for that page (final, `recoveryCompleteThrough`, untruncated), so
+the `rescan == null` branch is reached after the fault channel has already been
+decided. `cursorOfferedWhenProhibited` is documented as "a cursor was offered on
+a path that must not advance one", which this is.
+
+**Diagnostic only — the cursor is correctly dropped.** The failing pin, when it
+is fixed:
+
+```dart
+// adapter_to_ledger_test.dart, 'a refused page authorizes no cursor and no sync'
+expect(refused.faults, contains(SyncFault.cursorOfferedWhenProhibited));
+```
+
+### D-2 — `GameState.signature` omits the durable cursor and the watermarks
+
+`StepLedger.signature` covers observations, grants, spend, banking, slice count,
+sync state and gap bookkeeping. It does **not** cover `checkpoint.cursor` or
+`checkpoint.originWatermarks`. Two engines fed identical pages differing only in
+`nextCursor` produce different durable cursors and *identical* signatures.
+
+This matters because the signature is used as unchanged-evidence. In particular
+`adapter_to_ledger_test.dart` test 2 — "the source state is the ONLY field a
+refusal may move" — reconstructs `steps.signature` to make its claim, so a
+refusal that cleared the cursor or moved a per-origin watermark would pass it.
+The cursor is separately asserted; `originWatermarks` is not asserted anywhere.
+
+```dart
+// two engines fed identical pages, nextCursor 'AAAA' vs 'BBBB'
+expect(a.state.signature, isNot(b.state.signature));  // fails today
+```
+
+The fix is to extend the signature, which changes a persisted value and so needs
+its own compatibility judgement — squarely a separate commit.
+
+---
+
 ## Follow-up
 
 - **S-01B** — background synchronization. Blocked on S-01A closure *and* on a
