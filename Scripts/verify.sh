@@ -81,6 +81,12 @@ step "Dependency policy"
 step "Storage privacy and backup exclusions"
 ./Scripts/check-backup-exclusions.sh
 
+step "Single-writer persistence rule (with self-test)"
+# Nothing at runtime serializes two isolates -- see DECISIONS/0013. This guard
+# is the guarantee. --self-test injects three violations and asserts each is
+# rejected, because a guard that has never been falsified is not evidence.
+./Scripts/check-single-writer.sh --self-test
+
 if ! command -v dart >/dev/null 2>&1; then
   missing_toolchain "dart" || exit 0
 fi

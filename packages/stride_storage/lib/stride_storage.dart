@@ -30,4 +30,3 @@ export 'src/file_storage.dart';
 /// and it must not be cited as one. `TECHNICAL/PERSISTENCE_CONCURRENCY.md`
 /// records the three things that would have to change to wire it, and the
 /// recommendation attached to them.
-export 'src/persistence_owner.dart';

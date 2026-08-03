@@ -71,6 +71,17 @@ jobs:
       - name: Storage privacy and backup exclusion guard
         run: bash ./Scripts/check-backup-exclusions.sh
 
+      # The single-writer architecture rule (DECISIONS/0013). Nothing at runtime
+      # serializes two isolates, so this guard IS the guarantee -- not a
+      # reminder about one.
+      #
+      # `--self-test` injects three violations and asserts each is rejected, so
+      # the guard is continuously proven able to fail. Two earlier guards in
+      # this repository passed while blind, both because they counted instead of
+      # anchoring; a guard that has never been falsified is not evidence.
+      - name: Single-writer persistence guard
+        run: bash ./Scripts/check-single-writer.sh --self-test
+
       # Hand-written Dart only. Pigeon output is not dart-format clean, and
       # formatting it would fail the drift check in the `pigeon` job on the next
       # regeneration.
@@ -122,10 +133,11 @@ jobs:
       # so the development machine reports an exclusion that Android does not
       # have.
       #
-      # `--reporter expanded` puts the observation from
-      # persistence_owner_test.dart case 6 -- whether a second ISOLATE in one
-      # process is granted a lock the first already holds -- into the CI log,
-      # where it is evidence rather than folklore.
+      # `--reporter expanded` puts the caveat probe's observation -- whether a
+      # second ISOLATE in one process is granted a lock the first already holds
+      # -- into the CI log, where it is evidence rather than folklore. Windows
+      # reports `refused` and Linux reports `acquired`; that difference IS the
+      # finding, so the probe records it and asserts no locking outcome.
       #
       # A SKIP IS NOT A PASS. Neither file skips anything, conditionally or
       # otherwise, and this step fails if that ever changes: a platform-guarded
@@ -136,8 +148,8 @@ jobs:
         run: |
           set -o pipefail
           dart test -j 1 --reporter expanded \
-            test/cross_process_lock_test.dart \
-            test/persistence_owner_test.dart | tee "$RUNNER_TEMP/concurrency-proofs.log"
+            test/linux_lock_semantics_test.dart \
+            test/closure_probes_test.dart | tee "$RUNNER_TEMP/concurrency-proofs.log"
           # `dart test` reports a skip two ways and neither uses the word
           # "skipped": an indented `Skip: <reason>` line, and a `~N` count in
           # the summary. Both are matched, because matching only the summary

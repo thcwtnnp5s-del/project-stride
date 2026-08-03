@@ -173,13 +173,25 @@ final class StrideRuntime {
 ///   neither guard sees it — and worse, an isolate that merely opens and
 ///   closes the lock file drops this one's kernel locks silently.
 ///
-/// So: **no second isolate may be pointed at this directory.** The app has
-/// none today — Milestone 01 is iOS with HealthKit, whose background delivery
-/// arrives on the root isolate — and none may be added without first putting a
-/// single-owner arrangement in front of persistence. `PersistenceOwner` in
-/// `stride_storage` is the design for that; it is **not wired into this app**
-/// and covers no caller here. See `TECHNICAL/PERSISTENCE_CONCURRENCY.md` for
-/// why it is not, and what would have to change first.
+/// So: **no second isolate may be pointed at this directory.** That is the
+/// binding architecture rule of `DECISIONS/0013`:
+///
+/// > No background isolate, callback, worker, or platform entry point may
+/// > instantiate `SaveRepository`, construct filesystem persistence stores, or
+/// > access the save directory directly.
+///
+/// It is enforced by `Scripts/check-single-writer.sh`, which enumerates the
+/// approved construction sites — the ones below are two of the six — and
+/// rejects every other construction, plus any background execution entry point
+/// at all. The guard is the guarantee; there is no runtime mechanism that would
+/// make a second writer isolate safe.
+///
+/// The app has no second isolate today: Milestone 01 is iOS with HealthKit,
+/// whose background delivery arrives on the root isolate. **S-01 must design
+/// and validate a real persistence coordinator before enabling any Health
+/// Connect background writer.** A prototype was built during F-06 and removed
+/// rather than left as dead code claiming to protect something; its design
+/// findings are in `TECHNICAL/PERSISTENCE_CONCURRENCY.md` §5.
 Future<StrideRuntime> bootstrapStride({
   Directory? overrideRoot,
   bool treatAsRelease = false,

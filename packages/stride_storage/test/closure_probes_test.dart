@@ -656,8 +656,15 @@ Future<void> main(List<String> args) async {
       // And the mutex table did not retain the entry: an unpruned table grows
       // by one per save directory ever locked, which in a long test run or a
       // long-lived process is an unbounded map keyed on paths.
+      //
+      // Generously bounded, deliberately. This was 50ms and flaked under the
+      // full `verify.sh` run: an acquire does real filesystem work --
+      // `resolveSymbolicLinks` on the parent, an open, then the kernel call --
+      // and 50ms on a loaded machine measures the machine, not the property.
+      // The property is "the mutex was released, so this can be acquired at
+      // all"; the bound only has to be shorter than a hang.
       final TransactionLockHandle? after = await lock.acquire(
-        const Duration(milliseconds: 50),
+        const Duration(seconds: 5),
       );
       expect(after, isNotNull, reason: 'the mutex was not released at the end');
       await after!.release();
