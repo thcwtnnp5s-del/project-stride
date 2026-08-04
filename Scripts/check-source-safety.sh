@@ -44,6 +44,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_SAFE_GUARDS="
 check-android-target.sh
 check-ios-target.sh
+check-origin-privacy.sh
 check-single-writer.sh
 "
 
@@ -54,7 +55,6 @@ PENDING_GUARDS="
 check-backup-exclusions.sh
 check-core-purity.sh
 check-dependency-policy.sh
-check-origin-privacy.sh
 check-step-model.sh
 "
 

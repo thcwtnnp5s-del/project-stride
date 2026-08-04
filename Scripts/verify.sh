@@ -147,7 +147,10 @@ step "Origin privacy (with self-test)"
 # Keying happens natively, before the value crosses Pigeon, so no raw platform
 # identifier reaches Dart at all. That is a property of source text in three
 # languages, which no type can hold. --self-test injects ten violations and
-# asserts each is rejected.
+# asserts each is rejected AT EXIT 1 BY ITS OWN diagnostic, plus two layering
+# cases: an empty native scan and a missing platform contract must both be
+# infrastructure. In a privacy guard the dangerous failure is not a false
+# rejection, it is a clean-looking run that read nothing.
 ./Scripts/check-origin-privacy.sh --self-test
 
 if ! command -v dart >/dev/null 2>&1; then

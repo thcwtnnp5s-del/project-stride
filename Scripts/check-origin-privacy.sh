@@ -42,39 +42,58 @@
 # everything else. There is nothing to inflate. Every scan is line-anchored or
 # file-anchored; nothing here reads "until it finds" anything.
 #
-# Run `--self-test` to falsify it. It injects ten violations, at least one per check,
-# and asserts the guard rejects each. That runs in verify.sh and in CI, so the
-# guard is continuously proven able to fail.
+# ## Named rules, and the two exit codes that are not the same
+#
+# Every check is a named production rule returning under the guard contract:
+#
+#   0  policy satisfied
+#   1  a NAMED policy violation, reported as STRIDE_GUARD[origin-privacy.<rule>]
+#   2  infrastructure, reported as STRIDE_INFRA[origin-privacy.<reason>]
+#
+# The separation is load-bearing in a privacy guard more than anywhere else,
+# because both failure modes here produce a clean-looking run. "No file names a
+# raw identifier" and "no file was read" are the same output from a check that
+# only counts findings, and one of them is a guard that looked at nothing. An
+# empty Dart scan, an empty native scan, and a missing Pigeon contract are
+# therefore infrastructure: the guard has not observed the boundary, so it must
+# not certify it.
+#
+# A rejection is valid only at exit 1 with its own diagnostic. A nonzero exit is
+# not evidence — a guard that rejects everything rejects injections too, which
+# is how three checks in this repository stayed dead while their self-test read
+# green.
+#
+# Usage:
+#   check-origin-privacy.sh [--project-root <path>]
+#   check-origin-privacy.sh --self-test
 
-set -uo pipefail
+# NOTE ON SOURCING: everything above `guard_main` must be free of side effects.
+# No traps, no `cd`, no shell-option changes, no file creation, no rule
+# execution, and nothing that touches the generated bindings.
+# `Scripts/check-source-safety.sh` proves that for every converted guard.
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=lib/rulekit.sh
+. "$SCRIPT_DIR/lib/rulekit.sh"
 # shellcheck source=lib/selftest.sh
-. "$REPO_ROOT/Scripts/lib/selftest.sh"
+. "$SCRIPT_DIR/lib/selftest.sh"
 
-# `--project-root <path>` points every check at a throwaway copy instead of the
-# live tree, so a self-test never writes to the working tree and two concurrent
-# runs cannot clobber each other.
-PROJECT_ROOT="$REPO_ROOT"
-SELF_TEST=0
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --self-test) SELF_TEST=1; shift ;;
-    --project-root)
-      [ $# -ge 2 ] || { echo "guard: --project-root needs a path" >&2; exit 2; }
-      PROJECT_ROOT="$(cd "$2" && pwd)" || exit 2
-      shift 2
-      ;;
-    *) echo "guard: unknown argument '$1'" >&2; exit 2 ;;
-  esac
-done
-cd "$PROJECT_ROOT"
+GUARD_ID="origin-privacy"
 
-failures=0
-fail() {
-  echo "origin-privacy: FAIL -- $1" >&2
-  failures=$((failures + 1))
-}
+# Every rule resolves its paths against this. Set by guard_main, or directly by
+# the causality runner — which is why it is a plain variable and why no rule
+# calls `cd`. The old version `cd`'d at load time, so sourcing this file moved
+# the caller's shell and then ran every check.
+PROJECT_ROOT="${PROJECT_ROOT:-$REPO_ROOT}"
+
+fail_in() { guard_fail "$GUARD_ID.$1" "$2"; }
+
+# Reported and MATCHED relative to the project root. The exemptions below are
+# written as repository-relative paths, so a lookup has to be too -- otherwise
+# the same file would be exempt in the live tree and non-exempt in a temporary
+# copy, which is the trick the whole isolation design depends on not happening.
+rel() { printf '%s' "${1#"$PROJECT_ROOT"/}"; }
 
 # ---------------------------------------------------------------------------
 # The raw field name that used to exist on the wire.
@@ -84,6 +103,10 @@ fail() {
 # EMPTY. The check has not become vacuous, it has become absolute: naming a raw
 # source identifier anywhere in production Dart means the boundary has been
 # reopened.
+#
+# `production_dart` includes the GENERATED bindings, deliberately: a regenerated
+# `messages.g.dart` that reintroduces a raw-identifier field is exactly the
+# regression this must catch, and it is one Pigeon input edit away.
 # ---------------------------------------------------------------------------
 RAW_SYMBOL='sourceIdentifiers?'
 
@@ -101,9 +124,9 @@ APPROVED=""
 #
 # `PlatformStepObservation.originKey` and `PlatformOriginScope.originKeys` are
 # `Uint8List` on purpose: there is no String field for a bundle identifier or a
-# device name to travel in. Check H asserts that the pigeon input still declares
-# them that way, because the cheapest possible regression here is someone
-# "simplifying" a byte array back into a String.
+# device name to travel in. `rule_pigeon_origin_opaque` asserts that the pigeon
+# input still declares them that way, because the cheapest possible regression
+# here is someone "simplifying" a byte array back into a String.
 # ---------------------------------------------------------------------------
 PIGEON_INPUT="packages/stride_health/pigeons/health_api.dart"
 OPAQUE_ORIGIN_FIELDS="originKey originKeys"
@@ -178,9 +201,10 @@ NATIVE_SINK='print\(|NSLog|os_log|Logger|println\(|Log\.[dveiw]\('
 #
 # The generated file cannot be edited: CI diff-checks it against a regeneration,
 # and Pigeon offers no way to suppress `toString`. So the generated `toString`
-# is exempted BY NAME below and check G is the compensating control: nothing may
-# put one of these values on a diagnostic sink. An unreachable leak is a
-# guarded leak; a pattern-matched exemption would be neither.
+# is exempted BY NAME below and `rule_no_platform_value_sink` is the
+# compensating control: nothing may put one of these values on a diagnostic
+# sink. An unreachable leak is a guarded leak; a pattern-matched exemption would
+# be neither.
 # ---------------------------------------------------------------------------
 PLATFORM_VALUE_TYPES='PlatformStepObservation|PlatformOriginScope|PlatformCompleteness|PlatformSyncPage|PlatformSyncRequest|PlatformTimeBucket'
 
@@ -198,13 +222,17 @@ PLATFORM_VALUE_TYPES='PlatformStepObservation|PlatformOriginScope|PlatformComple
 # lib/ only because another package's tests must import it.
 DISPLAY_NAME_EXEMPT="packages/stride_storage/lib/src/conformance.dart"
 
-# Pigeon's generated `toString`. See PLATFORM_VALUE_TYPES above; check G is what
-# makes this exemption safe rather than merely convenient.
+# Pigeon's generated `toString`. See PLATFORM_VALUE_TYPES above;
+# `rule_no_platform_value_sink` is what makes this exemption safe rather than
+# merely convenient.
 SINK_EXEMPT="packages/stride_health/lib/src/messages.g.dart"
 
 # The core's own list of forbidden imports names 'package:stride_health/'. The
 # core declaring a package off-limits is the rule, not a violation of it.
 CORE_BOUNDARY_EXEMPT="packages/stride_core/lib/src/core_info.dart"
+
+# stride_core knows nothing about the platform boundary.
+CORE_FORBIDDEN="${RAW_SYMBOL}|messages\.g\.dart|package:stride_health|HealthHostApi|PlatformStepObservation|PlatformSyncPage"
 
 # ---------------------------------------------------------------------------
 # File sets. Production source ONLY.
@@ -215,17 +243,30 @@ CORE_BOUNDARY_EXEMPT="packages/stride_core/lib/src/core_info.dart"
 # test/origin_privacy_test.dart proves a display name cannot survive the
 # boundary. Scanning tests would make this guard unmaintainable and therefore
 # disabled.
+#
+# Both sets are resolved against PROJECT_ROOT rather than the caller's working
+# directory. A source-safe guard does not cd, and a cwd-relative `find` in a
+# guard that does not cd silently scans nothing -- which in a privacy guard
+# would read as "no raw identifier found anywhere".
 # ---------------------------------------------------------------------------
 production_dart() {
-  find lib packages/*/lib packages/*/example/lib \
-    packages/*/example/integration_test packages/*/pigeons \
+  find "$PROJECT_ROOT/lib" \
+    "$PROJECT_ROOT"/packages/*/lib \
+    "$PROJECT_ROOT"/packages/*/example/lib \
+    "$PROJECT_ROOT"/packages/*/example/integration_test \
+    "$PROJECT_ROOT"/packages/*/pigeons \
     -name '*.dart' -not -path '*/build/*' 2>/dev/null | sort
 }
 
 native_sources() {
-  find packages/stride_health/android/src/main \
-    packages/stride_health/ios/stride_health/Sources \
-    \( -name '*.kt' -o -name '*.swift' \) 2>/dev/null | sort
+  local d dirs=""
+  for d in packages/stride_health/android/src/main \
+           packages/stride_health/ios/stride_health/Sources; do
+    [ -d "$PROJECT_ROOT/$d" ] && dirs="$dirs $PROJECT_ROOT/$d"
+  done
+  [ -n "$dirs" ] || return 0
+  # shellcheck disable=SC2086
+  find $dirs \( -name '*.kt' -o -name '*.swift' \) 2>/dev/null | sort
 }
 
 listed_in() {
@@ -262,260 +303,441 @@ strip_comments() {
   '
 }
 
-echo "origin-privacy: scanning production source only"
-
-dart_count=0
-native_count=0
-
 # ---------------------------------------------------------------------------
-# Check A -- the raw identifier is named only at approved sites
+# NAMED PRODUCTION RULES
+#
+# Each rule is a function, so the causality runner can exercise ONE of them
+# against a mutated copy without paying for a full guard run — and, critically,
+# exercises the SAME function the complete guard calls. There is no test-only
+# variant of any rule: `run_all_rules` is the complete guard, and it is nothing
+# but calls to these, in order.
+#
+# Every rule enumerates its own file set. That costs a second `find`, and buys
+# the property the runner depends on: a rule invoked alone behaves exactly as it
+# does inside the complete guard.
 # ---------------------------------------------------------------------------
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  dart_count=$((dart_count + 1))
-  stripped="$(strip_comments < "$file")"
 
-  hits="$(printf '%s\n' "$stripped" | grep -nE "(^|[^A-Za-z0-9_])${RAW_SYMBOL}\b" || true)"
-  [ -n "$hits" ] || continue
+# rule_preflight — the guard can actually do its job.
+rule_preflight() {
+  [ -d "$PROJECT_ROOT" ] || \
+    guard_infra "$GUARD_ID.root_missing" "project root $PROJECT_ROOT does not exist"
+}
 
-  if listed_in "${file}|sourceIdentifier" "$APPROVED"; then continue; fi
+# rule_dart_scan_coverage — an empty Dart scan is not a clean Dart scan.
+#
+# INFRASTRUCTURE. "No production Dart file names a raw identifier" and "no
+# production Dart file was read" are indistinguishable in the output of a check
+# that only counts findings, and certifying the second as privacy-clean is the
+# worst failure this guard could have.
+rule_dart_scan_coverage() {
+  local n
+  n="$(production_dart | grep -c . )"
+  DART_SCANNED="${n:-0}"
+  [ "$DART_SCANNED" -gt 0 ] || \
+    guard_infra "$GUARD_ID.no_dart_sources" "no production Dart sources found under $PROJECT_ROOT.
+      An empty scan is not a clean scan: nothing has been observed about the
+      Dart side of the boundary."
+}
 
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} names the raw platform source identifier.
-      A raw identifier exists only between the Pigeon boundary and
-      OriginGateway, and only inside that one call. If this is deliberate, add
-      '${file}|sourceIdentifier' to APPROVED in this script and record why --
-      but the answer is almost always to take a StepOriginKey instead."
-  done <<< "$hits"
-done < <(production_dart)
+# rule_native_scan_coverage — and an empty native scan is not a clean one.
+#
+# Raw identifiers LIVE natively under the owner's ruling -- Swift and Kotlin are
+# where keying happens and where the only raw values exist at all. A native scan
+# that read nothing has skipped the half of the boundary that actually holds the
+# secret.
+rule_native_scan_coverage() {
+  local n
+  n="$(native_sources | grep -c . )"
+  NATIVE_SCANNED="${n:-0}"
+  [ "$NATIVE_SCANNED" -gt 0 ] || \
+    guard_infra "$GUARD_ID.no_native_sources" "no native sources found under $PROJECT_ROOT.
+      Origin keying happens in Swift and Kotlin, so an empty native scan has
+      skipped the half of the boundary where raw identifiers actually exist."
+}
 
-# ---------------------------------------------------------------------------
-# Check B -- no display-name shape on the health or save data path
-# ---------------------------------------------------------------------------
-for dir in $DART_DATA_PATH_DIRS; do
-  [ -d "$dir" ] || continue
+# rule_raw_identifier_sites — the raw identifier is named only at approved sites
+rule_raw_identifier_sites() {
+  local file stripped hits hit relpath
   while IFS= read -r file; do
     [ -n "$file" ] || continue
-    [ "$file" = "$DISPLAY_NAME_EXEMPT" ] && continue
-    hits="$(strip_comments < "$file" | grep -nE "$DART_DISPLAY_NAME" || true)"
+    relpath="$(rel "$file")"
+    stripped="$(strip_comments < "$file")"
+
+    hits="$(printf '%s\n' "$stripped" | grep -nE "(^|[^A-Za-z0-9_])${RAW_SYMBOL}\b" || true)"
     [ -n "$hits" ] || continue
+
+    if listed_in "${relpath}|sourceIdentifier" "$APPROVED"; then continue; fi
+
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
-      fail "$file:${hit%%:*} uses a device or source display-name shape on the
+      fail_in raw_identifier_sites "$relpath:${hit%%:*} names the raw platform source identifier.
+      A raw identifier exists only between the Pigeon boundary and
+      OriginGateway, and only inside that one call. If this is deliberate, add
+      '${relpath}|sourceIdentifier' to APPROVED in this script and record why --
+      but the answer is almost always to take a StepOriginKey instead."
+    done <<< "$hits"
+  done <<< "$(production_dart)"
+}
+
+# rule_no_dart_display_name — no display-name shape on the health or save path
+rule_no_dart_display_name() {
+  local dir file hits hit relpath
+  for dir in $DART_DATA_PATH_DIRS; do
+    [ -d "$PROJECT_ROOT/$dir" ] || continue
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      relpath="$(rel "$file")"
+      [ "$relpath" = "$DISPLAY_NAME_EXEMPT" ] && continue
+      hits="$(strip_comments < "$file" | grep -nE "$DART_DISPLAY_NAME" || true)"
+      [ -n "$hits" ] || continue
+      while IFS= read -r hit; do
+        [ -n "$hit" ] || continue
+        fail_in no_dart_display_name "$relpath:${hit%%:*} uses a device or source display-name shape on the
       data path. A player may have called their phone anything at all, and the
       owner's ruling forbids persisting device names, source display names, or
       HKSource.name. Pseudonymize at the boundary instead."
-    done <<< "$hits"
-  done < <(find "$dir" -name '*.dart' -not -path '*/build/*' 2>/dev/null | sort)
-done
+      done <<< "$hits"
+    done <<< "$(find "$PROJECT_ROOT/$dir" -name '*.dart' -not -path '*/build/*' 2>/dev/null | sort)"
+  done
+}
 
-# ---------------------------------------------------------------------------
-# Check C -- no native display-name API
-# ---------------------------------------------------------------------------
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  native_count=$((native_count + 1))
-  hits="$(strip_comments < "$file" | grep -nE "$NATIVE_DISPLAY_NAME" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} reads a platform display name.
+# rule_no_native_display_name — no native display-name API
+rule_no_native_display_name() {
+  local file hits hit relpath
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    hits="$(strip_comments < "$file" | grep -nE "$NATIVE_DISPLAY_NAME" || true)"
+    [ -n "$hits" ] || continue
+    relpath="$(rel "$file")"
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in no_native_display_name "$relpath:${hit%%:*} reads a platform display name.
       Send HKSource.bundleIdentifier on iOS and
       metadata.dataOrigin.packageName on Android. A display name hashed into an
       origin key is worse than useless: it looks correct."
-  done <<< "$hits"
-done < <(native_sources)
+    done <<< "$hits"
+  done <<< "$(native_sources)"
+}
 
-# ---------------------------------------------------------------------------
-# Check D -- the raw identifier never reaches a diagnostic
+# rule_no_dart_raw_sink — the raw identifier never reaches a Dart diagnostic.
 #
-# Applies to EVERY production file, including the three approved ones. Approval
-# is permission to convert a raw value, never permission to print one. The scan
-# is per-line and therefore bounded by construction -- it cannot walk past the
+# Applies to EVERY production file, including any approved one. Approval is
+# permission to convert a raw value, never permission to print one. The scan is
+# per-line and therefore bounded by construction -- it cannot walk past the
 # thing it is checking.
-# ---------------------------------------------------------------------------
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  [ "$file" = "$SINK_EXEMPT" ] && continue
-  hits="$(strip_comments < "$file" \
-    | grep -nE "(^|[^A-Za-z0-9_])${RAW_SYMBOL}\b" \
-    | grep -E "$DART_SINK" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} puts the raw source identifier on a diagnostic
+rule_no_dart_raw_sink() {
+  local file hits hit relpath
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    relpath="$(rel "$file")"
+    [ "$relpath" = "$SINK_EXEMPT" ] && continue
+    hits="$(strip_comments < "$file" \
+      | grep -nE "(^|[^A-Za-z0-9_])${RAW_SYMBOL}\b" \
+      | grep -E "$DART_SINK" || true)"
+    [ -n "$hits" ] || continue
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in no_dart_raw_sink "$relpath:${hit%%:*} puts the raw source identifier on a diagnostic
       surface -- a log, an interpolated string, or an exception message. Every
       one of those is a place a device name ends up readable. Report the
       StepOriginKey, or report nothing."
-  done <<< "$hits"
-done < <(production_dart)
+    done <<< "$hits"
+  done <<< "$(production_dart)"
+}
 
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  hits="$(strip_comments < "$file" \
-    | grep -nE "(^|[^A-Za-z0-9_])${RAW_SYMBOL}\b" \
-    | grep -E "$NATIVE_SINK" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} logs a raw source identifier natively. Device logs
-      are readable, exportable, and outlive the app."
-  done <<< "$hits"
-done < <(native_sources)
-
-# ---------------------------------------------------------------------------
-# Check E -- stride_core knows nothing about the platform boundary
+# rule_no_native_raw_sink — and never reaches a native one.
 #
-# Separate from check A rather than folded into it, so it is falsified
-# independently: the core's ignorance of platform types is the property the
-# whole port design rests on, and it should not depend on an allow-list staying
-# short somewhere else.
-# ---------------------------------------------------------------------------
-CORE_FORBIDDEN="${RAW_SYMBOL}|messages\.g\.dart|package:stride_health|HealthHostApi|PlatformStepObservation|PlatformSyncPage"
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  [ "$file" = "$CORE_BOUNDARY_EXEMPT" ] && continue
-  hits="$(strip_comments < "$file" | grep -nE "$CORE_FORBIDDEN" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} reaches the platform boundary from inside
+# This is where raw identifiers actually live now, so this is where the sink
+# check earns its place: device logs are readable, exportable, and outlive the
+# app.
+rule_no_native_raw_sink() {
+  local file hits hit relpath
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    hits="$(strip_comments < "$file" \
+      | grep -nE "(^|[^A-Za-z0-9_])${RAW_SYMBOL}\b" \
+      | grep -E "$NATIVE_SINK" || true)"
+    [ -n "$hits" ] || continue
+    relpath="$(rel "$file")"
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in no_native_raw_sink "$relpath:${hit%%:*} logs a raw source identifier natively. Device logs
+      are readable, exportable, and outlive the app."
+    done <<< "$hits"
+  done <<< "$(native_sources)"
+}
+
+# rule_core_boundary_isolation — stride_core knows nothing about the boundary.
+#
+# A separate rule rather than part of `rule_raw_identifier_sites`, so it is
+# falsified independently: the core's ignorance of platform types is the
+# property the whole port design rests on, and it should not depend on an
+# allow-list staying short somewhere else.
+rule_core_boundary_isolation() {
+  local file hits hit relpath
+  [ -d "$PROJECT_ROOT/packages/stride_core/lib" ] || return 0
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    relpath="$(rel "$file")"
+    [ "$relpath" = "$CORE_BOUNDARY_EXEMPT" ] && continue
+    hits="$(strip_comments < "$file" | grep -nE "$CORE_FORBIDDEN" || true)"
+    [ -n "$hits" ] || continue
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in core_boundary_isolation "$relpath:${hit%%:*} reaches the platform boundary from inside
       stride_core. The core consumes a SyncResponse and holds no opinion about
       where it came from -- that is what keeps it pure, testable in
       milliseconds, and free of any raw identifier."
-  done <<< "$hits"
-done < <(find packages/stride_core/lib -name '*.dart' 2>/dev/null | sort)
+    done <<< "$hits"
+  done <<< "$(find "$PROJECT_ROOT/packages/stride_core/lib" -name '*.dart' 2>/dev/null | sort)"
+}
 
-# ---------------------------------------------------------------------------
-# Check F -- no native durable store, so no natively cached cursor
-# ---------------------------------------------------------------------------
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  hits="$(strip_comments < "$file" | grep -nE "$NATIVE_PERSISTENCE" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} opens a durable native store.
+# rule_no_native_durable_store — no natively cached cursor, and no stored salt
+rule_no_native_durable_store() {
+  local file hits hit relpath
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    hits="$(strip_comments < "$file" | grep -nE "$NATIVE_PERSISTENCE" || true)"
+    [ -n "$hits" ] || continue
+    relpath="$(rel "$file")"
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in no_native_durable_store "$relpath:${hit%%:*} opens a durable native store.
       The cursor commit order is inviolable: the adapter returns a candidate
       cursor and forgets it; reconciliation produces grants; the ledger and
       snapshot commit; only THEN is the cursor durable. A natively cached
       cursor claims progress the ledger never recorded, and makes an
       interrupted sync unrecoverable. See DECISIONS/0012 and 0013."
-  done <<< "$hits"
-done < <(native_sources)
+    done <<< "$hits"
+  done <<< "$(native_sources)"
+}
 
-# ---------------------------------------------------------------------------
-# Check G -- no platform boundary VALUE reaches a diagnostic
+# rule_no_platform_value_sink — no platform boundary VALUE reaches a diagnostic.
 #
-# The compensating control for the exemption above, and the check this guard
-# earned on its first run. `PlatformStepObservation.toString()` interpolates the
-# raw identifier, so `print(page)` leaks a device identity without the word
-# `sourceIdentifier` appearing anywhere near the call. Check D cannot see that;
-# this can.
+# The compensating control for the generated-toString exemption, and the check
+# this guard earned on its first run. `PlatformStepObservation.toString()`
+# interpolates the raw identifier, so `print(page)` leaks a device identity
+# without the word `sourceIdentifier` appearing anywhere near the call.
+# `rule_no_dart_raw_sink` cannot see that; this can.
 #
 # Per-line, so it is bounded by construction.
-# ---------------------------------------------------------------------------
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  [ "$file" = "$SINK_EXEMPT" ] && continue
-  hits="$(strip_comments < "$file" \
-    | grep -nE "$PLATFORM_VALUE_TYPES" \
-    | grep -E "$DART_SINK" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} puts a platform boundary value on a diagnostic
+rule_no_platform_value_sink() {
+  local file hits hit relpath
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    relpath="$(rel "$file")"
+    [ "$relpath" = "$SINK_EXEMPT" ] && continue
+    hits="$(strip_comments < "$file" \
+      | grep -nE "$PLATFORM_VALUE_TYPES" \
+      | grep -E "$DART_SINK" || true)"
+    [ -n "$hits" ] || continue
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in no_platform_value_sink "$relpath:${hit%%:*} puts a platform boundary value on a diagnostic
       surface. Pigeon's generated toString() interpolates sourceIdentifier, so
       printing one of these types leaks a device identity even though this line
       never names the field. Convert through OriginGateway first and report the
       StepOriginKey."
-  done <<< "$hits"
-done < <(production_dart)
+    done <<< "$hits"
+  done <<< "$(production_dart)"
+}
 
-# ---------------------------------------------------------------------------
-# Check H -- the origin fields on the wire are still opaque bytes
+# rule_pigeon_input_present — the platform contract can be read at all.
+#
+# INFRASTRUCTURE, not a violation. The original message said it exactly: "the
+# platform contract cannot be checked". A guard that cannot read the contract
+# has not observed a wire type, and reporting that as a policy violation would
+# let a deleted or unreachable file stand in for the mutation
+# `rule_pigeon_origin_opaque` exists to catch.
+rule_pigeon_input_present() {
+  [ -f "$PROJECT_ROOT/$PIGEON_INPUT" ] || \
+    guard_infra "$GUARD_ID.pigeon_input_missing" "$PIGEON_INPUT is missing; the platform contract cannot be checked."
+}
+
+# rule_pigeon_origin_opaque — the origin fields on the wire are still bytes.
 #
 # The cheapest possible regression: someone "simplifies" a Uint8List back into a
 # String because a String is easier to log. That single edit reopens the channel
 # a device name travels in, and every other check here would still pass.
 #
 # Anchored to the field name, on its own declaration line, in one named file.
-# ---------------------------------------------------------------------------
-if [ ! -f "$PIGEON_INPUT" ]; then
-  fail "$PIGEON_INPUT is missing; the platform contract cannot be checked."
-else
-  pigeon_stripped="$(strip_comments < "$PIGEON_INPUT")"
+rule_pigeon_origin_opaque() {
+  local p="$PROJECT_ROOT/$PIGEON_INPUT" pigeon_stripped field decl
+  # Absence is rule_pigeon_input_present's statement to make, and it makes it as
+  # infrastructure.
+  [ -f "$p" ] || return 0
+  pigeon_stripped="$(strip_comments < "$p")"
   for field in $OPAQUE_ORIGIN_FIELDS; do
     decl="$(printf '%s\n' "$pigeon_stripped" \
       | grep -nE "^[[:space:]]*final[[:space:]].*[[:space:]]${field};[[:space:]]*$" || true)"
     if [ -z "$decl" ]; then
-      fail "$PIGEON_INPUT no longer declares a field named '$field'.
+      fail_in pigeon_origin_opaque "$PIGEON_INPUT no longer declares a field named '$field'.
       The origin must cross the boundary as opaque bytes. If it was renamed,
       update OPAQUE_ORIGIN_FIELDS in this script deliberately."
       continue
     fi
     if ! printf '%s\n' "$decl" | grep -qE 'Uint8List'; then
-      fail "$PIGEON_INPUT declares '$field' as something other than Uint8List.
+      fail_in pigeon_origin_opaque "$PIGEON_INPUT declares '$field' as something other than Uint8List.
       An origin crosses the boundary as eight opaque bytes so that a bundle
       identifier or a device name has no field to travel in. A String here
       reopens exactly that channel, and every other check in this script would
       still pass."
     fi
   done
-fi
+}
 
-# ---------------------------------------------------------------------------
-# Check I -- native never mints or stores a second identity
-#
-# The plugin consumes the app's device-bound salt through installOriginKeying.
-# It must not generate one, and must not read one out of the Keychain itself.
-# ---------------------------------------------------------------------------
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  hits="$(strip_comments < "$file" | grep -nE "$NATIVE_IDENTITY_MINTING" || true)"
-  [ -n "$hits" ] || continue
-  while IFS= read -r hit; do
-    [ -n "$hit" ] || continue
-    fail "$file:${hit%%:*} mints or looks up an identity natively.
+# rule_no_native_identity_minting — native never mints or stores a second
+# identity. The plugin consumes the app's device-bound salt through
+# installOriginKeying. It must not generate one, and must not read one out of
+# the Keychain itself.
+rule_no_native_identity_minting() {
+  local file hits hit relpath
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    hits="$(strip_comments < "$file" | grep -nE "$NATIVE_IDENTITY_MINTING" || true)"
+    [ -n "$hits" ] || continue
+    relpath="$(rel "$file")"
+    while IFS= read -r hit; do
+      [ -n "$hit" ] || continue
+      fail_in no_native_identity_minting "$relpath:${hit%%:*} mints or looks up an identity natively.
       This plugin is a CONSUMER of the app's device-bound identity, never a
       second custodian of one. A second identity re-keys every origin, and a
       re-keyed origin looks exactly like a new device: its recent buckets look
       ungranted and the whole retention window is granted a second time.
       Nothing detects that. IdentityVault owns the lifecycle; the salt arrives
       through installOriginKeying and lives in memory only."
-  done <<< "$hits"
-done < <(native_sources)
+    done <<< "$hits"
+  done <<< "$(native_sources)"
+}
 
-# ---------------------------------------------------------------------------
-# An empty scan must never pass silently.
-# ---------------------------------------------------------------------------
-if [ "$dart_count" -eq 0 ]; then
-  echo "origin-privacy: error -- no production Dart sources found" >&2
-  failures=$((failures + 1))
-fi
-if [ "$native_count" -eq 0 ]; then
-  echo "origin-privacy: error -- no native sources found" >&2
-  failures=$((failures + 1))
-fi
+# The complete guard. Nothing but calls to the named rules above, in order.
+#
+# Coverage first: a run that has read nothing should say so before it reports
+# that it found nothing.
+ORIGIN_PRIVACY_RULES="
+rule_preflight
+rule_dart_scan_coverage
+rule_native_scan_coverage
+rule_pigeon_input_present
+rule_raw_identifier_sites
+rule_no_dart_display_name
+rule_no_native_display_name
+rule_no_dart_raw_sink
+rule_no_native_raw_sink
+rule_core_boundary_isolation
+rule_no_native_durable_store
+rule_no_platform_value_sink
+rule_pigeon_origin_opaque
+rule_no_native_identity_minting
+"
 
-# ---------------------------------------------------------------------------
-# Self-test: prove the guard can fail
-# ---------------------------------------------------------------------------
-if [ "$SELF_TEST" -eq 1 ]; then
-  if [ "$failures" -ne 0 ]; then
-    echo "origin-privacy: refusing to self-test while the real tree is failing" >&2
-    exit 1
+run_all_rules() {
+  local r
+  for r in $ORIGIN_PRIVACY_RULES; do "$r"; done
+}
+
+guard_main() {
+  PROJECT_ROOT="$REPO_ROOT"
+  SELF_TEST=0
+  DART_SCANNED=0
+  NATIVE_SCANNED=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --project-root)
+        [ $# -ge 2 ] || { echo "STRIDE_INFRA[$GUARD_ID.usage] --project-root needs a path" >&2; return 2; }
+        PROJECT_ROOT="$(cd "$2" 2>/dev/null && pwd)" || {
+          echo "STRIDE_INFRA[$GUARD_ID.root_missing] no such project root: $2" >&2; return 2; }
+        shift 2 ;;
+      --self-test) SELF_TEST=1; shift ;;
+      *) echo "STRIDE_INFRA[$GUARD_ID.usage] unknown argument: $1" >&2; return 2 ;;
+    esac
+  done
+
+  rule_begin
+  run_all_rules
+  local code=0
+  rule_end || code=$?
+  failures="$RULE_VIOLATIONS"
+
+  guard_body "$code"
+}
+
+guard_body() {
+  local code="$1"
+  if [ "$code" -eq 2 ]; then
+    echo "" >&2
+    echo "origin-privacy: INFRASTRUCTURE failure -- the guard could not look." >&2
+    return 2
   fi
 
-  # ISOLATED. Every probe lands in a throwaway copy and the guard is re-run
-  # against it via --project-root. This used to mutate the live tree — five
-  # probe files and an edit to the real pigeon input — so two concurrent runs
-  # destroyed each other's fixtures and left the contract file damaged if
-  # interrupted.
+  if [ "$SELF_TEST" -eq 1 ]; then
+    run_self_test || return $?
+  fi
+
+  if [ "$failures" -gt 0 ]; then
+    echo "" >&2
+    echo "A raw platform source identifier is a device name in disguise. It exists" >&2
+    echo "between the Pigeon boundary and OriginGateway and nowhere else." >&2
+    echo "See packages/stride_health/lib/src/origin_gateway.dart," >&2
+    echo "GAME_BIBLE/HEALTH_INTEGRATION/01_APPLE_HEALTH_DESIGN.md, DECISIONS/0012." >&2
+    return 1
+  fi
+
+  local approved_count
+  approved_count="$(printf '%s\n' "$APPROVED" | grep -c '|' || true)"
+  echo "origin-privacy: OK"
+  echo "  dart production files scanned : $DART_SCANNED"
+  echo "  native sources scanned        : $NATIVE_SCANNED"
+  echo "  approved raw-identifier sites : $approved_count"
+  echo "  native durable stores         : 0 (cursor is never native state)"
+}
+
+# ---------------------------------------------------------------------------
+# Self-test — isolated, never the live tree
+#
+# Ten cases, each with a stable case ID and the diagnostic its own rule must
+# emit. Recorded in `Scripts/CASE_MAP.md`, which is what the shared registry
+# will consume.
+#
+# ISOLATED. Every probe lands in a throwaway copy created by `mktemp -d` -- a
+# root unique to this run -- and the guard is re-run against it via
+# `--project-root`. This used to mutate the LIVE tree: five probe files and an
+# edit to the real pigeon input, so two concurrent runs destroyed each other's
+# fixtures and left the platform contract damaged if interrupted.
+#
+# A nonzero exit is NOT evidence, so each case asserts:
+#
+#   * exit 1 -- a POLICY rejection. Exit 2 is infrastructure and fails the case,
+#     which is what stops an incomplete copy, a missing directory or a deleted
+#     contract file from standing in for a detection
+#   * the diagnostic is that case's own rule, not merely some rule
+#   * restoration is exact: every probe gone, and the pigeon input byte-identical
+# ---------------------------------------------------------------------------
+run_self_test() {
+  if [ "$failures" -ne 0 ]; then
+    echo "origin-privacy: refusing to self-test while the real tree is failing" >&2
+    return 1
+  fi
+
+  local TREE_BEFORE ISO st_failures=0 st_ok=0 st_layering=0
+  local LIVE_PIGEON_SHA LIVE_GENERATED_SHA
   TREE_BEFORE="$(st_tree_snapshot)"
-  ISO_ROOT="$(st_make_root)"
-  st_copy "$ISO_ROOT" \
+
+  # The generated bindings are checked BY CONTENT, separately from the tree
+  # snapshot. This self-test edits a copy of the Pigeon input, and the one
+  # mistake that would be catastrophic and quiet is editing the real one -- CI
+  # diff-checks `messages.g.dart` against a regeneration, so a damaged input
+  # surfaces as an unrelated failure in another job. Two named files, hashed.
+  LIVE_PIGEON_SHA="$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")"
+  LIVE_GENERATED_SHA="$(st_file_digest "$PROJECT_ROOT/packages/stride_health/lib/src/messages.g.dart")"
+
+  ISO="$(st_make_root)"
+  trap 'rm -rf "$ISO"' EXIT
+
+  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
+  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
+  # empty tree -- and an empty tree passes every content check in this file.
+  st_copy_from "$PROJECT_ROOT" "$ISO" \
     lib packages/stride_core/lib packages/stride_health/lib \
     packages/stride_storage/lib packages/stride_secure_store/lib \
     packages/stride_health/example/lib \
@@ -523,76 +745,109 @@ if [ "$SELF_TEST" -eq 1 ]; then
     packages/stride_health/android/src/main \
     packages/stride_health/ios/stride_health/Sources
 
-  CORE_PROBE="$ISO_ROOT/packages/stride_core/lib/src/__origin_probe.dart"
-  APP_PROBE="$ISO_ROOT/lib/__origin_probe.dart"
-  HEALTH_PROBE="$ISO_ROOT/packages/stride_health/lib/src/__origin_probe.dart"
-  SWIFT_PROBE="$ISO_ROOT/packages/stride_health/ios/stride_health/Sources/stride_health/__OriginProbe.swift"
-  KOTLIN_PROBE="$ISO_ROOT/packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__OriginProbe.kt"
-  ISO_PIGEON="$ISO_ROOT/$PIGEON_INPUT"
-  PIGEON_BACKUP="$(mktemp)"
+  local CORE_PROBE="$ISO/packages/stride_core/lib/src/__origin_probe.dart"
+  local APP_PROBE="$ISO/lib/__origin_probe.dart"
+  local HEALTH_PROBE="$ISO/packages/stride_health/lib/src/__origin_probe.dart"
+  local SWIFT_PROBE="$ISO/packages/stride_health/ios/stride_health/Sources/stride_health/__OriginProbe.swift"
+  local KOTLIN_PROBE="$ISO/packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__OriginProbe.kt"
+  local ISO_PIGEON="$ISO/$PIGEON_INPUT"
 
-  cp "$ISO_PIGEON" "$PIGEON_BACKUP"
-  cleanup() {
-    rm -rf "$ISO_ROOT"
-    rm -f "$PIGEON_BACKUP"
-  }
-  trap cleanup EXIT
+  # The backup lives INSIDE the isolated root, so the run owns exactly one
+  # temporary directory and cleanup cannot leave a stray file behind.
+  local BAK="$ISO/.backup"
+  mkdir -p "$BAK"
+  cp "$ISO_PIGEON" "$BAK/pigeon"
 
   # The copy must pass before injection, or a rejection proves only that the
   # copy was incomplete.
-  if ! bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
+  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
     echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass clean" >&2
-    bash "$0" --project-root "$ISO_ROOT" >&2
-    exit 1
+    bash "$0" --project-root "$ISO" >&2
+    rm -rf "$ISO"; trap - EXIT
+    return 1
   fi
 
-  selftest_failures=0
-  expect_reject() {
-    if bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
-      echo "origin-privacy SELF-TEST FAILED: the guard accepted $1" >&2
-      selftest_failures=$((selftest_failures + 1))
-    else
-      echo "  rejected as expected: $1"
-    fi
+  restore_all() {
     rm -f "$CORE_PROBE" "$APP_PROBE" "$HEALTH_PROBE" "$SWIFT_PROBE" "$KOTLIN_PROBE"
-    cp "$PIGEON_BACKUP" "$ISO_PIGEON"
+    cp "$BAK/pigeon" "$ISO_PIGEON"
+    [ ! -e "$CORE_PROBE" ] && [ ! -e "$APP_PROBE" ] && [ ! -e "$HEALTH_PROBE" ] &&
+      [ ! -e "$SWIFT_PROBE" ] && [ ! -e "$KOTLIN_PROBE" ] &&
+      cmp -s "$BAK/pigeon" "$ISO_PIGEON"
   }
 
-  # A -- the core reads the raw field. The exact thing the ruling forbids.
+  # expect_reject <case-id> <expected-diagnostic-regex> <label>
+  expect_reject() {
+    local id="$1" want="$2" label="$3" out rc
+    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
+
+    if [ "$rc" -eq 0 ]; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: the guard ACCEPTED $label" >&2
+      st_failures=$((st_failures + 1))
+    elif [ "$rc" -ne 1 ]; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
+      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+      st_failures=$((st_failures + 1))
+    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: $label was rejected, but NOT by its own rule." >&2
+      echo "    expected a diagnostic matching: $want" >&2
+      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+      st_failures=$((st_failures + 1))
+    else
+      st_ok=$((st_ok + 1))
+      echo "  rejected as expected [$id]: $label"
+    fi
+
+    if ! restore_all; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: restoration was not exact" >&2
+      st_failures=$((st_failures + 1))
+    fi
+  }
+
+  local D='STRIDE_GUARD\[origin-privacy\.'
+
+  # 1 -- the core reads the raw field. The exact thing the ruling forbids.
+  #      It trips the core-isolation rule too, and is owned by the rule that
+  #      names the raw identifier; case 1 of that pair is what the original
+  #      inventory called "A".
   cat > "$CORE_PROBE" <<'PROBE'
 class OriginProbe {
   String pick(dynamic observation) => observation.sourceIdentifier as String;
 }
 PROBE
-  expect_reject "stride_core reading the raw source identifier"
+  expect_reject op_core_reads_raw "${D}raw_identifier_sites\]" \
+    "stride_core reading the raw source identifier"
 
-  # A -- an ordinary app file reads it. Proven separately from the core case,
-  # so the allow-list is shown to bind everywhere and not only in one package.
+  # 2 -- an ordinary app file reads it. Proven separately from the core case,
+  #      so the allow-list is shown to bind everywhere and not only in one
+  #      package.
   cat > "$APP_PROBE" <<'PROBE'
 class OriginProbe {
   String pick(dynamic page) => page.observations.first.sourceIdentifier as String;
 }
 PROBE
-  expect_reject "an app file reading the raw source identifier"
+  expect_reject op_app_reads_raw "${D}raw_identifier_sites\]" \
+    "an app file reading the raw source identifier"
 
-  # A (plural) -- the completeness scope's raw source list is the same value in
-  # a different shape, and an allow-list that missed it would be decorative.
+  # 3 -- the completeness scope's raw source LIST is the same value in a
+  #      different shape, and an allow-list that missed it would be decorative.
   cat > "$HEALTH_PROBE" <<'PROBE'
 class OriginProbe {
   List<String> pick(dynamic scope) => scope.sourceIdentifiers as List<String>;
 }
 PROBE
-  expect_reject "a second health file reading the raw source list"
+  expect_reject op_health_reads_raw_list "${D}raw_identifier_sites\]" \
+    "a second health file reading the raw source list"
 
-  # B -- a display-name shape on the data path.
+  # 4 -- a display-name shape on the data path.
   cat > "$HEALTH_PROBE" <<'PROBE'
 class OriginProbe {
   String deviceName = 'unset';
 }
 PROBE
-  expect_reject "a device display name on the health data path"
+  expect_reject op_dart_display_name "${D}no_dart_display_name\]" \
+    "a device display name on the health data path"
 
-  # C -- native reads HKSource.name, the obvious wrong implementation.
+  # 5 -- native reads HKSource.name, the obvious wrong implementation.
   cat > "$SWIFT_PROBE" <<'PROBE'
 import Foundation
 
@@ -602,11 +857,11 @@ struct OriginProbe {
   }
 }
 PROBE
-  expect_reject "Swift reading HKSource.name"
+  expect_reject op_swift_display_name "${D}no_native_display_name\]" \
+    "Swift reading HKSource.name"
 
-  # D -- native logs the raw identifier. This is where raw identifiers actually
-  # live now, so this is where the sink check earns its place: device logs are
-  # readable, exportable, and outlive the app.
+  # 6 -- native logs the raw identifier. This is where raw identifiers actually
+  #      live now, so this is where the sink check earns its place.
   cat > "$SWIFT_PROBE" <<'PROBE'
 import Foundation
 
@@ -616,15 +871,17 @@ struct OriginProbe {
   }
 }
 PROBE
-  expect_reject "Swift logging a raw source identifier"
+  expect_reject op_swift_logs_raw "${D}no_native_raw_sink\]" \
+    "Swift logging a raw source identifier"
 
-  # H -- the wire field is "simplified" back into a String. One edit, every
-  # other check still green, and the channel a device name travels in is open
-  # again.
+  # 7 -- the wire field is "simplified" back into a String. One edit, every
+  #      other check still green, and the channel a device name travels in is
+  #      open again.
   sed -i 's/^  final Uint8List originKey;$/  final String originKey;/' "$ISO_PIGEON"
-  expect_reject "the origin field changed from opaque bytes to a String"
+  expect_reject op_pigeon_origin_string "${D}pigeon_origin_opaque\]" \
+    "the origin field changed from opaque bytes to a String"
 
-  # I -- native mints its own identity instead of consuming the app's.
+  # 8 -- native mints its own identity instead of consuming the app's.
   cat > "$SWIFT_PROBE" <<'PROBE'
 import Foundation
 
@@ -636,19 +893,21 @@ struct OriginProbe {
   }
 }
 PROBE
-  expect_reject "Swift minting a second device identity"
+  expect_reject op_swift_mints_identity "${D}no_native_identity_minting\]" \
+    "Swift minting a second device identity"
 
-  # G -- a platform VALUE reaches a diagnostic, without the field ever being
-  # named. This is the leak the guard found in Pigeon's generated toString, and
-  # the reason check G exists at all.
+  # 9 -- a platform VALUE reaches a diagnostic, without the field ever being
+  #      named. This is the leak the guard found in Pigeon's generated
+  #      toString, and the reason the platform-value rule exists at all.
   cat > "$HEALTH_PROBE" <<'PROBE'
 import 'messages.g.dart';
 
 void probeLeak(PlatformSyncPage page) => throw StateError('page was $page');
 PROBE
-  expect_reject "a platform boundary value printed without naming the field"
+  expect_reject op_platform_value_sink "${D}no_platform_value_sink\]" \
+    "a platform boundary value printed without naming the field"
 
-  # F -- native caches the cursor in a durable store.
+  # 10 -- native caches the cursor in a durable store.
   cat > "$KOTLIN_PROBE" <<'PROBE'
 package com.projectstride.stride_health
 
@@ -661,43 +920,107 @@ class OriginProbe(private val context: Context) {
     }
 }
 PROBE
-  expect_reject "Kotlin caching the cursor in a durable native store"
+  expect_reject op_kotlin_durable_store "${D}no_native_durable_store\]" \
+    "Kotlin caching the cursor in a durable native store"
 
-  rm -f "$CORE_PROBE" "$APP_PROBE" "$HEALTH_PROBE" "$SWIFT_PROBE" "$KOTLIN_PROBE"
-  cp "$PIGEON_BACKUP" "$ISO_PIGEON"
+  # ------------------------------------------------------------------
+  # The other direction. Two layering cases, because in a privacy guard the
+  # dangerous failure is not a false rejection -- it is a clean-looking run that
+  # read nothing.
+  #
+  # Cases 5, 6, 8 and 10 prove the native rules fire when a violation is
+  # present. They cannot prove the native scan happened at all: a copy without
+  # the Swift and Kotlin directories produces no findings and looks exactly like
+  # a clean tree. Nor can any case prove that a MISSING platform contract is
+  # infrastructure rather than a rejection -- and if it were a rejection, case 7
+  # could be satisfied by deleting the file instead of by changing the type.
+  # ------------------------------------------------------------------
+  local SAVED="$ISO/.moved"
+  mkdir -p "$SAVED"
+  mv "$ISO/packages/stride_health/ios/stride_health/Sources" "$SAVED/ios-Sources"
+  mv "$ISO/packages/stride_health/android/src/main" "$SAVED/android-main"
 
-  # The copy must pass again once the probes are gone, or a rejection above was
-  # damage rather than detection.
-  if ! bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
-    echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
-    exit 1
+  local out rc
+  out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
+  if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qE 'STRIDE_INFRA\[origin-privacy\.no_native_sources\]'; then
+    echo "  layering held [op_empty_native_scan]: no native sources is INFRASTRUCTURE (exit 2), not a clean privacy result"
+    st_layering=$((st_layering + 1))
+  else
+    echo "origin-privacy SELF-TEST FAILED [op_empty_native_scan]: an empty native scan reported exit $rc" >&2
+    printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+    st_failures=$((st_failures + 1))
   fi
 
-  cleanup
+  mv "$SAVED/ios-Sources" "$ISO/packages/stride_health/ios/stride_health/Sources"
+  mv "$SAVED/android-main" "$ISO/packages/stride_health/android/src/main"
+
+  mv "$ISO_PIGEON" "$SAVED/pigeon-input"
+  out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
+  if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qE 'STRIDE_INFRA\[origin-privacy\.pigeon_input_missing\]' &&
+     ! printf '%s\n' "$out" | grep -qE "${D}pigeon_origin_opaque\]"; then
+    echo "  layering held [op_missing_pigeon_input]: a DELETED platform contract is INFRASTRUCTURE, never pigeon_origin_opaque"
+    st_layering=$((st_layering + 1))
+  else
+    echo "origin-privacy SELF-TEST FAILED [op_missing_pigeon_input]: a deleted contract reported exit $rc" >&2
+    printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+    st_failures=$((st_failures + 1))
+  fi
+  mv "$SAVED/pigeon-input" "$ISO_PIGEON"
+  rmdir "$SAVED" 2>/dev/null || true
+
+  if ! restore_all; then
+    echo "origin-privacy SELF-TEST FAILED: restoration after the layering cases was not exact" >&2
+    st_failures=$((st_failures + 1))
+  fi
+
+  # The copy must pass again once every probe is gone, or a rejection above was
+  # damage rather than detection.
+  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
+    echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
+    bash "$0" --project-root "$ISO" >&2
+    st_failures=$((st_failures + 1))
+  fi
+
+  rm -rf "$ISO"
   trap - EXIT
 
   # The live tree must be byte-for-byte what it was. Asserted, not assumed.
-  st_assert_tree_unchanged "$TREE_BEFORE" || exit 1
+  st_assert_tree_unchanged "$TREE_BEFORE" || return 1
 
-  if [ "$selftest_failures" -ne 0 ]; then
-    echo "origin-privacy: SELF-TEST FAILED -- the guard cannot detect $selftest_failures of 10 injected violations" >&2
-    exit 1
+  # And the two generated-binding files by content, named individually. The
+  # tree snapshot would catch this too; this says which file and why.
+  if [ "$LIVE_PIGEON_SHA" != "$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")" ]; then
+    echo "SELF-TEST FAILED: the LIVE Pigeon input was modified. CI diff-checks the" >&2
+    echo "generated bindings against a regeneration, so this would surface as an" >&2
+    echo "unrelated failure in another job." >&2
+    return 1
   fi
-  echo "origin-privacy: self-test OK -- all 10 injected violations were rejected"
-fi
+  if [ "$LIVE_GENERATED_SHA" != "$(st_file_digest "$PROJECT_ROOT/packages/stride_health/lib/src/messages.g.dart")" ]; then
+    echo "SELF-TEST FAILED: the LIVE generated bindings were modified." >&2
+    return 1
+  fi
+  echo "  pigeon input and generated bindings: byte-identical"
 
-if [ "$failures" -gt 0 ]; then
-  echo "" >&2
-  echo "A raw platform source identifier is a device name in disguise. It exists" >&2
-  echo "between the Pigeon boundary and OriginGateway and nowhere else." >&2
-  echo "See packages/stride_health/lib/src/origin_gateway.dart," >&2
-  echo "GAME_BIBLE/HEALTH_INTEGRATION/01_APPLE_HEALTH_DESIGN.md, DECISIONS/0012." >&2
-  exit 1
-fi
+  if [ "$st_failures" -ne 0 ]; then
+    echo "origin-privacy: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
+    return 1
+  fi
+  # Asserted, not narrated: the count used to be a string in an echo, which is
+  # a second source of truth and drifts the moment a case is added.
+  if [ "$st_ok" -ne 10 ] || [ "$st_layering" -ne 2 ]; then
+    echo "origin-privacy: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_layering layering case(s), expected 10 and 2" >&2
+    return 1
+  fi
+  echo "origin-privacy: self-test OK -- $st_ok injected violations rejected by their own rules at exit 1, $st_layering layering cases"
+  return 0
+}
 
-approved_count="$(printf '%s\n' "$APPROVED" | grep -c '|' || true)"
-echo "origin-privacy: OK"
-echo "  dart production files scanned : $dart_count"
-echo "  native sources scanned        : $native_count"
-echo "  approved raw-identifier sites : $approved_count"
-echo "  native durable stores         : 0 (cursor is never native state)"
+# Source-safe entry. Sourcing defines the rules and does nothing else: no traps,
+# no cd, no shell-option changes, no files, no rule execution, and nothing that
+# touches the generated bindings. Proven for every converted guard by
+# Scripts/check-source-safety.sh.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  set -uo pipefail
+  guard_main "$@"
+  exit $?
+fi

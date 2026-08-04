@@ -105,6 +105,71 @@ Named production rules with no case yet:
 
 ---
 
+## check-origin-privacy.sh — 10 cases
+
+Converted at Commit B. All 10 preserved; none added, removed, merged or
+weakened.
+
+| # | old case description | case ID | production rule | diagnostic |
+|---|----------------------|---------|-----------------|------------|
+| 1 | stride_core reading the raw source identifier | `op_core_reads_raw` | `rule_raw_identifier_sites` | `STRIDE_GUARD[origin-privacy.raw_identifier_sites]` |
+| 2 | an app file reading the raw source identifier | `op_app_reads_raw` | `rule_raw_identifier_sites` | `STRIDE_GUARD[origin-privacy.raw_identifier_sites]` |
+| 3 | a second health file reading the raw source list | `op_health_reads_raw_list` | `rule_raw_identifier_sites` | `STRIDE_GUARD[origin-privacy.raw_identifier_sites]` |
+| 4 | a device display name on the health data path | `op_dart_display_name` | `rule_no_dart_display_name` | `STRIDE_GUARD[origin-privacy.no_dart_display_name]` |
+| 5 | Swift reading HKSource.name | `op_swift_display_name` | `rule_no_native_display_name` | `STRIDE_GUARD[origin-privacy.no_native_display_name]` |
+| 6 | Swift logging a raw source identifier | `op_swift_logs_raw` | `rule_no_native_raw_sink` | `STRIDE_GUARD[origin-privacy.no_native_raw_sink]` |
+| 7 | the origin field changed from opaque bytes to a String | `op_pigeon_origin_string` | `rule_pigeon_origin_opaque` | `STRIDE_GUARD[origin-privacy.pigeon_origin_opaque]` |
+| 8 | Swift minting a second device identity | `op_swift_mints_identity` | `rule_no_native_identity_minting` | `STRIDE_GUARD[origin-privacy.no_native_identity_minting]` |
+| 9 | a platform boundary value printed without naming the field | `op_platform_value_sink` | `rule_no_platform_value_sink` | `STRIDE_GUARD[origin-privacy.no_platform_value_sink]` |
+| 10 | Kotlin caching the cursor in a durable native store | `op_kotlin_durable_store` | `rule_no_native_durable_store` | `STRIDE_GUARD[origin-privacy.no_native_durable_store]` |
+
+Case 1 trips two rules at once: the probe both names the raw identifier and
+does so from inside `stride_core`. It is owned by `rule_raw_identifier_sites`,
+which is what the original inventory called check "A" — the same convention
+used for `sw_background_isolate_repo`. `rule_core_boundary_isolation` is
+therefore enforced but has no case of its own, as it did not before the
+conversion.
+
+Two **layering** cases, in the other direction. In a privacy guard the
+dangerous failure is not a false rejection — it is a clean-looking run that read
+nothing:
+
+| case ID | what it proves |
+|---------|----------------|
+| `op_empty_native_scan` | the Swift and Kotlin directories removed ⇒ exit 2 with `STRIDE_INFRA[origin-privacy.no_native_sources]`, never a clean privacy result. Without it, cases 5, 6, 8 and 10 could be satisfied by a copy that simply lacks those directories. |
+| `op_missing_pigeon_input` | the platform contract deleted ⇒ exit 2 with `STRIDE_INFRA[origin-privacy.pigeon_input_missing]`, never `pigeon_origin_opaque`. Without it, case 7 could be satisfied by deleting the file instead of changing the type. |
+
+Named production rules with no case yet — enforced by the complete guard,
+awaiting registry cases:
+
+| rule | diagnostic | what it holds |
+|------|-----------|---------------|
+| `rule_preflight` | `STRIDE_INFRA[origin-privacy.root_missing]` | the project root exists |
+| `rule_dart_scan_coverage` | `STRIDE_INFRA[origin-privacy.no_dart_sources]` | the Dart scan read something |
+| `rule_native_scan_coverage` | `STRIDE_INFRA[origin-privacy.no_native_sources]` | the native scan read something (layering case above) |
+| `rule_pigeon_input_present` | `STRIDE_INFRA[origin-privacy.pigeon_input_missing]` | the platform contract is readable (layering case above) |
+| `rule_no_dart_raw_sink` | `STRIDE_GUARD[origin-privacy.no_dart_raw_sink]` | no raw identifier on a Dart diagnostic surface |
+| `rule_core_boundary_isolation` | `STRIDE_GUARD[origin-privacy.core_boundary_isolation]` | `stride_core` names no platform type |
+
+### Where each origin-privacy property is actually held
+
+This guard holds the source-text properties. Two of the properties in the
+same family are held elsewhere, and are recorded here so a later reader does
+not assume this script covers them:
+
+| property | held by |
+|----------|---------|
+| raw HealthKit / Health Connect identifiers cannot cross Pigeon | `rule_raw_identifier_sites`, `rule_pigeon_origin_opaque` |
+| source or device display names cannot cross the boundary | `rule_no_dart_display_name`, `rule_no_native_display_name` |
+| raw identifiers cannot enter saves or logs | `rule_no_dart_display_name` (scoped to `stride_core`/`stride_storage`/`stride_health` lib), `rule_no_dart_raw_sink`, `rule_no_native_raw_sink` |
+| generated bindings cannot introduce a raw-identifier field | `rule_raw_identifier_sites` — `production_dart` deliberately includes `messages.g.dart` |
+| generated `toString` cannot leak a boundary value | `rule_no_platform_value_sink` (the compensating control for the `SINK_EXEMPT` exemption) |
+| all required Dart, Swift, Kotlin and Pigeon surfaces are inspected | `rule_dart_scan_coverage`, `rule_native_scan_coverage`, `rule_pigeon_input_present` — all three **infrastructure**, so an empty scan is never a privacy pass |
+| `StepOriginKey` shape: sixteen lowercase hex or `unknown`, so `"My Watch"` and `"phone"` are not representable | the Dart type plus `packages/stride_health/test/origin_key_vectors.dart` and `origin_privacy_test.dart` — **not** this guard |
+| the canonical durable-state contract | `check-step-model.sh` (`canonicalDurableStepLedger`) — **not** this guard |
+
+---
+
 ## check-android-target.sh — 6 reject + 1 accept
 
 Converted at the previous checkpoint; recorded here for completeness.

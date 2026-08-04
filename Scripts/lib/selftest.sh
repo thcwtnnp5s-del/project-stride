@@ -75,6 +75,18 @@ st_tree_snapshot() {
   }
 }
 
+# st_file_digest <path> — content hash of ONE named file, or ABSENT.
+#
+# The tree snapshot above already covers "nothing changed", but it says so about
+# the whole tree at once. For a file whose damage would surface somewhere else
+# entirely -- a Pigeon input, whose generated output CI diff-checks against a
+# regeneration in a different job -- a per-file assertion is worth having: it
+# names which file and why, instead of reporting an unrelated diff.
+st_file_digest() {
+  [ -f "$1" ] || { printf 'ABSENT'; return 0; }
+  git hash-object "$1" 2>/dev/null || sha256sum "$1" 2>/dev/null | cut -d' ' -f1
+}
+
 # st_assert_tree_unchanged <snapshot>
 st_assert_tree_unchanged() {
   local before="$1" after
