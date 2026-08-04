@@ -27,7 +27,53 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!--
+              Health Connect's permission rationale, Android 13 and below.
+
+              Health Connect will not present the step-permission sheet to an app
+              that offers nowhere to explain why it wants the data. Without this
+              filter `PermissionController.createRequestPermissionResultContract`
+              produces an intent that resolves to nothing, and the plugin reports
+              UNAVAILABLE — which is indistinguishable, from inside the game, from
+              a phone that has no Health Connect at all.
+
+              It lives on the host application rather than in
+              packages/stride_health, deliberately: it is a screen the player
+              sees, and that package owns no UI. See the closing comment in
+              packages/stride_health/android/src/main/AndroidManifest.xml.
+            -->
+            <intent-filter>
+                <action android:name="androidx.health.connect.action.SHOW_PERMISSIONS_RATIONALE"/>
+            </intent-filter>
         </activity>
+
+        <!--
+          The same rationale target, Android 14 and above.
+
+          From API 34 Health Connect is part of the platform and looks for
+          VIEW_PERMISSION_USAGE under the HEALTH_PERMISSIONS category instead of
+          the androidx action above. Both are declared because Stride's floor is
+          API 26 and the two mechanisms do not overlap.
+
+          An <activity-alias>, not a second activity: it must route to the running
+          MainActivity so there is one Flutter engine and one persistence writer.
+          A separate activity would be a second entry point into the app, which is
+          exactly what DECISIONS/0013 forbids.
+
+          `android:permission` restricts the alias to the system's permission
+          controller. Exported without it, any installed app could launch it.
+        -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS"/>
+            </intent-filter>
+        </activity-alias>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
