@@ -97,6 +97,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/rulekit.sh"
 # shellcheck source=lib/selftest.sh
 . "$SCRIPT_DIR/lib/selftest.sh"
+# shellcheck source=lib/registry.sh
+. "$SCRIPT_DIR/lib/registry.sh"
+# shellcheck source=lib/cases.sh
+. "$SCRIPT_DIR/lib/cases.sh"
 
 GUARD_ID="step-model"
 
@@ -805,481 +809,96 @@ guard_body() {
 }
 
 # ---------------------------------------------------------------------------
-# Self-test — isolated, never the live tree
-#
-# Thirteen rejection cases and four infrastructure cases, each with a stable
-# case ID and the diagnostic its own rule must emit. Recorded in
-# `Scripts/CASE_MAP.md`.
-#
-# Ten of the thirteen are the historical cases, preserved exactly. Three are
-# new, and each closes a production rule that was enforced but had no case:
-# `rule_observation_class_present`, `rule_ingest_command_present`, and the
-# `.add(` branch of `rule_no_signature_capture`.
-#
-# ISOLATED. Every probe lands in a throwaway copy created by `mktemp -d` -- a
-# root unique to this run -- and the guard is re-run against it via
-# `--project-root`. This used to mutate the LIVE tree, so two concurrent runs
-# destroyed each other's fixtures.
-#
-# A nonzero exit is NOT evidence. Before this conversion each case asserted only
-# `if bash "$0" ...; then FAIL` -- ten cases, each proving that SOMETHING went
-# wrong. Each now asserts three things instead; see `expect_reject`.
 # ---------------------------------------------------------------------------
+# Self-test — registry-driven, isolated, never the live tree
+#
+# This guard holds no case inventory of its own. All seventeen cases — their
+# probes, their declared changed-path sets, their expected exit codes and their
+# expected diagnostics — live in `Scripts/lib/cases.sh`, and the runner in
+# `Scripts/lib/registry.sh` refuses to run if any mutation machinery comes back
+# here. A second inventory is a second source of truth, and the count it carries
+# is the thing that drifted: the old summary said "10 injected violations" while
+# the loop counted a different set.
+#
+# The runner asserts, per case:
+#
+#   * the COMPLETE guard produces the case's expected outcome. For the thirteen
+#     rejection cases that is exit 1 with the case's own STRIDE_GUARD
+#     diagnostic. A nonzero exit is NOT evidence — before the named-rule
+#     conversion every case here asserted only `if bash "$0" ...; then FAIL`,
+#     which is ten cases each proving that SOMETHING went wrong. Exit 2 fails a
+#     rejection case outright, and so does a STRIDE_INFRA line anywhere in the
+#     output
+#   * the complete guard names NO OTHER rule. Carried by each case's `forbid`,
+#     which covers every step-model diagnostic except its own. A case another
+#     rule fires on first is over-determined and proves nothing about the rule
+#     it is filed under; none of the thirteen is, and the `forbid` is what keeps
+#     that true rather than recording that it once was
+#   * the NAMED RULE, invoked ALONE against the same mutated root, exits 1 with
+#     its own diagnostic. Every rejection case here carries
+#     `attribution: named_rule` — this guard's embedded self-test asserted the
+#     rule alone for all thirteen, and migrating any of them to complete-guard
+#     attribution would drop an assertion that currently holds. It is possible
+#     only because sourcing this guard is inert, which is what
+#     `Scripts/check-source-safety.sh` exists to prove
+#   * for the four infrastructure cases, exit 2 with the exact STRIDE_INFRA
+#     diagnostic and no policy diagnostic at all. Every content rule in this
+#     guard is an ABSENCE check, and a tree the guard cannot read produces
+#     absence too: missing Dart sources, missing native sources, a missing
+#     Pigeon input, an invalid invocation and a missing project root are things
+#     the guard could not look at, never things it looked at and rejected. Two
+#     are layering cases and two are `form=invocation`, which touch no file
+#   * the probe changed exactly the paths it declared, and no others
+#   * the isolated root's fingerprint — existence, bytes, type, mode and symlink
+#     target of every path — is identical after restoration, so no case can pass
+#     on the previous case's leftovers
+#
+# Counts are DERIVED from the registry and printed by the runner. There is no
+# number written down in this file to disagree with them.
+# ---------------------------------------------------------------------------
+STEP_MODEL_SELFTEST_PATHS="
+lib
+test
+integration_test
+packages/stride_core/lib
+packages/stride_core/test
+packages/stride_health/lib
+packages/stride_health/test
+packages/stride_health/pigeons
+packages/stride_health/example/lib
+packages/stride_health/example/integration_test
+packages/stride_health/android/src/main
+packages/stride_health/ios/stride_health/Sources
+packages/stride_storage/lib
+packages/stride_storage/test
+packages/stride_secure_store/lib
+packages/stride_secure_store/test
+"
+
 run_self_test() {
   if [ "$failures" -ne 0 ]; then
     echo "step-model: refusing to self-test while the real tree is failing" >&2
     return 1
   fi
 
-  local TREE_BEFORE ISO st_failures=0 st_ok=0 st_infra=0
-  local LIVE_PIGEON_SHA
-  TREE_BEFORE="$(st_tree_snapshot)"
-  LIVE_PIGEON_SHA="$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")"
+  # The Pigeon input by content, named individually. The registry runner already
+  # asserts the whole live tree is unchanged; this says WHICH file and WHY. Three
+  # cases rewrite a COPY of it, and CI diff-checks the generated bindings against
+  # a regeneration, so a damaged input would surface as an unrelated failure in
+  # another job.
+  local live_pigeon rc=0
+  live_pigeon="$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")"
 
-  ISO="$(st_make_root)"
-  trap 'rm -rf "$ISO"' EXIT
+  # shellcheck disable=SC2086
+  reg_selftest "$GUARD_ID" "$0" "$STEP_MODEL_RULES" -- $STEP_MODEL_SELFTEST_PATHS || rc=$?
 
-  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
-  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
-  # empty tree -- and an empty tree passes every content check in this file.
-  # `st_copy` (the cwd-relative form) is what the unconverted version used, and
-  # it is exactly what breaks when the guard stops cd'ing.
-  st_copy_from "$PROJECT_ROOT" "$ISO" \
-    lib test integration_test \
-    packages/stride_core/lib packages/stride_core/test \
-    packages/stride_health/lib packages/stride_health/test \
-    packages/stride_health/pigeons \
-    packages/stride_health/example/lib \
-    packages/stride_health/example/integration_test \
-    packages/stride_health/android/src/main \
-    packages/stride_health/ios/stride_health/Sources \
-    packages/stride_storage/lib packages/stride_storage/test \
-    packages/stride_secure_store/lib packages/stride_secure_store/test
-
-  local APP_PROBE="$ISO/lib/__step_model_probe.dart"
-  local HEALTH_PROBE="$ISO/packages/stride_health/lib/src/__step_model_probe.dart"
-  local CORE_PROBE="$ISO/packages/stride_core/lib/src/__step_model_probe.dart"
-  local TEST_PROBE="$ISO/packages/stride_core/test/__step_model_probe_test.dart"
-  local SWIFT_PROBE="$ISO/packages/stride_health/ios/stride_health/Sources/stride_health/__StepModelProbe.swift"
-  local ISO_PIGEON="$ISO/$PIGEON_INPUT"
-  local ISO_COMMANDS="$ISO/packages/stride_core/lib/src/engine/commands.dart"
-  local ISO_PRIVACY="$ISO/packages/stride_core/test/save_privacy_test.dart"
-
-  # Backups live INSIDE the isolated root, so the run owns exactly one temporary
-  # directory and cleanup cannot leave a stray file behind. The unconverted
-  # version used a second bare `mktemp` for the pigeon backup and then also
-  # wrote `$PIGEON_BACKUP.privacy` beside it -- two files outside the root it
-  # cleaned up.
-  local BAK="$ISO/.backup"
-  mkdir -p "$BAK"
-  cp "$ISO_PIGEON"   "$BAK/pigeon"
-  cp "$ISO_COMMANDS" "$BAK/commands"
-  cp "$ISO_PRIVACY"  "$BAK/privacy"
-
-  # The copy must pass before injection, or a rejection proves only that the
-  # copy was incomplete.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "step-model SELF-TEST FAILED: the isolated copy does not pass clean" >&2
-    bash "$0" --project-root "$ISO" >&2
-    rm -rf "$ISO"; trap - EXIT
-    return 1
-  fi
-
-  restore_all() {
-    rm -f "$APP_PROBE" "$HEALTH_PROBE" "$CORE_PROBE" "$TEST_PROBE" "$SWIFT_PROBE"
-    cp "$BAK/pigeon"   "$ISO_PIGEON"
-    cp "$BAK/commands" "$ISO_COMMANDS"
-    cp "$BAK/privacy"  "$ISO_PRIVACY"
-    [ ! -e "$APP_PROBE" ] && [ ! -e "$HEALTH_PROBE" ] && [ ! -e "$CORE_PROBE" ] &&
-      [ ! -e "$TEST_PROBE" ] && [ ! -e "$SWIFT_PROBE" ] &&
-      cmp -s "$BAK/pigeon" "$ISO_PIGEON" &&
-      cmp -s "$BAK/commands" "$ISO_COMMANDS" &&
-      cmp -s "$BAK/privacy" "$ISO_PRIVACY"
-  }
-
-  # expect_reject <case-id> <rule-fn> <expected-diagnostic> <label> [also-expected-regex]
-  #
-  # Three assertions, where the unconverted version made one ("the guard exited
-  # nonzero"):
-  #
-  #   (a) the COMPLETE guard exits exactly 1 -- a POLICY rejection. Exit 2 is
-  #       infrastructure and FAILS the case, which is what stops an incomplete
-  #       copy, a missing file or a misspelled argument from standing in for a
-  #       detection. And the diagnostic is this case's own rule.
-  #
-  #   (b) the complete guard names NO OTHER rule. A case another rule fires on
-  #       first is over-determined and proves nothing about the rule it is filed
-  #       under. Where a probe genuinely trips two rules, the case must DECLARE
-  #       the second one in <also-expected-regex> -- so over-determination is
-  #       reviewed and written down rather than silently tolerated.
-  #
-  #   (c) the NAMED RULE, invoked ALONE against the same mutated root, exits 1
-  #       with its own diagnostic. This is the isolation proof: with one rule
-  #       running, a mutation only some OTHER rule can see returns 0, so the
-  #       case fails rather than passing on someone else's detection.
-  #
-  # (c) is only possible because this guard is source-safe -- sourcing it
-  # defines the rules and does nothing else. `check-source-safety.sh` proves
-  # that, and this is what depends on it.
-  expect_reject() {
-    local id="$1" fn="$2" want="$3" label="$4" also="${5:-}" out rc others ok=1
-
-    # (a) and (b): the complete guard.
-    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-    if [ "$rc" -eq 0 ]; then
-      echo "step-model SELF-TEST FAILED [$id]: the guard ACCEPTED $label" >&2
-      ok=0
-    elif [ "$rc" -ne 1 ]; then
-      echo "step-model SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "step-model SELF-TEST FAILED [$id]: $label was rejected, but NOT by its own rule." >&2
-      echo "    expected a diagnostic matching: $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    else
-      others="$(printf '%s\n' "$out" \
-        | grep -oE 'STRIDE_(GUARD|INFRA)\[step-model\.[a-z_]+\]' \
-        | sort -u | grep -vE "$want" || true)"
-      if [ -n "$also" ]; then
-        others="$(printf '%s\n' "$others" | grep -vE "$also" || true)"
-      fi
-      if [ -n "$others" ]; then
-        echo "step-model SELF-TEST FAILED [$id]: $label is OVER-DETERMINED -- the guard also emitted:" >&2
-        printf '%s\n' "$others" | sed 's/^/    | /' >&2
-        echo "    Either narrow the probe, or declare the second rule in this case." >&2
-        ok=0
-      fi
-    fi
-
-    # (c) the rule alone.
-    out="$(PROJECT_ROOT="$ISO" bash -c '. "$1" >/dev/null 2>&1 || exit 2; rule_run "$2"' _ "$0" "$fn" 2>&1)"; rc=$?
-    if [ "$rc" -eq 0 ]; then
-      echo "step-model SELF-TEST FAILED [$id]: $fn alone ACCEPTED $label -- the mutation is only visible to some OTHER rule, so this case does not prove $fn" >&2
-      ok=0
-    elif [ "$rc" -ne 1 ]; then
-      echo "step-model SELF-TEST FAILED [$id]: $fn alone exited $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "step-model SELF-TEST FAILED [$id]: $fn alone rejected $label without emitting $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    fi
-
-    if [ "$ok" -eq 1 ]; then
-      st_ok=$((st_ok + 1))
-      echo "  rejected as expected [$id]: $label"
-    else
-      st_failures=$((st_failures + 1))
-    fi
-
-    if ! restore_all; then
-      echo "step-model SELF-TEST FAILED [$id]: restoration was not exact" >&2
-      st_failures=$((st_failures + 1))
-    fi
-  }
-
-  # expect_infra <case-id> <expected-diagnostic> <must-not-match> <label> <args...>
-  #
-  # The other direction, and in this guard it matters as much as the rejections.
-  # Every content check here is an ABSENCE check, and absence is what an
-  # unreadable tree also produces. A copy without the native directories, or
-  # without the platform contract, finds no flat step field -- and is not a
-  # clean result, it is a guard that did not look.
-  expect_infra() {
-    local id="$1" want="$2" forbid="$3" label="$4"; shift 4
-    local out rc
-    out="$(bash "$0" "$@" 2>&1)"; rc=$?
-    if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qE "$want" &&
-       { [ -z "$forbid" ] || ! printf '%s\n' "$out" | grep -qE "$forbid"; }; then
-      st_infra=$((st_infra + 1))
-      echo "  infrastructure as expected [$id]: $label"
-    else
-      echo "step-model SELF-TEST FAILED [$id]: $label reported exit $rc" >&2
-      echo "    expected exit 2 with $want" >&2
-      [ -n "$forbid" ] && echo "    and NOT $forbid" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    fi
-  }
-
-  local D='STRIDE_GUARD\[step-model\.'
-  local I='STRIDE_INFRA\[step-model\.'
-
-  # ---- the ten historical cases, preserved --------------------------------
-
-  # 1. StepFetchResult comes back.
-  cat > "$APP_PROBE" <<'PROBE'
-class StepFetchResult {
-  StepFetchResult(this.newStepCount);
-  final int newStepCount;
-}
-PROBE
-  expect_reject sm_step_fetch_result rule_no_retired_dart_model \
-    "${D}no_retired_dart_model\]" \
-    "StepFetchResult reintroduced in the app"
-
-  # 2. fetchNewSteps comes back -- separately from 1, so neither symbol is
-  #    proven only by the other having already fired.
-  cat > "$HEALTH_PROBE" <<'PROBE'
-abstract interface class LegacySource {
-  Future<int> fetchNewSteps();
-}
-PROBE
-  expect_reject sm_fetch_new_steps rule_no_retired_dart_model \
-    "${D}no_retired_dart_model\]" \
-    "fetchNewSteps reintroduced in the health package"
-
-  # 3. A flat unscoped step field appears on the platform contract. This is the
-  #    one that would look most reasonable in review -- "just a total, for the
-  #    summary screen" -- and it is the whole defect.
-  cat >> "$ISO_PIGEON" <<'PROBE'
-
-class PlatformStepTotal {
-  PlatformStepTotal({required this.newSteps});
-  final int newSteps;
-}
-PROBE
-  expect_reject sm_flat_contract_field rule_no_flat_contract_field \
-    "${D}no_flat_contract_field\]" \
-    "a flat unscoped newSteps field on the platform contract"
-
-  # 4. The same field in native, where the Dart contract check cannot see it.
-  cat > "$SWIFT_PROBE" <<'PROBE'
-import Foundation
-
-struct StepModelProbe {
-  var newSteps: Int64 = 0
-}
-PROBE
-  expect_reject sm_flat_native_field rule_no_retired_native_model \
-    "${D}no_retired_native_model\]" \
-    "a flat newSteps field in native source"
-
-  # 5. A second ingestion entry point into the engine.
-  cat > "$CORE_PROBE" <<'PROBE'
-class LegacyIngest {
-  int ingestSteps(int count) => count;
-}
-PROBE
-  expect_reject sm_second_ingest_entry rule_single_ingest_entry_point \
-    "${D}single_ingest_entry_point\]" \
-    "a second step-ingestion entry point into the engine"
-
-  # 6 and 7. A settling completeness constructed away from the anchored site,
-  #    which is how a partial page comes to advance a settled watermark. Both
-  #    symbols separately: the rule loops over SETTLING_SYMBOLS, and one case
-  #    would leave the other symbol's iteration unproven.
-  cat > "$HEALTH_PROBE" <<'PROBE'
-import 'package:stride_core/stride_core.dart';
-
-SyncCompleteness settleAnyway(CompletenessScope scope) =>
-    CompleteThrough(throughMillis: 0, scope: scope);
-PROBE
-  expect_reject sm_settling_complete_through rule_settling_construction_sites \
-    "${D}settling_construction_sites\]" \
-    "CompleteThrough constructed outside the anchored site"
-
-  cat > "$HEALTH_PROBE" <<'PROBE'
-import 'package:stride_core/stride_core.dart';
-
-SyncCompleteness settleAnyway(CompletenessScope scope) =>
-    RecoveryCompleteThrough(throughMillis: 0, scope: scope);
-PROBE
-  expect_reject sm_settling_recovery_complete_through rule_settling_construction_sites \
-    "${D}settling_construction_sites\]" \
-    "RecoveryCompleteThrough constructed outside the anchored site"
-
-  # 8. A whole-ledger comparison built on StepLedger.signature, in a file that
-  #    is not allow-listed. This is the A.2 defect exactly: a test claiming two
-  #    ledgers are identical using a summary that cannot see the durable cursor
-  #    or the per-origin watermarks.
-  #
-  #    The receivers are called `a` and `b` DELIBERATELY, and that is this
-  #    case's second job. The first version of the rule matched `.signature` on
-  #    receivers whose names looked ledger-ish -- `(steps|ledger|before|...)` --
-  #    and this exact probe walked straight through it. The rule now matches
-  #    every `.signature`; this case is what keeps the receiver-name trick under
-  #    permanent test, so a future "let's reduce false positives by naming the
-  #    receivers we care about" cannot land quietly.
-  cat > "$TEST_PROBE" <<'PROBE'
-import 'package:stride_core/stride_core.dart';
-import 'package:test/test.dart';
-
-void main() {
-  test('the ledger is unchanged', () {
-    final StepLedger a = StepLedger.empty();
-    final StepLedger b = StepLedger.empty();
-    expect(a.signature, b.signature);
-  });
-}
-PROBE
-  expect_reject sm_signature_test_equality rule_signature_allowed_files \
-    "${D}signature_allowed_files\]" \
-    "a whole-ledger equality comparison on StepLedger.signature, on receivers named a and b"
-
-  # 9. The same misuse in PRODUCTION, where it would be a save-integrity
-  #    decision rather than a weak test -- which is what GameState.signature was
-  #    doing in SaveRepository before A.1.
-  cat > "$CORE_PROBE" <<'PROBE'
-import '../steps/step_ledger.dart';
-
-bool ledgersAgree(StepLedger a, StepLedger b) => a.signature == b.signature;
-PROBE
-  expect_reject sm_signature_production_integrity rule_signature_allowed_files \
-    "${D}signature_allowed_files\]" \
-    "a production integrity comparison on StepLedger.signature"
-
-  # 10. CAPTURE inside an ALLOW-LISTED file. The allow-list exists for tests
-  #     whose subject is the diagnostic itself; those assert on it in place.
-  #     Holding the value is how a summary becomes evidence, and it must be
-  #     rejected even where the symbol is permitted -- otherwise the allow-list
-  #     is a blanket exemption rather than a scoped one.
-  cat >> "$ISO_PRIVACY" <<'PROBE'
-
-// injected by the self-test
-String capturedLedgerEvidence(StepLedger ledger) {
-  final String before = ledger.signature;
-  return before;
-}
-PROBE
-  expect_reject sm_signature_capture_variable rule_no_signature_capture \
-    "${D}no_signature_capture\]" \
-    "StepLedger.signature captured into a variable in an allow-listed file"
-
-  # ---- three new cases, closing three uncased production rules -------------
-
-  # 11. The same capture in its OTHER syntactic form. SIGNATURE_CAPTURE is an
-  #     alternation of two shapes, and case 10 exercises exactly one of them: an
-  #     edit that broke the `.add(` branch would have left case 10 green and the
-  #     collection form unguarded. Equivalent forms need equivalent cases.
-  #
-  #     The list is built empty and appended to, so the `=` branch cannot fire
-  #     here and the case proves the branch it is named for.
-  cat >> "$ISO_PRIVACY" <<'PROBE'
-
-// injected by the self-test
-List<String> collectedLedgerEvidence(StepLedger ledger) {
-  final List<String> seen = <String>[];
-  seen.add(ledger.signature);
-  return seen;
-}
-PROBE
-  expect_reject sm_signature_capture_collection rule_no_signature_capture \
-    "${D}no_signature_capture\]" \
-    "StepLedger.signature captured into a collection in an allow-listed file"
-
-  # 12. The per-origin observation class is renamed away. Uncased before this
-  #     conversion, and the gap mattered: `rule_no_flat_contract_field` is an
-  #     ABSENCE check, so a contract carrying no step shape at all satisfies it
-  #     perfectly. This is the rule that makes "no flat field" mean something.
-  #
-  #     A PREFIX rename, not a suffix: the check is a fixed-string search for
-  #     `class PlatformStepObservation`, which `class PlatformStepObservationV2`
-  #     would still satisfy. The probe has to actually remove the declaration.
-  sed -i 's/^class PlatformStepObservation {$/class PlatformObservationRecord {/' "$ISO_PIGEON"
-  expect_reject sm_observation_class_renamed rule_observation_class_present \
-    "${D}observation_class_present\]" \
-    "the per-origin observation class renamed off the platform contract"
-
-  # 13. The one ingestion command is renamed away. Uncased before this
-  #     conversion, and the same shape of gap as 12:
-  #     `rule_single_ingest_entry_point` proves no SECOND way into the engine
-  #     exists, which is vacuously true of a codebase with no way in at all.
-  #
-  #     Renamed rather than deleted, so the mutation is one line and touches
-  #     exactly one declared path.
-  sed -i 's/^final class ReconcileStepSync extends/final class ReconcileStepDelivery extends/' "$ISO_COMMANDS"
-  expect_reject sm_ingest_command_renamed rule_ingest_command_present \
-    "${D}ingest_command_present\]" \
-    "the single engine ingestion command renamed out of existence"
-
-  # ---- infrastructure, which no rejection case may ever be satisfied by ----
-  #
-  # Two layering cases and two invocation cases. The layering pair is the
-  # important half: every content rule in this guard checks for ABSENCE, and a
-  # tree the guard cannot read produces absence too.
-
-  local SAVED="$ISO/.moved"
-  mkdir -p "$SAVED"
-
-  # Without this, sm_flat_native_field could be satisfied by a copy that simply
-  # lacks the native directories -- no Swift file, no flat field, and a
-  # rejection that came from somewhere else entirely.
-  mv "$ISO/packages/stride_health/ios/stride_health/Sources" "$SAVED/ios-Sources"
-  mv "$ISO/packages/stride_health/android/src/main" "$SAVED/android-main"
-  expect_infra sm_empty_native_scan "${I}no_native_sources\]" "$D" \
-    "the native sources removed is INFRASTRUCTURE, not a clean scan" \
-    --project-root "$ISO"
-  mv "$SAVED/ios-Sources" "$ISO/packages/stride_health/ios/stride_health/Sources"
-  mv "$SAVED/android-main" "$ISO/packages/stride_health/android/src/main"
-
-  # And without this, sm_flat_contract_field and sm_observation_class_renamed
-  # could both be satisfied by DELETING the contract rather than by changing it.
-  mv "$ISO_PIGEON" "$SAVED/pigeon-input"
-  expect_infra sm_missing_pigeon_input "${I}pigeon_input_missing\]" \
-    "${D}no_flat_contract_field\]|${D}observation_class_present\]" \
-    "a DELETED platform contract is INFRASTRUCTURE, never a contract violation" \
-    --project-root "$ISO"
-  mv "$SAVED/pigeon-input" "$ISO_PIGEON"
-  rmdir "$SAVED" 2>/dev/null || true
-
-  # Invalid invocation is infrastructure, not a finding. A guard that reported
-  # a misspelled flag as a policy violation would let a typo in CI read as a
-  # repository defect -- and, worse, would let a rejection case be satisfied by
-  # one.
-  expect_infra sm_bad_project_root "${I}root_missing\]" "$D" \
-    "a nonexistent project root is INFRASTRUCTURE" \
-    --project-root "$ISO/does-not-exist"
-  expect_infra sm_unknown_argument "${I}usage\]" "$D" \
-    "an unknown argument is INFRASTRUCTURE" \
-    --not-a-real-flag
-
-  if ! restore_all; then
-    echo "step-model SELF-TEST FAILED: restoration after the infrastructure cases was not exact" >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  # The copy must pass again once every probe is gone, or a rejection above was
-  # damage rather than detection.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "step-model SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
-    bash "$0" --project-root "$ISO" >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  rm -rf "$ISO"
-  trap - EXIT
-
-  # The live tree must be byte-for-byte what it was. Asserted, not assumed.
-  st_assert_tree_unchanged "$TREE_BEFORE" || return 1
-
-  # And the Pigeon input by content, named individually. The tree snapshot would
-  # catch this too; this says which file and why. CI diff-checks the generated
-  # bindings against a regeneration, so a damaged input surfaces as an unrelated
-  # failure in another job.
-  if [ "$LIVE_PIGEON_SHA" != "$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")" ]; then
+  if [ "$live_pigeon" != "$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")" ]; then
     echo "step-model SELF-TEST FAILED: the LIVE Pigeon input was modified." >&2
     return 1
   fi
   echo "  pigeon input: byte-identical"
 
-  if [ "$st_failures" -ne 0 ]; then
-    echo "step-model: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
-    return 1
-  fi
-  # Asserted, not narrated: the count used to be a string in an echo, which is a
-  # second source of truth and drifts the moment a case is added. It had already
-  # drifted -- the old summary said "10 injected violations" while the loop
-  # counted a different set.
-  if [ "$st_ok" -ne 13 ] || [ "$st_infra" -ne 4 ]; then
-    echo "step-model: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_infra infrastructure case(s), expected 13 and 4" >&2
-    return 1
-  fi
-  echo "step-model: self-test OK -- $st_ok injected violations rejected by their own rules at exit 1, $st_infra infrastructure cases at exit 2"
-  return 0
+  return $rc
 }
 
 # Source-safe entry. Sourcing defines the rules and does nothing else: no traps,

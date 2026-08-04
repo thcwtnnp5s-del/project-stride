@@ -84,6 +84,23 @@ rule_pigeon_origin_opaque
 rule_no_native_identity_minting
 "
 
+reg_guard step-model "
+rule_preflight
+rule_dart_scan_coverage
+rule_native_scan_coverage
+rule_signature_scan_coverage
+rule_pigeon_input_present
+rule_no_retired_dart_model
+rule_no_retired_native_model
+rule_no_flat_contract_field
+rule_observation_class_present
+rule_ingest_command_present
+rule_single_ingest_entry_point
+rule_settling_construction_sites
+rule_signature_allowed_files
+rule_no_signature_capture
+"
+
 # ===========================================================================
 # THE MUTATION LAYER
 #
@@ -520,6 +537,208 @@ mut_op_missing_pigeon_input() {
   rm -f "$CASE_ROOT/$OP_PIGEON"
 }
 
+# --- step-model ------------------------------------------------------------
+SM_APP_PROBE="lib/__step_model_probe.dart"
+SM_HEALTH_PROBE="packages/stride_health/lib/src/__step_model_probe.dart"
+SM_CORE_PROBE="packages/stride_core/lib/src/__step_model_probe.dart"
+SM_TEST_PROBE="packages/stride_core/test/__step_model_probe_test.dart"
+SM_SWIFT_PROBE="packages/stride_health/ios/stride_health/Sources/stride_health/__StepModelProbe.swift"
+SM_PIGEON="packages/stride_health/pigeons/health_api.dart"
+SM_COMMANDS="packages/stride_core/lib/src/engine/commands.dart"
+SM_PRIVACY="packages/stride_core/test/save_privacy_test.dart"
+SM_IOS_SOURCES="packages/stride_health/ios/stride_health/Sources"
+SM_ANDROID_MAIN="packages/stride_health/android/src/main"
+
+# The retired step model, in both halves. Two cases rather than one, so neither
+# symbol is proven only by the other having already fired.
+mut_sm_step_fetch_result() {
+  cat > "$CASE_ROOT/$SM_APP_PROBE" <<'PROBE'
+class StepFetchResult {
+  StepFetchResult(this.newStepCount);
+  final int newStepCount;
+}
+PROBE
+}
+
+mut_sm_fetch_new_steps() {
+  cat > "$CASE_ROOT/$SM_HEALTH_PROBE" <<'PROBE'
+abstract interface class LegacySource {
+  Future<int> fetchNewSteps();
+}
+PROBE
+}
+
+# A flat unscoped step field on the platform contract. This is the one that
+# would look most reasonable in review -- "just a total, for the summary
+# screen" -- and it is the whole defect.
+mut_sm_flat_contract_field() {
+  cat >> "$CASE_ROOT/$SM_PIGEON" <<'PROBE'
+
+class PlatformStepTotal {
+  PlatformStepTotal({required this.newSteps});
+  final int newSteps;
+}
+PROBE
+}
+
+# The same field in native, where the Dart contract check cannot see it.
+mut_sm_flat_native_field() {
+  cat > "$CASE_ROOT/$SM_SWIFT_PROBE" <<'PROBE'
+import Foundation
+
+struct StepModelProbe {
+  var newSteps: Int64 = 0
+}
+PROBE
+}
+
+mut_sm_second_ingest_entry() {
+  cat > "$CASE_ROOT/$SM_CORE_PROBE" <<'PROBE'
+class LegacyIngest {
+  int ingestSteps(int count) => count;
+}
+PROBE
+}
+
+# A settling completeness constructed away from the anchored site, which is how
+# a partial page comes to advance a settled watermark. Both symbols separately:
+# the rule loops over SETTLING_SYMBOLS, and one case would leave the other
+# symbol's iteration unproven.
+mut_sm_settling_complete_through() {
+  cat > "$CASE_ROOT/$SM_HEALTH_PROBE" <<'PROBE'
+import 'package:stride_core/stride_core.dart';
+
+SyncCompleteness settleAnyway(CompletenessScope scope) =>
+    CompleteThrough(throughMillis: 0, scope: scope);
+PROBE
+}
+
+mut_sm_settling_recovery_complete_through() {
+  cat > "$CASE_ROOT/$SM_HEALTH_PROBE" <<'PROBE'
+import 'package:stride_core/stride_core.dart';
+
+SyncCompleteness settleAnyway(CompletenessScope scope) =>
+    RecoveryCompleteThrough(throughMillis: 0, scope: scope);
+PROBE
+}
+
+# A whole-ledger comparison built on StepLedger.signature, in a file that is not
+# allow-listed -- the A.2 defect exactly: a test claiming two ledgers are
+# identical using a summary that cannot see the durable cursor or the per-origin
+# watermarks.
+#
+# The receivers are called `a` and `b` DELIBERATELY, and that is this case's
+# second job. The first version of the rule matched `.signature` only on
+# receivers whose names looked ledger-ish, and this exact probe walked straight
+# through it. The rule now matches every `.signature`; this case is what keeps
+# the receiver-name trick under permanent test, so a future "let's reduce false
+# positives by naming the receivers we care about" cannot land quietly.
+mut_sm_signature_test_equality() {
+  cat > "$CASE_ROOT/$SM_TEST_PROBE" <<'PROBE'
+import 'package:stride_core/stride_core.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('the ledger is unchanged', () {
+    final StepLedger a = StepLedger.empty();
+    final StepLedger b = StepLedger.empty();
+    expect(a.signature, b.signature);
+  });
+}
+PROBE
+}
+
+# The same misuse in PRODUCTION, where it would be a save-integrity decision
+# rather than a weak test -- which is what GameState.signature was doing in
+# SaveRepository before A.1.
+mut_sm_signature_production_integrity() {
+  cat > "$CASE_ROOT/$SM_CORE_PROBE" <<'PROBE'
+import '../steps/step_ledger.dart';
+
+bool ledgersAgree(StepLedger a, StepLedger b) => a.signature == b.signature;
+PROBE
+}
+
+# CAPTURE inside an ALLOW-LISTED file. The allow-list exists for tests whose
+# subject is the diagnostic itself; those assert on it in place. Holding the
+# value is how a summary becomes evidence, and it must be rejected even where
+# the symbol is permitted -- otherwise the allow-list is a blanket exemption
+# rather than a scoped one. Injected into save_privacy_test.dart, which IS
+# allow-listed, so rule_signature_allowed_files skips it and only
+# rule_no_signature_capture can fire.
+mut_sm_signature_capture_variable() {
+  cat >> "$CASE_ROOT/$SM_PRIVACY" <<'PROBE'
+
+// injected by the self-test
+String capturedLedgerEvidence(StepLedger ledger) {
+  final String before = ledger.signature;
+  return before;
+}
+PROBE
+}
+
+# The same capture in its OTHER syntactic form. SIGNATURE_CAPTURE is an
+# alternation of two shapes, and the case above exercises exactly one of them:
+# an edit that broke the `.add(` branch would have left it green and the
+# collection form unguarded. The list is built empty and appended to, so the `=`
+# branch cannot fire and the case proves the branch it is named for.
+mut_sm_signature_capture_collection() {
+  cat >> "$CASE_ROOT/$SM_PRIVACY" <<'PROBE'
+
+// injected by the self-test
+List<String> collectedLedgerEvidence(StepLedger ledger) {
+  final List<String> seen = <String>[];
+  seen.add(ledger.signature);
+  return seen;
+}
+PROBE
+}
+
+# The per-origin observation class is renamed away. rule_no_flat_contract_field
+# is an ABSENCE check, so a contract carrying no step shape at all satisfies it
+# perfectly; this is the rule that makes "no flat field" mean something.
+#
+# A PREFIX rename, not a suffix: the check is a fixed-string search for
+# `class PlatformStepObservation`, which `class PlatformStepObservationV2` would
+# still satisfy. The probe has to actually remove the declaration.
+mut_sm_observation_class_renamed() {
+  sed -i 's/^class PlatformStepObservation {$/class PlatformObservationRecord {/' \
+    "$CASE_ROOT/$SM_PIGEON"
+}
+
+# The one ingestion command is renamed away -- the same shape of gap:
+# rule_single_ingest_entry_point proves no SECOND way into the engine exists,
+# which is vacuously true of a codebase with no way in at all.
+mut_sm_ingest_command_renamed() {
+  sed -i 's/^final class ReconcileStepSync extends/final class ReconcileStepDelivery extends/' \
+    "$CASE_ROOT/$SM_COMMANDS"
+}
+
+# The two layering cases. Every content rule in this guard is an ABSENCE check,
+# and a tree the guard cannot read produces absence too.
+mut_sm_empty_native_scan() {
+  rm -rf "$CASE_ROOT/$SM_IOS_SOURCES" "$CASE_ROOT/$SM_ANDROID_MAIN"
+}
+
+mut_sm_missing_pigeon_input() {
+  rm -f "$CASE_ROOT/$SM_PIGEON"
+}
+
+# The two invocation cases. Invalid invocation is infrastructure, not a finding.
+# A guard that reported a misspelled flag as a policy violation would let a typo
+# in CI read as a repository defect -- and, worse, would let a rejection case be
+# satisfied by one. That is the check-android-target.sh defect exactly.
+#
+# `form=invocation`: these touch no file, so they declare no changed-path set
+# and the registry rejects them if they carry one.
+inv_sm_bad_project_root() {
+  bash "$CASE_SCRIPT" --project-root "$CASE_ROOT/does-not-exist"
+}
+
+inv_sm_unknown_argument() {
+  bash "$CASE_SCRIPT" --not-a-real-flag
+}
+
 # ===========================================================================
 # THE INVENTORY
 #
@@ -785,3 +1004,163 @@ reg_case id=op_missing_pigeon_input guard=origin-privacy rule=rule_pigeon_input_
   diag='STRIDE_INFRA\[origin-privacy\.pigeon_input_missing\]' \
   forbid='STRIDE_GUARD\[origin-privacy\.pigeon_origin_opaque\]' \
   files="$OP_PIGEON" apply=mut_op_missing_pigeon_input
+
+# --- step-model: 13 reject, 4 infra -----------------------------------------
+#
+# ## Why every rejection case here is `named_rule`
+#
+# This is the only guard whose embedded self-test already asserted the rule
+# ALONE for every case, not just for the over-determined ones. Migrating those
+# to `complete_guard` would drop an assertion that currently holds, which is a
+# silent weakening of exactly the kind this migration exists to prevent. So all
+# thirteen keep it. `named_rule` does not replace the complete-guard assertion —
+# the runner makes both — it adds the isolation proof on top.
+#
+# ## Why every rejection case here also carries `forbid`
+#
+# The embedded self-test additionally required that the complete guard name NO
+# OTHER rule, with over-determination declared per case rather than silently
+# tolerated. None of the thirteen turned out to be over-determined, so none
+# declares a second rule, and that property is preserved here as a `forbid` over
+# every step-model diagnostic except the case's own. A rule added to this guard
+# must be added to SM_DIAGS below, or these cases quietly stop making the
+# sole-attribution claim they are filed under.
+SM_DIAGS="root_missing usage no_dart_sources no_native_sources no_signature_sources pigeon_input_missing no_retired_dart_model no_retired_native_model no_flat_contract_field observation_class_present ingest_command_present single_ingest_entry_point settling_construction_sites signature_allowed_files no_signature_capture"
+
+# Sets SM_FORBID to a regex matching every step-model diagnostic EXCEPT the one
+# named. A plain assignment rather than a command substitution: cases.sh is
+# sourced by every guard on every run, including once per guard invocation
+# inside a self-test, and a subshell per case per source adds up to nothing
+# useful.
+sm_forbid_others() {
+  local keep="$1" d alt=""
+  for d in $SM_DIAGS; do
+    [ "$d" = "$keep" ] && continue
+    alt="$alt|$d"
+  done
+  SM_FORBID='STRIDE_(GUARD|INFRA)\[step-model\.('"${alt#|}"')\]'
+}
+
+sm_forbid_others no_retired_dart_model;      SM_NOT_RETIRED_DART="$SM_FORBID"
+sm_forbid_others no_retired_native_model;    SM_NOT_RETIRED_NATIVE="$SM_FORBID"
+sm_forbid_others no_flat_contract_field;     SM_NOT_FLAT_FIELD="$SM_FORBID"
+sm_forbid_others single_ingest_entry_point;  SM_NOT_SINGLE_INGEST="$SM_FORBID"
+sm_forbid_others settling_construction_sites; SM_NOT_SETTLING="$SM_FORBID"
+sm_forbid_others signature_allowed_files;    SM_NOT_SIG_ALLOWED="$SM_FORBID"
+sm_forbid_others no_signature_capture;       SM_NOT_SIG_CAPTURE="$SM_FORBID"
+sm_forbid_others observation_class_present;  SM_NOT_OBSERVATION="$SM_FORBID"
+sm_forbid_others ingest_command_present;     SM_NOT_INGEST_CMD="$SM_FORBID"
+
+# Any STRIDE_GUARD diagnostic at all. An infrastructure case that also emitted a
+# policy violation would be the two classes collapsing back into each other.
+SM_NO_POLICY='STRIDE_GUARD\[step-model\.'
+
+# ---- the ten historical cases, preserved ----------------------------------
+reg_case id=sm_step_fetch_result guard=step-model rule=rule_no_retired_dart_model \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.no_retired_dart_model\]' \
+  forbid="$SM_NOT_RETIRED_DART" \
+  files="$SM_APP_PROBE" apply=mut_sm_step_fetch_result
+
+reg_case id=sm_fetch_new_steps guard=step-model rule=rule_no_retired_dart_model \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.no_retired_dart_model\]' \
+  forbid="$SM_NOT_RETIRED_DART" \
+  files="$SM_HEALTH_PROBE" apply=mut_sm_fetch_new_steps
+
+reg_case id=sm_flat_contract_field guard=step-model rule=rule_no_flat_contract_field \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.no_flat_contract_field\]' \
+  forbid="$SM_NOT_FLAT_FIELD" \
+  files="$SM_PIGEON" apply=mut_sm_flat_contract_field
+
+reg_case id=sm_flat_native_field guard=step-model rule=rule_no_retired_native_model \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.no_retired_native_model\]' \
+  forbid="$SM_NOT_RETIRED_NATIVE" \
+  files="$SM_SWIFT_PROBE" apply=mut_sm_flat_native_field
+
+reg_case id=sm_second_ingest_entry guard=step-model rule=rule_single_ingest_entry_point \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.single_ingest_entry_point\]' \
+  forbid="$SM_NOT_SINGLE_INGEST" \
+  files="$SM_CORE_PROBE" apply=mut_sm_second_ingest_entry
+
+reg_case id=sm_settling_complete_through guard=step-model rule=rule_settling_construction_sites \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.settling_construction_sites\]' \
+  forbid="$SM_NOT_SETTLING" \
+  files="$SM_HEALTH_PROBE" apply=mut_sm_settling_complete_through
+
+reg_case id=sm_settling_recovery_complete_through guard=step-model rule=rule_settling_construction_sites \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.settling_construction_sites\]' \
+  forbid="$SM_NOT_SETTLING" \
+  files="$SM_HEALTH_PROBE" apply=mut_sm_settling_recovery_complete_through
+
+reg_case id=sm_signature_test_equality guard=step-model rule=rule_signature_allowed_files \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.signature_allowed_files\]' \
+  forbid="$SM_NOT_SIG_ALLOWED" \
+  files="$SM_TEST_PROBE" apply=mut_sm_signature_test_equality
+
+reg_case id=sm_signature_production_integrity guard=step-model rule=rule_signature_allowed_files \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.signature_allowed_files\]' \
+  forbid="$SM_NOT_SIG_ALLOWED" \
+  files="$SM_CORE_PROBE" apply=mut_sm_signature_production_integrity
+
+reg_case id=sm_signature_capture_variable guard=step-model rule=rule_no_signature_capture \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.no_signature_capture\]' \
+  forbid="$SM_NOT_SIG_CAPTURE" \
+  files="$SM_PRIVACY" apply=mut_sm_signature_capture_variable
+
+# ---- the three added by the uncased-rule audit ----------------------------
+reg_case id=sm_signature_capture_collection guard=step-model rule=rule_no_signature_capture \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.no_signature_capture\]' \
+  forbid="$SM_NOT_SIG_CAPTURE" \
+  files="$SM_PRIVACY" apply=mut_sm_signature_capture_collection
+
+reg_case id=sm_observation_class_renamed guard=step-model rule=rule_observation_class_present \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.observation_class_present\]' \
+  forbid="$SM_NOT_OBSERVATION" \
+  files="$SM_PIGEON" apply=mut_sm_observation_class_renamed
+
+reg_case id=sm_ingest_command_renamed guard=step-model rule=rule_ingest_command_present \
+  expect=reject form=mutation attribution=named_rule \
+  diag='STRIDE_GUARD\[step-model\.ingest_command_present\]' \
+  forbid="$SM_NOT_INGEST_CMD" \
+  files="$SM_COMMANDS" apply=mut_sm_ingest_command_renamed
+
+# ---- four infrastructure cases, which no rejection case may be satisfied by -
+reg_case id=sm_empty_native_scan guard=step-model rule=rule_native_scan_coverage \
+  expect=infra form=mutation attribution=complete_guard \
+  diag='STRIDE_INFRA\[step-model\.no_native_sources\]' \
+  forbid="$SM_NO_POLICY" \
+  files="$SM_IOS_SOURCES $SM_ANDROID_MAIN" apply=mut_sm_empty_native_scan
+
+# Never no_flat_contract_field and never observation_class_present: without this
+# case, sm_flat_contract_field and sm_observation_class_renamed could both be
+# satisfied by DELETING the contract rather than by changing it.
+reg_case id=sm_missing_pigeon_input guard=step-model rule=rule_pigeon_input_present \
+  expect=infra form=mutation attribution=complete_guard \
+  diag='STRIDE_INFRA\[step-model\.pigeon_input_missing\]' \
+  forbid='STRIDE_GUARD\[step-model\.(no_flat_contract_field|observation_class_present)\]' \
+  files="$SM_PIGEON" apply=mut_sm_missing_pigeon_input
+
+reg_case id=sm_bad_project_root guard=step-model rule=rule_preflight \
+  expect=infra form=invocation attribution=complete_guard \
+  diag='STRIDE_INFRA\[step-model\.root_missing\]' \
+  forbid="$SM_NO_POLICY" invoke=inv_sm_bad_project_root
+
+# Filed under rule_preflight, the guard's entry-level infrastructure rule.
+# `usage` is emitted by argument parsing before any rule runs, which is the
+# point of the case: a call the guard does not understand must never be counted
+# as a finding.
+reg_case id=sm_unknown_argument guard=step-model rule=rule_preflight \
+  expect=infra form=invocation attribution=complete_guard \
+  diag='STRIDE_INFRA\[step-model\.usage\]' \
+  forbid="$SM_NO_POLICY" invoke=inv_sm_unknown_argument

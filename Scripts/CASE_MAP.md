@@ -11,7 +11,7 @@ embedded inventory is replaced by the shared registry.
 | `check-ios-target.sh` | **migrated** | `Scripts/lib/cases.sh` |
 | `check-single-writer.sh` | **migrated** | `Scripts/lib/cases.sh` |
 | `check-origin-privacy.sh` | **migrated** | `Scripts/lib/cases.sh` |
-| `check-step-model.sh` | pending | still embedded in the guard |
+| `check-step-model.sh` | **migrated** | `Scripts/lib/cases.sh` |
 
 A migrated guard holds **no** case inventory and **no** mutation code. Its
 `--self-test` is one call to `reg_selftest`, and `Scripts/lib/registry.sh`
@@ -481,6 +481,40 @@ comment-stripping that would need one is exercised by the live tree on every
 run — this script's own subject matter is discussed at length in the doc
 comments of the files it scans, and every one of them would be a false positive
 without `strip_comments`. The clean run *is* the accept case.
+
+### Registry migration
+
+All seventeen cases now live in `Scripts/lib/cases.sh`. The guard's
+`--self-test` is one call to `reg_selftest` and holds no mutation code. The two
+invalid-invocation cases became `form=invocation`, which declares no
+changed-path set and which the registry rejects if it carries one; the other
+fifteen are `form=mutation`. Both are filed under `rule_preflight`, the guard's
+entry-level infrastructure rule — `usage` is emitted by argument parsing before
+any rule runs, which is the point of the case rather than a gap in it.
+
+**Attribution: all thirteen rejection cases are `named_rule`.** That is
+deliberate and is the one place this guard differs from the other four. The
+registry reserves `named_rule` for structurally over-determined cases, and none
+of these thirteen is over-determined — but this guard's embedded self-test
+asserted assertion (c), the rule invoked alone, for *every* case, not only for
+the over-determined ones. Filing them as `complete_guard` would drop an
+assertion that currently holds, which is precisely the silent weakening the
+migration exists to prevent. `named_rule` does not replace the complete-guard
+assertion; the runner makes both.
+
+Assertion (b) — the complete guard names no other rule — is preserved as a
+`forbid` per case, covering every step-model diagnostic except that case's own.
+`SM_DIAGS` in `cases.sh` is the list those are built from, and a rule added to
+this guard must be added there too or the cases quietly stop making the
+sole-attribution claim they are filed under. The `forbid` on
+`sm_missing_pigeon_input` keeps its narrower original form: never
+`no_flat_contract_field` and never `observation_class_present`.
+
+No production rule changed. The two deliberately uncased rules
+(`rule_dart_scan_coverage`, `rule_signature_scan_coverage`) remain uncased for
+the reason recorded above; the registry does not require a case per rule, and
+inventing one that empties the fixture would destroy the clean-before /
+clean-after bracket every other case depends on.
 
 ### Where the step-model properties are actually held
 
