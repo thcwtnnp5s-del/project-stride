@@ -10,7 +10,7 @@ embedded inventory is replaced by the shared registry.
 | `check-android-target.sh` | **migrated** | `Scripts/lib/cases.sh` |
 | `check-ios-target.sh` | **migrated** | `Scripts/lib/cases.sh` |
 | `check-single-writer.sh` | **migrated** | `Scripts/lib/cases.sh` |
-| `check-origin-privacy.sh` | pending | still embedded in the guard |
+| `check-origin-privacy.sh` | **migrated** | `Scripts/lib/cases.sh` |
 | `check-step-model.sh` | pending | still embedded in the guard |
 
 A migrated guard holds **no** case inventory and **no** mutation code. Its
@@ -35,9 +35,42 @@ The registry adds three things the embedded inventories did not have:
   and every guard's self-test compute theirs by counting the registry, which is
   the specific failure this file opens by describing.
 
-Derived totals for the migrated set: **31 cases — 29 reject, 1 accept,
-1 infrastructure.** See the note under `ios_entitlements_absent` below for why
-the iOS layering case counts as `reject` rather than `infra`.
+Derived totals for the migrated set: run `Scripts/registry-report.sh`. Nothing
+here is the source of truth for a count — that is the whole point, and a total
+written into this file would be the same second source the registry removed.
+See the note under `ios_entitlements_absent` below for why the iOS layering case
+counts as `reject` rather than `infra`.
+
+### Android case-ID traceability — no rename occurred
+
+An earlier report cited Android case IDs in an `and_*` form
+(`and_min_sdk_plugin_24`, `and_min_sdk_example_25`, `and_min_sdk_inherit`,
+`and_override_library`, `and_manifest_uses_sdk_24`, `and_background_service`,
+`and_comment_only_override`) which do not match the registry's `android_*` IDs.
+That discrepancy was checked against the history rather than assumed, because
+"the IDs were renamed" and "the report invented IDs" have opposite remedies —
+the first needs a former-ID mapping so old reports stay resolvable, the second
+must not get one, since a mapping table would manufacture provenance for
+identifiers that never existed.
+
+The history says the report was inaccurate:
+
+* No `and_*` identifier appears in any blob of any commit on any ref
+  (`git rev-list --all | xargs git grep`, and `git log --all -S` per ID, both
+  empty). They were never written down in the repository.
+* Before `4d02e4f`, the Android self-test had **no** case identifiers at all.
+  Each case was named only by the English sentence in its `expect_reject` call
+  ("plugin minSdk lowered to 24"). The `and_*` strings were report-local labels
+  coined to describe those sentences.
+* The canonical `android_*` IDs were minted **once**, in this file at
+  `4d02e4f`, alongside the named-rule conversion, and the registry adopted them
+  verbatim at `e599a89`. The Android ID set in this file is byte-identical
+  between those two commits.
+
+So there is no former-ID-to-canonical-ID mapping to add: the `android_*` IDs
+are the first and only IDs these cases have ever had. This note is the record,
+so the question is not reopened from the same report a third time. The registry
+IDs are not to be renamed.
 
 ## Why this file exists
 
@@ -267,8 +300,45 @@ the conversion. They are no longer: cases 11 and 12 close them. Every remaining
 entry is infrastructure, and the two that can be falsified are the layering
 cases above.
 
-**Origin-privacy totals: 12 `expect_reject` cases, 2 layering cases, 0 accept
-cases.** The self-test asserts those counts rather than narrating them.
+**Origin-privacy totals: 12 rejection cases, 2 layering cases, 0 accept cases**
+— derived by the runner from the registry, not asserted against a number
+written here.
+
+### Registry migration
+
+All fourteen cases now live in `Scripts/lib/cases.sh`. The guard's
+`--self-test` is one call to `reg_selftest` and holds no mutation code; the
+runner refuses to run it if any comes back. Both layering cases became
+`expect=infra`, which is the class that refuses to be satisfied by a policy
+rejection and vice versa, and `op_missing_pigeon_input` keeps its
+`forbid` on `pigeon_origin_opaque` as a registry-enforced field.
+
+Attribution: `op_dart_raw_sink` and `op_core_boundary_isolation` carry
+`attribution: named_rule` — the two structurally over-determined cases. The
+runner invokes the named rule alone against the same mutated root and requires
+exit 1 with that rule's own diagnostic, which is what makes an unrelated rule
+unable to satisfy the case. Verified in both directions: with the probe in
+place, the owning rule alone exits 1 with its diagnostic and an unrelated rule
+of the same guard exits 0. Every other origin-privacy case is
+`complete_guard`.
+
+The `sole` obligation the embedded self-test asserted by hand for
+`op_core_boundary_isolation` is preserved as a `forbid` over every other
+diagnostic this guard can emit. Any rule added to origin-privacy must be added
+to `OP_NOT_CORE_BOUNDARY` in `cases.sh` too, or the case quietly stops being
+the sole-attribution proof it is filed as.
+
+**A registry defect this migration exposed.** `reg_invoke_named_rule` sourced
+the guard from a subshell of the process already running that guard. A guard's
+source-safe entry is `[[ "${BASH_SOURCE[0]}" == "$0" ]]`, and in that subshell
+both sides are the same string — so sourcing was not inert: it ran
+`guard_main` on whatever positional parameters were in scope, and both
+`named_rule` cases failed with
+`STRIDE_INFRA[origin-privacy.usage] unknown argument`. The path had never been
+exercised, because the three guards migrated before origin-privacy are all
+`complete_guard`. Fixed by invoking through `bash -c '...' _`, whose `$0` of
+`_` can never equal the sourced path — the same construction the embedded
+self-test used and the reason it worked. No production rule changed.
 
 ### Where each origin-privacy property is actually held
 

@@ -619,15 +619,31 @@ reg_run_case() {
 # Sources the guard and runs ONE rule. Possible only because sourcing a guard is
 # inert -- `check-source-safety.sh` is what makes this sound, and is the reason
 # it exists.
+#
+# ## Why this is a fresh `bash -c` and not a subshell
+#
+# A guard's source-safe entry is `[[ "${BASH_SOURCE[0]}" == "$0" ]]`. Sourcing
+# it from a subshell of a process that is ALREADY running that same guard makes
+# both sides of that test the same string, so the guard does not source
+# inertly -- it runs `guard_main "$@"` on whatever positional parameters happen
+# to be in scope. Every `named_rule` case then failed identically, with
+# `STRIDE_INFRA[<guard>.usage] unknown argument`, and the case read as "the rule
+# alone exited 2" rather than as a defect in this function.
+#
+# `bash -c '...' _ ...` gives the new shell `$0` of `_`, which can never equal
+# the sourced path, so the entry guard is false and sourcing is inert. The rule
+# then runs as the only thing in that process. Sourcing output is discarded so
+# that what is captured is the RULE's diagnostic and nothing else.
+#
+# This path had no coverage until origin-privacy brought the first `named_rule`
+# cases to the registry: the three guards migrated before it are all
+# `complete_guard`.
 reg_invoke_named_rule() {
-  (
+  PROJECT_ROOT="$3" bash -c '
     set -uo pipefail
-    PROJECT_ROOT="$3"
-    # shellcheck disable=SC1090
-    . "$1" || exit 2
-    PROJECT_ROOT="$3"
+    . "$1" >/dev/null 2>&1 || exit 2
     rule_run "$2"
-  )
+  ' _ "$1" "$2"
 }
 
 # ---------------------------------------------------------------------------

@@ -78,6 +78,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/rulekit.sh"
 # shellcheck source=lib/selftest.sh
 . "$SCRIPT_DIR/lib/selftest.sh"
+# shellcheck source=lib/registry.sh
+. "$SCRIPT_DIR/lib/registry.sh"
+# shellcheck source=lib/cases.sh
+. "$SCRIPT_DIR/lib/cases.sh"
 
 GUARD_ID="origin-privacy"
 
@@ -693,484 +697,97 @@ guard_body() {
 }
 
 # ---------------------------------------------------------------------------
-# Self-test — isolated, never the live tree
+# Self-test — registry-driven, isolated, never the live tree
 #
-# Twelve cases, each with a stable case ID and the diagnostic its own rule must
-# emit. Recorded in `Scripts/CASE_MAP.md`, which is what the shared registry
-# will consume.
+# This guard holds no case inventory of its own. All fourteen cases — their
+# probes, their declared changed-path sets, their expected exit codes and their
+# expected diagnostics — live in `Scripts/lib/cases.sh`, and the runner in
+# `Scripts/lib/registry.sh` refuses to run if any mutation machinery comes back
+# here. A second inventory is a second source of truth, and the count it carries
+# is the thing that drifted.
 #
-# Ten of them assert against the COMPLETE guard. The last two assert against the
-# complete guard AND against their own rule invoked ALONE -- see
-# `expect_reject_isolated` for why that distinction is the whole point of those
-# two cases.
+# The runner asserts, per case:
 #
-# ISOLATED. Every probe lands in a throwaway copy created by `mktemp -d` -- a
-# root unique to this run -- and the guard is re-run against it via
-# `--project-root`. This used to mutate the LIVE tree: five probe files and an
-# edit to the real pigeon input, so two concurrent runs destroyed each other's
-# fixtures and left the platform contract damaged if interrupted.
+#   * the COMPLETE guard produces the case's expected outcome. For the twelve
+#     rejection cases that is exit 1 with the case's own STRIDE_GUARD
+#     diagnostic; a nonzero exit on its own is NOT evidence, because a guard
+#     that rejects everything rejects probes too. Exit 2 fails a rejection case
+#     outright, and so does a STRIDE_INFRA line anywhere in the output
+#   * for the two `named_rule` cases — `op_dart_raw_sink` and
+#     `op_core_boundary_isolation` — the named rule is ADDITIONALLY invoked
+#     ALONE against the same mutated root and must itself exit 1 with its own
+#     diagnostic. That is the isolation proof: with one rule running, a mutation
+#     only some OTHER rule can see returns 0, so an unrelated rule cannot
+#     satisfy the attribution. Both cases are structurally over-determined
+#     through the complete guard, which is why they carry it. It is possible
+#     only because sourcing this guard is inert, which is what
+#     `Scripts/check-source-safety.sh` exists to prove
+#   * for the two layering cases — `op_empty_native_scan` and
+#     `op_missing_pigeon_input` — exit 2 with the exact STRIDE_INFRA
+#     diagnostic. Missing platform sources and a missing Pigeon input are things
+#     this guard could not look at, never things it looked at and rejected.
+#     Without them, the native cases could be satisfied by a copy that simply
+#     lacks those directories, and `op_pigeon_origin_string` could be satisfied
+#     by deleting the contract instead of changing the type — which the
+#     `forbid` on that case turns into a behaviour rather than a comment
+#   * the probe changed exactly the paths it declared, and no others
+#   * the isolated root's fingerprint — existence, bytes, type, mode and symlink
+#     target of every path — is identical after restoration, so no case can pass
+#     on the previous case's leftovers
 #
-# A nonzero exit is NOT evidence, so each case asserts:
-#
-#   * exit 1 -- a POLICY rejection. Exit 2 is infrastructure and fails the case,
-#     which is what stops an incomplete copy, a missing directory or a deleted
-#     contract file from standing in for a detection
-#   * the diagnostic is that case's own rule, not merely some rule
-#   * restoration is exact: every probe gone, and the pigeon input byte-identical
+# Counts are DERIVED from the registry and printed by the runner. There is no
+# number written down in this file to disagree with them.
 # ---------------------------------------------------------------------------
+ORIGIN_PRIVACY_SELFTEST_PATHS="
+lib
+packages/stride_core/lib
+packages/stride_health/lib
+packages/stride_storage/lib
+packages/stride_secure_store/lib
+packages/stride_health/example/lib
+packages/stride_health/pigeons
+packages/stride_health/android/src/main
+packages/stride_health/ios/stride_health/Sources
+"
+
+# The generated bindings, checked BY CONTENT alongside the Pigeon input.
+ORIGIN_PRIVACY_GENERATED="packages/stride_health/lib/src/messages.g.dart"
+
 run_self_test() {
   if [ "$failures" -ne 0 ]; then
     echo "origin-privacy: refusing to self-test while the real tree is failing" >&2
     return 1
   fi
 
-  local TREE_BEFORE ISO st_failures=0 st_ok=0 st_layering=0
-  local LIVE_PIGEON_SHA LIVE_GENERATED_SHA
-  TREE_BEFORE="$(st_tree_snapshot)"
+  # Two named files, hashed before and after. The registry runner already
+  # asserts the whole live tree is unchanged, and this says WHICH file and WHY:
+  # one case rewrites a COPY of the Pigeon input, and the mistake that would be
+  # catastrophic and quiet is rewriting the real one. CI diff-checks
+  # `messages.g.dart` against a regeneration, so a damaged input surfaces as an
+  # unrelated failure in a different job.
+  local live_pigeon live_generated rc=0
+  live_pigeon="$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")"
+  live_generated="$(st_file_digest "$PROJECT_ROOT/$ORIGIN_PRIVACY_GENERATED")"
 
-  # The generated bindings are checked BY CONTENT, separately from the tree
-  # snapshot. This self-test edits a copy of the Pigeon input, and the one
-  # mistake that would be catastrophic and quiet is editing the real one -- CI
-  # diff-checks `messages.g.dart` against a regeneration, so a damaged input
-  # surfaces as an unrelated failure in another job. Two named files, hashed.
-  LIVE_PIGEON_SHA="$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")"
-  LIVE_GENERATED_SHA="$(st_file_digest "$PROJECT_ROOT/packages/stride_health/lib/src/messages.g.dart")"
+  # shellcheck disable=SC2086
+  reg_selftest "$GUARD_ID" "$0" "$ORIGIN_PRIVACY_RULES" -- $ORIGIN_PRIVACY_SELFTEST_PATHS || rc=$?
 
-  ISO="$(st_make_root)"
-  trap 'rm -rf "$ISO"' EXIT
-
-  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
-  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
-  # empty tree -- and an empty tree passes every content check in this file.
-  st_copy_from "$PROJECT_ROOT" "$ISO" \
-    lib packages/stride_core/lib packages/stride_health/lib \
-    packages/stride_storage/lib packages/stride_secure_store/lib \
-    packages/stride_health/example/lib \
-    packages/stride_health/pigeons \
-    packages/stride_health/android/src/main \
-    packages/stride_health/ios/stride_health/Sources
-
-  local CORE_PROBE="$ISO/packages/stride_core/lib/src/__origin_probe.dart"
-  local APP_PROBE="$ISO/lib/__origin_probe.dart"
-  local HEALTH_PROBE="$ISO/packages/stride_health/lib/src/__origin_probe.dart"
-  local SWIFT_PROBE="$ISO/packages/stride_health/ios/stride_health/Sources/stride_health/__OriginProbe.swift"
-  local KOTLIN_PROBE="$ISO/packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__OriginProbe.kt"
-  local ISO_PIGEON="$ISO/$PIGEON_INPUT"
-
-  # The backup lives INSIDE the isolated root, so the run owns exactly one
-  # temporary directory and cleanup cannot leave a stray file behind.
-  local BAK="$ISO/.backup"
-  mkdir -p "$BAK"
-  cp "$ISO_PIGEON" "$BAK/pigeon"
-
-  # The copy must pass before injection, or a rejection proves only that the
-  # copy was incomplete.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass clean" >&2
-    bash "$0" --project-root "$ISO" >&2
-    rm -rf "$ISO"; trap - EXIT
-    return 1
-  fi
-
-  restore_all() {
-    rm -f "$CORE_PROBE" "$APP_PROBE" "$HEALTH_PROBE" "$SWIFT_PROBE" "$KOTLIN_PROBE"
-    cp "$BAK/pigeon" "$ISO_PIGEON"
-    [ ! -e "$CORE_PROBE" ] && [ ! -e "$APP_PROBE" ] && [ ! -e "$HEALTH_PROBE" ] &&
-      [ ! -e "$SWIFT_PROBE" ] && [ ! -e "$KOTLIN_PROBE" ] &&
-      cmp -s "$BAK/pigeon" "$ISO_PIGEON"
-  }
-
-  # expect_reject <case-id> <expected-diagnostic-regex> <label>
-  expect_reject() {
-    local id="$1" want="$2" label="$3" out rc
-    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-
-    if [ "$rc" -eq 0 ]; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: the guard ACCEPTED $label" >&2
-      st_failures=$((st_failures + 1))
-    elif [ "$rc" -ne 1 ]; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: $label was rejected, but NOT by its own rule." >&2
-      echo "    expected a diagnostic matching: $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    else
-      st_ok=$((st_ok + 1))
-      echo "  rejected as expected [$id]: $label"
-    fi
-
-    if ! restore_all; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: restoration was not exact" >&2
-      st_failures=$((st_failures + 1))
-    fi
-  }
-
-  # expect_reject_isolated <case-id> <rule-fn> <expected-diagnostic> <label> [sole]
-  #
-  # Stronger than `expect_reject`, and the reason it exists: a case satisfied by
-  # the COMPLETE guard proves only that SOME rule rejected the mutation. If
-  # another rule fires on the same line, the case is OVER-DETERMINED and proves
-  # nothing about the rule it is named for. `op_core_reads_raw` is exactly that
-  # -- it is owned by `rule_raw_identifier_sites` and happens to trip
-  # `rule_core_boundary_isolation` too, which is why that rule sat uncased.
-  #
-  # So this asserts twice:
-  #
-  #   (a) the complete guard exits 1 with the diagnostic -- a POLICY rejection,
-  #       end to end, exactly as a developer would see it
-  #   (b) the NAMED RULE, invoked ALONE against the same mutated root, exits 1
-  #       with its own diagnostic
-  #
-  # (b) is the isolation proof, and it is airtight in a way (a) cannot be: with
-  # one rule running, a mutation only some OTHER rule can see returns 0 here.
-  # Over-determination at the guard level stops mattering, because nothing else
-  # was given the chance to fire.
-  #
-  # (b) is only possible because this guard is source-safe -- sourcing it
-  # defines the rules and does nothing else. `Scripts/check-source-safety.sh`
-  # is what proves that, and this is the first thing to actually depend on it.
-  #
-  # `sole` additionally demands that the COMPLETE guard names no other rule.
-  # Passed only where the mutation genuinely trips one rule; it is not passed
-  # where a rule is a strict refinement of another by construction.
-  expect_reject_isolated() {
-    local id="$1" fn="$2" want="$3" label="$4" sole="${5:-}" out rc others ok=1
-
-    # (a) the complete guard.
-    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-    if [ "$rc" -eq 0 ]; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: the complete guard ACCEPTED $label" >&2
-      ok=0
-    elif [ "$rc" -ne 1 ]; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: the complete guard rejected $label, but NOT by its own rule." >&2
-      echo "    expected a diagnostic matching: $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    elif [ "$sole" = "sole" ]; then
-      others="$(printf '%s\n' "$out" \
-        | grep -oE 'STRIDE_(GUARD|INFRA)\[origin-privacy\.[a-z_]+\]' \
-        | sort -u | grep -vE "$want" || true)"
-      if [ -n "$others" ]; then
-        echo "origin-privacy SELF-TEST FAILED [$id]: $label is OVER-DETERMINED -- the complete guard also emitted:" >&2
-        printf '%s\n' "$others" | sed 's/^/    | /' >&2
-        ok=0
-      fi
-    fi
-
-    # (b) the rule alone. Sourcing is inert, so this runs exactly the function
-    #     the complete guard runs -- there is no test-only variant of any rule.
-    out="$(PROJECT_ROOT="$ISO" bash -c '. "$1" >/dev/null 2>&1 || exit 2; rule_run "$2"' _ "$0" "$fn" 2>&1)"; rc=$?
-    if [ "$rc" -eq 0 ]; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone ACCEPTED $label -- the mutation is only visible to some OTHER rule, so this case does not prove $fn" >&2
-      ok=0
-    elif [ "$rc" -ne 1 ]; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone exited $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone rejected $label without emitting $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      ok=0
-    else
-      others="$(printf '%s\n' "$out" \
-        | grep -oE 'STRIDE_(GUARD|INFRA)\[origin-privacy\.[a-z_]+\]' \
-        | sort -u | grep -vE "$want" || true)"
-      if [ -n "$others" ]; then
-        echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone emitted a diagnostic that is not its own:" >&2
-        printf '%s\n' "$others" | sed 's/^/    | /' >&2
-        ok=0
-      fi
-    fi
-
-    if [ "$ok" -eq 1 ]; then
-      st_ok=$((st_ok + 1))
-      echo "  rejected as expected [$id]: $label -- and by $fn ALONE"
-    else
-      st_failures=$((st_failures + 1))
-    fi
-
-    if ! restore_all; then
-      echo "origin-privacy SELF-TEST FAILED [$id]: restoration was not exact" >&2
-      st_failures=$((st_failures + 1))
-    fi
-  }
-
-  local D='STRIDE_GUARD\[origin-privacy\.'
-
-  # 1 -- the core reads the raw field. The exact thing the ruling forbids.
-  #      It trips the core-isolation rule too, and is owned by the rule that
-  #      names the raw identifier; case 1 of that pair is what the original
-  #      inventory called "A".
-  cat > "$CORE_PROBE" <<'PROBE'
-class OriginProbe {
-  String pick(dynamic observation) => observation.sourceIdentifier as String;
-}
-PROBE
-  expect_reject op_core_reads_raw "${D}raw_identifier_sites\]" \
-    "stride_core reading the raw source identifier"
-
-  # 2 -- an ordinary app file reads it. Proven separately from the core case,
-  #      so the allow-list is shown to bind everywhere and not only in one
-  #      package.
-  cat > "$APP_PROBE" <<'PROBE'
-class OriginProbe {
-  String pick(dynamic page) => page.observations.first.sourceIdentifier as String;
-}
-PROBE
-  expect_reject op_app_reads_raw "${D}raw_identifier_sites\]" \
-    "an app file reading the raw source identifier"
-
-  # 3 -- the completeness scope's raw source LIST is the same value in a
-  #      different shape, and an allow-list that missed it would be decorative.
-  cat > "$HEALTH_PROBE" <<'PROBE'
-class OriginProbe {
-  List<String> pick(dynamic scope) => scope.sourceIdentifiers as List<String>;
-}
-PROBE
-  expect_reject op_health_reads_raw_list "${D}raw_identifier_sites\]" \
-    "a second health file reading the raw source list"
-
-  # 4 -- a display-name shape on the data path.
-  cat > "$HEALTH_PROBE" <<'PROBE'
-class OriginProbe {
-  String deviceName = 'unset';
-}
-PROBE
-  expect_reject op_dart_display_name "${D}no_dart_display_name\]" \
-    "a device display name on the health data path"
-
-  # 5 -- native reads HKSource.name, the obvious wrong implementation.
-  cat > "$SWIFT_PROBE" <<'PROBE'
-import Foundation
-
-struct OriginProbe {
-  func label(_ source: HKSource) -> String {
-    return source.name
-  }
-}
-PROBE
-  expect_reject op_swift_display_name "${D}no_native_display_name\]" \
-    "Swift reading HKSource.name"
-
-  # 6 -- native logs the raw identifier. This is where raw identifiers actually
-  #      live now, so this is where the sink check earns its place.
-  cat > "$SWIFT_PROBE" <<'PROBE'
-import Foundation
-
-struct OriginProbe {
-  func trace(_ sourceIdentifier: String) {
-    NSLog("read from %@", sourceIdentifier)
-  }
-}
-PROBE
-  expect_reject op_swift_logs_raw "${D}no_native_raw_sink\]" \
-    "Swift logging a raw source identifier"
-
-  # 7 -- the wire field is "simplified" back into a String. One edit, every
-  #      other check still green, and the channel a device name travels in is
-  #      open again.
-  sed -i 's/^  final Uint8List originKey;$/  final String originKey;/' "$ISO_PIGEON"
-  expect_reject op_pigeon_origin_string "${D}pigeon_origin_opaque\]" \
-    "the origin field changed from opaque bytes to a String"
-
-  # 8 -- native mints its own identity instead of consuming the app's.
-  cat > "$SWIFT_PROBE" <<'PROBE'
-import Foundation
-
-struct OriginProbe {
-  func mint() -> Data {
-    var bytes = [UInt8](repeating: 0, count: 16)
-    _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-    return Data(bytes)
-  }
-}
-PROBE
-  expect_reject op_swift_mints_identity "${D}no_native_identity_minting\]" \
-    "Swift minting a second device identity"
-
-  # 9 -- a platform VALUE reaches a diagnostic, without the field ever being
-  #      named. This is the leak the guard found in Pigeon's generated
-  #      toString, and the reason the platform-value rule exists at all.
-  cat > "$HEALTH_PROBE" <<'PROBE'
-import 'messages.g.dart';
-
-void probeLeak(PlatformSyncPage page) => throw StateError('page was $page');
-PROBE
-  expect_reject op_platform_value_sink "${D}no_platform_value_sink\]" \
-    "a platform boundary value printed without naming the field"
-
-  # 10 -- native caches the cursor in a durable store.
-  cat > "$KOTLIN_PROBE" <<'PROBE'
-package com.projectstride.stride_health
-
-import android.content.Context
-
-class OriginProbe(private val context: Context) {
-    fun remember(cursor: ByteArray) {
-        val prefs = context.getSharedPreferences("stride", Context.MODE_PRIVATE)
-        prefs.edit().putString("cursor", cursor.toString()).apply()
-    }
-}
-PROBE
-  expect_reject op_kotlin_durable_store "${D}no_native_durable_store\]" \
-    "Kotlin caching the cursor in a durable native store"
-
-  # ------------------------------------------------------------------
-  # 11 and 12 -- the two rules that were enforced but uncased.
-  #
-  # Both use `expect_reject_isolated`, which additionally runs the rule ALONE.
-  # That is not belt-and-braces; it is the only thing that makes either case
-  # evidence. The complete guard emitting the right diagnostic somewhere in its
-  # output does not establish that THIS rule found THIS mutation.
-  # ------------------------------------------------------------------
-
-  # 11 -- a Dart health-boundary surface puts the raw native identifier on a
-  #       diagnostic sink. This is the leak the rule is named for: the value
-  #       does not have to be persisted to escape, it only has to be logged, and
-  #       a device log is readable, exportable and outlives the app.
-  #
-  #       NOT marked `sole`, deliberately, and this is a property of the
-  #       production rules rather than of the probe: `rule_no_dart_raw_sink`
-  #       greps the SAME raw-symbol pattern as `rule_raw_identifier_sites` and
-  #       then narrows it with DART_SINK, so its hit set is a strict SUBSET.
-  #       With APPROVED empty, every line the sink rule can fire on trips the
-  #       site rule too, and no probe can separate them. Narrowing the site rule
-  #       to make this case look isolated would weaken a production rule to
-  #       flatter a test. So the separation is proved where it is real -- at the
-  #       rule level, in (b).
-  cat > "$HEALTH_PROBE" <<'PROBE'
-import 'dart:developer' as developer;
-
-class OriginProbe {
-  void trace(dynamic observation) {
-    developer.log('sync page from ${observation.sourceIdentifier}');
-  }
-}
-PROBE
-  expect_reject_isolated op_dart_raw_sink rule_no_dart_raw_sink \
-    "${D}no_dart_raw_sink\]" \
-    "a Dart health surface logging the raw native identifier"
-
-  # 12 -- stride_core acquires a platform dependency, WITHOUT naming the raw
-  #       identifier. That restriction is the entire point: the existing
-  #       `op_core_reads_raw` probe names `sourceIdentifier` inside the core, so
-  #       `rule_raw_identifier_sites` fires on it first and the core rule was
-  #       never independently falsified.
-  #
-  #       This probe names no raw identifier at all. It imports the health
-  #       package and declares the Pigeon host API type -- the core acquiring an
-  #       opinion about where its data came from, which is the regression the
-  #       rule actually exists to stop. Marked `sole`: the complete guard must
-  #       name this rule and no other.
-  cat > "$CORE_PROBE" <<'PROBE'
-import 'package:stride_health/stride_health.dart';
-
-abstract class CoreBoundaryProbe {
-  HealthHostApi get api;
-}
-PROBE
-  expect_reject_isolated op_core_boundary_isolation rule_core_boundary_isolation \
-    "${D}core_boundary_isolation\]" \
-    "stride_core taking a dependency on the platform boundary" \
-    sole
-
-  # ------------------------------------------------------------------
-  # The other direction. Two layering cases, because in a privacy guard the
-  # dangerous failure is not a false rejection -- it is a clean-looking run that
-  # read nothing.
-  #
-  # Cases 5, 6, 8 and 10 prove the native rules fire when a violation is
-  # present. They cannot prove the native scan happened at all: a copy without
-  # the Swift and Kotlin directories produces no findings and looks exactly like
-  # a clean tree. Nor can any case prove that a MISSING platform contract is
-  # infrastructure rather than a rejection -- and if it were a rejection, case 7
-  # could be satisfied by deleting the file instead of by changing the type.
-  # ------------------------------------------------------------------
-  local SAVED="$ISO/.moved"
-  mkdir -p "$SAVED"
-  mv "$ISO/packages/stride_health/ios/stride_health/Sources" "$SAVED/ios-Sources"
-  mv "$ISO/packages/stride_health/android/src/main" "$SAVED/android-main"
-
-  local out rc
-  out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-  if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qE 'STRIDE_INFRA\[origin-privacy\.no_native_sources\]'; then
-    echo "  layering held [op_empty_native_scan]: no native sources is INFRASTRUCTURE (exit 2), not a clean privacy result"
-    st_layering=$((st_layering + 1))
-  else
-    echo "origin-privacy SELF-TEST FAILED [op_empty_native_scan]: an empty native scan reported exit $rc" >&2
-    printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  mv "$SAVED/ios-Sources" "$ISO/packages/stride_health/ios/stride_health/Sources"
-  mv "$SAVED/android-main" "$ISO/packages/stride_health/android/src/main"
-
-  mv "$ISO_PIGEON" "$SAVED/pigeon-input"
-  out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-  if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qE 'STRIDE_INFRA\[origin-privacy\.pigeon_input_missing\]' &&
-     ! printf '%s\n' "$out" | grep -qE "${D}pigeon_origin_opaque\]"; then
-    echo "  layering held [op_missing_pigeon_input]: a DELETED platform contract is INFRASTRUCTURE, never pigeon_origin_opaque"
-    st_layering=$((st_layering + 1))
-  else
-    echo "origin-privacy SELF-TEST FAILED [op_missing_pigeon_input]: a deleted contract reported exit $rc" >&2
-    printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-    st_failures=$((st_failures + 1))
-  fi
-  mv "$SAVED/pigeon-input" "$ISO_PIGEON"
-  rmdir "$SAVED" 2>/dev/null || true
-
-  if ! restore_all; then
-    echo "origin-privacy SELF-TEST FAILED: restoration after the layering cases was not exact" >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  # The copy must pass again once every probe is gone, or a rejection above was
-  # damage rather than detection.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
-    bash "$0" --project-root "$ISO" >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  rm -rf "$ISO"
-  trap - EXIT
-
-  # The live tree must be byte-for-byte what it was. Asserted, not assumed.
-  st_assert_tree_unchanged "$TREE_BEFORE" || return 1
-
-  # And the two generated-binding files by content, named individually. The
-  # tree snapshot would catch this too; this says which file and why.
-  if [ "$LIVE_PIGEON_SHA" != "$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")" ]; then
+  # Asserted whether or not the cases held. A run that failed a case AND damaged
+  # the platform contract must report the damage, which is the more serious of
+  # the two and the one that would otherwise be found in another job.
+  if [ "$live_pigeon" != "$(st_file_digest "$PROJECT_ROOT/$PIGEON_INPUT")" ]; then
     echo "SELF-TEST FAILED: the LIVE Pigeon input was modified. CI diff-checks the" >&2
     echo "generated bindings against a regeneration, so this would surface as an" >&2
     echo "unrelated failure in another job." >&2
     return 1
   fi
-  if [ "$LIVE_GENERATED_SHA" != "$(st_file_digest "$PROJECT_ROOT/packages/stride_health/lib/src/messages.g.dart")" ]; then
+  if [ "$live_generated" != "$(st_file_digest "$PROJECT_ROOT/$ORIGIN_PRIVACY_GENERATED")" ]; then
     echo "SELF-TEST FAILED: the LIVE generated bindings were modified." >&2
     return 1
   fi
   echo "  pigeon input and generated bindings: byte-identical"
 
-  if [ "$st_failures" -ne 0 ]; then
-    echo "origin-privacy: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
-    return 1
-  fi
-  # Asserted, not narrated: the count used to be a string in an echo, which is
-  # a second source of truth and drifts the moment a case is added.
-  if [ "$st_ok" -ne 12 ] || [ "$st_layering" -ne 2 ]; then
-    echo "origin-privacy: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_layering layering case(s), expected 12 and 2" >&2
-    return 1
-  fi
-  echo "origin-privacy: self-test OK -- $st_ok injected violations rejected by their own rules at exit 1, $st_layering layering cases"
-  return 0
+  return $rc
 }
 
 # Source-safe entry. Sourcing defines the rules and does nothing else: no traps,
