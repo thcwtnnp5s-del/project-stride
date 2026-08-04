@@ -695,9 +695,14 @@ guard_body() {
 # ---------------------------------------------------------------------------
 # Self-test — isolated, never the live tree
 #
-# Ten cases, each with a stable case ID and the diagnostic its own rule must
+# Twelve cases, each with a stable case ID and the diagnostic its own rule must
 # emit. Recorded in `Scripts/CASE_MAP.md`, which is what the shared registry
 # will consume.
+#
+# Ten of them assert against the COMPLETE guard. The last two assert against the
+# complete guard AND against their own rule invoked ALONE -- see
+# `expect_reject_isolated` for why that distinction is the whole point of those
+# two cases.
 #
 # ISOLATED. Every probe lands in a throwaway copy created by `mktemp -d` -- a
 # root unique to this run -- and the guard is re-run against it via
@@ -795,6 +800,100 @@ run_self_test() {
     else
       st_ok=$((st_ok + 1))
       echo "  rejected as expected [$id]: $label"
+    fi
+
+    if ! restore_all; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: restoration was not exact" >&2
+      st_failures=$((st_failures + 1))
+    fi
+  }
+
+  # expect_reject_isolated <case-id> <rule-fn> <expected-diagnostic> <label> [sole]
+  #
+  # Stronger than `expect_reject`, and the reason it exists: a case satisfied by
+  # the COMPLETE guard proves only that SOME rule rejected the mutation. If
+  # another rule fires on the same line, the case is OVER-DETERMINED and proves
+  # nothing about the rule it is named for. `op_core_reads_raw` is exactly that
+  # -- it is owned by `rule_raw_identifier_sites` and happens to trip
+  # `rule_core_boundary_isolation` too, which is why that rule sat uncased.
+  #
+  # So this asserts twice:
+  #
+  #   (a) the complete guard exits 1 with the diagnostic -- a POLICY rejection,
+  #       end to end, exactly as a developer would see it
+  #   (b) the NAMED RULE, invoked ALONE against the same mutated root, exits 1
+  #       with its own diagnostic
+  #
+  # (b) is the isolation proof, and it is airtight in a way (a) cannot be: with
+  # one rule running, a mutation only some OTHER rule can see returns 0 here.
+  # Over-determination at the guard level stops mattering, because nothing else
+  # was given the chance to fire.
+  #
+  # (b) is only possible because this guard is source-safe -- sourcing it
+  # defines the rules and does nothing else. `Scripts/check-source-safety.sh`
+  # is what proves that, and this is the first thing to actually depend on it.
+  #
+  # `sole` additionally demands that the COMPLETE guard names no other rule.
+  # Passed only where the mutation genuinely trips one rule; it is not passed
+  # where a rule is a strict refinement of another by construction.
+  expect_reject_isolated() {
+    local id="$1" fn="$2" want="$3" label="$4" sole="${5:-}" out rc others ok=1
+
+    # (a) the complete guard.
+    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
+    if [ "$rc" -eq 0 ]; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: the complete guard ACCEPTED $label" >&2
+      ok=0
+    elif [ "$rc" -ne 1 ]; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
+      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+      ok=0
+    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: the complete guard rejected $label, but NOT by its own rule." >&2
+      echo "    expected a diagnostic matching: $want" >&2
+      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+      ok=0
+    elif [ "$sole" = "sole" ]; then
+      others="$(printf '%s\n' "$out" \
+        | grep -oE 'STRIDE_(GUARD|INFRA)\[origin-privacy\.[a-z_]+\]' \
+        | sort -u | grep -vE "$want" || true)"
+      if [ -n "$others" ]; then
+        echo "origin-privacy SELF-TEST FAILED [$id]: $label is OVER-DETERMINED -- the complete guard also emitted:" >&2
+        printf '%s\n' "$others" | sed 's/^/    | /' >&2
+        ok=0
+      fi
+    fi
+
+    # (b) the rule alone. Sourcing is inert, so this runs exactly the function
+    #     the complete guard runs -- there is no test-only variant of any rule.
+    out="$(PROJECT_ROOT="$ISO" bash -c '. "$1" >/dev/null 2>&1 || exit 2; rule_run "$2"' _ "$0" "$fn" 2>&1)"; rc=$?
+    if [ "$rc" -eq 0 ]; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone ACCEPTED $label -- the mutation is only visible to some OTHER rule, so this case does not prove $fn" >&2
+      ok=0
+    elif [ "$rc" -ne 1 ]; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone exited $rc (INFRASTRUCTURE), not a policy violation" >&2
+      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+      ok=0
+    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
+      echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone rejected $label without emitting $want" >&2
+      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
+      ok=0
+    else
+      others="$(printf '%s\n' "$out" \
+        | grep -oE 'STRIDE_(GUARD|INFRA)\[origin-privacy\.[a-z_]+\]' \
+        | sort -u | grep -vE "$want" || true)"
+      if [ -n "$others" ]; then
+        echo "origin-privacy SELF-TEST FAILED [$id]: $fn alone emitted a diagnostic that is not its own:" >&2
+        printf '%s\n' "$others" | sed 's/^/    | /' >&2
+        ok=0
+      fi
+    fi
+
+    if [ "$ok" -eq 1 ]; then
+      st_ok=$((st_ok + 1))
+      echo "  rejected as expected [$id]: $label -- and by $fn ALONE"
+    else
+      st_failures=$((st_failures + 1))
     fi
 
     if ! restore_all; then
@@ -924,6 +1023,65 @@ PROBE
     "Kotlin caching the cursor in a durable native store"
 
   # ------------------------------------------------------------------
+  # 11 and 12 -- the two rules that were enforced but uncased.
+  #
+  # Both use `expect_reject_isolated`, which additionally runs the rule ALONE.
+  # That is not belt-and-braces; it is the only thing that makes either case
+  # evidence. The complete guard emitting the right diagnostic somewhere in its
+  # output does not establish that THIS rule found THIS mutation.
+  # ------------------------------------------------------------------
+
+  # 11 -- a Dart health-boundary surface puts the raw native identifier on a
+  #       diagnostic sink. This is the leak the rule is named for: the value
+  #       does not have to be persisted to escape, it only has to be logged, and
+  #       a device log is readable, exportable and outlives the app.
+  #
+  #       NOT marked `sole`, deliberately, and this is a property of the
+  #       production rules rather than of the probe: `rule_no_dart_raw_sink`
+  #       greps the SAME raw-symbol pattern as `rule_raw_identifier_sites` and
+  #       then narrows it with DART_SINK, so its hit set is a strict SUBSET.
+  #       With APPROVED empty, every line the sink rule can fire on trips the
+  #       site rule too, and no probe can separate them. Narrowing the site rule
+  #       to make this case look isolated would weaken a production rule to
+  #       flatter a test. So the separation is proved where it is real -- at the
+  #       rule level, in (b).
+  cat > "$HEALTH_PROBE" <<'PROBE'
+import 'dart:developer' as developer;
+
+class OriginProbe {
+  void trace(dynamic observation) {
+    developer.log('sync page from ${observation.sourceIdentifier}');
+  }
+}
+PROBE
+  expect_reject_isolated op_dart_raw_sink rule_no_dart_raw_sink \
+    "${D}no_dart_raw_sink\]" \
+    "a Dart health surface logging the raw native identifier"
+
+  # 12 -- stride_core acquires a platform dependency, WITHOUT naming the raw
+  #       identifier. That restriction is the entire point: the existing
+  #       `op_core_reads_raw` probe names `sourceIdentifier` inside the core, so
+  #       `rule_raw_identifier_sites` fires on it first and the core rule was
+  #       never independently falsified.
+  #
+  #       This probe names no raw identifier at all. It imports the health
+  #       package and declares the Pigeon host API type -- the core acquiring an
+  #       opinion about where its data came from, which is the regression the
+  #       rule actually exists to stop. Marked `sole`: the complete guard must
+  #       name this rule and no other.
+  cat > "$CORE_PROBE" <<'PROBE'
+import 'package:stride_health/stride_health.dart';
+
+abstract class CoreBoundaryProbe {
+  HealthHostApi get api;
+}
+PROBE
+  expect_reject_isolated op_core_boundary_isolation rule_core_boundary_isolation \
+    "${D}core_boundary_isolation\]" \
+    "stride_core taking a dependency on the platform boundary" \
+    sole
+
+  # ------------------------------------------------------------------
   # The other direction. Two layering cases, because in a privacy guard the
   # dangerous failure is not a false rejection -- it is a clean-looking run that
   # read nothing.
@@ -1007,8 +1165,8 @@ PROBE
   fi
   # Asserted, not narrated: the count used to be a string in an echo, which is
   # a second source of truth and drifts the moment a case is added.
-  if [ "$st_ok" -ne 10 ] || [ "$st_layering" -ne 2 ]; then
-    echo "origin-privacy: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_layering layering case(s), expected 10 and 2" >&2
+  if [ "$st_ok" -ne 12 ] || [ "$st_layering" -ne 2 ]; then
+    echo "origin-privacy: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_layering layering case(s), expected 12 and 2" >&2
     return 1
   fi
   echo "origin-privacy: self-test OK -- $st_ok injected violations rejected by their own rules at exit 1, $st_layering layering cases"

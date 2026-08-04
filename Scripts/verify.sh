@@ -146,11 +146,14 @@ step "One step-ingestion model (with mutation test)"
 step "Origin privacy (with self-test)"
 # Keying happens natively, before the value crosses Pigeon, so no raw platform
 # identifier reaches Dart at all. That is a property of source text in three
-# languages, which no type can hold. --self-test injects ten violations and
+# languages, which no type can hold. --self-test injects twelve violations and
 # asserts each is rejected AT EXIT 1 BY ITS OWN diagnostic, plus two layering
 # cases: an empty native scan and a missing platform contract must both be
 # infrastructure. In a privacy guard the dangerous failure is not a false
 # rejection, it is a clean-looking run that read nothing.
+#
+# The last two cases also run their rule ALONE against the mutated root, which
+# is the only way to prove a rule another rule over-determines. See CASE_MAP.md.
 ./Scripts/check-origin-privacy.sh --self-test
 
 if ! command -v dart >/dev/null 2>&1; then

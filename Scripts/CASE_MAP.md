@@ -105,10 +105,11 @@ Named production rules with no case yet:
 
 ---
 
-## check-origin-privacy.sh — 10 cases
+## check-origin-privacy.sh — 12 cases
 
-Converted at Commit B. All 10 preserved; none added, removed, merged or
-weakened.
+Converted at Commit B with 10 cases, all preserved; none removed, merged or
+weakened. Two added by the coverage follow-up (11 and 12), each closing a rule
+that was enforced but uncased.
 
 | # | old case description | case ID | production rule | diagnostic |
 |---|----------------------|---------|-----------------|------------|
@@ -122,13 +123,50 @@ weakened.
 | 8 | Swift minting a second device identity | `op_swift_mints_identity` | `rule_no_native_identity_minting` | `STRIDE_GUARD[origin-privacy.no_native_identity_minting]` |
 | 9 | a platform boundary value printed without naming the field | `op_platform_value_sink` | `rule_no_platform_value_sink` | `STRIDE_GUARD[origin-privacy.no_platform_value_sink]` |
 | 10 | Kotlin caching the cursor in a durable native store | `op_kotlin_durable_store` | `rule_no_native_durable_store` | `STRIDE_GUARD[origin-privacy.no_native_durable_store]` |
+| 11 | *(new)* a Dart health surface logging the raw native identifier | `op_dart_raw_sink` | `rule_no_dart_raw_sink` | `STRIDE_GUARD[origin-privacy.no_dart_raw_sink]` |
+| 12 | *(new)* stride_core taking a dependency on the platform boundary | `op_core_boundary_isolation` | `rule_core_boundary_isolation` | `STRIDE_GUARD[origin-privacy.core_boundary_isolation]` |
 
 Case 1 trips two rules at once: the probe both names the raw identifier and
 does so from inside `stride_core`. It is owned by `rule_raw_identifier_sites`,
 which is what the original inventory called check "A" — the same convention
-used for `sw_background_isolate_repo`. `rule_core_boundary_isolation` is
-therefore enforced but has no case of its own, as it did not before the
-conversion.
+used for `sw_background_isolate_repo`. That over-determination is why
+`rule_core_boundary_isolation` stayed uncased through the conversion, and why
+case 1 is **not** evidence for it: a rejection that another rule produces first
+says nothing about the rule it is filed under.
+
+### Cases 11 and 12 — the isolated form
+
+Both use `expect_reject_isolated`, which asserts twice:
+
+* the **complete guard** exits 1 with the case's diagnostic — a policy
+  rejection end to end, as a developer would see it
+* the **named rule, invoked alone** against the same mutated root, exits 1 with
+  its own diagnostic and nothing else
+
+The second assertion is the one that makes these cases evidence. With a single
+rule running, a mutation that only some *other* rule can see returns 0, so the
+case fails rather than passing on someone else's detection. Over-determination
+in the complete guard stops mattering, because nothing else was given the
+chance to fire. This is the first thing in the repository to actually depend on
+`check-source-safety.sh`: invoking one rule requires that sourcing the guard be
+inert.
+
+Case 12 additionally passes `sole` — the complete guard must name
+`core_boundary_isolation` and no other rule. Its probe deliberately names no
+raw identifier: it imports `package:stride_health` and declares `HealthHostApi`,
+which is the core acquiring an opinion about where its data came from. Verified:
+that mutation trips exactly one rule.
+
+Case 11 is deliberately **not** `sole`, and the reason is a property of the
+production rules rather than a weakness in the probe.
+`rule_no_dart_raw_sink` greps the same raw-symbol pattern as
+`rule_raw_identifier_sites` and then narrows it with `DART_SINK`, so its hit set
+is a strict **subset**. With `APPROVED` empty, every line the sink rule can fire
+on trips the site rule too, and no probe can separate them at the guard level.
+Narrowing the site rule to make the case look isolated would weaken a
+production rule to flatter a test, so the separation is proved where it is
+real — at the rule level. `rule_no_dart_raw_sink` invoked alone rejects the
+probe, which is precisely the claim the case is named for.
 
 Two **layering** cases, in the other direction. In a privacy guard the
 dangerous failure is not a false rejection — it is a clean-looking run that read
@@ -148,8 +186,14 @@ awaiting registry cases:
 | `rule_dart_scan_coverage` | `STRIDE_INFRA[origin-privacy.no_dart_sources]` | the Dart scan read something |
 | `rule_native_scan_coverage` | `STRIDE_INFRA[origin-privacy.no_native_sources]` | the native scan read something (layering case above) |
 | `rule_pigeon_input_present` | `STRIDE_INFRA[origin-privacy.pigeon_input_missing]` | the platform contract is readable (layering case above) |
-| `rule_no_dart_raw_sink` | `STRIDE_GUARD[origin-privacy.no_dart_raw_sink]` | no raw identifier on a Dart diagnostic surface |
-| `rule_core_boundary_isolation` | `STRIDE_GUARD[origin-privacy.core_boundary_isolation]` | `stride_core` names no platform type |
+
+`rule_no_dart_raw_sink` and `rule_core_boundary_isolation` were on this list at
+the conversion. They are no longer: cases 11 and 12 close them. Every remaining
+entry is infrastructure, and the two that can be falsified are the layering
+cases above.
+
+**Origin-privacy totals: 12 `expect_reject` cases, 2 layering cases, 0 accept
+cases.** The self-test asserts those counts rather than narrating them.
 
 ### Where each origin-privacy property is actually held
 
