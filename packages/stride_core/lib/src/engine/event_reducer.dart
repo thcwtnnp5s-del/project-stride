@@ -45,6 +45,7 @@ final class EventReducer {
       GameStarted() => _started(state, event),
       SyntheticStepsGranted() => _grantSteps(state, event.steps),
       StepsAllocated() => _spendSteps(state, event.steps),
+      ResourceGathered() => _gathered(state, event),
       ItemEquipped() => state.copyWith(
         equipment: state.equipment.equipping(event.slot, event.item),
       ),
@@ -130,6 +131,25 @@ final class EventReducer {
   GameState _spendSteps(GameState state, int steps) => state.copyWith(
     steps: state.steps.copyWith(totalSpent: state.steps.totalSpent + steps),
   );
+
+  /// Spends, yields, and awards in one step.
+  ///
+  /// All three parts of the fact land together. `copyWith` builds one new state
+  /// rather than three, so there is no intermediate value — not even a
+  /// transient one inside this method — in which the ledger has been debited and
+  /// the inventory has not.
+  ///
+  /// The figures come off the event, never out of the registry. Replaying a
+  /// gather must reproduce the state that was committed, and a content pack
+  /// that retuned the node since would otherwise reproduce a different one.
+  GameState _gathered(GameState state, ResourceGathered event) =>
+      state.copyWith(
+        steps: state.steps.copyWith(
+          totalSpent: state.steps.totalSpent + event.stepsSpent,
+        ),
+        inventory: state.inventory.adding(event.item, event.quantity),
+        skills: state.skills.adding(event.skill, event.experience),
+      );
 
   GameState _reconciled(GameState state, StepObservationReconciled event) {
     final StepLedger ledger = state.steps;

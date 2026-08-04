@@ -39,6 +39,18 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'seq': event.sequence,
     'steps': event.steps,
   },
+  ResourceGathered() => <String, Object?>{
+    't': 'ResourceGathered',
+    'seq': event.sequence,
+    'node': event.node.value,
+    // As charged and as awarded, not as defined. Replay must reproduce the
+    // state that was committed even if the content pack has been retuned since.
+    'stepsSpent': event.stepsSpent,
+    'item': event.item.value,
+    'quantity': event.quantity,
+    'skill': event.skill.value,
+    'xp': event.experience,
+  },
   ItemEquipped() => <String, Object?>{
     't': 'ItemEquipped',
     'seq': event.sequence,
@@ -185,6 +197,38 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
     case 'StepsAllocated':
       final int? steps = i('steps');
       return steps == null ? null : StepsAllocated(sequence: seq, steps: steps);
+
+    case 'ResourceGathered':
+      final ContentId? node = id('node');
+      final ContentId? item = id('item');
+      final ContentId? skill = id('skill');
+      final int? spent = i('stepsSpent');
+      final int? quantity = i('quantity');
+      final int? xp = i('xp');
+      if (node == null ||
+          item == null ||
+          skill == null ||
+          spent == null ||
+          quantity == null ||
+          xp == null) {
+        return null;
+      }
+      // Ranges are checked here rather than trusted, because a journal record
+      // is bytes from disk and the reducer is total: a negative `stepsSpent`
+      // would raise `totalSpent` above `totalGranted` and `StepLedger` throws
+      // on that, turning a corrupt record into a launch that cannot start.
+      // Refusing the record is recoverable; the load path treats an
+      // undecodable event as a repair.
+      if (spent < 0 || quantity < 0 || xp < 0) return null;
+      return ResourceGathered(
+        sequence: seq,
+        node: node,
+        stepsSpent: spent,
+        item: item,
+        quantity: quantity,
+        skill: skill,
+        experience: xp,
+      );
 
     case 'ItemEquipped':
     case 'ItemUnequipped':

@@ -138,6 +138,23 @@ final class SkillDefinition {
   /// zero; the list has [maxLevel] entries and must strictly increase.
   final List<int> xpThresholds;
 
+  /// The level [experience] buys, derived rather than stored.
+  ///
+  /// `SkillProgress` deliberately keeps experience and not levels: a stored
+  /// level would disagree with the curve the first time a content pack retunes
+  /// one, and the disagreement would be invisible. Deriving it here means the
+  /// curve is the single authority, and the loader has already guaranteed the
+  /// list is non-empty, starts at zero, strictly increases, and has [maxLevel]
+  /// entries — so this needs no defensive branch for a malformed curve.
+  int levelAt(int experience) {
+    int level = 1;
+    for (int i = 1; i < xpThresholds.length; i++) {
+      if (experience < xpThresholds[i]) break;
+      level = i + 1;
+    }
+    return level;
+  }
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',

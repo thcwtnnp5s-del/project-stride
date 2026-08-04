@@ -160,6 +160,7 @@ final class GameEngine {
         UnequipItem() => _unequip(command, state),
         UnlockLocation() => _unlock(command, state),
         EnterLocation() => _enter(command, state),
+        GatherResource() => _gather(command, state),
         ReconcileStepSync() => _reconcile(command, state),
       };
 
@@ -362,6 +363,123 @@ final class GameEngine {
     return _Decision.accept(<GameEvent>[
       StepsAllocated(sequence: state.eventSequence, steps: command.steps),
     ]);
+  }
+
+  /// Works a resource node once.
+  ///
+  /// ## The order of the refusals is the order of the player's questions
+  ///
+  /// Does this exist → am I there → am I skilled enough → do I have the tool →
+  /// can I afford it. Cost is checked **last** deliberately: telling a level-1
+  /// player they cannot afford Pine Ridge, when the real answer is that it
+  /// needs level 8, sends them walking for a wall they will still hit.
+  ///
+  /// ## Every figure is scaled here, once
+  ///
+  /// `stepCost`, `yieldsQuantity` and `xp` are base values; the active balance
+  /// profile scales them at the point of use, which is this method. The scaled
+  /// figures go onto the event, so the reducer performs no arithmetic against
+  /// content and a replay under a retuned pack reproduces the original result.
+  _Decision _gather(GatherResource command, GameState state) {
+    final ResourceNodeDefinition? node = registry.resourceNodes[command.node];
+    if (node == null) {
+      return _Decision.reject(
+        RejectionCode.unknownResourceNode,
+        command,
+        'no resource node is defined with that ID',
+        subject: command.node.value,
+      );
+    }
+
+    final LocationDefinition? here =
+        registry.locations[state.world.currentLocation];
+    if (here == null || !here.resourceNodes.contains(command.node)) {
+      return _Decision.reject(
+        RejectionCode.resourceNodeNotHere,
+        command,
+        '"${node.displayName}" is not at '
+        '${here?.displayName ?? state.world.currentLocation.value}',
+        subject: command.node.value,
+      );
+    }
+
+    final SkillDefinition? skill = registry.skills[node.skill];
+    if (skill == null) {
+      // Unreachable through a validated registry -- the content loader's
+      // reference check rejects a node naming a skill that does not exist.
+      // Answered rather than thrown anyway: an engine that crashes on a content
+      // defect takes the game down over a file someone edited.
+      return _Decision.reject(
+        RejectionCode.contentNotLoaded,
+        command,
+        'the skill "${node.skill.value}" this node trains is not loaded',
+        subject: node.skill.value,
+      );
+    }
+
+    final int level = skill.levelAt(state.skills.experienceIn(node.skill));
+    if (level < node.requiredLevel) {
+      return _Decision.reject(
+        RejectionCode.skillLevelTooLow,
+        command,
+        '"${node.displayName}" needs ${skill.displayName} '
+        '${node.requiredLevel}; the player is level $level',
+        subject: command.node.value,
+      );
+    }
+
+    if (node.requiredToolKind != ToolKind.none && !_hasTool(node, state)) {
+      return _Decision.reject(
+        RejectionCode.toolRequired,
+        command,
+        '"${node.displayName}" needs a ${node.requiredToolKind.name} of tier '
+        '${node.minimumToolTier} or better equipped',
+        subject: command.node.value,
+      );
+    }
+
+    final int cost = profile.applyStepCost(node.stepCost);
+    if (cost > state.steps.banked) {
+      return _Decision.reject(
+        RejectionCode.insufficientSteps,
+        command,
+        '"${node.displayName}" costs $cost steps but only '
+        '${state.steps.banked} are banked',
+        subject: command.node.value,
+      );
+    }
+
+    return _Decision.accept(<GameEvent>[
+      ResourceGathered(
+        sequence: state.eventSequence,
+        node: command.node,
+        stepsSpent: cost,
+        item: node.yieldsItem,
+        quantity: profile.applyYield(node.yieldsQuantity),
+        skill: node.skill,
+        experience: profile.applyXp(node.xp),
+      ),
+    ]);
+  }
+
+  /// Whether an equipped item satisfies the node's tool requirement.
+  ///
+  /// Equipped, not merely owned: a pickaxe in the bag is not a pickaxe in hand.
+  /// Matched on [ItemDefinition.toolKind] and [ItemDefinition.tier] rather than
+  /// on a specific item id, so a better axe added later works everywhere an axe
+  /// is asked for without editing a single node.
+  ///
+  /// Every slot is scanned rather than only [EquipmentSlot.tool]. The
+  /// requirement is about capability, and a content pack that puts a hatchet in
+  /// the weapon slot should not silently stop satisfying it.
+  bool _hasTool(ResourceNodeDefinition node, GameState state) {
+    for (final ContentId equipped in state.equipment.bySlot.values) {
+      final ItemDefinition? item = registry.items[equipped];
+      if (item == null) continue;
+      if (item.toolKind != node.requiredToolKind) continue;
+      if (item.tier >= node.minimumToolTier) return true;
+    }
+    return false;
   }
 
   _Decision _equip(EquipItem command, GameState state) {

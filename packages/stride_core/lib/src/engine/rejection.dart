@@ -43,6 +43,21 @@ enum RejectionCode {
   /// The player is already there.
   alreadyAtLocation('already_at_location'),
 
+  /// No such resource node exists in the loaded content.
+  unknownResourceNode('unknown_resource_node'),
+
+  /// The node exists, but not at the location the player is standing in.
+  ///
+  /// Travel is the answer, and travel costs steps — which is the point of the
+  /// refusal rather than an inconvenience of it.
+  resourceNodeNotHere('resource_node_not_here'),
+
+  /// The gathering skill is below the node's required level.
+  skillLevelTooLow('skill_level_too_low'),
+
+  /// No tool of the required kind and tier is equipped.
+  toolRequired('tool_required'),
+
   /// The engine has no content registry to validate against.
   contentNotLoaded('content_not_loaded'),
 

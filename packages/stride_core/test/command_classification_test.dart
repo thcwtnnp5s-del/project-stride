@@ -24,6 +24,7 @@ List<GameCommand> allCommands() => <GameCommand>[
   const UnequipItem(slot: EquipmentSlot.weapon),
   UnlockLocation(location: ContentId.unchecked('location.havens_rest')),
   EnterLocation(location: ContentId.unchecked('location.havens_rest')),
+  GatherResource(node: ContentId.unchecked('resource_node.meadow_patch')),
   ReconcileStepSync(response: const NoChangeSync()),
 ];
 
@@ -38,6 +39,11 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   'EquipItem': true,
   'UnequipItem': true,
   'EnterLocation': true,
+  // Player-facing, and the first command that turns banked steps into
+  // something. The cost is read from content and scaled by the profile inside
+  // the engine, never supplied by the caller, so exposing it to a UI does not
+  // expose a way to decide what walking is worth.
+  'GatherResource': true,
   'GrantSyntheticSteps': false,
   'UnlockLocation': false,
   'ReconcileStepSync': false,
@@ -55,6 +61,7 @@ String classify(GameCommand command) => switch (command) {
   UnequipItem() => 'UnequipItem',
   UnlockLocation() => 'UnlockLocation',
   EnterLocation() => 'EnterLocation',
+  GatherResource() => 'GatherResource',
   ReconcileStepSync() => 'ReconcileStepSync',
 };
 

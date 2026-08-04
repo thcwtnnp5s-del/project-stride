@@ -156,6 +156,39 @@ final class EnterLocation extends GameCommand {
   String get name => 'EnterLocation';
 }
 
+/// Work a resource node once, paying for it out of banked steps.
+///
+/// **The first command that turns walking into something.** Until S-01A the
+/// ledger had a debit path — [AllocateSteps] — and nothing to debit *for*: it
+/// subtracted from `banked` and produced no item, no experience, and no reason
+/// for a player to press it. That is why this exists as a distinct command
+/// rather than as a caller pairing [AllocateSteps] with an inventory change.
+/// Two commands would be two transactions, and a process killed between them
+/// would leave the steps spent and the herbs not gathered.
+///
+/// ## Repeating, one node at a time
+///
+/// Gathering is a **repeating** activity (`ActivityKind.repeating`), and this
+/// command is one repetition: one node's `stepCost`, one yield, one xp award.
+/// The activity *scheduler* — which decides how a repetition is queued while
+/// the player is away — is not S-01A, and building one here would be inventing
+/// the part `DECISIONS/0006` says has to be designed rather than assumed.
+///
+/// ## Why the cost is not a parameter
+///
+/// It is read from content and scaled by the active balance profile, at
+/// validation time, in the engine. A caller-supplied cost would let a UI, a
+/// test, or a debug screen decide what walking is worth.
+@immutable
+final class GatherResource extends GameCommand {
+  const GatherResource({required this.node});
+
+  final ContentId node;
+
+  @override
+  String get name => 'GatherResource';
+}
+
 /// Reconcile a normalized provider response against the ledger.
 ///
 /// **Internal.** Real syncs are driven by the app's platform adapter, not by

@@ -81,6 +81,49 @@ final class StepsAllocated extends GameEvent {
   String get name => 'StepsAllocated';
 }
 
+/// A resource node was worked once: steps spent, yield taken, experience gained.
+///
+/// **One event, not three.** The spend, the item, and the experience are a
+/// single fact and are applied by a single reducer branch, so there is no
+/// instant — in memory, in the journal, or in a replay — at which the steps are
+/// gone and the herbs have not arrived. Splitting it into `StepsAllocated` plus
+/// an inventory event plus an experience event would make that instant real and
+/// reachable: the journal is append-only and a process killed between two
+/// records leaves the first one durable.
+///
+/// Every figure is recorded on the event rather than recomputed from content at
+/// replay time. A content pack that retunes `stepCost` or `xp` next month must
+/// not change what a gather the player already performed did to their save —
+/// replay would then produce a different state than the one that was committed,
+/// which is the one thing a replay may never do.
+@immutable
+final class ResourceGathered extends GameEvent {
+  const ResourceGathered({
+    required super.sequence,
+    required this.node,
+    required this.stepsSpent,
+    required this.item,
+    required this.quantity,
+    required this.skill,
+    required this.experience,
+  });
+
+  final ContentId node;
+
+  /// Profile-scaled, as charged. Never the raw content value.
+  final int stepsSpent;
+
+  final ContentId item;
+  final int quantity;
+  final ContentId skill;
+
+  /// Profile-scaled, as awarded. May be zero; a node with no xp is legal.
+  final int experience;
+
+  @override
+  String get name => 'ResourceGathered';
+}
+
 /// An item was placed in a slot.
 @immutable
 final class ItemEquipped extends GameEvent {
