@@ -255,8 +255,11 @@ if [ "$SELF_TEST" -eq 1 ]; then
   TREE_BEFORE="$(st_tree_snapshot)"
   ISO="$(st_make_root)"
   trap 'rm -rf "$ISO"' EXIT
+  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
+  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
+  # empty tree when run from another directory.
   # shellcheck disable=SC2086
-  st_copy "$ISO" $GRADLE_FILES $MANIFESTS
+  st_copy_from "$PROJECT_ROOT" "$ISO" $GRADLE_FILES $MANIFESTS
 
   st_failures=0
   expect_reject() {

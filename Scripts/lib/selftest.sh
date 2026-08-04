@@ -31,16 +31,32 @@ st_make_root() {
   echo "$root"
 }
 
-# st_copy <root> <path>...   — copy paths into the isolated root, keeping
-# their relative layout so the guard's own path arithmetic is unchanged.
-st_copy() {
-  local root="$1"; shift
+# st_copy_from <src-root> <dest-root> <relative-path>...
+#
+# Copies paths into the isolated root, keeping their relative layout so the
+# guard's own path arithmetic is unchanged.
+#
+# The SOURCE ROOT is explicit. `st_copy` resolved relative paths against the
+# caller's working directory, which was invisible only because every guard used
+# to `cd "$PROJECT_ROOT"` at load time. A source-safe guard does not cd, so the
+# same call from any other directory would have copied nothing at all — and the
+# self-test's first act is to check the copy passes clean, so the failure would
+# have read as "the guard rejects a correct tree".
+st_copy_from() {
+  local src="$1" root="$2"; shift 2
   local p
   for p in "$@"; do
-    [ -e "$p" ] || continue
+    [ -e "$src/$p" ] || continue
     mkdir -p "$root/$(dirname "$p")"
-    cp -R "$p" "$root/$(dirname "$p")/"
+    cp -R "$src/$p" "$root/$(dirname "$p")/"
   done
+}
+
+# st_copy <root> <path>... — the cwd-relative form. Kept for callers that have
+# not been converted; new code should pass its root explicitly.
+st_copy() {
+  local root="$1"; shift
+  st_copy_from "$PWD" "$root" "$@"
 }
 
 # Snapshots the live tree's state, for comparison after a self-test.
