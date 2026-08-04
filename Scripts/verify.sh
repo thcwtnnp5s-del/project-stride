@@ -92,6 +92,12 @@ if [ ! -d Scripts/tooling/node_modules/@xmldom/xmldom ]; then
   exit 1
 fi
 
+step "Rulekit contract (the primitive every rule, case and runner passes through)"
+# `rule_run` returned SUCCESS for an undefined rule name, so a misspelled or
+# deleted rule read as a clean tree everywhere at once. It is fail-closed now,
+# and this is what says so.
+./Scripts/check-rulekit.sh
+
 step "Guard parsers (XML, plist, doctype policy, no external resolution)"
 ./Scripts/check-guard-parsers.sh
 
