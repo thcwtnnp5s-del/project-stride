@@ -46,6 +46,7 @@ check-android-target.sh
 check-ios-target.sh
 check-origin-privacy.sh
 check-single-writer.sh
+check-step-model.sh
 "
 
 # Not yet converted. Sourcing these still executes them, which is the defect
@@ -55,7 +56,6 @@ PENDING_GUARDS="
 check-backup-exclusions.sh
 check-core-purity.sh
 check-dependency-policy.sh
-check-step-model.sh
 "
 
 # Guards' own test harnesses are not guards and are never sourced by a runner.

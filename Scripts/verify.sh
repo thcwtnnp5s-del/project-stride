@@ -139,8 +139,12 @@ step "Single-writer persistence rule (with self-test)"
 step "One step-ingestion model (with mutation test)"
 # DECISIONS/0014: the repository held two parallel ingestion models and the
 # platform boundary was wired to the dead one. This guard is what keeps there
-# being one. --self-test injects seven violations, one per rule, and asserts
-# each is rejected.
+# being one. --self-test injects thirteen violations -- the ten historical
+# cases plus three that close rules which were enforced but uncased -- and
+# asserts each is rejected AT EXIT 1 BY ITS OWN diagnostic, by the complete
+# guard AND by its named rule invoked alone. Plus four infrastructure cases:
+# every content rule here is an ABSENCE check, and a tree the guard cannot read
+# produces absence too.
 ./Scripts/check-step-model.sh --self-test
 
 step "Origin privacy (with self-test)"

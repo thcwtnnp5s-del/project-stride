@@ -214,6 +214,145 @@ not assume this script covers them:
 
 ---
 
+## check-step-model.sh — 13 reject + 4 infrastructure
+
+Converted at Commit B. All 10 historical cases preserved; none removed, merged
+or weakened. Three added by the uncased-rule audit.
+
+### What the conversion changed about the evidence
+
+Before this conversion every case asserted exactly one thing:
+
+```sh
+if bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then FAIL; fi
+```
+
+Ten cases, each proving that *something* went wrong. Not which rule fired, not
+that it was a policy rejection rather than an infrastructure failure, and not
+that the case's own rule was involved at all. That is the exact shape of the
+`check-android-target.sh` defect: three checks there called an xmlq mode that
+has never existed, every call exited 2 into `|| true`, and the self-test read
+green because the guard was already failing for an unrelated reason.
+
+Each case now asserts three things:
+
+| | assertion |
+|---|-----------|
+| (a) | the **complete guard** exits exactly **1** — a policy rejection — and emits this case's diagnostic. Exit 2 is infrastructure and **fails** the case |
+| (b) | the complete guard names **no other rule**, unless the case explicitly declares the second one. Over-determination is reviewed and written down, never silently tolerated |
+| (c) | the **named rule, invoked alone** against the same mutated root, exits 1 with its own diagnostic |
+
+(c) is the isolation proof. With one rule running, a mutation only some *other*
+rule can see returns 0, so the case fails rather than passing on someone else's
+detection. It is possible only because the guard is source-safe.
+
+### The ten historical cases, preserved
+
+| # | old case description | case ID | production rule | diagnostic |
+|---|----------------------|---------|-----------------|------------|
+| 1 | StepFetchResult reintroduced in the app | `sm_step_fetch_result` | `rule_no_retired_dart_model` | `STRIDE_GUARD[step-model.no_retired_dart_model]` |
+| 2 | fetchNewSteps reintroduced in the health package | `sm_fetch_new_steps` | `rule_no_retired_dart_model` | `STRIDE_GUARD[step-model.no_retired_dart_model]` |
+| 3 | a flat unscoped newSteps field on the platform contract | `sm_flat_contract_field` | `rule_no_flat_contract_field` | `STRIDE_GUARD[step-model.no_flat_contract_field]` |
+| 4 | a flat newSteps field in native source | `sm_flat_native_field` | `rule_no_retired_native_model` | `STRIDE_GUARD[step-model.no_retired_native_model]` |
+| 5 | a second step-ingestion entry point into the engine | `sm_second_ingest_entry` | `rule_single_ingest_entry_point` | `STRIDE_GUARD[step-model.single_ingest_entry_point]` |
+| 6 | CompleteThrough constructed outside the anchored site | `sm_settling_complete_through` | `rule_settling_construction_sites` | `STRIDE_GUARD[step-model.settling_construction_sites]` |
+| 7 | RecoveryCompleteThrough constructed outside the anchored site | `sm_settling_recovery_complete_through` | `rule_settling_construction_sites` | `STRIDE_GUARD[step-model.settling_construction_sites]` |
+| 8 | a whole-ledger equality comparison on StepLedger.signature | `sm_signature_test_equality` | `rule_signature_allowed_files` | `STRIDE_GUARD[step-model.signature_allowed_files]` |
+| 9 | a production integrity comparison on StepLedger.signature | `sm_signature_production_integrity` | `rule_signature_allowed_files` | `STRIDE_GUARD[step-model.signature_allowed_files]` |
+| 10 | StepLedger.signature captured in an allow-listed file | `sm_signature_capture_variable` | `rule_no_signature_capture` | `STRIDE_GUARD[step-model.no_signature_capture]` |
+
+Every one of the ten was verified to be attributable to its own rule. None
+turned out to be over-determined, so none needed a declared second rule.
+
+### The three added by the uncased-rule audit
+
+| # | case ID | production rule | diagnostic | why it was needed |
+|---|---------|-----------------|------------|-------------------|
+| 11 | `sm_signature_capture_collection` | `rule_no_signature_capture` | `STRIDE_GUARD[step-model.no_signature_capture]` | `SIGNATURE_CAPTURE` is an alternation of **two** shapes and case 10 exercised only the `=` branch. An edit breaking the `.add(` branch would have left case 10 green and the collection form unguarded. The probe builds an empty list and appends, so the `=` branch cannot fire and the case proves the branch it is named for. |
+| 12 | `sm_observation_class_renamed` | `rule_observation_class_present` | `STRIDE_GUARD[step-model.observation_class_present]` | `rule_no_flat_contract_field` is an ABSENCE check, so a contract carrying no step shape at all satisfies it perfectly. This rule is what makes "no flat field" mean something. A **prefix** rename, not a suffix: the check is a fixed-string search for `class PlatformStepObservation`, which `class PlatformStepObservationV2` would still satisfy. |
+| 13 | `sm_ingest_command_renamed` | `rule_ingest_command_present` | `STRIDE_GUARD[step-model.ingest_command_present]` | Same shape of gap. `rule_single_ingest_entry_point` proves no *second* way into the engine exists, which is vacuously true of a codebase with no way in at all. |
+
+### The signature rule's three named obligations
+
+The instruction for this conversion required the signature cases to prove three
+specific bypasses cannot work. Each maps to a case:
+
+| obligation | held by |
+|------------|---------|
+| receiver-name tricks | `sm_signature_test_equality` — its probe calls the receivers `a` and `b` **deliberately**. The first version of the rule matched `.signature` only on receivers whose names looked ledger-ish, and this exact probe walked straight through it. The rule now matches every `.signature`; this case is what keeps a future "let's reduce false positives by naming the receivers we care about" from landing quietly. |
+| capture inside allow-listed files | `sm_signature_capture_variable` and `sm_signature_capture_collection` — both inject into `save_privacy_test.dart`, which *is* allow-listed, so `rule_signature_allowed_files` skips it and only `rule_no_signature_capture` can fire. |
+| equivalent syntactic forms | the same pair — one per branch of the `SIGNATURE_CAPTURE` alternation. |
+
+### Four infrastructure cases — which no rejection case may be satisfied by
+
+Every content rule in this guard is an **absence** check, and a tree the guard
+cannot read produces absence too. Two of these are layering cases in the same
+sense as origin-privacy's; two cover invalid invocation.
+
+| case ID | proves | without it |
+|---------|--------|-----------|
+| `sm_empty_native_scan` | native directories removed ⇒ exit 2 with `STRIDE_INFRA[step-model.no_native_sources]` | `sm_flat_native_field` could be satisfied by a copy that simply lacks the native directories |
+| `sm_missing_pigeon_input` | contract deleted ⇒ exit 2 with `STRIDE_INFRA[step-model.pigeon_input_missing]`, and **never** `no_flat_contract_field` or `observation_class_present` | cases 3 and 12 could both be satisfied by deleting the contract instead of changing it |
+| `sm_bad_project_root` | a nonexistent root ⇒ exit 2 with `STRIDE_INFRA[step-model.root_missing]` | a typo in CI would read as a repository defect |
+| `sm_unknown_argument` | a misspelled flag ⇒ exit 2 with `STRIDE_INFRA[step-model.usage]` | the `check-android-target.sh` defect exactly — a call the guard does not understand, counted as a finding |
+
+### Production-rule inventory and uncased-rule audit
+
+Fourteen named rules. Every **policy** rule has independent coverage; the four
+uncovered rules are all infrastructure, and two of those are held by the
+layering cases above.
+
+| rule | kind | diagnostic | coverage |
+|------|------|-----------|----------|
+| `rule_preflight` | infra | `STRIDE_INFRA[step-model.root_missing]` | `sm_bad_project_root` |
+| `rule_dart_scan_coverage` | infra | `STRIDE_INFRA[step-model.no_dart_sources]` | **uncased** — see below |
+| `rule_native_scan_coverage` | infra | `STRIDE_INFRA[step-model.no_native_sources]` | `sm_empty_native_scan` |
+| `rule_signature_scan_coverage` | infra | `STRIDE_INFRA[step-model.no_signature_sources]` | **uncased** — see below |
+| `rule_pigeon_input_present` | infra | `STRIDE_INFRA[step-model.pigeon_input_missing]` | `sm_missing_pigeon_input` |
+| `rule_no_retired_dart_model` | policy | `STRIDE_GUARD[step-model.no_retired_dart_model]` | cases 1, 2 |
+| `rule_no_retired_native_model` | policy | `STRIDE_GUARD[step-model.no_retired_native_model]` | case 4 |
+| `rule_no_flat_contract_field` | policy | `STRIDE_GUARD[step-model.no_flat_contract_field]` | case 3 |
+| `rule_observation_class_present` | policy | `STRIDE_GUARD[step-model.observation_class_present]` | case 12 *(new)* |
+| `rule_ingest_command_present` | policy | `STRIDE_GUARD[step-model.ingest_command_present]` | case 13 *(new)* |
+| `rule_single_ingest_entry_point` | policy | `STRIDE_GUARD[step-model.single_ingest_entry_point]` | case 5 |
+| `rule_settling_construction_sites` | policy | `STRIDE_GUARD[step-model.settling_construction_sites]` | cases 6, 7 |
+| `rule_signature_allowed_files` | policy | `STRIDE_GUARD[step-model.signature_allowed_files]` | cases 8, 9 |
+| `rule_no_signature_capture` | policy | `STRIDE_GUARD[step-model.no_signature_capture]` | cases 10, 11 *(11 new)* |
+
+**Two explicit, justified exceptions.** `rule_dart_scan_coverage` and
+`rule_signature_scan_coverage` have no case, and the reason is not that they
+were forgotten. Both fire only when the Dart scan reads **zero** files, and the
+self-test's isolated root is built by copying `lib` and every package's `lib`
+and `test`. Emptying it enough to trip either rule would also delete the files
+every other case injects into, so the probe could not be restored and the
+"clean before, clean after" bracket around each case would be meaningless. The
+property they hold — an empty scan is never a clean scan — is the same property
+`sm_empty_native_scan` proves, on the scan that can be emptied without
+destroying the fixture. These are recorded as uncased deliberately, not
+silently.
+
+**Not a rule, and deliberately so:** no accept case exists for this guard. The
+comment-stripping that would need one is exercised by the live tree on every
+run — this script's own subject matter is discussed at length in the doc
+comments of the files it scans, and every one of them would be a false positive
+without `strip_comments`. The clean run *is* the accept case.
+
+### Where the step-model properties are actually held
+
+| property | held by |
+|----------|---------|
+| one live normalized SyncResponse ingestion model | `rule_no_retired_dart_model`, `rule_ingest_command_present`, `rule_single_ingest_entry_point` |
+| no resurrection of StepProvider / StepFetchResult / fetchNewSteps | `rule_no_retired_dart_model` (no allow-list, and there must not be one) |
+| no flat unscoped newSteps boundary | `rule_no_flat_contract_field` (Dart contract), `rule_no_retired_native_model` (Swift and Kotlin) |
+| only ReconcileStepSync / SyncResponse reaching the engine | `rule_single_ingest_entry_point` |
+| completeness and cursor authority remaining in their intended layers | `rule_settling_construction_sites` — `CompleteThrough` and `RecoveryCompleteThrough` are constructed at ONE site, which returns `PartialDelivery` unless the page declares itself final |
+| no native or parallel ledger authority | `rule_no_retired_native_model`, plus `check-origin-privacy.sh`'s `rule_no_native_durable_store` for the cursor — **not** this guard |
+| `StepLedger.signature` not used as equality, unchanged-ledger, replay-determinism, save-integrity, cursor or watermark evidence | `rule_signature_allowed_files` (named files only) + `rule_no_signature_capture` (never held, even where permitted) |
+| `StepLedger.signature` allowed only for its implementation and explicit diagnostic/privacy-format tests | the six named files in `SIGNATURE_APPROVED` |
+| the `StepOriginKey` shape, and raw identifiers never crossing Pigeon | `check-origin-privacy.sh` — **not** this guard |
+
+---
+
 ## check-android-target.sh — 6 reject + 1 accept
 
 Converted at the previous checkpoint; recorded here for completeness.
