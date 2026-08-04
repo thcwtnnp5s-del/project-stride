@@ -49,7 +49,10 @@
 //                                             [el] narrows to one element)
 //   xmlq.js <file> elements <localName>       every element with that local name
 //
-// Every mode exits 2 on a parse error, so malformed input fails closed.
+// Every mode exits 2 on a parse error, so malformed input fails closed. Every
+// exit 2 also names its cause on stderr as `STRIDE_XMLQ[<reason>]`, one of
+// `invalid_document`, `invalid_invocation` or `internal_failure` — see the exit
+// contract below for why a guard is only allowed to act on the first.
 'use strict';
 
 const fs = require('fs');
@@ -63,8 +66,12 @@ try {
   try {
     ({ DOMParser } = require('@xmldom/xmldom'));
   } catch (_e) {
+    // The reason token is written literally here, not via `dieInternal`. This
+    // runs at module load, before the `const` reason tokens below have
+    // initialised, so calling the helper would raise a ReferenceError from the
+    // temporal dead zone and replace a clear diagnostic with a stack trace.
     console.error(
-      'xmlq: @xmldom/xmldom is not installed.\n' +
+      'STRIDE_XMLQ[internal_failure] xmlq: @xmldom/xmldom is not installed.\n' +
         '  cd Scripts/tooling && npm ci',
     );
     process.exit(2);
@@ -99,9 +106,57 @@ const EXIT_MATCH = 0;
 const EXIT_NO_MATCH = 1;
 const EXIT_ERROR = 2;
 
-function die(msg) {
-  console.error(`xmlq: ${msg}`);
+// ---------------------------------------------------------------------------
+// Exit 2 has a REASON, and the reason changes what a guard is allowed to do
+// ---------------------------------------------------------------------------
+//
+// Exit 2 is one code covering three unrelated events, and a guard needs to tell
+// them apart:
+//
+//   invalid_document    the file was found, read, and is not a valid document
+//                       under this repository's policy — malformed, a rejected
+//                       doctype or entity, two roots, not the plist shape the
+//                       query requires. The guard LOOKED and the tree is wrong.
+//
+//   invalid_invocation  the guard asked a question that cannot be asked — no
+//                       mode, an unknown mode, a path that does not exist. The
+//                       guard did not look at anything.
+//
+//   internal_failure    the dependency is missing, or something threw that has
+//                       no other classification. The guard could not look.
+//
+// Only `invalid_document` may become a policy REJECTION (guard exit 1). The
+// other two are infrastructure (guard exit 2) and must never satisfy a
+// mutation test — otherwise deleting a file, breaking Node, or renaming a mode
+// would each read as "the guard correctly rejected the violation", which is the
+// exact over-determination that left three checks in this repository dead for
+// their entire existence while their self-test read green.
+//
+// The reason is emitted as a machine-readable token on stderr. Callers match
+// the token, never the prose.
+const XMLQ_INVALID_DOCUMENT = 'invalid_document';
+const XMLQ_INVALID_INVOCATION = 'invalid_invocation';
+const XMLQ_INTERNAL_FAILURE = 'internal_failure';
+
+function bail(reason, msg) {
+  console.error(`STRIDE_XMLQ[${reason}] xmlq: ${msg}`);
   process.exit(EXIT_ERROR);
+}
+
+/** The document was read and is not valid. The only reason a guard may
+ *  translate into a named policy rejection. */
+function die(msg) {
+  bail(XMLQ_INVALID_DOCUMENT, msg);
+}
+
+/** The question could not be asked: bad usage, unknown mode, absent file. */
+function dieInvocation(msg) {
+  bail(XMLQ_INVALID_INVOCATION, msg);
+}
+
+/** Anything else that stops xmlq answering. Never a policy statement. */
+function dieInternal(msg) {
+  bail(XMLQ_INTERNAL_FAILURE, msg);
 }
 
 /**
@@ -280,8 +335,12 @@ function parse(file) {
   try {
     text = fs.readFileSync(file, 'utf8');
   } catch (e) {
-    console.error(`xmlq: cannot read ${file}: ${e.message}`);
-    process.exit(2);
+    // INVOCATION, not document. A file that is not there is not a malformed
+    // file: nothing was read, so nothing can be said about its validity. If
+    // this were classified as a document problem, deleting a tracked plist
+    // would read to a guard as "the plist is invalid, reject" — and a mutation
+    // test could then be satisfied by the copy being incomplete.
+    dieInvocation(`cannot read ${file}: ${e.message}`);
   }
   // Strip a UTF-8 BOM. xmldom treats it as content and the document then has
   // no root element, which would look like "malformed" for a valid file.
@@ -312,13 +371,11 @@ function parse(file) {
       },
     }).parseFromString(text, 'text/xml');
   } catch (e) {
-    console.error(`xmlq: ${file} is not well-formed: ${e.message}`);
-    process.exit(2);
+    die(`${file} is not well-formed: ${e.message}`);
   }
 
   if (problems.length > 0) {
-    console.error(`xmlq: ${file} is not well-formed:\n  ${problems.join('\n  ')}`);
-    process.exit(2);
+    die(`${file} is not well-formed:\n  ${problems.join('\n  ')}`);
   }
   if (!doc || !doc.documentElement) die(`${file} has no root element`);
 
@@ -384,14 +441,19 @@ function textOf(el) {
  */
 function topLevelPairs(doc) {
   const root = doc.documentElement;
+  // DOCUMENT, not invocation. These modes are only ever pointed at a tracked
+  // plist or entitlements file, and such a file whose root is not <plist>, or
+  // which has no single top-level <dict>, is an invalid document — a guard is
+  // right to reject the tree for it. The mode being wrong for the file is a
+  // question `parses` exists to answer without a schema opinion; the Android
+  // guard asking a plist mode about a manifest is the defect that produced
+  // that separation, and it no longer calls one.
   if (root.localName !== 'plist') {
-    console.error(`xmlq: not a plist (root is <${root.localName}>)`);
-    process.exit(2);
+    die(`not a plist (root is <${root.localName}>)`);
   }
   const dicts = elementChildren(root).filter((e) => e.localName === 'dict');
   if (dicts.length !== 1) {
-    console.error(`xmlq: plist root must contain exactly one <dict>, found ${dicts.length}`);
-    process.exit(2);
+    die(`plist root must contain exactly one <dict>, found ${dicts.length}`);
   }
   const kids = elementChildren(dicts[0]);
   const pairs = [];
@@ -405,8 +467,7 @@ function topLevelPairs(doc) {
 function main() {
   const [file, mode, a, b, c] = process.argv.slice(2);
   if (!file || !mode) {
-    console.error('xmlq: usage: xmlq.js <file> <mode> [args]');
-    process.exit(2);
+    dieInvocation('usage: xmlq.js <file> <mode> [args]');
   }
   const doc = parse(file);
 
@@ -577,11 +638,35 @@ function main() {
       break;
     }
     default:
-      console.error(`xmlq: unknown mode ${mode}`);
-      process.exit(2);
+      // A mode that does not exist is INVOCATION. Three checks in
+      // check-android-target.sh called a mode named `attr` that has never been
+      // in this file; every call exited 2 into `|| true` and all three were
+      // dead from the day they were written. Classifying this as a document
+      // problem would let a guard translate a typo into a policy rejection —
+      // and a mutation test would then pass on the typo.
+      dieInvocation(`unknown mode ${mode}`);
   }
 }
 
-if (require.main === module) main();
+if (require.main === module) {
+  // Nothing may escape as an unclassified crash. An uncaught throw exits Node
+  // with code 1, which is the caller's "valid document, no match" — the exact
+  // inversion the tri-state contract exists to prevent, and one this file has
+  // already suffered once when xmldom threw on a fatal parse error.
+  try {
+    main();
+  } catch (e) {
+    dieInternal(`unhandled failure: ${(e && e.stack) || e}`);
+  }
+}
 
-module.exports = { parse, topLevelPairs, walk, textOf, ANDROID_TOOLS_NS };
+module.exports = {
+  parse,
+  topLevelPairs,
+  walk,
+  textOf,
+  ANDROID_TOOLS_NS,
+  XMLQ_INVALID_DOCUMENT,
+  XMLQ_INVALID_INVOCATION,
+  XMLQ_INTERNAL_FAILURE,
+};

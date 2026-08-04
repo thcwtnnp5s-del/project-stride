@@ -37,6 +37,29 @@ expect_exit() {
   [ "$got" -eq "$want" ] && ok "$label" || bad "$label (exit $got, wanted $want)"
 }
 
+# expect_reason <expected-reason> <label> <file> <args...>
+#
+# Exit 2 is one code covering three unrelated events, and which one it is
+# decides what a guard is ALLOWED to do about it: only `invalid_document` may
+# become a policy rejection. If a missing file or an unknown mode ever reported
+# `invalid_document`, a guard would translate a typo or an incomplete copy into
+# "the tree violates policy" — and a mutation case would be satisfied by it.
+# These cases pin the classification in both directions.
+expect_reason() {
+  local want="$1" label="$2"; shift 2
+  local err rc
+  err="$(node "$XMLQ" "$@" 2>&1 >/dev/null)"
+  rc=$?
+  if [ "$rc" -ne 2 ]; then
+    bad "$label (exit $rc, wanted 2)"
+    return
+  fi
+  case "$err" in
+    *"STRIDE_XMLQ[$want]"*) ok "$label" ;;
+    *) bad "$label (reason was '$(printf '%s' "$err" | sed -n 's/.*\(STRIDE_XMLQ\[[a-z_]*\]\).*/\1/p' | head -1)', wanted STRIDE_XMLQ[$want])" ;;
+  esac
+}
+
 # expect_out <expected-substring|EMPTY> <label> <file> <args...>
 expect_out() {
   local want="$1" label="$2"; shift 2
@@ -303,6 +326,55 @@ cat > "$WORK/m-wrongns.xml" <<'XML'
 XML
 expect_exit 1 "an android: prefix bound elsewhere does NOT match the alias" \
   "$WORK/m-wrongns.xml" attr-ns android minSdkVersion uses-sdk
+
+# ---------------------------------------------------------------------------
+# Exit-2 REASONS
+#
+# A guard may translate `invalid_document` — and only that — into a named
+# policy rejection, because it means the file was read and is wrong. The other
+# two mean the guard could not look at all, and a guard that has not looked has
+# observed nothing about the tree.
+#
+# The malformed and doctype fixtures below are the exact shapes
+# `check-ios-target.sh` injects for cases 14-17, so these two suites agree about
+# what those cases prove.
+# ---------------------------------------------------------------------------
+echo "guard-parsers: exit-2 reasons"
+
+expect_reason invalid_document "malformed XML is invalid_document" \
+  "$WORK/m-broken.xml" parses
+expect_reason invalid_document "mismatched tags are invalid_document" \
+  "$WORK/m-unclosed.xml" parses
+
+cat > "$WORK/p-entity.plist" <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE plist [ <!ENTITY x "y"> ]>
+<plist version="1.0"><dict><key>a</key><true/></dict></plist>
+XML
+expect_reason invalid_document "a DOCTYPE internal subset is invalid_document" \
+  "$WORK/p-entity.plist" has-key a
+
+cat > "$WORK/p-evil-doctype.plist" <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE plist PUBLIC "-//Evil//DTD//EN" "http://evil.invalid/x.dtd">
+<plist version="1.0"><dict><key>a</key><true/></dict></plist>
+XML
+expect_reason invalid_document "a non-Apple doctype is invalid_document" \
+  "$WORK/p-evil-doctype.plist" has-key a
+
+expect_reason invalid_document "a non-plist root under a plist mode is invalid_document" \
+  "$WORK/p-notplist.xml" keys
+
+# The other direction. None of these may ever become a policy rejection: a file
+# that is not there was never read, and a mode that does not exist was never a
+# question about the tree. `attr` is the specific misspelling that left three
+# checks in check-android-target.sh dead from the day they were written.
+expect_reason invalid_invocation "a MISSING file is invalid_invocation, not a malformed document" \
+  "$WORK/does-not-exist.xml" parses
+expect_reason invalid_invocation "an unknown mode is invalid_invocation" \
+  "$WORK/p-good.plist" attr
+expect_reason invalid_invocation "no mode at all is invalid_invocation" \
+  "$WORK/p-good.plist"
 
 echo ""
 if [ "$failures" -gt 0 ]; then

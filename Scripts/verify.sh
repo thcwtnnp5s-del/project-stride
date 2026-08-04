@@ -95,6 +95,14 @@ fi
 step "Guard parsers (XML, plist, doctype policy, no external resolution)"
 ./Scripts/check-guard-parsers.sh
 
+step "Guard source-safety (a converted guard is inert when sourced)"
+# The registry-driven self-test and the causality runner both work by sourcing a
+# guard and calling ONE named rule. That is only sound if sourcing does nothing:
+# the old iOS guard cd'd into the project root, set shell options and ran every
+# check at load time, so a runner that sourced it would have had its working
+# directory changed before it called anything.
+./Scripts/check-source-safety.sh
+
 step "Core purity"
 ./Scripts/check-core-purity.sh
 
