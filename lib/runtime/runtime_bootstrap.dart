@@ -38,6 +38,7 @@ final class StrideRuntime {
     required this.repository,
     required this.layout,
     required this.pseudonymizer,
+    required this.healthKeyingSalt,
     required this.backupExclusion,
     required this.perWriteExclusionFailures,
     required this.identityStorage,
@@ -51,6 +52,25 @@ final class StrideRuntime {
   /// reasoned about. Held here because the salt lives in the vault, and nothing
   /// else in the app is allowed to construct one.
   final OriginPseudonymizer? pseudonymizer;
+
+  /// The device-bound keying salt, for **one** destination:
+  /// `PlatformStepSource.open`, which installs it into the native adapter for
+  /// the lifetime of the engine attachment.
+  ///
+  /// It is here rather than reachable through [pseudonymizer] because that class
+  /// keeps its salt private on purpose, and adding a getter to it would open the
+  /// value to every holder of a pseudonymizer. This field has exactly one reader
+  /// — `StrideSession.start` — and the constraint is worth more than the
+  /// symmetry.
+  ///
+  /// **Never logged, never rendered, never written to a save.** The save records
+  /// `OriginSaltPolicy.fingerprint(salt)`, which is not reversible to this.
+  ///
+  /// Null when the bootstrap was blocked or no identity resolved, in which case
+  /// the adapter is never opened and answers
+  /// `PlatformUnavailableReason.originKeyingUnconfigured` — fail-closed, which
+  /// is the correct outcome rather than a degraded one.
+  final Uint8List? healthKeyingSalt;
 
   /// What the **launch sweep** achieved: the directory and every file that
   /// already existed when the app started.
@@ -305,5 +325,9 @@ Future<StrideRuntime> bootstrapStride({
     pseudonymizer: outcome is BootstrapBlocked || salt == null
         ? null
         : OriginPseudonymizer(salt),
+    // Same condition, and deliberately the same condition: a blocked launch
+    // must not hand the native adapter an identity, because a blocked launch is
+    // one whose lineage was not established. Fail-closed beats degraded.
+    healthKeyingSalt: outcome is BootstrapBlocked ? null : salt,
   );
 }

@@ -205,11 +205,25 @@ final class BootstrapNewGame extends BootstrapOutcome {
     required this.engine,
     required this.registry,
     required this.identity,
+    required this.load,
   });
 
   final GameEngine engine;
   final ContentRegistry registry;
   final ReconciliationIdentity identity;
+
+  /// The verification read of the save that was just written.
+  ///
+  /// Carried for the same reason [BootstrapExistingGame.load] is: a caller that
+  /// intends to commit needs `generation` and `lastAppliedTransaction` to build
+  /// a [CommitExpectation], and there is no other way to obtain them without
+  /// performing a second full load. Without this the app's first commit after a
+  /// new game would have to guess the durable head, and a guess that is wrong
+  /// is refused as a compare-and-swap conflict rather than being detected.
+  ///
+  /// It is the same `SaveLoaded` step 6 already produced, so nothing extra is
+  /// read to supply it.
+  final SaveLoaded load;
 
   @override
   BootstrapPhase get phase => BootstrapPhase.readyNewGame;
@@ -534,6 +548,7 @@ final class BootstrapCoordinator {
       engine: GameEngine(registry: registry, state: verified.state),
       registry: registry,
       identity: identity,
+      load: verified,
     );
   }
 

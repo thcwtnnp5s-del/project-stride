@@ -111,6 +111,22 @@ sealed class SyncCompleteness {
   /// The point through which [origin] may be settled, or null for "do not
   /// compact this origin".
   int? horizonFor(StepOriginKey origin);
+
+  /// The scope this assertion vouches for, or null when it vouches for nothing.
+  ///
+  /// **Diagnostic only.** Nothing in reconciliation reads it — settling goes
+  /// through [horizonFor], which is per-origin and clamped, and a caller that
+  /// reasoned about the scope directly would be re-deriving that decision
+  /// somewhere it is not enforced.
+  ///
+  /// It exists so a diagnostic can report the interval an adapter actually
+  /// queried **without naming the settling variants**. Naming them is what
+  /// `Scripts/check-step-model.sh` refuses outside `PlatformStepSource`, and it
+  /// refuses a destructuring pattern exactly as it refuses a constructor call —
+  /// correctly, because it cannot tell them apart and the one it must catch is
+  /// worth the false positive. An accessor on the sealed base is the way a
+  /// reader asks the question without asking for the type.
+  CompletenessScope? get assertedScope;
 }
 
 /// Pages remain outstanding. **Nothing may be settled.**
@@ -122,6 +138,12 @@ final class PartialDelivery extends SyncCompleteness {
 
   @override
   int? horizonFor(StepOriginKey origin) => null;
+
+  /// Null, and deliberately. A partial delivery vouches for nothing, so a
+  /// diagnostic rendering an interval for it would show an assertion that was
+  /// never made.
+  @override
+  CompletenessScope? get assertedScope => null;
 }
 
 /// The adapter has exhausted every page for the declared scope.
@@ -160,6 +182,9 @@ final class CompleteThrough extends SyncCompleteness {
         ? throughMillis
         : scope.intervalEndMillis;
   }
+
+  @override
+  CompletenessScope? get assertedScope => scope;
 }
 
 /// A bounded recovery rescan completed and covered its whole window.
@@ -185,4 +210,7 @@ final class RecoveryCompleteThrough extends SyncCompleteness {
         ? throughMillis
         : scope.intervalEndMillis;
   }
+
+  @override
+  CompletenessScope? get assertedScope => scope;
 }
