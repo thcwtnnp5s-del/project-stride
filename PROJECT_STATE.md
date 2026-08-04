@@ -106,6 +106,13 @@ The player must be able to:
 30. ~~Re-run CI and the Android process-death workflow against the final tree.~~ **Done — both green, `F06_COMPLETION_REPORT.md` §10**
 31. ~~Execute F-07 — skill framework.~~ **Deferred by owner priority decision — `DECISIONS/0014`**
 32. **Execute S-01A — foreground HealthKit and Health Connect integration with a device-validation harness.** ← current state
+    - **Android foreground vertical slice implementation-complete**, branch `s01a-foreground-health-harness`.
+      Real steps → `SyncResponse` → `ReconcileStepSync` → `GameEngine` → durable save →
+      usable energy → `GatherResource` → persisted, verified across a relaunch.
+      See `S01A_IMPLEMENTATION_MAP.md` and `S01A_DEVICE_VALIDATION.md`.
+    - **Awaiting physical-device validation.** Everything in front of `StepSource` is
+      asserted automatically; the Health Connect platform itself is not, and cannot be.
+    - iOS foreground HealthKit is unchanged and remains open.
 
 ## F-05 closed the four decisions
 

@@ -10,11 +10,22 @@
 
 ### Application
 
-- `lib/main.dart` — entry point
-- `lib/ui/root_placeholder.dart` — placeholder screen
-- `test/app_shell_test.dart` — widget tests
+- `lib/main.dart` — entry point; runs the real bootstrap before the first frame
+- `lib/runtime/runtime_bootstrap.dart` — storage, identity, coordinator wiring
+- `lib/runtime/identity_vault.dart` — where the reconciliation identity lives
+- `lib/runtime/stride_session.dart` — S-01A: the fetch → reconcile → commit loop
+- `lib/runtime/asset_content.dart` — content pack from the asset bundle
+- `lib/ui/dev_harness.dart` — S-01A developer harness (redacted diagnostics)
+- `test/s01a_vertical_slice_test.dart` — the fourteen S-01A acceptance properties
+- `test/identity_vault_test.dart`, `test/identity_vault_orphan_test.dart`
+- `test/per_write_exclusion_diagnostic_test.dart`
 - `pubspec.yaml`, `analysis_options.yaml`
 - `android/`, `ios/` — Flutter platform runners
+
+> `lib/ui/root_placeholder.dart` and `test/app_shell_test.dart` were the M-2
+> skeleton and were removed in S-01A: the app now boots into the harness, so a
+> test asserting that the placeholder renders and carries no buttons was
+> asserting the absence of the thing that had just been built.
 
 ### `packages/stride_core` — pure Dart simulation
 

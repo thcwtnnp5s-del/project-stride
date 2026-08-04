@@ -49,6 +49,9 @@ packages/stride_core/pubspec.lock
 # Android
 # ---------------------------------------------------------------------------
 **/android/.gradle
+# Kotlin's incremental-compilation cache. Written by any Gradle build under
+# packages/stride_health/example/android; never an input to anything.
+**/android/.kotlin
 **/android/captures/
 **/android/local.properties
 **/android/**/GeneratedPluginRegistrant.java
