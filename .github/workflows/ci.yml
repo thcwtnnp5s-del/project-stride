@@ -360,6 +360,22 @@ jobs:
       #
       # `aapt2 dump badging` reads the compiled binary manifest. Failing closed:
       # if the line cannot be found at all, that is a failure, not a pass.
+      #
+      # ## The line is `minSdkVersion:`, not `sdkVersion:`
+      #
+      # This grepped `^sdkVersion:` and could therefore NEVER match. That is the
+      # aapt **v1** spelling; aapt2 emits `minSdkVersion:'26'`. Verified against
+      # build-tools 36.0.0 and 36.1.0, both of which print `minSdkVersion:` and
+      # no `sdkVersion:` line at all, and against CI's 37.0.0, where the step
+      # failed with "no sdkVersion in the badging output" -- never reaching a
+      # comparison.
+      #
+      # So this check had no working path: it could only ever fail closed. It
+      # went unnoticed because the Android job is gated behind `core`, and the
+      # one run that reached this step failed here immediately. Failing closed
+      # is what made it a loud defect instead of a silent one -- had it been
+      # written `|| true`, it would have joined the dead checks this repository
+      # has already been bitten by twice.
       - name: Prove the built APK declares minSdkVersion 26
         run: |
           set -euo pipefail
@@ -371,10 +387,10 @@ jobs:
             local apk="$1" label="$2"
             [ -f "$apk" ] || { echo "::error::$label: $apk was not built"; exit 1; }
             local line
-            line="$("$AAPT2" dump badging "$apk" | grep -E "^sdkVersion:" || true)"
-            [ -n "$line" ] || { echo "::error::$label: no sdkVersion in the badging output"; exit 1; }
+            line="$("$AAPT2" dump badging "$apk" | grep -E "^minSdkVersion:" || true)"
+            [ -n "$line" ] || { echo "::error::$label: no minSdkVersion in the badging output"; exit 1; }
             local got
-            got="$(printf '%s' "$line" | sed -E "s/^sdkVersion:'([0-9]+)'.*/\1/")"
+            got="$(printf '%s' "$line" | sed -E "s/^minSdkVersion:'([0-9]+)'.*/\1/")"
             echo "$label -> $line"
             if [ "$got" != "26" ]; then
               echo "::error::$label declares minSdkVersion $got in the BUILT ARTIFACT, not 26."
