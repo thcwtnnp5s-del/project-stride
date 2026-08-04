@@ -578,10 +578,29 @@ rule_no_flat_contract_field() {
 # contract that has been emptied of both passes `rule_no_flat_contract_field`
 # vacuously. This is what stops that from reading as a clean result.
 rule_observation_class_present() {
-  local p="$PROJECT_ROOT/$PIGEON_INPUT"
+  local p="$PROJECT_ROOT/$PIGEON_INPUT" stripped
   [ -f "$p" ] || return 0
-  strip_comments < "$p" | grep -qF "$OBSERVATION_CLASS" || \
-    fail_in observation_class_present "$PIGEON_INPUT no longer declares PlatformStepObservation.
+
+  # The membership test is done on a CAPTURED string rather than as
+  # `strip_comments < "$p" | grep -qF ...`, and the difference is not stylistic.
+  #
+  # The guard runs under `set -o pipefail`. `grep -q` exits the moment it
+  # matches, and this class is declared around line 282 of a 600-line file, so
+  # `awk` is still writing when the read end closes. It takes SIGPIPE, exits
+  # 141, and pipefail makes that the status of the WHOLE pipeline -- so the
+  # `||` fired and the rule reported the class MISSING from a file that
+  # declares it.
+  #
+  # Whether awk finishes before grep exits is a scheduling race, which is why
+  # this passed on every local run and failed in CI: a false rejection of a
+  # correct tree, on the one rule whose job is to notice the contract being
+  # emptied. Capturing first removes the pipeline, and with it the race.
+  stripped="$(strip_comments < "$p")"
+  case "$stripped" in
+    *"$OBSERVATION_CLASS"*) return 0 ;;
+  esac
+
+  fail_in observation_class_present "$PIGEON_INPUT no longer declares PlatformStepObservation.
       Absence of a flat field is only meaningful while the per-origin one
       exists. A contract with neither is not safe, it is empty -- every
       remaining contract check would pass on it while no step data crosses the
