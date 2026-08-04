@@ -60,9 +60,11 @@ check-dependency-policy.sh
 
 # Guards' own test harnesses are not guards and are never sourced by a runner.
 NOT_GUARDS="
+check-causality-framework.sh
 check-guard-parsers.sh
 check-rulekit.sh
 check-source-safety.sh
+check-supervisor.sh
 "
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/stride-srcsafe-XXXXXXXX")"

@@ -109,6 +109,24 @@ step "Guard source-safety (a converted guard is inert when sourced)"
 # directory changed before it called anything.
 ./Scripts/check-source-safety.sh
 
+step "Causality framework falsification (the framework must refuse a broken case)"
+# A passing causality run is not evidence that the framework works: one that
+# accepted everything would report exactly the same thing. This constructs
+# deliberately broken cases -- wrong diagnostic, unrelated failure, no-op
+# mutation, failed restoration, already-failing baseline, undeclared path, an
+# infra exit offered for a reject case, a policy exit offered for an infra case
+# -- and requires each to be refused. Two CORRECT cases must still pass, because
+# "refuses every broken case" is satisfied perfectly by a framework that refuses
+# everything.
+./Scripts/check-causality-framework.sh
+
+step "Process supervision (a cancelled run must leave nothing behind)"
+# A cancelled batch was believed dead and was not: the wrapper was killed, its
+# descendants were reparented and kept running for forty minutes, creating
+# fresh temp roots while a cleanup was being reported. This cancels a real
+# supervised run and asks the operating system what is left.
+./Scripts/check-supervisor.sh
+
 step "Case registry (validates, and every total is derived by counting)"
 # The shared case inventory for the migrated guards. Each guard revalidates it
 # when its own --self-test runs; this reports the totals in one place, derived

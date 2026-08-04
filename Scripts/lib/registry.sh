@@ -114,6 +114,65 @@ reg_guard() {
 # Guard IDs contain `-`, which is not legal in a shell variable name.
 reg_slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9' '_'; }
 
+# reg_guard_impl <guard-id> <script-basename> <paths-var-name>...
+#
+# Where a guard LIVES, and which of its own variables hold the paths its
+# isolated root needs. A guard's `--self-test` already knows both, because it
+# passes `"$0"` and its own path list to `reg_selftest`. The causality runner
+# has no guard to ask: it iterates the registry and must build a root for a
+# guard it was never invoked by.
+#
+# ## Why this is a locator and not a copy of the path list
+#
+# The obvious shortcut is to write the paths down here. That would be a second
+# source of truth for exactly the thing this registry exists to have one of, and
+# it would drift the first time a guard started checking a new file: the guard
+# would inspect a path the runner never copied, the isolated root would fail its
+# clean baseline, and the failure would read as "the guard rejects a correct
+# tree".
+#
+# So what is recorded is the NAME of the guard's own variable. `reg_guard_paths`
+# resolves it by SOURCING the guard — which is inert, and is the property
+# `check-source-safety.sh` exists to keep true — and expanding it there. The
+# list therefore still lives in exactly one place: the guard.
+#
+# Several names are allowed because a guard may hold more than one list; the
+# Android guard's self-test root is `$GRADLE_FILES $MANIFESTS`.
+reg_guard_impl() {
+  local guard="$1" script="$2"; shift 2
+  local slug; slug="$(reg_slug "$guard")"
+  eval "REG_SCRIPT_$slug=\$script"
+  eval "REG_PATHVARS_$slug=\$*"
+}
+
+reg_guard_script()   { eval "printf '%s' \"\${REG_SCRIPT_$(reg_slug "$1")-}\""; }
+reg_guard_pathvars() { eval "printf '%s' \"\${REG_PATHVARS_$(reg_slug "$1")-}\""; }
+
+# reg_guard_paths <scripts-dir> <guard-id>
+#
+# The guard's isolated-root path list, one per line, DERIVED by sourcing the
+# guard rather than restated here.
+#
+# `bash -c '...' _ ...` gives the new shell a `$0` of `_`, which can never equal
+# the sourced path, so the guard's `[[ "${BASH_SOURCE[0]}" == "$0" ]]` entry is
+# false and sourcing is inert. Sourcing from a plain subshell of a process that
+# is already running the same guard makes both sides of that test equal and runs
+# `guard_main` on whatever positional parameters are in scope — the defect that
+# made every early `named_rule` case fail with `usage: unknown argument`.
+reg_guard_paths() {
+  local dir="$1" guard="$2" script vars
+  script="$(reg_guard_script "$guard")"
+  vars="$(reg_guard_pathvars "$guard")"
+  [ -n "$script" ] || return 1
+  bash -c '
+    set -uo pipefail
+    . "$1" >/dev/null 2>&1 || exit 2
+    for v in $2; do
+      eval "printf '"'"'%s\n'"'"' \${$v-}"
+    done
+  ' _ "$dir/$script" "$vars" | tr -s ' \t' '\n' | grep -v '^$'
+}
+
 reg_rules_for_guard() { eval "printf '%s' \"\${REG_RULES_$(reg_slug "$1")-}\""; }
 
 reg_known_guard() {
@@ -211,6 +270,21 @@ reg_validate() {
     printf '%s' "$REG_LOAD_ERRORS" >&2
     bad=$(( bad + $(printf '%s' "$REG_LOAD_ERRORS" | grep -c .) ))
   fi
+
+  # Every declared guard must say where it lives and which of its variables
+  # hold its isolated-root paths. Without both, the causality runner cannot
+  # build a root for that guard at all — and the failure mode of "cannot build
+  # a root" is a guard that is silently never exercised, which is the shape of
+  # every defect this registry was written about.
+  local g
+  for g in $REG_GUARDS; do
+    [ -n "$(reg_guard_script "$g")" ] || {
+      echo "registry: guard '$g' declares no implementing script (reg_guard_impl)" >&2
+      bad=$((bad + 1)); }
+    [ -n "$(reg_guard_pathvars "$g")" ] || {
+      echo "registry: guard '$g' declares no isolated-root path variables (reg_guard_impl)" >&2
+      bad=$((bad + 1)); }
+  done
 
   for id in $REG_IDS; do
     # Duplicate IDs: two cases reporting under one name means one of them is

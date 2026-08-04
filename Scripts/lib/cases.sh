@@ -101,6 +101,30 @@ rule_signature_allowed_files
 rule_no_signature_capture
 "
 
+# ---------------------------------------------------------------------------
+# GUARD LOCATORS
+#
+# Which script implements each guard, and which of that guard's OWN variables
+# hold the paths its isolated root needs.
+#
+# A guard's `--self-test` never needed this: it passes `"$0"` and its own path
+# list straight to `reg_selftest`. The causality runner does, because it starts
+# from the registry and has no guard to ask — it must be able to build a root
+# for a guard nothing invoked it from.
+#
+# The path VARIABLE NAMES are recorded, never the paths. `reg_guard_paths`
+# sources the guard and expands them there, so the lists still live in exactly
+# one place. Writing the paths here instead would drift the first time a guard
+# began inspecting a new file: the guard would read a path the runner never
+# copied, the isolated root would fail its clean baseline, and that reads as
+# "the guard rejects a correct tree" rather than as a stale list.
+# ---------------------------------------------------------------------------
+reg_guard_impl android        check-android-target.sh GRADLE_FILES MANIFESTS
+reg_guard_impl ios            check-ios-target.sh     GUARD_PATHS
+reg_guard_impl single-writer  check-single-writer.sh  SINGLE_WRITER_SELFTEST_PATHS
+reg_guard_impl origin-privacy check-origin-privacy.sh ORIGIN_PRIVACY_SELFTEST_PATHS
+reg_guard_impl step-model     check-step-model.sh     STEP_MODEL_SELFTEST_PATHS
+
 # ===========================================================================
 # THE MUTATION LAYER
 #
