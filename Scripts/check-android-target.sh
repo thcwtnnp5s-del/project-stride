@@ -34,30 +34,29 @@
 #   check-android-target.sh [--project-root <path>]
 #   check-android-target.sh --self-test
 
-set -uo pipefail
+# NOTE ON SOURCING: everything above `guard_main` must be free of side effects.
+# No traps, no `cd`, no shell-option changes, no file creation, no rule
+# execution. `Scripts/check-source-safety.sh` proves that for every guard.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=lib/rulekit.sh
+. "$SCRIPT_DIR/lib/rulekit.sh"
 # shellcheck source=lib/selftest.sh
 . "$SCRIPT_DIR/lib/selftest.sh"
 
-PROJECT_ROOT="$REPO_ROOT"
-SELF_TEST=0
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --project-root) PROJECT_ROOT="$2"; shift 2 ;;
-    --self-test) SELF_TEST=1; shift ;;
-    *) echo "unknown option: $1" >&2; exit 2 ;;
-  esac
-done
-
+GUARD_ID="android"
 XMLQ="$SCRIPT_DIR/lib/xmlq.js"
 REQUIRED_MIN_SDK="26"
 
-failures=0
-fail() { echo "android-target: FAIL -- $1" >&2; failures=$((failures + 1)); }
+# Every rule resolves its paths against this. Set by guard_main, or directly by
+# the causality runner — which is why it is a plain variable and why no rule
+# calls `cd`.
+PROJECT_ROOT="${PROJECT_ROOT:-$REPO_ROOT}"
 
-cd "$PROJECT_ROOT"
+# `fail` is retained as the guard's local spelling of a policy violation, but it
+# now carries a stable ID. Callers pass the rule name.
+fail_in() { guard_fail "$GUARD_ID.$1" "$2"; }
 
 # The paths this guard inspects. Also the copy list for --self-test.
 GRADLE_FILES="
@@ -85,6 +84,7 @@ packages/stride_health/example/android/app/src/main/AndroidManifest.xml
 rule_min_sdk_pinned() {
 declared=0
 for f in $GRADLE_FILES; do
+  f="$PROJECT_ROOT/$f"
   [ -f "$f" ] || continue
   hits="$(grep -nE '^[[:space:]]*minSdk[[:space:]]*=' "$f" || true)"
   [ -n "$hits" ] || continue
@@ -95,19 +95,19 @@ for f in $GRADLE_FILES; do
     case "$value" in
       "$REQUIRED_MIN_SDK") ;;
       flutter.minSdkVersion)
-        fail "$f inherits minSdk from flutter.minSdkVersion (24). Pin it to
+        fail_in min_sdk_pinned "$f inherits minSdk from flutter.minSdkVersion (24). Pin it to
       $REQUIRED_MIN_SDK, or a Flutter SDK bump silently lowers the floor back
       under the Health Connect client's own minimum.
       $line" ;;
       *)
-        fail "$f declares minSdk $value, not $REQUIRED_MIN_SDK:
+        fail_in min_sdk_pinned "$f declares minSdk $value, not $REQUIRED_MIN_SDK:
       $line" ;;
     esac
   done <<< "$hits"
 done
 
 if [ "$declared" -eq 0 ]; then
-  fail "no build.gradle.kts declares a minSdk at all. The floor would then be
+  fail_in min_sdk_pinned "no build.gradle.kts declares a minSdk at all. The floor would then be
       whatever Flutter's default is, which is 24."
 fi
 }
@@ -115,6 +115,7 @@ fi
 # rule_manifest_parses — every manifest is readable XML
 rule_manifest_parses() {
 for f in $MANIFESTS; do
+  f="$PROJECT_ROOT/$f"
   [ -f "$f" ] || continue
 
   # `parses`, not `keys`. `keys` is a PLIST mode: handed an Android manifest it
@@ -128,7 +129,7 @@ for f in $MANIFESTS; do
   # helpers warn about: `parses` only exits 0 when there is a document element,
   # so 1 and 2 are both "cannot be read" and both must fail closed.
   if ! node "$XMLQ" "$f" parses >/dev/null 2>&1; then
-    fail "$f is not well-formed XML"
+    fail_in manifest_parses "$f is not well-formed XML"
   fi
 done
 }
@@ -136,12 +137,13 @@ done
 # rule_no_override_library — no manifest claims support the SDK does not have
 rule_no_override_library() {
 for f in $MANIFESTS; do
+  f="$PROJECT_ROOT/$f"
   [ -f "$f" ] || continue
   # A real attribute lookup. `grep` matched this file's own comment saying the
   # override is deliberately absent, and failed a correct manifest twice.
   override="$(node "$XMLQ" "$f" attr-ns android-tools overrideLibrary 2>/dev/null || true)"
   if [ -n "$override" ]; then
-    fail "$f sets tools:overrideLibrary:
+    fail_in no_override_library "$f sets tools:overrideLibrary:
       $override
       Project Stride does not claim support the Health Connect SDK does not
       have. See DECISIONS/0014."
@@ -152,12 +154,13 @@ done
 # rule_manifest_min_sdk — a uses-sdk minSdkVersion overrides Gradle silently
 rule_manifest_min_sdk() {
 for f in $MANIFESTS; do
+  f="$PROJECT_ROOT/$f"
   [ -f "$f" ] || continue
   usessdk="$(node "$XMLQ" "$f" attr-ns android minSdkVersion uses-sdk 2>/dev/null || true)"
   if [ -n "$usessdk" ]; then
     got="$(printf '%s' "$usessdk" | awk -F'\t' '{print $3}')"
     [ "$got" = "$REQUIRED_MIN_SDK" ] || \
-      fail "$f declares android:minSdkVersion=$got in the manifest, not $REQUIRED_MIN_SDK"
+      fail_in manifest_min_sdk "$f declares android:minSdkVersion=$got in the manifest, not $REQUIRED_MIN_SDK"
   fi
 done
 }
@@ -165,11 +168,12 @@ done
 # rule_no_background_entry — S-01A is foreground only
 rule_no_background_entry() {
 for f in $MANIFESTS; do
+  f="$PROJECT_ROOT/$f"
   [ -f "$f" ] || continue
   for el in service receiver; do
     found="$(node "$XMLQ" "$f" attr-ns android name "$el" 2>/dev/null || true)"
     if [ -n "$found" ]; then
-      fail "$f declares a <$el>:
+      fail_in no_background_entry "$f declares a <$el>:
       $found
       S-01A is foreground only. Background delivery is S-01B and is blocked on
       a real persistence coordinator. See DECISIONS/0013 and 0014."
@@ -178,22 +182,66 @@ for f in $MANIFESTS; do
 done
 }
 
+# rule_preflight — the guard can actually do its job.
+#
+# EXIT 2 territory, and the only rule here that is. A malformed manifest is a
+# policy violation (exit 1) because the guard looked and the tree is wrong; a
+# missing `node` is infrastructure because the guard could not look at all.
+# Collapsing those is the inversion that made three checks in this file dead
+# for their entire existence.
+rule_preflight() {
+  command -v node >/dev/null 2>&1 || \
+    guard_infra "$GUARD_ID.node_missing" "node is not on PATH; the manifests cannot be parsed"
+  [ -f "$XMLQ" ] || \
+    guard_infra "$GUARD_ID.xmlq_missing" "$XMLQ is missing"
+  [ -d "$PROJECT_ROOT" ] || \
+    guard_infra "$GUARD_ID.root_missing" "project root $PROJECT_ROOT does not exist"
+  node "$XMLQ" --version >/dev/null 2>&1
+  [ $? -ne 2 ] || node -e "1" >/dev/null 2>&1 || \
+    guard_infra "$GUARD_ID.node_broken" "node cannot execute"
+}
+
 # The complete guard. Nothing but calls to the named rules above — which is
 # what makes "the causality runner exercises the same implementation" true by
 # construction rather than by inspection.
-ANDROID_RULES="rule_min_sdk_pinned rule_manifest_parses rule_no_override_library rule_manifest_min_sdk rule_no_background_entry"
+ANDROID_RULES="rule_preflight rule_min_sdk_pinned rule_manifest_parses rule_no_override_library rule_manifest_min_sdk rule_no_background_entry"
 
 run_all_rules() {
   local r
   for r in $ANDROID_RULES; do "$r"; done
 }
 
-# Sourced by the causality runner: define the rules, run nothing.
-if [ "${GUARD_SOURCE_ONLY:-0}" = "1" ]; then
-  return 0 2>/dev/null || true
-fi
+guard_main() {
+  PROJECT_ROOT="$REPO_ROOT"
+  SELF_TEST=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --project-root)
+        [ $# -ge 2 ] || { echo "STRIDE_INFRA[$GUARD_ID.usage] --project-root needs a path" >&2; return 2; }
+        PROJECT_ROOT="$(cd "$2" 2>/dev/null && pwd)" || {
+          echo "STRIDE_INFRA[$GUARD_ID.root_missing] no such project root: $2" >&2; return 2; }
+        shift 2 ;;
+      --self-test) SELF_TEST=1; shift ;;
+      *) echo "STRIDE_INFRA[$GUARD_ID.usage] unknown option: $1" >&2; return 2 ;;
+    esac
+  done
 
-run_all_rules
+  rule_begin
+  run_all_rules
+  local code=0
+  rule_end || code=$?
+  failures="$RULE_VIOLATIONS"
+
+  guard_body "$code"
+}
+
+guard_body() {
+  local code="$1"
+  if [ "$code" -eq 2 ]; then
+    echo "" >&2
+    echo "android-target: INFRASTRUCTURE failure -- the guard could not look." >&2
+    return 2
+  fi
 
 # ---------------------------------------------------------------------------
 # Self-test — isolated, never the live tree
@@ -201,7 +249,7 @@ run_all_rules
 if [ "$SELF_TEST" -eq 1 ]; then
   if [ "$failures" -ne 0 ]; then
     echo "android-target: refusing to self-test while the real tree is failing" >&2
-    exit 1
+    return 1
   fi
 
   TREE_BEFORE="$(st_tree_snapshot)"
@@ -269,7 +317,7 @@ if [ "$SELF_TEST" -eq 1 ]; then
 
   if [ "$st_failures" -ne 0 ]; then
     echo "android-target: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
-    exit 1
+    return 1
   fi
   echo "android-target: self-test OK -- 6 injected violations rejected, 1 false positive refused"
 fi
@@ -277,10 +325,20 @@ fi
 if [ "$failures" -gt 0 ]; then
   echo "" >&2
   echo "Project Stride's Android minimum is API $REQUIRED_MIN_SDK. See DECISIONS/0014." >&2
-  exit 1
+  return 1
 fi
 
 echo "android-target: OK"
 echo "  minSdk            : $REQUIRED_MIN_SDK, pinned in $declared gradle file(s)"
 echo "  overrideLibrary   : absent (parsed, not grepped)"
 echo "  background entry  : none (S-01A is foreground only)"
+}
+
+# Source-safe entry. Sourcing defines the rules and does nothing else: no traps,
+# no cd, no shell-option changes, no files, no rule execution. Proven for every
+# guard by Scripts/check-source-safety.sh.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  set -uo pipefail
+  guard_main "$@"
+  exit $?
+fi
