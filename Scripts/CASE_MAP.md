@@ -72,6 +72,40 @@ are the first and only IDs these cases have ever had. This note is the record,
 so the question is not reopened from the same report a third time. The registry
 IDs are not to be renamed.
 
+### Five-guard reconciliation
+
+All five guards now take the shared registry as their sole case inventory. What
+was verified at the reconciliation, on 2026-08-04:
+
+* `Scripts/registry-report.sh` validates and its **derived** totals are 62
+  cases across 5 guards — 54 reject, 1 accept, 7 infra. Those numbers are
+  recorded here as an *observation at a point in time*, never as an authority:
+  the report computes them by counting, and if this paragraph and the report
+  ever disagree, the report is right and this paragraph is stale.
+* every case ID in this file exists exactly once in the registry, and every
+  registry ID appears in this file — 62 each way, no duplicates, no orphans
+* no guard carries an embedded mutation inventory, and no `mut_*`, `inv_*` or
+  `reg_case` declaration exists anywhere outside `Scripts/lib/cases.sh`, so
+  there is no second mutation source
+* all 62 cited production rules exist and are sourceable as functions in their
+  own guard
+* the `named_rule` invoker runs the rule and not `guard_main`: invoked against
+  a clean root each rule returns 0 and emits no guard summary and no `usage`
+  line, and against its own probe the owning rule returns 1 with its own
+  diagnostic while an unrelated rule of the same guard returns 0
+* all five complete guards pass; all five self-tests pass with byte-exact
+  restoration and an unchanged live tree; source-safety passes for all five;
+  `check-guard-parsers.sh` passes 40 cases
+
+**A latent weakness noticed and deliberately not changed.** `rule_run` in
+`rulekit.sh` returns 0 when handed a name that is not a defined function.
+Nothing currently depends on that: `reg_validate` rejects a case citing a rule
+outside its guard's inventory, `reg_assert_rules_match` rejects the inventory
+drifting from the guard, and a `named_rule` case whose rule vanished would see
+exit 0 where it requires 1 and therefore FAIL. The failure mode is safe in
+every present configuration, so hardening `rule_run` is left as its own change
+rather than folded into a migration.
+
 ## Why this file exists
 
 Each guard used to carry its own inventory of injections inside `--self-test`,
