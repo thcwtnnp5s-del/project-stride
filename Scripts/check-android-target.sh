@@ -44,6 +44,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/rulekit.sh"
 # shellcheck source=lib/selftest.sh
 . "$SCRIPT_DIR/lib/selftest.sh"
+# shellcheck source=lib/registry.sh
+. "$SCRIPT_DIR/lib/registry.sh"
+# shellcheck source=lib/cases.sh
+. "$SCRIPT_DIR/lib/cases.sh"
 
 GUARD_ID="android"
 XMLQ="$SCRIPT_DIR/lib/xmlq.js"
@@ -243,98 +247,42 @@ guard_body() {
     return 2
   fi
 
+  if [ "$SELF_TEST" -eq 1 ]; then
+    run_self_test || return $?
+  fi
+
+  if [ "$failures" -gt 0 ]; then
+    echo "" >&2
+    echo "Project Stride's Android minimum is API $REQUIRED_MIN_SDK. See DECISIONS/0014." >&2
+    return 1
+  fi
+
+  echo "android-target: OK"
+  echo "  minSdk            : $REQUIRED_MIN_SDK, pinned in $declared gradle file(s)"
+  echo "  overrideLibrary   : absent (parsed, not grepped)"
+  echo "  background entry  : none (S-01A is foreground only)"
+}
+
 # ---------------------------------------------------------------------------
-# Self-test — isolated, never the live tree
+# Self-test — registry-driven, isolated, never the live tree
+#
+# This guard holds no case inventory of its own. Every case, every mutation and
+# every expected diagnostic lives in `Scripts/lib/cases.sh`, and the runner in
+# `Scripts/lib/registry.sh` refuses to run if any of that machinery comes back
+# here: a second mutation source is what let this guard be reported with the
+# wrong case count, and what let three of its checks stay dead for their entire
+# existence while the self-test read green.
+#
+# Counts are DERIVED from the registry and printed by the runner. There is no
+# number written down in this file to disagree with them.
 # ---------------------------------------------------------------------------
-if [ "$SELF_TEST" -eq 1 ]; then
+run_self_test() {
   if [ "$failures" -ne 0 ]; then
     echo "android-target: refusing to self-test while the real tree is failing" >&2
     return 1
   fi
-
-  TREE_BEFORE="$(st_tree_snapshot)"
-  ISO="$(st_make_root)"
-  trap 'rm -rf "$ISO"' EXIT
-  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
-  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
-  # empty tree when run from another directory.
   # shellcheck disable=SC2086
-  st_copy_from "$PROJECT_ROOT" "$ISO" $GRADLE_FILES $MANIFESTS
-
-  st_failures=0
-  expect_reject() {
-    if bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-      echo "android-target SELF-TEST FAILED: accepted $1" >&2
-      st_failures=$((st_failures + 1))
-    else
-      echo "  rejected as expected: $1"
-    fi
-  }
-
-  PLUGIN_GRADLE="$ISO/packages/stride_health/android/build.gradle.kts"
-  EXAMPLE_GRADLE="$ISO/packages/stride_health/example/android/app/build.gradle.kts"
-  PLUGIN_MANIFEST="$ISO/packages/stride_health/android/src/main/AndroidManifest.xml"
-
-  cp "$PLUGIN_GRADLE" "$ISO/g.bak"
-  sed -i "s/minSdk = 26/minSdk = 24/" "$PLUGIN_GRADLE"
-  expect_reject "plugin minSdk lowered to 24"
-  cp "$ISO/g.bak" "$PLUGIN_GRADLE"
-
-  cp "$EXAMPLE_GRADLE" "$ISO/e.bak"
-  sed -i "s/minSdk = 26/minSdk = 25/" "$EXAMPLE_GRADLE"
-  expect_reject "example app minSdk lowered to 25"
-  cp "$ISO/e.bak" "$EXAMPLE_GRADLE"
-
-  sed -i "s/minSdk = 26/minSdk = flutter.minSdkVersion/" "$EXAMPLE_GRADLE"
-  expect_reject "example app minSdk inherited from flutter.minSdkVersion"
-  cp "$ISO/e.bak" "$EXAMPLE_GRADLE"
-
-  cp "$PLUGIN_MANIFEST" "$ISO/m.bak"
-  sed -i 's|<manifest |<manifest xmlns:tools="http://schemas.android.com/tools" |; s|</manifest>|  <uses-sdk tools:overrideLibrary="androidx.health.connect.client" />\n</manifest>|' "$PLUGIN_MANIFEST"
-  expect_reject "tools:overrideLibrary reintroduced"
-  cp "$ISO/m.bak" "$PLUGIN_MANIFEST"
-
-  sed -i 's|</manifest>|  <uses-sdk android:minSdkVersion="24" />\n</manifest>|' "$PLUGIN_MANIFEST"
-  expect_reject "a manifest uses-sdk lowering the floor to 24"
-  cp "$ISO/m.bak" "$PLUGIN_MANIFEST"
-
-  sed -i 's|</manifest>|  <service android:name=".SyncService" />\n</manifest>|' "$PLUGIN_MANIFEST"
-  expect_reject "a background <service> declared"
-  cp "$ISO/m.bak" "$PLUGIN_MANIFEST"
-
-  # An override hidden inside a comment must NOT be rejected — that is the
-  # false positive that failed a correct tree twice.
-  sed -i 's|</manifest>|  <!-- never add tools:overrideLibrary here -->\n</manifest>|' "$PLUGIN_MANIFEST"
-  if bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "  accepted as expected: the forbidden attribute named only in a comment"
-  else
-    echo "android-target SELF-TEST FAILED: rejected a tree whose only mention is a comment" >&2
-    st_failures=$((st_failures + 1))
-  fi
-  cp "$ISO/m.bak" "$PLUGIN_MANIFEST"
-
-  rm -rf "$ISO"
-  trap - EXIT
-
-  st_assert_tree_unchanged "$TREE_BEFORE" || exit 1
-
-  if [ "$st_failures" -ne 0 ]; then
-    echo "android-target: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
-    return 1
-  fi
-  echo "android-target: self-test OK -- 6 injected violations rejected, 1 false positive refused"
-fi
-
-if [ "$failures" -gt 0 ]; then
-  echo "" >&2
-  echo "Project Stride's Android minimum is API $REQUIRED_MIN_SDK. See DECISIONS/0014." >&2
-  return 1
-fi
-
-echo "android-target: OK"
-echo "  minSdk            : $REQUIRED_MIN_SDK, pinned in $declared gradle file(s)"
-echo "  overrideLibrary   : absent (parsed, not grepped)"
-echo "  background entry  : none (S-01A is foreground only)"
+  reg_selftest "$GUARD_ID" "$0" "$ANDROID_RULES" -- $GRADLE_FILES $MANIFESTS
 }
 
 # Source-safe entry. Sourcing defines the rules and does nothing else: no traps,

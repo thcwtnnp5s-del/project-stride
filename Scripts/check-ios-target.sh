@@ -65,6 +65,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/selftest.sh"
 # shellcheck source=lib/xmlq.sh
 . "$SCRIPT_DIR/lib/xmlq.sh"
+# shellcheck source=lib/registry.sh
+. "$SCRIPT_DIR/lib/registry.sh"
+# shellcheck source=lib/cases.sh
+. "$SCRIPT_DIR/lib/cases.sh"
 
 GUARD_ID="ios"
 REQUIRED_IOS="17.0"
@@ -453,221 +457,35 @@ guard_body() {
 }
 
 # ---------------------------------------------------------------------------
-# Self-test — isolated, never the live tree
+# Self-test — registry-driven, isolated, never the live tree
 #
-# Seventeen cases, each with a stable case ID and the diagnostic its own rule
-# must emit. Recorded in `Scripts/CASE_MAP.md`, which is what the shared
-# registry will consume.
+# This guard holds no case inventory of its own. All eighteen cases — their
+# mutations, their expected exit codes and their expected diagnostics — live in
+# `Scripts/lib/cases.sh`, and the runner in `Scripts/lib/registry.sh` refuses to
+# run if any of that machinery comes back here. A second inventory is exactly
+# how this guard came to be reported as having 6 cases when it has 17.
 #
-# A nonzero exit is NOT evidence, so each case asserts three things:
+# The runner asserts, per case:
 #
-#   * the guard exits 1 — a POLICY rejection. Exit 2 is infrastructure and
-#     fails the case, which is what keeps a missing Node, a wrong path or a
-#     misspelled xmlq mode from satisfying a mutation
-#   * the diagnostic is that case's own rule, not merely some rule
-#   * the mutated file restores byte-for-byte, so the next case cannot pass on
-#     the previous case's leftovers
+#   * the COMPLETE guard produces the case's expected outcome — exit 1 with its
+#     own STRIDE_GUARD diagnostic for a `reject`, exit 0 with none for an
+#     `accept`, exit 2 with its own STRIDE_INFRA diagnostic for an `infra`.
+#     Exit 2 fails a reject case, which is what keeps a missing Node, a wrong
+#     path or a misspelled xmlq mode from satisfying a mutation
+#   * the mutation changed exactly the paths it declared, and no others
+#   * the isolated root's fingerprint — existence, bytes, type, mode and symlink
+#     target of every path — is identical after restoration
+#
+# Counts are DERIVED from the registry and printed by the runner. There is no
+# number written down in this file to disagree with them.
 # ---------------------------------------------------------------------------
 run_self_test() {
   if [ "$failures" -ne 0 ]; then
     echo "ios-target: refusing to self-test while the real tree is failing" >&2
     return 1
   fi
-
-  local TREE_BEFORE ISO st_failures=0 st_ok=0 st_layering=0
-  TREE_BEFORE="$(st_tree_snapshot)"
-  ISO="$(st_make_root)"
-  trap 'rm -rf "$ISO"' EXIT
-  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
-  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
-  # empty tree when run from another directory.
   # shellcheck disable=SC2086
-  st_copy_from "$PROJECT_ROOT" "$ISO" $GUARD_PATHS
-
-  I_PLIST="$ISO/ios/Runner/Info.plist"
-  I_ENT="$ISO/ios/Runner/Runner.entitlements"
-  I_PROJ="$ISO/ios/Runner.xcodeproj/project.pbxproj"
-  I_EX="$ISO/packages/stride_health/example/ios/Runner.xcodeproj/project.pbxproj"
-
-  local BAK="$ISO/.backup"
-  mkdir -p "$BAK"
-  cp "$I_PLIST" "$BAK/plist"; cp "$I_ENT" "$BAK/ent"
-  cp "$I_PROJ" "$BAK/proj";   cp "$I_EX" "$BAK/ex"
-
-  restore_all() {
-    cp "$BAK/plist" "$I_PLIST"; cp "$BAK/ent" "$I_ENT"
-    cp "$BAK/proj" "$I_PROJ";   cp "$BAK/ex" "$I_EX"
-    cmp -s "$BAK/plist" "$I_PLIST" && cmp -s "$BAK/ent" "$I_ENT" &&
-      cmp -s "$BAK/proj" "$I_PROJ" && cmp -s "$BAK/ex" "$I_EX"
-  }
-
-  # The copy must pass before anything is injected, or a rejection below could
-  # be the copy being incomplete rather than the mutation being detected.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "ios-target SELF-TEST FAILED: the isolated copy does not pass clean" >&2
-    bash "$0" --project-root "$ISO" >&2
-    rm -rf "$ISO"; trap - EXIT
-    return 1
-  fi
-
-  # expect_reject <case-id> <expected-diagnostic-regex> <label>
-  expect_reject() {
-    local id="$1" want="$2" label="$3" out rc
-    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-
-    if [ "$rc" -eq 0 ]; then
-      echo "ios-target SELF-TEST FAILED [$id]: the guard ACCEPTED $label" >&2
-      st_failures=$((st_failures + 1))
-    elif [ "$rc" -ne 1 ]; then
-      # Exit 2 means the guard could not look. A case satisfied by that would
-      # be satisfied equally by deleting Node.
-      echo "ios-target SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "ios-target SELF-TEST FAILED [$id]: $label was rejected, but NOT by its own rule." >&2
-      echo "    expected a diagnostic matching: $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    else
-      st_ok=$((st_ok + 1))
-      echo "  rejected as expected [$id]: $label"
-    fi
-
-    if ! restore_all; then
-      echo "ios-target SELF-TEST FAILED [$id]: the mutation did not restore byte-for-byte" >&2
-      st_failures=$((st_failures + 1))
-    fi
-  }
-
-  local D='STRIDE_GUARD\['
-
-  sed -i "s/IPHONEOS_DEPLOYMENT_TARGET = 17.0;/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/" "$I_PROJ"
-  expect_reject ios_deploy_target_app "${D}ios\.deployment_target\]" \
-    "deployment target reverted in the app"
-
-  sed -i "s/IPHONEOS_DEPLOYMENT_TARGET = 17.0;/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/" "$I_EX"
-  expect_reject ios_deploy_target_example "${D}ios\.deployment_target\]" \
-    "an example app left at 13.0"
-
-  sed -i 's/TARGETED_DEVICE_FAMILY = "1";/TARGETED_DEVICE_FAMILY = "1,2";/' "$I_PROJ"
-  expect_reject ios_device_family_ipad "${D}ios\.device_family\]" \
-    "iPad added to the device family"
-
-  sed -i 's|CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;||' "$I_PROJ"
-  expect_reject ios_entitlements_unwired "${D}ios\.entitlements_wired\]" \
-    "entitlements file unreferenced by the build"
-
-  sed -i 's|<string>UIInterfaceOrientationPortrait</string>|<string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string>|' "$I_PLIST"
-  expect_reject ios_orientation_landscape "${D}ios\.orientation_portrait\]" \
-    "landscape orientation added"
-
-  # Type, not presence: an empty string still terminates the app.
-  perl -0pi -e 's|(<key>NSHealthShareUsageDescription</key>\s*<string>)[^<]*(</string>)|$1$2|s' "$I_PLIST"
-  expect_reject ios_share_string_empty "${D}ios\.health_share_string\]" \
-    "NSHealthShareUsageDescription emptied"
-
-  perl -0pi -e 's|(<key>NSHealthShareUsageDescription</key>\s*<string>)[^<]*(</string>)|$1   $2|s' "$I_PLIST"
-  expect_reject ios_share_string_blank "${D}ios\.health_share_string\]" \
-    "NSHealthShareUsageDescription whitespace-only"
-
-  perl -0pi -e 's|<key>NSHealthShareUsageDescription</key>|<key>NSHealthShareUsageDescriptionX</key>|s' "$I_PLIST"
-  expect_reject ios_share_string_renamed "${D}ios\.health_share_string\]" \
-    "the key renamed to a near-miss (X suffix)"
-
-  perl -0pi -e 's|(<dict>)|$1\n  <key>NSHealthUpdateUsageDescription</key><string>writes</string>|s' "$I_PLIST"
-  expect_reject ios_health_write_string "${D}ios\.no_health_write_string\]" \
-    "NSHealthUpdateUsageDescription added (app does not write)"
-
-  perl -0pi -e 's|(<dict>)|$1\n  <key>UIBackgroundModes</key><array><string>fetch</string></array>|s' "$I_PLIST"
-  expect_reject ios_background_modes "${D}ios\.no_background_modes\]" \
-    "UIBackgroundModes declared"
-
-  perl -0pi -e 's|(<dict>)|$1\n  <key>com.apple.developer.healthkit.background-delivery</key><true/>|s' "$I_ENT"
-  expect_reject ios_background_delivery "${D}ios\.no_background_delivery\]" \
-    "healthkit.background-delivery entitlement added"
-
-  perl -0pi -e 's|<key>com.apple.developer.healthkit</key>\s*<true/>|<key>com.apple.developer.healthkit</key><string>true</string>|s' "$I_ENT"
-  expect_reject ios_healthkit_string_true "${D}ios\.healthkit_entitlement_true\]" \
-    "the entitlement given as the STRING \"true\""
-
-  perl -0pi -e 's|(<dict>)|$1\n  <key>com.apple.developer.healthkit</key><true/>|s' "$I_ENT"
-  expect_reject ios_entitlement_dupe_key "${D}ios\.no_duplicate_entitlement_keys\]" \
-    "a duplicated security-sensitive entitlement key"
-
-  # ------------------------------------------------------------------
-  # Malformed input must be a POLICY rejection, by the parses rule, at exit 1.
-  #
-  # These four are the whole reason the xmlq reason layer exists. Each is
-  # permitted to be a violation only because xmlq says `invalid_document`. The
-  # `expect_reject` contract above already refuses exit 2, so a case here
-  # cannot be satisfied by the parser failing to run.
-  # ------------------------------------------------------------------
-  printf '<?xml version="1.0"?>\n<plist version="1.0">\n<dict>\n  <key>oops\n</dict>\n</plist>\n' > "$I_PLIST"
-  expect_reject ios_plist_malformed "${D}ios\.plist_parses\]" \
-    "a MALFORMED Info.plist (must fail closed, not read as absent)"
-
-  printf '<?xml version="1.0"?>\n<plist version="1.0"><dict><key>a</key>\n' > "$I_ENT"
-  expect_reject ios_entitlements_malformed "${D}ios\.entitlements_parses\]" \
-    "a MALFORMED Runner.entitlements"
-
-  printf '<?xml version="1.0"?>\n<!DOCTYPE plist PUBLIC "-//Evil//DTD//EN" "http://evil.invalid/x.dtd">\n<plist version="1.0"><dict><key>com.apple.developer.healthkit</key><true/></dict></plist>\n' > "$I_ENT"
-  expect_reject ios_entitlements_foreign_doctype "${D}ios\.entitlements_parses\]" \
-    "an entitlements file with a NON-Apple doctype"
-
-  printf '<?xml version="1.0"?>\n<!DOCTYPE plist [ <!ENTITY x "y"> ]>\n<plist version="1.0"><dict><key>com.apple.developer.healthkit</key><true/></dict></plist>\n' > "$I_ENT"
-  expect_reject ios_entitlements_internal_subset "${D}ios\.entitlements_parses\]" \
-    "an entitlements file with an internal subset"
-
-  # ------------------------------------------------------------------
-  # And the other direction: an xmlq exit 2 that is NOT a document problem must
-  # NOT become a policy rejection. A tracked file that has been DELETED is the
-  # cheapest way to produce `invalid_invocation` through the same code path.
-  #
-  # Without this, "malformed files are rejected" would be indistinguishable
-  # from "anything xmlq cannot answer is rejected", and the layering would be a
-  # comment rather than a behaviour.
-  # ------------------------------------------------------------------
-  rm -f "$I_ENT"
-  local out rc
-  out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-  if [ "$rc" -eq 1 ] && printf '%s\n' "$out" | grep -qE "${D}ios\.entitlements_present\]" &&
-     ! printf '%s\n' "$out" | grep -qE "${D}ios\.entitlements_parses\]"; then
-    echo "  layering held [ios_entitlements_absent]: a DELETED entitlements file is ios.entitlements_present, never ios.entitlements_parses"
-    st_layering=$((st_layering + 1))
-  else
-    echo "ios-target SELF-TEST FAILED [ios_entitlements_absent]: a deleted file did not report as absence (exit $rc)" >&2
-    printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-    st_failures=$((st_failures + 1))
-  fi
-  restore_all || { echo "ios-target SELF-TEST FAILED: restore after deletion" >&2; st_failures=$((st_failures + 1)); }
-
-  # The copy must pass again once every mutation is gone, or a rejection above
-  # was damage rather than detection.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "ios-target SELF-TEST FAILED: the isolated copy does not pass after restoration" >&2
-    bash "$0" --project-root "$ISO" >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  rm -rf "$ISO"
-  trap - EXIT
-
-  st_assert_tree_unchanged "$TREE_BEFORE" || return 1
-
-  if [ "$st_failures" -ne 0 ]; then
-    echo "ios-target: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
-    return 1
-  fi
-  # The count is asserted, not narrated. The previous version printed "17
-  # injected violations" from a string in an `echo`, which is exactly how this
-  # guard came to be reported as having 6 cases when it has 17.
-  if [ "$st_ok" -ne 17 ] || [ "$st_layering" -ne 1 ]; then
-    echo "ios-target: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_layering layering case(s), expected 17 and 1" >&2
-    return 1
-  fi
-  echo "ios-target: self-test OK -- $st_ok injected violations rejected by their own rules at exit 1, $st_layering layering case"
-  return 0
+  reg_selftest "$GUARD_ID" "$0" "$IOS_RULES" -- $GUARD_PATHS
 }
 
 # Source-safe entry. Sourcing defines the rules and does nothing else: no traps,

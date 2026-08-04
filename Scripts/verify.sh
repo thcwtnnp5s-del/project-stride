@@ -103,6 +103,14 @@ step "Guard source-safety (a converted guard is inert when sourced)"
 # directory changed before it called anything.
 ./Scripts/check-source-safety.sh
 
+step "Case registry (validates, and every total is derived by counting)"
+# The shared case inventory for the migrated guards. Each guard revalidates it
+# when its own --self-test runs; this reports the totals in one place, derived
+# rather than written down. A count that is computed cannot disagree with the
+# thing it counts, which is how the iOS guard came to be described as having 6
+# cases when it has 17.
+./Scripts/registry-report.sh
+
 step "Core purity"
 ./Scripts/check-core-purity.sh
 
@@ -128,12 +136,17 @@ step "Android target policy (with self-test)"
 # not exist. Every call exited 2 into `|| true`, so all three were dead from the
 # day they were written; the self-test only looked green because the guard was
 # already failing on an unrelated parse error.
+#
+# --self-test is registry-driven: the cases live in Scripts/lib/cases.sh and the
+# counts are derived, so no number in this comment can go stale against them.
 ./Scripts/check-android-target.sh --self-test
 
 step "Single-writer persistence rule (with self-test)"
 # Nothing at runtime serializes two isolates -- see DECISIONS/0013. This guard
-# is the guarantee. --self-test injects three violations and asserts each is
-# rejected, because a guard that has never been falsified is not evidence.
+# is the guarantee. --self-test is registry-driven: every probe is rejected at
+# exit 1 by its own diagnostic, and an empty native scan must be exit 2
+# infrastructure rather than a clean pass. A guard that has never been falsified
+# is not evidence, and a guard that rejects everything is not either.
 ./Scripts/check-single-writer.sh --self-test
 
 step "One step-ingestion model (with mutation test)"

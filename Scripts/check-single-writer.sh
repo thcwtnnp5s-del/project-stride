@@ -63,6 +63,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 . "$SCRIPT_DIR/lib/rulekit.sh"
 # shellcheck source=lib/selftest.sh
 . "$SCRIPT_DIR/lib/selftest.sh"
+# shellcheck source=lib/registry.sh
+. "$SCRIPT_DIR/lib/registry.sh"
+# shellcheck source=lib/cases.sh
+. "$SCRIPT_DIR/lib/cases.sh"
 
 GUARD_ID="single-writer"
 
@@ -371,222 +375,47 @@ guard_body() {
 }
 
 # ---------------------------------------------------------------------------
-# Self-test — isolated, never the live tree
+# Self-test — registry-driven, isolated, never the live tree
 #
-# Five cases, each with a stable case ID and the diagnostic its own rule must
-# emit. Recorded in `Scripts/CASE_MAP.md`, which is what the shared registry
-# will consume.
+# This guard holds no case inventory of its own. All six cases — their probes,
+# their expected exit codes and their expected diagnostics — live in
+# `Scripts/lib/cases.sh`, and the runner in `Scripts/lib/registry.sh` refuses to
+# run if any of that machinery comes back here. A second inventory is a second
+# source of truth, and the count it carries is the thing that drifted.
 #
-# ISOLATED: the probe is written into a throwaway copy and the guard re-run
-# against it via --project-root. This used to write into the live working tree,
-# and two self-tests running at once clobbered each other's probes and produced
-# failures unrelated to the code under test.
+# The runner asserts, per case:
 #
-# A nonzero exit is NOT evidence, so each case asserts exit 1 — a POLICY
-# rejection — carrying its own diagnostic, and that the probe is gone
-# afterwards. Exit 2 fails the case, which is what stops an incomplete copy or
-# a missing directory from standing in for a detection.
+#   * the COMPLETE guard produces the case's expected outcome. For the five
+#     rejection cases that is exit 1 with the case's own STRIDE_GUARD
+#     diagnostic; a nonzero exit on its own is NOT evidence, because a guard
+#     that rejects everything rejects probes too. For `sw_empty_native_scan` it
+#     is exit 2 with STRIDE_INFRA[single-writer.no_native_sources] — an empty
+#     scan is not a clean scan, and it is not a policy statement either
+#   * the probe changed exactly the paths it declared, and no others
+#   * the isolated root's fingerprint — existence, bytes, type, mode and symlink
+#     target of every path — is identical after restoration, so no case can pass
+#     on the previous case's leftovers
+#
+# Counts are DERIVED from the registry and printed by the runner. There is no
+# number written down in this file to disagree with them.
 # ---------------------------------------------------------------------------
+SINGLE_WRITER_SELFTEST_PATHS="
+lib
+packages/stride_core/lib
+packages/stride_health/lib
+packages/stride_storage/lib
+packages/stride_secure_store/lib
+packages/stride_health/android/src/main
+packages/stride_health/ios/stride_health/Sources
+"
+
 run_self_test() {
   if [ "$failures" -ne 0 ]; then
     echo "single-writer: refusing to self-test while the real tree is failing" >&2
     return 1
   fi
-
-  local TREE_BEFORE ISO st_failures=0 st_ok=0 st_layering=0
-  TREE_BEFORE="$(st_tree_snapshot)"
-  ISO="$(st_make_root)"
-  trap 'rm -rf "$ISO"' EXIT
-
-  # Copied from PROJECT_ROOT explicitly, not from the caller's cwd: this guard
-  # no longer cd's anywhere, so a cwd-relative copy would silently produce an
-  # empty tree when run from another directory.
   # shellcheck disable=SC2086
-  st_copy_from "$PROJECT_ROOT" "$ISO" lib packages/stride_core/lib packages/stride_health/lib \
-    packages/stride_storage/lib packages/stride_secure_store/lib \
-    packages/stride_health/android/src/main \
-    packages/stride_health/ios/stride_health/Sources
-
-  local probe="$ISO/lib/runtime/__single_writer_probe.dart"
-  local swift_probe="$ISO/packages/stride_health/ios/stride_health/Sources/stride_health/__BackgroundProbe.swift"
-  local kotlin_probe="$ISO/packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__BackgroundProbe.kt"
-
-  # The copy must pass before anything is injected, or a rejection below could
-  # be the copy being incomplete rather than the probe being detected.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "single-writer SELF-TEST FAILED: the isolated copy does not pass clean" >&2
-    bash "$0" --project-root "$ISO" >&2
-    rm -rf "$ISO"; trap - EXIT
-    return 1
-  fi
-
-  # expect_reject <case-id> <expected-diagnostic-regex> <label> <probe-file>
-  expect_reject() {
-    local id="$1" want="$2" label="$3" probe_file="$4" out rc
-    out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-
-    if [ "$rc" -eq 0 ]; then
-      echo "single-writer SELF-TEST FAILED [$id]: the guard ACCEPTED $label" >&2
-      st_failures=$((st_failures + 1))
-    elif [ "$rc" -ne 1 ]; then
-      echo "single-writer SELF-TEST FAILED [$id]: $label was rejected with exit $rc (INFRASTRUCTURE), not a policy violation" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    elif ! printf '%s\n' "$out" | grep -qE "$want"; then
-      echo "single-writer SELF-TEST FAILED [$id]: $label was rejected, but NOT by its own rule." >&2
-      echo "    expected a diagnostic matching: $want" >&2
-      printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-      st_failures=$((st_failures + 1))
-    else
-      st_ok=$((st_ok + 1))
-      echo "  rejected as expected [$id]: $label"
-    fi
-
-    rm -f "$probe_file"
-    if [ -e "$probe_file" ]; then
-      echo "single-writer SELF-TEST FAILED [$id]: the probe was not removed" >&2
-      st_failures=$((st_failures + 1))
-    fi
-  }
-
-  local D='STRIDE_GUARD\[single-writer\.'
-
-  # 1. A background isolate that constructs a repository -- the exact shape the
-  #    rule names, and the shape a Health Connect worker would take. It trips
-  #    two rules at once; it is owned by the construction rule, and case 3
-  #    exists so the background rule is proven independently.
-  cat > "$probe" <<'PROBE'
-import 'dart:isolate';
-import 'package:stride_core/stride_core.dart';
-import 'package:stride_storage/stride_storage.dart';
-
-@pragma('vm:entry-point')
-Future<void> backgroundSync(List<Object> args) async {
-  final StorageLayout layout = StorageLayout(args[0] as dynamic);
-  final SaveRepository repo = SaveRepository(
-    snapshots: FileSnapshotStore(layout),
-    journal: FileLedgerJournal(layout),
-    lock: FileTransactionLock(layout.transactionLock),
-  );
-  await repo.compact();
-}
-
-void start() => Isolate.spawn(backgroundSync, <Object>[]);
-PROBE
-  expect_reject sw_background_isolate_repo "${D}approved_construction_sites\]" \
-    "a background isolate constructing SaveRepository" "$probe"
-
-  # 2. A plain unauthorized construction with no background marker at all, so
-  #    the construction rule is proven independently of the background rule.
-  cat > "$probe" <<'PROBE'
-import 'package:stride_core/stride_core.dart';
-import 'package:stride_storage/stride_storage.dart';
-
-SaveRepository buildAnother(StorageLayout layout) => SaveRepository(
-  snapshots: FileSnapshotStore(layout),
-  journal: FileLedgerJournal(layout),
-  lock: FileTransactionLock(layout.transactionLock),
-);
-PROBE
-  expect_reject sw_unapproved_construction "${D}approved_construction_sites\]" \
-    "a second repository construction outside the approved sites" "$probe"
-
-  # 3. A background entry point that touches no persistence type, proving the
-  #    background rule does not depend on the construction rule having fired.
-  cat > "$probe" <<'PROBE'
-import 'dart:isolate';
-
-@pragma('vm:entry-point')
-void harmlessWorker() {}
-
-void start() => Isolate.spawn((_) {}, null);
-PROBE
-  expect_reject sw_dart_background_entry "${D}no_dart_background_entry\]" \
-    "a background entry point that touches no persistence type" "$probe"
-
-  # 4. The same rule in Swift. This is the S-01B shape exactly: an observer
-  #    query asking iOS to wake the app, which the Dart markers cannot see.
-  cat > "$swift_probe" <<'PROBE'
-import HealthKit
-
-final class BackgroundProbe {
-  func arm(store: HKHealthStore, type: HKSampleType) {
-    store.enableBackgroundDelivery(for: type, frequency: .immediate) { _, _ in }
-  }
-}
-PROBE
-  expect_reject sw_native_background_swift "${D}no_native_background_entry\]" \
-    "Swift arming HealthKit background delivery" "$swift_probe"
-
-  # 5. And in Kotlin -- a WorkManager worker, the Android half of S-01B.
-  cat > "$kotlin_probe" <<'PROBE'
-package com.projectstride.stride_health
-
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
-
-internal class BackgroundProbe {
-    fun schedule(wm: WorkManager, req: OneTimeWorkRequest) { wm.enqueue(req) }
-}
-PROBE
-  expect_reject sw_native_background_kotlin "${D}no_native_background_entry\]" \
-    "Kotlin scheduling a WorkManager background worker" "$kotlin_probe"
-
-  # ------------------------------------------------------------------
-  # The other direction: an EMPTY native scan must be infrastructure, not a
-  # clean pass and not a policy rejection.
-  #
-  # Cases 4 and 5 prove the native rule fires when a background entry point is
-  # present. They cannot prove the scan happened at all -- a copy missing the
-  # Swift and Kotlin directories would produce no findings and look identical
-  # to a clean tree. This is the case that separates them.
-  # ------------------------------------------------------------------
-  local saved_native="$ISO/.native-backup"
-  mkdir -p "$saved_native"
-  mv "$ISO/packages/stride_health/ios/stride_health/Sources" "$saved_native/ios-Sources"
-  mv "$ISO/packages/stride_health/android/src/main" "$saved_native/android-main"
-
-  local out rc
-  out="$(bash "$0" --project-root "$ISO" 2>&1)"; rc=$?
-  if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qE 'STRIDE_INFRA\[single-writer\.no_native_sources\]'; then
-    echo "  layering held [sw_empty_native_scan]: no native sources is INFRASTRUCTURE (exit 2), not a clean pass"
-    st_layering=$((st_layering + 1))
-  else
-    echo "single-writer SELF-TEST FAILED [sw_empty_native_scan]: an empty native scan reported exit $rc" >&2
-    printf '%s\n' "$out" | head -8 | sed 's/^/    | /' >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  mv "$saved_native/ios-Sources" "$ISO/packages/stride_health/ios/stride_health/Sources"
-  mv "$saved_native/android-main" "$ISO/packages/stride_health/android/src/main"
-  rmdir "$saved_native" 2>/dev/null || true
-
-  # The copy must pass again once every probe is gone, or a rejection above was
-  # damage rather than detection.
-  if ! bash "$0" --project-root "$ISO" >/dev/null 2>&1; then
-    echo "single-writer SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
-    bash "$0" --project-root "$ISO" >&2
-    st_failures=$((st_failures + 1))
-  fi
-
-  rm -rf "$ISO"
-  trap - EXIT
-
-  # The live tree must be byte-for-byte what it was. Asserted, not assumed.
-  st_assert_tree_unchanged "$TREE_BEFORE" || return 1
-
-  if [ "$st_failures" -ne 0 ]; then
-    echo "single-writer: SELF-TEST FAILED -- $st_failures case(s) wrong" >&2
-    return 1
-  fi
-  # Asserted, not narrated: the count used to be a string in an echo, which is
-  # a second source of truth that cannot disagree with itself out loud.
-  if [ "$st_ok" -ne 5 ] || [ "$st_layering" -ne 1 ]; then
-    echo "single-writer: SELF-TEST FAILED -- proved $st_ok rejection case(s) and $st_layering layering case(s), expected 5 and 1" >&2
-    return 1
-  fi
-  echo "single-writer: self-test OK -- $st_ok injected violations rejected by their own rules at exit 1, $st_layering layering case"
-  return 0
+  reg_selftest "$GUARD_ID" "$0" "$SINGLE_WRITER_RULES" -- $SINGLE_WRITER_SELFTEST_PATHS
 }
 
 # Source-safe entry. Sourcing defines the rules and does nothing else: no traps,

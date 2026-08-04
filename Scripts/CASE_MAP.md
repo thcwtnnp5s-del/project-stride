@@ -3,6 +3,42 @@
 Every mutation case a guard's `--self-test` injects, recorded **before** its
 embedded inventory is replaced by the shared registry.
 
+## Registry migration status
+
+| guard | status | where its cases live |
+|-------|--------|----------------------|
+| `check-android-target.sh` | **migrated** | `Scripts/lib/cases.sh` |
+| `check-ios-target.sh` | **migrated** | `Scripts/lib/cases.sh` |
+| `check-single-writer.sh` | **migrated** | `Scripts/lib/cases.sh` |
+| `check-origin-privacy.sh` | pending | still embedded in the guard |
+| `check-step-model.sh` | pending | still embedded in the guard |
+
+A migrated guard holds **no** case inventory and **no** mutation code. Its
+`--self-test` is one call to `reg_selftest`, and `Scripts/lib/registry.sh`
+refuses to run it if any mutation machinery comes back — a second mutation
+source is the drift this file was written to record and the registry was
+written to remove.
+
+The registry adds three things the embedded inventories did not have:
+
+* **a declared changed-path set per case**, asserted in both directions. An
+  undeclared change means the case did more than it says, and the extra damage
+  is what the next case would pass on. A declared path that did *not* change
+  means the case did less than it says — a `sed` that matches nothing still
+  exits 0, and the rejection afterwards would be attributed to a mutation that
+  never happened.
+* **generic restoration**, verified by fingerprinting the whole isolated root —
+  existence, exact bytes, file type, mode and symlink target of every path —
+  before the case and after restoration. There is no hand-written revert to be
+  subtly wrong.
+* **derived totals.** Nothing writes a count down. `Scripts/registry-report.sh`
+  and every guard's self-test compute theirs by counting the registry, which is
+  the specific failure this file opens by describing.
+
+Derived totals for the migrated set: **31 cases — 29 reject, 1 accept,
+1 infrastructure.** See the note under `ios_entitlements_absent` below for why
+the iOS layering case counts as `reject` rather than `infra`.
+
 ## Why this file exists
 
 Each guard used to carry its own inventory of injections inside `--self-test`,
@@ -30,9 +66,11 @@ one to a test that only asks whether the exit code was nonzero.
 
 ---
 
-## check-ios-target.sh — 17 cases
+## check-ios-target.sh — 17 reject + 1 layering
 
-Converted at Commit B. All 17 preserved.
+Converted at Commit B. All 17 preserved. **Migrated to the shared registry**;
+all 17 IDs below are unchanged, and the layering case is now a registry case in
+its own right rather than a hand-written block at the end of the self-test.
 
 | # | old case description | case ID | production rule | diagnostic |
 |---|----------------------|---------|-----------------|------------|
@@ -60,7 +98,32 @@ permitted to be one **only** because xmlq names its cause as
 `STRIDE_XMLQ[invalid_document]`. A missing file, a misspelled mode, a missing
 Node, or a parser crash reports `invalid_invocation` or `internal_failure` and
 becomes `STRIDE_INFRA[ios.xmlq.<reason>]` with guard exit 2, which no case can
-be satisfied by.
+be satisfied by. The registry enforces that structurally: a `reject` case fails
+on any exit other than 1, and fails again if a `STRIDE_INFRA[` line appears in
+the output at all.
+
+### The layering case, in the other direction
+
+| case ID | production rule | what it proves |
+|---------|-----------------|----------------|
+| `ios_entitlements_absent` | `rule_entitlements_present` | a DELETED `Runner.entitlements` is `STRIDE_GUARD[ios.entitlements_present]` and **never** `ios.entitlements_parses` |
+
+Without it, "malformed files are rejected" would be indistinguishable from
+"anything xmlq cannot answer is rejected", and the layering would be a comment
+rather than a behaviour. In the registry it carries a `forbid` field naming
+`ios.entitlements_parses`, so the second half of the claim is asserted rather
+than described.
+
+**Why it is classed `reject` and not `infra`.** The registry's `infra` class
+means exit 2 with a `STRIDE_INFRA` diagnostic. An absent entitlements file is
+not that: `rule_entitlements_parses` returns 0 on a file that does not exist and
+leaves the statement to `rule_entitlements_present`, which names the violation
+and exits 1. That is correct — absence is a policy violation the guard states by
+name, and it never reaches xmlq at all. Classing the case `infra` would mean
+weakening a production rule to flatter the registry, so the case is `reject`
+with a forbidden diagnostic, which is exactly what it asserts. The consequence
+is that the iOS subtotal is **18 reject, 0 infra**, and the migrated set's
+subtotal is **29 reject, 1 accept, 1 infra** rather than 28/1/2.
 
 Named production rules with no case yet — enforced by the complete guard,
 awaiting registry cases:
@@ -77,9 +140,10 @@ awaiting registry cases:
 
 ---
 
-## check-single-writer.sh — 5 cases
+## check-single-writer.sh — 5 reject + 1 infrastructure
 
-Converted at Commit B. All 5 preserved.
+Converted at Commit B. All 5 preserved. **Migrated to the shared registry**;
+all 5 IDs below are unchanged.
 
 | # | old case description | case ID | production rule | diagnostic |
 |---|----------------------|---------|-----------------|------------|
@@ -95,13 +159,24 @@ sites and a background entry point. It is owned by
 precisely so `rule_no_dart_background_entry` is proven independently, on a probe
 that touches no persistence type at all.
 
+One **infrastructure** case, in the other direction. Cases 4 and 5 prove the
+native rule fires when a background entry point is present; they cannot prove
+the scan happened at all, because a copy missing the Swift and Kotlin
+directories produces no findings and looks identical to a clean tree.
+
+| case ID | production rule | what it proves |
+|---------|-----------------|----------------|
+| `sw_empty_native_scan` | `rule_native_scan_coverage` | both native directories removed ⇒ exit **2** with `STRIDE_INFRA[single-writer.no_native_sources]`, never a clean pass and never a policy rejection |
+
 Named production rules with no case yet:
 
 | rule | diagnostic | what it holds |
 |------|-----------|---------------|
 | `rule_preflight` | `STRIDE_INFRA[single-writer.*]` | the project root exists and holds production Dart |
-| `rule_native_scan_coverage` | `STRIDE_INFRA[single-writer.no_native_sources]` | the native scan saw files; an empty scan is not a clean scan |
 | `rule_no_persistence_owner` | `STRIDE_GUARD[single-writer.no_persistence_owner]` | the removed owner prototype has not returned |
+
+`rule_native_scan_coverage` was on this list at the conversion. It is no longer:
+`sw_empty_native_scan` closes it.
 
 ---
 
@@ -355,7 +430,15 @@ without `strip_comments`. The clean run *is* the accept case.
 
 ## check-android-target.sh — 6 reject + 1 accept
 
-Converted at the previous checkpoint; recorded here for completeness.
+Converted at the previous checkpoint. **Migrated to the shared registry**; all 7
+IDs below are unchanged.
+
+The acceptance case is the one this guard cannot do without: an override named
+only inside a comment must be **accepted**, which is the false positive that
+failed a correct tree twice and the whole reason the manifest is parsed rather
+than grepped. In the registry an `accept` case asserts exit 0 *and* that no
+`STRIDE_GUARD[` line was emitted at all, so it cannot be satisfied by the guard
+passing for some unrelated reason while still complaining.
 
 | old case description | case ID | production rule | diagnostic |
 |----------------------|---------|-----------------|------------|
