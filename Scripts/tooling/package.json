@@ -1,0 +1,16 @@
+{
+  "name": "stride-guard-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build-guard tooling for Project Stride. Not shipped, not linked into the app, and not a dependency of any Dart or native package. It exists so the guards can parse XML and plists semantically instead of matching them with grep.",
+  "license": "SEE COPYRIGHT.md",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "0.9.10"
+  },
+  "scripts": {
+    "test": "bash ../check-guard-parsers.sh"
+  }
+}

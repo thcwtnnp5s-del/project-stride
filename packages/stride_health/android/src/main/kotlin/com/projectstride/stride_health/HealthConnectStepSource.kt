@@ -45,20 +45,10 @@ internal class HealthConnectStepSource(
 
     private val client: HealthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
 
-    override fun availability(): SourceAvailability {
-        // Health Connect requires Android 8.0. Below that the client class is
-        // not usable at all, so the check happens before it is touched --
-        // absence is a normal state the game stays fully playable through, not
-        // an exception to catch.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return SourceAvailability.SERVICE_MISSING
-
-        return when (HealthConnectClient.getSdkStatus(context)) {
-            HealthConnectClient.SDK_AVAILABLE -> SourceAvailability.AVAILABLE
-            HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
-                SourceAvailability.PROVIDER_UPDATE_REQUIRED
-            else -> SourceAvailability.SERVICE_MISSING
+    override fun availability(): SourceAvailability =
+        HealthConnectAvailability.forSdk(Build.VERSION.SDK_INT) {
+            HealthConnectClient.getSdkStatus(context)
         }
-    }
 
     override suspend fun hasStepReadPermission(): Boolean =
         client.permissionController.getGrantedPermissions().contains(STEP_READ_PERMISSION)

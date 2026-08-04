@@ -83,6 +83,37 @@ jobs:
       - name: Storage privacy and backup exclusion guard
         run: bash ./Scripts/check-backup-exclusions.sh
 
+      # The guards read XML, plists and entitlements with a real parser, not
+      # grep. Installed deliberately and deterministically: `npm ci` fails
+      # rather than resolving anything the lockfile does not name, and no
+      # lifecycle script from any package runs. See DEPENDENCIES.md.
+      #
+      # `verify.sh` does NOT do this for you -- a verification run that
+      # silently downloads code has made a network fetch part of "is this
+      # repository correct?".
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bootstrap guard tooling
+        run: bash ./Scripts/bootstrap-tooling.sh
+
+      # The parsers themselves, before anything depends on them. 32 fixtures
+      # covering namespace-URI resolution under renamed prefixes, multi-line
+      # comments, the tri-state exit contract, DOCTYPE policy, and the two
+      # defects found while wiring this in: `parses` vs the plist-only `keys`,
+      # and `attr-ns` element narrowing.
+      - name: Guard parser fixtures
+        run: bash ./Scripts/check-guard-parsers.sh
+
+      # Never ran in CI or in verify.sh before this commit, and three of its
+      # checks called an xmlq mode that does not exist -- every call exited 2
+      # into `|| true`, so tools:overrideLibrary, the manifest uses-sdk floor,
+      # and the background <service>/<receiver> check were all dead from the
+      # day they were written.
+      - name: Android target policy guard
+        run: bash ./Scripts/check-android-target.sh --self-test
+
       # The single-writer architecture rule (DECISIONS/0013). Nothing at runtime
       # serializes two isolates, so this guard IS the guarantee -- not a
       # reminder about one.
@@ -315,6 +346,46 @@ jobs:
       - name: Kotlin adapter unit tests
         working-directory: packages/stride_health/example/android
         run: ./gradlew :stride_health:testDebugUnitTest --no-daemon
+
+      # The BUILT ARTIFACT declares minSdkVersion 26.
+      #
+      # Every other minSdk check in this repository reads SOURCE -- gradle
+      # files and manifests. That is necessary and not sufficient: the value
+      # that reaches a phone is the one in the merged manifest inside the APK,
+      # and it can differ from every source file through manifest merging, a
+      # variant override, or a Flutter default winning a precedence argument
+      # nobody expected. The 55,200-step defect and the dead-guard defects in
+      # this repository share one shape -- a control that looked live and
+      # checked something adjacent to the real thing.
+      #
+      # `aapt2 dump badging` reads the compiled binary manifest. Failing closed:
+      # if the line cannot be found at all, that is a failure, not a pass.
+      - name: Prove the built APK declares minSdkVersion 26
+        run: |
+          set -euo pipefail
+          AAPT2="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)"
+          [ -n "$AAPT2" ] || { echo "::error::aapt2 not found"; exit 1; }
+          echo "using $AAPT2"
+
+          check_apk() {
+            local apk="$1" label="$2"
+            [ -f "$apk" ] || { echo "::error::$label: $apk was not built"; exit 1; }
+            local line
+            line="$("$AAPT2" dump badging "$apk" | grep -E "^sdkVersion:" || true)"
+            [ -n "$line" ] || { echo "::error::$label: no sdkVersion in the badging output"; exit 1; }
+            local got
+            got="$(printf '%s' "$line" | sed -E "s/^sdkVersion:'([0-9]+)'.*/\1/")"
+            echo "$label -> $line"
+            if [ "$got" != "26" ]; then
+              echo "::error::$label declares minSdkVersion $got in the BUILT ARTIFACT, not 26."
+              echo "::error::Source may say 26 while manifest merging produces something else."
+              exit 1
+            fi
+            echo "$label: built artifact declares minSdkVersion 26"
+          }
+
+          check_apk build/app/outputs/flutter-apk/app-debug.apk "application APK"
+          check_apk packages/stride_health/example/build/app/outputs/flutter-apk/app-debug.apk "health example APK"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4

@@ -38,7 +38,26 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+# shellcheck source=lib/selftest.sh
+. "$REPO_ROOT/Scripts/lib/selftest.sh"
+
+# `--project-root <path>` points every check at a throwaway copy instead of the
+# live tree, so a self-test never writes to the working tree and two concurrent
+# runs cannot clobber each other.
+PROJECT_ROOT="$REPO_ROOT"
+SELF_TEST=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --self-test) SELF_TEST=1; shift ;;
+    --project-root)
+      [ $# -ge 2 ] || { echo "guard: --project-root needs a path" >&2; exit 2; }
+      PROJECT_ROOT="$(cd "$2" && pwd)" || exit 2
+      shift 2
+      ;;
+    *) echo "guard: unknown argument '$1'" >&2; exit 2 ;;
+  esac
+done
+cd "$PROJECT_ROOT"
 
 failures=0
 fail() {
@@ -94,6 +113,27 @@ packages/stride_storage/lib/src/conformance.dart|SaveRepository
 # S-01 first designing and validating a real persistence coordinator.
 # ---------------------------------------------------------------------------
 BACKGROUND_MARKERS='Isolate\.spawn|Isolate\.run|vm:entry-point|IsolateNameServer|BackgroundIsolateBinaryMessenger|[Ww]orkmanager|registerBackgroundCallback|setForegroundNotification'
+
+# The same rule in native source.
+#
+# The Dart markers above cannot see a background entry point written in Swift or
+# Kotlin, and that is where the next one would be written: S-01B's whole subject
+# is `HKObserverQuery` + `enableBackgroundDelivery` on iOS and a WorkManager
+# worker on Android. Either would run outside the single-writer isolate, which
+# is the exact configuration DECISIONS/0013 forbids until a real persistence
+# coordinator exists.
+#
+# Anchored to the APIs, and comment-stripped before matching -- both native
+# files currently carry prose saying these are deliberately absent, and a `grep`
+# for the words would fail a correct tree on its own documentation. That has
+# happened twice in this repository.
+NATIVE_BACKGROUND='HKObserverQuery|enableBackgroundDelivery|disableBackgroundDelivery|BGTaskScheduler|BGAppRefreshTask|beginBackgroundTask|androidx\.work|WorkManager|OneTimeWorkRequest|PeriodicWorkRequest|ListenableWorker|BroadcastReceiver|JobIntentService|JobScheduler|registerReceiver'
+
+native_files() {
+  find packages/stride_health/android/src/main \
+    packages/stride_health/ios/stride_health/Sources \
+    \( -name '*.kt' -o -name '*.swift' \) 2>/dev/null | sort
+}
 
 production_files() {
   # Production source ONLY. Tests are excluded deliberately: a test may and does
@@ -163,6 +203,28 @@ while IFS= read -r file; do
   done <<< "$hits"
 done < <(production_files)
 
+# The same rule, in Swift and Kotlin.
+native_scanned=0
+while IFS= read -r file; do
+  [ -n "$file" ] || continue
+  native_scanned=$((native_scanned + 1))
+  hits="$(strip_comments < "$file" | grep -nE "$NATIVE_BACKGROUND" || true)"
+  [ -n "$hits" ] || continue
+  while IFS= read -r hit; do
+    [ -n "$hit" ] || continue
+    fail "$file:${hit%%:*} introduces a NATIVE background execution entry point.
+      This is the S-01B shape: an HKObserverQuery with background delivery, or
+      a WorkManager worker, running outside the single-writer isolate. The Dart
+      markers cannot see it, which is exactly why it is checked here.
+      See DECISIONS/0013, DECISIONS/0014, and PERSISTENCE_CONCURRENCY.md."
+  done <<< "$hits"
+done < <(native_files)
+
+if [ "$native_scanned" -eq 0 ]; then
+  fail "no native sources were scanned for background entry points. An empty
+      scan is not a clean scan."
+fi
+
 # ---------------------------------------------------------------------------
 # Check C — the removed prototype has not come back
 # ---------------------------------------------------------------------------
@@ -176,19 +238,40 @@ fi
 # ---------------------------------------------------------------------------
 # Self-test: prove the guard can fail
 # ---------------------------------------------------------------------------
-if [ "${1:-}" = "--self-test" ]; then
+if [ "$SELF_TEST" -eq 1 ]; then
   if [ "$failures" -ne 0 ]; then
     echo "single-writer: refusing to self-test while the real tree is failing" >&2
     exit 1
   fi
 
-  probe="lib/runtime/__single_writer_probe.dart"
-  cleanup() { rm -f "$probe"; }
+  # ISOLATED. The probe is written into a throwaway copy and the guard is
+  # re-run against it via --project-root. This used to write into the live
+  # working tree: two self-tests running at once clobbered each other's probes
+  # and produced failures unrelated to the code under test.
+  TREE_BEFORE="$(st_tree_snapshot)"
+  ISO_ROOT="$(st_make_root)"
+  st_copy "$ISO_ROOT" lib packages/stride_core/lib packages/stride_health/lib \
+    packages/stride_storage/lib packages/stride_secure_store/lib \
+    packages/stride_health/android/src/main \
+    packages/stride_health/ios/stride_health/Sources
+
+  probe="$ISO_ROOT/lib/runtime/__single_writer_probe.dart"
+  swift_probe="$ISO_ROOT/packages/stride_health/ios/stride_health/Sources/stride_health/__BackgroundProbe.swift"
+  kotlin_probe="$ISO_ROOT/packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__BackgroundProbe.kt"
+  cleanup() { rm -rf "$ISO_ROOT"; }
   trap cleanup EXIT
+
+  # The copy must pass before anything is injected, or a rejection below could
+  # be the copy being incomplete rather than the probe being detected.
+  if ! bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
+    echo "single-writer SELF-TEST FAILED: the isolated copy does not pass clean" >&2
+    bash "$0" --project-root "$ISO_ROOT" >&2
+    exit 1
+  fi
 
   selftest_failures=0
   expect_reject() {
-    if bash "$0" >/dev/null 2>&1; then
+    if bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
       echo "single-writer SELF-TEST FAILED: the guard accepted $1" >&2
       selftest_failures=$((selftest_failures + 1))
     else
@@ -244,21 +327,54 @@ void start() => Isolate.spawn((_) {}, null);
 PROBE
   expect_reject "a background entry point that touches no persistence type"
 
+  # 4. The same rule in Swift. This is the S-01B shape exactly: an observer
+  #    query asking iOS to wake the app, which the Dart markers cannot see.
+  cat > "$swift_probe" <<'PROBE'
+import HealthKit
+
+final class BackgroundProbe {
+  func arm(store: HKHealthStore, type: HKSampleType) {
+    store.enableBackgroundDelivery(for: type, frequency: .immediate) { _, _ in }
+  }
+}
+PROBE
+  expect_reject "Swift arming HealthKit background delivery"
+  rm -f "$swift_probe"
+
+  # 5. And in Kotlin.
+  cat > "$kotlin_probe" <<'PROBE'
+package com.projectstride.stride_health
+
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+
+internal class BackgroundProbe {
+    fun schedule(wm: WorkManager, req: OneTimeWorkRequest) { wm.enqueue(req) }
+}
+PROBE
+  expect_reject "Kotlin scheduling a WorkManager background worker"
+  rm -f "$kotlin_probe"
+
+  rm -f "$probe"
+
+  # The copy must pass again once the probes are gone, or a rejection above was
+  # damage rather than detection.
+  if ! bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
+    echo "single-writer SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
+    exit 1
+  fi
+
   cleanup
   trap - EXIT
 
-  # And the real tree must still pass once the probes are gone, or the
-  # self-test has left damage behind.
-  if ! bash "$0" >/dev/null 2>&1; then
-    echo "single-writer SELF-TEST FAILED: the tree does not pass after cleanup" >&2
-    exit 1
-  fi
+  # The live tree must be byte-for-byte what it was. Asserted, not assumed.
+  st_assert_tree_unchanged "$TREE_BEFORE" || exit 1
 
   if [ "$selftest_failures" -ne 0 ]; then
-    echo "single-writer: SELF-TEST FAILED -- the guard cannot detect $selftest_failures of 3 injected violations" >&2
+    echo "single-writer: SELF-TEST FAILED -- the guard cannot detect $selftest_failures of 5 injected violations" >&2
     exit 1
   fi
-  echo "single-writer: self-test OK -- all 3 injected violations were rejected"
+  echo "single-writer: self-test OK -- all 5 injected violations were rejected"
 fi
 
 if [ "$failures" -gt 0 ]; then

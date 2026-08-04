@@ -110,3 +110,19 @@ coverage/
 
 # Claude Code local settings (shared settings.json is committed)
 .claude/settings.local.json
+
+# ---------------------------------------------------------------------------
+# Build-guard tooling (Node)
+#
+# The lockfile and manifest ARE committed; the installed tree is not.
+# `Scripts/bootstrap-tooling.sh` restores it with `npm ci`, which installs the
+# exact resolved versions the lockfile names and fails rather than resolving
+# anything new.
+#
+# Vendoring node_modules was tried and reverted. It puts third-party source
+# into a repository that has been through a public-readiness audit, it makes
+# every dependency bump a large unreviewable diff, and it lets a checkout drift
+# from the lockfile without anything noticing. A lockfile plus `npm ci` is
+# reproducible without any of that.
+# ---------------------------------------------------------------------------
+Scripts/tooling/node_modules/

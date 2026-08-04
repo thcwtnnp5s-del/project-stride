@@ -57,15 +57,20 @@ android {
     }
 
     defaultConfig {
-        // Unchanged, deliberately. Health Connect's client library declares
-        // minSdk 26; raising the whole application to 26 to satisfy a
-        // dependency the game degrades gracefully without would drop Android 7
-        // devices for no gain. `src/main/AndroidManifest.xml` overrides the
-        // library's floor, and `HealthConnectStepSource.availability()` checks
-        // the OS version BEFORE touching a Health Connect type -- below
-        // Android 8 the answer is SERVICE_MISSING, which is the same normal,
-        // fully-playable state as a phone without Health Connect installed.
-        minSdk = 24
+        // API 26, matching the application and the Health Connect client
+        // library's own floor.
+        //
+        // This was 24 with a `tools:overrideLibrary` in the manifest, which
+        // asserted that the Health Connect SDK supports Android 7. It does
+        // not. An override does not add support; it relocates the failure from
+        // a build on this machine to a phone belonging to someone who cannot
+        // report it usefully.
+        //
+        // The cost is real and accepted: Android 7 devices no longer install.
+        // The alternative was shipping a build whose health integration is
+        // structurally incapable of working on the devices it claims to
+        // support.
+        minSdk = 26
     }
 
     testOptions {

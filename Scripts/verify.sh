@@ -75,6 +75,26 @@ FORMAT_PATHS=(
   packages/stride_secure_store/example/lib
 )
 
+# The guards parse XML and plists semantically rather than matching them with
+# grep, which needs one pinned Node dependency. This checks and STOPS; it never
+# installs. A verification run that silently downloads code has made a network
+# fetch part of "is this repository correct?", which fails offline for a reason
+# unrelated to the code and installs things nobody chose to install.
+if [ ! -d Scripts/tooling/node_modules/@xmldom/xmldom ]; then
+  echo "error: guard tooling is not installed." >&2
+  echo "" >&2
+  echo "  Run this once, deliberately:" >&2
+  echo "" >&2
+  echo "      bash Scripts/bootstrap-tooling.sh" >&2
+  echo "" >&2
+  echo "  It runs:" >&2
+  echo "      npm ci --prefix Scripts/tooling --ignore-scripts --no-audit --no-fund" >&2
+  exit 1
+fi
+
+step "Guard parsers (XML, plist, doctype policy, no external resolution)"
+./Scripts/check-guard-parsers.sh
+
 step "Core purity"
 ./Scripts/check-core-purity.sh
 
@@ -90,6 +110,17 @@ step "iOS target shape and foreground HealthKit config (with self-test)"
 # as foreground only, so the background-delivery entitlement is checked for
 # ABSENCE.
 ./Scripts/check-ios-target.sh --self-test
+
+step "Android target policy (with self-test)"
+# Split out of the iOS guard, which had grown an Android section and stopped
+# being about iOS. minSdk 26 everywhere and explicitly -- DECISIONS/0014 -- plus
+# no tools:overrideLibrary and no background <service>/<receiver>.
+#
+# This was never wired in, and three of its checks called an xmlq mode that does
+# not exist. Every call exited 2 into `|| true`, so all three were dead from the
+# day they were written; the self-test only looked green because the guard was
+# already failing on an unrelated parse error.
+./Scripts/check-android-target.sh --self-test
 
 step "Single-writer persistence rule (with self-test)"
 # Nothing at runtime serializes two isolates -- see DECISIONS/0013. This guard

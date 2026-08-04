@@ -49,7 +49,26 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+# shellcheck source=lib/selftest.sh
+. "$REPO_ROOT/Scripts/lib/selftest.sh"
+
+# `--project-root <path>` points every check at a throwaway copy instead of the
+# live tree, so a self-test never writes to the working tree and two concurrent
+# runs cannot clobber each other.
+PROJECT_ROOT="$REPO_ROOT"
+SELF_TEST=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --self-test) SELF_TEST=1; shift ;;
+    --project-root)
+      [ $# -ge 2 ] || { echo "guard: --project-root needs a path" >&2; exit 2; }
+      PROJECT_ROOT="$(cd "$2" && pwd)" || exit 2
+      shift 2
+      ;;
+    *) echo "guard: unknown argument '$1'" >&2; exit 2 ;;
+  esac
+done
+cd "$PROJECT_ROOT"
 
 failures=0
 fail() {
@@ -483,39 +502,60 @@ fi
 # ---------------------------------------------------------------------------
 # Self-test: prove the guard can fail
 # ---------------------------------------------------------------------------
-if [ "${1:-}" = "--self-test" ]; then
+if [ "$SELF_TEST" -eq 1 ]; then
   if [ "$failures" -ne 0 ]; then
     echo "origin-privacy: refusing to self-test while the real tree is failing" >&2
     exit 1
   fi
 
-  CORE_PROBE="packages/stride_core/lib/src/__origin_probe.dart"
-  APP_PROBE="lib/__origin_probe.dart"
-  HEALTH_PROBE="packages/stride_health/lib/src/__origin_probe.dart"
-  SWIFT_PROBE="packages/stride_health/ios/stride_health/Sources/stride_health/__OriginProbe.swift"
-  KOTLIN_PROBE="packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__OriginProbe.kt"
+  # ISOLATED. Every probe lands in a throwaway copy and the guard is re-run
+  # against it via --project-root. This used to mutate the live tree — five
+  # probe files and an edit to the real pigeon input — so two concurrent runs
+  # destroyed each other's fixtures and left the contract file damaged if
+  # interrupted.
+  TREE_BEFORE="$(st_tree_snapshot)"
+  ISO_ROOT="$(st_make_root)"
+  st_copy "$ISO_ROOT" \
+    lib packages/stride_core/lib packages/stride_health/lib \
+    packages/stride_storage/lib packages/stride_secure_store/lib \
+    packages/stride_health/example/lib \
+    packages/stride_health/pigeons \
+    packages/stride_health/android/src/main \
+    packages/stride_health/ios/stride_health/Sources
+
+  CORE_PROBE="$ISO_ROOT/packages/stride_core/lib/src/__origin_probe.dart"
+  APP_PROBE="$ISO_ROOT/lib/__origin_probe.dart"
+  HEALTH_PROBE="$ISO_ROOT/packages/stride_health/lib/src/__origin_probe.dart"
+  SWIFT_PROBE="$ISO_ROOT/packages/stride_health/ios/stride_health/Sources/stride_health/__OriginProbe.swift"
+  KOTLIN_PROBE="$ISO_ROOT/packages/stride_health/android/src/main/kotlin/com/projectstride/stride_health/__OriginProbe.kt"
+  ISO_PIGEON="$ISO_ROOT/$PIGEON_INPUT"
   PIGEON_BACKUP="$(mktemp)"
 
-  cp "$PIGEON_INPUT" "$PIGEON_BACKUP"
+  cp "$ISO_PIGEON" "$PIGEON_BACKUP"
   cleanup() {
-    rm -f "$CORE_PROBE" "$APP_PROBE" "$HEALTH_PROBE" "$SWIFT_PROBE" "$KOTLIN_PROBE"
-    # Restored unconditionally. The pigeon input is a real production file and
-    # the self-test edits it, so an interrupted run must not leave it damaged.
-    [ -f "$PIGEON_BACKUP" ] && cp "$PIGEON_BACKUP" "$PIGEON_INPUT"
+    rm -rf "$ISO_ROOT"
     rm -f "$PIGEON_BACKUP"
   }
   trap cleanup EXIT
 
+  # The copy must pass before injection, or a rejection proves only that the
+  # copy was incomplete.
+  if ! bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
+    echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass clean" >&2
+    bash "$0" --project-root "$ISO_ROOT" >&2
+    exit 1
+  fi
+
   selftest_failures=0
   expect_reject() {
-    if bash "$0" >/dev/null 2>&1; then
+    if bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
       echo "origin-privacy SELF-TEST FAILED: the guard accepted $1" >&2
       selftest_failures=$((selftest_failures + 1))
     else
       echo "  rejected as expected: $1"
     fi
     rm -f "$CORE_PROBE" "$APP_PROBE" "$HEALTH_PROBE" "$SWIFT_PROBE" "$KOTLIN_PROBE"
-    cp "$PIGEON_BACKUP" "$PIGEON_INPUT"
+    cp "$PIGEON_BACKUP" "$ISO_PIGEON"
   }
 
   # A -- the core reads the raw field. The exact thing the ruling forbids.
@@ -581,7 +621,7 @@ PROBE
   # H -- the wire field is "simplified" back into a String. One edit, every
   # other check still green, and the channel a device name travels in is open
   # again.
-  sed -i 's/^  final Uint8List originKey;$/  final String originKey;/' "$PIGEON_INPUT"
+  sed -i 's/^  final Uint8List originKey;$/  final String originKey;/' "$ISO_PIGEON"
   expect_reject "the origin field changed from opaque bytes to a String"
 
   # I -- native mints its own identity instead of consuming the app's.
@@ -623,15 +663,21 @@ class OriginProbe(private val context: Context) {
 PROBE
   expect_reject "Kotlin caching the cursor in a durable native store"
 
+  rm -f "$CORE_PROBE" "$APP_PROBE" "$HEALTH_PROBE" "$SWIFT_PROBE" "$KOTLIN_PROBE"
+  cp "$PIGEON_BACKUP" "$ISO_PIGEON"
+
+  # The copy must pass again once the probes are gone, or a rejection above was
+  # damage rather than detection.
+  if ! bash "$0" --project-root "$ISO_ROOT" >/dev/null 2>&1; then
+    echo "origin-privacy SELF-TEST FAILED: the isolated copy does not pass after cleanup" >&2
+    exit 1
+  fi
+
   cleanup
   trap - EXIT
 
-  # And the real tree must still pass once the probes are gone, or the
-  # self-test has left damage behind.
-  if ! bash "$0" >/dev/null 2>&1; then
-    echo "origin-privacy SELF-TEST FAILED: the tree does not pass after cleanup" >&2
-    exit 1
-  fi
+  # The live tree must be byte-for-byte what it was. Asserted, not assumed.
+  st_assert_tree_unchanged "$TREE_BEFORE" || exit 1
 
   if [ "$selftest_failures" -ne 0 ]; then
     echo "origin-privacy: SELF-TEST FAILED -- the guard cannot detect $selftest_failures of 10 injected violations" >&2

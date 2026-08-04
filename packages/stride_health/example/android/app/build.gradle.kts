@@ -19,7 +19,13 @@ android {
         applicationId = "com.projectstride.stride_health_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // API 26 explicitly, not `flutter.minSdkVersion` (which is 24).
+        //
+        // This example app is the host that actually links the Health Connect
+        // client, so it is the target where a floor below 26 fails first. It is
+        // pinned rather than inherited so a Flutter SDK bump cannot silently
+        // lower it back under the library's requirement.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
