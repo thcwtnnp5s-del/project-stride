@@ -17,6 +17,8 @@
 - `lib/runtime/asset_content.dart` — content pack from the asset bundle
 - `lib/ui/dev_harness.dart` — S-01A developer harness (redacted diagnostics)
 - `test/s01a_vertical_slice_test.dart` — the fourteen S-01A acceptance properties
+- `test/s01a_ios_readiness_test.dart` — iOS entitlement, Swift-source and
+  configuration facts a compile cannot catch
 - `test/identity_vault_test.dart`, `test/identity_vault_orphan_test.dart`
 - `test/per_write_exclusion_diagnostic_test.dart`
 - `pubspec.yaml`, `analysis_options.yaml`

@@ -5,8 +5,15 @@
 /// ===========================================================================
 ///
 /// It is the instrument panel for the one thing S-01A has to prove: that real
-/// walking, read through Health Connect, becomes usable energy in a durable
-/// save, and that spending it on a real action survives a force-stop.
+/// walking — read through HealthKit on iOS or Health Connect on Android —
+/// becomes usable energy in a durable save, and that spending it on a real
+/// action survives a force-stop.
+///
+/// **One harness, both platforms, and that is the point.** The provider's name
+/// is the only thing below that varies; every button dispatches the same
+/// command into the same `GameEngine` and every number is read from the same
+/// `GameState`. A second screen for iOS would be a second thing to keep
+/// correct, and the first place the two would silently diverge.
 ///
 /// It runs on the **real** bootstrap, the real engine, the real repository, and
 /// the real adapter. There is no prototype state model behind it and no
@@ -35,6 +42,8 @@
 /// widget's discipline lasts until someone adds a `Text`.
 library;
 
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -55,6 +64,27 @@ import '../runtime/stride_session.dart';
 final ContentId kHarnessNode = ContentId.unchecked(
   'resource_node.meadow_patch',
 );
+
+/// What the health provider is called on this platform.
+///
+/// Cosmetic, and deliberately the **only** platform branch in this file. A
+/// tester following the iOS checklist must not be reading a panel headed
+/// "Health Connect", and a diagnostic that names the wrong subsystem is worse
+/// than one that names none: it sends the reader to the wrong settings screen
+/// and makes a correct "unavailable" look like a bug.
+///
+/// Nothing else here varies. The buttons dispatch the same commands, the
+/// numbers come from the same `GameState`, and the redaction rules are the same
+/// rules — because the two platforms produce the same normalized `SyncResponse`
+/// and the whole contract exists so that they do.
+String get healthProviderName {
+  if (Platform.isIOS) return 'HealthKit';
+  if (Platform.isAndroid) return 'Health Connect';
+  // The host, under `flutter test`. Named honestly rather than defaulted to one
+  // of the two: a widget test reading "HealthKit" on Windows would be asserting
+  // something true on neither platform.
+  return 'Health provider';
+}
 
 /// Root of the debug build.
 class StrideHarnessApp extends StatelessWidget {
@@ -272,10 +302,14 @@ class _DevHarnessScreenState extends State<DevHarnessScreen> {
                   ? null
                   : _gather,
               icon: const Icon(Icons.grass),
+              // Named for the thing the player gets, not for the verb. "Gather"
+              // is what the button does; "Gather Meadow Herb" is what it is
+              // for, and a validation checklist has to be able to name the
+              // control the tester is looking at.
               label: Text(
                 cost == null
-                    ? 'Gather'
-                    : 'Gather — $cost energy'
+                    ? 'Gather ${_yieldName(session, node)}'
+                    : 'Gather ${_yieldName(session, node)} — $cost energy'
                           '${session.canGather(kHarnessNode) ? '' : ' (not enough)'}',
               ),
             ),
@@ -284,7 +318,7 @@ class _DevHarnessScreenState extends State<DevHarnessScreen> {
         const SizedBox(height: 16),
 
         _Section(
-          title: 'Health Connect',
+          title: healthProviderName,
           children: <Widget>[
             _Row('Availability', _availability ?? 'not checked'),
             _Row('Permission', _permission ?? 'not requested'),
@@ -298,7 +332,7 @@ class _DevHarnessScreenState extends State<DevHarnessScreen> {
               children: <Widget>[
                 OutlinedButton(
                   onPressed: _busy ? null : _checkAvailability,
-                  child: const Text('Check availability'),
+                  child: Text('Check $healthProviderName'),
                 ),
                 OutlinedButton(
                   onPressed: _busy ? null : _requestPermission,
@@ -389,6 +423,20 @@ class _DevHarnessScreenState extends State<DevHarnessScreen> {
         ),
       ],
     );
+  }
+
+  /// The display name of what a node yields, from content.
+  ///
+  /// Falls back to the content id rather than to a hard-coded string: a label
+  /// that says "Meadow Herb" while the registry says otherwise is a label that
+  /// will keep saying it after someone retunes the pack.
+  static String _yieldName(
+    StrideSession session,
+    ResourceNodeDefinition? node,
+  ) {
+    if (node == null) return 'resource';
+    return session.registry?.items[node.yieldsItem]?.displayName ??
+        node.yieldsItem.value;
   }
 
   /// Instants are rendered in UTC, never in the device's calendar.

@@ -110,9 +110,17 @@ The player must be able to:
       Real steps → `SyncResponse` → `ReconcileStepSync` → `GameEngine` → durable save →
       usable energy → `GatherResource` → persisted, verified across a relaunch.
       See `S01A_IMPLEMENTATION_MAP.md` and `S01A_DEVICE_VALIDATION.md`.
-    - **Awaiting physical-device validation.** Everything in front of `StepSource` is
-      asserted automatically; the Health Connect platform itself is not, and cannot be.
-    - iOS foreground HealthKit is unchanged and remains open.
+    - **Android physical validation PAUSED by owner priority.** The implementation is
+      preserved and compiling; no Android-only work continues this milestone.
+    - **iOS-first pivot.** The Swift HealthKit adapter was already complete; the shared
+      vertical slice, harness, engine and save are platform-neutral and unchanged.
+      21 further assertions cover the iOS configuration facts a compile cannot catch.
+      See `S01A_IOS_READINESS.md`.
+    - **BLOCKED on Mac access.** The owner has a Windows PC and an iPhone, no Mac and
+      no paid Apple Developer membership. Flutter cannot build iOS on Windows, and the
+      macOS CI job builds `--no-codesign`, which is not installable. Every install
+      route terminates in a Mac; a paid membership alone would not unblock it.
+      No further code change creates a path.
 
 ## F-05 closed the four decisions
 
