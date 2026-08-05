@@ -212,9 +212,15 @@ Android physical validation was performed and no Android-only feature was added.
 
 ## Closure
 
-S-01A closes when: branch CI is green ✅, the iOS build compiles ✅ (macOS CI,
-`--no-codesign`), a signed iPhone installation path exists ❌, and the physical
-iPhone vertical slice passes ❌.
+| Condition | State |
+|---|---|
+| Branch CI is green | ✅ run `30963109118` — Dart core, Pigeon bindings, Android, iOS compile |
+| The iOS build compiles | ✅ app shell, Swift health adapter and Swift secure-store adapter all compile; the 46 Swift tests and the simulator Keychain tests pass |
+| A signed iPhone installation path exists | ❌ **blocked on Mac access** |
+| The physical iPhone vertical slice passes | ❌ blocked on the above |
 
-**The last two are blocked on Mac access and nothing else.** Not merged to
-master.
+The iOS compile job builds `--no-codesign` by design. It proves the code builds;
+it deliberately produces nothing installable.
+
+**Not merged to master.** Two of the four closure conditions are unmet, and
+neither is a code problem.
