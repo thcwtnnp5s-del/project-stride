@@ -10,15 +10,22 @@
 // `SaveRepository` over a real temporary directory with a real OS lock, and
 // `StrideSession`'s fetch → reconcile → commit loop.
 //
-// Substituted: exactly one thing, `StepSyncSource`. Everything behind it is
-// Health Connect, which needs a phone. Everything in front of it is asserted
+// Substituted: exactly one thing, `StepSyncSource`. Everything behind it is a
+// health platform that needs a phone. Everything in front of it is asserted
 // here, on Windows, in under a second.
 //
-// That split is deliberate and it is where the honesty of this suite lives. A
-// green run says the *decision* layer is correct. It says nothing about whether
-// Health Connect on a real Pixel returns what the adapter expects — the Kotlin
-// suite covers the adapter's translation of a `StepSource`, and only a device
-// covers the platform beneath it. `S01A_DEVICE_VALIDATION.md` is the rest.
+// **This file covers BOTH platforms, and that is a property of the design
+// rather than a convenience.** HealthKit and Health Connect normalize to the
+// same `SyncResponse`, so every assertion below holds on iOS unchanged — there
+// is no iOS copy of this suite and there must not be one. What differs between
+// the platforms lives entirely behind the substituted interface.
+//
+// That split is where the honesty of this suite lives. A green run says the
+// *decision* layer is correct. It says nothing about whether Health Connect on
+// a real Pixel, or HealthKit on a real iPhone, returns what the adapters
+// expect: the Kotlin and Swift suites cover each adapter's translation of its
+// own platform seam, and only a device covers the platform beneath it.
+// `S01A_DEVICE_VALIDATION.md` and `S01A_IOS_READINESS.md` are the rest.
 //
 // ===========================================================================
 // A note on acceptance property 1
@@ -498,6 +505,55 @@ void main() {
         report.quantity,
       );
     });
+
+    test(
+      'the figures the device checklist names: 90 energy, 2 herbs, 10 xp',
+      () async {
+        // The literal numbers, executed rather than derived. Every other
+        // assertion here reads the cost from the registry, which is right for a
+        // test of the arithmetic and not sufficient for this one: the iPhone and
+        // Android checklists both tell the owner to expect exactly these three,
+        // and a tester holding a phone cannot check a formula.
+        //
+        // `s01a_ios_readiness_test.dart` asserts the same numbers against the
+        // content pack. This asserts them against the state a real session
+        // actually reaches, which is the claim the checklist makes.
+        final StrideSession session = await walked(1000);
+        await session.syncSteps();
+        expect(session.usableEnergy, 1000);
+
+        final ActionReport report = await session.gather(kHarnessNode);
+
+        expect(report.succeeded, isTrue);
+        expect(report.cost, 90);
+        expect(session.usableEnergy, 910);
+        expect(session.totalSpent, 90);
+        expect(
+          session.inventoryCount(ContentId.unchecked('item.meadow_herb')),
+          2,
+        );
+        expect(
+          session.engine!.state.skills.experienceIn(
+            ContentId.unchecked('skill.foraging'),
+          ),
+          10,
+        );
+
+        // And all three survive the relaunch the checklist performs next.
+        final StrideSession reopened = await relaunch();
+        expect(reopened.usableEnergy, 910);
+        expect(
+          reopened.inventoryCount(ContentId.unchecked('item.meadow_herb')),
+          2,
+        );
+        expect(
+          reopened.engine!.state.skills.experienceIn(
+            ContentId.unchecked('skill.foraging'),
+          ),
+          10,
+        );
+      },
+    );
 
     test(
       '9 — a reload preserves energy, ledger, cursor and the yield',
