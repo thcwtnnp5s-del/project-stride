@@ -116,11 +116,15 @@ The player must be able to:
       vertical slice, harness, engine and save are platform-neutral and unchanged.
       21 further assertions cover the iOS configuration facts a compile cannot catch.
       See `S01A_IOS_READINESS.md`.
-    - **BLOCKED on Mac access.** The owner has a Windows PC and an iPhone, no Mac and
-      no paid Apple Developer membership. Flutter cannot build iOS on Windows, and the
-      macOS CI job builds `--no-codesign`, which is not installable. Every install
-      route terminates in a Mac; a paid membership alone would not unblock it.
-      No further code change creates a path.
+    - **Installation route: direct Xcode install, free Personal Team.** The owner has
+      a Dell Windows PC (primary development machine), a Mac (sign-and-install station
+      only), an iPhone, and an ordinary Apple Account. **No paid Apple Developer
+      membership, and none needed.** Flutter cannot build iOS on Windows, which is why
+      the Mac is in the loop; the macOS CI job builds `--no-codesign` and is therefore
+      evidence that the code compiles and nothing more. Pending: Mac setup, then the
+      physical device run. No further code change is required to create the path.
+      An earlier revision recorded no Mac and called this blocked; that was wrong
+      about the hardware and is withdrawn.
 
 ## F-05 closed the four decisions
 
@@ -208,7 +212,7 @@ The Swift scaffold was retired at M-5. All ten `.claude/agents/` definitions, wh
 
 The Swift adapter's mapping and error handling are covered by 12 simulator tests. `HealthKitStepStore` is still the S-01b shell, so **nothing about real HealthKit is verified**. Same on Android: `HealthConnectAdapter` is a shell until S-01.
 
-Physical devices are needed for real health data, background sync, process-kill, and cross-adapter equivalence (V-02b). A real Mac plus Apple Developer Program is needed for signing and TestFlight.
+Physical devices are needed for real health data, background sync, process-kill, and cross-adapter equivalence (V-02b). A Mac is needed to build and sign the iOS app; a free Apple Account and Personal Team are sufficient to install it on the owner's own iPhone. The Apple Developer Program would be needed only for TestFlight, which is out of scope.
 
 ### Toolchain
 

@@ -5,33 +5,45 @@ finishing Android device work. Android is preserved and paused, not reverted.
 
 ---
 
-## The blocker, stated first
+## The route, stated first
 
-**Route C. There is no iPhone installation path from this machine, and no amount
-of further code changes creates one.**
+**Route A. Direct install from Xcode on the Mac, signed with a free Apple
+Account under a Personal Team. No paid membership is required and none is to be
+purchased.**
 
-The owner has a Windows PC and an iPhone. No Mac, no macOS environment, no paid
-Apple Developer Program membership.
+### Owner hardware
 
-Three facts, each independently sufficient:
+| Asset | Role |
+|---|---|
+| Dell Windows PC | **Primary development machine.** Unchanged. All Dart, Flutter, Android and guard work continues here. |
+| Mac | **Sign-and-install station only.** Used to build the iOS app and push it to the phone. Not a development machine. |
+| Personal iPhone | The validation target. |
+| Ordinary Apple Account | Provides the free **Personal Team** used for automatic signing. |
+| Apple Developer Program | **Not held, and not needed.** |
+
+An earlier revision of this document recorded the owner as having no Mac and
+concluded that no installation path existed. That was wrong about the hardware,
+and everything it concluded from it is withdrawn. There is no blocker.
+
+### What is still true, and worth keeping
+
+Three facts survive the correction, because they are about the tools rather than
+the hardware:
 
 1. **Flutter cannot build an iOS app on Windows.** `flutter build ios` requires
-   Xcode, which is macOS-only. This is Apple's restriction, not Flutter's.
+   Xcode, which is macOS-only. This is Apple's restriction, not Flutter's — and
+   it is why the Mac exists in this arrangement at all. The Dell remains primary
+   for everything else.
 2. **The macOS CI job builds `--no-codesign`.** An unsigned `.app` cannot be
    installed on any iPhone. The job proves the code compiles; it deliberately
    produces nothing installable, and `.github/workflows/ci.yml` says so in its
-   own header comment.
-3. **Every install route terminates in a Mac.** Direct Xcode install needs one on
-   the desk. TestFlight needs one to produce the archive — or a macOS CI runner
-   holding the owner's signing certificate and provisioning profile as
-   repository secrets, which is signing infrastructure nobody has asked for and
-   which needs a paid membership anyway.
+   own header comment. **A green iOS CI job is not an installed app**, and the
+   closure table below keeps the two apart.
+3. **A paid membership would not add anything this milestone needs.** It removes
+   the 7-day provisioning limit and opens TestFlight. Neither is required to put
+   the app on the owner's own phone and run the validation sequence.
 
-**A paid Apple Developer membership alone would not unblock this.** It removes
-the 7-day provisioning limit and opens TestFlight; it does not produce a build.
-The Mac is the binding constraint, and it is the only one.
-
-### What is *not* the blocker
+### What was never the blocker
 
 Worth stating, because the natural assumption is that iOS work remains:
 
@@ -86,13 +98,28 @@ No Swift, no entitlement, and no Android file was modified.
 
 ---
 
-## Route A — direct Xcode install (available the day a Mac is)
+## Route A — direct Xcode install (**the approved route**)
 
-Shortest legitimate route. **Works with a free Apple Account; no paid membership
+**Works with a free Apple Account under a Personal Team; no paid membership
 needed.** The app is provisioned for 7 days and re-running from Xcode renews it.
 
 Requirements: macOS current enough for Xcode 15+, Xcode with iOS 17 SDK, a
-Lightning/USB-C cable, the iPhone, and any Apple ID.
+Lightning/USB-C cable, the iPhone, and the owner's ordinary Apple Account.
+
+The minimum that genuinely has to be installed on the Mac is only this:
+
+| # | Software | Why it is unavoidable |
+|---|---|---|
+| 1 | **Xcode** (Mac App Store), launched once so it installs its platform components | The only iOS toolchain, the only signer, and the only thing that can install to a connected phone. Supplies the iOS 17 SDK this project targets. |
+| 2 | **Xcode Command Line Tools** | Installed by Xcode's first launch, or `xcode-select --install`. Flutter's iOS build calls them directly. |
+| 3 | **Flutter SDK** (macOS) | `flutter build`/`flutter run` drive the Xcode build and generate the plugin registrant. |
+| 4 | **CocoaPods** | The iOS plugin dependencies (`stride_health`, `stride_secure_store`) are resolved through the Podfile. Without it the workspace has no pods and the build fails at link. |
+| 5 | **Git** | To clone the repository. Ships with the Command Line Tools. |
+
+Nothing else. No Homebrew requirement, no Ruby version manager, no Fastlane, no
+certificates to generate by hand, no App Store Connect account, no CI signing
+infrastructure. If a step below appears to demand more than this list, stop and
+report it rather than installing it.
 
 1. Install Xcode from the Mac App Store. Launch once and let it install the
    platform components.
@@ -121,24 +148,19 @@ Lightning/USB-C cable, the iPhone, and any Apple ID.
 **The 7-day limit.** With a free account the app stops launching after a week.
 Re-run from Xcode to renew. With a paid membership it is a year.
 
-## Route B — TestFlight (needs a Mac *and* a paid membership)
+## Route B — TestFlight: **out of scope, deliberately**
 
-Only worth doing if the owner wants to install without the Mac connected, or to
-share with friends.
+Recorded so nobody re-derives it as a missing step. It needs the Apple Developer
+Program ($99/year) and App Store Connect, and it buys only two things this
+milestone does not need: installing without the Mac connected, and sharing with
+other people.
 
-1. Enrol in the Apple Developer Program ($99/year).
-2. In App Store Connect, register the bundle identifier and create the app
-   record. **No marketing material, no screenshots, no App Store review** —
-   TestFlight internal testing needs none of it.
-3. On the Mac: `flutter build ipa --release`.
-4. Open `build/ios/archive/Runner.xcarchive` in Xcode → Distribute App → App
-   Store Connect → Upload.
-5. Wait for processing (usually minutes), then add yourself as an internal
-   tester.
-6. On the iPhone: install **TestFlight** from the App Store, accept the
-   invitation, install Stride.
+**Not to be configured.** No TestFlight, no App Store Connect, no cloud signing
+pipeline, no signing certificate in CI. The owner has ruled these out and Route A
+reaches the phone without any of them.
 
-Builds expire after 90 days.
+The only thing Route B would genuinely improve is the 7-day provisioning limit
+below — and re-running from Xcode renews that in under a minute.
 
 **Signing material stays out of the repository.** No `DEVELOPMENT_TEAM`, no
 `.p12`, no `.mobileprovision` — asserted by `s01a_ios_readiness_test.dart`. A
@@ -216,11 +238,19 @@ Android physical validation was performed and no Android-only feature was added.
 |---|---|
 | Branch CI is green | ✅ run `30963109118` — Dart core, Pigeon bindings, Android, iOS compile |
 | The iOS build compiles | ✅ app shell, Swift health adapter and Swift secure-store adapter all compile; the 46 Swift tests and the simulator Keychain tests pass |
-| A signed iPhone installation path exists | ❌ **blocked on Mac access** |
-| The physical iPhone vertical slice passes | ❌ blocked on the above |
+| A signed iPhone installation path exists | ⏳ **Route A, unblocked and not yet executed** — Mac available, free Personal Team, no paid membership needed |
+| The physical iPhone vertical slice passes | ⏳ pending the above |
 
 The iOS compile job builds `--no-codesign` by design. It proves the code builds;
-it deliberately produces nothing installable.
+it deliberately produces nothing installable — so it is evidence for the second
+row and for no other.
 
-**Not merged to master.** Two of the four closure conditions are unmet, and
-neither is a code problem.
+**Not merged to master.** Two of the four closure conditions remain unmet.
+Neither is a code problem, and neither is now a hardware problem: both are the
+Mac setup and the device run, in that order.
+
+If free Personal Team signing fails at any point, the correct response is to
+record the exact Xcode provisioning or HealthKit error and review it — **not** to
+conclude that a paid membership is required. HealthKit is entitled under a free
+Personal Team, and the entitlement is not to be removed or weakened to make a
+signing error go away.
