@@ -40,6 +40,24 @@ concurrency:
 
 env:
   FLUTTER_CHANNEL: stable
+  # Pinned, not floating. A REPRODUCIBILITY fix, not a Flutter upgrade.
+  #
+  # `channel: stable` alone follows whatever stable is on the day. When stable
+  # moved 3.44.8 -> 3.47.0, `dart format` changed its output and the format
+  # check began failing on three files nobody had touched since early August —
+  # on master as much as on any branch. A run's result then depended on the
+  # date it happened to be started, which is the one thing CI evidence may not
+  # depend on.
+  #
+  # 3.44.8 is the version the repository is formatted against and the version
+  # the owner develops on. Those two agreeing is the property being pinned.
+  #
+  # Not a decision to stay here. A deliberate 3.47 upgrade — reformat, full
+  # suite, its own branch — is worth doing and is recorded as a follow-up in
+  # PROJECT_STATE.md. Doing it inside a HealthKit defect fix would have meant
+  # a toolchain bump landing in the same commit as the evidence meant to
+  # validate the fix.
+  FLUTTER_VERSION: 3.44.8
   JAVA_VERSION: '17'
 
 jobs:
@@ -55,6 +73,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
@@ -264,6 +283,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
@@ -324,6 +344,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve dependencies
@@ -426,6 +447,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: ${{ env.FLUTTER_CHANNEL }}
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Resolve Flutter dependencies

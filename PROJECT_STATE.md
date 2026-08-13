@@ -225,6 +225,25 @@ Physical devices are needed for real health data, background sync, process-kill,
 | AVD | ✅ `stride_pixel` (API 36) |
 | GitHub CLI | ✅ 2.97.0, authenticated |
 | Xcode | ➖ iOS-only; CI macOS job covers compilation |
+| CI Flutter | 📌 pinned to exact 3.44.8 in `.github/workflows/ci.yml` |
+
+#### Why CI pins its Flutter version
+
+CI followed `channel: stable` with no version. When stable moved 3.44.8 →
+3.47.0, `dart format` changed its output and the format check began failing on
+three files nobody had touched since early August — on master as much as on any
+branch. A CI result that depends on the date the run was started is not
+evidence, so the version is now exact and matches the development machine.
+
+#### Follow-up: evaluate Flutter 3.47 deliberately (not blocking)
+
+Worth doing, on its own branch and its own milestone: upgrade, reformat what the
+newer `dart format` wants, run the full suite, and look for behaviour changes
+across `stride_core` and `stride_storage` before unpinning. It was deliberately
+**not** done inside the S-01A HealthKit cursor fix — a toolchain bump landing in
+the same commit as the evidence meant to validate a defect fix makes neither
+trustworthy. Nothing is broken while pinned; this is scheduled work, not debt
+that is accruing.
 
 
 ## Open gaps to close during Milestone 01
