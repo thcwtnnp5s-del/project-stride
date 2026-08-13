@@ -406,6 +406,115 @@ final class HealthKitAdapterTests: XCTestCase {
     XCTAssertNil(try fetch(adapter).get().pagination.continuation)
   }
 
+  // MARK: - 4b. A candidate cursor is offered only on the final page
+
+  /// The first physical-iPhone sync drained in eight pages and reported seven
+  /// `cursorOfferedWhenProhibited` faults — one per non-final page.
+  ///
+  /// Nothing durable moved: the Dart bridge refused all seven and only the
+  /// eighth cursor reached `StepCheckpointAuthorized`. The defect was that the
+  /// adapter OFFERED at all. `HKAnchoredObjectQuery` hands back one updated
+  /// anchor per page and it was assigned to both the continuation and the
+  /// candidate cursor; as a continuation it is correct mid-read, as a cursor it
+  /// claims the whole read is done.
+  ///
+  /// Every earlier test that supplied an anchor also declared its page final,
+  /// which is why the suite was green through eight real pages of the defect.
+  /// This one is explicitly mid-read.
+  func testNonFinalPagesOfferNoCandidateCursor() throws {
+    let anchor = Data([0xDE, 0xAD, 0xBE, 0xEF])
+    let adapter = keyed(
+      FakeSource(
+        reading: RawStepReading(
+          slices: [slice()],
+          anchor: anchor,
+          isFinalPage: false,
+          continuation: anchor
+        )
+      )
+    )
+
+    let page = try fetch(adapter).get()
+
+    XCTAssertNil(
+      page.nextCursor,
+      "a non-final page must offer no candidate cursor: pages remain outstanding")
+    // The same bytes are still legal as in-flight read state. The point is that
+    // the two fields mean different things, not that the anchor is unusable.
+    XCTAssertEqual(page.pagination.continuation?.data, anchor)
+    XCTAssertFalse(page.pagination.isFinalPage)
+  }
+
+  /// The eight-page shape from the device, asserted page by page.
+  ///
+  /// Seven non-final pages then a drained one — exactly the delivery that
+  /// produced seven faults. The candidate must appear on the last page and
+  /// nowhere else, or the fix has only moved the problem.
+  func testAnEightPageDeliveryOffersTheCandidateOnlyOnTheFinalPage() throws {
+    let anchors: [Data] = (0..<8).map { Data([0xA0, UInt8($0)]) }
+    var offeredOn: [Int] = []
+
+    for index in 0..<8 {
+      let isFinal = index == 7
+      let adapter = keyed(
+        FakeSource(
+          reading: RawStepReading(
+            slices: [slice()],
+            anchor: anchors[index],
+            isFinalPage: isFinal,
+            continuation: isFinal ? nil : anchors[index],
+            completeThroughMillis: isFinal ? Int64(1_753_405_200_000) : nil,
+            scopedOriginKeys: [originKey("com.apple.health")],
+            intervalStartMillis: 1_753_401_600_000,
+            intervalEndMillis: 1_753_405_200_000,
+            pageIndex: Int64(index)
+          )
+        )
+      )
+
+      let page = try fetch(adapter).get()
+      if page.nextCursor != nil { offeredOn.append(index) }
+
+      if isFinal {
+        XCTAssertEqual(page.nextCursor?.data, anchors[index])
+        XCTAssertNil(page.pagination.continuation)
+        XCTAssertEqual(page.completeness.kind, .completeThrough)
+      } else {
+        XCTAssertNil(page.nextCursor)
+        XCTAssertEqual(page.pagination.continuation?.data, anchors[index])
+        // Unchanged by this fix, and asserted here so a future change cannot
+        // trade one non-final leak for the other.
+        XCTAssertEqual(page.completeness.kind, .partial)
+      }
+    }
+
+    XCTAssertEqual(
+      offeredOn, [7],
+      "exactly one candidate cursor per eight-page read, on the drained page")
+  }
+
+  /// A quiet mid-read page is the same rule.
+  ///
+  /// `noChange` is the one kind `authorizeCursor` lets through on a final page
+  /// regardless of completeness, which makes it the kind where a non-final leak
+  /// would be least visible.
+  func testANonFinalNoChangePageOffersNoCandidateCursor() throws {
+    let adapter = keyed(
+      FakeSource(
+        reading: RawStepReading(
+          anchor: Data([0x01, 0x02]),
+          isFinalPage: false,
+          continuation: Data([0x01, 0x02])
+        )
+      )
+    )
+
+    let page = try fetch(adapter).get()
+
+    XCTAssertEqual(page.status, .noChange)
+    XCTAssertNil(page.nextCursor)
+  }
+
   // MARK: - 5. Recovery: invalidated cursors carry a window and no anchor
 
   func testInvalidatedResponseCarriesRescanAndAuthoritativeObservations() throws {

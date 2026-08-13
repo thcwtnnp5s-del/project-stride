@@ -209,6 +209,65 @@ device name, a salt, origin-key bytes, or anchor contents. Origins are a
 
 ---
 
+## The first real run, and the one defect it found
+
+Route A was executed. Free Personal Team signing succeeded, the app installed
+and ran, HealthKit reported `available` and `granted`, and the first sync
+reconciled: eight pages, two origins, 721 UTC buckets, 837,163 steps observed,
+407,105 newly granted, eight syncs committed, cursor present, backup exclusion
+clean, identity in the Keychain.
+
+It also reported **seven `cursorOfferedWhenProhibited` faults across eight
+pages** — one per non-final page.
+
+### What it was
+
+`HKAnchoredObjectQuery` returns one updated anchor per page.
+`HealthKitStepStore` assigned that anchor to both the continuation *and* the
+candidate cursor on every page, and `HealthKitAdapter.map` forwarded it as
+`nextCursor` without consulting `isFinalPage` — the only one of that page's
+three outbound fields that was not gated on it. As a continuation the anchor is
+correct mid-read; as a candidate cursor it claims the whole read is finished.
+
+The Kotlin adapter had the gate and a multi-page test for it. iOS was the
+outlier, and every Swift test that supplied an anchor also declared its page
+final, so the suite stayed green straight through eight real pages of it.
+
+### Why the save is safe and was not reset
+
+The offer never became durable. `authorizeCursor` refused all seven as
+`prohibitedNonFinalPage`, the bridge dropped each one and raised the fault,
+`StepCheckpointAuthorized` carried the unchanged cursor forward, and only page
+eight's cursor reached the save. No step was skipped, none was granted twice,
+and the durable state is identical to what a correct adapter would have
+produced. That equivalence is asserted, not assumed:
+`packages/stride_health/test/multi_page_cursor_regression_test.dart` runs both
+deliveries and compares canonical durable state.
+
+The fault channel was doing its job. The defect was that the adapter made it
+fire during ordinary operation, and a fault that fires on every normal read is
+one nobody will read when it matters.
+
+### Smallest re-validation on the device
+
+The current save is evidence and is worth keeping, so this sequence does not
+reset it. Rebuild and reinstall over the existing install:
+
+| # | Action | Expected |
+|---|---|---|
+| 1 | Reinstall over the existing app, launch | Energy, inventory, XP and cursor all preserved. Cursor `present`. |
+| 2 | Tap **Sync Steps** | **Zero faults.** Newly granted `0`, or only steps from hours completed since the first run. |
+| 3 | Walk several hundred steps, wait for the hour to end, **Sync Steps** | Only the new steps granted. Zero faults. |
+| 4 | Force-close, relaunch, **Sync Steps** | Everything preserved. Newly granted `0`. Zero faults. |
+
+Step 2 is the whole test. A multi-page delivery is not required to prove the
+fix — a single drained page proves the gate did not break the legal offer, and
+the eight-page case is covered by the Swift and Dart regression tests. If a
+paginated read does occur, the fault count must be zero and the cursor must
+still be `present` afterwards.
+
+---
+
 ## What a physical iPhone would prove that nothing else can
 
 Every line touching `HKHealthStore` is unverified by any suite:
@@ -238,16 +297,17 @@ Android physical validation was performed and no Android-only feature was added.
 |---|---|
 | Branch CI is green | ✅ run `30963109118` — Dart core, Pigeon bindings, Android, iOS compile |
 | The iOS build compiles | ✅ app shell, Swift health adapter and Swift secure-store adapter all compile; the 46 Swift tests and the simulator Keychain tests pass |
-| A signed iPhone installation path exists | ⏳ **Route A, unblocked and not yet executed** — Mac available, free Personal Team, no paid membership needed |
-| The physical iPhone vertical slice passes | ⏳ pending the above |
+| A signed iPhone installation path exists | ✅ **executed** — free Personal Team signing succeeded; the app is installed and running on the owner's iPhone |
+| The physical iPhone vertical slice passes | ⏳ first sync reconciled and reported one defect, now fixed; awaiting the re-validation sequence above |
 
 The iOS compile job builds `--no-codesign` by design. It proves the code builds;
 it deliberately produces nothing installable — so it is evidence for the second
 row and for no other.
 
-**Not merged to master.** Two of the four closure conditions remain unmet.
-Neither is a code problem, and neither is now a hardware problem: both are the
-Mac setup and the device run, in that order.
+**Not merged to master.** One of the four closure conditions remains unmet: the
+device run found a real adapter defect, it has been fixed, and the fix has not
+yet been seen on the device. That is a build-and-reinstall away, not a hardware
+or provisioning problem.
 
 If free Personal Team signing fails at any point, the correct response is to
 record the exact Xcode provisioning or HealthKit error and review it — **not** to

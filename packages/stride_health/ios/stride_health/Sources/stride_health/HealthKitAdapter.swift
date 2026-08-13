@@ -344,7 +344,20 @@ final class HealthKitAdapter: HealthHostApi {
       pagination: pagination,
       // Returned and forgotten. Never written to UserDefaults: the caller makes
       // it durable only after the ledger and snapshot have committed.
-      nextCursor: reading.anchor.map { FlutterStandardTypedData(bytes: $0) },
+      //
+      // Gated on `isFinalPage`, like the completeness assertion above and the
+      // continuation below. This field was the one of the three that was not,
+      // and the omission was invisible for as long as every test that supplied
+      // an anchor also said the page was final — which was every test, because
+      // a fabricated reading has no reason to be mid-read unless a test says so.
+      //
+      // A candidate cursor on a non-final page means "you have seen everything
+      // up to here" while pages remain outstanding. `authorizeCursor` refuses
+      // it and always did; this stops it being OFFERED, which is what the
+      // contract actually says an adapter may do.
+      nextCursor: reading.isFinalPage
+        ? reading.anchor.map { FlutterStandardTypedData(bytes: $0) }
+        : nil,
       // A healthy fetch never carries a rescan. Attaching one would invite the
       // bridge to treat authoritative window content as ordinary incremental
       // data.

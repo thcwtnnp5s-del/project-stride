@@ -389,7 +389,9 @@ final class HealthKitStepStore: HealthKitStepSource {
         // honestly name. Under-settling costs ledger growth; over-settling
         // buries a bucket a late page was about to fill.
         var reading = RawStepReading()
-        reading.anchor = candidateAnchor
+        // Offered only on a drained page. See the note beside the same pair of
+        // assignments on the restated path below.
+        reading.anchor = drained ? candidateAnchor : nil
         reading.isFinalPage = drained
         reading.continuation = drained ? nil : candidateAnchor
         reading.queryGeneration = readGeneration
@@ -433,7 +435,29 @@ final class HealthKitStepStore: HealthKitStepSource {
 
           var reading = RawStepReading()
           reading.slices = outcome.slices
-          reading.anchor = candidateAnchor
+          // ONE anchor, TWO destinations, and only one of them is legal on a
+          // page that has not drained.
+          //
+          // `HKAnchoredObjectQuery` returns a single updated anchor per page,
+          // and it is the right value for both the in-flight resume token and
+          // the durable cursor — but it means different things in each. As a
+          // continuation it means "carry on from here", which is true mid-read.
+          // As a candidate cursor it means "you have seen everything up to
+          // here", which on page one of eight is false: pages two through eight
+          // have not been delivered.
+          //
+          // It used to be assigned to both unconditionally. `authorizeCursor`
+          // refused every non-final offer and the bridge dropped it, so nothing
+          // durable ever moved — but each refusal correctly raised
+          // `cursorOfferedWhenProhibited`, and a first real eight-page iPhone
+          // sync therefore reported seven faults against an adapter that was
+          // producing exactly the right data. A fault channel that fires on
+          // normal operation is a fault channel nobody reads.
+          //
+          // Offered only when the delivery contract permits it, which is the
+          // same condition `completeThroughMillis` below is already gated on.
+          // The bridge's refusal is untouched and remains the authority.
+          reading.anchor = drained ? candidateAnchor : nil
           reading.invalidated = false
           reading.isFinalPage = drained
           reading.continuation = drained ? nil : candidateAnchor
