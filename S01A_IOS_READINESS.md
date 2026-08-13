@@ -298,16 +298,15 @@ Android physical validation was performed and no Android-only feature was added.
 | Branch CI is green | ✅ run `30963109118` — Dart core, Pigeon bindings, Android, iOS compile |
 | The iOS build compiles | ✅ app shell, Swift health adapter and Swift secure-store adapter all compile; the 46 Swift tests and the simulator Keychain tests pass |
 | A signed iPhone installation path exists | ✅ **executed** — free Personal Team signing succeeded; the app is installed and running on the owner's iPhone |
-| The physical iPhone vertical slice passes | ⏳ first sync reconciled and reported one defect, now fixed; awaiting the re-validation sequence above |
+| The physical iPhone vertical slice passes | ✅ **PASS** — two syncs with zero faults, gather, and force-close persistence, all on real HealthKit data. `S01A_PHYSICAL_VALIDATION.md` |
 
 The iOS compile job builds `--no-codesign` by design. It proves the code builds;
 it deliberately produces nothing installable — so it is evidence for the second
 row and for no other.
 
-**Not merged to master.** One of the four closure conditions remains unmet: the
-device run found a real adapter defect, it has been fixed, and the fix has not
-yet been seen on the device. That is a build-and-reinstall away, not a hardware
-or provisioning problem.
+**All four closure conditions are met, and the branch is merged to master.**
+The device run found one real adapter defect, it was inert, it was fixed, and
+the re-run on hardware reported zero faults. S-01A is closed.
 
 If free Personal Team signing fails at any point, the correct response is to
 record the exact Xcode provisioning or HealthKit error and review it — **not** to

@@ -105,7 +105,7 @@ The player must be able to:
 29. ~~Execute F-06 — device persistence, bootstrap, restart validation.~~ **Done — `F06_COMPLETION_REPORT.md`**
 30. ~~Re-run CI and the Android process-death workflow against the final tree.~~ **Done — both green, `F06_COMPLETION_REPORT.md` §10**
 31. ~~Execute F-07 — skill framework.~~ **Deferred by owner priority decision — `DECISIONS/0014`**
-32. **Execute S-01A — foreground HealthKit and Health Connect integration with a device-validation harness.** ← current state
+32. ~~Execute S-01A — foreground HealthKit and Health Connect integration with a device-validation harness.~~ **Done — closed on a physical iPhone, `S01A_PHYSICAL_VALIDATION.md`**
     - **Android foreground vertical slice implementation-complete**, branch `s01a-foreground-health-harness`.
       Real steps → `SyncResponse` → `ReconcileStepSync` → `GameEngine` → durable save →
       usable energy → `GatherResource` → persisted, verified across a relaunch.
@@ -125,6 +125,17 @@ The player must be able to:
       physical device run. No further code change is required to create the path.
       An earlier revision recorded no Mac and called this blocked; that was wrong
       about the hardware and is withdrawn.
+    - **CLOSED on real hardware.** Free Personal Team signing succeeded, the app
+      installed and ran on the owner's iPhone, and the vertical slice passed end to
+      end against real HealthKit data. The first device run found one real defect
+      (`cursorOfferedWhenProhibited` on seven of eight pages); it was inert, it is
+      fixed, and the re-run reported zero faults. `S01A_PHYSICAL_VALIDATION.md`.
+33. **Define the player-facing / design milestone.** ← current state
+    - Nothing is in progress. Foreground health, the save, and the gather loop are
+      validated on hardware; the next milestone is a design conversation, not a
+      continuation of this one.
+    - F-07 (skill framework) is unblocked. S-01B (background sync) remains blocked on
+      a real persistence coordinator and is not the automatic next step.
 
 ## F-05 closed the four decisions
 
@@ -148,9 +159,20 @@ Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 | **F-04 — step ledger and the thirteen scenarios** | ✅ **Done** |
 | **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
 | **F-06 — device persistence, bootstrap, restart validation** | ✅ **Done** |
-| **S-01A — foreground HealthKit + Health Connect, device harness** | **In progress** ← next |
-| F-07 — skill framework | **Deferred** until after foreground health validation (`DECISIONS/0014`) |
-| S-01B — background synchronization | Blocked on S-01A **and** a real persistence coordinator |
+| **S-01A — foreground HealthKit + Health Connect, device harness** | ✅ **Done — validated on a physical iPhone** |
+| F-07 — skill framework | **Unblocked** — foreground health is validated (`DECISIONS/0014`) |
+| S-01B — background synchronization | Blocked on a real persistence coordinator |
+
+**S-01A closed on physical hardware.** Real iPhone, free Personal Team signing,
+real HealthKit data: two syncs with **zero faults**, 961 steps newly granted
+against a preserved 407,105, gathering spending 90 energy for 2 Meadow Herb, and
+every figure surviving force-close and relaunch. Full evidence in
+`S01A_PHYSICAL_VALIDATION.md`.
+
+The one defect the first device run found — `cursorOfferedWhenProhibited` on
+seven of eight pages — was a native adapter offering a candidate cursor
+mid-read. It was inert (nothing prohibited ever became durable, so the save was
+never reset), it is fixed in `5b68d33`, and the fix is confirmed on hardware.
 
 **540 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, 27 app, 17 `stride_health` — plus **38 Swift simulator tests** and 5 Kotlin in CI.
 
@@ -178,6 +200,9 @@ Linux: 94 passed, **11 failed**, against 105/105 on Windows — including
 | `TECHNICAL/PROJECT_SETUP.md` | How to build and verify |
 | `TOOLCHAIN_REPORT_WINDOWS.md` | Verified Windows toolchain |
 | `FILE_MANIFEST.md` | Full inventory, active vs. historical |
+| **`S01A_PHYSICAL_VALIDATION.md`** | **S-01A closure — the physical iPhone run, and what it does not prove** |
+| `S01A_IOS_READINESS.md` | iOS install route, the device sequence, the cursor defect record |
+| `S01A_IMPLEMENTATION_MAP.md` | Where each S-01A piece lives |
 | **`MIGRATION_CLOSURE_REPORT.md`** | **M-5/M-6, final CI, recommended F-02 scope** |
 | **`F05_COMPLETION_REPORT.md`** | **Save format, crash recovery, the ten root causes** |
 | **`DECISIONS/0012_SAVE_FORMAT.md`** | **Two slots, CAS, cursor authority, origin privacy** |
@@ -208,11 +233,23 @@ The Swift scaffold was retired at M-5. All ten `.claude/agents/` definitions, wh
 
 ### No blockers
 
-### Apple: adapter tested, platform not
+### Apple: validated on hardware
 
-The Swift adapter's mapping and error handling are covered by 12 simulator tests. `HealthKitStepStore` is still the S-01b shell, so **nothing about real HealthKit is verified**. Same on Android: `HealthConnectAdapter` is a shell until S-01.
+**Superseded.** This section used to say the adapter was tested and the platform
+was not — true until S-01A closed, and no longer. Real HealthKit reads, the
+save, and the gather loop are now verified on the owner's physical iPhone under
+free Personal Team signing: `S01A_PHYSICAL_VALIDATION.md`.
 
-Physical devices are needed for real health data, background sync, process-kill, and cross-adapter equivalence (V-02b). A Mac is needed to build and sign the iOS app; a free Apple Account and Personal Team are sufficient to install it on the owner's own iPhone. The Apple Developer Program would be needed only for TestFlight, which is out of scope.
+Still unverified on hardware, and deliberately listed so a passing run is not
+read as covering more than it did: background sync (S-01B, never started),
+deletion escalation, cursor invalidation and recovery, denied permission, and
+iCloud restore onto a second device (which needs two iPhones and an iCloud
+account). Android physical validation remains paused by owner priority;
+`HealthConnectAdapter` is implementation-complete and compiling, with cross-adapter
+equivalence (V-02b) still outstanding.
+
+A Mac is needed to build and sign the iOS app and remains a sign-and-install
+station only. The Apple Developer Program was never required.
 
 ### Toolchain
 
