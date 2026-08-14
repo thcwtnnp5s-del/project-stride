@@ -61,6 +61,31 @@ frozen for three subsequent passes.
 *Prevents:* a working asset getting worse because another iteration was
 available.
 
+**CR-41 — A technically correct pixel change is not a successful visual change
+unless the intended improvement is perceptible at target viewing scale.**
+
+**Source intent gets no credit.** Not a variable named `PACK`, not a comment
+saying `SWORD`, not an author's change list, not a pixel count, not a passing
+assertion. The rendered image is the entire evidence base, because it is the only
+thing a player receives.
+
+Two working consequences:
+
+- **Judge at the scale the player meets the asset.** ×8 is the working view and
+  never the verdict view — it flatters everything. A read that holds at ×8 and
+  fails at ×2 has failed. §8 step 2a is where this is enforced.
+- **The author of a change may not be its only judge.** An author reads its own
+  intent back out of the image and cannot help doing so. Independent perceptual
+  review is canonical in
+  `STUDIO_OPERATIONS/AGENT_ORCHESTRATION.md` — *Visual Studio*.
+
+*Prevents:* the failure recorded in `MISTAKES.md` M-04 — three consecutive
+Traveler passes whose corrections were defensible in source, reported as fixes,
+and invisible to the owner.
+
+*This rule outranks every other rule in this document.* A change that satisfies
+CR-3 through CR-40 and cannot be seen has still failed.
+
 ---
 
 ## 2. Character craft
@@ -401,6 +426,12 @@ cluster economy are decided here.
 **2. Integer upscale (nearest-neighbour).** Where accidental pixels, specks,
 tangencies and cluster mistakes become visible. This is the working iteration
 view.
+
+**2a. ×2 play-scale proxy. — THE VERDICT VIEW.**
+The closest available approximation of the asset in a hand. Every render set
+includes it, and it is the first view a reviewer opens. **×8 is inspection scale,
+never verdict scale**; half the Traveler's defects survived ×8 and were fatal at
+play scale (CR-41, `MISTAKES.md` M-04).
 
 **3. Actual game context, at target scale. — THE CRITICAL ONE.**
 An isolated sprite is **not** the final judge of hand readability, silhouette

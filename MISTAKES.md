@@ -21,6 +21,59 @@ to `M-02` stays valid.
 
 ---
 
+## M-04 — A technically correct pixel change was reported as a fix without perceptual verification
+
+**Date:** 2026-08-14 · **Category:** process / visual production ·
+**Graduated to:** `PIXEL_ART_CRAFT_SPEC.md` CR-41,
+`STUDIO_OPERATIONS/AGENT_ORCHESTRATION.md` — Visual Studio
+
+### What happened
+
+Across three consecutive Traveler passes, the implementation report described
+substantial, defensible source-level corrections — dozens of moved pixels, a
+repositioned sword, a re-silhouetted pack, a palette separation — and the owner
+looked at the before and after images and said they basically looked the same.
+
+### Root cause
+
+**The agent that authored the pixels was also the only judge of whether they
+worked, and it judged them against source intent rather than against the rendered
+image at the scale a player would see.** Every claim was true at the level of the
+sprite map and unverified at the level of perception. The final pass then ended
+with a single self-written line, `GRADUATE TRAVELER — YES`, with no independent
+assessment beside it.
+
+Two multipliers: review happened at ×8, which flatters everything and hid reads
+that failed at play scale; and the source carried explicit semantic labels —
+`PACK`, `SWORD`, *"the strap terminates ON the bag"* — so any reviewer with
+access to it was told what to see before looking.
+
+### Consequence
+
+Owner review rounds spent on corrections the owner could not perceive, and a
+character reported as ready that the owner still read as carrying a shield.
+
+### Prevention
+
+- **The perceptual law.** Source intent gets no credit — not a variable name, a
+  comment, a pixel count, or a passing assertion.
+- **Blind semantic read.** The critic sees neutrally staged renders before any
+  intent, name, source, or version label. Staging enforces this, not intentions.
+- **Perceptual delta test.** Before/after shown unlabelled and randomised. A
+  correction the author called significant that reads *functionally the same* has
+  not solved the problem.
+- **A ×2 play-scale proxy in every render set.** ×8 is inspection scale, never
+  verdict scale.
+- **Separate AUTHOR ASSESSMENT and QA VERDICT lines.** The author never writes
+  the second one.
+
+### Evidence
+
+Owner review of `TRAVELER_REFINE_03`, 2026-08-14 · the R03F → R03C correction
+(53 pixels changed, reported as significant) · `AGENTS/visual_qa.md`
+
+---
+
 ## M-03 — A HealthKit candidate cursor was offered on non-final pages
 
 **Date:** 2026-08-13 · **Category:** architecture · **Graduated to:** `RULES.md` H-4, G-4
