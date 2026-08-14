@@ -660,10 +660,15 @@ marker is placed at the plant.
 ## 7.3 IDENTITY BLOCK — A3 · WILD TRAILS
 
 **Prompt thesis.** *The land visibly remembers movement.* A3's distinctiveness
-comes from **terrain shaped by repeated travel** — tread compaction, a braid
-around a wet patch, a widened approach at the gate — plus regional vegetation
-identity and a practical explorer's bearing. Trails are **environmental history**,
-never navigation UI.
+comes from **terrain shaped by repeated travel** — tread compaction, a broader
+worn approach at the gate, and a short stretch where a damp patch has worn the
+bare surface into two channels *within the path's own width* — plus regional
+vegetation identity and a practical explorer's bearing. Trails are **environmental
+history**, never navigation UI.
+
+**One path, one silhouette.** The wear variation stays entirely inside the
+existing path footprint. Anything that reads as a fork, a branch, or a second
+route has changed the scene's road count and invalidates the sample (RS-1, R-4).
 
 **Carriers are existing scene elements only (RS-1).** The earlier proposal added a
 blazed trail post and a stone cairn at the signpost's position. **Both are
@@ -686,13 +691,23 @@ marker post would be.
 >
 > The path is the most designed object in the image and it reads unmistakably as
 > ground worn by repeated walking. It shows visible tread compaction with a
-> smooth, bare, slightly sunken centre and softer broken-grass edges; it widens at
-> the gate mouth where traffic has spread; and at one point along its length it
-> braids briefly into two shallow parallel tracks around a small damper patch of
-> ground before rejoining. The ground where the meadow meets the path changes in a
-> visible band rather than at a hard line. The path is depicted terrain wear and
-> nothing else — it is not a route indicator, not a guide, and not an interface
-> element.
+> smooth, bare, slightly sunken centre and softer broken-grass edges, and the
+> ground near the gate carries the heaviest accumulated foot traffic, where the
+> worn surface has spread widest.
+>
+> **The path is one single continuous path with one uninterrupted outer
+> silhouette, from the gate to the bottom of the frame.** At one point along its
+> length, a small damp patch within the path's existing width has caused the bare
+> compacted surface to wear into two shallow channels for a short distance before
+> returning to a single central wear band. This is surface-wear variation
+> **inside** the existing path footprint — a difference in how the dirt is worn,
+> not a change in where the path goes. It is **not** a split, a fork, a branch, a
+> junction, a secondary trail, an alternate route, or a second path, and the
+> path's outer edges are unbroken and continuous throughout.
+>
+> The ground where the meadow meets the path changes in a visible band rather than
+> at a hard line. The path is depicted terrain wear and nothing else — it is not a
+> route indicator, not a guide, and not an interface element.
 >
 > The two stones already embedded in the path are worn smooth and slightly
 > proud of the compacted surface around them, as stones become when the soil
@@ -707,8 +722,9 @@ marker post would be.
 >
 > The settlement sits into the terrain rather than on it: buildings are low and
 > spread, with visible grade at their foundations, stone used only on the downhill
-> side where the ground demanded it, and roofs pitched low and wide. The gate is a
-> trailhead — the worn approach outside it is wider than the gate itself. The
+> side where the ground demanded it, and roofs pitched low and wide. The gate
+> approach shows the heaviest accumulated foot traffic — the worn ground outside
+> the gate is broader than the gate itself. The
 > palisade scrub is this region's scrub: two or three specific meadow-edge plant
 > silhouettes rather than generic bushes, placed to frame the composition rather
 > than to fill it, and deliberately sparse. The two flanking trees are the same
@@ -757,7 +773,18 @@ marker post would be.
 > The worn path must not read as a user-interface element or a navigation cue: no
 > dotted line, no dashed line, no glowing trail, no arrow along the ground, no
 > footprint markers, no waypoint pins, no route highlight, no tap-to-move
-> indicator, no destination marker of any kind. Do not add any object to the
+> indicator, no destination marker of any kind.
+>
+> Do not split, fork, branch, or duplicate the path. There is exactly one main
+> path from the gate to the bottom of the frame, with one continuous unbroken
+> outer silhouette, plus the two narrow roads already leaving the left and right
+> edges of the frame — no other path, track, trail, lane, or route anywhere in the
+> image. No junction, no crossroads, no side path, no shortcut, no parallel
+> secondary trail, and no second navigable route. The worn channels inside the
+> path are a surface-wear detail within its existing width and must never break
+> its outer edges.
+>
+> Do not add any object to the
 > scene: no cairn, no stacked stones, no trail post, no blazed post, no marker, no
 > boundary stone, no additional path stones, and no navigation furniture of any
 > kind. Not a survival game, not a
@@ -849,6 +876,7 @@ comparable and does not count as one of the three
 | V-3 | Prop inventory is exhaustive — nothing added, nothing removed | | | |
 | V-3a | **Count them.** Two figures · one plant node · one gate · one palisade · two–three roofs · one smoke plume · two trees · one signpost · one firewood stack · two path stones · one main path · two roads out. Any other object present invalidates the sample (RS-1) | | | |
 | V-3b | Nothing whatsoever stands beside the gatherable plant | | | |
+| V-3c | **One main path with one continuous unbroken outer silhouette, plus exactly two roads leaving the frame.** No fork, branch, junction, side path, or second route in any sample | | | |
 | V-4 | Player pose, facing, and weight identical; idle, not kneeling or mid-action | | | |
 | V-5 | U-3 gear composition identical — tunic, trousers, belt, boots, pack, sword at left hip | | | |
 | V-6 | U-4 NPC identical — plain, unarmed, carrying nothing, not the focus | | | |
@@ -884,7 +912,7 @@ comparable and does not count as one of the three
 | X-2 | No sample received extra props to look richer | |
 | X-2a | **The three samples contain the same object count, object for object** (RS-1). Compare them side by side and count, rather than trusting each sample's own check | |
 | X-3 | No sample got a more flattering time of day or light angle | |
-| X-4 | All three used the same tool, model version, seed, size, and control image | |
+| X-4 | All three used the same tool, model version, seed, size, and control image. *If the environment does not expose seed or conditioning strength, this cannot be ticked — apply §11.2a and record which controls were unavailable* | |
 | X-5 | The shared scene block, floor block, and negative block were byte-identical in all three | |
 | X-6 | No sample was under-produced or under-specified relative to the others — **A2 in particular** | |
 
@@ -939,7 +967,8 @@ failure mode in `DIRECTION_A_IDENTITY_EXPLORATION_01.md` §§A1.13 / A2.13 / A3.
 | A3-F4a | **Survival-game drift** — shelters, campfires, bedrolls, rope, gathering baskets | |
 | A3-F5 | **Lush / dense foliage** — atmosphere creep by vegetation density | |
 | A3-F6 | **Motion depicted rather than implied** — blur, streaks, wind lines in a still frame | |
-| A3-F7 | **Identity absent** — the path shows no compaction, no widening at the gate, and no braid. *If the land does not visibly remember movement, A3 was not tested* | |
+| A3-F7 | **Identity absent** — the path shows no compaction, no broader worn ground at the gate, and no worn-channel variation. *If the land does not visibly remember movement, A3 was not tested* | |
+| A3-F7a | **The path split** — a fork, branch, junction, side path, or second navigable route appeared, or the path's outer silhouette broke. Instant invalidation: this changes the road count (RS-1) and reads as navigation (R-4) | |
 | A3-F8 | Vegetation is generic rather than two or three specific regional silhouettes | |
 
 ### The three questions the round is actually asking
@@ -1006,16 +1035,61 @@ picture rather than an identity being tested.
 10. **Then score identity** using §10 and the owner's own reaction. The reaction
     matters more than any checklist; the checklists exist to make it articulable.
 
-### 11.3 Two failure modes worth naming before the run
+### 11.2a Fallback execution protocol — when the environment lacks the controls
+
+> **A fallback, not a replacement.** §11.2 remains the ideal protocol and is what
+> the round should use wherever it can. This section applies only when the chosen
+> environment does not expose the controls §11.2 depends on.
+
+Some generation environments — including conversational ones — do not expose a
+**seed** or a **numeric structural-conditioning strength**. Steps 3 and 6 of
+§11.2 cannot be performed there.
+
+**When a control is not exposed, it cannot be claimed as fixed.** Recording it as
+held when the environment never offered it would make the round's evidence look
+stronger than it is.
+
+In that case, hold everything the environment *does* expose:
+
+- **the same generation environment** for all three samples
+- **the same structural reference image** — `composition_blockout.png` — for all three
+- **the same output size and aspect ratio** for all three
+- **byte-identical shared prompt blocks** (§6, §7, §8) wherever the environment
+  permits explicit prompt submission
+- **vary only the identity treatment** (§7.1 / §7.2 / §7.3 and its own negatives)
+- **re-roll only for validity failure** (§9), never for taste
+
+And then:
+
+- **Record which controls were unavailable**, explicitly, alongside the samples.
+- **Do not read incidental variation as signal.** Composition wander, framing
+  drift, and render differences caused by an unfixed seed or unfixed conditioning
+  strength are **artifacts of the environment, not evidence for or against an
+  identity.** Judge identity language — shape grammar, motif, chrome, icon
+  geometry, node dressing, palette family, terrain treatment — and discount the
+  rest.
+
+**What the fallback costs, stated plainly.** Without a fixed seed, the three
+samples are no longer strictly controlled, and §9.3's X-4 cannot be ticked. The
+round still produces useful evidence about identity language, because that is
+carried by the prompt rather than by the seed. It produces materially weaker
+evidence about anything composition-shaped. §9.1 becomes more important, not
+less: run it on every roll, and re-roll harder than the ideal protocol would need
+to.
+
+### 11.3 Three failure modes worth naming before the run
 
 - **A2 glow leakage.** Even without the word *runes*, generators associate carved
   stone symbols with fantasy magic. If A2 returns glowing marks repeatedly, that
   is a *prompt-and-model* problem, not evidence about the direction — re-roll,
   and if it persists, strengthen the A2 negative block rather than accepting a
   glowing sample or weakening the identity.
-- **A3 path erasure.** Tread compaction and a braid are subtle, and generators
-  smooth them away. If the path comes back as a plain brown strip, A3-F7 has
-  fired and the sample did not test A3.
+- **A3 path erasure, and its opposite.** Tread compaction and worn channels are
+  subtle, and generators smooth them away — if the path returns as a plain brown
+  strip, A3-F7 has fired and the sample did not test A3. The opposite failure is
+  worse: a generator that *does* hear the channel detail is prone to resolving it
+  as a **fork**. Check the path's outer silhouette on every A3 roll (V-3c,
+  A3-F7a). One path, unbroken edges.
 - **Object invention.** Generators add furniture to fill space, and both A2 and
   A3 describe things — marks, trails — that a model associates with markers,
   cairns, and posts. Run V-3a by **counting**, not by impression, on every roll.
