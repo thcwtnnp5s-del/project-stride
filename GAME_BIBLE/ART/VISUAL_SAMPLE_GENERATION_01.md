@@ -19,6 +19,13 @@ a revised U-4, a revised U-5, a ruling on F-1, a ruling on the generation route,
 and a Direction C pipeline flag. All are incorporated below and marked where
 they changed.
 
+**Owner review, round 2 — the samples have been seen. → §14 and §15.**
+**Direction A is the owner's preferred direction**, and Direction B's rendering
+complexity must not bleed into it. A new desired visual behaviour — *Living
+Activity Presentation* — is recorded in §15. Sections 1–13 describe the
+experiment as it was run and are **left unedited** so the record of what was
+compared stays accurate.
+
 ---
 
 ## 0. How to read this document
@@ -1010,3 +1017,266 @@ for the avoidance of any future citation:
 - No exploration image was placed in `assets/`, the Flutter shipping bundle.
 - No ADR was created.
 - No fourth or hybrid direction was created.
+
+*(Sections 14 and 15 were added after owner review round 2. The declarations
+above still hold: §14 records a preference, not a lock, and §15 records a
+desired behaviour, not a system.)*
+
+---
+
+## 14. Owner feedback — review round 2
+
+**Recorded after the owner reviewed the A/B/C samples.** This section is a
+record of owner direction. It is not an ADR, and it does not amend
+`ART_DIRECTION.md`.
+
+### 14.1 The six recorded points
+
+**1. Direction A is the current preferred direction.**
+The owner strongly prefers **A — Classic Pixel MMO Lite**. For the next visual
+iteration, **A is the primary reference anchor.**
+
+**2. A remains exploratory, and is not permanently locked.**
+This is a **strong owner preference**, not a production-art lock.
+`ART_DIRECTION.md` stays in **EXPLORATION** status, and palette, sprite
+dimensions, camera, animation frame counts, rendering treatment, character
+proportions, and final UI visual language all remain **UNRESOLVED**. The
+preference must meaningfully constrain the next exploration without being cited
+as a decision.
+
+**3. Direction B's rendering complexity must not silently bleed into A.**
+The owner explicitly dislikes the visual drift that occurs when A begins
+absorbing Direction B's treatment. **"Polish A" does not mean "make A more like
+B."** A must not become a midpoint between A and B.
+
+**4. Future A iterations improve distinctiveness through design language, not
+through richer rendering.**
+Originality is to come from shape language, architecture, UI identity, character
+silhouette, equipment silhouette, resource-node readability, environmental
+motifs, regional palette discipline, icon language, animation personality, and
+subtle ambient motion — **not** from heavier lighting or rendering complexity.
+**A should become better at being A.**
+
+**5. Living Activity Presentation is a desired future visual behaviour.**
+A represented location may remain visually alive while the character performs an
+activity, including a passive one. Specified in §15.
+
+**6. Living Activity Presentation does not imply joystick or free-roam
+movement.**
+It is **living activity presentation**, not free-roam world simulation. R-4
+stands unchanged: real-world walking remains the movement and progression input,
+and the world-navigation model (U-6) remains **UNRESOLVED**.
+
+### 14.2 What the owner likes about A — preserve these
+
+- obvious, intentional pixel-art identity
+- old-school MMO spirit
+- restrained rendering
+- clean mobile readability
+- grounded fantasy
+- economical environmental detail
+- quiet terrain beneath important gameplay elements
+- strong character and object silhouettes
+- visually understandable at a glance
+- world feels inhabited without feeling cinematic
+- practical long-term asset scalability
+- feels compatible with WalkScape-like gameplay rather than a joystick-driven
+  adventure game
+- charming rather than spectacular
+- cohesive rather than highly rendered
+
+### 14.3 What must not drift into A
+
+**Do not pull these Direction B characteristics into the next A iteration unless
+the owner explicitly requests them:**
+
+- richer atmospheric lighting systems
+- dramatic light shafts
+- pronounced warm/cool light separation
+- heavy environmental depth treatment
+- premium material rendering
+- cloth weave / material-detail emphasis
+- sword glint / specular treatment as a major visual feature
+- haze as a major depth cue
+- floating pollen / dust as a constant atmospheric layer
+- richer multi-plane cinematic atmosphere
+- dynamic-looking cast shadows as a major style feature
+- visually dense foliage / detail
+- high-detail premium-indie presentation
+- making the world prettier by increasing rendering complexity
+
+**This list is a constraint on the next iteration, not a criticism of B.**
+Direction B is not eliminated; its treatment is simply not what A is for.
+
+### 14.4 The next iteration's question
+
+> **How do we make Classic Pixel MMO Lite feel uniquely Project Stride without
+> losing its restraint?**
+
+### 14.5 Design principle to preserve during exploration
+
+> **Real-world walking creates opportunity.
+> The game world shows your character living out the activity.**
+
+**Not final marketing copy.** Recorded as a design concept to preserve while
+exploring, and it should be tested rather than defended.
+
+### 14.6 Consequence for the hybrid section
+
+§12 stays deliberately empty. **The A-preference is not a licence to begin
+hybridizing**, and H-1 in `VISUAL_EXPLORATION_01.md` — A's proportions plus B's
+lighting philosophy — is now specifically contrary to point 3 above. It remains
+recorded there as an observation and is **not** to be actioned without an
+explicit owner reversal.
+
+---
+
+## 15. Living Activity Presentation
+
+**Status: DESIRED VISUAL BEHAVIOUR — not a specification, not a system, and not
+scheduled.** Recorded so the intent survives; the design belongs to its own
+scoped task.
+
+### 15.1 The concept
+
+A represented location can function as a **living activity scene** while the
+player's current action continues. The player does not steer the character
+around it; the character is shown *living out* the activity the player chose.
+
+The player should be able to leave the screen open and enjoy watching a calm,
+small-scale activity loop.
+
+| | |
+|---|---|
+| Living activity presentation | **Yes** |
+| Free-roam world simulation | **No** |
+| Joystick / WASD / pathfinding locomotion | **No** — R-4 unchanged |
+| Real-world walking as the progression input | **Yes** — unchanged |
+
+### 15.2 Activity loop sketches — presentation intent only
+
+Recorded as the owner described them. These are *presentation* sketches, not
+mechanics, and not a request to build any of them.
+
+| Activity | Ambient loop | Occasional event |
+|---|---|---|
+| **Fishing** | Subtle water movement, visible line, gently moving bobber | A bite, a brief catch animation, a small splash/ripple, then back to the calm loop |
+| **Woodcutting** | Economical repeated axe swing, slight tree reaction, occasional leaf movement | Small wood-chip response, brief resource/reward reaction |
+| **Mining** | Rhythmic pickaxe action | Small dust/chip response, restrained spark or ore glint where appropriate, short success moment, return to loop |
+| **Cooking** | Fire flicker, subtle smoke, simple stirring/turning/tending motion | Occasional completion response |
+| **Skinning / processing** | Restrained, non-graphic working animation, clear task loop | Reward/completion feedback |
+| **Foraging / gathering** | Reach, bend, pick interaction; the plant responds visibly | Small collection feedback, return to idle/activity loop |
+
+**Scope note, recorded so it cannot be misread later.** Milestone 01 has
+**exactly five skills** — Woodcutting, Mining, Foraging, Smithing, Cooking
+(`DECISIONS/0004`, `assets/content/v1/skills.json`). **Fishing and
+skinning/processing do not exist in Project Stride.** Sketching their
+presentation here does **not** add them to the game, to Milestone 01, or to any
+roadmap. They are recorded because the *presentation pattern* is what the owner
+is describing, and it should hold for whatever skills eventually exist.
+
+### 15.3 Qualities to aim for, and to avoid
+
+**Aim for:** ambient · readable · satisfying · low animation burden · repeatable
+for long sessions · pleasant to watch without demanding attention.
+
+**Avoid:** constant flashy VFX · overly busy movement · animation that becomes
+exhausting when repeated · cinematic sequences for ordinary actions · requiring
+dozens of unique frames per skill · making passive activity look like an action
+game.
+
+### 15.4 Animation philosophy for living activity scenes
+
+**Deliberately unresolved, and to stay that way:**
+
+- **Loop length** — UNRESOLVED
+- **Exact frame counts** — UNRESOLVED
+- **Implementation technology** — UNRESOLVED
+- **How and when a loop starts, pauses, or ends** — UNRESOLVED
+- **Which skills get bespoke loops versus a shared skeleton** — UNRESOLVED
+
+**The focus, which is resolved enough to steer by:**
+
+- **Low-cost ambient movement plus occasional reward events.** The base state is
+  a short, cheap, repeating loop. Interest comes from the *occasional* event
+  punctuating it, not from making the loop itself elaborate.
+- **The loop must stay pleasant to watch repeatedly.** A loop is seen hundreds of
+  times; an animation that is charming once and grating on the fortieth viewing
+  has failed regardless of how good it looked in a sample.
+- **Restraint is the identity, not a budget compromise.** This follows directly
+  from §14 — ambient life must come from *motion personality*, not from richer
+  rendering, lighting, or particle density.
+- **Consistent with Direction A's animation economy.** `VISUAL_EXPLORATION_01.md`
+  §A.8 already argues for the smallest frame budget of the three and a shared
+  overlay library; living activity presentation should be built to fit inside
+  that discipline rather than to escape it.
+
+### 15.5 Three constraints this must respect — flagged, not resolved
+
+Named here because the concept sits close to three existing project laws, and a
+later task must design *around* them rather than discover them:
+
+**LAP-1 — Ambient motion may be time-based. Progression may not.**
+(`RULES.md` P-4, `DECISIONS/0001`)
+
+> **AMBIENT MOTION MAY BE TIME-BASED.
+> PROGRESSION MAY NOT BE.**
+
+**Cosmetic ambient motion may continue on ordinary animation time** while the
+screen is open, and does **not** require newly earned steps to exist: water
+ripples, bobber drift and bobbing, idle breathing, slight stance shifts, fire
+flicker, smoke drift, foliage movement, cloth and hair secondary motion, calm
+tool-ready motion, and other non-progress ambient loops.
+
+**Durable gameplay results may never be caused by elapsed viewing time or
+animation time.** That includes fish earned, ore produced, wood gathered, herbs
+gathered, food completed, XP awarded, loot awarded, resource depletion, skill
+advancement, action completion, and any other durable gameplay result.
+
+**The presentation layer may DISPLAY a progression event. It may not CREATE
+one.** Reward and completion moments shown by the scene are *visualizations of
+already-authorized underlying game state*.
+
+Applied to the §15.2 sketches: a bobber drifting and dipping is ambient motion
+and may run on animation time. A **catch that yields a fish**, a chip that
+yields ore, or a pick that yields a herb is a progression event, and the scene
+may only play it because the underlying state already authorized it.
+
+Two consequences, stated in both directions so neither is over-read:
+
+- A player who leaves the activity scene open for ten minutes must receive **no
+  progress advantage** over a player who closes the app and returns later with
+  the same underlying step-funded state.
+- The absence of new progression must **not** require the world to become
+  visually frozen. A loop with no newly authorized progression may still produce
+  cosmetic motion; it simply produces no gameplay reward and no state mutation.
+
+**Not designed here:** the scheduler, the event queue, the animation controller,
+and the offline replay model are all out of scope for this task and remain
+UNRESOLVED.
+
+**LAP-2 — Watching must never be rewarded (`PROJECT_KERNEL/06_ANTI_FEATURES.md`,
+`RULES.md` P-5).**
+"Leave the screen open" must remain a **pleasure, not an incentive.** The moment
+watching yields anything a non-watching player does not get, it becomes a
+session-length engagement mechanic — precisely what the anti-features list
+forbids. A player who checks in for thirty seconds must lose nothing.
+
+**LAP-3 — One activity at a time (`DECISIONS/0006`).**
+The scene shows **the** current activity. This is compatible — arguably
+reinforcing, since a single visible loop makes the exclusivity legible rather
+than buried in a menu — but a "living location" must not become an argument for
+showing several activities progressing at once.
+
+**None of these is a blocker.** They are the shape the eventual design has to
+fit, and naming them now is cheaper than discovering them during implementation.
+
+### 15.6 What this section does not do
+
+- It does **not** design the animation system.
+- It does **not** decide sprite frame counts, loop lengths, or technology.
+- It does **not** add fishing, skinning, or any skill to any milestone.
+- It does **not** modify gameplay code, or request that any be modified.
+- It does **not** change travel, navigation, or the world-navigation model
+  (U-6 remains UNRESOLVED).
+- It does **not** select the final art direction.
