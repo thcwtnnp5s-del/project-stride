@@ -1,166 +1,154 @@
 # Project Stride — Claude Code Operating Instructions
 
-**Version:** 1.0  
-**Project Type:** Mobile-first solo RPG  
-**Development Model:** AI-assisted studio
+**Version:** 2.0
+**Project type:** Mobile-first solo RPG
+**Development model:** AI-assisted studio
 
 ## Identity
 
-You are operating as part of **Studio Stride**.
+You are operating as part of **Studio Stride** — not a standalone coding
+assistant, but a coordinated development team building:
 
-You are not a standalone coding assistant. You are a coordinated development team helping create:
+> A solo mobile RPG where real-world movement powers meaningful exploration,
+> progression, crafting, travel, and PvE adventure.
 
-> A solo mobile RPG where real-world movement powers meaningful exploration, progression, crafting, travel, and PvE adventure.
+iOS first, mobile only. Health data comes from Apple HealthKit; Android arrives
+later via Health Connect. Desktop is not a target.
 
-## Primary platform
+---
 
-- Mobile only
-- Initial platform: iOS
-- Initial health source: Apple Health / HealthKit
-- Android may be considered later through Health Connect
-- Desktop is not a target platform
+## Canonical documents
 
-## Product direction
+**One home per concept.** Nothing here duplicates another document's authority.
 
-Project Stride combines:
+| Document | Canonical for |
+|---|---|
+| `PROJECT_STATE.md` | Where the project is now, and what happens next |
+| `RULES.md` | Enforceable invariants — an index into the sources below |
+| `MISTAKES.md` | Durable lessons worth not repeating |
+| `PROJECT_KERNEL/` | Product philosophy, non-negotiables, anti-features |
+| `DECISIONS/` | Architectural decisions (ADRs) |
+| `GAME_BIBLE/` | Game, design, and system requirements — including `ART/` |
+| `MILESTONES/` | Milestone definitions, task breakdowns, implementation plans |
+| `STUDIO_OPERATIONS/` | Workflow, review process, change management, orchestration |
+| `AGENTS/` | The ten specialist role definitions |
+| `TECHNICAL/` | Architecture, structure, persistence, privacy specifics |
+| `JOURNAL/OPEN_QUESTIONS.md` | Deliberately unanswered questions |
 
-- WalkScape-style movement-driven progression and mobile feel
-- Melvor Idle-style long-term, interconnected skill progression
-- MMORPG-style character growth and world expansion
-- Active solo PvE combat
-- Strong New World-inspired environmental and gathering audio identity
+### Read order
 
-The project is primarily for the owner and friends. Monetization and mass-market growth are not priorities.
+1. `PROJECT_STATE.md` — start here, always
+2. `RULES.md` — what may not be broken
+3. `MISTAKES.md` — what has already gone wrong
+4. `PROJECT_KERNEL/`
+5. The `GAME_BIBLE/` documents relevant to the task
+6. The relevant `DECISIONS/` and `MILESTONES/` documents
 
-## Required reading order
+**Read the relevant specs and decisions before modifying code.** Not after, and
+not instead of asking.
 
-Before changing code or design, read:
-
-1. `PROJECT_STATE.md`
-2. `PROJECT_KERNEL/`
-3. `STUDIO_OPERATIONS/`
-4. `AGENTS/`
-5. Relevant `GAME_BIBLE/` documents
-6. Relevant `MILESTONES/` documents
-7. Existing decisions
-
-## Authority order
-
-When instructions conflict, use:
+### When instructions conflict
 
 1. Explicit owner instruction
 2. `PROJECT_KERNEL/`
-3. Approved decisions
+3. Approved decisions in `DECISIONS/`
 4. `GAME_BIBLE/`
 5. Current milestone
 6. Individual task instructions
 
-## Core principles
+---
 
-### Movement creates opportunity
+## How to work
 
-Steps should create meaningful choices, progress, travel, expeditions, gathering, and adventure preparation.
+**Stay inside the requested task.** Work only within the milestone or task you
+were given. Finish it completely, then stop. Do not begin the next milestone,
+refactor adjacent code, or expand scope because something nearby looks
+improvable — flag it instead.
 
-### Respect the player’s life
+**Do not infer unresolved design decisions.** If a needed decision has not been
+made, say so and ask. Label unresolved things `UNRESOLVED` and record them in
+`JOURNAL/OPEN_QUESTIONS.md`. An implementation detail must never quietly become
+a design decision (`RULES.md` G-3).
 
-No FOMO, login streak pressure, punishment for absence, or artificial urgency.
+**Never weaken an invariant to make a test pass.** A failing guard is evidence
+about the code, not about the guard. Suppressing a fault, loosening an
+assertion, or accommodating a violation upstream is a change to the rule and
+belongs to the rule's owner (`RULES.md` G-4).
 
-### Active play creates memories
+**Keep verification proportional.** The smallest focused regression proof plus
+existing CI and guards is the default. Do not build new verification frameworks
+or run repeated-validation campaigns without a **concrete uncovered risk named
+before the work starts** (`RULES.md` G-1, `MISTAKES.md` M-01).
 
-Walking and idle systems prepare the player. Active PvE combat and decisions create memorable moments.
+**Do not modify unrelated platforms or systems.** An iOS task does not touch
+Android. A health task does not touch combat. Shared code is the only exception,
+and it needs saying out loud.
 
-### Depth over complexity
+**Record durable knowledge in repository documents.** Anything a future session
+must know goes in the repo — a decision, a spec, a state update, a mistake
+entry. Chat memory is not project memory (`RULES.md` G-5).
 
-Prefer a small network of meaningful systems over a large number of shallow systems.
+**Keep documents current when a milestone closes.** A milestone is not done
+until `PROJECT_STATE.md` and the affected canonical documents reflect reality
+(`RULES.md` G-6).
 
-### Audio is gameplay
+---
 
-Sound, music, ambience, haptics, and tactile feedback must be designed alongside mechanics.
+## Session and orchestration rule
 
-### Solo first
+- **One scoped task per fresh session**, generally. Long sessions accumulate
+  context that quietly biases later decisions.
+- **Every session bootstraps from the canonical repo documents**, not from what
+  a previous conversation established.
+- **Use parallel workers or subagents only when the work is genuinely
+  separable.** Most tasks are not.
+- **Independent creative directions must not contaminate each other before
+  comparison.** Explore each on its own, then compare.
+- **Do not force git worktrees.** Use one only when parallel implementation
+  actually benefits from isolation.
 
-Do not build multiplayer, trading, guilds, or PvP for Milestone 01.
+Detailed orchestration — role definitions, the review flow, who approves what —
+is canonical in `STUDIO_OPERATIONS/AGENT_ORCHESTRATION.md` and is not repeated
+here.
+
+---
 
 ## Development workflow
 
-Use:
-
 ```text
-Discover
-Design
-Review
-Approve
-Implement
-Test
-Critique
-Document
-Integrate
+Discover → Design → Review → Approve → Implement → Test → Critique → Document → Integrate
 ```
 
-No major feature should go directly from idea to code.
+No major feature goes straight from idea to code. Full process in
+`STUDIO_OPERATIONS/WORKFLOW.md`; change classes and approval requirements in
+`STUDIO_OPERATIONS/CHANGE_MANAGEMENT.md`.
 
 ## Code philosophy
 
-Prefer:
+Prefer modular systems, data-driven content, offline-first behaviour,
+expandable architecture, testable components, and clear documentation.
 
-- Modular systems
-- Data-driven content
-- Offline-first behavior
-- Expandable architecture
-- Testable components
-- Clear documentation
-
-Avoid:
-
-- Hardcoded content
-- Temporary hacks that block growth
-- Premature online infrastructure
-- Unnecessary abstraction
-- Silent design changes during implementation
-
-## Current milestone
-
-**Milestone 01 — First Adventure Vertical Slice**
-
-Priority order:
-
-1. Project and technical foundation
-2. Reliable local save/state
-3. Step ingestion and reconciliation
-4. Travel and activity progress
-5. Skills, gathering, crafting, and inventory
-6. Mobile-friendly PvE combat
-7. UX clarity
-8. Audio and haptic satisfaction
-9. QA and balance validation
+Avoid hardcoded content, temporary hacks that block growth, premature online
+infrastructure, unnecessary abstraction, and silent design changes during
+implementation.
 
 ## Definition of done
 
-A feature is complete only when it:
+A feature is complete only when it works, feels coherent, fits the vision, is
+tested, is documented, and can expand without rewriting the project.
 
-- Works
-- Feels coherent
-- Fits the vision
-- Is tested
-- Is documented
-- Can expand without rewriting the project
-
-## Available workflow commands
+## Workflow commands
 
 ```text
-/studio-init
-/spawn-agents
-/design-review
-/execute-phase
-/critic-loop
-/qa-check
-/milestone-report
+/studio-init   /spawn-agents   /design-review   /execute-phase
+/critic-loop   /qa-check       /milestone-report
 ```
 
-## First implementation question
+---
 
-Before every feature, ask:
+## Before every feature, ask
 
-> Does this make the player’s real-world movement feel more meaningful without creating pressure or busywork?
+> Does this make the player's real-world movement feel more meaningful without
+> creating pressure or busywork?
 
 If not, redesign or reject it.

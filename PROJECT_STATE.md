@@ -136,6 +136,43 @@ The player must be able to:
       continuation of this one.
     - F-07 (skill framework) is unblocked. S-01B (background sync) remains blocked on
       a real persistence coordinator and is not the automatic next step.
+    - Governance layer added: `RULES.md`, `MISTAKES.md`, `GAME_BIBLE/ART/`.
+
+## Next planned activity
+
+### Project Stride Visual Exploration 01
+
+**Purpose:** compare three visual directions using the **same canonical scene**
+before choosing a production art direction.
+
+Candidates, status, and the exploration rule live in
+`GAME_BIBLE/ART/ART_DIRECTION.md`, which is in **EXPLORATION** status — no art
+direction is chosen, and palette, sprite dimensions, camera angle, animation
+frame counts, rendering treatment, character proportions, and final UI visual
+language are all explicitly unresolved.
+
+#### Canonical comparison scene
+
+Every direction depicts the same content:
+
+- Player character
+- Haven's Rest
+- Meadow Patch
+- Starter Traveler gear
+- One gatherable resource
+- One NPC
+- Basic mobile HUD
+
+**All three directions must depict the same scene and the same content**, so
+the comparison is about art direction rather than about composition. A
+direction that changes the subject is not comparable and does not count as one
+of the three.
+
+Subjects are defined in `GAME_BIBLE/CONTENT/01_STARTER_CONTENT_BIBLE.md`; HUD
+structure in `GAME_BIBLE/UI_UX/01_MOBILE_EXPERIENCE.md`.
+
+**No art is generated yet.** This entry records the plan; producing the
+comparison is its own scoped task.
 
 ## F-05 closed the four decisions
 
