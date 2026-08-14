@@ -1,0 +1,392 @@
+# Pixel Art Craft Spec
+
+**Status: EXPLORATION — WORKING CRAFT SPEC.**
+
+Not a production-art lock. Nothing here chooses an art direction, a palette, a
+sprite size, or a camera. It records **how to execute pixel art well at pixel
+level**, learned by doing it and getting it wrong first.
+
+---
+
+## 0. What this document owns, and what it does not
+
+**One canonical home per concept** (`RULES.md` G-7). This document and
+`ART_DIRECTION.md` are deliberately not about the same thing:
+
+| Document | Owns |
+|---|---|
+| `GAME_BIBLE/ART/ART_DIRECTION.md` | **What Project Stride should look like.** Direction, candidates, and the list of properties that must stay UNRESOLVED. **Still EXPLORATION. Unchanged by this document.** |
+| **This document** | **How to draw it competently once you sit down to draw.** Craft, cluster grammar, failure modes, review procedure |
+
+A rule here never decides a direction question. Where this document names a
+value — a sprite height, a palette size, a grid — that value is **provisional**
+and does not become the project's value by appearing here (`RULES.md` G-3;
+`ART_DIRECTION.md` — *UNRESOLVED*).
+
+**Provenance.** Every rule below was paid for. It comes from
+`GAME_BIBLE/ART/exploration/CODE_RENDER_01/` — the Traveler / Meadow Herb /
+gather-card proof and its five recorded passes (Pass 1–3, Owner Refinement 01–02).
+Rules cite the failure that produced them, because a rule with no failure behind
+it is a preference.
+
+**How to use it.** Read §1 and §7 before drawing. Work through §2–§6 while
+drawing. Run §7 and §8 before calling an asset done. It is a checklist, not a
+theory.
+
+---
+
+## 1. The core principle
+
+> **PIXEL ART IS THE CONSTRUCTION METHOD, NOT A FILTER.**
+>
+> **THE SAME STYLE, DRAWN BETTER.**
+
+Every improvement across five passes came from **moving or re-valuing existing
+pixels**. Not one came from more resolution, more detail, more colours, or more
+rendering. The Owner Refinement 02 head was fixed with six pixels; the entire
+lateral-readability problem was fixed with **one**.
+
+**CR-1 — Quality comes from placement, never from quantity.**
+When an asset is not working, the first question is *which pixels are in the
+wrong place*, never *what could I add*.
+*Prevents:* resolution creep, detail creep, palette creep, and the slow drift
+into premium-pixel rendering that `VISUAL_SAMPLE_GENERATION_01.md` §14.3 already
+rejects.
+
+**CR-2 — Do not improve successful work.**
+An asset that reads is finished. The gather card was right at Pass 2 and was
+frozen for three subsequent passes.
+*Prevents:* a working asset getting worse because another iteration was
+available.
+
+---
+
+## 2. Character craft
+
+### 2.1 Three-quarter orientation
+
+**CR-3 — A sprite has one near side and one far side, and every part must agree.**
+Decide which side is near **before drawing anything**, then hold it in the head,
+shoulders, arms, hips, legs, feet, pack, and every piece of equipment.
+
+For the canonical Traveler the chain is: the figure turns toward the viewer's
+right, therefore the **character's left hip and its sword are NEAR (viewer-right)**
+and the **back rotates away on the FAR side (viewer-left)**, which is why the pack
+peeks there.
+
+*Prevents:* the Pass 1–3 failure — a frontal figure with three-quarter equipment
+attached afterwards. It read as a mannequin because the parts disagreed.
+
+**CR-4 — Depth is bought with tiny differences, and you do not need all of them.**
+Any two or three of: shoulder height, shoulder width, value, overlap, limb
+length, foot landing row, head silhouette.
+
+In OR01 the whole turn was carried by three: the **far shoulder existing one row
+before the near one**, the legs using different trouser steps, and the **far foot
+planting one row above the forward near foot**.
+
+*Prevents:* over-drawing the rotation, which at 32 px turns into distortion.
+
+**CR-5 — Near reads lighter or larger; far reads darker or smaller.**
+Where depth separation and the baked light direction disagree, **depth wins** if
+the asset would otherwise be unreadable. Say so when you make that call.
+
+### 2.2 Pose and gesture
+
+**CR-6 — Low resolution does not excuse mechanical symmetry.**
+Even a calm idle contains deliberate asymmetry. One pixel can carry gesture.
+
+Sufficient on its own, in rough order of value: a shoulder offset · a near/far
+leg distinction · unequal foot landing rows · a small head turn · differing arm
+termination rows.
+
+*Prevents:* mirrored legs, identical boots, parallel arms, the centred
+mannequin — symmetry that exists only because it was easier to code.
+
+**CR-7 — One diagonal outperforms any amount of texture.**
+The single highest-value change in the whole proof was OR01's **pack strap: five
+pixels running diagonally across the chest**. It broke the slab, implied the
+turn, and made the figure look like someone carrying something — all at once.
+
+*Prevents:* reaching for surface detail when the real problem is that nothing
+crosses the form.
+
+### 2.3 Torso and clothing
+
+**CR-8 — Clothing implies a body underneath. Fix silhouette before interior.**
+The order is: **shoulder taper → waist → belt pinch → subtle lower flare.**
+Exhaust that before adding a single interior pixel.
+
+*Prevents:* the rectangular torso slab, uninterrupted colour masses, perfectly
+vertical garment sides.
+
+**CR-9 — Interior clusters are expensive. Spend at most one, and make it describe form.**
+A fold, hem shadow, or collar notch earns its place only by communicating
+shape. OR02 spent exactly one — a **two-pixel off-centre fold**.
+
+*Never* add cloth texture to make a garment feel finished. Restraint is the
+identity, not a budget compromise.
+
+### 2.4 Head and face
+
+**CR-10 — Charm at this scale comes from silhouette, not from features.**
+In priority order: head silhouette · hair silhouette · eye placement · jaw and
+chin shape · neck relationship · orientation. **Two eye pixels are enough when
+they are placed well.**
+
+OR02 fixed a bland head with six pixels: crown shifted back, hair carried down
+the far side, jaw receded, chin pointed toward the turn.
+
+**CR-11 — A turned head needs a back of skull, and the far eye is compressed.**
+Carry the hair mass down the **far** side and let the far eye sit tight against
+the hairline. This is the cheapest and strongest three-quarter cue available.
+
+*Prevents:* the symmetrical cap-like hair of Passes 1–3, where the head read as
+a flat disc with a face on it.
+
+**CR-12 — Watch the opposite failure: a face swallowed entirely by hair.**
+CR-11 taken too far leaves no readable face plane. Both are failures; the target
+is a head that has a front *and* a back.
+
+Never add features because empty pixels remain. No portrait detailing. No
+anime or chibi conventions unless explicitly chosen later — they are not chosen.
+
+### 2.5 Arms and hands
+
+**CR-13 — An arm must read as shoulder → arm → hand, and value alone can do it.**
+Literal anatomy is not required and does not fit. **Three values down one
+column** — shaded upper arm, lit forearm, skin hand — implies articulation with
+zero extra width. That is what OR02 used.
+
+*Prevents:* the Pass 2 failure where full-height light and dark columns read as
+**suspenders**, and the Pass 1 failure where ink-coloured separation columns read
+as **slots punched through the torso**. Separate a limb with *shading*, never
+with a hole.
+
+**CR-14 — Hands must terminate the limb, and must not vanish into the garment.**
+Check the hand's value against whatever it sits on. A hand the same value as the
+sleeve is not a hand.
+
+### 2.6 Equipment attachment
+
+**CR-15 — Equipment must look worn or carried, not pasted beside the sprite.**
+- **Pack** — readable body silhouette, an understandable overlap *behind* the
+  torso, a strap when the attachment would otherwise be unexplained, and a
+  flap or seam only when it helps the read.
+- **Sword** — the grip originates at the **belt line**, the guard belongs to the
+  **hip**, the blade hangs from that attachment. Proportionate and practical; a
+  short plain sword is not a heroic weapon.
+
+**CR-16 — Break accidental tangencies. This is worth more than it sounds.**
+Where two objects of similar value touch, they merge into one unreadable mass.
+**A single outline pixel between them fixes it.**
+
+In OR02, hand and crossguard shared a row and read as one confusing shape. **One
+pixel of outline at x16 turned an ambiguous lateral mass into four immediately
+readable objects: body, arm, pack, sword.** It is the single best pixel spent in
+the entire proof.
+
+Watch specifically for: hand + guard · pack + arm · sword + torso · boot +
+trouser.
+
+**CR-17 — A value break separates adjacent similar masses.**
+The Pass 3 boots stopped merging into the trousers the moment a **light cuff row**
+was introduced at the boot top.
+
+---
+
+## 3. Cluster grammar
+
+**CR-18 — Clusters are connected and purposeful. An isolated pixel needs a reason.**
+*Prevents:* the herb defect — a **one-pixel-wide outlying blade** that read as
+specks at review scale and had to be removed.
+
+**CR-19 — Organic forms use deliberate irregularity, never mirrored geometry.**
+A symmetrical fan reads as procedural output. Vary tip heights, let one element
+break the canopy line, offset the centre.
+*Prevents:* the Pass 2 herb, which was technically correct and read as a
+generated diagram.
+
+**CR-20 — Silhouette pixels are worth more than interior pixels.**
+Spend on the outline before spending on the inside. If an asset is not reading,
+the silhouette is the first suspect.
+
+**CR-21 — One excellent pixel beats four explanatory ones.**
+If a cluster needs several pixels to say what it is, the shape underneath is
+probably wrong.
+
+**CR-22 — Diagonals should form readable stair-step rhythms.**
+Even, deliberate steps. Not ragged, not perfectly regular where a form is
+organic.
+
+**CR-23 — Interior value clusters describe form. They never describe texture.**
+
+---
+
+## 4. Value and palette
+
+Direction A's rendering floor is canonical in
+`DIRECTION_A_IDENTITY_VISUAL_SAMPLES_01.md` §3 and §7 and is not restated here.
+Craft consequences only:
+
+**CR-24 — Structured three-step ramps. No glow ramp, no specular ramp, no
+cinematic highlight ramp.** A palette that cannot express glow cannot leak it.
+
+**CR-25 — Reserve the highest-saturation, highest-contrast band for interactables.**
+If terrain or foliage borrows that band, the gameplay-important object stops
+winning the frame.
+
+**CR-26 — Value is a depth tool as well as a lighting tool** (see CR-5).
+
+**The current 49-entry proof palette is PROVISIONAL and is explicitly NOT
+canonized.** Palette remains UNRESOLVED in `ART_DIRECTION.md`.
+
+---
+
+## 5. Resource node craft
+
+What made the Meadow Herb work, in the order it mattered:
+
+**CR-27 — Silhouette first.** The node is recognised as a shape before it is
+recognised as a plant.
+
+**CR-28 — One dominant read, one clear footprint.** A single root or contact
+point anchors it to the ground and stops it floating.
+
+**CR-29 — Distinct from ordinary terrain by palette and silhouette alone.**
+**No glow, ever.** Separation is achieved by being one step up in saturation and
+contrast, not by emitting light.
+
+**CR-30 — Deliberate but restrained asymmetry** (CR-19), and **limited detail**.
+The working herb uses six palette entries.
+
+*Avoid:* botanical illustration · mirrored procedural fans · detached blade
+pixels · decorative specks.
+
+---
+
+## 6. UI craft
+
+The gather card succeeded on its first attempt and needed only a spacing fix.
+Geometry is this pipeline's strongest domain — lean on that.
+
+**CR-31 — Chunky geometric construction, disciplined bitmap typography, clear
+hierarchy, generous spacing, restrained framing.**
+Give text a real margin from the frame; the only card defect ever found was a
+bottom row crammed against its border.
+
+**CR-32 — A UI icon should echo its world asset's silhouette family.**
+The card's herb icon is built from the node's own shape language, which is why
+interface and world read as one product.
+
+**CR-33 — Construction lines, not shines.** A bevel or engraved seam describes
+how the panel is made. It is not a highlight.
+
+**CR-34 — Judge UI at native scale first.** Typography either works at native
+resolution or it does not; an upscale flatters it.
+
+---
+
+## 7. Red flags
+
+Practical, not exhaustive. If you can say yes to any of these, stop and fix it
+before continuing.
+
+- [ ] The torso reads as a **slab**
+- [ ] An arm reads as a **vertical bar**
+- [ ] The character looks **mirrored** — identical legs, identical boots, parallel arms
+- [ ] Equipment appears **pasted on or floating** beside the sprite
+- [ ] A **hand merges into a weapon**, or a boot into a trouser
+- [ ] The **pack reads as a shield or a blob**
+- [ ] Near and far **contradict each other** between body parts
+- [ ] The face is **all hair**, with no readable face plane
+- [ ] An **organic object looks procedurally mirrored**
+- [ ] There are **isolated one-pixel specks** with no reason
+- [ ] Detail was added to solve what is actually a **silhouette problem**
+- [ ] A **separation was drawn as a hole** (ink) instead of as shading
+- [ ] A **successful simple asset got worse** because it was polished
+- [ ] The fix under consideration is **more resolution, more colours, or more detail**
+
+---
+
+## 8. Asset review procedure
+
+Lightweight and mandatory in this order. **Not a verification framework**
+(`RULES.md` G-1, `MISTAKES.md` M-01) — three looks, no tooling to build.
+
+**1. Native scale.** Does the pixel construction actually work? Typography and
+cluster economy are decided here.
+
+**2. Integer upscale (nearest-neighbour).** Where accidental pixels, specks,
+tangencies and cluster mistakes become visible. This is the working iteration
+view.
+
+**3. Actual game context, at target scale. — THE CRITICAL ONE.**
+An isolated sprite is **not** the final judge of hand readability, silhouette
+separation, palette relationship, equipment clarity, or charm. An asset that
+survives alone can fail in a scene, and an asset that looks unfinished alone can
+be perfect in one.
+
+> **Avoid endless isolated-sprite polishing.** When the remaining weaknesses are
+> context-dependent, the next step is the context, not another pass.
+
+---
+
+## 9. Working positive references
+
+**Working references, not final art. None of their pixel maps is canonical.**
+
+| Asset | Status | Demonstrates |
+|---|---|---|
+| **OR02 Traveler** — `exploration/CODE_RENDER_01/out/player_x8.png` | **WORKING CHARACTER REFERENCE — NOT FINAL CHARACTER ART** | Target pixel economy · current rough proportion family · three-quarter principles · equipment attachment · the current degree of rendering restraint |
+| **Meadow Herb** — `out/herb_x8.png` | Working positive **node** reference | §5 in practice |
+| **Gather card** — `out/gather_card_x8.png` | Working positive **UI craft** reference | §6 in practice. **Not the permanent game UI** |
+
+Historical baselines are preserved beside them (`pass3_*`, `or01_*`) and are the
+evidence for the failure modes cited throughout this document. Do not delete
+them.
+
+---
+
+## 10. Current provisional scale
+
+**Recorded for experimentation only. None of these is an art-direction value.**
+
+| | Provisional value |
+|---|---|
+| Traveler height | ~32 px |
+| Tile / grid vocabulary | 16 px |
+| Full-scene candidate | 128 × 192 native |
+| Review render | ×8 nearest-neighbour → 1024 × 1536 |
+| Proof palette | 49 entries, sixteen three-step ramps |
+
+These make experiments renderable. They do not become final by appearing here.
+
+---
+
+## 11. What stays unresolved
+
+Unchanged by this document, and listed so their absence reads as deliberate:
+
+- **Palette** — no colours, ramps, or count are chosen
+- **Sprite dimensions** — no character, tile, or icon size is chosen
+- **Camera angle**, **animation frame counts**, **rendering treatment**,
+  **character proportions**, **final UI visual language** — all open
+- **The production art direction itself** — `ART_DIRECTION.md` remains
+  **EXPLORATION**; Direction A is a strong owner preference, not a lock
+- **The implementation host** — Node versus Dart for the render tooling
+- **Whether the code-driven route becomes the production pipeline** — the route
+  is PROMISING / CONTINUE, and has not been chosen
+
+---
+
+## Related
+
+- `GAME_BIBLE/ART/ART_DIRECTION.md` — the visual direction itself (EXPLORATION)
+- `GAME_BIBLE/ART/DIRECTION_A_IDENTITY_VISUAL_SAMPLES_01.md` — the Direction A
+  rendering floor and the controlled-scene constraints
+- `GAME_BIBLE/ART/templates/EIGHT_DIRECTION_CHARACTER.md` — the eight-view
+  production template; **CR-3's near/far discipline is what makes true
+  non-mirrored diagonals possible**
+- `GAME_BIBLE/ART/exploration/CODE_RENDER_01/` — the proof, its tooling, and the
+  historical baselines every rule here cites
