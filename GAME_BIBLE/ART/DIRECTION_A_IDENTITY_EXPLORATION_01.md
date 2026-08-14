@@ -482,6 +482,12 @@ naming rule in the brief. If the owner wants a replacement, *Marked Ways* or
 document name, the generation prompt must say route, craft, and resource
 markings — never "runes."**
 
+> **Subsequently renamed.** The owner has since chosen **Waymarked**. A2 is
+> called *Waymarked* from `DIRECTION_A_IDENTITY_VISUAL_SAMPLES_01.md` onward;
+> the heading and body text below keep the original working name because this
+> document is the record of what was explored and approved under it. The rename
+> is cosmetic and changes nothing about RA-1 or the direction itself.
+
 ## A2.1 Design thesis
 
 **Project Stride is a marked world, and the marks still work.**
