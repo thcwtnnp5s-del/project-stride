@@ -23,15 +23,17 @@ value — a sprite height, a palette size, a grid — that value is **provisiona
 and does not become the project's value by appearing here (`RULES.md` G-3;
 `ART_DIRECTION.md` — *UNRESOLVED*).
 
-**Provenance.** Every rule below was paid for. It comes from
-`GAME_BIBLE/ART/exploration/CODE_RENDER_01/` — the Traveler / Meadow Herb /
-gather-card proof and its five recorded passes (Pass 1–3, Owner Refinement 01–02).
-Rules cite the failure that produced them, because a rule with no failure behind
-it is a preference.
+**Provenance.** Every rule below was paid for. Rules cite the failure that
+produced them, because a rule with no failure behind it is a preference.
 
-**How to use it.** Read §1 and §7 before drawing. Work through §2–§6 while
-drawing. Run §7 and §8 before calling an asset done. It is a checklist, not a
-theory.
+| Source | Paid for |
+|---|---|
+| `exploration/CODE_RENDER_01/` — the Traveler / Meadow Herb / gather-card proof and its five recorded passes (Pass 1–3, Owner Refinement 01–02) | §2–§6 — character, cluster, node and UI craft |
+| `exploration/HAVENS_REST_BASE_01/` — the first full-world scene and its three recorded passes | **§5A — environment craft**, CR-39, and the CR-14/CR-18 escalations |
+
+**How to use it.** Read §1 and §7 before drawing. Work through §2–§6 — including
+**§5A** when the subject is environment — while drawing. Run §7 and §8 before
+calling an asset done. It is a checklist, not a theory.
 
 ---
 
@@ -265,6 +267,57 @@ pixels · decorative specks.
 
 ---
 
+## 5A. Environment craft
+
+**Numbered 5A so §6–§11 keep their existing numbers.** These rules were paid for
+by `exploration/HAVENS_REST_BASE_01/`, the first time the pixel language had to
+carry a whole world screen rather than three isolated assets. Every one of them
+is a defect that an isolated sprite review structurally could not have found.
+
+**CR-35 — A ground feature never receives a lit top edge.**
+A path or a road is a surface **in** the ground, not a strip laid **on** it.
+Build it from body value plus a restrained edge treatment — at most one dark
+edge on the far side. The moment the near edge is lightened, the band acquires a
+top face and becomes geometry.
+
+*Prevents:* the Base Scene Pass 1 failure — both roads were drawn with a light
+first row and a dark last row, and read unmistakably as **timber rails**, a
+fence, a platform, a raised strip. Nothing else in that pass was as wrong, and
+nothing else was as cheap to fix.
+
+**CR-36 — A roof needs enough wall mass beneath it to read as architecture.**
+The building band under the eave must sit **just inside** the eave line. A
+narrow stem under a wide overhang is a mushroom, not a house, no matter how
+well the roof itself is constructed.
+
+*Prevents:* Base Scene Passes 1 and 2, where three correctly built roofs read
+first as **tents** (pitch too steep, no wall at all) and then as **toadstools**
+(wall present but inset far too much). The roofs were never the problem.
+
+**CR-37 — CR-18 applies at environment scale, and it is stricter there.**
+Grass fringes, scrub, terrain overlays and field variation must be **purposeful
+clumps on a continuous base**. Never build a terrain accent from disconnected
+one-pixel elements, and never place scatter procedurally.
+
+At sprite scale an isolated pixel is a defect. Across a whole frame it is a
+**field of them**, and quiet terrain becomes procedural noise — the one thing
+the rendering floor most needs the ground not to do.
+
+*Prevents:* the Base Scene Pass 1 grass fringe, authored as single-pixel blades,
+which read as a dotted line of specks; and the field variation, authored as
+two-row dashes, which read as smudges rather than as ground.
+
+**CR-38 — A directional object must visibly encode direction.**
+Level, symmetric arms collapse into generic symbol geometry. A small vertical
+offset, a stepped silhouette, or a tapered tip is enough — and costs a handful
+of pixels.
+
+*Prevents:* the Base Scene signpost, whose two arms were horizontal and equal
+through Passes 1 and 2 and read as a **plus sign** on a pole. One row of step
+per arm turned it back into a signpost.
+
+---
+
 ## 6. UI craft
 
 The gather card succeeded on its first attempt and needed only a spacing fix.
@@ -284,6 +337,28 @@ how the panel is made. It is not a highlight.
 
 **CR-34 — Judge UI at native scale first.** Typography either works at native
 resolution or it does not; an upscale flatters it.
+
+**CR-39 — A UI element sized for its own canvas is not sized for the frame.**
+An interface asset judged alone will be judged against its own border. Judged in
+the world screen it is judged against the frame width, and against the space its
+strings actually need. Re-fit it in context; that is an integration adjustment,
+not a redesign, and it does not reopen the visual language.
+
+*Prevents:* the Base Scene gather card, correct at 36 × 24 in isolation and
+visibly undersized against a 128-wide world frame — where the right-aligned
+`+10 XP` had no room for its own space and silently rendered `+10XP`, so a
+**permitted string stopped being the string that was permitted**.
+
+**CR-40 — Evaluate icon silhouette for semantic register, not only for
+recognisability.**
+Small icon geometry can import a visual register the art direction forbids, with
+no palette entry and no effect involved at all. Ask what family the shape
+belongs to, not just what it depicts.
+
+*Prevents:* the Base Scene world tab, drawn as a four-point compass star. It was
+perfectly recognisable, used only two flat UI values, and read as a **sparkle** —
+importing exactly the magical language the rendering floor excludes, from a
+palette with no glow ramp in it.
 
 ---
 
@@ -306,6 +381,12 @@ before continuing.
 - [ ] A **separation was drawn as a hole** (ink) instead of as shading
 - [ ] A **successful simple asset got worse** because it was polished
 - [ ] The fix under consideration is **more resolution, more colours, or more detail**
+- [ ] A **path or road has a lit edge** and reads as a rail, fence, or platform
+- [ ] A **roof sits on a narrow stem** and the building reads as a mushroom
+- [ ] A **terrain accent is built from disconnected single pixels**
+- [ ] A **directional object's arms are level and equal**, so it reads as a plus
+- [ ] An **icon's shape family belongs to a register the direction forbids**
+- [ ] A **UI element was sized against its own border** rather than the frame
 
 ---
 
@@ -341,6 +422,13 @@ be perfect in one.
 | **OR02 Traveler** — `exploration/CODE_RENDER_01/out/player_x8.png` | **WORKING CHARACTER REFERENCE — NOT FINAL CHARACTER ART** | Target pixel economy · current rough proportion family · three-quarter principles · equipment attachment · the current degree of rendering restraint |
 | **Meadow Herb** — `out/herb_x8.png` | Working positive **node** reference | §5 in practice |
 | **Gather card** — `out/gather_card_x8.png` | Working positive **UI craft** reference | §6 in practice. **Not the permanent game UI** |
+| **Haven's Rest base scene** — `exploration/HAVENS_REST_BASE_01/out/havens_rest_base_x8.png` | **WORKING FULL-SCENE REFERENCE — NOT FINAL WORLD ART** | §5A in practice · that the language holds together as a whole world screen · the depth stack · quiet terrain at frame scale · character, NPC, node and UI coexisting |
+
+**The base scene's buildings, trees, path, HUD dimensions, NPC sprite and
+61-entry extended palette are NOT canonical**, and the weaknesses its owner
+review recorded — weak architecture, an empty lower-left field, a long
+right-hand road pull — were deliberately left in place as evidence rather than
+polished away after the experiment concluded.
 
 Historical baselines are preserved beside them (`pass3_*`, `or01_*`) and are the
 evidence for the failure modes cited throughout this document. Do not delete
@@ -359,6 +447,8 @@ them.
 | Full-scene candidate | 128 × 192 native |
 | Review render | ×8 nearest-neighbour → 1024 × 1536 |
 | Proof palette | 49 entries, sixteen three-step ramps |
+| Full-scene extended palette | 61 entries — the proof palette plus `sky`, `roof`, `canopy`, `rust` |
+| Full-scene HUD strips | 13 rows top and bottom, six icon-only tabs |
 
 These make experiments renderable. They do not become final by appearing here.
 
@@ -390,3 +480,6 @@ Unchanged by this document, and listed so their absence reads as deliberate:
   non-mirrored diagonals possible**
 - `GAME_BIBLE/ART/exploration/CODE_RENDER_01/` — the proof, its tooling, and the
   historical baselines every rule here cites
+- `GAME_BIBLE/ART/exploration/HAVENS_REST_BASE_01/` — the first full-world scene,
+  which §5A, CR-39 and CR-40 were paid for by. **Exploration proof, not
+  production world art**
