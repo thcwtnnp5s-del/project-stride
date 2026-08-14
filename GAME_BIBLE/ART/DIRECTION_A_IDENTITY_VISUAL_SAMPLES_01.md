@@ -1045,6 +1045,12 @@ Some generation environments — including conversational ones — do not expose
 **seed** or a **numeric structural-conditioning strength**. Steps 3 and 6 of
 §11.2 cannot be performed there.
 
+> **A third limitation was observed in practice at Round 1 Attempt 0 (§14):**
+> the environment may not reliably accept three long verbatim prompt assemblies
+> as three isolated executions at all, and may instead infer instructions from
+> conversational context and return variations. Where that is true, §11.2a is
+> **necessary but not sufficient** — use the compact execution briefs in §15.
+
 **When a control is not exposed, it cannot be claimed as fixed.** Recording it as
 held when the environment never offered it would make the round's evidence look
 stronger than it is.
@@ -1233,3 +1239,667 @@ shared-decisions ruling.
 
 **It generated no art, fabricated no output, created no image file, and selected
 nothing.**
+
+*(Sections 14 and 15 were added after the first external generation attempt.
+Sections 1–13 describe the experiment as defined and are **left unedited**, apart
+from one forward pointer in §11.2a, so the record of what was specified stays
+accurate. §14 records an invalid attempt; §15 adds an execution adapter. Neither
+changes the experiment, and neither produces evidence.)*
+
+---
+
+## 14. Round 1 — Attempt 0
+
+> **STATUS: INVALID / DIAGNOSTIC ONLY.**
+> **No identity evidence may be derived from this attempt.**
+
+A first external generation attempt was made after commit `3fee070`. It failed as
+a controlled comparison. It is recorded because *how* it failed is useful, and
+because an unrecorded failed attempt is the kind of thing that gets half-
+remembered later as a result.
+
+### 14.1 The ruling
+
+Nothing produced by Attempt 0 is **A1 evidence · A2 evidence · A3 evidence · a
+winner · a shortlist result · production art · an art-direction decision.**
+
+No image from it is archived as an approved sample, and none may be cited in any
+later round, rubric, or comparison. Round 1 has not been run.
+
+### 14.2 Why it is invalid
+
+Four execution failures, any one of which is disqualifying on its own.
+
+**1 — Identity separation failed.** The environment returned multiple visually
+similar images rather than three distinct identity samples. It was not
+sufficiently obvious from the outputs which identity thesis each image was
+testing. **A valid identity round must never require the owner to
+reverse-engineer which candidate is which.**
+
+**2 — Direction A restraint drifted.** The outputs leaned toward richer, more
+detailed pixel art than the owner-preferred Direction A reference: more
+environmental detail density, richer foliage, a more polished premium pixel
+treatment, more rendered depth, more overall visual richness. This is the same
+family of drift already rejected at `VISUAL_SAMPLE_GENERATION_01.md` §14.3, and
+it violates the common rendering floor (§3).
+
+> **A SHOULD BECOME BETTER AT BEING A.**
+> Restrained Classic Pixel MMO Lite is not improved by increasing rendering
+> richness. Reaffirmed, unchanged.
+
+**3 — Output labelling failed.** Multiple images arrived without a reliable
+explicit mapping of image → A1 / A2 / A3. That alone makes the set unusable as
+controlled comparison evidence, independent of how any individual image looked.
+
+**4 — The environment is less controllable than §11.2 assumes.** Beyond the
+unavailable seed and conditioning-strength controls that §11.2a already covers,
+one further limitation was observed: **the environment does not provide a
+reliable low-level workflow for submitting and verifying three long verbatim
+prompt assemblies as three explicitly isolated executions with per-image identity
+control.** It may infer generation instructions from conversational context, and
+multiple returned images may behave as *variations* rather than as three isolated
+prompt executions.
+
+**Controls the environment does not expose are not claimed as held.** That
+principle from §11.2a applies here in full.
+
+### 14.3 What Attempt 0 is good for
+
+Execution diagnostics, and nothing else. Its three usable findings:
+
+| Finding | Consequence |
+|---|---|
+| A 1,100–1,400 word assembly can be absorbed into conversational context rather than executed as a discrete instruction | The identity signal gets buried under prompt volume. **Adding more words cannot fix a problem caused by volume** |
+| Multiple images returned together behave as variations of one another | One image per request, one identity per request |
+| Rendering richness drifts upward by default | Restraint has to be stated *early and loudly*, not inferred from a floor block halfway down a long prompt |
+
+### 14.4 What changes as a result
+
+**The long-form specification is not weakened, shortened, or replaced.** §§1–13
+remain the canonical definition of the experiment: the controlled scene, the
+rendering floor, the held constants, the validity checklists, and the failure
+checks are all unchanged and all still govern.
+
+**A second layer is added** — the compact execution briefs in §15 — as an
+*adapter* for constrained generation environments.
+
+| | Role |
+|---|---|
+| **Long form (§§1–13)** | Canonical experiment definition. What is being tested, what is held, what counts as valid |
+| **Compact brief (§15)** | Execution adapter. What to say to a constrained environment to get one identity generated at a time |
+
+A compact brief is **derived from** the long form and **subordinate to** it.
+Where they appear to disagree, the long form is correct and the brief is a
+defective derivation to be fixed. A brief is never the authority.
+
+### 14.5 What was not concluded
+
+No identity was ranked, eliminated, preferred, or shortlisted. No hybridization
+was performed or proposed. Round 2 was not begun. No critic subagents were
+spawned — **there is not yet a valid Round 1 sample set to critique**, and
+independent visual critics begin only once three valid, explicitly identified
+samples exist (RS-2).
+
+---
+
+## 15. Compact execution briefs
+
+**One brief. One identity. One image. One request.**
+
+These exist because §11.2's ideal protocol cannot be executed in the current
+environment (§14.2 finding 4). They are **execution adapters, not the
+specification** — §§1–13 remain canonical, and a brief that contradicts them is
+wrong.
+
+### 15.0 How to use them
+
+> **Each brief is completely standalone.** Any one of the three fenced blocks can
+> be copied by itself into a fresh image request and still contain everything the
+> generator needs — the restraint header, the shared scene, the shared rules, the
+> identity signals, and the do-not list. **No brief refers to another brief, to
+> another section of this document, or to earlier conversation**, and none
+> requires the operator to reconstruct anything by hand.
+>
+> The restraint header, the shared scene paragraph, and the seven shared
+> Direction A rules are therefore **physically duplicated, byte-identical, in all
+> three briefs**. That duplication is deliberate: these are execution payloads,
+> not canonical concept definitions, and a cross-reference inside an execution
+> payload is a failure mode rather than a saving. Canonical design still lives in
+> the long-form specification (§§1–13).
+>
+> **When editing a brief, edit all three.** The shared spans must remain
+> byte-identical, and a change applied to one is a defect until it is applied to
+> the other two.
+
+1. **One request per identity.** Send A1's brief alone, take its image, then A2's
+   brief alone, then A3's. Never two identities in one request, and never a
+   request that asks for variations.
+2. **Supply `composition_blockout.png`** as the reference image with each of the
+   three requests, if the environment accepts a reference at all.
+3. **Change nothing between the three** except the brief itself.
+4. **Label on receipt.** Record which image came from which brief *at the moment
+   it arrives*, before requesting the next one. Attempt 0's labelling failure is
+   the cheapest failure on the list to prevent and the most expensive to recover
+   from.
+5. **Validate against §9, not against the brief.** The brief is short by design
+   and does not carry every constraint. The checklists still decide validity, and
+   a sample that fails §9.1, §9.2, or §9.3 is re-rolled regardless of how well it
+   matched its brief.
+6. **Re-roll for validity, never for taste** (§11.2 step 8), and record which
+   controls the environment did not expose (§11.2a).
+
+**If the environment later does support §11.2 properly, use §7's long-form
+prompts instead.** The briefs are a concession to a constraint, not an
+improvement on the specification.
+
+---
+
+### 15.1 COMPACT EXECUTION BRIEF — A1 · FRONTIER HEARTH
+
+**Standalone. Copy this entire fenced block into one image request, by itself.**
+
+```
+STYLE — READ FIRST, THIS OVERRIDES EVERYTHING BELOW:
+
+CLASSIC PIXEL MMO LITE.
+RESTRAINED, LOW-RESOLUTION PIXEL ART.
+NOT premium pixel art. NOT high-detail indie pixel art.
+NOT painterly pixel rendering. NOT a high-resolution sprite treatment.
+
+This must read as an old 2D pixel MMO rather than as a modern premium pixel-art
+showcase. It should be beautiful, charming, and memorable — and it must get
+there through DESIGN, not through rendering richness.
+
+IF IT LOOKS IMPRESSIVE BECAUSE OF RENDERING RICHNESS, IT IS WRONG.
+IF IT LOOKS IMPRESSIVE BECAUSE OF STRONG DESIGN, SILHOUETTE, COMPOSITION,
+PIXEL ECONOMY, AND CLARITY, THAT IS RIGHT.
+
+CALM, READABLE, RESTRAINED, AND DELIBERATELY CRAFTED.
+NEVER CRUDE, UNFINISHED, EMPTY, OR INTENTIONALLY UGLY.
+
+Restraint here is a craft choice, not an absence of craft. Every element is
+finished and considered. The goal is excellence without rendering excess.
+
+GET QUALITY FROM:
+- strong, well-chosen pixel clusters — few pixels doing a lot of work
+- excellent silhouettes, readable at phone size
+- thoughtful shape language
+- a disciplined palette
+- clear visual hierarchy
+- memorable architecture
+- excellent UI geometry
+- expressive economy
+- beautiful composition
+
+DO NOT GET QUALITY FROM:
+- more grass or ground detail
+- more material rendering
+- richer lighting
+- haze
+- bloom
+- particles
+- cinematic depth
+- dense texture
+- premium-pixel rendering
+
+PREFER:
+- large, readable pixel clusters
+- economical foliage — a handful of well-drawn shapes, not a carpet
+- a small terrain vocabulary — two or three ground treatments, nothing more
+- simple baked lighting from the upper left
+- flat three-step colour ramps, no dithering
+- strong silhouettes
+- LOW detail density
+- quiet, plain ground
+- restrained earthy palette, roughly 40–50 colours total
+
+AVOID:
+- detailed grass carpets or per-blade ground texture
+- scattered flowers, weeds, or ground decoration
+- highly rendered roofs, thatch strands, or wood grain
+- rich material texture of any kind
+- cinematic depth, atmospheric haze, light shafts, bloom, glow, rim light
+- specular highlights, cast directional shadows, particles, motes, dust
+- premium-pixel atmosphere or high-detail finish
+- making it look "better" by adding rendering richness
+
+IDENTITY: A1 — FRONTIER HEARTH
+
+THESIS:
+A frontier settlement that has been repaired and maintained — everything visible
+has a job, and the mending is the beauty.
+
+SHARED SCENE (identical in all three identities — do not restage):
+Portrait mobile RPG screenshot, three-quarter top-down / isometric-lite view,
+mid-morning, warm light from the upper left. A player character stands full-body
+on the grass at the left edge of a worn dirt path outside a small timber
+palisade settlement, three-quarter facing the viewer, head turned down-right,
+idle, weight on the back foot, hands empty. They wear a belted oat-sand tunic,
+slate-brown trousers, a plain belt, wrapped boots, a small pack high on the
+back, and a short plain sword at the LEFT hip. No axe, no pickaxe, nothing held.
+Lower-right foreground: one gatherable herb plant — a raised tuft of tall blades
+with three pale stems and one cream flower head — the brightest, highest-contrast
+object in the frame, not overlapping the character. Behind and left, inside the
+open gate, one plain unarmed adult resident stands relaxed, carrying nothing.
+Background upper-left: palisade wall, open gate, two or three roofs, one thin
+smoke plume. Two narrow roads leave the frame at the left and right edges. One
+tree each side of the settlement, low scrub along the palisade, a plain wooden
+signpost with two arms and no writing, a stack of three firewood logs, two
+stones in the path, a thin grass fringe along the bottom-left edge only.
+HUD: top strip with "Haven's Rest" left, a boot icon with "1,240" right, one
+small dot far right. Bottom bar with six icons, no labels, leftmost active. A
+small card above the plant reading "×2", "90", "+10 XP". Those five strings are
+the ONLY text in the image.
+
+SHARED DIRECTION A RULES:
+1. Visible deliberate pixels on one consistent grid; hard edges, no anti-
+   aliasing, no blur, no gradients.
+2. Flat baked light from the upper left only. No dynamic light, bloom, glow,
+   rim light, specular, haze, light shafts, or particles.
+3. Contact shadows under standing objects only. No cast directional shadows.
+4. Quiet ground. Terrain detail is suppressed around the plant and behind the
+   character silhouette.
+5. Selective one-pixel dark outlines on the character, the resident, and the
+   plant. Terrain and background unoutlined.
+6. The plant is the most saturated, highest-contrast object in the frame —
+   separated by palette and silhouette alone, never by light.
+7. Energy reads as a stock the player owns. Never a draining bar or a timer.
+
+A1 IDENTITY SIGNALS — this is what makes it A1:
+1. VISIBLE REPAIR. One palisade section mended in newer, lighter timber against
+   weathered grey-brown. Make this obvious — it is the whole identity.
+2. BRACED CONSTRUCTION. Squared posts, a heavy lintel over the gate, an obvious
+   diagonal cross-brace.
+3. VISIBLE FASTENINGS. Pegs and nail heads at the joints as small deliberate
+   pixel marks. Where two things meet, the join is the detail.
+4. LOW, WIDE, SQUARED BUILDINGS. Steep simple roof pitches, never taller than
+   they are wide.
+5. TIDY WORK. The firewood is squarely stacked split logs with flat cut faces.
+   The signpost has two carved plank arms, each fixed with a visible peg.
+6. STURDY CHARACTER. Broad-shouldered, wide stance, bulk at the shoulders and
+   boots, pack squaring the upper back. Gear looks issued and used.
+7. PLANK-AND-BRACKET UI. HUD bars read as fitted timber with small corner
+   brackets and a visible seam line. Tab icons are squared with one rounded
+   working edge, reading as tools and goods.
+8. PALETTE. Honest earth — grey-brown timber, muted clay roofs, oat and sand
+   cloth, dusty path browns, muted greens, with cool grey-stone as a
+   counterweight so the frame is not entirely brown.
+
+DO NOT:
+1. No cottagecore, cozy-farm, or village-life-sim feeling. No pastel timber, no
+   rounded storybook roofs, no window boxes, no bunting.
+2. No decorative or luxury objects. No ornament nobody uses.
+3. No clutter and NO ADDED OBJECTS of any kind — no tools, workbench, chimney,
+   stovepipe, extra logs, barrels, crates, carts, fences, wells, or lanterns.
+4. No cinematic warmth, golden glow, or firelight bloom. Warmth comes from
+   palette only.
+5. No apron, market stall, wares, or shopkeeper presentation on the resident.
+6. No joystick, D-pad, arrows, waypoint line, minimap, health bar, or currency.
+7. No text beyond the five specified strings. No garbled lettering.
+8. Do not change the camera, framing, element placement, time of day, pose, or
+   equipment.
+
+GENERATE ONLY A1 — FRONTIER HEARTH.
+DO NOT HYBRIDIZE WITH THE OTHER TWO IDENTITIES.
+```
+
+---
+
+### 15.2 COMPACT EXECUTION BRIEF — A2 · WAYMARKED
+
+**Standalone. Copy this entire fenced block into one image request, by itself.**
+
+```
+STYLE — READ FIRST, THIS OVERRIDES EVERYTHING BELOW:
+
+CLASSIC PIXEL MMO LITE.
+RESTRAINED, LOW-RESOLUTION PIXEL ART.
+NOT premium pixel art. NOT high-detail indie pixel art.
+NOT painterly pixel rendering. NOT a high-resolution sprite treatment.
+
+This must read as an old 2D pixel MMO rather than as a modern premium pixel-art
+showcase. It should be beautiful, charming, and memorable — and it must get
+there through DESIGN, not through rendering richness.
+
+IF IT LOOKS IMPRESSIVE BECAUSE OF RENDERING RICHNESS, IT IS WRONG.
+IF IT LOOKS IMPRESSIVE BECAUSE OF STRONG DESIGN, SILHOUETTE, COMPOSITION,
+PIXEL ECONOMY, AND CLARITY, THAT IS RIGHT.
+
+CALM, READABLE, RESTRAINED, AND DELIBERATELY CRAFTED.
+NEVER CRUDE, UNFINISHED, EMPTY, OR INTENTIONALLY UGLY.
+
+Restraint here is a craft choice, not an absence of craft. Every element is
+finished and considered. The goal is excellence without rendering excess.
+
+GET QUALITY FROM:
+- strong, well-chosen pixel clusters — few pixels doing a lot of work
+- excellent silhouettes, readable at phone size
+- thoughtful shape language
+- a disciplined palette
+- clear visual hierarchy
+- memorable architecture
+- excellent UI geometry
+- expressive economy
+- beautiful composition
+
+DO NOT GET QUALITY FROM:
+- more grass or ground detail
+- more material rendering
+- richer lighting
+- haze
+- bloom
+- particles
+- cinematic depth
+- dense texture
+- premium-pixel rendering
+
+PREFER:
+- large, readable pixel clusters
+- economical foliage — a handful of well-drawn shapes, not a carpet
+- a small terrain vocabulary — two or three ground treatments, nothing more
+- simple baked lighting from the upper left
+- flat three-step colour ramps, no dithering
+- strong silhouettes
+- LOW detail density
+- quiet, plain ground
+- restrained earthy palette, roughly 40–50 colours total
+
+AVOID:
+- detailed grass carpets or per-blade ground texture
+- scattered flowers, weeds, or ground decoration
+- highly rendered roofs, thatch strands, or wood grain
+- rich material texture of any kind
+- cinematic depth, atmospheric haze, light shafts, bloom, glow, rim light
+- specular highlights, cast directional shadows, particles, motes, dust
+- premium-pixel atmosphere or high-detail finish
+- making it look "better" by adding rendering richness
+
+IDENTITY: A2 — WAYMARKED
+
+THESIS:
+One practical vocabulary of plain carved marks, repeated across the world and
+the interface, doing ordinary useful work that nobody explains.
+
+SHARED SCENE (identical in all three identities — do not restage):
+Portrait mobile RPG screenshot, three-quarter top-down / isometric-lite view,
+mid-morning, warm light from the upper left. A player character stands full-body
+on the grass at the left edge of a worn dirt path outside a small timber
+palisade settlement, three-quarter facing the viewer, head turned down-right,
+idle, weight on the back foot, hands empty. They wear a belted oat-sand tunic,
+slate-brown trousers, a plain belt, wrapped boots, a small pack high on the
+back, and a short plain sword at the LEFT hip. No axe, no pickaxe, nothing held.
+Lower-right foreground: one gatherable herb plant — a raised tuft of tall blades
+with three pale stems and one cream flower head — the brightest, highest-contrast
+object in the frame, not overlapping the character. Behind and left, inside the
+open gate, one plain unarmed adult resident stands relaxed, carrying nothing.
+Background upper-left: palisade wall, open gate, two or three roofs, one thin
+smoke plume. Two narrow roads leave the frame at the left and right edges. One
+tree each side of the settlement, low scrub along the palisade, a plain wooden
+signpost with two arms and no writing, a stack of three firewood logs, two
+stones in the path, a thin grass fringe along the bottom-left edge only.
+HUD: top strip with "Haven's Rest" left, a boot icon with "1,240" right, one
+small dot far right. Bottom bar with six icons, no labels, leftmost active. A
+small card above the plant reading "×2", "90", "+10 XP". Those five strings are
+the ONLY text in the image.
+
+SHARED DIRECTION A RULES:
+1. Visible deliberate pixels on one consistent grid; hard edges, no anti-
+   aliasing, no blur, no gradients.
+2. Flat baked light from the upper left only. No dynamic light, bloom, glow,
+   rim light, specular, haze, light shafts, or particles.
+3. Contact shadows under standing objects only. No cast directional shadows.
+4. Quiet ground. Terrain detail is suppressed around the plant and behind the
+   character silhouette.
+5. Selective one-pixel dark outlines on the character, the resident, and the
+   plant. Terrain and background unoutlined.
+6. The plant is the most saturated, highest-contrast object in the frame —
+   separated by palette and silhouette alone, never by light.
+7. Energy reads as a stock the player owns. Never a draining bar or a timer.
+
+A2 IDENTITY SIGNALS — this is what makes it A2:
+1. ONE MARK VOCABULARY, REPEATED. A small set of simple geometric cut shapes —
+   a stem-and-cross, a wedge-and-line, a notched ring, a chevron, a plain bar —
+   appearing in both the world and the interface. A viewer should see that the
+   marks on the signpost and the icons on the tab bar were made by the same
+   hand and mean things the same way. This is the entire identity.
+2. CARVED, NOT LIT. A mark is drawn one value darker than its material with a
+   one-pixel lit lip on the upper-left side, so it reads as cut into the
+   surface. It has no colour of its own.
+3. MARKS ON EXISTING SURFACES ONLY. The two signpost arms carry one route mark
+   each. The two gate posts are old weathered stone rather than timber and
+   carry one small mark each. One of the two path stones carries a faint,
+   half-erased mark. The resident wears one small marked belt plate.
+4. STONE IS OLDER THAN TIMBER. Buildings sit on stone footings that do not match
+   what stands on them; the stone is visibly more weathered everywhere it
+   appears. This is a material observation and nothing more.
+5. INCISED UI. HUD bars are flat plates with a single carved border groove and
+   small cut corner marks — cut rather than built. The six tab icons are compact
+   marks from the same vocabulary; the active one is filled solid where the
+   others are cut and outlined.
+6. THE HERB ICON IS THE RESOURCE MARK. The gather card icon is drawn as the
+   resource mark from the same carved vocabulary.
+7. INHERITED GEAR. The character is upright and close-strapped, gear carried
+   tight, pack low and tight. Repaired shoulder seam, belt with two sets of
+   wear marks, rewrapped sword grip. Starter gear looks old and handed-down.
+8. PALETTE. Weathered stone and travelled leather — grey and grey-green stone,
+   muted lichen accents on stone only, brown-grey timber, oat and umber cloth.
+   Slightly cooler and more desaturated than a timber-dominated palette.
+
+DO NOT:
+1. NO GLOW, EMISSION, OR LIGHT ON ANY MARK. Never. The marks are inert.
+2. No runes, magic symbols, arcane script, sigils of power, spell circles,
+   occult or religious imagery, heraldry, writing, lettering, or any alphabet.
+   These are practical signage, not language.
+3. NO ADDED OBJECTS. No waystone, standing stone, marker stone, boundary stone,
+   cairn, or carved post — and NOTHING AT ALL beside the gatherable plant. The
+   plant stands alone on open ground.
+4. No ruins, monuments, obelisks, menhirs, stone circles, shrines, altars,
+   temples, statues, relics, or lost-civilization artifacts. Nothing may look
+   ancient-and-significant, mystical, or otherworldly.
+5. No mark inflation. Only the six carriers listed above are marked. Do not
+   cover surfaces in symbols.
+6. No joystick, D-pad, arrows, waypoint line, minimap, health bar, or currency.
+7. No text beyond the five specified strings. No garbled lettering.
+8. Do not change the camera, framing, element placement, time of day, pose, or
+   equipment.
+
+GENERATE ONLY A2 — WAYMARKED.
+DO NOT HYBRIDIZE WITH THE OTHER TWO IDENTITIES.
+```
+
+---
+
+### 15.3 COMPACT EXECUTION BRIEF — A3 · WILD TRAILS
+
+**Standalone. Copy this entire fenced block into one image request, by itself.**
+
+```
+STYLE — READ FIRST, THIS OVERRIDES EVERYTHING BELOW:
+
+CLASSIC PIXEL MMO LITE.
+RESTRAINED, LOW-RESOLUTION PIXEL ART.
+NOT premium pixel art. NOT high-detail indie pixel art.
+NOT painterly pixel rendering. NOT a high-resolution sprite treatment.
+
+This must read as an old 2D pixel MMO rather than as a modern premium pixel-art
+showcase. It should be beautiful, charming, and memorable — and it must get
+there through DESIGN, not through rendering richness.
+
+IF IT LOOKS IMPRESSIVE BECAUSE OF RENDERING RICHNESS, IT IS WRONG.
+IF IT LOOKS IMPRESSIVE BECAUSE OF STRONG DESIGN, SILHOUETTE, COMPOSITION,
+PIXEL ECONOMY, AND CLARITY, THAT IS RIGHT.
+
+CALM, READABLE, RESTRAINED, AND DELIBERATELY CRAFTED.
+NEVER CRUDE, UNFINISHED, EMPTY, OR INTENTIONALLY UGLY.
+
+Restraint here is a craft choice, not an absence of craft. Every element is
+finished and considered. The goal is excellence without rendering excess.
+
+GET QUALITY FROM:
+- strong, well-chosen pixel clusters — few pixels doing a lot of work
+- excellent silhouettes, readable at phone size
+- thoughtful shape language
+- a disciplined palette
+- clear visual hierarchy
+- memorable architecture
+- excellent UI geometry
+- expressive economy
+- beautiful composition
+
+DO NOT GET QUALITY FROM:
+- more grass or ground detail
+- more material rendering
+- richer lighting
+- haze
+- bloom
+- particles
+- cinematic depth
+- dense texture
+- premium-pixel rendering
+
+PREFER:
+- large, readable pixel clusters
+- economical foliage — a handful of well-drawn shapes, not a carpet
+- a small terrain vocabulary — two or three ground treatments, nothing more
+- simple baked lighting from the upper left
+- flat three-step colour ramps, no dithering
+- strong silhouettes
+- LOW detail density
+- quiet, plain ground
+- restrained earthy palette, roughly 40–50 colours total
+
+AVOID:
+- detailed grass carpets or per-blade ground texture
+- scattered flowers, weeds, or ground decoration
+- highly rendered roofs, thatch strands, or wood grain
+- rich material texture of any kind
+- cinematic depth, atmospheric haze, light shafts, bloom, glow, rim light
+- specular highlights, cast directional shadows, particles, motes, dust
+- premium-pixel atmosphere or high-detail finish
+- making it look "better" by adding rendering richness
+
+IDENTITY: A3 — WILD TRAILS
+
+THESIS:
+The land visibly remembers being walked on — the ground itself carries the
+history of repeated travel.
+
+SHARED SCENE (identical in all three identities — do not restage):
+Portrait mobile RPG screenshot, three-quarter top-down / isometric-lite view,
+mid-morning, warm light from the upper left. A player character stands full-body
+on the grass at the left edge of a worn dirt path outside a small timber
+palisade settlement, three-quarter facing the viewer, head turned down-right,
+idle, weight on the back foot, hands empty. They wear a belted oat-sand tunic,
+slate-brown trousers, a plain belt, wrapped boots, a small pack high on the
+back, and a short plain sword at the LEFT hip. No axe, no pickaxe, nothing held.
+Lower-right foreground: one gatherable herb plant — a raised tuft of tall blades
+with three pale stems and one cream flower head — the brightest, highest-contrast
+object in the frame, not overlapping the character. Behind and left, inside the
+open gate, one plain unarmed adult resident stands relaxed, carrying nothing.
+Background upper-left: palisade wall, open gate, two or three roofs, one thin
+smoke plume. Two narrow roads leave the frame at the left and right edges. One
+tree each side of the settlement, low scrub along the palisade, a plain wooden
+signpost with two arms and no writing, a stack of three firewood logs, two
+stones in the path, a thin grass fringe along the bottom-left edge only.
+HUD: top strip with "Haven's Rest" left, a boot icon with "1,240" right, one
+small dot far right. Bottom bar with six icons, no labels, leftmost active. A
+small card above the plant reading "×2", "90", "+10 XP". Those five strings are
+the ONLY text in the image.
+
+SHARED DIRECTION A RULES:
+1. Visible deliberate pixels on one consistent grid; hard edges, no anti-
+   aliasing, no blur, no gradients.
+2. Flat baked light from the upper left only. No dynamic light, bloom, glow,
+   rim light, specular, haze, light shafts, or particles.
+3. Contact shadows under standing objects only. No cast directional shadows.
+4. Quiet ground. Terrain detail is suppressed around the plant and behind the
+   character silhouette.
+5. Selective one-pixel dark outlines on the character, the resident, and the
+   plant. Terrain and background unoutlined.
+6. The plant is the most saturated, highest-contrast object in the frame —
+   separated by palette and silhouette alone, never by light.
+7. Energy reads as a stock the player owns. Never a draining bar or a timer.
+
+A3 IDENTITY SIGNALS — this is what makes it A3:
+1. THE PATH IS WORN BY WALKING. Visible tread compaction: a smooth, bare,
+   slightly sunken centre with softer broken-grass edges.
+2. ONE PATH, ONE UNBROKEN SILHOUETTE. The path is a single continuous path from
+   the gate to the bottom of the frame, with one uninterrupted outer edge.
+3. WEAR VARIATION INSIDE THE PATH. At one point along its length, a small damp
+   patch within the existing width of the path has worn the bare surface into
+   two shallow channels for a short distance before returning to a single
+   central wear band. This is surface wear INSIDE the path footprint — how the
+   dirt is worn, not where the path goes. The outer edges stay unbroken.
+4. HEAVIEST TRAFFIC AT THE GATE. The ground outside the gate carries the most
+   accumulated wear and the worn surface is broader there than the gate itself.
+5. GROUND CHANGES IN BANDS. Where the meadow meets the path, the ground changes
+   across a visible band rather than at a hard line.
+6. WORN OBJECTS, NOT PLACED ONES. The two path stones are worn smooth and sit
+   slightly proud of the compacted surface, as stones do when the soil around
+   them is walked away. The signpost is weathered field craft — rough-barked,
+   leaning slightly out of true, its two arms simple notched boards, its base
+   darkened where the ground stays damp, its lower stem scuffed.
+7. SETTLEMENT SITS INTO THE TERRAIN. Buildings are low and spread with visible
+   grade at their foundations; stone appears only on the downhill side.
+8. LEAN CHARACTER, REGIONAL PLANTS, LIGHT UI. The character is lean and
+   compact, kit strapped high and tight, with a slight forward lean at rest.
+   The palisade scrub is two or three specific meadow-edge plant silhouettes,
+   sparse and framing. HUD bars are flat panels with a thin double-rule border
+   and one small notched corner; tab icons use terrain, track, leaf, and
+   tool-head shapes. Palette: several distinct green bands rather than one
+   green, ochre and dust in the path, with the higher-saturation band of the
+   plant belonging to nothing else.
+
+DO NOT:
+1. DO NOT SPLIT THE PATH. No fork, branch, junction, crossroads, side path,
+   shortcut, parallel secondary trail, or second navigable route. Exactly one
+   main path plus the two narrow roads already leaving the left and right edges.
+   The worn channels must never break the outer edges of the path.
+2. The path must not read as a user-interface element: no dotted or dashed line,
+   no glowing trail, no ground arrows, no footprint markers, no waypoint pins,
+   no route highlight, no tap-to-move indicator, no destination marker.
+3. NO ADDED OBJECTS. No cairn, stacked stones, trail post, blazed post, marker,
+   boundary stone, extra path stones, or navigation furniture.
+4. Not a survival or wilderness-crafting game. No lean-tos, campfires, tarps,
+   bedrolls, shelters, rope lines, or foraging baskets.
+5. Not lush, not overgrown, not densely vegetated. Foliage stays sparse and
+   economical, and terrain must never compete with the plant or the character
+   silhouette. Not a generic green field with trees — the greens are
+   distinguishable bands, not one flat green.
+6. No motion. No wind streaks, motion lines, or blur — this is a still frame.
+7. No joystick, D-pad, arrows, minimap, health bar, or currency. No text beyond
+   the five specified strings.
+8. Do not change the camera, framing, element placement, time of day, pose, or
+   equipment.
+
+GENERATE ONLY A3 — WILD TRAILS.
+DO NOT HYBRIDIZE WITH THE OTHER TWO IDENTITIES.
+```
+
+---
+
+### 15.4 What the briefs deliberately leave out
+
+Stated so the omissions read as intentional rather than as an incomplete
+derivation. Each of these lives in the long form and still governs:
+
+| Omitted from the briefs | Still canonical in |
+|---|---|
+| Proportional element coordinates | §4, and `VISUAL_SAMPLE_GENERATION_01.md` §5.3 |
+| The full exhaustive prop inventory and object count | §4, §8, V-3a |
+| The complete shared negative block | §8 |
+| The full validity, floor, and fairness checklists | §9 |
+| The complete per-identity failure checks | §10 |
+| The reasoning behind every constraint | §§2–4, §14 |
+
+**A compact brief is a lossy derivation on purpose.** Its job is to survive an
+environment that buries long instructions, and the cost of that is detail.
+Validity is still decided by §9 against the long form — never by whether the
+image matched its brief.
+
+### 15.5 Status
+
+The briefs are **execution tooling, not a decision.** They rank nothing,
+eliminate nothing, and hybridize nothing. Every declaration in §13 stands
+unchanged: `ART_DIRECTION.md` remains EXPLORATION, no winner is selected, and
+Round 1 has not yet produced a valid sample set.
