@@ -128,6 +128,12 @@ with no source explanation:
 | What is at the hip? | a sheathed sword |
 | What is in the hands? | nothing |
 
+**The read contract that implements L-1 … L-5 is
+`GAME_BIBLE/ART/CHARACTER_READ_SPEC_01.md` — FROZEN 2026-08-14.** It owns the
+character read requirements, the approved gesture (a *settled asymmetric hang*),
+the design architecture (*separate loads by height, not by side*; *occlusion over
+adjacency*), and the pass/fail gate. It is not duplicated here (`RULES.md` G-7).
+
 **L-5 — No trademark visual signature is locked, deliberately.**
 Recognisability must be earned through proportion, gesture, clothing shape,
 equipment relationship and restrained colour placement **before** any decorative

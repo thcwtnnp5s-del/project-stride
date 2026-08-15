@@ -71,12 +71,26 @@ The audit measured a minimum honest column budget of **26 columns** for the curr
 
 `ART_DIRECTION.md` L-3 holds the canvas at 24 × 34 anyway, on the reasoning that the shortfall is evidence of a bad *arrangement* rather than a small canvas: equipment currently occupies the same chest-height band as both arms, and moving the load off that band frees roughly four far-side columns.
 
-### The condition for reopening
+### Answered for the next attempt — verdict (A)
 
-**L-3 may be reopened explicitly** if an approved READ SPEC demonstrates that the locked inventory — small canvas backpack, sheathed Training Sword, empty hands — physically cannot read inside 24 × 34 once the allocation problem has actually been solved.
+**2026-08-14.** The Character Visual Designer judged **(A) — 24 × 34 should be sufficient with better mass allocation**, and the owner accepted it. `CHARACTER_READ_SPEC_01.md` is frozen on that basis and **the canvas is not widened.**
 
-That is a specific, falsifiable bar. It is not met by an attempt that keeps the current arrangement and reports being short of room.
+The reasoning: 26-against-24 measured **one row**, in an arrangement where the pack, both arms and the torso all demanded width in the same band. The approved architecture separates the loads by height rather than by side — pack above and behind the far shoulder, both arms owning the chest register, sword at the near hip — so no single row is asked to hold all three.
 
-### Why it is deferred
+### The three reopening conditions
 
-Widening the canvas is the cheapest available response and the one `PIXEL_ART_CRAFT_SPEC.md` CR-1 and §7 most directly warn against. The allocation fix has never been tried; until it has, there is no evidence about what 24 columns can hold.
+**Q-03 reopens only if one of these is demonstrated in an actual compliant render — shown, not argued — while holding L-1, L-2 and L-4:**
+
+1. At the widest chest row, torso plus both arms plus the near-side background notch cannot be accommodated without either **widening the figure** (forbidden by L-2) or **eliminating the notch** (which reinstates the diagnosed failure).
+2. At the hip rows, the near hand and the scabbard **cannot be separated by any means** — rows, contour, or overlap — without one of them leaving the canvas or merging with the leg.
+3. The scabbard **cannot achieve enough length** to escape the mug/canteen read while remaining below the belt and above the boot.
+
+> **"More pixels would be easier" is not a reopening condition.**
+
+Canvas size may be reopened only where the locked requirements are shown to be **mutually incompatible in a compliant render**.
+
+**The most likely pressure point is condition 3** — the hip register is where this is genuinely tight, and it is the one to watch.
+
+### Why the bar is set this high
+
+Widening the canvas is the cheapest available response and the one `PIXEL_ART_CRAFT_SPEC.md` CR-1 and §7 most directly warn against. The allocation fix had never been tried; until an attempt is made against the frozen spec, there is no evidence about what 24 columns can hold.

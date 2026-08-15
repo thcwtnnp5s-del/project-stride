@@ -188,8 +188,8 @@ must be re-run on a corrected shared base. See below.
 | `VISUAL_STUDIO_BASELINE_AUDIT_01` — five-agent specialist and blind-QA audit | ✅ Done. Character, Environment and UI all returned **QA FAIL** |
 | `VISUAL_STUDIO_CORRECTION_01` — render-set and craft-spec hardening | ✅ Done — `5d4664b` |
 | **Visual Owner Direction Round 01** | ✅ **Done** — fifteen locks recorded in `GAME_BIBLE/ART/ART_DIRECTION.md` |
-| `CHARACTER_READ_SPEC_01` | ⬅ **next** — Character Visual Designer |
-| Character rebuild → Visual QA | Not started |
+| `CHARACTER_READ_SPEC_01` | ✅ **Done — FROZEN 2026-08-14**, `GAME_BIBLE/ART/CHARACTER_READ_SPEC_01.md`. 102 items, 28 load-bearing |
+| `CHARACTER_REBUILD_01` → Visual QA | ⬅ **next** — Character Pixel Artist against the frozen spec |
 | Haven's Rest Base 02 | Not started |
 | UI correctness pass | Not started |
 | A1/A2/A3 re-run on the corrected base | Not started, and **not** rankable before then |
