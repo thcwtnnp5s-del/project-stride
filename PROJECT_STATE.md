@@ -130,13 +130,17 @@ The player must be able to:
       end against real HealthKit data. The first device run found one real defect
       (`cursorOfferedWhenProhibited` on seven of eight pages); it was inert, it is
       fixed, and the re-run reported zero faults. `S01A_PHYSICAL_VALIDATION.md`.
-33. **Define the player-facing / design milestone.** ← current state
-    - Nothing is in progress. Foreground health, the save, and the gather loop are
-      validated on hardware; the next milestone is a design conversation, not a
-      continuation of this one.
+33. **Define the player-facing / design milestone.**
+    - Foreground health, the save, and the gather loop are validated on hardware;
+      the next milestone is a design conversation, not a continuation of this one.
+      **Still open — no player-facing milestone has been defined.**
     - F-07 (skill framework) is unblocked. S-01B (background sync) remains blocked on
       a real persistence coordinator and is not the automatic next step.
     - Governance layer added: `RULES.md`, `MISTAKES.md`, `GAME_BIBLE/ART/`.
+
+34. **Visual exploration and correction.** ← current state
+    - The active work is visual. Direction is locked, corrections are not yet made,
+      and no art is approved. See *Current visual phase* below.
 
 ## Next planned activity
 
@@ -171,8 +175,38 @@ of the three.
 Subjects are defined in `GAME_BIBLE/CONTENT/01_STARTER_CONTENT_BIBLE.md`; HUD
 structure in `GAME_BIBLE/UI_UX/01_MOBILE_EXPERIENCE.md`.
 
-**No art is generated yet.** This entry records the plan; producing the
-comparison is its own scoped task.
+**Superseded in part.** Art has since been generated as exploration proofs, audited,
+and found perceptually failing. The comparison plan stands; the round it describes
+must be re-run on a corrected shared base. See below.
+
+### Current visual phase — corrections, before any identity comparison
+
+**Status:** direction locked, correction work not yet started. No art is approved.
+
+| Step | State |
+|---|---|
+| `VISUAL_STUDIO_BASELINE_AUDIT_01` — five-agent specialist and blind-QA audit | ✅ Done. Character, Environment and UI all returned **QA FAIL** |
+| `VISUAL_STUDIO_CORRECTION_01` — render-set and craft-spec hardening | ✅ Done — `5d4664b` |
+| **Visual Owner Direction Round 01** | ✅ **Done** — fifteen locks recorded in `GAME_BIBLE/ART/ART_DIRECTION.md` |
+| `CHARACTER_READ_SPEC_01` | ⬅ **next** — Character Visual Designer |
+| Character rebuild → Visual QA | Not started |
+| Haven's Rest Base 02 | Not started |
+| UI correctness pass | Not started |
+| A1/A2/A3 re-run on the corrected base | Not started, and **not** rankable before then |
+
+**The Traveler has not graduated.** OR02, R03, R03F and R03C are
+**structurally informative, perceptually failed, and not the approved base
+character**. They are evidence for the next attempt, which is **not** required to
+preserve their body silhouette — preserve the useful discoveries, not the failed
+geometry. There is deliberately no `TRAVELER_BASE.md`.
+
+**Haven's Rest Base 01 and the A1/A2/A3 round are preserved as historical
+exploration evidence** and are not production world art. The two exploration
+directories carrying the failing evidence remain deliberately uncommitted.
+
+The audit's own governing finding is recorded as `MISTAKES.md` M-05: the evidence
+set contained no ×2 play-scale view, so every visual decision to that point had
+been taken at inspection scale.
 
 ## F-05 closed the four decisions
 
@@ -253,7 +287,11 @@ Archived, not deleted: `TECHNICAL/ARCHITECTURE_IMPLEMENTATION_PLAN_SWIFT_ARCHIVE
 
 **M-1 through M-6 complete.** See `MIGRATION_CLOSURE_REPORT.md`.
 
-Repository: `thcwtnnp5s-del/project-stride` (private), branch `master`, all history preserved including the superseded Swift scaffold at `859d0ac`.
+Repository: `thcwtnnp5s-del/project-stride` — **public, intentionally** — branch `master`, all history preserved including the superseded Swift scaffold at `859d0ac`.
+
+**The repository is deliberately public.** An earlier revision of this line recorded it as private; that was stale documentation, corrected 2026-08-14 after `gh repo view` reported `visibility=PUBLIC`. Public visibility is the owner's intent and is not to be changed. `DECISIONS/0011` governs **app** distribution channels and is unaffected — source visibility and distribution are different questions.
+
+One consequence is worth stating where a future session will see it, because it is a property of the setup rather than a problem with it: `.github/workflows/ci.yml` runs on `pull_request`, so on a public repository that workflow can execute fork-authored code. The workflow already declares least-privilege permissions rather than inheriting them. **Nothing about CI permissions, workflow behaviour, branch protection, or repository access was altered by this correction.**
 
 **CI green on all four jobs** — run `30752832663`. **44 automated tests**: 17 Dart, 5 Kotlin, 12 Swift, plus the Dart suite re-run on macOS.
 
