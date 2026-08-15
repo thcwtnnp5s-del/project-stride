@@ -137,11 +137,62 @@ subject, the version and which half is the answer. Source comments leak more.
 **If staging is skipped, that round's QA is worthless and is discarded rather
 than trusted.**
 
-### Target scale
+#### Leaks that a neutral filename does not close
 
-Every visual review inspects **native → ×2 play-scale proxy → ×8 → in-context**.
-The ×2 proxy is mandatory in the standard render set. **×8 is inspection scale,
-never verdict scale** — it flatters everything.
+Every one of these was found by Visual QA itself, reporting unprompted against
+its own round, during `VISUAL_STUDIO_BASELINE_AUDIT_01`. Neutral filenames were
+correct in all three cases and the round leaked anyway.
+
+**The image can carry the label.** Crop or blank in-frame text before staging
+whenever the question tests identity blindly. Four environment renders carried
+`Haven's Rest` in the HUD strip, which answered *what kind of place is this* before
+the critic reached the pixels.
+
+**Comparison candidates must differ only in the thing under test.** Hold every
+non-target layer byte-identical. The same four renders varied their toolbar icons,
+giving a side-channel for telling candidates apart that had nothing to do with the
+artwork under test — inside an environment comparison.
+
+**Never give assets of different native density the same scale labels.** A
+half-density asset staged as `_native / _x2 / _x4` beside full-density assets using
+the same suffixes cannot be judged: the critic cannot tell a deliberate density
+choice from a mis-export, and correctly discards its own reads. **State actual
+native dimensions to the orchestrator, out of band. QA filenames stay neutral.**
+
+**Character context must be staged at play-scale proxy**, per the target-scale
+gate above.
+
+#### COMPROMISED is a real outcome
+
+A round with a material staging leak is marked **COMPROMISED** and says so in the
+report, naming the leak and which findings it touches. It is never quietly used
+because the findings looked useful anyway.
+
+Partial credit is legitimate — a leak that contaminates one question does not void
+the reads that did not depend on it. The judgement is the orchestrator's, it is
+recorded, and the default when genuinely unclear is to discard. **Do not restage
+and re-run the same critic against the same images**; it has already seen them.
+
+### Target scale and the standard output set
+
+Every authoring pass produces the **standard visual output set**, canonical in
+`GAME_BIBLE/ART/PIXEL_ART_CRAFT_SPEC.md` §8.1 and summarised here only as the
+gate the orchestrator enforces:
+
+**native · ×2 play-scale proxy · ×8 inspection · true in-context · silhouette-only
+(character work)**
+
+Review order is **×2 first**, then native, then silhouette, then ×8, then context
+(§8.2). **×2 is the verdict view. ×8 is inspection scale, never verdict scale** —
+it flatters everything.
+
+Two of these are gates the orchestrator applies before staging, not suggestions:
+
+- **A pass that arrives without a ×2 is not reviewable.** Return it; do not stage
+  it, and do not review the ×8 "just to get started".
+- **An ×8 crop offered as a context view is not a context view.** It tests nothing
+  about legibility against environment noise, which is the only thing a context
+  view is for.
 
 ### Severity and category
 

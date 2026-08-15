@@ -66,8 +66,25 @@ artwork.
 | `surface.js` | Indexed raster, blit, nearest-neighbour scale, zero-dependency PNG encoder |
 | `palette.js` | The provisional 49-entry palette, as named three-step ramps |
 | `sprites.js` | The authored artwork — ASCII maps, the bitmap font, the card |
-| `render.js` | Writes native + ×8 review PNGs into `out/` |
+| `render.js` | Writes native + ×8 review PNGs into `out/` — **predates the standard output set; see below** |
+| `review_set.js` | Emits the standard output set — native, ×2, ×8, context, silhouette. **Two functions over `Surface`; not a framework** |
 | `verify.js` | Minimal technical check. **Not a framework, and must not become one** |
+
+### The standard output set
+
+`review_set.js` exists because every renderer here already shared one scaler, and
+each one still chose a **single** `SCALE` constant and wrote only that view. The
+result — found by `VISUAL_STUDIO_BASELINE_AUDIT_01` — was fifteen ×8 files, three
+natives and **no ×2 anywhere in the repository**, so the Traveler was reviewed
+only at the scale that flatters everything.
+
+**New visual work uses `writeReviewSet`.** The set and the review order are
+canonical in `GAME_BIBLE/ART/PIXEL_ART_CRAFT_SPEC.md` §8.
+
+The existing `render.js` files in this and the other exploration directories are
+**deliberately not retrofitted**. Changing them changes nothing until they are
+re-run, and re-running them re-renders preserved evidence — which is its own task
+with its own review, not a side effect of a tooling change (`RULES.md` G-2).
 
 ## Running it
 

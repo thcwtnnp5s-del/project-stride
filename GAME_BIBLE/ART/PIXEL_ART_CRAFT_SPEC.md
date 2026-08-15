@@ -30,6 +30,7 @@ produced them, because a rule with no failure behind it is a preference.
 |---|---|
 | `exploration/CODE_RENDER_01/` — the Traveler / Meadow Herb / gather-card proof and its five recorded passes (Pass 1–3, Owner Refinement 01–02) | §2–§6 — character, cluster, node and UI craft |
 | `exploration/HAVENS_REST_BASE_01/` — the first full-world scene and its three recorded passes | **§5A — environment craft**, CR-39, and the CR-14/CR-18 escalations |
+| **`VISUAL_STUDIO_BASELINE_AUDIT_01`** — the first multi-agent specialist and blind-QA audit of the Traveler, Haven's Rest and the UI | **§8 — the standard output set**, CR-42, CR-43, CR-44, CR-45 |
 
 **How to use it.** Read §1 and §7 before drawing. Work through §2–§6 — including
 **§5A** when the subject is environment — while drawing. Run §7 and §8 before
@@ -85,6 +86,39 @@ and invisible to the owner.
 
 *This rule outranks every other rule in this document.* A change that satisfies
 CR-3 through CR-40 and cannot be seen has still failed.
+
+**CR-42 — Comments and identifiers describe intent. The pixels determine whether
+that intent exists.**
+
+CR-41 says source intent earns no credit at review. CR-42 is the authoring-side
+consequence: **a label creates an obligation on the pixels, not a property of
+them.** Naming a cluster `SCABBARD` does not make it leather; it commits you to
+drawing something that reads as leather, and until you do, the name is a claim
+the image does not support.
+
+The failure mode is specific and it is not carelessness — it is a label and a
+material ramp drifting apart while each stays individually defensible:
+
+- A cluster commented `scabbard` whose legend characters resolve to the **metal**
+  ramp is **a bare blade**, and a reader who has the source is told "scabbard"
+  before looking. Use material and value logic appropriate to leather, wood, or
+  cloth — unless the design explicitly specifies a metal sheath.
+- A map named `PACK` whose rendered silhouette reads as a pauldron, a crate, or a
+  shield is not a pack, and renaming it changes nothing.
+- Smoke drawn in the sky's own palette index **is not present in the image**, no
+  matter how complete the plume is in source (see CR-44).
+
+Two working consequences:
+
+- **When a label and a render disagree, the label is the defect.** Fix the pixels
+  or withdraw the claim. Never leave both standing.
+- **Semantic labels in source are review contamination** (`MISTAKES.md` M-04).
+  They are legitimate authoring aids and they are why blind staging exists — the
+  critic must meet the render, never the vocabulary.
+
+*Prevents:* the Traveler hip object, commented `scabbard` through three passes,
+authored in `IDX.metal`, and independently read as a hatchet, an axe head, an
+adze, a trowel, and a mug by four separate blind readers.
 
 ---
 
@@ -265,6 +299,61 @@ winning the frame.
 
 **CR-26 — Value is a depth tool as well as a lighting tool** (see CR-5).
 
+**CR-44 — An element must not be drawn in the palette index of the region it is
+drawn against, where that makes the intended form disappear.**
+
+This is **not** a demand for high contrast everywhere. Quiet, close-valued work is
+the identity, and CR-24's restraint stands. The requirement is narrower and
+absolute: **the form you intended must survive into the image.** An element that
+cannot be distinguished from its own background has not been drawn — it has been
+described in source.
+
+Watch for it wherever an element crosses from one region into another, because a
+value that separates cleanly over one region can vanish over the next:
+
+- smoke drawn in the sky's own index
+- a cloud edge equal to the sky
+- a distant structure equal to the treeline
+- a path equal to the meadow it crosses
+
+The most dangerous case is the **partial** one, because it does not look like a
+palette error — it looks like a drawing error. A plume drawn in the sky's index
+that crosses from sky to grass renders **only over the grass**, and reads as a
+line that starts nowhere and stops for no reason.
+
+*Prevents:* the Haven's Rest chimney plume, authored complete in source at
+palette index 51 — the lower sky band's own index — so that more than half its
+length was literally unrenderable, and every blind reader's first call on the
+surviving fragment was *a rendering glitch* or *a dead pixel column*.
+
+**CR-45 — Adjacent materials that must communicate different objects, or
+different depth planes, must not collapse into one mass at ×2.**
+
+Judge it at the verdict view, on the render (CR-41). **The render decides** — this
+rule deliberately names no luminance threshold, because a number would be obeyed
+where it is cheap and would not describe what a viewer sees. Reduce the frame to
+greyscale if you need a check: a boundary that must carry meaning and disappears
+under that test is the finding.
+
+Two failure classes, and the second is the one that gets missed:
+
+- **Within the asset** — skin against tunic, boot against trouser, pack against
+  arm. Each of these is already a named case (CR-14, CR-16, CR-17).
+- **Between the asset and the world it stands in.** A character's equipment is
+  reviewed against its own tunic and shipped against grass and dirt. Solving
+  "the pack is too bright to be a pack" by darkening it can walk it directly into
+  the ground ramp, where it stops being a shield and starts being nothing.
+
+Where separation is required, **the isolated view cannot certify it.** Both the
+isolated ×2 and the true in-context view must show it holding (§8).
+
+*Prevents:* the Haven's Rest roof and palisade authored as separate ramps for the
+stated purpose of unmerging the settlement, and set two-and-a-half luminance
+steps apart, so the settlement went on reading as one mass; the main path and the
+meadow three steps apart, so the frame's largest compositional line vanishes in
+greyscale; and the Traveler's pack darkened away from the tunic to within five
+steps of grass and two of dirt.
+
 **The current 49-entry proof palette is PROVISIONAL and is explicitly NOT
 canonized.** Palette remains UNRESOLVED in `ART_DIRECTION.md`.
 
@@ -341,6 +430,41 @@ of pixels.
 through Passes 1 and 2 and read as a **plus sign** on a pole. One row of step
 per arm turned it back into a signpost.
 
+**CR-43 — Every visible end of a route must have a readable reason.**
+
+A road, path or track is a claim that places connect. Both of its visible ends
+have to answer *why does it stop here* from the image alone.
+
+**Permitted terminations** — each is a reason a viewer can see:
+
+- it leaves the frame
+- it passes through a gate, door, or other aperture
+- it is occluded by something in front of it
+- it meets another route at a junction
+- it arrives at a visible destination
+
+**Forbidden** — each reads as an unfinished map rather than as a world:
+
+- beginning in arbitrary open terrain
+- terminating against a solid wall with **no aperture** — worse than a floating
+  end, because it is legible enough to be recognisably wrong, and it implies a
+  door that was never drawn
+- stopping for no readable reason at all
+
+Occlusion has to actually occlude. A route end tucked *near* scrub is not
+occluded by it — check the rows, not the intention.
+
+**This is a visual rule and it is not the route inventory.** How many routes a
+scene has, and where they go, is world and gameplay canon. CR-43 governs only
+whether the ends of the routes that exist are drawn so a viewer can read them; it
+never authorises adding, removing, or re-planning a route to solve a composition.
+
+*Prevents:* the Haven's Rest road network — a right-hand road ending bluntly in
+open grass five pixels clear of the settlement with nothing occluding it, a
+left-hand road running into unbroken palisade where no gate exists, and three
+routes sharing **zero junctions** — which blind readers named *unfinished
+terrain*, *missing map chunks*, and *roads whose destination failed to load*.
+
 ---
 
 ## 6. UI craft
@@ -412,28 +536,74 @@ before continuing.
 - [ ] A **directional object's arms are level and equal**, so it reads as a plus
 - [ ] An **icon's shape family belongs to a register the direction forbids**
 - [ ] A **UI element was sized against its own border** rather than the frame
+- [ ] A **cluster's comment or variable name claims a material its ramp contradicts**
+- [ ] An element is **drawn in the palette index of what it sits against**, and disappears
+- [ ] A **route ends in open terrain, or against a blank wall with no aperture**
+- [ ] Two masses that must read as **different objects merge at ×2**
+- [ ] An asset was separated **against its own palette** but never against **the world it stands in**
+- [ ] The review set has **no ×2**, or its "context" view is an **enlarged crop**
 
 ---
 
-## 8. Asset review procedure
+## 8. The standard visual output set, and the review procedure
+
+### 8.1 The standard output set
+
+**Every meaningful visual asset or scene produces all of the applicable views
+below, in the same pass that authors it.** A pass that produces fewer has not
+finished, and its output is not reviewable.
+
+| # | View | Purpose | Required for |
+|---|---|---|---|
+| 1 | **NATIVE** | verifies actual pixel construction | everything |
+| 2 | **×2 PLAY-SCALE PROXY** | **THE VERDICT VIEW** | everything |
+| 3 | **×8 INSPECTION** | cluster craft microscope | everything |
+| 4 | **TRUE IN-CONTEXT** | the asset in its real scene relationship | everything that lives in a scene |
+| 5 | **SILHOUETTE-ONLY** | body and equipment shape, stripped of interior | major character / sprite design and rebuild work |
+
+**NATIVE** — the construction itself. Typography and cluster economy are decided
+here and nowhere else (CR-34).
+
+**×2 PLAY-SCALE PROXY** — the closest available approximation of the asset in a
+hand. **Nearest-neighbour only**; any smoothing invalidates it. It is the first
+view a reviewer opens and the view a verdict is given at. Semantic and
+readability judgements are made here.
+
+**×8 INSPECTION** — the microscope. Genuinely useful for tangencies, specks and
+cluster mistakes. **Never sufficient for graduation, and never the verdict view**
+— it flatters everything. Half the Traveler's defects survived ×8 and were fatal
+at play scale (CR-41, `MISTAKES.md` M-04).
+
+**TRUE IN-CONTEXT** — the asset composited into its actual scene at the actual
+scale relationship, then viewed at native and ×2. **An ×8 scene crop is not a
+context view.** A crop enlarged eight times tests nothing about legibility
+against environment noise, which is the only thing a context view is for. This
+is also the only view that can certify CR-45's asset-against-world separation.
+
+**SILHOUETTE-ONLY** — every non-transparent pixel collapsed to a single ink
+value, at ×2. It answers one question no other view can: *is this a person
+carrying something?* It is the cheapest predictor of the context failure, and it
+is required for major character design and rebuild work. **Not required for UI,
+and not for every environment object.**
+
+### 8.2 The review procedure
 
 Lightweight and mandatory in this order. **Not a verification framework**
-(`RULES.md` G-1, `MISTAKES.md` M-01) — three looks, no tooling to build.
+(`RULES.md` G-1, `MISTAKES.md` M-01) — a fixed set of looks, no tooling to build.
 
-**1. Native scale.** Does the pixel construction actually work? Typography and
-cluster economy are decided here.
+**1. ×2 play-scale proxy. — THE VERDICT VIEW, AND THE FIRST ONE OPENED.**
+If the read fails here, nothing below rescues it.
 
-**2. Integer upscale (nearest-neighbour).** Where accidental pixels, specks,
-tangencies and cluster mistakes become visible. This is the working iteration
-view.
+**2. Native scale.** Does the pixel construction actually work?
 
-**2a. ×2 play-scale proxy. — THE VERDICT VIEW.**
-The closest available approximation of the asset in a hand. Every render set
-includes it, and it is the first view a reviewer opens. **×8 is inspection scale,
-never verdict scale**; half the Traveler's defects survived ×8 and were fatal at
-play scale (CR-41, `MISTAKES.md` M-04).
+**3. Silhouette**, where the subject is a character. If the solid shape does not
+read as a person carrying what it is meant to carry, the interior cannot fix it
+(CR-20).
 
-**3. Actual game context, at target scale. — THE CRITICAL ONE.**
+**4. ×8 inspection.** Working iteration only. Record which findings are visible
+*only* here — those are findings about the source, not about the image.
+
+**5. Actual game context, at native and ×2. — THE CRITICAL ONE.**
 An isolated sprite is **not** the final judge of hand readability, silhouette
 separation, palette relationship, equipment clarity, or charm. An asset that
 survives alone can fail in a scene, and an asset that looks unfinished alone can
@@ -441,6 +611,12 @@ be perfect in one.
 
 > **Avoid endless isolated-sprite polishing.** When the remaining weaknesses are
 > context-dependent, the next step is the context, not another pass.
+
+*Paid for by:* `VISUAL_STUDIO_BASELINE_AUDIT_01`, which found that no ×2 render
+existed anywhere in the repository — `TRAVELER_REFINE_03/out/` held fifteen ×8
+files, three natives and no ×2 — so all three Traveler refinement passes were
+reviewed exclusively at the scale that flatters everything, and the only
+available character context views were ×8 crops.
 
 ---
 

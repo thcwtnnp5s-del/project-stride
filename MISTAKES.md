@@ -21,6 +21,59 @@ to `M-02` stays valid.
 
 ---
 
+## M-05 — Visual decisions were made without a play-scale verdict view
+
+**Date:** 2026-08-14 · **Category:** process / visual production ·
+**Graduated to:** `PIXEL_ART_CRAFT_SPEC.md` §8,
+`STUDIO_OPERATIONS/AGENT_ORCHESTRATION.md` — *Target scale and the standard
+output set*
+
+### What happened
+
+`VISUAL_STUDIO_BASELINE_AUDIT_01` found that **no ×2 render existed anywhere in
+the repository**. `TRAVELER_REFINE_03/out/` held fifteen ×8 files, three natives
+and no ×2; the only available character context views were ×8 crops. Every
+Traveler decision to that point had been taken on that evidence set.
+
+### Root cause
+
+The exploration renderers emitted native and ×8 inspection views and no ×2
+play-scale proxy — not by omission in any one pass, but because each `render.js`
+selected a single `SCALE` constant and wrote only that view. Review therefore
+judged player-facing readability at a scale that enlarged and flattered
+low-resolution detail.
+
+**This is distinct from M-04.** M-04 is about who was permitted to judge. M-05 is
+about what they were given to judge: the evidence set did not contain the view the
+verdict required, so even a correctly independent reviewer would have been
+deciding at the wrong scale.
+
+### Consequence
+
+Several Traveler defects survived repeated review because they were more legible
+at ×8 than at likely game scale — hands, equipment silhouettes, material
+separation, and the small corrective changes made across three passes. Blind
+review later confirmed the pattern directly: the ×8 view distinguished versions
+that were indistinguishable at ×2, and the single clearest piece of object craft
+in the set was invisible at play scale.
+
+### Prevention
+
+- **Every meaningful visual review set includes ×2**, and ×2 is the verdict view.
+- **×8 is inspection only** and never sufficient for graduation.
+- **True in-context views must reflect actual presentation scale.** An enlarged
+  crop is not a context view.
+- **Silhouette-only output is required for major character work.**
+- **A visual pass without the required verdict view is returned unreviewed** —
+  not reviewed at whichever scale happens to be available.
+
+### Evidence
+
+`VISUAL_STUDIO_BASELINE_AUDIT_01`, 2026-08-14 · `TRAVELER_REFINE_03/out/`
+(18 files, no ×2) · `GAME_BIBLE/ART/exploration/CODE_RENDER_01/review_set.js`
+
+---
+
 ## M-04 — A technically correct pixel change was reported as a fix without perceptual verification
 
 **Date:** 2026-08-14 · **Category:** process / visual production ·
