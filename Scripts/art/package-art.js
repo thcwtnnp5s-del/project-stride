@@ -148,17 +148,86 @@ emit('portrait/traveler.png', encode(portrait));
 const spriteSouth = png.load(path.join(CHARACTER, 'traveler_south_64.png'));
 emit('sprite/traveler_south.png', encode(spriteSouth));
 
-/** GATHER ANIMATION — the trimmed eight frames. */
+/**
+ * GATHER ANIMATION — the trimmed eight frames, with frame 5 repaired.
+ *
+ * `PIXELLAB_STABILIZATION_01` closed four of the owner's five criteria for this
+ * animation and failed the fifth: blind review found frame 5's *"torso, both
+ * arms and knee fuse into one mass"*. Trimming could not fix it — the defect is
+ * in the generated frame — and the frame is load-bearing, because it is the
+ * rise between the crouch and the standing hold.
+ *
+ * The repair is a single `inpaint_image` over a 21 × 25 box covering the left
+ * arm, hip and knee. The herb hand at x ≥ 38 is **outside** the mask, so the
+ * herb interaction could not drift, and the boot rows at y ≥ 59 are outside it
+ * too, so the feet stay planted where the neighbouring frames put them.
+ *
+ * Measured, not assumed: **0 pixels changed outside the mask.**
+ */
 const GATHER_FRAMES = 8;
+const GATHER_REPAIRED = {
+  5: path.join(
+    EXPLORE, 'PHASE1_CARRIED_CORRECTIONS', 'out', 'gather_f5_repaired.png',
+  ),
+};
 const gather = [];
 for (let i = 0; i < GATHER_FRAMES; i++) {
-  const frame = png.load(path.join(STABLE, 'animation', `gather_trim_f${i}.png`));
+  const frame = png.load(
+    GATHER_REPAIRED[i] ?? path.join(STABLE, 'animation', `gather_trim_f${i}.png`),
+  );
   gather.push(frame);
   emit(`anim/gather_f${i}.png`, encode(frame));
 }
 
-/** REGION MAP — 384 × 640, shipped exactly as generated. */
+/**
+ * REGION MAP — 384 × 640, with the watercourse terminus corrected.
+ *
+ * `PIXELLAB_STABILIZATION_01` recorded this one as **NOT CLOSED**. A tarn had
+ * been generated at the stream's end and verified objectively — blue pixels
+ * went 132 → 267 — and it still failed the only test that matters: at native
+ * scale a blind reviewer looking directly at its coordinates reported the
+ * stream *"narrows by perhaps a pixel and stops… no pool, no pond, no marsh"*.
+ * The pool was about 20 px across on a 384 × 640 map and its blue sat close to
+ * the grass in value.
+ *
+ * The correction is one `inpaint_image` over a 96 × 96 window, pasted back
+ * here. Two things made it work where the previous attempt had not:
+ *
+ * - **Value, not area.** The brief asked for water *darker in value than the
+ *   surrounding grass*. The earlier tarn was the right size and the wrong
+ *   contrast, which is why measuring blue pixels said it had worked and looking
+ *   at it said it had not.
+ * - **An elliptical mask, not a rectangle.** The first attempt here used a
+ *   rectangular mask and produced exactly the artefact the stabilization pass
+ *   found when it inpainted a tavern floor: a visible hard-edged patch where
+ *   the regenerated tone met the original. With no straight edges in the mask,
+ *   the generated region cannot terminate along a line the eye reads as a
+ *   boundary. That attempt was discarded rather than shipped.
+ *
+ * The patch is stored as the 96 × 96 window rather than as a replacement map,
+ * so what changed stays legible: everything outside this rectangle is the
+ * approved map, byte for byte, and **0 pixels changed outside the ellipse**
+ * within it.
+ *
+ * Still open, and deliberately not attempted here: the watercourse has no banks
+ * along its length, holds a constant one-to-two-pixel width from source to
+ * mouth, and its blue is the highest-chroma element on the map. Those are
+ * properties of the original generation, they are a composition question rather
+ * than a legibility one, and the milestone brief says not to reopen world-map
+ * composition.
+ */
+const TARN_PATCH = { x: 120, y: 224 };
+
 const regionMap = png.load(path.join(STABLE, 'world', 'region_map_384x640.png'));
+png.blit(
+  regionMap,
+  png.load(path.join(
+    EXPLORE, 'PHASE1_CARRIED_CORRECTIONS', 'out',
+    'region_map_tarn_patch_96x96.png',
+  )),
+  TARN_PATCH.x,
+  TARN_PATCH.y,
+);
 emit('world/region_map.png', encode(regionMap));
 
 /**

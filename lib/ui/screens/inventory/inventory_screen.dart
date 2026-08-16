@@ -98,6 +98,26 @@ class _ItemGrid extends StatelessWidget {
       return GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+
+        // Both of these are load-bearing, and neither is obvious.
+        //
+        // `ScrollView` resolves its padding as
+        // `padding ?? (primary ? MediaQuery.paddingOf(context) : zero)`, and
+        // `primary` defaults to true for a vertical view with no controller.
+        // So a nested grid with no explicit padding silently adopts the
+        // **device's safe-area padding** — which put roughly 57 dp of empty
+        // space between the CARRIED heading and the first row on a phone with a
+        // status bar, and nothing at all under `flutter test`, whose harness
+        // supplies zero insets. The gap was invisible to every test and to the
+        // goldens, and obvious in the first device screenshot.
+        //
+        // `StrideScaffold` is the one place insets are handled (see its own
+        // doc); this grid re-applying the top inset is the same double-inset
+        // defect the SafeArea rule exists to prevent, arriving through a
+        // default rather than through a widget.
+        primary: false,
+        padding: EdgeInsets.zero,
+
         itemCount: entries.length,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,

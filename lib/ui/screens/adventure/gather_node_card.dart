@@ -134,11 +134,24 @@ class _ActivityStage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: StrideSpace.s6),
       decoration: BoxDecoration(
-        // The same ground the inset wells use. It matters that this is a fill
-        // and not an image: the contact shadow multiplies against it, so the
+        // `surfaceBlock`, deliberately, and NOT the darker `surfaceGround` the
+        // inset wells use.
+        //
+        // The contact shadow multiplies against whatever is underneath, so the
         // figure darkens the ground it stands on rather than carrying a grey
-        // patch that would be the same colour on any surface.
-        color: StrideColors.surfaceGround,
+        // patch that would be the same colour on any surface. That is the right
+        // technique and it has one requirement: **there has to be something to
+        // darken.** Against `surfaceGround` (#14120F) a 0.72 multiply moves the
+        // pixels by about four values, and the first render of this stage
+        // reproduced the exact failure the shadow spec was tuned to escape — a
+        // shadow nobody could perceive.
+        //
+        // This is the same finding the blind reviewer made at strength 0.45,
+        // arriving by a different route: there, the shadow was too weak; here,
+        // the ground was too dark for any strength to show. Raising the
+        // strength would have been the wrong fix, because the ellipse would
+        // then be invisible here and far too heavy on the next surface.
+        color: StrideColors.surfaceBlock,
         border: Border.all(color: StrideColors.borderDefault),
         borderRadius: StrideRadius.inner,
       ),

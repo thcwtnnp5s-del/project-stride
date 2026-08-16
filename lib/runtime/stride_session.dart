@@ -932,8 +932,21 @@ final class StrideSession {
     final ContentId here = active.state.world.currentLocation;
     final LocationDefinition? from = content.locations[here];
 
-    return <RegionPlace>[
+    // The player's own location leads, then the rest in the registry's order.
+    //
+    // `ContentRegistry.locations` iterates by content id, which is
+    // alphabetical — so the first row of a screen whose first question is
+    // "where am I?" was *Forgotten Hollow*, a place the player has never been.
+    // This is presentation order, not a rule: no value changes, and the set is
+    // the same set.
+    final List<LocationDefinition> ordered = <LocationDefinition>[
+      ?from,
       for (final LocationDefinition location in content.locations.values)
+        if (location.id != here) location,
+    ];
+
+    return <RegionPlace>[
+      for (final LocationDefinition location in ordered)
         RegionPlace(
           id: location.id,
           displayName: location.displayName,

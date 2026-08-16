@@ -69,7 +69,7 @@ void main() {
     }
   });
 
-  testWidgets('the three Phase 1 screens at 393 x 852', (
+  testWidgets('the four Phase 1 screens at 393 x 852', (
     WidgetTester tester,
   ) async {
     // The reference viewport the approved renders were authored at. DPR 1 so
@@ -129,6 +129,14 @@ void main() {
     await expectLater(
       find.byType(StrideApp),
       matchesGoldenFile('goldens/phase1_character.png'),
+    );
+
+    await tester.tap(find.text('World'));
+    await tester.pumpAndSettle();
+    await settleImages();
+    await expectLater(
+      find.byType(StrideApp),
+      matchesGoldenFile('goldens/phase1_world.png'),
     );
   });
 }

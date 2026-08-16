@@ -30,9 +30,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/components/screen_header.dart';
+import 'package:stride/ui/components/sprite_animation.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
+import 'package:stride/ui/icons/pixel_icons.dart';
+import 'package:stride/ui/icons/sprite_footprints.dart';
+import 'package:stride/ui/screens/world/world_screen.dart';
 import 'package:stride/ui/stride_app.dart';
+import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
 
@@ -589,7 +596,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
-        for (final String tab in <String>['Character', 'Inventory']) {
+        for (final String tab in <String>['Character', 'Inventory', 'World']) {
           await tester.tap(find.text(tab));
           await tester.pumpAndSettle();
           expect(
@@ -656,7 +663,43 @@ void main() {
       );
     });
 
-    testWidgets('the three unbuilt tabs do not navigate', (
+    /// Every string in the product was rendering with a yellow double underline,
+    /// and nothing in this repository could see it.
+    ///
+    /// `MaterialApp` supplies a theme but not a `Material`. Without a `Material`
+    /// ancestor, `DefaultTextStyle` resolves to Flutter's fallback — labelled,
+    /// in Flutter's own source, "consider putting your text in a Material" —
+    /// and that style carries `TextDecoration.underline`. No `StrideType` role
+    /// sets a `decoration`, so all of them inherited it.
+    ///
+    /// It survived 93 widget tests and four goldens. Widget tests read the
+    /// *content* of a string, never its decoration; the golden harness has no
+    /// real font and draws every glyph as a filled rectangle, so the underline
+    /// merged into the box. It took a screenshot from a running device.
+    ///
+    /// So this asserts the resolved style rather than the widget tree: checking
+    /// for a `Material` would pass the moment someone added one anywhere, and
+    /// the defect is about what the text actually inherits.
+    testWidgets('no text inherits the missing-Material fallback style', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpAndSettle();
+
+      for (final Element element in find.byType(Text).evaluate()) {
+        final TextStyle inherited = DefaultTextStyle.of(element).style;
+        expect(
+          inherited.decoration,
+          isNot(TextDecoration.underline),
+          reason:
+              'the text "${(element.widget as Text).data}" inherits Flutter\'s '
+              'no-Material fallback, which underlines every glyph in yellow',
+        );
+      }
+    });
+
+    testWidgets('the two unbuilt tabs do not navigate', (
       WidgetTester tester,
     ) async {
       final StrideSession session = await boot(tester);
@@ -666,9 +709,8 @@ void main() {
       // Present, so the player sees the app's real shape.
       expect(find.text('Skills'), findsOneWidget);
       expect(find.text('Craft'), findsOneWidget);
-      expect(find.text('World'), findsOneWidget);
 
-      // And inert, so none of them is a control that lies.
+      // And inert, so neither is a control that lies.
       await tester.tap(find.text('Craft'), warnIfMissed: false);
       await tester.pumpAndSettle();
       expect(
@@ -676,6 +718,188 @@ void main() {
         findsWidgets,
         reason: 'the shell stayed on Adventure',
       );
+    });
+  });
+
+  // =========================================================================
+  // World — presentation that must not become an affordance
+  // =========================================================================
+
+  group('the World screen', () {
+    Future<void> openWorld(WidgetTester tester, StrideSession session) async {
+      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('World'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('navigates, and renders the region from content', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+      await openWorld(tester, session);
+
+      // Every location in the content pack, by its own display name — not a
+      // list written into the widget.
+      for (final String place in <String>[
+        "Haven's Rest",
+        'Whispering Woods',
+        'Stonefall Mine',
+        'Forgotten Hollow',
+      ]) {
+        expect(
+          find.text(place),
+          findsWidgets,
+          reason: '$place is in locations.json and must appear',
+        );
+      }
+
+      // The player's own location is named as such, from world state.
+      expect(find.textContaining('You are here'), findsOneWidget);
+
+      // And it leads the list.
+      //
+      // `ContentRegistry.locations` iterates by content id, which is
+      // alphabetical, so the unordered list opened with *Forgotten Hollow* — a
+      // place the player has never been — on a screen whose first question is
+      // "where am I?". Asserting a vertical position rather than list index,
+      // because what went wrong was what the player saw first.
+      final double here = tester.getTopLeft(find.text("Haven's Rest")).dy;
+      for (final String elsewhere in <String>[
+        'Forgotten Hollow',
+        'Stonefall Mine',
+        'Whispering Woods',
+      ]) {
+        expect(
+          tester.getTopLeft(find.text(elsewhere)).dy,
+          greaterThan(here),
+          reason: 'the current location leads the region list',
+        );
+      }
+    });
+
+    /// The defect this screen exists to avoid: a travel affordance for a system
+    /// that does not exist.
+    ///
+    /// Asserting the absence of specific words is weak on its own, so it is
+    /// paired with a structural check — no tappable control anywhere on the
+    /// screen's body. The map draws real roads and the content pack supplies
+    /// real step costs, so a button here would be convincing and wrong.
+    testWidgets('offers no way to travel, because nothing can', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(
+        tester,
+        source: MockStepSource(script: <SyncFetch>[page(50000)]),
+      );
+      await tester.runAsync(() => session.syncSteps());
+      await openWorld(tester, session);
+
+      for (final String word in <String>['Travel', 'Go', 'Depart', 'Set out']) {
+        expect(
+          find.widgetWithText(StrideButton, word),
+          findsNothing,
+          reason: 'no travel control may exist while no travel command does',
+        );
+      }
+      expect(
+        find.byType(StrideButton),
+        findsNothing,
+        reason: 'the World screen is presentation; it has no controls at all',
+      );
+
+      // And it says so, rather than leaving the player hunting the map for a
+      // tappable road.
+      expect(find.textContaining('not built yet'), findsOneWidget);
+    });
+
+    /// Banked steps are teal; a distance is not. `ART_DIRECTION.md` L-16
+    /// reserves the accent for steps the player owns, and the route costs on
+    /// this screen are the most tempting place to spend it wrongly — they are
+    /// step figures that the player cannot spend.
+    testWidgets('route distances do not use the banked-steps accent', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+      await openWorld(tester, session);
+
+      final Finder distance = find.descendant(
+        of: find.byType(WorldScreen),
+        matching: find.text('1,200'),
+      );
+      expect(distance, findsOneWidget, reason: 'the route cost from content');
+
+      expect(
+        tester.widget<Text>(distance).style?.color,
+        isNot(StrideColors.accentSteps),
+        reason: 'a distance is not steps the player owns',
+      );
+    });
+  });
+
+  // =========================================================================
+  // The activity stage — art that must not outrun the domain
+  // =========================================================================
+
+  group('the activity stage', () {
+    /// The animation depicts a command that succeeded. A refusal must leave the
+    /// figure at rest, because a Traveler miming a pick the player did not get
+    /// is the fabricated-success defect in motion — and more convincing than a
+    /// text line would be.
+    testWidgets('a refused gather leaves the figure at its rest frame', (
+      WidgetTester tester,
+    ) async {
+      // 89 banked against a 90 cost: the control is disabled, so no gather can
+      // even be dispatched, and the stage must still be showing frame 0.
+      final StrideSession session = await boot(
+        tester,
+        source: MockStepSource(script: <SyncFetch>[page(89)]),
+      );
+      await tester.runAsync(() => session.syncSteps());
+      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byType(SpriteAnimation),
+        findsOneWidget,
+        reason: 'the stage is present whether or not anything has happened',
+      );
+
+      final Image rendered = tester.widget<Image>(
+        find.descendant(
+          of: find.byType(SpriteAnimation),
+          matching: find.byType(Image),
+        ),
+      );
+      expect(
+        (rendered.image as AssetImage).assetName,
+        PixelIcons.gatherFrames.first,
+        reason: 'at rest, and rest is frame 0',
+      );
+    });
+
+    /// The contact shadow is the composition rule for standalone sprites, and
+    /// its width comes from the sprite rather than from a caller. This asserts
+    /// the wiring — that the stage is grounded at all — because a
+    /// `GroundedSprite` quietly replaced by a bare `PixelAsset.sprite` is
+    /// exactly the regression that puts the figure back in the air.
+    testWidgets('the figure is grounded, from its own measured footprint', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpAndSettle();
+
+      final GroundedSprite grounded = tester.widget<GroundedSprite>(
+        find.byType(GroundedSprite),
+      );
+      expect(grounded.footprint, same(SpriteFootprints.gather));
+
+      // The measured contact span, not the sprite's 64 px box. If these were
+      // equal the measurement would have collapsed to the bounding box and the
+      // shadow would be as wide as the backpack.
+      expect(grounded.footprint.width, lessThan(64));
+      expect(grounded.footprint.width, greaterThan(0));
     });
   });
 }

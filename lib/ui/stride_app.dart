@@ -58,15 +58,40 @@ class _StrideAppState extends State<StrideApp> {
       title: 'Project Stride',
       debugShowCheckedModeBanner: false,
       theme: strideTheme(),
-      home: SessionScope(
-        controller: _controller,
-        // The blocked branch is taken before the shell is built, not inside it.
-        // A blocked bootstrap has no engine, so a shell that rendered anyway
-        // would be reading the null-fallback zeros out of every getter and
-        // presenting them as the player's save.
-        child: blocked != null
-            ? BlockedScreen(blocked: blocked)
-            : const StrideShell(),
+      // Every screen sits under one Material, and this is not decoration.
+      //
+      // `MaterialApp` supplies the theme but NOT a `Material`; `home` is
+      // whatever you put there. With no `Material` ancestor, `DefaultTextStyle`
+      // resolves to Flutter's fallback — whose own debug label reads "consider
+      // putting your text in a Material" — and that style carries
+      // `TextDecoration.underline` in double yellow.
+      //
+      // The result is that **every string in the product is underlined**. Each
+      // `StrideType` role sets a colour, a size and a weight but not a
+      // `decoration`, so the fallback's decoration is inherited by all of them
+      // and the app renders exactly as designed except for a yellow rule under
+      // every word.
+      //
+      // Nothing caught it before a device: widget tests read strings rather than
+      // their decoration, and the golden harness has no real font, so it draws
+      // every glyph as a filled rectangle and the underline merges into the box.
+      // The first honest look was a screenshot from a running device.
+      //
+      // `type: transparency` because `StrideScaffold` paints the page ground
+      // itself — a Material with a colour here would put a second opaque layer
+      // under every screen for nothing.
+      home: Material(
+        type: MaterialType.transparency,
+        child: SessionScope(
+          controller: _controller,
+          // The blocked branch is taken before the shell is built, not inside
+          // it. A blocked bootstrap has no engine, so a shell that rendered
+          // anyway would be reading the null-fallback zeros out of every getter
+          // and presenting them as the player's save.
+          child: blocked != null
+              ? BlockedScreen(blocked: blocked)
+              : const StrideShell(),
+        ),
       ),
     );
   }
