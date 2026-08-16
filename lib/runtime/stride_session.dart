@@ -148,6 +148,51 @@ final class SyncReport {
   final String? rejection;
 }
 
+/// One line of the player's inventory, ready to render.
+final class InventoryEntry {
+  const InventoryEntry({
+    required this.id,
+    required this.displayName,
+    required this.category,
+    required this.count,
+  });
+
+  final ContentId id;
+  final String displayName;
+
+  /// Null when the content pack has no definition for [id] — which is a content
+  /// problem, not a rendering one, so it is reported rather than defaulted.
+  final ItemCategory? category;
+
+  /// Always greater than zero.
+  final int count;
+}
+
+/// One skill's standing, with its level already derived from the content curve.
+final class SkillSummary {
+  const SkillSummary({
+    required this.id,
+    required this.displayName,
+    required this.experience,
+    required this.level,
+    required this.maxLevel,
+  });
+
+  final ContentId id;
+  final String displayName;
+
+  /// Total experience in this skill, not experience into the current level.
+  ///
+  /// Experience *into* the level would need `xpThresholds[level - 1]` and
+  /// `xpThresholds[level]`, and indexing a content curve is a game rule. If a
+  /// screen ever needs that span it belongs on `SkillDefinition` beside
+  /// `levelAt`, not here and certainly not in a widget.
+  final int experience;
+
+  final int level;
+  final int maxLevel;
+}
+
 /// What working a resource node did.
 ///
 /// Every outcome figure here is copied from the `ResourceGathered` event, which
@@ -726,6 +771,119 @@ final class StrideSession {
     final ContentId? here = engine?.state.world.currentLocation;
     if (here == null) return '—';
     return registry?.locations[here]?.displayName ?? here.value;
+  }
+
+  // -- The UI read model ----------------------------------------------------
+  //
+  // Everything below exists so that a widget never has to reach through
+  // `engine` or `runtime` to render a screen. That reach is what makes E-2
+  // unenforceable: `engine.execute(...)` mutates durable state in memory with
+  // no commit and no staleness, `runtime.repository` is a second write path
+  // around compare-and-swap, and `runtime.healthKeyingSalt` is a raw
+  // device-bound secret that H-7 forbids ever rendering.
+  //
+  // With these accessors in place, `Scripts/check-ui-boundary.sh` can forbid
+  // `.engine`, `.runtime` and `.health` under `lib/ui/` outright, which turns
+  // E-2 from a rule people remember into a rule the tree enforces.
+  //
+  // Each one is a projection. None holds state, none caches, and none decides a
+  // game rule — levels come from the content curve's own `levelAt`, not from
+  // arithmetic here.
+
+  /// The player's character level. Stored, unlike skill levels.
+  int get characterLevel => engine?.state.player.level ?? 0;
+
+  /// Everything the player holds, in a stable order.
+  ///
+  /// Ordered because `Inventory.counts` is a `SplayTreeMap` keyed by
+  /// [ContentId], so iteration is identical across runs and platforms — a grid
+  /// that reshuffles between launches would look like a bug. Zero-quantity
+  /// entries cannot appear: the inventory drops a key at zero so that "absent"
+  /// and "zero" cannot both exist and disagree.
+  List<InventoryEntry> get inventoryEntries {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <InventoryEntry>[];
+    return <InventoryEntry>[
+      for (final MapEntry<ContentId, int> e
+          in active.state.inventory.counts.entries)
+        InventoryEntry(
+          id: e.key,
+          displayName: content.items[e.key]?.displayName ?? e.key.value,
+          category: content.items[e.key]?.category,
+          count: e.value,
+        ),
+    ];
+  }
+
+  /// Every skill in the content pack, with its level derived from the curve.
+  ///
+  /// The level comes from [SkillDefinition.levelAt] — the same function
+  /// `GameEngine` gates gathering on. That is deliberate and it is the whole
+  /// reason this projection exists rather than the UI walking `xpThresholds`
+  /// itself: two implementations of a level curve agree until they don't, and
+  /// the disagreement would be invisible.
+  List<SkillSummary> get skillSummaries {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <SkillSummary>[];
+    return <SkillSummary>[
+      for (final MapEntry<ContentId, SkillDefinition> e
+          in content.skills.entries)
+        SkillSummary(
+          id: e.key,
+          displayName: e.value.displayName,
+          experience: active.state.skills.experienceIn(e.key),
+          level: e.value.levelAt(active.state.skills.experienceIn(e.key)),
+          maxLevel: e.value.maxLevel,
+        ),
+    ];
+  }
+
+  /// Total experience across every skill.
+  int get totalSkillExperience {
+    final GameEngine? active = engine;
+    if (active == null) return 0;
+    return active.state.skills.experienceBySkill.values.fold(
+      0,
+      (int a, int b) => a + b,
+    );
+  }
+
+  /// The resource nodes at the player's current location.
+  ///
+  /// Read from content, so no screen hardcodes a node id. Haven's Rest has
+  /// exactly one today; a screen that assumed that would break on the second.
+  List<ResourceNodeDefinition> get nodesHere {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) {
+      return const <ResourceNodeDefinition>[];
+    }
+    final LocationDefinition? here =
+        content.locations[active.state.world.currentLocation];
+    if (here == null) return const <ResourceNodeDefinition>[];
+    return <ResourceNodeDefinition>[
+      for (final ContentId id in here.resourceNodes)
+        if (content.resourceNodes[id] case final ResourceNodeDefinition d) d,
+    ];
+  }
+
+  /// The display name of a content id, for anything the read model does not
+  /// already project. Falls back to the raw id rather than throwing.
+  String displayNameOf(ContentId id) =>
+      registry?.items[id]?.displayName ??
+      registry?.skills[id]?.displayName ??
+      registry?.resourceNodes[id]?.displayName ??
+      id.value;
+
+  /// The refusal, when the bootstrap was blocked. Null on a started game.
+  ///
+  /// Exposed as its own accessor so a screen can branch without pattern-matching
+  /// on [outcome] and, from there, discovering `outcome.engine`.
+  BootstrapBlocked? get blocked {
+    final BootstrapOutcome o = outcome;
+    return o is BootstrapBlocked ? o : null;
   }
 
   // -- Persistence ----------------------------------------------------------

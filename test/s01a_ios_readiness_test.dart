@@ -38,7 +38,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:stride/ui/dev_harness.dart';
+import 'package:stride/debug/dev_harness.dart';
 import 'package:stride_core/stride_core.dart';
 
 /// Reads a file relative to the repository root.
@@ -358,7 +358,7 @@ void main() {
 
       // The single platform branch. A second one would be the beginning of an
       // iOS fork of a screen whose value is that there is one of it.
-      final String harness = codeOnly(repoFile('lib/ui/dev_harness.dart'));
+      final String harness = codeOnly(repoFile('lib/debug/dev_harness.dart'));
       expect(
         'Platform.isIOS'.allMatches(harness).length,
         1,

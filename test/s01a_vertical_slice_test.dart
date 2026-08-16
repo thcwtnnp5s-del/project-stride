@@ -47,7 +47,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
-import 'package:stride/ui/dev_harness.dart';
+import 'package:stride/debug/dev_harness.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
 

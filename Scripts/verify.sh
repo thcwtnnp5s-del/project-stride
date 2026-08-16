@@ -138,6 +138,9 @@ step "Case registry (validates, and every total is derived by counting)"
 step "Core purity"
 ./Scripts/check-core-purity.sh
 
+step "Product UI boundary"
+./Scripts/check-ui-boundary.sh
+
 step "Dependency policy"
 ./Scripts/check-dependency-policy.sh
 

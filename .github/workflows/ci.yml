@@ -92,6 +92,13 @@ jobs:
       - name: Core purity guard
         run: bash ./Scripts/check-core-purity.sh
 
+      # RULES.md E-2. The product UI must not reach past StrideSession -- to the
+      # engine, the repository, the save directory, or the keying salt. E-2 was
+      # deliberately unguarded while lib/ui held one developer harness; Phase 1
+      # makes it a real product surface.
+      - name: Product UI boundary guard
+        run: bash ./Scripts/check-ui-boundary.sh
+
       - name: Dependency policy guard
         run: bash ./Scripts/check-dependency-policy.sh
 

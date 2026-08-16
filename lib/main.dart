@@ -13,7 +13,7 @@
 import 'package:flutter/material.dart';
 
 import 'runtime/stride_session.dart';
-import 'ui/dev_harness.dart';
+import 'ui/stride_app.dart';
 
 Future<void> main() async {
   // Required before `getApplicationSupportDirectory`, and required before
@@ -22,12 +22,18 @@ Future<void> main() async {
 
   // Awaited before the first frame rather than kicked off behind a splash.
   //
-  // The harness's whole claim is that what it shows is what is durable, and a
-  // screen that renders before the save has loaded would show zeros that are
-  // not the save's zeros. A blocked bootstrap is a value here, not an
-  // exception: `StrideSession.start` returns a session whose `outcome` is
-  // `BootstrapBlocked`, and the harness renders the refusal.
+  // The app's whole claim is that what it shows is what is durable, and a screen
+  // that renders before the save has loaded would show zeros that are not the
+  // save's zeros. A blocked bootstrap is a value here, not an exception:
+  // `StrideSession.start` returns a session whose `outcome` is
+  // `BootstrapBlocked`, and `StrideApp` renders the refusal.
+  //
+  // **This await must stay above `runApp`.** Moving it below, or wrapping the
+  // app in a `FutureBuilder`, reintroduces the zero-flash — and a `FutureBuilder`
+  // whose future is built in `build` would additionally re-run
+  // `StrideSession.start`, a second bootstrap over the same save directory in
+  // the same isolate.
   final StrideSession session = await StrideSession.start();
 
-  runApp(StrideHarnessApp(session: session));
+  runApp(StrideApp(session: session));
 }

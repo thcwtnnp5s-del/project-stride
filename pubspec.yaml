@@ -56,3 +56,40 @@ flutter:
     - assets/content/v1/recipes.json
     - assets/content/v1/resource_nodes.json
     - assets/content/v1/skills.json
+
+    # Pixel content, v1. Same rule as content above, and for the same reason: an
+    # undeclared file is an asset that does not exist, and a stray one is an
+    # asset nobody reviewed.
+    #
+    # Every file here is drawn through `PixelAsset`, at an exact integer multiple
+    # of its native size, with nearest-neighbour filtering (ART_DIRECTION L-18).
+    # The native size lives in the widget, not in the path — there are
+    # deliberately no 2.0x/ or 3.0x/ variant directories, because AssetImage
+    # would resolve those by devicePixelRatio and change the intrinsic size out
+    # from under the explicit width.
+    #
+    # Provenance and the temporary marks are in assets/ui/v1/README.md.
+    - assets/ui/v1/nav_adventure.png
+    - assets/ui/v1/nav_adventure_hi.png
+    - assets/ui/v1/nav_character.png
+    - assets/ui/v1/nav_character_hi.png
+    - assets/ui/v1/nav_skills.png
+    - assets/ui/v1/nav_inventory.png
+    - assets/ui/v1/nav_inventory_hi.png
+    - assets/ui/v1/nav_craft.png
+    - assets/ui/v1/nav_world.png
+    - assets/ui/v1/glyph_steps.png
+    - assets/ui/v1/glyph_steps_muted.png
+    - assets/ui/v1/glyph_arrow.png
+    - assets/ui/v1/skill_foraging.png
+    - assets/ui/v1/item_meadow_herb.png
+    - assets/ui/v1/item_training_sword.png
+    - assets/ui/v1/item_training_axe.png
+    - assets/ui/v1/item_training_pickaxe.png
+    - assets/ui/v1/item_traveler_tunic.png
+    - assets/ui/v1/item_unknown.png
+    - assets/ui/v1/activity_meadow_patch.png
+    # TEMPORARY PLACEHOLDER. The character portrait workstream is paused and this
+    # asset is explicitly replaceable — CHARACTER_PORTRAIT_CLOSEOUT.md governs
+    # it. Nothing about any layout depends on its content.
+    - assets/ui/v1/portrait_traveler.png

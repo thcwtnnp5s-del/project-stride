@@ -56,6 +56,7 @@ PENDING_GUARDS="
 check-backup-exclusions.sh
 check-core-purity.sh
 check-dependency-policy.sh
+check-ui-boundary.sh
 "
 
 # Guards' own test harnesses are not guards and are never sourced by a runner.
