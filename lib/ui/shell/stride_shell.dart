@@ -33,6 +33,21 @@ class _StrideShellState extends State<StrideShell> {
 
     return StrideScaffold(
       header: GestureDetector(
+        // The whole header, not only its glyphs.
+        //
+        // `GestureDetector` defaults to `HitTestBehavior.deferToChild`, which
+        // means it receives a press only where the child actually paints
+        // something hit-testable. The header is mostly empty space between a
+        // few `Text` runs, so the long-press worked **only if the finger landed
+        // on a letter** — found on a device, where three presses in the gap did
+        // nothing and one on the title opened the harness.
+        //
+        // That matters more than a debug affordance usually would, because the
+        // acceptance script instructs the owner to "long-press the header". A
+        // tester following it would most likely hit dead space, conclude the
+        // affordance is not wired, and file a defect that isn't one.
+        behavior: HitTestBehavior.opaque,
+
         // Debug-only access to the dev harness. It is kept, not replaced — it is
         // the instrument that proved the vertical slice on hardware and it
         // reaches paths the product UI deliberately does not expose (synthetic

@@ -179,6 +179,19 @@ disclaimer present.
 - **Physical iPhone acceptance has not been run.** This is the gate.
 - Emulated Android is what Visual QA used. It is a real renderer with real
   fonts, and it is not the target platform.
+- **A successful gather was never driven on a device.** The emulator has no
+  Health Connect step data, so banked energy stayed at 0, and the dev harness
+  exposes no synthetic-grant control (`GrantSyntheticSteps` exists in
+  `stride_core` and the harness does not surface it). So the *idle* stage, the
+  disabled control and the refusal path were seen on hardware; **the animation
+  playing, and the result strip, were verified only in tests.** Acceptance steps
+  12 and 12a are where they get their first real look — treat them as the
+  least-evidenced part of the script.
+- A fourth defect was found while probing that: the dev-harness long-press
+  worked only where the header painted a glyph, because `GestureDetector`
+  defaults to `deferToChild`. Fixed with `HitTestBehavior.opaque`. It is
+  debug-only, but acceptance step 28 tells the owner to long-press the header,
+  and a tester hitting dead space would have filed a defect that wasn't one.
 - The **contact shadow has not been blind-reviewed**. It was tuned against a
   finding, checked by eye at magnification and on the device, and read as
   grounded — but the stabilization pass's own record shows this exact quantity
