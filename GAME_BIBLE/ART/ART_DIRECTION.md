@@ -1,14 +1,23 @@
 # Art Direction
 
-**Status: EXPLORATION — no production art direction is chosen.**
+**Status: LOCKED — production art direction chosen.**
+*Owner Direction Round 01 (2026-08-14), confirmed and extended at the UI Baseline
+Closeout (2026-08-16).*
 
-**A/B/C remains open. A set of constraints inside it does not.**
+> The production art direction is **MODERNIZED POLISHED PIXEL MOBILE RPG**,
+> implemented as **native high-DPI mobile UI with pixel art as framed content**,
+> with character presentation split across **portrait + simplified world/activity
+> sprite + item/equipment icons**.
 
-*Owner Direction Round 01* (2026-08-14) locked a number of properties that were
-previously listed here as UNRESOLVED. Those locks are recorded below and are
-binding. They do **not** choose the production art direction: Direction A is a
-strong owner preference and the identity comparison has not been run on a
-corrected foundation, so this document stays **EXPLORATION**.
+**A/B/C is closed.** Directions A, B and C were three treatments of a
+single-canvas pixel screen. That premise was retired when the UI moved to native
+widgets with real anti-aliased type, so the comparison no longer has a subject.
+The A1/A2/A3 round and **L-11** are retired with it — not resolved,
+**superseded**. The candidate descriptions below are kept as historical record.
+
+**The locked direction does not lock any asset.** No character, environment,
+icon, or palette is approved by this status. Several things remain explicitly
+open — see *UNRESOLVED* below, which is shorter than it was but is not empty.
 
 An agent reading this file for a value it does not contain must **stop and ask**
 rather than infer one. See `RULES.md` G-3.
@@ -99,15 +108,24 @@ must not be widened or enlarged to make current equipment fit** — that is an
 allocation problem, not a proportion problem. The existing head family is the
 strongest part of the work so far.
 
-**L-3 — The character canvas is 24 × 34 for the next attempt.**
-The audit's measured **26 columns needed against 24 available** is evidence that
-the *current arrangement* is over budget, not that the canvas must grow. The
-designer solves silhouette allocation first. In particular: **equipment must not
-consume the same chest-height horizontal band as both arms** — the shared defect
-behind every failed read in the audit.
+**L-3 — SUPERSEDED (2026-08-16). The character canvas is not set.**
+The single-asset premise this lock belonged to is retired: character presentation
+is now split across portrait, world sprite and item icons, and those are three
+different canvases. **No replacement figure is recorded**, because the portrait
+workstream is paused with no approved canvas
+(`GAME_BIBLE/ART/exploration/CHARACTER_PORTRAIT_CLOSEOUT.md`).
+`CHARACTER_READ_SPEC_01.md` remains frozen as historical evidence and governs
+nothing. The original text is preserved below for its reasoning.
 
-The canvas may be reopened **explicitly** if an approved READ SPEC demonstrates
-that the locked equipment inventory physically cannot read inside 24 × 34.
+> **L-3 (original) — The character canvas is 24 × 34 for the next attempt.**
+> The audit's measured **26 columns needed against 24 available** is evidence that
+> the *current arrangement* is over budget, not that the canvas must grow. The
+> designer solves silhouette allocation first. In particular: **equipment must not
+> consume the same chest-height horizontal band as both arms** — the shared defect
+> behind every failed read in the audit.
+>
+> The canvas may be reopened **explicitly** if an approved READ SPEC demonstrates
+> that the locked equipment inventory physically cannot read inside 24 × 34.
 
 **L-4 — Starter equipment is locked: a small canvas backpack, and a Training
 Sword sheathed at the character's LEFT hip. Hands empty.**
@@ -183,19 +201,31 @@ whether roof and palisade are perceptually distinct at ×2.
 
 ### Comparison
 
-**L-11 — The A1 / A2 / A3 round must be re-run on the corrected shared base.**
-The current round is **not ranked and no winner is selected**, because its
-substrate carries shared failures in architecture, road topology, depth, smoke,
-background, character and UI semantics — so it compares identities against a
-foundation that is itself failing. Preserve the current round as historical
-exploration evidence.
+**L-11 — RETIRED (2026-08-16), not resolved.**
+The A/B/C comparison was three treatments of a single-canvas pixel screen. That
+premise was retired when the UI moved to native widgets with real anti-aliased
+type, so the round this lock schedules **no longer has a subject**. The evidence
+stays preserved as historical exploration. Original text below.
+
+> **L-11 (original) — The A1 / A2 / A3 round must be re-run on the corrected
+> shared base.**
+> The current round is **not ranked and no winner is selected**, because its
+> substrate carries shared failures in architecture, road topology, depth, smoke,
+> background, character and UI semantics — so it compares identities against a
+> foundation that is itself failing. Preserve the current round as historical
+> exploration evidence.
 
 ### UI
 
-**L-12 — 2× UI density is the working presentation direction.**
-World **128 × 192**; UI and composite working grid **256 × 384**. Coarse UI is not
-an equal candidate and is not reopened. Review enlargement stays
-nearest-neighbour. Final device-resolution implementation is a separate question.
+**L-12 — SUPERSEDED FOR UI (2026-08-16). Retained for the world.**
+The interface is native Flutter at device resolution, so **no UI pixel grid
+exists** and a UI-density ratio no longer describes it. The world figure keeps a
+pixel canvas. Review enlargement stays nearest-neighbour.
+
+> **L-12 (original) — 2× UI density is the working presentation direction.**
+> World **128 × 192**; UI and composite working grid **256 × 384**. Coarse UI is
+> not an equal candidate and is not reopened. Final device-resolution
+> implementation is a separate question.
 
 **L-13 — `90` on the gather card must read unambiguously as the action's cost**,
 in the game's existing step-derived energy language.
@@ -224,6 +254,43 @@ input.
 
 ---
 
+## Locked — UI Baseline Closeout (2026-08-16)
+
+**L-16 — Teal `#58d6c0` is reserved system-wide for walking, steps, and
+banked-step quantity.**
+No character, environment, item, or interface element may use it as an identity
+accent or for any other meaning. It is deliberately not gold: a gold numeral
+beside a glyph reads as currency, and Stride has none (`RULES.md` P-6).
+
+**L-17 — Inventory is icon-first for scanning; icon + label + count is the
+complete semantic unit.**
+The player's eye sorts the grid by silhouette, shape, major colour and category
+before reading names; the label removes remaining ambiguity. An icon is **not**
+required to be blind-nameable at grid size — mere vagueness is acceptable.
+
+An icon that confidently implies the **wrong object**, or any system Stride does
+not have — currency, rarity, a timer, capacity, a lock — **is a defect regardless
+of craft quality**. This extends **L-15** from "no wrong semantic" to "wrong
+semantic is a blocker, vagueness is not", which is the distinction that governs
+icon acceptance.
+
+**L-18 — Every pixel asset is displayed at an exact integer multiple of its
+native size, with nearest-neighbour filtering and no sub-pixel positioning, in a
+container that layout cannot compress.**
+Interface chrome — type, panels, borders, radii, tracks — is ordinary high-DPI
+native rendering. **The interface is not pixelated; the content is.**
+
+The container clause is load-bearing and was earned: a container one pixel
+narrower than its pixel content silently rescales a sprite with no visible cause,
+which cost three wrong diagnoses before it was measured.
+
+**L-19 — Bronze content reads as bronze, not as gold bullion.**
+Bronze uses a bronze / reddish-copper family, not a bright worked-gold family. A
+banded gold trapezoid is the universal bullion glyph and asserts a currency
+Stride does not have. Owner ruling, 2026-08-16. Not a Phase 1 blocker.
+
+---
+
 ## UNRESOLVED — do not decide silently
 
 None of the following has been chosen. They are listed so their absence reads
@@ -235,14 +302,28 @@ as **deliberate** rather than as an oversight to be helpfully filled in:
 - **Animation frame counts** — no frame budget per action is set
 - **Exact rendering treatment** — outlining, dithering, shading model, and
   lighting approach are all open
-- **The production art direction itself** — A, B and C are still the open
-  question this document exists to answer. The A1/A2/A3 round must be re-run on a
-  corrected base before any identity can be ranked (**L-11**)
 - **The character's recognisable signature** — deliberately deferred until
   proportion, gesture and clothing have been given the chance to earn it
   (**L-5**, `JOURNAL/OPEN_QUESTIONS.md` Q-02)
-- **Final device-resolution implementation** — the 2× working grid is locked
-  (**L-12**); how it maps to real device pixels is not
+- **Character portrait styling, proportions, and canvas** — the workstream is
+  **paused**, not solved. `CHARACTER_PORTRAIT_CLOSEOUT.md` §6 lists what a future
+  restart must **not** inherit; canonizing any of the current geometry would hand
+  a restart exactly that. The portrait in use is a **temporary placeholder**
+- **The Hollow Sigil** — its four wrong reads (lock, slot, empty cell, coin) have
+  been cleared structurally, and **no positive read is established**. This is a
+  **content** question, not a craft one: nothing in the repository describes what
+  a Hollow Sigil is beyond a tier-1 quest item from Forgotten Hollow, and an icon
+  cannot depict an undescribed object. Owner ruling D-3 (a literal open
+  negative-space centre) conflicts with clearing the "slot" read and is **not
+  resolved**
+- **The full inventory icon set** — icon *policy* is locked (**L-17**); the set
+  itself is not approved. Four icons still produce confident wrong nouns at play
+  scale, and the set is incoherent in ramp depth and icon mass
+- **Environment and Haven's Rest** — untouched by this update and still governed
+  by **L-6** to **L-10**. The travel map is not started
+
+**The production art direction itself is no longer on this list** — see the
+status block. **L-11** is retired with the A/B/C premise.
 
 A candidate direction may *propose* values for these during exploration. A
 proposal inside a comparison is not a decision, and does not become one by being
@@ -255,10 +336,20 @@ reopen them as if they were still absent:
 
 | Was unresolved | Now |
 |---|---|
-| Sprite dimensions | Character canvas **24 × 34** for the next attempt (**L-3**, reopenable only on READ SPEC evidence); world **128 × 192**, UI grid **256 × 384** (**L-12**). Tile and icon sizes remain unstated |
+| Sprite dimensions | **Reopened by the presentation split.** L-3 and L-12's UI figure are superseded; world keeps **128 × 192**. Portrait, icon and tile canvases are unstated |
 | Camera angle | **Three-quarter top-down / isometric-lite**, preserved as a family; not strict isometric (**L-9**) |
 | Exact character proportions | **≈ 1 : 4.5** head-to-body (**L-2**); exact pixel construction still an implementation question |
-| Final UI visual language | **Partially closed.** 2× density locked (**L-12**); icon semantics constrained (**L-15**). HUD composition, panel treatment and typography style remain open |
+| Final UI visual language | **Closed at the direction level** (status block): native high-DPI chrome, pixel content, teal = walking (**L-16**), icon policy (**L-17**), scale discipline (**L-18**). The *token values* — palette, exact type scale, spacing — are proposed in `exploration/WALKSCAPE_PIVOT_01/UI_SYSTEM_PROPOSED_01.md` and are **not** canonized here |
+
+### Closed by the UI Baseline Closeout (2026-08-16)
+
+| Was open | Now |
+|---|---|
+| The production art direction (A/B/C) | **Chosen** — modernized polished pixel mobile RPG, native high-DPI UI + pixel content. A/B/C and **L-11** superseded, not resolved |
+| Whether the UI is authored on a pixel grid | **No.** Native widgets at device resolution (**L-12** superseded for UI, **L-18**) |
+| Character presentation as one asset | **No.** Split into portrait / world sprite / item icons (**L-3** superseded) |
+| What teal means | **Walking and steps, system-wide, exclusively** (**L-16**) |
+| Whether inventory icons must be blind-nameable | **No** — but a wrong read is a blocker (**L-17**) |
 
 ---
 
