@@ -117,6 +117,20 @@ void main() {
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+
+    // Unmount the tree before the test framework checks for pending work.
+    //
+    // A gather arms `SessionController`'s five-second result timer. If the test
+    // body ends while that timer is live, it can fire against a controller the
+    // framework has already finished with, and the failure surfaces as "failed
+    // after test completion" — attributed to whichever test happened to be
+    // slowest rather than to the one that armed it.
+    //
+    // Pumping an empty tree runs `dispose`, which cancels the timer. This is
+    // test hygiene, not a workaround: the production path disposes the same way
+    // when the app is torn down.
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
     return (await tester.runAsync(() => launch(source: source)))!;
   }
 

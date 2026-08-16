@@ -264,8 +264,14 @@ jobs:
             exit 1
           fi
 
+      # Goldens are excluded here and only here. Flutter's text rasterization is
+      # not identical across platforms, so an image captured on the development
+      # machine cannot match byte-for-byte on this runner — the difference is
+      # the renderer, not the change under test. They run locally, where they
+      # are regenerated and the diff is looked at by a person.
+      # See dart_test.yaml.
       - name: App tests
-        run: flutter test
+        run: flutter test --exclude-tags golden
 
       - name: stride_health Dart tests
         working-directory: packages/stride_health

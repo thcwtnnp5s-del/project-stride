@@ -1,0 +1,25 @@
+# Test tags.
+#
+# `golden` marks tests that compare against checked-in reference images.
+#
+# **They are excluded from CI, deliberately.** Golden images are captured on one
+# platform and Flutter's text rasterization is not identical across platforms —
+# a golden generated on Windows will not match byte-for-byte on the Linux
+# runner, and the difference is the renderer, not the code. Running them in CI
+# produces a red build that says nothing about the change that triggered it.
+#
+# This is the same shape as the F-06 finding, pointed the other way: there, a
+# green Windows run was not evidence because POSIX and Windows file locks differ
+# and **Linux was the signal**. Here the signal is the development platform,
+# because that is where the reference images were made.
+#
+# What they are for: catching an unintended layout change between Flutter
+# revisions, locally, where they are regenerated with
+# `flutter test --update-goldens` and the diff is looked at by a person.
+#
+# What they are NOT for: judging typography. `flutter test` has no real font and
+# renders every string as a filled rectangle. See test/phase1_golden_test.dart.
+tags:
+  golden:
+    # Never fail a run because a platform rasterized type differently.
+    skip: false
