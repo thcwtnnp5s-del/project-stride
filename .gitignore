@@ -129,3 +129,7 @@ coverage/
 # reproducible without any of that.
 # ---------------------------------------------------------------------------
 Scripts/tooling/node_modules/
+
+# Golden-failure artefacts. Written by flutter_test on a golden mismatch;
+# never evidence, and never something to commit.
+test/failures/

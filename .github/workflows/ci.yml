@@ -102,6 +102,14 @@ jobs:
       - name: Dependency policy guard
         run: bash ./Scripts/check-dependency-policy.sh
 
+      # The shipped art tree is generated from the approved PixelLab exploration
+      # output. This proves it still is: a hand-edited asset, or an asset the
+      # packaging step no longer produces, fails here rather than shipping.
+      - name: Shipped art matches the packaging step
+        run: |
+          node ./Scripts/art/package-art.js --check
+          node ./Scripts/art/nav-active-variant.js --check
+
       # Was local-only via Scripts/verify.sh until F-06, which meant the one
       # privacy control with no in-code enforcement also had no CI enforcement.
       # A manifest edit on a branch nobody ran verify.sh against would have

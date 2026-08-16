@@ -79,25 +79,29 @@ abstract final class StrideGeometry {
   /// into it — the bar's ground extends into the inset so it does not float.
   static const double tabBarHeight = 74;
 
-  /// 98 outer = 96 content (48 × 2) + 1 px border on each side.
+  /// The portrait's displayed edge — 64 native × 2.
   ///
-  /// This is the Flutter form of the fix that took Round 03 three diagnoses:
-  /// a 96 px sprite in a 96 px *border-box* got 94 px of content and was
-  /// silently rescaled. See `InsetWell`, which computes this rather than taking
-  /// it as a number.
-  static const double portraitWellOuter = 98;
+  /// The well around it is `portraitContent + 2`, computed by `InsetWell` rather
+  /// than written down, which is the Flutter form of the fix that took Round 03
+  /// three diagnoses: a 96 px sprite in a 96 px *border-box* got 94 px of
+  /// content and was silently rescaled.
+  static const double portraitContent = 128;
 
   static const double buttonHeight = 44;
 
   /// A floor, not a fixed height — a wrapped two-line item name grows the row
   /// rather than clipping.
-  static const double itemTileMinHeight = 111;
+  ///
+  /// Raised from 111 with the icon: the PixelLab family is 48 px where the
+  /// code-rendered set was 40, so the tile needs the eight back.
+  static const double itemTileMinHeight = 119;
 
   /// Below this, the inventory grid drops from four columns to three.
   ///
-  /// Derived, not chosen: icon 40 + tile padding 3 + 3 + border 1 + 1 + 16
+  /// Derived, not chosen: icon 48 + tile padding 3 + 3 + border 1 + 1 + 16
   /// logical px of breathing room for the two-line name. The branch engages
-  /// below 312 dp and is therefore not reached by any phone we support — it is
-  /// specified so the fallback is not improvised under pressure.
-  static const double gridColumnFloor = 64;
+  /// below 352 dp, so a 320 dp phone now takes it — which is the point. Four
+  /// 48 px icons cannot fit 320 dp, and three that fit beat four that are
+  /// silently rescaled.
+  static const double gridColumnFloor = 72;
 }

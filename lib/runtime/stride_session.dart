@@ -169,6 +169,44 @@ final class InventoryEntry {
 }
 
 /// One skill's standing, with its level already derived from the content curve.
+/// One location, as the region map's legend needs it.
+///
+/// Carries no command and no route geometry. It is what the content pack knows
+/// about a place, projected for display.
+final class RegionPlace {
+  const RegionPlace({
+    required this.id,
+    required this.displayName,
+    required this.isCurrent,
+    required this.isSafe,
+    required this.isUnlocked,
+    required this.stepCostFromHere,
+    required this.resourceCount,
+  });
+
+  final ContentId id;
+  final String displayName;
+
+  /// Whether the player is standing here.
+  final bool isCurrent;
+
+  /// Whether defeat returns the player here (`DECISIONS/0003`).
+  final bool isSafe;
+
+  /// Whether the save records this place as unlocked.
+  final bool isUnlocked;
+
+  /// The step cost of the route from the player's location, or null when there
+  /// is no direct connection.
+  ///
+  /// **A distance, not a price.** No command spends it, and nothing in Phase 1
+  /// can.
+  final int? stepCostFromHere;
+
+  /// How many gatherable nodes the content pack places here.
+  final int resourceCount;
+}
+
 final class SkillSummary {
   const SkillSummary({
     required this.id,
@@ -773,6 +811,9 @@ final class StrideSession {
     return registry?.locations[here]?.displayName ?? here.value;
   }
 
+  /// The player's current location. Null before the game starts.
+  ContentId? get currentLocation => engine?.state.world.currentLocation;
+
   // -- The UI read model ----------------------------------------------------
   //
   // Everything below exists so that a widget never has to reach through
@@ -866,6 +907,47 @@ final class StrideSession {
     return <ResourceNodeDefinition>[
       for (final ContentId id in here.resourceNodes)
         if (content.resourceNodes[id] case final ResourceNodeDefinition d) d,
+    ];
+  }
+
+  /// Every location in the content pack, for the region map's legend.
+  ///
+  /// ## Why this reports reachability but offers no way to act on it
+  ///
+  /// `stride_core` has no travel activity. `EnterLocation` exists and its own
+  /// comment says why it is not the missing piece: *"No travel cost here.
+  /// Travel consumes steps over time"* — the activity that spends steps to cross
+  /// a route is not implemented at any layer.
+  ///
+  /// So this projection deliberately carries **no command and no affordance**.
+  /// It answers "where am I, and what else is out there", which the map already
+  /// implies, and stops. [stepCost] is read from the content pack's own
+  /// connection and is a fact about the world, not a price the player can pay
+  /// yet — a screen that rendered it as a button would be inventing the system.
+  List<RegionPlace> get regionPlaces {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <RegionPlace>[];
+
+    final ContentId here = active.state.world.currentLocation;
+    final LocationDefinition? from = content.locations[here];
+
+    return <RegionPlace>[
+      for (final LocationDefinition location in content.locations.values)
+        RegionPlace(
+          id: location.id,
+          displayName: location.displayName,
+          isCurrent: location.id == here,
+          isSafe: location.isSafe,
+          isUnlocked: active.state.world.isUnlocked(location.id),
+          stepCostFromHere: location.id == here
+              ? null
+              : from?.connections
+                    .where((LocationConnection c) => c.to == location.id)
+                    .firstOrNull
+                    ?.stepCost,
+          resourceCount: location.resourceNodes.length,
+        ),
     ];
   }
 

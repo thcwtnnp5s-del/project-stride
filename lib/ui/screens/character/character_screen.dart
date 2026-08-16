@@ -62,12 +62,9 @@ class CharacterScreen extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // TEMPORARY placeholder. The portrait workstream is paused with no
-              // approved asset; PixelIcons.portraitTemporary is the whole
-              // migration surface when it resumes.
-              InsetWell.square(
-                contentSize: 96,
-                child: PixelAsset.portrait(PixelIcons.portraitTemporary),
+              const InsetWell.square(
+                contentSize: StrideGeometry.portraitContent,
+                child: PixelAsset.portrait(PixelIcons.portraitTraveler),
               ),
               const SizedBox(width: StrideSpace.s12),
               const Expanded(

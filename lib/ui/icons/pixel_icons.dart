@@ -11,7 +11,17 @@ import 'package:stride_core/stride_core.dart' show ContentId;
 abstract final class PixelIcons {
   const PixelIcons._();
 
+  /// Interface chrome — glyphs, navigation, skill marks. Authored as UI, sized
+  /// to the UI grid, and changed when the interface changes.
   static const String _base = 'assets/ui/v1';
+
+  /// Game art — portrait, sprites, item icons, scenes, animation. Authored in
+  /// PixelLab and packaged by `Scripts/art/package-art.js`.
+  ///
+  /// The two roots are separate because the two things change for different
+  /// reasons and at different rates. A nav glyph is redrawn when the tab bar is
+  /// redesigned; the Traveler is not.
+  static const String _art = 'assets/art/v1';
 
   // ------------------------------------------------------------------ glyphs
 
@@ -25,31 +35,60 @@ abstract final class PixelIcons {
 
   // --------------------------------------------------------------- portrait
 
-  /// **TEMPORARY PLACEHOLDER.**
+  /// The Traveler portrait — 64 × 64, PixelLab.
   ///
-  /// The character portrait workstream is paused with no approved asset and no
-  /// approved canvas — `GAME_BIBLE/ART/exploration/CHARACTER_PORTRAIT_CLOSEOUT.md`
-  /// governs it, and that document's §6 lists what a future restart must **not**
-  /// inherit. This file is evidence from a failed round, used because a frame
-  /// needs something in it.
+  /// This replaced a code-rendered placeholder from the paused portrait
+  /// workstream (`GAME_BIBLE/ART/exploration/CHARACTER_PORTRAIT_CLOSEOUT.md`).
+  /// That workstream's own closeout records what its four rounds never solved:
+  /// the lower face, the ear, the jaw/neck junction and the mouth, each "present
+  /// in measurements, absent in perception". The PixelLab portrait resolves all
+  /// four, and it is production art rather than evidence.
   ///
   /// Nothing about any layout depends on its content. The frame is a component,
-  /// the image is an asset, and they are replaceable independently: swapping
-  /// this one path is the whole migration.
-  static const String portraitTemporary = '$_base/portrait_traveler.png';
+  /// the image is an asset, and swapping this one path is the whole migration.
+  static const String portraitTraveler = '$_art/portrait/traveler.png';
 
-  // ---------------------------------------------------------- illustrations
+  // ---------------------------------------------------------------- sprites
 
-  static const Map<String, String> _activityByNode = <String, String>{
-    'resource_node.meadow_patch': '$_base/activity_meadow_patch.png',
+  /// The Traveler at rest, facing the viewer.
+  static const String travelerSouth = '$_art/sprite/traveler_south.png';
+
+  // -------------------------------------------------------------- animation
+
+  /// The gather cycle, in order: stand, lean, crouch, take the herb, rise
+  /// holding it.
+  ///
+  /// Eight frames, trimmed from ten. Blind review found the last three to be
+  /// "near-identical frontal standing holds… two of these three are dead
+  /// weight", so the tail was cut to a single hold with the herb still in hand.
+  static const List<String> gatherFrames = <String>[
+    '$_art/anim/gather_f0.png',
+    '$_art/anim/gather_f1.png',
+    '$_art/anim/gather_f2.png',
+    '$_art/anim/gather_f3.png',
+    '$_art/anim/gather_f4.png',
+    '$_art/anim/gather_f5.png',
+    '$_art/anim/gather_f6.png',
+    '$_art/anim/gather_f7.png',
+  ];
+
+  // ----------------------------------------------------------------- scenes
+
+  /// The illustrated region map. **Presentation only** — it depicts routes that
+  /// no command can walk, so nothing on it is a control.
+  static const String regionMap = '$_art/world/region_map.png';
+
+  static const Map<String, String> _vignetteByLocation = <String, String>{
+    'location.havens_rest': '$_art/location/havens_rest.png',
   };
 
-  /// The illustration for a resource node, or null when none is drawn yet.
+  /// The arrival vignette for a location, or null where none is drawn.
   ///
-  /// Null rather than a placeholder: an activity illustration is an 80 px
-  /// feature of a card, and a card with no picture reads as a card with no
-  /// picture. A placeholder that size would read as a broken image.
-  static String? activityFor(ContentId node) => _activityByNode[node.value];
+  /// Null rather than a placeholder: a vignette is a 176 px band across the
+  /// whole screen, and a placeholder that size would read as a broken image
+  /// rather than as absent art.
+  static String? vignetteFor(ContentId location) =>
+      _vignetteByLocation[location.value];
 
   // ----------------------------------------------------------------- skills
 
@@ -78,19 +117,31 @@ abstract final class PixelIcons {
 
   // ------------------------------------------------------------------ items
 
-  /// Only the items a Phase 1 player can actually hold: the four starting
-  /// loadout items plus the one gatherable yield.
+  /// The PixelLab 48 × 48 family — every item it covers, not only the five a
+  /// Phase 1 player can hold.
   ///
-  /// The rest of the icon set is deliberately absent. Four icons in it still
-  /// produce confident wrong nouns at play scale (`ICON_REPAIR_04.md` §9), and
-  /// scoping the grid to what the player holds means that unresolved question
-  /// blocks nothing here.
+  /// The predecessor set was scoped to five deliberately, because four of its
+  /// icons produced confident wrong nouns at play scale (`ICON_REPAIR_04.md`
+  /// §9) and shipping them would have put a lie in the grid. That constraint
+  /// belonged to that set. This one was blind-reviewed in the actual four-wide
+  /// grid at play scale, and the verdict across the whole grid was **"none
+  /// outright contradict"** (`PIXELLAB_STABILIZATION_01/README.md` §3 item 4).
+  ///
+  /// The remaining nine items in `items.json` — the bronze tier, the cooked
+  /// food, the Hollow Sigil — have no icon here and resolve to [itemUnknown].
+  /// None of them is craftable or obtainable in Phase 1.
   static const Map<String, String> _itemIcons = <String, String>{
-    'item.meadow_herb': '$_base/item_meadow_herb.png',
-    'item.training_sword': '$_base/item_training_sword.png',
-    'item.training_axe': '$_base/item_training_axe.png',
-    'item.training_pickaxe': '$_base/item_training_pickaxe.png',
-    'item.traveler_tunic': '$_base/item_traveler_tunic.png',
+    'item.bronze_ingot': '$_art/item/bronze_ingot.png',
+    'item.copper_ore': '$_art/item/copper_ore.png',
+    'item.meadow_herb': '$_art/item/meadow_herb.png',
+    'item.oak_handle': '$_art/item/oak_handle.png',
+    'item.oak_log': '$_art/item/oak_log.png',
+    'item.pine_log': '$_art/item/pine_log.png',
+    'item.tin_ore': '$_art/item/tin_ore.png',
+    'item.training_axe': '$_art/item/training_axe.png',
+    'item.training_pickaxe': '$_art/item/training_pickaxe.png',
+    'item.training_sword': '$_art/item/training_sword.png',
+    'item.traveler_tunic': '$_art/item/traveler_tunic.png',
   };
 
   /// A deliberately non-representational slab, for an item with no icon.
@@ -99,7 +150,7 @@ abstract final class PixelIcons {
   /// or currency — the exact four-way wrong read the Hollow Sigil scored, in the
   /// one grid cell most likely to be misread. So: two colours, a rim, and
   /// nothing inside. It looks unfinished because it is.
-  static const String itemUnknown = '$_base/item_unknown.png';
+  static const String itemUnknown = '$_art/item/unknown.png';
 
   /// Never null. An item the icon set does not cover still gets a tile, a label
   /// and a count — icon + label + count is the semantic unit (**L-17**), and the
@@ -122,4 +173,10 @@ abstract final class PixelIcons {
   static const String navInventoryActive = '$_base/nav_inventory_hi.png';
   static const String navCraft = '$_base/nav_craft.png';
   static const String navWorld = '$_base/nav_world.png';
+
+  /// Derived from [navWorld] by `Scripts/art/nav-active-variant.js`, using the
+  /// index remap measured from the three glyph pairs that already shipped — so
+  /// the fourth selectable tab brightens exactly like the other three rather
+  /// than by a rule invented for it.
+  static const String navWorldActive = '$_base/nav_world_hi.png';
 }

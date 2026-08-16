@@ -78,6 +78,7 @@ flutter:
     - assets/ui/v1/nav_inventory_hi.png
     - assets/ui/v1/nav_craft.png
     - assets/ui/v1/nav_world.png
+    - assets/ui/v1/nav_world_hi.png
     - assets/ui/v1/glyph_steps.png
     - assets/ui/v1/glyph_steps_muted.png
     - assets/ui/v1/glyph_arrow.png
@@ -86,14 +87,39 @@ flutter:
     - assets/ui/v1/skill_mining.png
     - assets/ui/v1/skill_smithing.png
     - assets/ui/v1/skill_cooking.png
-    - assets/ui/v1/item_meadow_herb.png
-    - assets/ui/v1/item_training_sword.png
-    - assets/ui/v1/item_training_axe.png
-    - assets/ui/v1/item_training_pickaxe.png
-    - assets/ui/v1/item_traveler_tunic.png
-    - assets/ui/v1/item_unknown.png
-    - assets/ui/v1/activity_meadow_patch.png
-    # TEMPORARY PLACEHOLDER. The character portrait workstream is paused and this
-    # asset is explicitly replaceable — CHARACTER_PORTRAIT_CLOSEOUT.md governs
-    # it. Nothing about any layout depends on its content.
-    - assets/ui/v1/portrait_traveler.png
+
+    # Game art, v1. Authored in PixelLab, packaged by
+    # `Scripts/art/package-art.js`, which is the only thing that writes this
+    # directory — run it rather than editing a file here, and CI re-runs it with
+    # `--check` so a hand-edited asset fails the build.
+    #
+    # A separate root from assets/ui/ because the two change for different
+    # reasons: a nav glyph is redrawn when the tab bar is redesigned, and the
+    # Traveler is not.
+    #
+    # Provenance, native sizes and the two carried corrections are in
+    # assets/art/v1/README.md.
+    - assets/art/v1/item/bronze_ingot.png
+    - assets/art/v1/item/copper_ore.png
+    - assets/art/v1/item/meadow_herb.png
+    - assets/art/v1/item/oak_handle.png
+    - assets/art/v1/item/oak_log.png
+    - assets/art/v1/item/pine_log.png
+    - assets/art/v1/item/tin_ore.png
+    - assets/art/v1/item/training_axe.png
+    - assets/art/v1/item/training_pickaxe.png
+    - assets/art/v1/item/training_sword.png
+    - assets/art/v1/item/traveler_tunic.png
+    - assets/art/v1/item/unknown.png
+    - assets/art/v1/portrait/traveler.png
+    - assets/art/v1/sprite/traveler_south.png
+    - assets/art/v1/anim/gather_f0.png
+    - assets/art/v1/anim/gather_f1.png
+    - assets/art/v1/anim/gather_f2.png
+    - assets/art/v1/anim/gather_f3.png
+    - assets/art/v1/anim/gather_f4.png
+    - assets/art/v1/anim/gather_f5.png
+    - assets/art/v1/anim/gather_f6.png
+    - assets/art/v1/anim/gather_f7.png
+    - assets/art/v1/location/havens_rest.png
+    - assets/art/v1/world/region_map.png

@@ -47,7 +47,7 @@ enum StrideDestination {
     enabled: true,
   ),
   craft('Craft', PixelIcons.navCraft, PixelIcons.navCraft),
-  world('World', PixelIcons.navWorld, PixelIcons.navWorld);
+  world('World', PixelIcons.navWorld, PixelIcons.navWorldActive, enabled: true);
 
   const StrideDestination(
     this.label,

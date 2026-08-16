@@ -9,9 +9,11 @@ import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
+import '../../components/sprite_animation.dart';
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
 import '../../icons/pixel_icons.dart';
+import '../../icons/sprite_footprints.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -29,7 +31,6 @@ class GatherNodeCard extends StatelessWidget {
     final StrideSession s = c.session;
 
     final int cost = s.costOf(node.id) ?? node.stepCost;
-    final String? illustration = PixelIcons.activityFor(node.id);
     final String skillName = s.displayNameOf(node.skill);
     final String yieldName = s.displayNameOf(node.yieldsItem);
 
@@ -38,35 +39,16 @@ class GatherNodeCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
+          _ActivityStage(node: node),
+          const SizedBox(height: StrideSpace.s10),
+
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              if (illustration != null) ...<Widget>[
-                InsetWell.square(
-                  contentSize: 80,
-                  child: PixelAsset.activity(illustration),
-                ),
-                const SizedBox(width: StrideSpace.s12),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    SkillChip(skill: node.skill, label: skillName),
-                    const SizedBox(height: StrideSpace.s6),
-                    Text(
-                      node.displayName,
-                      style: StrideType.cardTitle,
-                      maxLines: 2,
-                    ),
-                    Text(
-                      'Gathering $yieldName',
-                      style: StrideType.sub,
-                      maxLines: 2,
-                    ),
-                  ],
-                ),
-              ),
+              SkillChip(skill: node.skill, label: skillName),
+              const SizedBox(height: StrideSpace.s6),
+              Text(node.displayName, style: StrideType.cardTitle, maxLines: 2),
+              Text('Gathering $yieldName', style: StrideType.sub, maxLines: 2),
             ],
           ),
 
@@ -117,6 +99,55 @@ class GatherNodeCard extends StatelessWidget {
           const SizedBox(height: StrideSpace.s10),
           _GatherControl(node: node, cost: cost),
         ],
+      ),
+    );
+  }
+}
+
+/// The activity's contextual art: the Traveler, standing on ground, who gathers
+/// once when a gather succeeds.
+///
+/// This is the ACTIVITY presentation scale — "UI-driven action plus contextual
+/// art". It is deliberately **not** a scene the player moves through. There is
+/// no terrain to cross, no position, and no camera; there is a figure performing
+/// the action the button just executed.
+class _ActivityStage extends StatelessWidget {
+  const _ActivityStage({required this.node});
+
+  final ResourceNodeDefinition node;
+
+  @override
+  Widget build(BuildContext context) {
+    final SessionController c = SessionScope.of(context);
+
+    // The identity of a *successful* gather at this node, and nothing else. A
+    // refusal leaves this null, so the figure does not mime picking a herb the
+    // player did not receive.
+    final ActionReport? report = c.lastActionNode == node.id
+        ? c.lastAction
+        : null;
+    final Object? playToken = report != null && report.succeeded
+        ? report
+        : null;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: StrideSpace.s6),
+      decoration: BoxDecoration(
+        // The same ground the inset wells use. It matters that this is a fill
+        // and not an image: the contact shadow multiplies against it, so the
+        // figure darkens the ground it stands on rather than carrying a grey
+        // patch that would be the same colour on any surface.
+        color: StrideColors.surfaceGround,
+        border: Border.all(color: StrideColors.borderDefault),
+        borderRadius: StrideRadius.inner,
+      ),
+      child: Center(
+        child: SpriteAnimation(
+          frames: PixelIcons.gatherFrames,
+          footprint: SpriteFootprints.gather,
+          playToken: playToken,
+        ),
       ),
     );
   }

@@ -141,6 +141,13 @@ step "Core purity"
 step "Product UI boundary"
 ./Scripts/check-ui-boundary.sh
 
+step "Shipped art matches the packaging step"
+# The art tree is generated, not hand-maintained. Without this, an asset edited
+# in place would ship and the next packaging run would silently revert it —
+# and the revert would look like a regression with no cause.
+node ./Scripts/art/package-art.js --check
+node ./Scripts/art/nav-active-variant.js --check
+
 step "Dependency policy"
 ./Scripts/check-dependency-policy.sh
 

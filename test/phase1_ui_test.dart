@@ -140,6 +140,18 @@ void main() {
     Finder finder, {
     required bool Function() until,
   }) async {
+    // Scroll the control into view first. The Adventure screen is taller than a
+    // phone once the location vignette and the activity stage are on it, so the
+    // gather button sits below the fold at every supported width — and
+    // `tester.tap` on an off-screen widget hits nothing and reports no error of
+    // its own. Without this the failure surfaces as "the tapped action did not
+    // complete", which points at the session rather than at the tap.
+    //
+    // This weakens nothing: the assertion afterwards is unchanged, and a player
+    // reaching the button scrolls to it in exactly the same way.
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+
     await tester.runAsync(() async {
       await tester.tap(finder);
       final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
@@ -473,6 +485,13 @@ void main() {
       await tester.pumpAndSettle();
 
       final Finder button = find.textContaining('Gather —');
+      // Scroll to it before the double tap, not during: the button is below the
+      // fold, and `warnIfMissed: false` means a missed tap would pass silently
+      // as "spent nothing" — the test would report success for the wrong
+      // reason.
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+
       await tester.runAsync(() async {
         // Two taps with no pump between them: both dispatch before any rebuild
         // could disable the control.

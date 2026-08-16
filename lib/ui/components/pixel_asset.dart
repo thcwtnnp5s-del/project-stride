@@ -46,10 +46,21 @@ class PixelAsset extends StatelessWidget {
     this.scale = 2,
   }) : assert(scale >= 1, 'integer multiples only, and at least 1');
 
-  /// Item icons — 20 × 20 native, 40 logical at ×2.
-  const PixelAsset.item(this.assetPath, {super.key, this.scale = 2})
-    : nativeWidth = 20,
-      nativeHeight = 20;
+  /// Item icons — **48 × 48**, the PixelLab family, 48 logical at ×1.
+  ///
+  /// This replaced a 20 × 20 code-rendered set. The Training Axe is why the
+  /// swap was worth its layout cost: three rounds of the code-rendered icon
+  /// were read as "hammer" by blind reviewers in-grid, and the PixelLab edit
+  /// was the first ever read as an axe
+  /// (`PIXELLAB_STABILIZATION_01/README.md` §3 item 4).
+  ///
+  /// ×1, not ×2. A 96 logical px icon does not fit a four-column grid at 320 dp,
+  /// and dropping to ×1 keeps four columns at every supported width. The sprite
+  /// is still magnified on screen — every phone this targets has a device pixel
+  /// ratio of 2 or more.
+  const PixelAsset.item(this.assetPath, {super.key, this.scale = 1})
+    : nativeWidth = 48,
+      nativeHeight = 48;
 
   /// Skill icons — **12 × 12**, not 14 × 14.
   ///
@@ -69,10 +80,19 @@ class PixelAsset extends StatelessWidget {
     : nativeWidth = 12,
       nativeHeight = 12;
 
-  /// The character portrait — 48 × 48.
+  /// The character portrait — **64 × 64**, PixelLab.
   const PixelAsset.portrait(this.assetPath, {super.key, this.scale = 2})
-    : nativeWidth = 48,
-      nativeHeight = 48;
+    : nativeWidth = 64,
+      nativeHeight = 64;
+
+  /// A standalone character sprite — 64 × 64.
+  ///
+  /// A separate asset class from the portrait even though both are 64 × 64: a
+  /// sprite stands on ground and needs [GroundedSprite], a portrait sits in a
+  /// frame and must never be given a shadow.
+  const PixelAsset.sprite(this.assetPath, {super.key, this.scale = 2})
+    : nativeWidth = 64,
+      nativeHeight = 64;
 
   /// An activity illustration — 40 × 40.
   const PixelAsset.activity(this.assetPath, {super.key, this.scale = 2})
@@ -121,6 +141,127 @@ class PixelAsset extends StatelessWidget {
         // explicit width and height above.
         excludeFromSemantics: true,
         gaplessPlayback: true,
+      ),
+    );
+  }
+}
+
+/// A scene-class pixel asset — a region map or a location vignette — shown at
+/// an exact integer scale in a viewport that may be **smaller than it is**.
+///
+/// ## Why this is a different widget rather than a flag on [PixelAsset]
+///
+/// [PixelAsset] asserts when its parent offers less room than the sprite needs,
+/// because for UI chrome that situation is always a bug: the fix is to widen the
+/// container or lower the scale, and Flutter's silent rescale is the failure
+/// worth shouting about.
+///
+/// Scene art has no such fix available. The region map is 384 px wide and the
+/// vignette's source was 512; the supported phones are 320, 360, 393 and 430 dp.
+/// There is no integer scale at which a 384 px map fits a 320 dp screen, and the
+/// three ways out are not equal:
+///
+/// - **Downscale.** Non-integer, so whole columns are dropped. A map of thin
+///   roads and a palisade of evenly spaced posts are the worst possible subjects
+///   for that; the posts would beat visibly.
+/// - **Shrink the art to the narrowest phone.** Every wider phone then shows a
+///   small picture in a wide gap, and the art is authored twice.
+/// - **Clip.** Nothing is resampled, the centre is always visible, and a wider
+///   phone simply sees more of the world. The cost is the outermost pixels on a
+///   narrow phone, which is why the framing of each scene asset puts nothing
+///   load-bearing at its edges — the map's flanks are forest and cliff, and the
+///   vignette is framed once, in `Scripts/art/package-art.js`, where the choice
+///   is reviewable.
+///
+/// So this widget never scales and never asserts: it **clips, and says so**.
+class PixelScene extends StatelessWidget {
+  const PixelScene({
+    super.key,
+    required this.assetPath,
+    required this.nativeWidth,
+    required this.nativeHeight,
+    this.scale = 1,
+    this.viewportHeight,
+    this.alignment = Alignment.center,
+    this.overlay,
+  }) : assert(scale >= 1, 'integer multiples only, and at least 1');
+
+  /// The illustrated region map — 384 × 640.
+  const PixelScene.regionMap(
+    this.assetPath, {
+    super.key,
+    this.viewportHeight,
+    this.alignment = Alignment.center,
+    this.overlay,
+  }) : nativeWidth = 384,
+       nativeHeight = 640,
+       scale = 1;
+
+  /// A location arrival vignette — 384 × 176, framed at packaging time.
+  const PixelScene.vignette(
+    this.assetPath, {
+    super.key,
+    this.viewportHeight,
+    this.alignment = Alignment.center,
+    this.overlay,
+  }) : nativeWidth = 384,
+       nativeHeight = 176,
+       scale = 1;
+
+  final String assetPath;
+  final int nativeWidth;
+  final int nativeHeight;
+  final int scale;
+
+  /// The height of the window onto the scene. Defaults to the whole thing, so a
+  /// scene only ever clips vertically when a caller deliberately asks it to.
+  final double? viewportHeight;
+
+  /// Which part of the scene stays visible when the viewport is smaller than it
+  /// is.
+  final Alignment alignment;
+
+  /// Drawn in the scene's own pixel coordinate space, on top of the image, and
+  /// clipped and aligned with it. This is how a [GroundedSprite] stays put
+  /// relative to the scenery as the viewport width changes.
+  final Widget? overlay;
+
+  double get displayWidth => (nativeWidth * scale).toDouble();
+  double get displayHeight => (nativeHeight * scale).toDouble();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: viewportHeight ?? displayHeight,
+      width: double.infinity,
+      child: ClipRect(
+        // OverflowBox is what PixelAsset's error message tells callers never to
+        // reach for, and the distinction is exact: there it would hide a sprite
+        // that is being silently rescaled, here nothing is being rescaled at
+        // all. The child is given tight constraints at its true size, so it
+        // renders at 1:1 and the clip is the only thing the viewport does.
+        child: OverflowBox(
+          alignment: alignment,
+          minWidth: displayWidth,
+          maxWidth: displayWidth,
+          minHeight: displayHeight,
+          maxHeight: displayHeight,
+          child: Stack(
+            children: <Widget>[
+              Image.asset(
+                assetPath,
+                width: displayWidth,
+                height: displayHeight,
+                fit: BoxFit.fill,
+                filterQuality: FilterQuality.none,
+                isAntiAlias: false,
+                excludeFromSemantics: true,
+                gaplessPlayback: true,
+              ),
+              ?overlay,
+            ],
+          ),
+        ),
       ),
     );
   }

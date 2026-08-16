@@ -23,14 +23,17 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show ResourceNodeDefinition;
+import 'package:stride_core/stride_core.dart'
+    show ContentId, ResourceNodeDefinition;
 import 'package:stride_health/stride_health.dart' show SyncFault;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
+import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -48,37 +51,115 @@ class AdventureScreen extends StatelessWidget {
     final StrideSession s = c.session;
     final List<ResourceNodeDefinition> nodes = s.nodesHere;
 
+    // Null before the game starts, which this screen is never built for — the
+    // bootstrap resolves before the first frame. Handled rather than asserted:
+    // an absent vignette is already a supported state, so there is nothing to
+    // gain from crashing over it.
+    final ContentId? here = s.currentLocation;
+    final String? vignette = here == null ? null : PixelIcons.vignetteFor(here);
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        StrideSpace.screenGutter,
-        StrideSpace.s12,
-        StrideSpace.screenGutter,
-        StrideSpace.s16,
-      ),
+      // Zero horizontal padding: the vignette is full-bleed, and every other
+      // child re-applies the gutter itself. A ListView-level gutter would inset
+      // the scene band and leave two strips of app ground beside a picture that
+      // is meant to be a window.
+      padding: const EdgeInsets.only(bottom: StrideSpace.s16),
       children: <Widget>[
-        if (s.isStale) ...<Widget>[
-          StaleBanner(busy: c.busy, onReload: c.reload),
+        if (vignette != null) ...<Widget>[
+          _LocationVignette(assetPath: vignette, name: s.locationName),
           const SizedBox(height: StrideSpace.cardGap),
-        ],
+        ] else
+          const SizedBox(height: StrideSpace.s12),
 
-        _StepsBudgetCard(controller: c),
-        const SizedBox(height: StrideSpace.cardGap),
+        _Gutter(
+          child: Column(
+            children: <Widget>[
+              if (s.isStale) ...<Widget>[
+                StaleBanner(busy: c.busy, onReload: c.reload),
+                const SizedBox(height: StrideSpace.cardGap),
+              ],
 
-        if (nodes.isEmpty)
-          const SectionCard(
-            child: Text(
-              'There is nothing to gather here.',
-              style: StrideType.body,
-            ),
-          )
-        else
-          for (final ResourceNodeDefinition node in nodes) ...<Widget>[
-            GatherNodeCard(node: node),
-            const SizedBox(height: StrideSpace.cardGap),
-          ],
+              _StepsBudgetCard(controller: c),
+              const SizedBox(height: StrideSpace.cardGap),
+
+              if (nodes.isEmpty)
+                const SectionCard(
+                  child: Text(
+                    'There is nothing to gather here.',
+                    style: StrideType.body,
+                  ),
+                )
+              else
+                for (final ResourceNodeDefinition node in nodes) ...<Widget>[
+                  GatherNodeCard(node: node),
+                  const SizedBox(height: StrideSpace.cardGap),
+                ],
+            ],
+          ),
+        ),
       ],
     );
   }
+}
+
+/// The screen gutter, applied per child rather than to the list, so a full-bleed
+/// scene can sit beside gutter-inset cards in one scroll view.
+class _Gutter extends StatelessWidget {
+  const _Gutter({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: StrideSpace.screenGutter),
+    child: child,
+  );
+}
+
+/// The arrival vignette: where the player is, as a picture.
+///
+/// **Presentation only, and shaped so it cannot be mistaken for anything else.**
+/// There is no character in it, nothing in it is tappable, and no control sits
+/// on top of it. The player is not steering anyone around this place; they are
+/// looking at it, the way an illustration at the head of a chapter shows the
+/// room the chapter happens in.
+///
+/// The name is written over the image's lower edge rather than beside it,
+/// because the band is full-bleed and a caption in the gutter would re-introduce
+/// the inset the full-bleed layout exists to remove.
+class _LocationVignette extends StatelessWidget {
+  const _LocationVignette({required this.assetPath, required this.name});
+
+  final String assetPath;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    alignment: Alignment.bottomLeft,
+    children: <Widget>[
+      PixelScene.vignette(assetPath),
+      // A gradient, not a solid plate: the vignette's lower edge is grass and
+      // trail, so a plate would cut the picture with a hard line while a
+      // gradient lets the ground run out under the text.
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(
+          StrideSpace.screenGutter,
+          StrideSpace.s16,
+          StrideSpace.screenGutter,
+          StrideSpace.s8,
+        ),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[Color(0x00000000), Color(0xCC14120F)],
+          ),
+        ),
+        child: Text(name, style: StrideType.cardTitle, maxLines: 1),
+      ),
+    ],
+  );
 }
 
 /// What walking has produced, and how far it goes.

@@ -11,6 +11,7 @@ import '../components/stride_tab_bar.dart';
 import '../screens/adventure/adventure_screen.dart';
 import '../screens/character/character_screen.dart';
 import '../screens/inventory/inventory_screen.dart';
+import '../screens/world/world_screen.dart';
 import '../state/session_controller.dart';
 import '../state/session_scope.dart';
 import 'stride_destination.dart';
@@ -59,6 +60,7 @@ class _StrideShellState extends State<StrideShell> {
         StrideDestination.adventure => const AdventureScreen(),
         StrideDestination.character => const CharacterScreen(),
         StrideDestination.inventory => const InventoryScreen(),
+        StrideDestination.world => const WorldScreen(),
         // Unreachable: the tab bar refuses taps on a disabled destination, so
         // _selected can only ever hold an enabled one.
         _ => const SizedBox.shrink(),
