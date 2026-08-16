@@ -7,6 +7,25 @@
 /// unbounded pixel-hunt `MISTAKES.md` M-01 records. Perceptual parity is judged
 /// by a human against these renders, once per screen.
 ///
+/// ## What these images CANNOT show, and it is more than it looks
+///
+/// **This harness has no real font.** Every glyph renders as a filled
+/// rectangle, so a golden cannot show an underline, a wrong weight, a clipped
+/// descender, or any typographic fault whatsoever.
+///
+/// **This harness supplies zero safe-area insets.** Any defect that is a
+/// function of real device padding measures as exactly 0 here and appears only
+/// on hardware.
+///
+/// Both of those are not hypothetical. Phase 1 passed 93 widget tests and four
+/// of these goldens while **every string in the application was underlined** —
+/// the app had no `Material` ancestor, and the underline merged into the filled
+/// rectangles. A second defect put 57 dp of dead space above the inventory grid
+/// on a phone and none at all here. `MISTAKES.md` M-06.
+///
+/// So: a green run of this file means the layout has not moved. It does not
+/// mean the screen looks right, and it never can. **Look at a running build.**
+///
 /// One viewport deliberately. A golden per screen per width is four times the
 /// maintenance for a fraction of the signal, and `phase1_ui_test.dart` already
 /// covers 320 / 360 / 375 / 393 / 430 for overflow.

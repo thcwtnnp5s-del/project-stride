@@ -21,6 +21,73 @@ to `M-02` stays valid.
 
 ---
 
+## M-06 — A UI was declared done on evidence that was structurally blind to how it looked
+
+**Date:** 2026-08-16 · **Category:** process / verification ·
+**Provenance:** Playable Demo Phase 1, `MILESTONES/PLAYABLE_DEMO_PHASE_1_CLOSEOUT.md` §4
+
+### What happened
+
+Playable Demo Phase 1's product UI passed **93 widget tests and four golden
+images** and was carried as complete. The first time it was run on a device, it
+had three visible defects — one of them affecting **every string in the
+application**.
+
+| Defect | Visible severity |
+|---|---|
+| No `Material` ancestor, so `DefaultTextStyle` resolved to Flutter's fallback — which carries `TextDecoration.underline` in double yellow | Every word in the product was underlined |
+| The inventory `GridView` defaulted to `primary: true` and adopted `MediaQuery.padding` | 57 dp of dead space above the first row |
+| The region list iterated `locations` alphabetically | "Where am I?" was answered with a place the player has never been |
+
+### Root cause
+
+**The two evidence sources were blind to these defect classes by construction,
+and nobody had written down that they were.**
+
+- `flutter test` has **no real font**. Its harness draws every glyph as a filled
+  rectangle, so a golden image cannot show an underline, a wrong weight, a
+  clipped descender, or any typographic fault at all. The underline merged into
+  the box.
+- `flutter test` supplies **zero safe-area insets**. Any defect that is a
+  function of real device padding measures as exactly 0 under test. The
+  inventory gap was not "small in the test" — it was *absent*, and present on
+  hardware.
+- Widget tests assert a string's **content**. Almost none assert its resolved
+  style, so decoration, colour and weight are unguarded unless someone
+  deliberately reaches for them.
+
+The count of passing tests was doing work it could not do. 93 green tests
+created confidence about *appearance*, which is not what any of them measured.
+
+### Consequence
+
+Caught before the owner saw it, at the cost of one device pass. Had the physical
+acceptance run happened first, the owner's report would have opened with "every
+word is underlined" — and the two-week judgment about whether Stride *feels*
+right would have been taken against a build that looked broken.
+
+### Prevention
+
+- **A UI is not done until it has been looked at, running, on a device.** No
+  count of green tests substitutes. This is the same lesson as M-04 — a
+  technically correct change reported as a fix without perceptual verification —
+  arriving through automated tests rather than through pixel measurements.
+- **Golden images are regression evidence between framework revisions, and
+  nothing else.** They cannot judge type. `PLAYABLE_DEMO_PHASE_1_ACCEPTANCE.md`
+  already said so in prose; it needed saying where the goldens are generated,
+  and now is.
+- When a device pass finds a defect a test *could* have caught, **add the test
+  that asserts the resolved property**, not the widget that happens to fix it.
+  The underline guard asserts the inherited `TextStyle`, so it still fails if a
+  `Material` is added somewhere that does not cover every screen.
+- Prefer **verifying the harness's blind spots explicitly** over trusting a
+  green total: insets, text scaling, and type all need a real surface.
+
+**This does not license a verification campaign** (`RULES.md` G-1). One device
+pass, on the screens that changed, with the findings written down.
+
+---
+
 ## M-05 — Visual decisions were made without a play-scale verdict view
 
 **Date:** 2026-08-14 · **Category:** process / visual production ·

@@ -60,14 +60,20 @@ To run the full local verification pass first:
 | 9 | Check the **faults** line if one appeared | Usually absent | | If it lists anything, record it verbatim. `cursorOfferedWhenProhibited` is a real defect signal and must never be hidden |
 | 10 | Read the Meadow Patch card | `STEPS 90 per gather`, `YIELD ×2 Meadow Herb`, `EXPERIENCE +10 Foraging XP` | | Any other cost → registry drift or a hardcoded number |
 | 11 | If banked < 90, confirm the control refuses | Disabled, and says `Walk N more steps` | | A tappable control that then errors, or a silent no-op |
-| 12 | Tap **Gather** once | One result line: `Meadow Herb ×2` and `+10 Foraging XP` | | Two results from one tap; a result that appears twice |
+| 11a | Look at the Traveler standing on the card above the button | He has a soft dark shadow under his boots, and does not look pasted on | | No shadow at all → the grounding rule is not reaching this surface |
+| 12 | Tap **Gather** once | He crouches, picks the herb, stands holding it — once — and one result line appears: `Meadow Herb ×2` and `+10 Foraging XP` | | Two results from one tap. An animation that loops (Phase 1 has no continuous activity). An animation that plays on a *refused* gather — that would be fabricated success, in motion |
+| 12a | Watch the middle of the crouch | The figure stays readable throughout — arms, knee and torso stay distinct | | A frame where the body fuses into one mass → carried correction B has regressed |
 | 13 | Confirm the spend | Banked == (value at step 8) **− 90** | | −180 → double dispatch. −0 with a success message → fabricated success. A figure that only updates after leaving and re-entering the tab → a missing refresh |
 | 14 | Wait ~5 seconds | The result line disappears on its own | | It persists → it has become a durable "recent gains" system, which Phase 1 does not have |
 | 15 | Confirm `TOTAL WALKED` did **not** fall | Unchanged by the spend | | If it fell, granted was clawed back — a direct H-2 violation |
 | 16 | Open **Inventory** | Meadow Herb == H₀ + 2 | | A count that disagrees with the result line → two screens reading different sources |
 | 17 | Open **Character** | Foraging XP == X₀ + 10 | | XP unchanged → not persisted or not rendered from state |
 | 18 | Check the Foraging **level** | Correct for the XP total. Foraging reaches level 2 at **100** XP | | A level-up at the wrong threshold → the curve is being computed somewhere it should not be |
-| 19 | Tap **Skills**, **Craft**, **World** | Nothing happens. They look dimmed and unavailable | | Any of them navigates, or looks fully active |
+| 19 | Tap **Skills** and **Craft** | Nothing happens. They look dimmed and unavailable | | Either navigates, or looks fully active |
+| 19a | Tap **World** | The illustrated region map, then a list led by **Haven's Rest — You are here** | | Forgotten Hollow first → the list is not ordered from world state |
+| 19b | On World, look for any way to travel | **There is none**, and a line says travelling is not built yet | | Any button, or a tappable road. No travel command exists, so a control here would be fabricated |
+| 19c | Check the step figures beside the other places | Muted grey, never teal | | Teal means steps you own; these are distances (**L-16**) |
+| 19d | Look at the map's stream, at arm's length | It ends in a dark pool you can see without leaning in | | If it just fades out, carried correction A has regressed |
 | 20 | Record **B₁**, **H₁**, **X₁** | | | — |
 | 21 | **Force-close** from the app switcher (swipe up) — not just background | App gone from the switcher | | — |
 | 22 | Relaunch | Banked == B₁, herbs == H₁, XP == X₁, **exactly** | | **Any drift is a severity-1 data-integrity defect.** Reverting to step 4/5 values → the commit never landed. Herbs present but energy restored → the spend and the yield were not one transaction |

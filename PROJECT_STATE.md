@@ -1,8 +1,12 @@
 # Project Stride — Project State
 
-**Version:** 2.0
-**Status:** ✅ **F-06 complete** — device persistence, bootstrap, single-writer concurrency, iOS Keychain identity, backup exclusion, restart validation.
-**Current Phase:** Milestone 01 — **S-01A in progress** (foreground HealthKit and Health Connect + device-validation harness). **F-07 deferred until after foreground health validation** — owner priority decision, `DECISIONS/0014`.
+**Version:** 2.1
+**Status:** ✅ **Playable Demo Phase 1 implementation-complete** on branch
+`playable-demo-phase-1` — the whole loop runs through the **product UI**, not the
+dev harness. **Awaiting the owner's physical iPhone acceptance run**, which is
+the gate: `MILESTONES/PLAYABLE_DEMO_PHASE_1_ACCEPTANCE.md`.
+**Current Phase:** the player-facing milestone, defined at last (it was recorded
+as still-open through S-01A). F-07 remains unblocked and unstarted.
 
 ## Project identity
 
@@ -138,9 +142,31 @@ The player must be able to:
       a real persistence coordinator and is not the automatic next step.
     - Governance layer added: `RULES.md`, `MISTAKES.md`, `GAME_BIBLE/ART/`.
 
-34. **Visual exploration and correction.** ← current state
-    - The active work is visual. Direction is locked, corrections are not yet made,
-      and no art is approved. See *Current visual phase* below.
+34. **Visual exploration and correction.** — superseded by 35.
+    - The active work was visual. See *Current visual phase* below, which is
+      preserved as the record of the hand-authored rounds and is **no longer the
+      live pipeline**: PixelLab is the approved production-art route.
+
+35. **PLAYABLE DEMO PHASE 1 — implementation complete.** ← current state
+    - The owner can launch, sync real steps, spend them on a gather, receive
+      loot and XP, see inventory and progression update, view the location
+      vignette and the region map, restart, and find the state intact —
+      **through the product UI**.
+    - Four working destinations: Adventure, Inventory, Character, **World**.
+      Skills and Craft are visibly disabled. No dead active controls.
+    - Production art is PixelLab's, packaged reproducibly by
+      `Scripts/art/package-art.js` and checked in CI.
+    - **Both carried visual corrections are closed** — the region map's
+      watercourse and gather frame 5.
+    - Visual QA ran on a real running build and found three defects the tests
+      and goldens were structurally incapable of finding. All three are fixed.
+      See the closeout's §4; this is the lesson most worth carrying.
+    - **95 app tests, 4 goldens.**
+    - Records: `MILESTONES/PLAYABLE_DEMO_PHASE_1_PLAN.md` (plan),
+      `PLAYABLE_DEMO_PHASE_1_CLOSEOUT.md` (what shipped, what is limited),
+      `PLAYABLE_DEMO_PHASE_1_ACCEPTANCE.md` (the owner's device script).
+    - **Not closed.** Physical iPhone acceptance has not been run, and a green
+      CI result does not substitute for it.
 
 ## Next planned activity
 
@@ -231,6 +257,7 @@ Full detail: `F05_COMPLETION_REPORT.md` §8. Review: `DESIGN_REVIEW_F05.md`.
 | **F-05 — save, ledger persistence, crash recovery** | ✅ **Done** |
 | **F-06 — device persistence, bootstrap, restart validation** | ✅ **Done** |
 | **S-01A — foreground HealthKit + Health Connect, device harness** | ✅ **Done — validated on a physical iPhone** |
+| **Playable Demo Phase 1 — the product UI** | ✅ **Implementation complete** — awaiting physical device acceptance |
 | F-07 — skill framework | **Unblocked** — foreground health is validated (`DECISIONS/0014`) |
 | S-01B — background synchronization | Blocked on a real persistence coordinator |
 
