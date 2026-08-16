@@ -496,10 +496,13 @@ jobs:
 
       # Platform-neutral tests, re-run here so a macOS-specific Dart regression
       # cannot hide behind a green Linux job.
+      # Goldens excluded for the same reason as the Linux job: the reference
+      # images were captured on the development machine, and Flutter's text
+      # rasterization differs per platform. See dart_test.yaml.
       - name: Platform-neutral tests
         run: |
           (cd packages/stride_core && dart test)
-          flutter test
+          flutter test --exclude-tags golden
           (cd packages/stride_health && flutter test)
           (cd packages/stride_secure_store && flutter test)
 
