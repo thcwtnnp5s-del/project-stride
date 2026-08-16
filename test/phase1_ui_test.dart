@@ -31,6 +31,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/screen_header.dart';
+import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -566,6 +567,61 @@ void main() {
         }
       });
     }
+
+    /// Visual QA saw the header sitting ~10 px from the top edge and the tab
+    /// labels ~16 px from the bottom, and correctly declined to say whether
+    /// that was an app defect or a harness default — `flutter test` supplies
+    /// zero `viewPadding`.
+    ///
+    /// It is the harness. This test proves it rather than assuming it, by
+    /// supplying real insets and asserting the shell honours them. It also
+    /// guards the other half of the rule: exactly one `SafeArea` in the tree.
+    /// A second one nested inside the first silently double-insets, which is
+    /// how a tab bar acquires a 34 px float on one device family and looks
+    /// perfect everywhere else.
+    testWidgets('safe-area insets are applied, and applied exactly once', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+
+      const EdgeInsets insets = EdgeInsets.only(top: 59, bottom: 34);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(viewPadding: insets, padding: insets),
+          child: StrideApp(session: session),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The header clears the status region rather than sitting under it.
+      final double headerTop = tester.getTopLeft(find.byType(ScreenHeader)).dy;
+      expect(
+        headerTop,
+        greaterThanOrEqualTo(59),
+        reason: 'the header must sit below the status bar / Dynamic Island',
+      );
+
+      // The tab bar's ground reaches the bottom edge, and its content clears
+      // the home indicator.
+      final double barBottom = tester
+          .getBottomLeft(find.byType(StrideTabBar))
+          .dy;
+      expect(
+        852 - barBottom,
+        greaterThanOrEqualTo(34),
+        reason: 'tab-bar content must clear the home indicator',
+      );
+
+      // Exactly one SafeArea, from StrideScaffold. The product screens must not
+      // add their own.
+      expect(
+        find.byType(SafeArea),
+        findsNothing,
+        reason:
+            'StrideScaffold handles insets directly; a SafeArea anywhere under '
+            'it would double-inset',
+      );
+    });
 
     testWidgets('the three unbuilt tabs do not navigate', (
       WidgetTester tester,

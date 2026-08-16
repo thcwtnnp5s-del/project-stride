@@ -53,11 +53,27 @@ abstract final class PixelIcons {
 
   // ----------------------------------------------------------------- skills
 
+  /// All five Milestone 01 skills.
+  ///
+  /// Originally only Foraging shipped, on the reasoning that it was the only
+  /// skill with a Phase 1 *action*. Visual QA found the consequence: the
+  /// Character screen lists five skills, four rows had no icon, and the one
+  /// that did read as a stray decoration rather than as a member of a set.
+  /// Shipping four more 12 × 12 sprites was cheaper than the defect.
   static const Map<String, String> _skillIcons = <String, String>{
     'skill.foraging': '$_base/skill_foraging.png',
+    'skill.woodcutting': '$_base/skill_woodcutting.png',
+    'skill.mining': '$_base/skill_mining.png',
+    'skill.smithing': '$_base/skill_smithing.png',
+    'skill.cooking': '$_base/skill_cooking.png',
   };
 
-  /// The icon for a skill, or null when that skill has no Phase 1 surface.
+  /// The icon for a skill, or null when a content pack names one this set does
+  /// not cover.
+  ///
+  /// Callers laying out a list **must reserve the slot either way**. A row that
+  /// collapses when the icon is null gives the list two different left margins
+  /// and destroys its alignment rail.
   static String? skillFor(ContentId skill) => _skillIcons[skill.value];
 
   // ------------------------------------------------------------------ items

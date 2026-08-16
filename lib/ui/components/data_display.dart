@@ -54,15 +54,32 @@ class LabeledValueTile extends StatelessWidget {
               leading!,
               const SizedBox(width: StrideSpace.iconLabelGap),
             ],
+            // Shrink-to-fit rather than clip or overflow.
+            //
+            // These tiles sit two- and three-across inside cards, so their
+            // width falls as the phone narrows while the numeral inside them
+            // grows with the player's progress. At 320 dp a two-across tile
+            // gives a 22 px figure about 53 logical px, which `24 / 100` does
+            // not fit in — and the failure mode without this is a RenderFlex
+            // overflow, which is a yellow stripe on a shipping screen.
+            //
+            // `scaleDown` only ever reduces, so a figure that fits renders at
+            // exactly its designed size and the type scale is unchanged on
+            // every device where it fits. This is chrome, not pixel content —
+            // L-18's integer-scale rule governs sprites, and no sprite goes
+            // through here.
             Flexible(
-              child: Text(
-                value,
-                style: valueColor == null
-                    ? StrideType.numericValue
-                    : StrideType.numericValue.copyWith(color: valueColor),
-                maxLines: 1,
-                overflow: TextOverflow.clip,
-                softWrap: false,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: valueColor == null
+                      ? StrideType.numericValue
+                      : StrideType.numericValue.copyWith(color: valueColor),
+                  maxLines: 1,
+                  softWrap: false,
+                ),
               ),
             ),
           ],

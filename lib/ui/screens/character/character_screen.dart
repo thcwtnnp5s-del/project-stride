@@ -70,17 +70,50 @@ class CharacterScreen extends StatelessWidget {
                 child: PixelAsset.portrait(PixelIcons.portraitTemporary),
               ),
               const SizedBox(width: StrideSpace.s12),
+              const Expanded(
+                child: Text('Traveler', style: StrideType.cardTitle),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: StrideSpace.cardGap),
+
+        // Two tiles across the card's FULL width, rather than squeezed into the
+        // column beside the portrait.
+        //
+        // Visual QA found a single narrow tile leaving the right 40% of the
+        // identity card empty, which read as incomplete because every other card
+        // in the system fills its width. Adding a second tile beside the
+        // portrait fixed the emptiness and created a 73 dp tile at 320 dp, which
+        // a 22 px numeral overflows. Giving the pair the full width is the fix
+        // that holds at every supported size instead of trading one defect for
+        // another.
+        //
+        // Both figures are projections, not rule math: the character level is
+        // stored, and the skill totals sum `skillSummaries`, whose levels
+        // already came from the content curve's own `levelAt`.
+        SectionCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('Traveler', style: StrideType.cardTitle),
-                    const SizedBox(height: StrideSpace.s8),
-                    LabeledValueTile(
-                      label: 'Level',
-                      value: '${s.characterLevel}',
-                    ),
-                  ],
+                child: LabeledValueTile(
+                  label: 'Level',
+                  value: '${s.characterLevel}',
+                  unit: 'character',
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              Expanded(
+                child: LabeledValueTile(
+                  label: 'Skill levels',
+                  value:
+                      '${skills.fold(0, (int a, SkillSummary k) => a + k.level)}'
+                      ' / '
+                      '${skills.fold(0, (int a, SkillSummary k) => a + k.maxLevel)}',
+                  unit:
+                      '${skills.length} skills, cap '
+                      '${skills.isEmpty ? 0 : skills.first.maxLevel} each',
                 ),
               ),
             ],
@@ -146,10 +179,21 @@ class _SkillRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: StrideSpace.s10),
       child: Row(
         children: <Widget>[
-          if (icon != null) ...<Widget>[
-            InsetWell.square(contentSize: 24, child: PixelAsset.skill(icon)),
-            const SizedBox(width: StrideSpace.s10),
-          ],
+          // The rail is reserved whether or not this skill has an icon. A row
+          // that collapsed when the icon was null would give the list two
+          // different left margins and no alignment rail — which is exactly
+          // what Visual QA found when only one of five skills had a sprite.
+          SizedBox(
+            width: 26,
+            height: 26,
+            child: icon == null
+                ? null
+                : InsetWell.square(
+                    contentSize: 24,
+                    child: PixelAsset.skill(icon),
+                  ),
+          ),
+          const SizedBox(width: StrideSpace.s10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

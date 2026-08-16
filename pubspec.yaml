@@ -82,6 +82,10 @@ flutter:
     - assets/ui/v1/glyph_steps_muted.png
     - assets/ui/v1/glyph_arrow.png
     - assets/ui/v1/skill_foraging.png
+    - assets/ui/v1/skill_woodcutting.png
+    - assets/ui/v1/skill_mining.png
+    - assets/ui/v1/skill_smithing.png
+    - assets/ui/v1/skill_cooking.png
     - assets/ui/v1/item_meadow_herb.png
     - assets/ui/v1/item_training_sword.png
     - assets/ui/v1/item_training_axe.png
