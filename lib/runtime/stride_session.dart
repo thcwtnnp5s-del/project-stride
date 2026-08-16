@@ -149,6 +149,14 @@ final class SyncReport {
 }
 
 /// What working a resource node did.
+///
+/// Every outcome figure here is copied from the `ResourceGathered` event, which
+/// is the only place they are authoritative. **A caller must never recompute one
+/// from content.** `ResourceNodeDefinition` carries *base* values; the engine
+/// scales `stepCost`, `yieldsQuantity` and `xp` through the active balance
+/// profile as it applies them. Under `profile.production` every multiplier is
+/// 100 and the two coincide, which is exactly why reading content instead would
+/// look correct right up until it wasn't.
 final class ActionReport {
   const ActionReport({
     required this.succeeded,
@@ -156,6 +164,8 @@ final class ActionReport {
     required this.cost,
     this.itemName,
     this.quantity,
+    this.skillName,
+    this.experience,
     this.rejection,
     this.detail,
   });
@@ -169,6 +179,19 @@ final class ActionReport {
 
   final String? itemName;
   final int? quantity;
+
+  /// The skill the experience went to, by display name, and the amount awarded
+  /// — both profile-scaled, as awarded, and both null unless [succeeded].
+  ///
+  /// These exist so that a success message can say "+10 Foraging XP" without the
+  /// UI reading `ResourceNodeDefinition.xp` (an unscaled base value) or diffing
+  /// `SkillProgress` across the await (widget arithmetic over durable state).
+  /// Both of those are the failure `RULES.md` E-2 names, and both were reachable
+  /// while this type dropped a field its source event already carried.
+  ///
+  /// [experience] may legitimately be zero: a node with no xp is legal.
+  final String? skillName;
+  final int? experience;
 
   /// The stable [RejectionCode.wire] value, or null on success.
   final String? rejection;
@@ -307,6 +330,36 @@ final class StrideSession {
 
   bool _stale = false;
 
+  /// True while a mutating call is between its first `await` and its commit.
+  ///
+  /// ## Why this lives here and not in a widget
+  ///
+  /// Every gate in this class — the [_stale] check in [syncSteps] and [gather] —
+  /// is evaluated **before** the first `await` and never re-evaluated. That is
+  /// safe if and only if calls are single-flight, and until now the guarantee
+  /// lived in the dev harness's `_busy` flag: a widget's private field, one
+  /// screen away from being forgotten by the next screen.
+  ///
+  /// Two concrete failures the widget-level flag does not close:
+  ///
+  /// - **A manufactured fault.** Two in-flight commits compute against the same
+  ///   `_generation`; the loser is refused as a compare-and-swap conflict and
+  ///   sets [_stale]. That is a real refusal, correctly reported, caused
+  ///   entirely by a double tap — and indistinguishable from a storage fault.
+  /// - **A gate bypass.** Call B can pass the [_stale] check before call A's
+  ///   failed commit sets it, then execute and commit from a session the class
+  ///   has already declared unsafe.
+  ///
+  /// Refusing re-entrancy here makes both unreachable regardless of what any
+  /// widget remembers to do. A caller that double-taps gets a typed refusal
+  /// rather than a corrupted expectation.
+  bool _inFlight = false;
+
+  /// True while a sync or a gather is running. A UI may render a spinner from
+  /// this; it must not rely on it for correctness, because the refusal above is
+  /// what actually enforces single-flight.
+  bool get isBusy => _inFlight;
+
   /// True when the in-memory state has advanced past the durable state.
   ///
   /// Set by a refused commit. Every mutating method refuses while it is set:
@@ -314,9 +367,14 @@ final class StrideSession {
   /// and rebuilds from what is actually on disk. Continuing to issue commands
   /// against a state the disk does not have would pile a second divergence on
   /// top of the first.
+  ///
+  /// **While this is set, every figure this class reports is ahead of disk.**
+  /// A UI must stop presenting energy, inventory and skill values as truth and
+  /// offer [reload], rather than showing a status row beside numbers the next
+  /// launch will delete.
   bool get isStale => _stale;
 
-  bool get isReady => engine != null && !_stale;
+  bool get isReady => engine != null && !_stale && !_inFlight;
 
   /// Banked energy: granted and unspent. Never expires (`DECISIONS/0008`).
   int get usableEnergy => engine?.state.steps.banked ?? 0;
@@ -380,6 +438,24 @@ final class StrideSession {
   /// a state that has already diverged. The session goes stale and the harness
   /// offers a reload, which is the only honest recovery.
   Future<SyncReport> syncSteps({int maxPages = 64}) async {
+    // Refused rather than queued. A second sync has nothing to add — the first
+    // is already draining every page — and running it would commit against an
+    // expected generation the first is about to move. The `finally` is what
+    // makes the guard hold when a page throws rather than returning.
+    if (_inFlight) {
+      return const SyncReport.unavailable(
+        ProviderUnavailableReason.transientFailure,
+      );
+    }
+    _inFlight = true;
+    try {
+      return await _syncSteps(maxPages);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<SyncReport> _syncSteps(int maxPages) async {
     final GameEngine? active = engine;
     if (active == null || _stale) {
       return const SyncReport.unavailable(
@@ -554,7 +630,31 @@ final class StrideSession {
   /// The spend, the yield, and the experience are one event and one
   /// transaction. There is no window in which the energy is gone and the herbs
   /// have not arrived, on disk or in memory.
+  ///
+  /// A re-entrant call is refused rather than queued: two concurrent gathers
+  /// both validate against the same banked energy and both commit, so a single
+  /// tap that arrived twice would charge the player twice. The engine and CAS
+  /// keep that consistent, but consistent-and-charged-twice is still wrong.
   Future<ActionReport> gather(ContentId node) async {
+    if (_inFlight) {
+      final ResourceNodeDefinition? busyNode = registry?.resourceNodes[node];
+      return ActionReport(
+        succeeded: false,
+        nodeName: busyNode?.displayName ?? node.value,
+        cost: costOf(node) ?? 0,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      return await _gather(node);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<ActionReport> _gather(ContentId node) async {
     final GameEngine? active = engine;
     final ContentRegistry? content = registry;
     final ResourceNodeDefinition? definition = content?.resourceNodes[node];
@@ -609,6 +709,11 @@ final class StrideSession {
       itemName:
           content.items[gathered.item]?.displayName ?? gathered.item.value,
       quantity: gathered.quantity,
+      // Both taken from the event rather than from the node definition, for the
+      // reason on the type: the definition's figures are unscaled base values.
+      skillName:
+          content.skills[gathered.skill]?.displayName ?? gathered.skill.value,
+      experience: gathered.experience,
     );
   }
 
