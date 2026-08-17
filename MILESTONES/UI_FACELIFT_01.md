@@ -1,19 +1,43 @@
 # UI Facelift 01 — responsive hardening and presentation quality
 
 ```
-RESPONSIVE HARDENING: PASS — owner, physical iPhone, 2026-08-17
-VISUAL FACELIFT:      composition pass applied, awaiting owner device review
+STATUS: CLOSED — OWNER APPROVED
+Verdict written by: owner, on a physical iPhone, 2026-08-17
 Branch: ui-facelift-01
 ```
 
-**D-01 is confirmed fixed on hardware.** The owner ran the branch on a physical
-iPhone and reports the full real banked value `459,043` rendering correctly on
-Adventure, Inventory, Character and World. The responsive architecture is
-accepted and is not reopened.
+Closed across **three physical-device reviews**, each of which changed the work:
 
-The owner did **not** accept the workstream as a visual facelift: *"the app is
-cleaner and safer, but visually it still feels too close to Phase 1."* §7 below
-records the composition pass that answers that.
+| Review | Verdict | What it changed |
+|---|---|---|
+| 1 — responsive hardening | **PASS**. `459,043` renders in full on all four screens | D-01 confirmed fixed on hardware; the visual facelift **refused** — *"cleaner and safer, but visually it still feels too close to Phase 1"* |
+| 2 — composition pass | Recomposition **PASS**, three follow-ups | The activity stage to be restored as real animation space; two art workstreams to be recorded |
+| 3 — the 180 dp stage | **PASS**, all ten criteria | Closure |
+
+The third review exists because the owner **refused to certify a 4 dp fold
+margin from desk evidence**. That refusal was correct and it was load-bearing:
+measuring the margin properly found the estimate wrong by 60 dp on one viewport
+family and found a cliff nobody had seen. §7b.
+
+### Owner verdict, review 3
+
+```
+Adventure stage concept                          PASS
+180 x 180 stage on this device                   PASS
+Gather fully visible without scrolling           PASS
+Animation space materially better                PASS
+Compact walking / secondary Sync treatment       PASS
+D-01 full banked-value fix                       PASS
+Inventory composition                            PASS
+Character composition                            PASS
+World framing                                    PASS
+Bottom navigation                                PASS
+```
+
+> **"This UI is NOT final art/polish, but it is good enough to stop iterating."**
+
+Remaining visual polish is deferred by owner decision. OD-03 and OD-04 are
+approved as deferred art workstreams and are **not** started.
 
 Opened after Playable Demo Phase 1 closed on a physical iPhone, to make the UI
 feel deliberate before large new systems are built on it, and to fix **D-01** as
@@ -213,7 +237,8 @@ short figure is also real.
 busy state, asserting `busy() == false` rather than lengthening a sleep. Three
 consecutive full runs, clean.
 
-**Totals: 158 app tests + 8 goldens, all green.**
+**Totals at closure: 165 app tests + 8 goldens, all green** — 64 responsive,
+5 fold-clearance (§7b), and the pre-existing suite.
 
 `Scripts/verify.sh --strict` passes end to end — core purity, the product-UI
 boundary, art packaging, dependency policy, storage privacy, and the iOS,
@@ -417,18 +442,61 @@ side-by-side layout from 375 dp up and clear the fold on every phone in the tabl
 except the 360 dp Android — which is a different problem, since at 360 the widest
 side-by-side stage is 154.7 whatever else changes.
 
-This is the decision the device review exists to settle, and it is now a choice
-between named numbers rather than a guess. **The stage was not changed on the
-strength of this**; the owner asked to see 180 on hardware first.
-
 The goldens flatter all of it by 90–100 dp, because `flutter test` supplies no
 insets — which is why the golden shows the button comfortably clear and a phone
 may not.
 
-> **Worth building later, not now:** the probe that produced the first table is a
-> property test of exactly the M-06 shape — *does the primary control clear the
-> fold on the supported viewports* — and nothing in the repository asserts it.
-> It was run as a throwaway and deleted to keep this pass to its scope.
+### The owner settled it on hardware: 180 stays
+
+The stage was deliberately **not** adjusted on the strength of the table above.
+The owner reviewed 180 on the phone and passed it, including *"Gather fully
+visible without scrolling"* — which means their device took the **side-by-side**
+branch, and is therefore 390 dp wide or wider.
+
+Two consequences worth carrying rather than burying:
+
+- **The 375 dp stacked fallback has never been seen on hardware.** It is
+  measured, asserted and accepted — a scroll rather than a crushed title — but
+  the owner's device did not exercise it, so no human has looked at it. It is
+  correct as far as anything here can tell, and that is a weaker claim than the
+  rest of this document makes.
+- **The margin on a 390/393 dp phone is 18 and 14 dp.** It is real and it holds,
+  and it is small enough that a future card change can spend it without anyone
+  noticing. `fold_clearance_test.dart` is what makes that a failing test rather
+  than a discovery.
+
+### 7b. The fold is now asserted, not estimated
+
+`test/fold_clearance_test.dart`, **5 cases**, added at closure.
+
+The comment above used to end *"worth building later"*. It was built, because the
+sequence that produced it is the argument for it: a height was estimated in a
+comment, the estimate was wrong by 60 dp on one viewport family, and the error
+was a **cliff** — a layout branch flipping — that no arithmetic in a comment
+would have found. `MISTAKES.md` M-06, in its own words: assert the property, do
+not estimate it.
+
+It asserts two things per device, against **real safe-area insets**, which the
+harness supplies as zero and the goldens therefore cannot judge:
+
+1. **Which branch the card takes.** Read off geometry — is the title to the
+   right of the figure, or under it — so the cliff is pinned rather than
+   rediscovered.
+2. **That the only game action on the screen is fully visible without
+   scrolling**, wherever the side-by-side branch holds.
+
+The 375 dp and 360 dp cases are asserted as **stacked and reachable** rather than
+quietly excluded. That is the owner's accepted trade — a crushed node title is
+worse than a scroll — and pinning it means it cannot change in *either*
+direction without someone reading the note.
+
+**Mutation-checked.** Raising the stage to 200 dp fails the 390 and 393 cases,
+which are exactly the two that flip to stacked at that size. A test that cannot
+fail is worse than no test.
+
+`loadRealFont()` is mandatory here: the branch under test is decided by
+*measuring a string*, and the harness fallback is ~50% wider than any font this
+app ships against.
 
 ### 2 and 3. Two art workstreams recorded, not started
 
@@ -447,12 +515,12 @@ session meets the task rather than the assets' apparent finality.
 
 ## 10. What this pass does NOT cover
 
-- **The physical device, for the composition pass.** The owner ran the
-  *responsive* build on an iPhone and passed it; §7's changes have been seen only
-  as renders. Same rule as before — a facelift is not complete until it has been
-  looked at, running, on a device (`MISTAKES.md` M-06).
-- **Safe-area insets.** Still zero under `flutter test`; the shell's inset
-  handling is guarded by an existing test but only against synthetic values.
+- **The 375 dp and 360 dp viewports on hardware.** Both take the stacked
+  fallback and both are asserted by `fold_clearance_test.dart`, but the owner's
+  device took the side-by-side branch, so no human has looked at the stacked
+  arrangement running. Measured and accepted is not the same as seen (M-06).
+- **Safe-area insets outside the two tests that supply them.** Still zero under
+  `flutter test` by default; the goldens are not evidence about the fold.
 - **SF Pro.** Roboto is a stand-in with similar advance widths, not the font an
   iPhone draws.
 - **Gameplay and persistence.** No command, reducer, save, ledger or health path
@@ -473,10 +541,22 @@ session meets the task rather than the assets' apparent finality.
    ×1 and phones are 393 and 430 dp wide, so a few dp of app ground shows either
    side. Fixing it means a non-integer scale (forbidden, L-18) or new art (out
    of scope for this pass).
-3. **`_PlaceRow` colours the current location teal**, which L-16 reserves for
-   walking and steps. It predates this pass; the new caption deliberately does
-   **not** repeat it, and the question is raised for the owner rather than
-   decided here (`RULES.md` G-3). See `JOURNAL/OPEN_QUESTIONS.md` Q-04.
-4. **Adventure is still about two screenfuls** before the gather button. The
-   removed row and tightened gaps shortened it; the vignette and the activity
-   stage are the height, and both are approved presentation.
+3. ~~`_PlaceRow` colours the current location teal.~~ **Closed** — removed in the
+   composition pass when it began reading as a travel control. Whether the
+   current location should carry a colour of its own is still open as
+   `JOURNAL/OPEN_QUESTIONS.md` **Q-04**; what is closed is the L-16 breach.
+4. **The fold margin is 14–18 dp** on 390/393 dp phones. Real, holding, and
+   small enough that a future card change could spend it silently.
+   `fold_clearance_test.dart` turns that from a discovery into a failing test.
+5. **Deferred by owner decision at closure**, not omissions:
+   - **OD-03** — the turquoise boot is temporary art awaiting one canonical
+     pixel step-economy mark, used everywhere the step economy is named.
+   - **OD-04** — the five skill icons are temporary art and **one workstream
+     against one specification**, not five generations. The pot/anvil confusion
+     Visual QA reported is the acceptance case.
+   - Remaining minor visual polish generally. The owner's words:
+     *"NOT final art/polish, but good enough to stop iterating."*
+   - **Q-04**, above.
+   - The inert 393 × 176 vignette is still the largest mass on the Adventure
+     screen, and the gather card ends with bare ground under it when a location
+     has one node. Both are content and art questions, not layout ones.

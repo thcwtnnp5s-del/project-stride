@@ -7,15 +7,14 @@ signed by the owner on 2026-08-16 under `MISTAKES.md` M-04. The whole loop runs
 through the **product UI**, not the dev harness.
 Record: `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md`.
 
-**Current Phase: UI Facelift 01 — implementation complete on branch
-`ui-facelift-01`, awaiting the owner's physical-device review.**
-Record: `MILESTONES/UI_FACELIFT_01.md`. **D-01 is fixed in code and is not
-closed**; it closes when the owner sees the whole banked figure on the phone,
-which is M-06's entire point. Two further on-device clipping defects the audit's
-new measurement found — `EXPERIENCE` and the `90` step cost, both clipped at
-every supported width — are fixed in the same pass.
-F-07 remains unblocked and unstarted. OD-01 and OD-02 are untouched. Phase 2 not
-begun.
+✅ **UI FACELIFT 01 — CLOSED, OWNER APPROVED**, 2026-08-17, on a physical
+iPhone. Branch `ui-facelift-01`. Record: `MILESTONES/UI_FACELIFT_01.md`.
+**D-01 is closed** — the owner confirmed the full `459,043` renders on all four
+screens. Ten of ten closure criteria PASS.
+
+**Current Phase: none. No milestone is open.** F-07 remains unblocked and
+unstarted. OD-01 through OD-04 are recorded owner direction and unstarted.
+Phase 2 not begun.
 
 ## Project identity
 
@@ -202,8 +201,25 @@ The player must be able to:
       its regression test are in the device result, §5.
       **Fixed on `ui-facelift-01`; closes on the owner's device review.**
 
-36. **UI FACELIFT 01 — implementation complete.** ← current state
+36. ✅ **UI FACELIFT 01 — CLOSED, OWNER APPROVED.** ← current state
     - Branch `ui-facelift-01`. Record: `MILESTONES/UI_FACELIFT_01.md`.
+    - **Closed across three physical-device reviews**, each of which changed the
+      work. Review 1 passed the responsive hardening and **refused** the facelift
+      — *"cleaner and safer, but visually it still feels too close to Phase 1"*.
+      Review 2 passed the recomposition and asked for the activity stage back as
+      real animation space. Review 3 passed the 180 dp stage, ten of ten.
+    - **The owner's refusal to certify a 4 dp margin from desk evidence is the
+      most reusable thing in this milestone.** Measuring it properly found the
+      estimate wrong by 60 dp on one viewport family, and found a **cliff**: at
+      375 dp a 180 dp stage leaves 127 dp for a title that measures 137.3, so the
+      card falls back to stacking and the gather button drops ~94 dp. No
+      arithmetic in a comment would have found that.
+      `test/fold_clearance_test.dart` now asserts it on five viewports with real
+      safe-area insets, and is mutation-checked.
+    - **Deferred by owner decision at closure**, not omitted: remaining minor
+      visual polish; **OD-03**, one canonical pixel step-economy mark to replace
+      the temporary turquoise boot; **OD-04**, a cohesive PixelLab skill-icon set
+      as one workstream against one specification. No assets were generated.
     - **D-01 fixed as a shape, not as a number.** A new `AdaptiveText`
       primitive is the one implementation of "this text must not lose a
       character"; `bankedFigureWidth` became `bankedFigureMinWidth`, so the
@@ -224,10 +240,18 @@ The player must be able to:
       redundant `AVAILABLE` row and the two `→` glyphs removed, Character's two
       identity cards merged into one, a `YOU ARE HERE` caption under the region
       map, and the inventory grid's density and label weight raised.
-    - **158 app tests, 8 goldens**, all green. No gameplay, command, reducer,
-      save, ledger or health path was touched.
-    - **Not device-verified.** That needs the owner's Mac and iPhone, and this
-      pass is not complete without it (`MISTAKES.md` M-06).
+    - Composition pass, after review 2: the walking card became a ~70 dp band,
+      `Sync steps` became a secondary control, the activity stage moved beside
+      the node identity and then grew to a 180 dp animation viewport with the
+      figure bottom-aligned, the inventory grid gained a frame and category
+      grouping, Character's progression figures gained weight against the
+      portrait, and `YOU ARE HERE` moved onto the map.
+    - **165 app tests, 8 goldens**, all green; `verify.sh --strict` passes. No
+      gameplay, command, reducer, save, ledger or health path was touched.
+    - **Still unseen on hardware:** the 375 dp and 360 dp stacked fallback. It is
+      measured, asserted and accepted — a scroll rather than a crushed title —
+      but the owner's device took the side-by-side branch, so nobody has looked
+      at it running. Measured and accepted is not the same as seen.
 
 ## Next planned activity
 
@@ -333,7 +357,7 @@ seven of eight pages — was a native adapter offering a candidate cursor
 mid-read. It was inert (nothing prohibited ever became durable, so the save was
 never reset), it is fixed in `5b68d33`, and the fix is confirmed on hardware.
 
-**540 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, 27 app, 17 `stride_health` — plus **38 Swift simulator tests** and 5 Kotlin in CI.
+**678 automated Dart tests**, zero skipped: 357 `stride_core`, 108 `stride_storage`, 31 `stride_secure_store`, **165 app**, 17 `stride_health` — plus **38 Swift simulator tests** and 5 Kotlin in CI.
 
 Final F-06 verification: CI run **`30780992412`** (all four jobs green) and Android process-death run **`30781003035`** (PASS), both against `2d20280`.
 
