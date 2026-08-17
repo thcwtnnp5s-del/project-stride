@@ -214,6 +214,15 @@ Map<String, Object?> encodeStepLedger(StepLedger ledger) => <String, Object?>{
   'totalObserved': ledger.totalObserved,
   'totalGranted': ledger.totalGranted,
   'totalSpent': ledger.totalSpent,
+  // State version 2. Absent in a v1 save, where its absence means the origin
+  // epoch — every granted step is playable, which is exactly what a v1 save
+  // meant. Written unconditionally rather than omitted at the origin: this is
+  // the field the whole cutover turns on, and a save that is silent about it is
+  // a save that has to be interpreted.
+  'epoch': <String, Object?>{
+    'grantedAtStart': ledger.epoch.grantedAtStart,
+    'spentAtStart': ledger.epoch.spentAtStart,
+  },
   'grantedBeforeWatermark': ledger.grantedBeforeWatermark,
   'correctionsObserved': ledger.correctionsObserved,
   'unreachableGapEvents': ledger.unreachableGapEvents,
@@ -480,7 +489,10 @@ abstract interface class StateDecoder {
 final class StateCodecs {
   const StateCodecs._();
 
-  static const List<StateDecoder> _decoders = <StateDecoder>[V1StateDecoder()];
+  static const List<StateDecoder> _decoders = <StateDecoder>[
+    V1StateDecoder(),
+    V2StateDecoder(),
+  ];
 
   static StateDecoder? decoderFor(int version) {
     for (final StateDecoder d in _decoders) {
@@ -491,6 +503,16 @@ final class StateCodecs {
 }
 
 /// Decoder for state version 1.
+///
+/// **Frozen.** A v1 save is read by this and by nothing else, and the frozen
+/// fixture in `test/save_migration_test.dart` is the proof that it still reads
+/// one. It is never edited to accommodate a new field — that is what a new
+/// decoder is for.
+///
+/// A v1 state has no `steps.epoch`, so it decodes to [EconomyEpoch.origin]:
+/// every granted step is playable. That is not a fallback, it is what a v1 save
+/// meant. The state comes back declaring `stateVersion: 1`, which is the signal
+/// `BootstrapCoordinator` uses to run the Phase 2 cutover exactly once.
 final class V1StateDecoder implements StateDecoder {
   const V1StateDecoder();
 
@@ -498,219 +520,259 @@ final class V1StateDecoder implements StateDecoder {
   int get version => 1;
 
   @override
-  GameState decode(Map<String, Object?> json) {
-    Map<String, Object?> objectAt(Map<String, Object?> from, String key) {
-      final Object? v = from[key];
-      if (v is! Map<String, Object?>) {
-        throw SaveCodecException('$key is not an object');
-      }
-      return v;
+  GameState decode(Map<String, Object?> json) =>
+      _decodeStateShape(json, carriesEpoch: false);
+}
+
+/// Decoder for state version 2 — the current shape.
+///
+/// Differs from v1 in exactly one place: `steps.epoch` is present and is read
+/// (`DECISIONS/0016`). Everything else is byte-for-byte the same geometry, which
+/// is why the two share one implementation rather than being copied — a copy
+/// would let the shapes drift in the fields that are supposed to be identical.
+final class V2StateDecoder implements StateDecoder {
+  const V2StateDecoder();
+
+  @override
+  int get version => 2;
+
+  @override
+  GameState decode(Map<String, Object?> json) =>
+      _decodeStateShape(json, carriesEpoch: true);
+}
+
+/// The shared state shape, parameterised by the one field that differs.
+GameState _decodeStateShape(
+  Map<String, Object?> json, {
+  required bool carriesEpoch,
+}) {
+  Map<String, Object?> objectAt(Map<String, Object?> from, String key) {
+    final Object? v = from[key];
+    if (v is! Map<String, Object?>) {
+      throw SaveCodecException('$key is not an object');
     }
-
-    int intAt(Map<String, Object?> from, String key) {
-      final Object? v = from[key];
-      if (v is! int) throw SaveCodecException('$key is not an integer');
-      return v;
-    }
-
-    int? nullableIntAt(Map<String, Object?> from, String key) {
-      final Object? v = from[key];
-      if (v == null) return null;
-      if (v is! int) throw SaveCodecException('$key is not an integer or null');
-      return v;
-    }
-
-    String stringAt(Map<String, Object?> from, String key) {
-      final Object? v = from[key];
-      if (v is! String) throw SaveCodecException('$key is not a string');
-      return v;
-    }
-
-    List<Object?> listAt(Map<String, Object?> from, String key) {
-      final Object? v = from[key];
-      if (v is! List<Object?>) throw SaveCodecException('$key is not a list');
-      return v;
-    }
-
-    ContentId idOf(String raw, String path) {
-      final ContentIdParse parsed = ContentId.parse(raw);
-      final ContentId? id = parsed.id;
-      if (id == null) {
-        throw SaveCodecException(
-          '$path is not a valid content id: ${parsed.explanation}',
-        );
-      }
-      return id;
-    }
-
-    Map<ContentId, int> idCounts(String key) {
-      final Map<ContentId, int> out = <ContentId, int>{};
-      for (final Object? entry in listAt(json, key)) {
-        if (entry is! Map<String, Object?>) {
-          throw SaveCodecException('$key entry is not an object');
-        }
-        out[idOf(stringAt(entry, 'id'), '$key.id')] = intAt(entry, 'n');
-      }
-      return out;
-    }
-
-    final Map<String, Object?> playerJson = objectAt(json, 'player');
-    final Map<String, Object?> worldJson = objectAt(json, 'world');
-    final Map<String, Object?> equipmentJson = objectAt(json, 'equipment');
-
-    final Map<EquipmentSlot, ContentId> equipment =
-        <EquipmentSlot, ContentId>{};
-    for (final MapEntry<String, Object?> e in equipmentJson.entries) {
-      final EquipmentSlot slot = EquipmentSlot.values.firstWhere(
-        (EquipmentSlot s) => s.name == e.key,
-        orElse: () =>
-            throw SaveCodecException('unknown equipment slot ${e.key}'),
-      );
-      final Object? raw = e.value;
-      if (raw is! String) {
-        throw SaveCodecException('equipment.${e.key} is not a string');
-      }
-      equipment[slot] = idOf(raw, 'equipment.${e.key}');
-    }
-
-    return GameState(
-      stateVersion: intAt(json, 'stateVersion'),
-      profileId: idOf(stringAt(json, 'profileId'), 'profileId'),
-      contentPackVersion: intAt(json, 'contentPackVersion'),
-      eventSequence: intAt(json, 'eventSequence'),
-      player: PlayerState(
-        level: intAt(playerJson, 'level'),
-        experience: intAt(playerJson, 'experience'),
-      ),
-      inventory: Inventory(idCounts('inventory')),
-      equipment: Equipment(equipment),
-      skills: SkillProgress(idCounts('skills')),
-      world: WorldState(
-        currentLocation: idOf(
-          stringAt(worldJson, 'currentLocation'),
-          'world.currentLocation',
-        ),
-        unlockedLocations: <ContentId>{
-          for (final Object? raw in listAt(worldJson, 'unlockedLocations'))
-            if (raw is String)
-              idOf(raw, 'world.unlockedLocations')
-            else
-              throw const SaveCodecException(
-                'world.unlockedLocations entry is not a string',
-              ),
-        },
-      ),
-      steps: _decodeLedger(
-        objectAt(json, 'steps'),
-        intAt: intAt,
-        nullableIntAt: nullableIntAt,
-        stringAt: stringAt,
-        listAt: listAt,
-        objectAt: objectAt,
-      ),
-    );
+    return v;
   }
 
-  StepLedger _decodeLedger(
-    Map<String, Object?> json, {
-    required int Function(Map<String, Object?>, String) intAt,
-    required int? Function(Map<String, Object?>, String) nullableIntAt,
-    required String Function(Map<String, Object?>, String) stringAt,
-    required List<Object?> Function(Map<String, Object?>, String) listAt,
-    required Map<String, Object?> Function(Map<String, Object?>, String)
-    objectAt,
-  }) {
-    final Map<String, Object?> checkpointJson = objectAt(json, 'checkpoint');
-    final Map<String, Object?> recoveryJson = objectAt(json, 'recovery');
+  int intAt(Map<String, Object?> from, String key) {
+    final Object? v = from[key];
+    if (v is! int) throw SaveCodecException('$key is not an integer');
+    return v;
+  }
 
-    final Object? cursorRaw = checkpointJson['cursor'];
-    final SyncCursor? cursor;
-    if (cursorRaw == null) {
-      cursor = null;
-    } else if (cursorRaw is String) {
-      cursor = SyncCursor(base64Decode(cursorRaw));
-    } else {
-      throw const SaveCodecException('checkpoint.cursor is not a string');
+  int? nullableIntAt(Map<String, Object?> from, String key) {
+    final Object? v = from[key];
+    if (v == null) return null;
+    if (v is! int) throw SaveCodecException('$key is not an integer or null');
+    return v;
+  }
+
+  String stringAt(Map<String, Object?> from, String key) {
+    final Object? v = from[key];
+    if (v is! String) throw SaveCodecException('$key is not a string');
+    return v;
+  }
+
+  List<Object?> listAt(Map<String, Object?> from, String key) {
+    final Object? v = from[key];
+    if (v is! List<Object?>) throw SaveCodecException('$key is not a list');
+    return v;
+  }
+
+  ContentId idOf(String raw, String path) {
+    final ContentIdParse parsed = ContentId.parse(raw);
+    final ContentId? id = parsed.id;
+    if (id == null) {
+      throw SaveCodecException(
+        '$path is not a valid content id: ${parsed.explanation}',
+      );
     }
+    return id;
+  }
 
-    final Map<StepOriginKey, int> originWatermarks = <StepOriginKey, int>{};
-    final Object? rawMarks = checkpointJson['originWatermarks'];
-    if (rawMarks is List<Object?>) {
-      for (final Object? raw in rawMarks) {
-        if (raw is! Map<String, Object?>) {
-          throw const SaveCodecException(
-            'originWatermarks entry is not an object',
-          );
-        }
-        final StepOriginKey? key = StepOriginKey.tryParse(stringAt(raw, 'o'));
-        if (key == null) {
-          throw const SaveCodecException(
-            'originWatermarks.o is not a valid origin key',
-          );
-        }
-        originWatermarks[key] = intAt(raw, 'w');
-      }
-    }
-
-    final Map<ObservationKey, int> slices = <ObservationKey, int>{};
-    for (final Object? entry in listAt(json, 'grantedSlices')) {
+  Map<ContentId, int> idCounts(String key) {
+    final Map<ContentId, int> out = <ContentId, int>{};
+    for (final Object? entry in listAt(json, key)) {
       if (entry is! Map<String, Object?>) {
-        throw const SaveCodecException('grantedSlices entry is not an object');
+        throw SaveCodecException('$key entry is not an object');
       }
-      final String rawOrigin = stringAt(entry, 'o');
-      final StepOriginKey? origin = StepOriginKey.tryParse(rawOrigin);
-      if (origin == null) {
-        // Length only. The rejected value may be exactly the display name the
-        // type exists to keep out, and this message reaches a diagnostic.
-        throw SaveCodecException(
-          'grantedSlices.o is not a valid origin key (length ${rawOrigin.length})',
+      out[idOf(stringAt(entry, 'id'), '$key.id')] = intAt(entry, 'n');
+    }
+    return out;
+  }
+
+  final Map<String, Object?> playerJson = objectAt(json, 'player');
+  final Map<String, Object?> worldJson = objectAt(json, 'world');
+  final Map<String, Object?> equipmentJson = objectAt(json, 'equipment');
+
+  final Map<EquipmentSlot, ContentId> equipment = <EquipmentSlot, ContentId>{};
+  for (final MapEntry<String, Object?> e in equipmentJson.entries) {
+    final EquipmentSlot slot = EquipmentSlot.values.firstWhere(
+      (EquipmentSlot s) => s.name == e.key,
+      orElse: () => throw SaveCodecException('unknown equipment slot ${e.key}'),
+    );
+    final Object? raw = e.value;
+    if (raw is! String) {
+      throw SaveCodecException('equipment.${e.key} is not a string');
+    }
+    equipment[slot] = idOf(raw, 'equipment.${e.key}');
+  }
+
+  return GameState(
+    stateVersion: intAt(json, 'stateVersion'),
+    profileId: idOf(stringAt(json, 'profileId'), 'profileId'),
+    contentPackVersion: intAt(json, 'contentPackVersion'),
+    eventSequence: intAt(json, 'eventSequence'),
+    player: PlayerState(
+      level: intAt(playerJson, 'level'),
+      experience: intAt(playerJson, 'experience'),
+    ),
+    inventory: Inventory(idCounts('inventory')),
+    equipment: Equipment(equipment),
+    skills: SkillProgress(idCounts('skills')),
+    world: WorldState(
+      currentLocation: idOf(
+        stringAt(worldJson, 'currentLocation'),
+        'world.currentLocation',
+      ),
+      unlockedLocations: <ContentId>{
+        for (final Object? raw in listAt(worldJson, 'unlockedLocations'))
+          if (raw is String)
+            idOf(raw, 'world.unlockedLocations')
+          else
+            throw const SaveCodecException(
+              'world.unlockedLocations entry is not a string',
+            ),
+      },
+    ),
+    steps: _decodeLedger(
+      objectAt(json, 'steps'),
+      carriesEpoch: carriesEpoch,
+      intAt: intAt,
+      nullableIntAt: nullableIntAt,
+      stringAt: stringAt,
+      listAt: listAt,
+      objectAt: objectAt,
+    ),
+  );
+}
+
+/// The shared ledger shape.
+///
+/// [carriesEpoch] is false for state version 1, whose saves predate the cutover
+/// field. Its absence there is not missing data — it is the origin epoch, which
+/// is what a v1 save meant by construction.
+StepLedger _decodeLedger(
+  Map<String, Object?> json, {
+  required bool carriesEpoch,
+  required int Function(Map<String, Object?>, String) intAt,
+  required int? Function(Map<String, Object?>, String) nullableIntAt,
+  required String Function(Map<String, Object?>, String) stringAt,
+  required List<Object?> Function(Map<String, Object?>, String) listAt,
+  required Map<String, Object?> Function(Map<String, Object?>, String) objectAt,
+}) {
+  final Map<String, Object?> checkpointJson = objectAt(json, 'checkpoint');
+  final Map<String, Object?> recoveryJson = objectAt(json, 'recovery');
+
+  final Object? cursorRaw = checkpointJson['cursor'];
+  final SyncCursor? cursor;
+  if (cursorRaw == null) {
+    cursor = null;
+  } else if (cursorRaw is String) {
+    cursor = SyncCursor(base64Decode(cursorRaw));
+  } else {
+    throw const SaveCodecException('checkpoint.cursor is not a string');
+  }
+
+  final Map<StepOriginKey, int> originWatermarks = <StepOriginKey, int>{};
+  final Object? rawMarks = checkpointJson['originWatermarks'];
+  if (rawMarks is List<Object?>) {
+    for (final Object? raw in rawMarks) {
+      if (raw is! Map<String, Object?>) {
+        throw const SaveCodecException(
+          'originWatermarks entry is not an object',
         );
       }
-      slices[ObservationKey(
-        origin: origin,
-        bucket: TimeBucket(
-          startMillis: intAt(entry, 's'),
-          endMillis: intAt(entry, 'e'),
-        ),
-      )] = intAt(
-        entry,
-        'g',
+      final StepOriginKey? key = StepOriginKey.tryParse(stringAt(raw, 'o'));
+      if (key == null) {
+        throw const SaveCodecException(
+          'originWatermarks.o is not a valid origin key',
+        );
+      }
+      originWatermarks[key] = intAt(raw, 'w');
+    }
+  }
+
+  final Map<ObservationKey, int> slices = <ObservationKey, int>{};
+  for (final Object? entry in listAt(json, 'grantedSlices')) {
+    if (entry is! Map<String, Object?>) {
+      throw const SaveCodecException('grantedSlices entry is not an object');
+    }
+    final String rawOrigin = stringAt(entry, 'o');
+    final StepOriginKey? origin = StepOriginKey.tryParse(rawOrigin);
+    if (origin == null) {
+      // Length only. The rejected value may be exactly the display name the
+      // type exists to keep out, and this message reaches a diagnostic.
+      throw SaveCodecException(
+        'grantedSlices.o is not a valid origin key (length ${rawOrigin.length})',
       );
     }
-
-    return StepLedger(
-      totalObserved: intAt(json, 'totalObserved'),
-      totalGranted: intAt(json, 'totalGranted'),
-      totalSpent: intAt(json, 'totalSpent'),
-      grantedSlices: slices,
-      grantedBeforeWatermark: intAt(json, 'grantedBeforeWatermark'),
-      correctionsObserved: intAt(json, 'correctionsObserved'),
-      unreachableGapEvents: intAt(json, 'unreachableGapEvents'),
-      lateDiscardedSlices: intAt(json, 'lateDiscardedSlices'),
-      sourceState: _enumByName(
-        SourceState.values,
-        stringAt(json, 'sourceState'),
-        'sourceState',
+    slices[ObservationKey(
+      origin: origin,
+      bucket: TimeBucket(
+        startMillis: intAt(entry, 's'),
+        endMillis: intAt(entry, 'e'),
       ),
-      checkpoint: SyncCheckpoint(
-        cursor: cursor,
-        originWatermarks: originWatermarks,
-        watermarkMillis: nullableIntAt(checkpointJson, 'watermarkMillis'),
-        syncCount: intAt(checkpointJson, 'syncCount'),
-      ),
-      recovery: RecoveryState(
-        phase: _enumByName(
-          RecoveryPhase.values,
-          stringAt(recoveryJson, 'phase'),
-          'recovery.phase',
-        ),
-        windowStartMillis: nullableIntAt(recoveryJson, 'windowStartMillis'),
-        windowEndMillis: nullableIntAt(recoveryJson, 'windowEndMillis'),
-        truncated: recoveryJson['truncated'] == true,
-        attempts: intAt(recoveryJson, 'attempts'),
-      ),
+    )] = intAt(
+      entry,
+      'g',
     );
   }
+
+  final EconomyEpoch epoch;
+  if (!carriesEpoch) {
+    epoch = const EconomyEpoch.origin();
+  } else {
+    final Map<String, Object?> epochJson = objectAt(json, 'epoch');
+    epoch = EconomyEpoch(
+      grantedAtStart: intAt(epochJson, 'grantedAtStart'),
+      spentAtStart: intAt(epochJson, 'spentAtStart'),
+    );
+  }
+
+  return StepLedger(
+    totalObserved: intAt(json, 'totalObserved'),
+    totalGranted: intAt(json, 'totalGranted'),
+    totalSpent: intAt(json, 'totalSpent'),
+    epoch: epoch,
+    grantedSlices: slices,
+    grantedBeforeWatermark: intAt(json, 'grantedBeforeWatermark'),
+    correctionsObserved: intAt(json, 'correctionsObserved'),
+    unreachableGapEvents: intAt(json, 'unreachableGapEvents'),
+    lateDiscardedSlices: intAt(json, 'lateDiscardedSlices'),
+    sourceState: _enumByName(
+      SourceState.values,
+      stringAt(json, 'sourceState'),
+      'sourceState',
+    ),
+    checkpoint: SyncCheckpoint(
+      cursor: cursor,
+      originWatermarks: originWatermarks,
+      watermarkMillis: nullableIntAt(checkpointJson, 'watermarkMillis'),
+      syncCount: intAt(checkpointJson, 'syncCount'),
+    ),
+    recovery: RecoveryState(
+      phase: _enumByName(
+        RecoveryPhase.values,
+        stringAt(recoveryJson, 'phase'),
+        'recovery.phase',
+      ),
+      windowStartMillis: nullableIntAt(recoveryJson, 'windowStartMillis'),
+      windowEndMillis: nullableIntAt(recoveryJson, 'windowEndMillis'),
+      truncated: recoveryJson['truncated'] == true,
+      attempts: intAt(recoveryJson, 'attempts'),
+    ),
+  );
 }
 
 T _enumByName<T extends Enum>(List<T> values, String name, String path) {

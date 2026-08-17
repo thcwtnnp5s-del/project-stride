@@ -163,6 +163,92 @@ final class SyncCheckpoint {
   );
 }
 
+/// Where the playable step economy begins.
+///
+/// ## Why this exists
+///
+/// Phase 1's device validation left the save holding roughly 459,000 banked
+/// steps. Those steps are real — the device genuinely observed them, and the
+/// ledger genuinely credited them — but they were accumulated by an integration
+/// proving it could count, not by a player choosing to walk. Building
+/// progression on top of them would mean the first playable economy started
+/// with about five thousand gathers already paid for.
+///
+/// The owner's direction (`OD-01`) is that the playable economy restarts from
+/// zero at a defined point. The obvious implementation — subtract, or rewrite
+/// the ledger — is the one that must not be used:
+///
+/// * `RULES.md` **H-2** says granted is monotonic and there is no clawback.
+///   Lowering [StepLedger.totalGranted] contradicts it directly.
+/// * `RULES.md` **H-3** makes the cursor the mechanism that prevents
+///   double-counting. Any reset that rewinds or discards it risks re-granting
+///   history — the exact failure two device runs proved absent.
+///
+/// So nothing is subtracted and nothing is rewritten. The epoch is a **mark**,
+/// recording what the two counters read at the cutover, and [StepLedger.banked]
+/// is measured *from that mark* rather than from zero:
+///
+/// ```text
+/// banked = (totalGranted - grantedAtStart) - (totalSpent - spentAtStart)
+/// ```
+///
+/// Every historical figure survives untouched and stays reportable. The
+/// historical steps simply stop being spendable, which is the whole of what was
+/// asked for.
+///
+/// ## Why both counters, and not just granted
+///
+/// The Phase 1 save had also *spent* steps — 180 of them on gathers during
+/// acceptance. Marking only granted would leave `banked` at −180 the instant the
+/// epoch was set, and the ledger's own invariant would reject the state. The
+/// epoch is a point on both axes because a balance is a difference of two
+/// running totals, not one.
+///
+/// ## The origin epoch
+///
+/// A new game marks the epoch at `(0, 0)`, which makes the arithmetic above
+/// reduce exactly to the pre-epoch definition. This is a generalization of the
+/// old behaviour, not a special case bolted beside it — which is why no code
+/// path needs to ask whether an epoch is "in effect".
+@immutable
+final class EconomyEpoch {
+  const EconomyEpoch({required this.grantedAtStart, required this.spentAtStart})
+    : assert(grantedAtStart >= 0, 'an epoch mark cannot be negative'),
+      assert(spentAtStart >= 0, 'an epoch mark cannot be negative');
+
+  /// The epoch a new game starts under: everything ever granted is playable.
+  const EconomyEpoch.origin() : grantedAtStart = 0, spentAtStart = 0;
+
+  /// What [StepLedger.totalGranted] read when the playable economy began.
+  final int grantedAtStart;
+
+  /// What [StepLedger.totalSpent] read when the playable economy began.
+  final int spentAtStart;
+
+  /// Whether this epoch retires nothing — the state of a game that has never
+  /// been through a cutover.
+  bool get isOrigin => grantedAtStart == 0 && spentAtStart == 0;
+
+  /// Steps credited before the cutover, and therefore not spendable.
+  ///
+  /// Reportable, deliberately. The player walked these, and a product that
+  /// silently forgot them would be lying about its own history.
+  int get retiredSteps => grantedAtStart - spentAtStart;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EconomyEpoch &&
+      other.grantedAtStart == grantedAtStart &&
+      other.spentAtStart == spentAtStart;
+
+  @override
+  int get hashCode => Object.hash(grantedAtStart, spentAtStart);
+
+  @override
+  String toString() =>
+      'EconomyEpoch(granted=$grantedAtStart;spent=$spentAtStart)';
+}
+
 /// The step ledger.
 ///
 /// ## Terminology
@@ -172,15 +258,19 @@ final class SyncCheckpoint {
 /// | [totalObserved] | What the source currently says it has recorded | **No** — a correction or deletion lowers it |
 /// | [totalGranted] | What the game has credited the player | **Yes** — never decreases, ever |
 /// | [totalSpent] | What has been committed to activities | Yes |
-/// | [banked] | Earned and unspent | derived |
+/// | [epoch] | Where the playable economy began | Set once, by cutover |
+/// | [banked] | Earned and unspent **since the epoch** | derived |
 ///
 /// The distinction between observed and granted is the whole safety argument.
 /// If granted were derived from the latest observed total, a health correction
 /// would silently revoke progress the player already earned and spent. Instead
 /// observed may fall, granted may not, and the difference is simply recorded.
 ///
-/// **`banked = totalGranted - totalSpent`**, and `0 <= totalSpent <= totalGranted`.
-/// Both are asserted on every construction.
+/// **`banked = (totalGranted - epoch.grantedAtStart) - (totalSpent -
+/// epoch.spentAtStart)`**, with `0 <= totalSpent <= totalGranted`, both epoch
+/// marks within their counters, and `banked >= 0`. All are asserted on every
+/// construction. Under [EconomyEpoch.origin] this is exactly the pre-epoch
+/// definition — see [EconomyEpoch].
 ///
 /// ## What is persisted, and why
 ///
@@ -203,6 +293,7 @@ final class StepLedger {
     required this.correctionsObserved,
     required this.unreachableGapEvents,
     required this.lateDiscardedSlices,
+    this.epoch = const EconomyEpoch.origin(),
   }) : grantedSlices = UnmodifiableMapView<ObservationKey, int>(
          SplayTreeMap<ObservationKey, int>.of(grantedSlices),
        ) {
@@ -215,12 +306,35 @@ final class StepLedger {
         'the player would owe steps they never earned',
       );
     }
+    // An epoch mark ahead of its own counter would describe a cutover that had
+    // not happened yet, and would make `banked` negative. Refused rather than
+    // clamped: a clamped epoch is a silently different economy.
+    if (epoch.grantedAtStart > totalGranted) {
+      throw ArgumentError(
+        'the epoch marks granted at ${epoch.grantedAtStart} but the ledger has '
+        'only granted $totalGranted: the cutover cannot be ahead of history',
+      );
+    }
+    if (epoch.spentAtStart > totalSpent) {
+      throw ArgumentError(
+        'the epoch marks spent at ${epoch.spentAtStart} but the ledger has only '
+        'spent $totalSpent: the cutover cannot be ahead of history',
+      );
+    }
+    if (spentThisEpoch > grantedThisEpoch) {
+      throw ArgumentError(
+        'spent since the epoch ($spentThisEpoch) cannot exceed granted since '
+        'the epoch ($grantedThisEpoch): the player would owe steps they never '
+        'earned in this economy',
+      );
+    }
   }
 
   StepLedger.initial()
     : totalObserved = 0,
       totalGranted = 0,
       totalSpent = 0,
+      epoch = const EconomyEpoch.origin(),
       grantedSlices = UnmodifiableMapView<ObservationKey, int>(
         SplayTreeMap<ObservationKey, int>(),
       ),
@@ -269,8 +383,25 @@ final class StepLedger {
   /// silence because this is the one lossy path in the design.
   final int lateDiscardedSlices;
 
-  /// Earned and unspent. Never expires (`DECISIONS/0008`).
-  int get banked => totalGranted - totalSpent;
+  /// Where the playable economy begins. See [EconomyEpoch].
+  final EconomyEpoch epoch;
+
+  /// Credited since the epoch.
+  int get grantedThisEpoch => totalGranted - epoch.grantedAtStart;
+
+  /// Committed to activities since the epoch.
+  int get spentThisEpoch => totalSpent - epoch.spentAtStart;
+
+  /// Earned and unspent **since the epoch**. Never expires (`DECISIONS/0008`).
+  ///
+  /// `DECISIONS/0008` and `RULES.md` P-5 say nothing decays and earned
+  /// opportunity never expires, and this figure keeps that promise: no banked
+  /// step has ever been removed by the passage of time, by absence, or by any
+  /// recurring mechanism. The epoch is a **single, deliberate, owner-authorized
+  /// cutover** retiring one specific body of validation data
+  /// (`DECISIONS/0016`), not a decay rule — and there is no code path that can
+  /// move it a second time.
+  int get banked => grantedThisEpoch - spentThisEpoch;
 
   /// How much the source has walked back relative to what was granted.
   ///
@@ -305,7 +436,9 @@ final class StepLedger {
     int? correctionsObserved,
     int? unreachableGapEvents,
     int? lateDiscardedSlices,
+    EconomyEpoch? epoch,
   }) => StepLedger(
+    epoch: epoch ?? this.epoch,
     totalObserved: totalObserved ?? this.totalObserved,
     totalGranted: totalGranted ?? this.totalGranted,
     totalSpent: totalSpent ?? this.totalSpent,
@@ -343,6 +476,7 @@ final class StepLedger {
       other.correctionsObserved == correctionsObserved &&
       other.unreachableGapEvents == unreachableGapEvents &&
       other.lateDiscardedSlices == lateDiscardedSlices &&
+      other.epoch == epoch &&
       const MapEquality<ObservationKey, int>().equals(
         other.grantedSlices,
         grantedSlices,
@@ -360,11 +494,13 @@ final class StepLedger {
     correctionsObserved,
     unreachableGapEvents,
     lateDiscardedSlices,
+    epoch,
     const MapEquality<ObservationKey, int>().hash(grantedSlices),
   );
 
   String get signature =>
       'obs=$totalObserved;granted=$totalGranted;spent=$totalSpent;'
+      'epoch=${epoch.grantedAtStart}/${epoch.spentAtStart};'
       'banked=$banked;pre=$grantedBeforeWatermark;'
       'slices=${grantedSlices.length};sync=${checkpoint.syncCount};'
       'wm=${checkpoint.watermarkMillis};recovery=${recovery.phase.name};'

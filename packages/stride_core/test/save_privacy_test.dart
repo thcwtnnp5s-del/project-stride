@@ -561,8 +561,27 @@ void main() {
           'checkpoint',
           'recovery',
           'grantedSlices',
+          // Reviewed for Phase 2 (`DECISIONS/0016`). Two integers: what
+          // `totalGranted` and `totalSpent` read at the cutover. Both are
+          // aggregates of figures the ledger already persists in the clear, so
+          // the epoch discloses nothing `totalGranted` does not — no bucket, no
+          // timestamp, no origin, no cursor content, and nothing from which a
+          // step history could be reconstructed.
+          'epoch',
         },
         reason: 'a new persisted ledger field needs a privacy review',
+      );
+
+      // Named separately so that the *shape* of the epoch is also reviewed. A
+      // future field added inside it would otherwise pass the check above,
+      // because the check above only sees the key it hangs from.
+      expect(
+        (encodeStepLedger(StepLedger.initial())['epoch']!
+                as Map<String, Object?>)
+            .keys
+            .toSet(),
+        <String>{'grantedAtStart', 'spentAtStart'},
+        reason: 'a new field inside the epoch needs a privacy review too',
       );
     });
   });

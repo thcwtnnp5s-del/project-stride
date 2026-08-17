@@ -5,11 +5,12 @@
     {
       "id": "location.havens_rest",
       "displayName": "Haven's Rest",
+      "terrain": "grassland",
       "isSafe": true,
       "isStart": true,
       "connections": [
-        { "to": "location.whispering_woods", "stepCost": 1200 },
-        { "to": "location.stonefall_mine", "stepCost": 1600 }
+        { "to": "location.whispering_woods", "stepCost": 600 },
+        { "to": "location.stonefall_mine", "stepCost": 800 }
       ],
       "entryRequirements": [],
       "resourceNodes": ["resource_node.meadow_patch"]
@@ -17,35 +18,57 @@
     {
       "id": "location.whispering_woods",
       "displayName": "Whispering Woods",
+      "terrain": "forest",
       "isSafe": false,
       "isStart": false,
       "connections": [
-        { "to": "location.havens_rest", "stepCost": 1200 },
-        { "to": "location.stonefall_mine", "stepCost": 1400 },
-        { "to": "location.forgotten_hollow", "stepCost": 2600 }
+        { "to": "location.havens_rest", "stepCost": 600 },
+        { "to": "location.stonefall_mine", "stepCost": 700 },
+        { "to": "location.forgotten_hollow", "stepCost": 1300 }
       ],
       "entryRequirements": [],
-      "resourceNodes": ["resource_node.oak_stand", "resource_node.pine_ridge"]
+      "resourceNodes": [
+        "resource_node.oak_stand",
+        "resource_node.duskcap_grove"
+      ]
     },
     {
       "id": "location.stonefall_mine",
       "displayName": "Stonefall Mine",
+      "terrain": "foothills",
       "isSafe": false,
       "isStart": false,
       "connections": [
-        { "to": "location.havens_rest", "stepCost": 1600 },
-        { "to": "location.whispering_woods", "stepCost": 1400 }
+        { "to": "location.havens_rest", "stepCost": 800 },
+        { "to": "location.whispering_woods", "stepCost": 700 },
+        { "to": "location.frostmere", "stepCost": 1500 }
       ],
       "entryRequirements": [],
       "resourceNodes": ["resource_node.copper_seam", "resource_node.tin_seam"]
     },
     {
-      "id": "location.forgotten_hollow",
-      "displayName": "Forgotten Hollow",
+      "id": "location.frostmere",
+      "displayName": "Frostmere",
+      "terrain": "alpine",
       "isSafe": false,
       "isStart": false,
       "connections": [
-        { "to": "location.whispering_woods", "stepCost": 2600 }
+        { "to": "location.stonefall_mine", "stepCost": 1500 }
+      ],
+      "entryRequirements": [],
+      "resourceNodes": [
+        "resource_node.rimefrost_hollow",
+        "resource_node.frostpine_stand"
+      ]
+    },
+    {
+      "id": "location.forgotten_hollow",
+      "displayName": "Forgotten Hollow",
+      "terrain": "forest",
+      "isSafe": false,
+      "isStart": false,
+      "connections": [
+        { "to": "location.whispering_woods", "stepCost": 1300 }
       ],
       "entryRequirements": ["item.bronze_sword"],
       "resourceNodes": ["resource_node.hollow_thicket"]

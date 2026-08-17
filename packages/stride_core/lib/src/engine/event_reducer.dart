@@ -58,6 +58,16 @@ final class EventReducer {
       LocationEntered() => state.copyWith(
         world: state.world.movingTo(event.location),
       ),
+      LocationTravelled() => _travelled(state, event),
+      ItemCrafted() => _crafted(state, event),
+      EconomyEpochEstablished() => state.copyWith(
+        steps: state.steps.copyWith(
+          epoch: EconomyEpoch(
+            grantedAtStart: event.grantedAtStart,
+            spentAtStart: event.spentAtStart,
+          ),
+        ),
+      ),
       StepRecoveryStarted() => state.copyWith(
         steps: state.steps.copyWith(
           recovery: RecoveryState(
@@ -150,6 +160,40 @@ final class EventReducer {
         inventory: state.inventory.adding(event.item, event.quantity),
         skills: state.skills.adding(event.skill, event.experience),
       );
+
+  /// Spends, moves, and records the arrival in one step.
+  ///
+  /// Same shape and same reasoning as [_gathered]: one `copyWith`, so there is
+  /// no value anywhere — not even transiently inside this method — in which the
+  /// steps have been charged and the player has not moved.
+  ///
+  /// `unlocking` is applied unconditionally rather than under `event.firstVisit`.
+  /// Adding a location already in the set is a no-op, so the two are equivalent
+  /// in effect; doing it unconditionally means the *state* depends only on where
+  /// the player went, and `firstVisit` stays what it is — a note for listeners,
+  /// never an input to the world.
+  GameState _travelled(GameState state, LocationTravelled event) =>
+      state.copyWith(
+        steps: state.steps.copyWith(
+          totalSpent: state.steps.totalSpent + event.stepsSpent,
+        ),
+        world: state.world.unlocking(event.location).movingTo(event.location),
+      );
+
+  /// Consumes, produces, and awards in one step.
+  ///
+  /// No ledger field is touched: crafting costs no steps, and a reducer branch
+  /// that debited one would be inventing a cost the design rules out.
+  GameState _crafted(GameState state, ItemCrafted event) {
+    Inventory inventory = state.inventory;
+    for (final MapEntry<ContentId, int> taken in event.consumed.entries) {
+      inventory = inventory.removing(taken.key, taken.value);
+    }
+    return state.copyWith(
+      inventory: inventory.adding(event.item, event.quantity),
+      skills: state.skills.adding(event.skill, event.experience),
+    );
+  }
 
   GameState _reconciled(GameState state, StepObservationReconciled event) {
     final StepLedger ledger = state.steps;

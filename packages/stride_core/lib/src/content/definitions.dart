@@ -17,6 +17,41 @@ enum ToolKind { axe, pickaxe, none }
 /// What a skill is for.
 enum SkillCategory { gathering, production }
 
+/// The physical character of a place. **OD-02.**
+///
+/// ## Why this is content and not art
+///
+/// `OD-02` names the world's governing rule — *a coherent geographic and
+/// economic system, not a collection of themed zones* — and then names the
+/// dependency that has to come first: deciding what a region **is** in data
+/// precedes drawing one. Terrain is that decision. It is what makes "oak grows
+/// in the temperate forest and pine grows above the treeline" a fact the content
+/// set holds, rather than a convention two authors happen to share.
+///
+/// It is deliberately **coarse**. Four values describe the whole first playable
+/// slice, and a fifth would have to earn its place by changing what can be
+/// expressed rather than by adding a word. A terrain vocabulary finer than the
+/// world is a taxonomy pretending to be a model.
+///
+/// New values are added when a region needs one, not in advance. The eventual
+/// arid, coastal and wetland regions are named in
+/// `GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md` §8 as expansion exits, and
+/// are deliberately absent here until something occupies them — an enum value no
+/// content uses is a promise the code cannot keep.
+enum Terrain {
+  /// Open temperate lowland. River meadow, pasture, plain.
+  grassland,
+
+  /// Temperate broadleaf woodland. Closed canopy, damp floor.
+  forest,
+
+  /// The rising ground at the foot of a mountain range. Cut rock, thin scrub.
+  foothills,
+
+  /// At or above the treeline. Snow, frozen water, bare rock, cold conifer.
+  alpine,
+}
+
 /// Whether an activity finishes or repeats.
 ///
 /// Travel **terminates** — you arrive, and further steps bank. Gathering
@@ -118,6 +153,93 @@ final class ItemDefinition {
   }
 }
 
+/// Everything a surface needs to describe one skill's progress. **F-07.**
+///
+/// ## Why this type exists at all
+///
+/// A level is one number, and a screen that only ever showed a level would not
+/// need it. What a progression screen actually shows is a *position between two
+/// thresholds* — 340 XP into level 4, 220 to go — and computing that means
+/// indexing `xpThresholds`, handling the top of the curve, and knowing that
+/// index 0 is level 1.
+///
+/// That is rule math. Done in a widget it becomes a second implementation of
+/// the curve, sitting beside the one the engine gates on, free to disagree the
+/// first time a content pack retunes a skill (`RULES.md` E-2). So it is done
+/// here, once, and projected.
+///
+/// Nothing is stored. Every field is derived from the experience handed in, for
+/// the reason `SkillProgress` gives: a stored level would disagree with the
+/// curve after a retune, and the disagreement would be invisible.
+@immutable
+final class SkillStanding {
+  const SkillStanding({
+    required this.skill,
+    required this.displayName,
+    required this.level,
+    required this.maxLevel,
+    required this.totalExperience,
+    required this.experienceIntoLevel,
+    required this.experienceForLevel,
+  });
+
+  final ContentId skill;
+  final String displayName;
+
+  /// The level the player has reached, 1-based.
+  final int level;
+
+  final int maxLevel;
+
+  /// All experience ever earned in this skill. Keeps rising past [maxLevel].
+  final int totalExperience;
+
+  /// Experience earned since reaching [level]. Zero at a fresh level-up.
+  ///
+  /// At max level this keeps counting rather than freezing. The player is still
+  /// earning; there is simply nothing left to buy, and a bar pinned at zero
+  /// would say the opposite.
+  final int experienceIntoLevel;
+
+  /// Experience needed to cross from [level] to the next one, or null at
+  /// [maxLevel].
+  ///
+  /// Null rather than zero, deliberately: zero is a legitimate span nowhere on
+  /// this curve, and a caller dividing by it would produce infinity rather than
+  /// a caught case. Null makes "there is no next level" impossible to read past.
+  final int? experienceForLevel;
+
+  bool get isMaxLevel => level >= maxLevel;
+
+  /// Experience still to go, or null at [maxLevel].
+  int? get experienceToNextLevel {
+    final int? span = experienceForLevel;
+    if (span == null) return null;
+    final int remaining = span - experienceIntoLevel;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  /// How far through the current level, 0.0–1.0. **1.0 at max level.**
+  ///
+  /// A full bar is the honest reading of a finished curve. An empty one would
+  /// say "no progress" about the player who has made all of it.
+  double get progress {
+    final int? span = experienceForLevel;
+    if (span == null || span <= 0) return 1;
+    final double fraction = experienceIntoLevel / span;
+    return fraction < 0
+        ? 0
+        : fraction > 1
+        ? 1
+        : fraction;
+  }
+
+  @override
+  String toString() =>
+      'SkillStanding($skill lvl $level/$maxLevel; $experienceIntoLevel'
+      '${experienceForLevel == null ? '' : '/$experienceForLevel'} into level)';
+}
+
 /// A long-term mastery path.
 @immutable
 final class SkillDefinition {
@@ -155,6 +277,41 @@ final class SkillDefinition {
     return level;
   }
 
+  /// Cumulative experience required to *reach* [level], 1-based.
+  ///
+  /// Clamped at both ends rather than throwing. A level below 1 or above
+  /// [maxLevel] is a caller error, but the honest answer to "what does level 0
+  /// cost" is 0 and to "what does level 99 cost" is the top of the curve —
+  /// neither is worth taking the game down for.
+  int experienceForLevel(int level) {
+    if (level <= 1) return 0;
+    final int index = level - 1;
+    return index >= xpThresholds.length
+        ? xpThresholds.last
+        : xpThresholds[index];
+  }
+
+  /// The full progression picture at [experience]. **F-07.**
+  ///
+  /// The one place the curve is read for display. See [SkillStanding] for why
+  /// this is not a widget's job.
+  SkillStanding standingAt(int experience) {
+    final int level = levelAt(experience);
+    final int floor = experienceForLevel(level);
+    final bool atMax = level >= maxLevel;
+    return SkillStanding(
+      skill: id,
+      displayName: displayName,
+      level: level,
+      maxLevel: maxLevel,
+      totalExperience: experience,
+      experienceIntoLevel: experience - floor,
+      // The span of the *current* level: what the next one costs, less what this
+      // one did. Null at the top, where there is no next one to span to.
+      experienceForLevel: atMax ? null : experienceForLevel(level + 1) - floor,
+    );
+  }
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -188,6 +345,7 @@ final class LocationDefinition {
   const LocationDefinition({
     required this.id,
     required this.displayName,
+    required this.terrain,
     required this.isSafe,
     required this.isStart,
     required this.connections,
@@ -197,6 +355,14 @@ final class LocationDefinition {
 
   final ContentId id;
   final String displayName;
+
+  /// What kind of ground this is. **Required**, deliberately.
+  ///
+  /// A location with no terrain is a place with no reason for its resources to
+  /// be there, which is precisely what `OD-02` forbids. Making it required means
+  /// the question is answered when a place is created rather than inferred later
+  /// from what someone happened to put in it.
+  final Terrain terrain;
 
   /// Where the player is returned to on defeat (`DECISIONS/0003`).
   final bool isSafe;
@@ -215,6 +381,7 @@ final class LocationDefinition {
   static const Set<String> fields = <String>{
     'id',
     'displayName',
+    'terrain',
     'isSafe',
     'isStart',
     'connections',
@@ -227,6 +394,12 @@ final class LocationDefinition {
     final LocationDefinition definition = LocationDefinition(
       id: reader.requireId('id', ContentNamespace.location),
       displayName: reader.requireString('displayName'),
+      terrain: reader.requireEnum<Terrain>('terrain', const <String, Terrain>{
+        'grassland': Terrain.grassland,
+        'forest': Terrain.forest,
+        'foothills': Terrain.foothills,
+        'alpine': Terrain.alpine,
+      }),
       isSafe: reader.optionalBool('isSafe'),
       isStart: reader.optionalBool('isStart'),
       connections: List<LocationConnection>.unmodifiable(

@@ -72,6 +72,18 @@
       "tier": 0
     },
     {
+      "id": "item.duskcap",
+      "displayName": "Duskcap",
+      "category": "material",
+      "tier": 0
+    },
+    {
+      "id": "item.rime_blossom",
+      "displayName": "Rime Blossom",
+      "category": "material",
+      "tier": 1
+    },
+    {
       "id": "item.hollow_root",
       "displayName": "Hollow Root",
       "category": "material",
@@ -142,6 +154,20 @@
       "category": "consumable",
       "tier": 0,
       "healing": 12
+    },
+    {
+      "id": "item.duskcap_skewer",
+      "displayName": "Duskcap Skewer",
+      "category": "consumable",
+      "tier": 0,
+      "healing": 20
+    },
+    {
+      "id": "item.frostbloom_tea",
+      "displayName": "Frostbloom Tea",
+      "category": "consumable",
+      "tier": 1,
+      "healing": 40
     },
     {
       "id": "item.hearty_stew",

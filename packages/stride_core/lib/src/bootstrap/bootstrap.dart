@@ -77,8 +77,12 @@ import '../content/content_id.dart';
 import '../content/content_loader.dart';
 import '../content/content_registry.dart';
 import '../content/validation.dart';
+import '../engine/commands.dart';
 import '../engine/events.dart';
 import '../engine/game_engine.dart';
+import '../engine/game_state.dart';
+import '../engine/rejection.dart';
+import '../engine/state_version.dart';
 import '../ports/identity_store.dart';
 import '../save/save_outcomes.dart';
 import '../save/save_repository.dart';
@@ -181,6 +185,19 @@ enum BootstrapBlockReason {
   /// exactly when guessing is most tempting and least safe.
   recoveryNotProvable,
 
+  /// A save needed a state migration and the migrated state would not commit.
+  ///
+  /// Refused rather than played, deliberately. Continuing on the in-memory
+  /// migrated state would give the player a session whose economy has been
+  /// re-based and whose save still says otherwise — and the next launch would
+  /// migrate again, from a ledger that had moved. One migration applied twice
+  /// against different totals is a permanently wrong balance, so a migration
+  /// that cannot be made durable stops startup instead.
+  ///
+  /// Nothing is lost by stopping: the pre-migration save is untouched on disk,
+  /// and a later launch that can write will migrate it identically.
+  stateMigrationNotCommittable,
+
   /// A new game was committed and did not read back.
   ///
   /// The first snapshot is written, verified by the repository, and then
@@ -229,6 +246,40 @@ final class BootstrapNewGame extends BootstrapOutcome {
   BootstrapPhase get phase => BootstrapPhase.readyNewGame;
 }
 
+/// What a state migration did, when one ran.
+///
+/// Reported rather than performed silently. A launch that re-based the player's
+/// economy is the single most consequential thing startup can do to a save, and
+/// the acceptance script has to be able to see that it happened exactly once —
+/// on the first launch after the upgrade, and on no launch after that.
+@immutable
+final class StateMigrationReport {
+  const StateMigrationReport({
+    required this.fromStateVersion,
+    required this.toStateVersion,
+    required this.retiredSteps,
+    required this.bankedAfter,
+  });
+
+  final int fromStateVersion;
+  final int toStateVersion;
+
+  /// Steps that were banked before the cutover and are no longer spendable.
+  ///
+  /// They are not gone — `totalGranted` still carries every one of them, and
+  /// `EconomyEpoch.retiredSteps` still reports them. They are simply outside the
+  /// playable economy now.
+  final int retiredSteps;
+
+  /// The playable balance the migration produced. Zero, for the Phase 2 cutover.
+  final int bankedAfter;
+
+  @override
+  String toString() =>
+      'StateMigrationReport(v$fromStateVersion→v$toStateVersion; '
+      'retired=$retiredSteps; banked=$bankedAfter)';
+}
+
 /// An existing save loaded.
 final class BootstrapExistingGame extends BootstrapOutcome {
   BootstrapExistingGame({
@@ -236,6 +287,7 @@ final class BootstrapExistingGame extends BootstrapOutcome {
     required this.registry,
     required this.identity,
     required this.load,
+    this.migration,
   });
 
   final GameEngine engine;
@@ -243,7 +295,31 @@ final class BootstrapExistingGame extends BootstrapOutcome {
   final ReconciliationIdentity identity;
 
   /// What loading actually did — which slot, how much replay, what repairs.
+  ///
+  /// **When [migration] is non-null this is the *pre-migration* read.** The
+  /// migration commits after it, so `generation` and `lastAppliedTransaction`
+  /// here are one transaction behind the durable head. A caller building a
+  /// [CommitExpectation] must use [expectation], not these.
   final SaveLoaded load;
+
+  /// Set when this launch migrated the save. Null on every ordinary launch.
+  final StateMigrationReport? migration;
+
+  /// The compare-and-swap expectation for this session's next commit.
+  ///
+  /// Exists because [load] stops being the durable head the moment a migration
+  /// commits, and a caller that kept using it would have its first real commit
+  /// refused as a conflict — a confusing failure whose cause is two launches
+  /// away from where it surfaces.
+  CommitExpectation get expectation => migration == null
+      ? CommitExpectation(
+          expectedSnapshotGeneration: load.generation,
+          expectedLastAppliedTransaction: load.lastAppliedTransaction,
+        )
+      : CommitExpectation(
+          expectedSnapshotGeneration: load.generation + 1,
+          expectedLastAppliedTransaction: load.lastAppliedTransaction + 1,
+        );
 
   @override
   BootstrapPhase get phase => BootstrapPhase.readyExistingGame;
@@ -595,6 +671,10 @@ final class BootstrapCoordinator {
       );
     }
 
+    if (StateVersion.migrationRequired(load.state.stateVersion)) {
+      return _migrate(registry, load, stored);
+    }
+
     final GameEngine engine = GameEngine(registry: registry, state: load.state);
 
     return BootstrapExistingGame(
@@ -602,6 +682,97 @@ final class BootstrapCoordinator {
       registry: registry,
       identity: stored,
       load: load,
+    );
+  }
+
+  /// Brings an older save up to [StateVersion.current], durably, exactly once.
+  ///
+  /// ## Why this runs here and not in the decoder
+  ///
+  /// A decoder-side upgrade would be recomputed on every launch and would never
+  /// become durable, so nothing on disk would ever record that the cutover had
+  /// happened. Running it here makes it a **transaction**: it inherits the
+  /// whole-repository lock, the compare-and-swap against the durable head, the
+  /// journal-first write order, and the read-back verification — everything a
+  /// gather already gets.
+  ///
+  /// ## Exactly once
+  ///
+  /// The commit writes a state at [StateVersion.current]. The next launch reads
+  /// that version, [StateVersion.migrationRequired] is false, and this method is
+  /// never entered again. The version is the only signal, which is the point:
+  /// see `EstablishEconomyEpoch` for why a second flag beside it would be a
+  /// liability rather than a belt.
+  ///
+  /// ## Crash safety
+  ///
+  /// Every step before the commit is pure. If the process dies at any point, the
+  /// pre-migration save is still on disk, unchanged, and the next launch derives
+  /// the identical migration from the identical inputs. There is no partial
+  /// state to detect and no repair to run, because nothing was written.
+  Future<BootstrapOutcome> _migrate(
+    ContentRegistry registry,
+    SaveLoaded load,
+    ReconciliationIdentity identity,
+  ) async {
+    final int from = load.state.stateVersion;
+
+    // Format first, meaning second. `migratedToCurrentVersion` restates the
+    // shape; the command supplies what the new shape *means*.
+    final GameState reshaped = load.state.migratedToCurrentVersion();
+    final GameEngine engine = GameEngine(registry: registry, state: reshaped);
+
+    final EngineResult result = engine.execute(
+      EstablishEconomyEpoch(fromStateVersion: from),
+    );
+    final CommandRejection? refused = result.rejection;
+    if (refused != null) {
+      // Only reachable if a v1 save somehow already carried a non-origin epoch,
+      // which the v1 decoder cannot produce. Refused rather than ignored: a
+      // migration that cannot explain itself must not proceed quietly.
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.stateMigrationNotCommittable,
+        stoppedAt: BootstrapPhase.validatingState,
+        explanation:
+            'Stride could not upgrade your saved progress. Nothing was '
+            'changed, and your progress is kept.',
+        detail: <String>[refused.format()],
+      );
+    }
+
+    final CommitOutcome outcome = await repository.commit(
+      after: engine.state,
+      events: result.events,
+      saveId: load.saveId,
+      expectation: CommitExpectation(
+        expectedSnapshotGeneration: load.generation,
+        expectedLastAppliedTransaction: load.lastAppliedTransaction,
+      ),
+      originSaltFingerprint: identity.saltFingerprint,
+    );
+
+    if (outcome is! CommitDurable) {
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.stateMigrationNotCommittable,
+        stoppedAt: BootstrapPhase.validatingState,
+        explanation:
+            'Stride could not save the upgrade to your progress. Nothing was '
+            'changed. Try again; if it keeps happening, free some storage.',
+        detail: <String>['state v$from → v${StateVersion.current.value}'],
+      );
+    }
+
+    return BootstrapExistingGame(
+      engine: engine,
+      registry: registry,
+      identity: identity,
+      load: load,
+      migration: StateMigrationReport(
+        fromStateVersion: from,
+        toStateVersion: StateVersion.current.value,
+        retiredSteps: engine.state.steps.epoch.retiredSteps,
+        bankedAfter: engine.state.steps.banked,
+      ),
     );
   }
 

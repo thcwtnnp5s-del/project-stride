@@ -24,8 +24,11 @@ List<GameCommand> allCommands() => <GameCommand>[
   const UnequipItem(slot: EquipmentSlot.weapon),
   UnlockLocation(location: ContentId.unchecked('location.havens_rest')),
   EnterLocation(location: ContentId.unchecked('location.havens_rest')),
+  TravelTo(destination: ContentId.unchecked('location.whispering_woods')),
+  CraftItem(recipe: ContentId.unchecked('recipe.oak_handle')),
   GatherResource(node: ContentId.unchecked('resource_node.meadow_patch')),
   ReconcileStepSync(response: const NoChangeSync()),
+  const EstablishEconomyEpoch(fromStateVersion: 1),
 ];
 
 /// The classification each command must carry.
@@ -38,7 +41,17 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   'AllocateSteps': true,
   'EquipItem': true,
   'UnequipItem': true,
-  'EnterLocation': true,
+  // Internal since Phase 2. `TravelTo` is how a player moves, and it charges;
+  // a surface offering the free move would hand out free travel in a game whose
+  // central claim is that distance costs walking.
+  'EnterLocation': false,
+  // Player-facing. Adjacency and cost both come from the content graph inside
+  // the engine, so a surface can offer the journey without being able to invent
+  // a route or decide what one is worth.
+  'TravelTo': true,
+  // Player-facing, and costs no steps by design — so it is the one meaningful
+  // action that still works at a zero balance.
+  'CraftItem': true,
   // Player-facing, and the first command that turns banked steps into
   // something. The cost is read from content and scaled by the profile inside
   // the engine, never supplied by the caller, so exposing it to a UI does not
@@ -47,6 +60,10 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   'GrantSyntheticSteps': false,
   'UnlockLocation': false,
   'ReconcileStepSync': false,
+  // Issued from exactly one place: the bootstrap migration. A command that
+  // re-bases the player's spendable balance must never be reachable from a
+  // surface, a debug screen, or anywhere that could give it a second caller.
+  'EstablishEconomyEpoch': false,
 };
 
 /// Proves [allCommands] covers the sealed hierarchy.
@@ -61,8 +78,11 @@ String classify(GameCommand command) => switch (command) {
   UnequipItem() => 'UnequipItem',
   UnlockLocation() => 'UnlockLocation',
   EnterLocation() => 'EnterLocation',
+  TravelTo() => 'TravelTo',
+  CraftItem() => 'CraftItem',
   GatherResource() => 'GatherResource',
   ReconcileStepSync() => 'ReconcileStepSync',
+  EstablishEconomyEpoch() => 'EstablishEconomyEpoch',
 };
 
 void main() {
@@ -133,7 +153,7 @@ void main() {
       }
     });
 
-    test('the three internal commands are the expected ones', () {
+    test('the internal commands are the expected ones', () {
       // Named explicitly so that widening the internal set is a deliberate,
       // reviewable edit rather than a quiet one.
       final List<String> internal =
@@ -144,6 +164,8 @@ void main() {
             ..sort());
 
       expect(internal, <String>[
+        'EnterLocation',
+        'EstablishEconomyEpoch',
         'GrantSyntheticSteps',
         'ReconcileStepSync',
         'UnlockLocation',

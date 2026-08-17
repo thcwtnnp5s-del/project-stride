@@ -85,23 +85,27 @@ void main() {
     });
 
     test('the level requirement is checked before the cost', () {
-      // Pine Ridge needs Woodcutting 8 and an axe. A level-1 player with no
-      // energy must be told about the level, not about the price — sending them
-      // walking towards a wall they will still hit is the worse answer.
+      // Frostpine Stand needs Woodcutting 8 and a tier-1 axe. A level-1 player
+      // with no energy must be told about the level, not about the price —
+      // sending them walking towards a wall they will still hit is the worse
+      // answer.
+      //
+      // The node moved from Whispering Woods to Frostmere in Phase 2, because
+      // pine is a cold-climate conifer and the woods are temperate broadleaf
+      // (`GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md` §2). The refusal
+      // ordering this test is about is unchanged by that.
       final GameEngine engine = engineWith(0);
       engine.execute(
-        UnlockLocation(
-          location: ContentId.unchecked('location.whispering_woods'),
-        ),
+        UnlockLocation(location: ContentId.unchecked('location.frostmere')),
       );
       engine.execute(
-        EnterLocation(
-          location: ContentId.unchecked('location.whispering_woods'),
-        ),
+        EnterLocation(location: ContentId.unchecked('location.frostmere')),
       );
 
       final EngineResult result = engine.execute(
-        GatherResource(node: ContentId.unchecked('resource_node.pine_ridge')),
+        GatherResource(
+          node: ContentId.unchecked('resource_node.frostpine_stand'),
+        ),
       );
 
       expect(result.rejection!.code, RejectionCode.skillLevelTooLow);

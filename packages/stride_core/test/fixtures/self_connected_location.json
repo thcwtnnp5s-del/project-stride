@@ -5,6 +5,7 @@
     {
       "id": "location.havens_rest",
       "displayName": "Haven's Rest",
+      "terrain": "grassland",
       "isSafe": true,
       "isStart": true,
       "connections": [
@@ -29,6 +30,7 @@
     {
       "id": "location.whispering_woods",
       "displayName": "Whispering Woods",
+      "terrain": "forest",
       "isSafe": false,
       "isStart": false,
       "connections": [
@@ -54,6 +56,7 @@
     {
       "id": "location.stonefall_mine",
       "displayName": "Stonefall Mine",
+      "terrain": "foothills",
       "isSafe": false,
       "isStart": false,
       "connections": [
@@ -75,6 +78,7 @@
     {
       "id": "location.forgotten_hollow",
       "displayName": "Forgotten Hollow",
+      "terrain": "forest",
       "isSafe": false,
       "isStart": false,
       "connections": [

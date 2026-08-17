@@ -46,6 +46,29 @@ enum RejectionCode {
   /// No such resource node exists in the loaded content.
   unknownResourceNode('unknown_resource_node'),
 
+  /// No such recipe exists in the loaded content.
+  unknownRecipe('unknown_recipe'),
+
+  /// The player does not hold enough of one or more ingredients.
+  insufficientIngredients('insufficient_ingredients'),
+
+  /// No route runs from where the player is standing to where they asked to go.
+  ///
+  /// Distinct from [locationLocked] on purpose. Locked means "you have not
+  /// opened this yet"; this means "you cannot get there **from here**" — the
+  /// answer is a different first leg, not more progression.
+  routeNotFound('route_not_found'),
+
+  /// The destination requires an item the player does not hold.
+  entryRequirementUnmet('entry_requirement_unmet'),
+
+  /// The playable economy has already been re-based on this ledger.
+  ///
+  /// A refusal rather than a silent no-op: re-running the cutover would zero the
+  /// player's balance a second time, and a command that can do that must say so
+  /// out loud when it is asked to do it twice.
+  economyEpochAlreadySet('economy_epoch_already_set'),
+
   /// The node exists, but not at the location the player is standing in.
   ///
   /// Travel is the answer, and travel costs steps — which is the point of the

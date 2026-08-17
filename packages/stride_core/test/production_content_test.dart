@@ -23,10 +23,16 @@ void main() {
         productionSource,
       ).requireRegistry;
 
-      // DECISIONS/0004: scope is frozen at five skills, four locations, three
-      // enemies. A test that counts is how a freeze stays frozen.
+      // DECISIONS/0004, as amended by DECISIONS/0017: scope is frozen at five
+      // skills, **five** locations, three enemies. A test that counts is how a
+      // freeze stays frozen — and the count moved by an ADR, which is the only
+      // way it may move.
+      //
+      // Five skills and three enemies are unchanged and re-frozen. Fishing was
+      // considered for Phase 2 and rejected; a sixth skill still needs its own
+      // decision.
       expect(registry.skills, hasLength(5));
-      expect(registry.locations, hasLength(4));
+      expect(registry.locations, hasLength(5));
       expect(registry.enemies, hasLength(3));
 
       for (final String id in <String>[
@@ -42,6 +48,7 @@ void main() {
         'location.havens_rest',
         'location.whispering_woods',
         'location.stonefall_mine',
+        'location.frostmere',
         'location.forgotten_hollow',
       ]) {
         expect(registry.locations, contains(ContentId.unchecked(id)));

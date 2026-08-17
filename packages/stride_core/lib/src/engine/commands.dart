@@ -141,19 +141,117 @@ final class UnlockLocation extends GameCommand {
   String get name => 'UnlockLocation';
 }
 
-/// Move to an unlocked location.
+/// Move to an already-unlocked location, free.
 ///
-/// No travel cost here. Travel consumes steps over time (`DECISIONS/0001`), and
-/// that belongs with the activity model, not with the command that proves
-/// movement is gated on being unlocked.
+/// **Internal since Phase 2.** [TravelTo] is the player's way of moving, and it
+/// charges. This one is retained because tests, the debug harness, and the
+/// reachability model all need a way to place the player somewhere without
+/// buying the journey — but a surface that offered it would hand the player free
+/// travel in a game whose central claim is that distance costs walking.
+///
+/// The `isPlayerFacing` flag is what enforces that, and the classification test
+/// is what enforces the flag.
 @immutable
 final class EnterLocation extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
   const EnterLocation({required this.location});
 
   final ContentId location;
 
   @override
   String get name => 'EnterLocation';
+}
+
+/// Walk a route, paying for it out of banked steps.
+///
+/// **The command the World screen was missing.** `OD-02` named its absence as
+/// the first of two dependencies blocking a geographic world: a map whose whole
+/// point is that places are far apart needs a system that can cross the
+/// distance, or it is describing lengths nothing can traverse.
+///
+/// ## What makes a journey legal
+///
+/// Adjacency, not unlock state. A destination is reachable when the location the
+/// player is standing in declares a connection to it — so the content graph is
+/// the authority on what the world looks like, and no caller can fabricate a
+/// route by naming two places. Arriving is what unlocks a location, which is why
+/// travelling somewhere new is possible and travelling somewhere impossible is
+/// not.
+///
+/// ## Why the cost is not a parameter
+///
+/// Same reason as [GatherResource]: it is read from the connection and scaled by
+/// the active balance profile inside the engine. A caller-supplied cost would let
+/// a UI decide what distance is worth.
+@immutable
+final class TravelTo extends GameCommand {
+  const TravelTo({required this.destination});
+
+  final ContentId destination;
+
+  @override
+  String get name => 'TravelTo';
+}
+
+/// Turn held materials into an item.
+///
+/// Crafting **costs no steps** (`GAME_BIBLE/SYSTEMS/04_CRAFTING_SYSTEM_
+/// FRAMEWORK.md`) — the steps were already spent gathering the materials, and
+/// charging again would make the Craft screen a toll booth between the player
+/// and a reward they have already walked for.
+///
+/// The consequence is a rule worth stating: **any recipe the player can afford
+/// in materials is craftable at any step balance**, including zero. That is what
+/// keeps "steps gate rate, never access" honest, and it is the answer the game
+/// has for a player who cannot walk this week (`Q-01`).
+@immutable
+final class CraftItem extends GameCommand {
+  const CraftItem({required this.recipe});
+
+  final ContentId recipe;
+
+  @override
+  String get name => 'CraftItem';
+}
+
+/// Re-base the playable step economy at a cutover point.
+///
+/// **Internal, and issued from exactly one place**: the bootstrap migration
+/// path, when a save is read at a state version older than the current one
+/// (`DECISIONS/0016`). It is not a player action, not a debug action, and not
+/// something a surface may offer — a command that zeroes the player's balance
+/// must have exactly one caller.
+///
+/// ## Why exactly-once is the state version, and not a flag beside it
+///
+/// The temptation is to add an `epochEstablished` boolean and guard on it. That
+/// would be a second mechanism recording the same fact, and two mechanisms
+/// recording one fact are two mechanisms that will eventually disagree.
+///
+/// The state version already carries it, durably: the save on disk declares its
+/// version, `SaveRepository` refuses a slot whose header and payload disagree
+/// about it, and the migration writes a state at the current version. A second
+/// launch reads a current-version save, [StateVersion.migrationRequired] is
+/// false, and this command is never issued.
+///
+/// Crash safety falls out of the same property. If the commit never lands, the
+/// old-version save is still on disk and the next launch recomputes an identical
+/// migration from identical inputs — this command is a pure function of the
+/// ledger it is handed.
+@immutable
+final class EstablishEconomyEpoch extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
+  const EstablishEconomyEpoch({required this.fromStateVersion});
+
+  /// The version the save was read at, recorded on the event for diagnosis.
+  final int fromStateVersion;
+
+  @override
+  String get name => 'EstablishEconomyEpoch';
 }
 
 /// Work a resource node once, paying for it out of banked steps.

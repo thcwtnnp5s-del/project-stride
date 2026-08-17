@@ -74,6 +74,42 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'from': event.from.value,
     'location': event.location.value,
   },
+  LocationTravelled() => <String, Object?>{
+    't': 'LocationTravelled',
+    'seq': event.sequence,
+    'from': event.from.value,
+    'location': event.location.value,
+    // As charged, not as defined -- same rule as ResourceGathered.
+    'stepsSpent': event.stepsSpent,
+    'firstVisit': event.firstVisit,
+  },
+  ItemCrafted() => <String, Object?>{
+    't': 'ItemCrafted',
+    'seq': event.sequence,
+    'recipe': event.recipe.value,
+    // Sorted, so two encodings of one event are byte-identical. A map iterated
+    // in insertion order would make the journal depend on how the ingredient
+    // list happened to be built.
+    'consumed': <Object?>[
+      for (final MapEntry<ContentId, int> e
+          in (event.consumed.entries.toList()..sort(
+            (MapEntry<ContentId, int> a, MapEntry<ContentId, int> b) =>
+                a.key.compareTo(b.key),
+          )))
+        <String, Object?>{'item': e.key.value, 'n': e.value},
+    ],
+    'item': event.item.value,
+    'quantity': event.quantity,
+    'skill': event.skill.value,
+    'xp': event.experience,
+  },
+  EconomyEpochEstablished() => <String, Object?>{
+    't': 'EconomyEpochEstablished',
+    'seq': event.sequence,
+    'grantedAtStart': event.grantedAtStart,
+    'spentAtStart': event.spentAtStart,
+    'fromStateVersion': event.fromStateVersion,
+  },
   StepRecoveryStarted() => <String, Object?>{
     't': 'StepRecoveryStarted',
     'seq': event.sequence,
@@ -228,6 +264,76 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         quantity: quantity,
         skill: skill,
         experience: xp,
+      );
+
+    case 'LocationTravelled':
+      final ContentId? from = id('from');
+      final ContentId? to = id('location');
+      final int? spent = i('stepsSpent');
+      if (from == null || to == null || spent == null) return null;
+      // Same reasoning as ResourceGathered: a negative spend from disk would
+      // drive totalSpent above totalGranted and StepLedger throws, turning one
+      // corrupt record into a launch that cannot start.
+      if (spent < 0) return null;
+      return LocationTravelled(
+        sequence: seq,
+        from: from,
+        location: to,
+        stepsSpent: spent,
+        firstVisit: b('firstVisit'),
+      );
+
+    case 'ItemCrafted':
+      final ContentId? recipe = id('recipe');
+      final ContentId? item = id('item');
+      final ContentId? skill = id('skill');
+      final int? quantity = i('quantity');
+      final int? xp = i('xp');
+      final Object? rawConsumed = json['consumed'];
+      if (recipe == null ||
+          item == null ||
+          skill == null ||
+          quantity == null ||
+          xp == null ||
+          rawConsumed is! List<Object?>) {
+        return null;
+      }
+      if (quantity < 0 || xp < 0) return null;
+      final Map<ContentId, int> consumed = <ContentId, int>{};
+      for (final Object? raw in rawConsumed) {
+        if (raw is! Map<String, Object?>) return null;
+        final Object? rawItem = raw['item'];
+        final Object? rawCount = raw['n'];
+        if (rawItem is! String || rawCount is! int) return null;
+        final ContentId? parsed = ContentId.parse(rawItem).id;
+        // A negative consumption would *add* inventory on replay, which is a
+        // corrupt record minting items rather than a save loading.
+        if (parsed == null || rawCount < 0) return null;
+        consumed[parsed] = rawCount;
+      }
+      return ItemCrafted(
+        sequence: seq,
+        recipe: recipe,
+        consumed: consumed,
+        item: item,
+        quantity: quantity,
+        skill: skill,
+        experience: xp,
+      );
+
+    case 'EconomyEpochEstablished':
+      final int? granted = i('grantedAtStart');
+      final int? spentAt = i('spentAtStart');
+      final int? from = i('fromStateVersion');
+      if (granted == null || spentAt == null || from == null) return null;
+      // A negative mark would make `banked` larger than the ledger ever
+      // granted -- a corrupt record minting spendable steps.
+      if (granted < 0 || spentAt < 0) return null;
+      return EconomyEpochEstablished(
+        sequence: seq,
+        grantedAtStart: granted,
+        spentAtStart: spentAt,
+        fromStateVersion: from,
       );
 
     case 'ItemEquipped':

@@ -305,6 +305,32 @@ final class GameState {
     eventSequence: eventSequence ?? this.eventSequence,
   );
 
+  /// Restates this state at [StateVersion.current], changing nothing else.
+  ///
+  /// **The one way the version field may move**, and it is deliberately not part
+  /// of [copyWith]. A version is a claim about the *shape* a state has, so a
+  /// caller able to set it casually beside a player level could assert a shape
+  /// the value does not have — and the save would then be read by a decoder
+  /// expecting fields that were never written.
+  ///
+  /// Migration is the only legitimate reason to move it, so this is named for
+  /// that and for nothing else. It performs no upgrade of its own: the fields a
+  /// new version introduces already have their defaults by the time a decoder
+  /// hands the state over, and the *meaning* of the migration is carried by the
+  /// events committed alongside it.
+  GameState migratedToCurrentVersion() => GameState(
+    stateVersion: StateVersion.current.value,
+    profileId: profileId,
+    contentPackVersion: contentPackVersion,
+    player: player,
+    inventory: inventory,
+    equipment: equipment,
+    skills: skills,
+    world: world,
+    steps: steps,
+    eventSequence: eventSequence,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is GameState &&

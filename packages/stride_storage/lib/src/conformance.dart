@@ -357,6 +357,28 @@ Future<String> runPersistenceScript(
 /// a save-format or protocol change and it needs a decision, not an update to
 /// this string. The digests are the strongest part: two implementations that
 /// reach the same outcomes by writing different bytes are not equivalent.
+///
+/// ## Amended once, for state version 2 — and here is the review
+///
+/// The Phase 2 economy epoch (`DECISIONS/0016`) added `steps.epoch` to the
+/// encoder, so both slot lengths and both digests moved. That is the
+/// save-format change this comment demands a decision for, and it has one.
+///
+/// **Every behavioural line above the digests is byte-identical to what it was**
+/// — the same transaction ids, generations, slots, retry counts, the same
+/// `granted=904 spent=137`, the same replay and skip counts, the same identity
+/// and fingerprint, the same journal length and journal digest. Only the two
+/// snapshot slots changed, which is exactly and only what adding a field to the
+/// snapshot encoder should do.
+///
+/// The magnitude was checked rather than accepted. Both slots grew by **46
+/// bytes**, and 46 is the exact length of the inserted canonical JSON at origin
+/// values: `,"epoch":{"grantedAtStart":0,"spentAtStart":0}`. A field that had
+/// also perturbed something else would not have landed on that number, and a
+/// second field would have overshot it. The frozen v1→v2 save fixture grew by
+/// 51 for the same reason with non-zero marks (1041 and 400 are three more
+/// digits than 0 and 0, plus the two-byte key-order shift), which is the same
+/// arithmetic confirming itself against different data.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -366,8 +388,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1227:ad46eeba
-slot_b:1229:af447257''';
+slot_a:1273:8e8ab31f
+slot_b:1275:bd687894''';
 
 // ---------------------------------------------------------------------------
 // The suite

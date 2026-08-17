@@ -99,6 +99,25 @@ import 'save_support.dart';
 /// now pinned: `contentPackVersion`, the three granted slices by value rather
 /// than by count, and — the reason any of this happened — the durable cursor,
 /// `Y3Vyc29yLTI=`, which is base64 for `cursor-2`.
+///
+/// ## The Phase 2 amendment, and why it is not fixture-fitting either
+///
+/// `"epoch":{"grantedAtStart":0,"spentAtStart":0}` was added when
+/// `StateVersion.current` became 2 (`DECISIONS/0016`).
+///
+/// This literal is the output of `canonicalDurableGameState`, which is the
+/// **current** encoder — the file header's own instruction is that "v1 must keep
+/// decoding into whatever the current `GameState` is". So when the current state
+/// gains a durable field, this literal gains it too. What must never change is
+/// any value that describes *the fixture*, and none did: every one of the
+/// twenty-odd figures above is byte-identical to what it was before.
+///
+/// The added value is not taken on trust from a passing run. `0/0` is the origin
+/// epoch, and it is the only value a v1 save can decode to, because a v1 save
+/// has no epoch field for `V1StateDecoder` to read — its absence *is* the origin,
+/// which is precisely what a v1 save meant: every granted step is playable.
+/// `banked` therefore still reads 641, exactly as it did before this field
+/// existed, which is asserted directly below rather than left to inference.
 const String expectedV1Signature =
     '{"contentPackVersion":1,'
     '"equipment":{"weapon":"item.training_sword"},'
@@ -115,7 +134,9 @@ const String expectedV1Signature =
     '"stateVersion":1,'
     '"steps":{"checkpoint":{"cursor":"Y3Vyc29yLTI=","syncCount":2,'
     '"watermarkMillis":null},'
-    '"correctionsObserved":0,"grantedBeforeWatermark":0,'
+    '"correctionsObserved":0,'
+    '"epoch":{"grantedAtStart":0,"spentAtStart":0},'
+    '"grantedBeforeWatermark":0,'
     '"grantedSlices":['
     '{"e":1750007200000,"g":137,"o":"0f1e2d3c4b5a6978","s":1750003600000},'
     '{"e":1750003600000,"g":613,"o":"a1b2c3d4e5f60718","s":1750000000000},'
@@ -136,8 +157,10 @@ const String slotA = 'save_slot_a';
 
 File get fixtureFile => File('${fixtureDirectory.path}/save/v1_baseline.save');
 
-Uint8List get v1Baseline {
-  final File file = fixtureFile;
+File get v2FixtureFile =>
+    File('${fixtureDirectory.path}/save/v2_baseline.save');
+
+Uint8List _frozen(File file) {
   if (!file.existsSync()) {
     throw StateError(
       'Missing frozen fixture ${file.path}. It must be restored from git, '
@@ -146,6 +169,22 @@ Uint8List get v1Baseline {
   }
   return file.readAsBytesSync();
 }
+
+Uint8List get v1Baseline => _frozen(fixtureFile);
+
+/// The v1 fixture, after the Phase 2 cutover, frozen in its turn.
+///
+/// Generated **once** by `tool/generate_v2_baseline.dart`, which reads
+/// `v1_baseline.save` and runs it through the real migration. It is frozen on
+/// the same terms as v1 and for the same reason: it is the shape a save written
+/// by today's build actually has, and the only artifact that can prove tomorrow's
+/// build still reads one.
+///
+/// The generator exists in the repository rather than being a note in a comment
+/// so the provenance of these bytes is checkable, and it is deliberately not
+/// wired into the test run — a fixture a test can regenerate is a fixture that
+/// silently agrees with whatever the code does today.
+Uint8List get v2Baseline => _frozen(v2FixtureFile);
 
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
@@ -241,9 +280,67 @@ void main() {
     });
   });
 
-  group('B — the round trip', () {
-    test('encode(decode(fixture)) is byte-identical to the fixture', () {
-      final Uint8List fixture = v1Baseline;
+  // ## Why B is decode-only from Phase 2 onward
+  //
+  // `encode(decode(v1))` cannot be byte-identical to a v1 artifact once the
+  // encoder emits v2: there is one encoder and it only ever writes the current
+  // version. That is the asymmetry `StateCodecs` is built on — decode fans in,
+  // encode does not fan out — so a byte comparison here would be asserting that
+  // the encoder had *not* moved, which is the opposite of what this file guards.
+  //
+  // What is worth keeping is the property underneath it: **decoding a v1 save
+  // must not change what the save says.** That survives as a value comparison
+  // against the frozen literal, and the round-trip property itself moves to
+  // `v2_baseline.save`, where it can still be byte-exact.
+  group('B — decoding a v1 save changes no value it carries', () {
+    test('the decoded state matches the frozen literal, field for field', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v1Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(canonicalDurableGameState(state), expectedV1Signature);
+
+      // Spelled out rather than left to the literal, because these are the
+      // figures the Phase 2 cutover is about and a reader should not have to
+      // parse JSON to check that decoding left them alone.
+      expect(state.stateVersion, 1);
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch.origin(),
+        reason:
+            'a v1 save has no epoch field, and its absence is the origin '
+            'epoch — not a default standing in for missing data',
+      );
+      expect(
+        state.steps.banked,
+        641,
+        reason:
+            'the whole point of the origin epoch: a v1 save decodes to exactly '
+            'the balance it had before the field existed. 1041 - 400 = 641.',
+      );
+    });
+
+    test('a v1 save is still flagged as needing migration', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v1Baseline).payload!,
+      );
+      expect(
+        StateVersion.migrationRequired(envelope.state.stateVersion),
+        isTrue,
+        reason:
+            'this flag is the only durable signal that the Phase 2 cutover has '
+            'not run on a save. If it is ever false for a v1 state, the '
+            "owner's device would resume with 459,043 spendable steps.",
+      );
+    });
+  });
+
+  group('B2 — the round trip, carried forward to v2', () {
+    test('encode(decode(fixture)) is byte-identical to the v2 fixture', () {
+      final Uint8List fixture = v2Baseline;
       final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
 
       final Uint8List reencoded = encodeSnapshot(
@@ -258,26 +355,72 @@ void main() {
       // thinking about saves. Without it the change is entirely silent until a
       // player's save fails to load in the field.
       //
-      // If this fires: the encoder and the v1 decoder no longer agree. Either
-      // the new field belongs in state version 2 (add a decoder, add a new
-      // fixture, and make this test decode-only for v1), or the encoder has an
+      // If this fires: the encoder and the v2 decoder no longer agree. Either
+      // the new field belongs in state version 3 (add a decoder, add a new
+      // fixture, and make this test decode-only for v2), or the encoder has an
       // ordering or type defect. Editing the fixture is never the fix.
       expect(
         reencoded,
         fixture,
         reason:
-            'the canonical encoder no longer reproduces a v1 save. See the '
+            'the canonical encoder no longer reproduces a v2 save. See the '
             'regeneration policy at the top of this file.',
+      );
+    });
+
+    test('the v2 fixture is the migrated v1 fixture, and says so', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v2Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 2);
+      // History intact: the same two totals the v1 fixture carried.
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      // And the cutover applied to them.
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(grantedAtStart: 1041, spentAtStart: 400),
+      );
+      expect(state.steps.banked, 0);
+      expect(state.steps.epoch.retiredSteps, 641);
+      expect(
+        StateVersion.migrationRequired(state.stateVersion),
+        isFalse,
+        reason: 'a migrated save must never migrate again',
       );
     });
   });
 
   group('C — a state version below the supported floor', () {
-    test('there is no decoder for version 0', () {
+    test('there is a decoder for every supported version, and no other', () {
       expect(StateCodecs.decoderFor(0), isNull);
       expect(StateCodecs.decoderFor(1), isNotNull);
       expect(StateCodecs.decoderFor(1)!.version, 1);
+      expect(StateCodecs.decoderFor(2), isNotNull);
+      expect(StateCodecs.decoderFor(2)!.version, 2);
+      expect(
+        StateCodecs.decoderFor(StateVersion.current.value + 1),
+        isNull,
+        reason: 'a decoder for an unreleased version would be guessing',
+      );
       expect(StateVersion.supports(0), isFalse);
+
+      // Every version in the supported range must have a decoder. Without this,
+      // widening `minimumSupported` without adding the decoder would present as
+      // `allSlotsUnreadable` on a real device rather than as a failing test.
+      for (
+        int v = StateVersion.minimumSupported.value;
+        v <= StateVersion.current.value;
+        v++
+      ) {
+        expect(
+          StateCodecs.decoderFor(v),
+          isNotNull,
+          reason: 'state version $v is supported but has no decoder',
+        );
+      }
     });
 
     test('a version-0 save refuses cleanly rather than throwing', () async {

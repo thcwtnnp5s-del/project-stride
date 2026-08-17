@@ -230,22 +230,32 @@ void main() {
           ),
         ),
       );
-      expect(build(StateVersion.current.value).stateVersion, 1);
+      expect(
+        build(StateVersion.current.value).stateVersion,
+        StateVersion.current.value,
+      );
+
+      // Version 1 must stay buildable. The owner's device holds a v1 save
+      // carrying the whole Phase 1 acceptance run, and it is the input the
+      // Phase 2 cutover exists to migrate — a build that refused it would
+      // refuse the one save the migration is for.
+      expect(build(1).stateVersion, 1);
     });
 
-    test(
-      'migration has an extension point that is honest about being empty',
-      () {
-        // Nothing needs migrating because nothing older exists. Saying so is
-        // better than implying coverage.
-        expect(
-          StateVersion.migrationRequired(StateVersion.current.value),
-          isFalse,
-        );
-        expect(StateVersion.supports(StateVersion.current.value), isTrue);
-        expect(StateVersion.supports(StateVersion.current.value + 1), isFalse);
-      },
-    );
+    test('the version says which states need migrating', () {
+      // Current needs nothing; the version below it does. This is the only
+      // durable signal that the Phase 2 cutover has not yet run on a save
+      // (`DECISIONS/0016`), so it is asserted rather than assumed.
+      expect(
+        StateVersion.migrationRequired(StateVersion.current.value),
+        isFalse,
+      );
+      expect(StateVersion.migrationRequired(1), isTrue);
+      expect(StateVersion.supports(StateVersion.current.value), isTrue);
+      expect(StateVersion.supports(1), isTrue);
+      expect(StateVersion.supports(StateVersion.current.value + 1), isFalse);
+      expect(StateVersion.supports(0), isFalse);
+    });
   });
 
   group('commands and rejections', () {

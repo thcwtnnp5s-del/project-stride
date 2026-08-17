@@ -1,3 +1,5 @@
+import 'package:collection/collection.dart';
+
 import '../content/balance_profile.dart';
 import '../content/content_id.dart';
 import '../content/content_registry.dart';
@@ -160,9 +162,220 @@ final class GameEngine {
         UnequipItem() => _unequip(command, state),
         UnlockLocation() => _unlock(command, state),
         EnterLocation() => _enter(command, state),
+        TravelTo() => _travel(command, state),
+        CraftItem() => _craft(command, state),
         GatherResource() => _gather(command, state),
         ReconcileStepSync() => _reconcile(command, state),
+        EstablishEconomyEpoch() => _establishEpoch(command, state),
       };
+
+  /// Re-bases the playable economy. See [EstablishEconomyEpoch].
+  ///
+  /// A pure function of the ledger it is handed: the marks are simply what the
+  /// two counters currently read. That is what makes the migration idempotent
+  /// under retry — a crashed commit is followed by a launch that reads the same
+  /// unchanged save and computes the same two numbers.
+  _Decision _establishEpoch(EstablishEconomyEpoch command, GameState state) {
+    if (!state.steps.epoch.isOrigin) {
+      return _Decision.reject(
+        RejectionCode.economyEpochAlreadySet,
+        command,
+        'the playable economy was already re-based at '
+        '${state.steps.epoch.grantedAtStart} granted / '
+        '${state.steps.epoch.spentAtStart} spent',
+      );
+    }
+    return _Decision.accept(<GameEvent>[
+      EconomyEpochEstablished(
+        sequence: state.eventSequence,
+        grantedAtStart: state.steps.totalGranted,
+        spentAtStart: state.steps.totalSpent,
+        fromStateVersion: command.fromStateVersion,
+      ),
+    ]);
+  }
+
+  /// Walks a route.
+  ///
+  /// ## The order of the refusals is the order of the player's questions
+  ///
+  /// Does this place exist → am I already there → can I get there from here →
+  /// do I hold what it takes to enter → can I afford the walk. Cost is checked
+  /// **last**, for the same reason it is last in [_gather]: telling a player
+  /// they cannot afford Forgotten Hollow, when the real answer is that it needs
+  /// a Bronze Sword, sends them walking toward a wall they will still hit.
+  _Decision _travel(TravelTo command, GameState state) {
+    final LocationDefinition? destination =
+        registry.locations[command.destination];
+    if (destination == null) {
+      return _Decision.reject(
+        RejectionCode.unknownLocation,
+        command,
+        'no location is defined with that ID',
+        subject: command.destination.value,
+      );
+    }
+
+    if (state.world.currentLocation == command.destination) {
+      return _Decision.reject(
+        RejectionCode.alreadyAtLocation,
+        command,
+        'the player is already there',
+        subject: command.destination.value,
+      );
+    }
+
+    final LocationDefinition? here =
+        registry.locations[state.world.currentLocation];
+    if (here == null) {
+      // Unreachable through a validated registry. Answered rather than thrown:
+      // an engine that crashes on a content defect takes the game down over a
+      // file someone edited.
+      return _Decision.reject(
+        RejectionCode.contentNotLoaded,
+        command,
+        'the location the player is standing in is not loaded',
+        subject: state.world.currentLocation.value,
+      );
+    }
+
+    // Adjacency is the content graph's answer, not the caller's. A route the
+    // world does not declare cannot be manufactured by naming two places.
+    final LocationConnection? route = here.connections
+        .where((LocationConnection c) => c.to == command.destination)
+        .firstOrNull;
+    if (route == null) {
+      return _Decision.reject(
+        RejectionCode.routeNotFound,
+        command,
+        'no route runs from "${here.displayName}" to '
+        '"${destination.displayName}"',
+        subject: command.destination.value,
+      );
+    }
+
+    final List<ContentId> missing = destination.entryRequirements
+        .where((ContentId item) => !state.inventory.has(item))
+        .toList();
+    if (missing.isNotEmpty) {
+      final String names = missing
+          .map(
+            (ContentId id) =>
+                '"${registry.items[id]?.displayName ?? id.value}"',
+          )
+          .join(', ');
+      return _Decision.reject(
+        RejectionCode.entryRequirementUnmet,
+        command,
+        '"${destination.displayName}" cannot be entered without $names',
+        subject: command.destination.value,
+      );
+    }
+
+    final int cost = profile.applyStepCost(route.stepCost);
+    if (cost > state.steps.banked) {
+      return _Decision.reject(
+        RejectionCode.insufficientSteps,
+        command,
+        'travelling to "${destination.displayName}" costs $cost steps but only '
+        '${state.steps.banked} are banked',
+        subject: command.destination.value,
+      );
+    }
+
+    return _Decision.accept(<GameEvent>[
+      LocationTravelled(
+        sequence: state.eventSequence,
+        from: state.world.currentLocation,
+        location: command.destination,
+        stepsSpent: cost,
+        firstVisit: !state.world.isUnlocked(command.destination),
+      ),
+    ]);
+  }
+
+  /// Turns held materials into an item.
+  ///
+  /// Does this recipe exist → am I skilled enough → do I hold the materials.
+  /// There is no step check and no location check: crafting costs no steps, and
+  /// nothing in the design ties a recipe to a workshop.
+  ///
+  /// The ingredient check reports **every** shortfall rather than the first.
+  /// A player two ingots and one handle short should learn both in one refusal;
+  /// discovering a second requirement only after satisfying the first is the
+  /// kind of drip-feed that makes a crafting screen feel like it is hiding
+  /// things.
+  _Decision _craft(CraftItem command, GameState state) {
+    final RecipeDefinition? recipe = registry.recipes[command.recipe];
+    if (recipe == null) {
+      return _Decision.reject(
+        RejectionCode.unknownRecipe,
+        command,
+        'no recipe is defined with that ID',
+        subject: command.recipe.value,
+      );
+    }
+
+    final SkillDefinition? skill = registry.skills[recipe.skill];
+    if (skill == null) {
+      return _Decision.reject(
+        RejectionCode.contentNotLoaded,
+        command,
+        'the skill "${recipe.skill.value}" this recipe trains is not loaded',
+        subject: recipe.skill.value,
+      );
+    }
+
+    final int level = skill.levelAt(state.skills.experienceIn(recipe.skill));
+    if (level < recipe.requiredLevel) {
+      return _Decision.reject(
+        RejectionCode.skillLevelTooLow,
+        command,
+        '"${recipe.displayName}" needs ${skill.displayName} '
+        '${recipe.requiredLevel}; the player is level $level',
+        subject: command.recipe.value,
+      );
+    }
+
+    // Folded first, so a recipe naming the same ingredient twice is charged
+    // once for the sum rather than checked twice against the same holding —
+    // which would pass with half the materials and then remove more than the
+    // player had.
+    final Map<ContentId, int> required = <ContentId, int>{};
+    for (final RecipeIngredient ingredient in recipe.ingredients) {
+      required[ingredient.item] =
+          (required[ingredient.item] ?? 0) + ingredient.quantity;
+    }
+
+    final List<String> shortfalls = <String>[];
+    for (final MapEntry<ContentId, int> need in required.entries) {
+      final int held = state.inventory.quantityOf(need.key);
+      if (held >= need.value) continue;
+      final String name =
+          registry.items[need.key]?.displayName ?? need.key.value;
+      shortfalls.add('$name ${need.value - held} short');
+    }
+    if (shortfalls.isNotEmpty) {
+      return _Decision.reject(
+        RejectionCode.insufficientIngredients,
+        command,
+        '"${recipe.displayName}" cannot be made: ${shortfalls.join(', ')}',
+        subject: command.recipe.value,
+      );
+    }
+
+    return _Decision.accept(<GameEvent>[
+      ItemCrafted(
+        sequence: state.eventSequence,
+        recipe: command.recipe,
+        consumed: required,
+        item: recipe.outputItem,
+        quantity: profile.applyYield(recipe.outputQuantity),
+        skill: recipe.skill,
+        experience: profile.applyXp(recipe.xp),
+      ),
+    ]);
+  }
 
   /// Reconciles a normalized provider response.
   ///

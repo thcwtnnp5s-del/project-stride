@@ -156,6 +156,123 @@ final class ItemUnequipped extends GameEvent {
   String get name => 'ItemUnequipped';
 }
 
+/// The playable step economy was re-based at a cutover point.
+///
+/// **Emitted exactly once per save, by the Phase 2 migration.** It records what
+/// the two running totals read at the moment the playable economy began; from
+/// then on `banked` is measured from those marks (`EconomyEpoch`).
+///
+/// It is a fact about the *ledger's accounting origin*, not about steps. No step
+/// is created, destroyed, granted, or revoked by applying it: [StepLedger.
+/// totalGranted] and [StepLedger.totalSpent] are the same on both sides, which
+/// is what keeps `RULES.md` H-2 intact through a change whose entire purpose is
+/// to reduce a balance.
+///
+/// The marks are carried on the event rather than recomputed at replay time, for
+/// the same reason [ResourceGathered] carries its figures: replaying a migration
+/// must reproduce the state that was committed, and a ledger that had been
+/// granted more steps since would otherwise re-base to a different point and
+/// zero the player a second time.
+@immutable
+final class EconomyEpochEstablished extends GameEvent {
+  const EconomyEpochEstablished({
+    required super.sequence,
+    required this.grantedAtStart,
+    required this.spentAtStart,
+    required this.fromStateVersion,
+  });
+
+  final int grantedAtStart;
+  final int spentAtStart;
+
+  /// The state version the save was read at. Diagnostic — it is what makes a
+  /// journal line say which migration this was.
+  final int fromStateVersion;
+
+  @override
+  String get name => 'EconomyEpochEstablished';
+}
+
+/// The player travelled a route, paying for it out of banked steps.
+///
+/// **One event, not three**, for the reason [ResourceGathered] gives: the spend,
+/// the move, and the first-visit record are a single fact. Splitting them would
+/// make reachable an instant — in memory, in the journal, or in a replay — at
+/// which the steps are gone and the player is still standing where they were.
+///
+/// [stepsSpent] is profile-scaled as charged, never the raw content value, so a
+/// content pack that retunes the route next month cannot change what a journey
+/// the player already made did to their save.
+@immutable
+final class LocationTravelled extends GameEvent {
+  const LocationTravelled({
+    required super.sequence,
+    required this.from,
+    required this.location,
+    required this.stepsSpent,
+    required this.firstVisit,
+  });
+
+  final ContentId from;
+  final ContentId location;
+
+  /// Profile-scaled, as charged.
+  final int stepsSpent;
+
+  /// Whether this arrival is the one that opened the place.
+  ///
+  /// Carried so a listener — the return summary, audio, a future discovery
+  /// system — can tell arriving somewhere new from walking a familiar road,
+  /// without having to consult the world state it is about to be handed.
+  final bool firstVisit;
+
+  @override
+  String get name => 'LocationTravelled';
+}
+
+/// Materials became an item.
+///
+/// **One event, not three.** Ingredients leave the inventory, the output
+/// arrives, and the experience lands together — the same atomicity argument as
+/// [ResourceGathered], and for the same reason: the journal is append-only, and
+/// a process killed between two records leaves the first one durable. A player
+/// whose ore vanished and whose ingot never arrived has lost the walk that
+/// bought it.
+///
+/// Crafting **spends no steps** (`GAME_BIBLE/SYSTEMS/04_CRAFTING_SYSTEM_
+/// FRAMEWORK.md`), so there is deliberately no `stepsSpent` field here. The
+/// steps were already spent gathering.
+///
+/// [consumed] is recorded as literal amounts rather than as a recipe reference,
+/// so replay reproduces the committed state even after the recipe is retuned.
+@immutable
+final class ItemCrafted extends GameEvent {
+  ItemCrafted({
+    required super.sequence,
+    required this.recipe,
+    required Map<ContentId, int> consumed,
+    required this.item,
+    required this.quantity,
+    required this.skill,
+    required this.experience,
+  }) : consumed = Map<ContentId, int>.unmodifiable(consumed);
+
+  final ContentId recipe;
+
+  /// What was taken, and how much. Exact amounts as charged.
+  final Map<ContentId, int> consumed;
+
+  final ContentId item;
+  final int quantity;
+  final ContentId skill;
+
+  /// Profile-scaled, as awarded.
+  final int experience;
+
+  @override
+  String get name => 'ItemCrafted';
+}
+
 /// A location became available.
 @immutable
 final class LocationUnlocked extends GameEvent {

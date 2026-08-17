@@ -103,25 +103,31 @@ void main() {
       }
     });
 
-    test(
-      'every location is reachable, including behind an entry requirement',
-      () {
-        final ContentRegistry registry = loadProduction(
-          productionSource,
-        ).requireRegistry;
-        final ReachabilityResult result = ReachabilityValidator(
-          registry,
-        ).analyse(targets: ContentLoader.defaultReachabilityTargets);
+    test('every location is reachable, including behind an entry requirement', () {
+      final ContentRegistry registry = loadProduction(
+        productionSource,
+      ).requireRegistry;
+      final ReachabilityResult result = ReachabilityValidator(
+        registry,
+      ).analyse(targets: ContentLoader.defaultReachabilityTargets);
 
-        // Forgotten Hollow requires a Bronze Sword. The player can craft one, so
-        // the gate is a milestone rather than a wall.
-        expect(result.reachableLocations, hasLength(4));
-        expect(
-          result.reachableLocations,
-          contains(ContentId.unchecked('location.forgotten_hollow')),
-        );
-      },
-    );
+      // Forgotten Hollow requires a Bronze Sword. The player can craft one, so
+      // the gate is a milestone rather than a wall.
+      //
+      // Frostmere has no entry requirement at all — its gates are the
+      // 1,500-step pass and the skill levels its two nodes ask for, neither of
+      // which reachability models. It appears here because a player can always
+      // *reach* it; whether they can harvest it is a different question, asked
+      // by the engine (`GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md` §4).
+      expect(result.reachableLocations, hasLength(5));
+      expect(
+        result.reachableLocations,
+        containsAll(<ContentId>[
+          ContentId.unchecked('location.forgotten_hollow'),
+          ContentId.unchecked('location.frostmere'),
+        ]),
+      );
+    });
 
     test('reachability ignores step cost and skill level', () {
       final ContentRegistry registry = loadProduction(
@@ -141,7 +147,7 @@ void main() {
   group('deadlock diagnosis', () {
     const String baseLocations = '''
 {"schemaVersion":1,"kind":"locations","entries":[
-  {"id":"location.start","displayName":"Start","isSafe":true,"isStart":true,
+  {"id":"location.start","displayName":"Start","terrain":"grassland","isSafe":true,"isStart":true,
    "connections":[],"entryRequirements":[],"resourceNodes":["resource_node.tree"]}
 ]}''';
 
@@ -264,10 +270,10 @@ void main() {
 ]}''',
         locations: '''
 {"schemaVersion":1,"kind":"locations","entries":[
-  {"id":"location.start","displayName":"Start","isSafe":true,"isStart":true,
+  {"id":"location.start","displayName":"Start","terrain":"grassland","isSafe":true,"isStart":true,
    "connections":[{"to":"location.vault","stepCost":100}],
    "entryRequirements":[],"resourceNodes":["resource_node.tree"]},
-  {"id":"location.vault","displayName":"Vault","isSafe":false,"isStart":false,
+  {"id":"location.vault","displayName":"Vault","terrain":"foothills","isSafe":false,"isStart":false,
    "connections":[{"to":"location.start","stepCost":100}],
    "entryRequirements":["item.vault_key"],
    "resourceNodes":["resource_node.vault_seam","resource_node.key_cache"]}
