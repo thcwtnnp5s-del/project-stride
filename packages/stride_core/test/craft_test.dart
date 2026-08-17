@@ -164,14 +164,22 @@ void main() {
       expect(result.rejection!.code, RejectionCode.unknownRecipe);
     });
 
+    // Bronze Axe, not Bronze Ingot, and the swap is worth a note.
+    //
+    // The ingot used to be the level-gate fixture at Smithing 2. The Phase 2
+    // integration critic pass moved it to Smithing 1 — smelting is the *entry*
+    // to Smithing, and gating it behind ten oak handles made "you mined ore and
+    // cannot smelt it" the first thing a player met at the Craft screen. The
+    // ordering rules below are unchanged; only the recipe that still has a gate
+    // is different.
     test('too low a skill level is refused, and names the requirement', () {
       final GameEngine engine = engineHolding(<ContentId, int>{
-        copperOre: 9,
-        tinOre: 9,
+        bronzeIngot: 9,
+        oakHandle: 9,
       });
 
       final EngineResult result = engine.execute(
-        CraftItem(recipe: recipeBronzeIngot),
+        CraftItem(recipe: recipeBronzeAxe),
       );
 
       expect(result.rejection!.code, RejectionCode.skillLevelTooLow);
@@ -184,10 +192,26 @@ void main() {
       final GameEngine engine = engineHolding(<ContentId, int>{});
 
       final EngineResult result = engine.execute(
-        CraftItem(recipe: recipeBronzeIngot),
+        CraftItem(recipe: recipeBronzeAxe),
       );
 
       expect(result.rejection!.code, RejectionCode.skillLevelTooLow);
+    });
+
+    test('smelting is reachable on the first visit to the forge', () {
+      // The critic finding, as a regression. A player who has walked to
+      // Stonefall, mined ore, and opened Craft must be able to smelt it —
+      // without a detour through a different skill's material.
+      final GameEngine engine = engineHolding(<ContentId, int>{
+        copperOre: 2,
+        tinOre: 1,
+      });
+
+      expect(
+        engine.execute(CraftItem(recipe: recipeBronzeIngot)).isAccepted,
+        isTrue,
+        reason: 'ore must become metal at Smithing 1, with no prerequisite',
+      );
     });
 
     test('missing ingredients are refused, and every shortfall is named', () {
