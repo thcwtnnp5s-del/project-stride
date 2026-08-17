@@ -109,6 +109,49 @@ Widening the canvas is the cheapest available response and the one `PIXEL_ART_CR
 
 ---
 
+## Q-04 — Does the current location get to be teal?
+
+**Raised by:** UI Facelift 01
+**Date:** 2026-08-16
+**Target:** the next visual owner-direction round, or the World screen's next pass
+
+### The question
+
+`ART_DIRECTION.md` **L-16** reserves teal `#58d6c0` for *"walking, steps, and
+banked-step quantity. Nothing else, anywhere, ever."*
+
+The World screen's region list already colours **the player's current location**
+teal (`world_screen.dart`, `_PlaceRow`). A place name is not walking, steps, or a
+quantity, so on a plain reading that is a violation — and it has shipped, been
+seen on a device, and been accepted.
+
+Two readings are available and neither is obviously right:
+
+- **L-16 means what it says**, this is drift that arrived while nobody was
+  looking at the rule, and the emphasis should come from weight or a label
+  instead.
+- **L-16 is about quantities**, and marking "where you walked to" with the
+  walking colour is the rule being applied rather than broken.
+
+### What the facelift did about it
+
+Nothing, deliberately. The new `YOU ARE HERE` caption under the map uses
+`textPrimary` and lets its label carry the emphasis, so the pass did not spread
+the pattern — and it did not remove the existing one either, because that is an
+identity call and identity calls are the owner's (`RULES.md` G-3).
+
+The consequence today is a **small inconsistency**: the same place is named twice
+on one screen, in two colours. That is the honest cost of not deciding, and it
+is cheap to resolve either way once the rule's intent is stated.
+
+### Why it is deferred
+
+Answering it means either amending a lock or changing shipped art direction, and
+both belong to the owner. It costs one line of code in whichever direction it
+goes.
+
+---
+
 ## OD-01 — The step-economy cutover
 
 **Raised by:** owner, immediately after Playable Demo Phase 1 closure

@@ -188,6 +188,16 @@ acceptance. Recorded here so the facelift inherits the cause, not the symptom.
 character count against a seven-figure value** — not the absence of an
 exception, because there will never be one.
 
+> **Fixed in UI Facelift 01, awaiting the owner's device confirmation.**
+> Branch `ui-facelift-01`, record `MILESTONES/UI_FACELIFT_01.md`. The fix is to
+> the shape, not the number: the box is now a *minimum* and the figure takes the
+> width it needs. The regression test asserts what this section asked for — the
+> rendered string equals `formatSteps(value)` in full, and the paragraph's
+> required width fits its laid-out box — at seven stress values across four
+> widths, with a real font loaded. **This entry closes when the owner sees the
+> whole figure on the phone**, not when the tests are green; that distinction is
+> the entire content of `MISTAKES.md` M-06.
+
 ## 6. Verdict
 
 `MISTAKES.md` M-04: *the person who ran the script writes the ACTUAL column; the

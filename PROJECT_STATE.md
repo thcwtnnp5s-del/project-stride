@@ -1,13 +1,21 @@
 # Project Stride — Project State
 
-**Version:** 2.3
+**Version:** 2.4
 **Status:** ✅ **PLAYABLE DEMO PHASE 1 — CLOSED.** All twenty acceptance criteria
 met on a physical iPhone (`eae7700`, iPhone 10 / iOS 26.6), verdict **PASS**
 signed by the owner on 2026-08-16 under `MISTAKES.md` M-04. The whole loop runs
 through the **product UI**, not the dev harness.
 Record: `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md`.
-**Current Phase:** UI facelift, opening with defect **D-01** below. F-07 remains
-unblocked and unstarted. Phase 2 not begun.
+
+**Current Phase: UI Facelift 01 — implementation complete on branch
+`ui-facelift-01`, awaiting the owner's physical-device review.**
+Record: `MILESTONES/UI_FACELIFT_01.md`. **D-01 is fixed in code and is not
+closed**; it closes when the owner sees the whole banked figure on the phone,
+which is M-06's entire point. Two further on-device clipping defects the audit's
+new measurement found — `EXPERIENCE` and the `90` step cost, both clipped at
+every supported width — are fixed in the same pass.
+F-07 remains unblocked and unstarted. OD-01 and OD-02 are untouched. Phase 2 not
+begun.
 
 ## Project identity
 
@@ -192,6 +200,34 @@ The player must be able to:
       six-character figure, so neither the overflow tests nor the goldens could
       see it — `MISTAKES.md` M-06 a third time. Detail and the required shape of
       its regression test are in the device result, §5.
+      **Fixed on `ui-facelift-01`; closes on the owner's device review.**
+
+36. **UI FACELIFT 01 — implementation complete.** ← current state
+    - Branch `ui-facelift-01`. Record: `MILESTONES/UI_FACELIFT_01.md`.
+    - **D-01 fixed as a shape, not as a number.** A new `AdaptiveText`
+      primitive is the one implementation of "this text must not lose a
+      character"; `bankedFigureWidth` became `bankedFigureMinWidth`, so the
+      stability the fixed box bought is kept and the figure takes the width it
+      needs; a new `ValueTileRow` stacks tiles that no longer fit rather than
+      shrinking type to reach them.
+    - **The audit's new measurement found two further shipped defects** the old
+      evidence was structurally incapable of seeing: `EXPERIENCE` clipped in the
+      third cost tile at 320 / 360 / 393 dp, and the step cost `90` given 16 dp
+      where it needed 19.8. Both fixed.
+    - **The kind of evidence changed.** Every single-line paragraph in the tree
+      is checked for `required width ≤ laid-out width`, replacing
+      `takeException() == null`, which `TextOverflow.clip` can never fail. A
+      **real font is loaded**, in the responsive tests and in the goldens, and
+      its absence fails rather than skips — the harness fallback is ~50% wider
+      than any font this app ships against.
+    - Facelift: shorter tab bar, larger and more prominent primary button, the
+      redundant `AVAILABLE` row and the two `→` glyphs removed, Character's two
+      identity cards merged into one, a `YOU ARE HERE` caption under the region
+      map, and the inventory grid's density and label weight raised.
+    - **158 app tests, 8 goldens**, all green. No gameplay, command, reducer,
+      save, ledger or health path was touched.
+    - **Not device-verified.** That needs the owner's Mac and iPhone, and this
+      pass is not complete without it (`MISTAKES.md` M-06).
 
 ## Next planned activity
 

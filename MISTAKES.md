@@ -86,6 +86,39 @@ right would have been taken against a build that looked broken.
 **This does not license a verification campaign** (`RULES.md` G-1). One device
 pass, on the screens that changed, with the findings written down.
 
+### Update — 2026-08-16, third occurrence, and what finally changed
+
+D-01 was the third instance: a fixed 72 dp box clipped the last digit off
+`455,281` on the owner's phone while five overflow tests and four goldens passed.
+Neither could have caught it. `TextOverflow.clip` **raises no exception**, so
+`takeException() == null` is satisfied by a clipped string and an intact one
+alike; and the goldens rendered `12,480`, six characters, which fits the box that
+seven did not.
+
+UI Facelift 01 changed the instruments rather than adding more of the same, and
+the change is the durable part:
+
+- **Assert the property, not the absence of an exception.** For every
+  single-line paragraph in the tree, the width the text *needs* is compared with
+  the width layout *gave* it. That is a screen-wide clipping detector, and it is
+  what the old tests were reaching for and could not express.
+- **A test that measures type needs type.** `flutter test`'s fallback font draws
+  every glyph as a filled rectangle about 0.84 em wide, against Roboto's 0.55 —
+  so a width assertion against it is a measurement of the harness, and "fixing"
+  the app to satisfy it would shrink real type for a fake reason. A real face is
+  now loaded, and its **absence fails rather than skips**.
+- **Fixtures must resemble accepted saves.** The stress values are the device
+  run's own figures, and a golden set now renders 455,281 beside the old 12,480.
+
+The measurement's first run found **two further on-device defects nothing in the
+repository could see**: `EXPERIENCE` clipped in the third cost tile at every
+supported width, and the step cost `90` given 16 dp where it needed 19.8. Both
+had shipped. Changing the instrument found in one run what looking harder had
+not found in three.
+
+The rest of M-06 stands unchanged, and the first line of it most of all: **none
+of this replaces looking at a device.**
+
 ---
 
 ## M-05 — Visual decisions were made without a play-scale verdict view
