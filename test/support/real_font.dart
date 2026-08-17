@@ -34,32 +34,78 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
 
-/// Registers Roboto from the Flutter SDK's own font cache.
+/// Registers Roboto from the copy checked in beside this file.
 ///
 /// **Fails rather than skips when the font is missing.** A skipped measurement
 /// reports success having measured nothing, which is the failure mode the files
-/// that call this exist to remove.
+/// that call this exist to remove. That is unchanged; only where the bytes come
+/// from has changed.
+///
+/// ## Why the font is vendored rather than read from the SDK
+///
+/// This used to derive the path from `Platform.resolvedExecutable` — three
+/// parents up to `<flutter>/bin/cache`, then `artifacts/material_fonts`. That
+/// works on the development machine and did not work on the Linux CI runner,
+/// where the directory resolved and did not contain the fonts.
+///
+/// Two attempts were made before giving up on it. `flutter precache --universal`
+/// fetched 2 of 11 artifacts and skipped Material Fonts, because
+/// `flutter-action`'s `cache: true` restores each artifact's *stamp file* and
+/// precache believes the stamp. Adding `--force` made the download happen —
+/// the log shows `[1/11] Material Fonts` — and `loadRealFont` still could not
+/// find the files at the derived path.
+///
+/// At that point the SDK cache had cost two CI cycles and remained an
+/// unpredictable dependency: its layout is Flutter's private business, it
+/// varies by platform and by how the SDK was installed, and it is restored by a
+/// third-party action that prunes it. A test that measures type should not be
+/// the thing that discovers a toolchain packaging change.
+///
+/// So the two faces live in `test/support/fonts/`, **copied byte-for-byte from
+/// the SDK's own `material_fonts`**. Byte-identical matters: the goldens and
+/// every width assertion were authored against exactly these files, so nothing
+/// measured moves. Roboto is Apache-2.0 and its licence is checked in beside
+/// them (`roboto_license.txt`).
+///
+/// This does not weaken `MISTAKES.md` M-06. The requirement is a *real* font
+/// rather than `flutter_test`'s fallback, which draws every glyph as a filled
+/// rectangle about 0.84 em wide against Roboto's 0.55. These are that real font.
+/// What changed is that it can no longer go missing.
 Future<void> loadRealFont() async {
-  // `<flutter>/bin/cache/dart-sdk/bin/dart` is what runs a `flutter test`, so
-  // the SDK's font cache is three directories up from the executable's own.
-  // Derived rather than hardcoded, because this must hold on the Linux and
-  // macOS CI runners as well as on Windows.
-  Directory dir = File(Platform.resolvedExecutable).parent;
-  for (int i = 0; i < 3; i++) {
-    dir = dir.parent;
+  // Candidates relative to the working directory, matching the convention
+  // `content_test_support.dart` already uses for `test/fixtures`. Forward
+  // slashes are correct on Windows too — `dart:io` accepts them.
+  Directory? found;
+  for (final String candidate in <String>[
+    'test/support/fonts',
+    'support/fonts',
+  ]) {
+    final Directory directory = Directory(candidate);
+    if (directory.existsSync()) {
+      found = directory;
+      break;
+    }
   }
-  final Directory fonts = Directory('${dir.path}/artifacts/material_fonts');
 
-  final File regular = File('${fonts.path}/roboto-regular.ttf');
-  final File bold = File('${fonts.path}/roboto-bold.ttf');
-  if (!regular.existsSync() || !bold.existsSync()) {
+  final File? regular = found == null
+      ? null
+      : File('${found.path}/roboto-regular.ttf');
+  final File? bold = found == null
+      ? null
+      : File('${found.path}/roboto-bold.ttf');
+
+  if (regular == null ||
+      bold == null ||
+      !regular.existsSync() ||
+      !bold.existsSync()) {
     fail(
-      'No real font at ${fonts.path}. The tests that call loadRealFont() '
-      'measure or render text, and the flutter_test fallback font is ~50% '
-      'wider than any font this app ships against — evidence taken against it '
-      'is evidence about the harness (MISTAKES.md M-06). Point loadRealFont() '
-      'at a real TTF rather than letting those assertions run on square '
-      'glyphs.',
+      'No real font under test/support/fonts, from '
+      '${Directory.current.path}. The tests that call loadRealFont() measure '
+      'or render text, and the flutter_test fallback font is ~50% wider than '
+      'any font this app ships against — evidence taken against it is evidence '
+      'about the harness (MISTAKES.md M-06). These two files are checked into '
+      'the repository; restore them from git rather than letting those '
+      'assertions run on square glyphs.',
     );
   }
 
