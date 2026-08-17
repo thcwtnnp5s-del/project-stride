@@ -20,7 +20,6 @@ import 'package:test/test.dart';
 import 'bootstrap_test.dart'
     show MemoryIdentityStore, boot, deviceWithSnapshot, liveIdentity;
 import 'save_support.dart';
-import 'support/faulting_store.dart';
 
 /// A v1 state shaped like the owner's device at Phase 1 closure.
 ///
