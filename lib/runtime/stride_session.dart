@@ -182,6 +182,7 @@ final class RegionPlace {
     required this.isUnlocked,
     required this.stepCostFromHere,
     required this.resourceCount,
+    required this.terrain,
   });
 
   final ContentId id;
@@ -199,12 +200,208 @@ final class RegionPlace {
   /// The step cost of the route from the player's location, or null when there
   /// is no direct connection.
   ///
-  /// **A distance, not a price.** No command spends it, and nothing in Phase 1
-  /// can.
+  /// **A price since Phase 2.** It used to be a distance with nothing that could
+  /// spend it; `TravelTo` now charges exactly this figure, profile-scaled.
   final int? stepCostFromHere;
 
   /// How many gatherable nodes the content pack places here.
   final int resourceCount;
+
+  /// What kind of ground this is, for the place's identity line.
+  final Terrain terrain;
+
+  /// Whether a route runs here from where the player is standing.
+  ///
+  /// A hint for rendering, not the authority. `TravelTo` re-checks adjacency in
+  /// the engine, and the engine's answer is the one that counts.
+  bool get isAdjacent => stepCostFromHere != null;
+}
+
+/// One destination the player could set out for, as the World screen needs it.
+///
+/// Every field is a question the engine would answer on execute, asked ahead of
+/// time so a control can explain itself. **None of them is the authority.**
+/// `TravelTo` re-validates all of it, which is what keeps a UI from becoming a
+/// second place the travel rules live (`RULES.md` E-2).
+final class TravelOption {
+  const TravelOption({
+    required this.id,
+    required this.displayName,
+    required this.terrain,
+    required this.stepCost,
+    required this.isReached,
+    required this.affordable,
+    required this.missingRequirements,
+    required this.resourceCount,
+  });
+
+  final ContentId id;
+  final String displayName;
+  final Terrain terrain;
+
+  /// Profile-scaled, as it would be charged.
+  final int stepCost;
+
+  /// Whether the player has been here before.
+  final bool isReached;
+
+  final bool affordable;
+
+  /// Items the destination requires that the player does not hold, by display
+  /// name. Empty when the way is open.
+  final List<String> missingRequirements;
+
+  final int resourceCount;
+
+  bool get isBlocked => missingRequirements.isNotEmpty;
+
+  /// Whether a travel control should be enabled.
+  bool get canTravel => !isBlocked && affordable;
+
+  /// How many more steps are needed, or zero when the journey is affordable.
+  int shortfallFrom(int banked) {
+    final int gap = stepCost - banked;
+    return gap < 0 ? 0 : gap;
+  }
+}
+
+/// One recipe, with every reason it can or cannot be made right now.
+///
+/// The Craft screen's whole job is to be truthful about *why* something is
+/// unavailable, so the reasons are separate fields rather than one boolean —
+/// "you need Smithing 4" and "you need two more ingots" are different sentences
+/// and the player acts on them differently.
+final class RecipeOption {
+  const RecipeOption({
+    required this.id,
+    required this.displayName,
+    required this.skillName,
+    required this.requiredLevel,
+    required this.currentLevel,
+    required this.ingredients,
+    required this.outputItem,
+    required this.outputName,
+    required this.outputQuantity,
+    required this.experience,
+  });
+
+  final ContentId id;
+  final String displayName;
+  final String skillName;
+  final int requiredLevel;
+  final int currentLevel;
+
+  final List<RecipeIngredientLine> ingredients;
+
+  final ContentId outputItem;
+  final String outputName;
+
+  /// Profile-scaled, as it would be produced.
+  final int outputQuantity;
+
+  /// Profile-scaled, as it would be awarded.
+  final int experience;
+
+  bool get skillMet => currentLevel >= requiredLevel;
+
+  bool get ingredientsMet =>
+      ingredients.every((RecipeIngredientLine i) => i.satisfied);
+
+  bool get canCraft => skillMet && ingredientsMet;
+}
+
+/// One line of a recipe's requirements, with what the player actually holds.
+final class RecipeIngredientLine {
+  const RecipeIngredientLine({
+    required this.item,
+    required this.displayName,
+    required this.required,
+    required this.held,
+  });
+
+  final ContentId item;
+  final String displayName;
+  final int required;
+  final int held;
+
+  bool get satisfied => held >= required;
+
+  int get shortfall {
+    final int gap = required - held;
+    return gap < 0 ? 0 : gap;
+  }
+}
+
+/// One thing a skill level gates, and whether the player has it yet.
+final class SkillUnlock {
+  const SkillUnlock({
+    required this.displayName,
+    required this.requiredLevel,
+    required this.unlocked,
+    required this.where,
+  });
+
+  final String displayName;
+  final int requiredLevel;
+  final bool unlocked;
+
+  /// The location that hosts it, for a gathering node. Null for a recipe, which
+  /// can be made anywhere.
+  final String? where;
+}
+
+/// What a journey did.
+final class TravelReport {
+  const TravelReport({
+    required this.succeeded,
+    required this.destinationName,
+    required this.cost,
+    this.firstVisit = false,
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String destinationName;
+
+  /// Profile-scaled, as charged on success and as quoted on refusal.
+  final int cost;
+
+  /// Whether this arrival opened the place. False on refusal.
+  final bool firstVisit;
+
+  /// The stable [RejectionCode.wire] value, or null on success.
+  final String? rejection;
+  final String? detail;
+}
+
+/// What a craft did.
+///
+/// Every figure is copied from the `ItemCrafted` event, for the same reason
+/// [ActionReport] gives: the recipe definition carries *base* values, and the
+/// engine scales them through the active balance profile as it applies them.
+final class CraftReport {
+  const CraftReport({
+    required this.succeeded,
+    required this.recipeName,
+    this.outputName,
+    this.quantity,
+    this.skillName,
+    this.experience,
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String recipeName;
+  final String? outputName;
+  final int? quantity;
+  final String? skillName;
+  final int? experience;
+
+  /// The stable [RejectionCode.wire] value, or null on success.
+  final String? rejection;
+  final String? detail;
 }
 
 final class SkillSummary {
@@ -303,6 +500,7 @@ final class StrideSession {
     required this.saltFingerprint,
     required this.health,
     required this.keyingRefusal,
+    this.migration,
   });
 
   /// Opens storage, runs bootstrap, and installs the device identity into the
@@ -326,6 +524,7 @@ final class StrideSession {
     String? saveId;
     int generation = -1;
     int lastTransaction = 0;
+    StateMigrationReport? migration;
 
     switch (outcome) {
       case BootstrapNewGame(:final SaveLoaded load):
@@ -334,12 +533,21 @@ final class StrideSession {
         saveId = outcome.identity.saveId;
         generation = load.generation;
         lastTransaction = load.lastAppliedTransaction;
-      case BootstrapExistingGame(:final SaveLoaded load):
+      case BootstrapExistingGame():
         engine = outcome.engine;
         registry = outcome.registry;
         saveId = outcome.identity.saveId;
-        generation = load.generation;
-        lastTransaction = load.lastAppliedTransaction;
+        // `expectation`, not `load` — deliberately.
+        //
+        // When this launch migrated the save, the migration committed *after*
+        // the load, so `load.generation` is one transaction behind the durable
+        // head. Starting from it would make this session's first real commit
+        // fail compare-and-swap, and a conflict surfacing two actions later
+        // reads as a storage fault rather than as an arithmetic slip here.
+        final CommitExpectation head = outcome.expectation;
+        generation = head.expectedSnapshotGeneration;
+        lastTransaction = head.expectedLastAppliedTransaction;
+        migration = outcome.migration;
       case BootstrapBlocked():
         // No engine, no health source, nothing opened. The refusal is the
         // whole result and the harness renders it.
@@ -377,11 +585,19 @@ final class StrideSession {
             },
       health: health,
       keyingRefusal: refusal,
+      migration: migration,
     );
   }
 
   final StrideRuntime runtime;
   final BootstrapOutcome outcome;
+
+  /// Set when *this launch* re-based the playable economy (`DECISIONS/0016`).
+  ///
+  /// Null on every ordinary launch, including every launch after the first. It
+  /// exists so the acceptance script can see the cutover happen once and then
+  /// never again — a migration nobody can observe is one nobody can verify.
+  final StateMigrationReport? migration;
 
   /// The live engine, or null when the bootstrap was blocked.
   ///
@@ -800,6 +1016,167 @@ final class StrideSession {
     );
   }
 
+  /// Walks a route, spending banked steps and arriving atomically.
+  ///
+  /// Single-flighted for the same reason [gather] is, and it matters more here:
+  /// two concurrent journeys both validate against the same banked steps and
+  /// both commit, so a double tap on a travel button would charge for one trip
+  /// and take the player on two.
+  Future<TravelReport> travel(ContentId destination) async {
+    if (_inFlight) {
+      return TravelReport(
+        succeeded: false,
+        destinationName: _locationName(destination),
+        cost: 0,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      return await _travel(destination);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<TravelReport> _travel(ContentId destination) async {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final String name = _locationName(destination);
+
+    if (active == null || content == null || _stale) {
+      return TravelReport(
+        succeeded: false,
+        destinationName: name,
+        cost: 0,
+        rejection: 'session_not_ready',
+        detail: _stale
+            ? 'the last commit did not land; reload before acting'
+            : 'the game did not start',
+      );
+    }
+
+    final EngineResult result = active.execute(
+      TravelTo(destination: destination),
+    );
+    if (result case RejectedResult(:final CommandRejection rejection)) {
+      return TravelReport(
+        succeeded: false,
+        destinationName: name,
+        cost: 0,
+        rejection: rejection.code.wire,
+        detail: rejection.explanation,
+      );
+    }
+
+    final LocationTravelled travelled = result.events
+        .whereType<LocationTravelled>()
+        .first;
+
+    final CommitOutcome commit = await _commit(active, result.events);
+    if (commit is CommitRefused) {
+      // The engine moved the player and the disk did not take it. Stale rather
+      // than reported as success: otherwise they are somewhere the next launch
+      // will not agree they went, having paid for the trip.
+      _stale = true;
+      return TravelReport(
+        succeeded: false,
+        destinationName: name,
+        cost: travelled.stepsSpent,
+        rejection: 'commit_refused',
+        detail: commit.reason.name,
+      );
+    }
+
+    return TravelReport(
+      succeeded: true,
+      destinationName: name,
+      // From the event, as charged — not from the connection, which is a base
+      // value the profile scales.
+      cost: travelled.stepsSpent,
+      firstVisit: travelled.firstVisit,
+    );
+  }
+
+  /// Turns held materials into an item, and commits it atomically.
+  ///
+  /// Costs no steps (`GAME_BIBLE/SYSTEMS/04`), so this is the one mutating
+  /// action that still works at a zero balance.
+  Future<CraftReport> craft(ContentId recipe) async {
+    if (_inFlight) {
+      return CraftReport(
+        succeeded: false,
+        recipeName: registry?.recipes[recipe]?.displayName ?? recipe.value,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      return await _craft(recipe);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<CraftReport> _craft(ContentId recipe) async {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final String name = content?.recipes[recipe]?.displayName ?? recipe.value;
+
+    if (active == null || content == null || _stale) {
+      return CraftReport(
+        succeeded: false,
+        recipeName: name,
+        rejection: 'session_not_ready',
+        detail: _stale
+            ? 'the last commit did not land; reload before acting'
+            : 'the game did not start',
+      );
+    }
+
+    final EngineResult result = active.execute(CraftItem(recipe: recipe));
+    if (result case RejectedResult(:final CommandRejection rejection)) {
+      return CraftReport(
+        succeeded: false,
+        recipeName: name,
+        rejection: rejection.code.wire,
+        detail: rejection.explanation,
+      );
+    }
+
+    final CommitOutcome commit = await _commit(active, result.events);
+    if (commit is CommitRefused) {
+      // The ingredients are gone in memory and the disk did not take it. Stale,
+      // for the same reason as everywhere else: reporting success would show
+      // the player an ingot that disappears on the next launch, along with the
+      // ore they walked for.
+      _stale = true;
+      return CraftReport(
+        succeeded: false,
+        recipeName: name,
+        rejection: 'commit_refused',
+        detail: commit.reason.name,
+      );
+    }
+
+    final ItemCrafted crafted = result.events.whereType<ItemCrafted>().first;
+    return CraftReport(
+      succeeded: true,
+      recipeName: name,
+      outputName:
+          content.items[crafted.item]?.displayName ?? crafted.item.value,
+      quantity: crafted.quantity,
+      skillName:
+          content.skills[crafted.skill]?.displayName ?? crafted.skill.value,
+      experience: crafted.experience,
+    );
+  }
+
+  String _locationName(ContentId location) =>
+      registry?.locations[location]?.displayName ?? location.value;
+
   /// How many of [item] the player holds.
   int inventoryCount(ContentId item) =>
       engine?.state.inventory.quantityOf(item) ?? 0;
@@ -912,18 +1289,17 @@ final class StrideSession {
 
   /// Every location in the content pack, for the region map's legend.
   ///
-  /// ## Why this reports reachability but offers no way to act on it
+  /// ## What changed in Phase 2
   ///
-  /// `stride_core` has no travel activity. `EnterLocation` exists and its own
-  /// comment says why it is not the missing piece: *"No travel cost here.
-  /// Travel consumes steps over time"* — the activity that spends steps to cross
-  /// a route is not implemented at any layer.
+  /// This used to carry no command and no affordance, because there was nothing
+  /// to offer: `stride_core` had no travel activity, and a screen rendering the
+  /// step figure as a button would have been inventing the system.
   ///
-  /// So this projection deliberately carries **no command and no affordance**.
-  /// It answers "where am I, and what else is out there", which the map already
-  /// implies, and stops. [stepCost] is read from the content pack's own
-  /// connection and is a fact about the world, not a price the player can pay
-  /// yet — a screen that rendered it as a button would be inventing the system.
+  /// `TravelTo` now exists (`DECISIONS/0017`), so the figure is a price rather
+  /// than a distance. The affordance lives on [destinations], which answers the
+  /// narrower question a control needs — *can I set out for this, right now,
+  /// and if not why not*. This projection stays what it was: the legend,
+  /// covering every place including the ones with no route from here.
   List<RegionPlace> get regionPlaces {
     final GameEngine? active = engine;
     final ContentRegistry? content = registry;
@@ -960,9 +1336,197 @@ final class StrideSession {
                     .firstOrNull
                     ?.stepCost,
           resourceCount: location.resourceNodes.length,
+          terrain: location.terrain,
         ),
     ];
   }
+
+  /// The places the player could set out for from where they are standing.
+  ///
+  /// Adjacency, cost, entry requirements and affordability, all read from the
+  /// same content and state the engine validates against — asked ahead of time
+  /// so a control can be disabled with a truthful reason instead of failing on
+  /// tap.
+  ///
+  /// **It is a hint, not the authority.** `TravelTo` re-checks every one of
+  /// these. A screen that treated this as the rule would be a second place the
+  /// travel rules live, which is exactly the failure `RULES.md` E-2 names.
+  List<TravelOption> get destinations {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <TravelOption>[];
+
+    final LocationDefinition? from =
+        content.locations[active.state.world.currentLocation];
+    if (from == null) return const <TravelOption>[];
+
+    final int banked = active.state.steps.banked;
+    final List<TravelOption> options = <TravelOption>[];
+
+    for (final LocationConnection route in from.connections) {
+      final LocationDefinition? to = content.locations[route.to];
+      if (to == null) continue;
+
+      // Scaled here, once, through the same profile the engine charges by.
+      // Reading `route.stepCost` raw would show the right number under
+      // `profile.production` and the wrong one under any other — which is the
+      // failure mode that looks correct right up until it isn't.
+      final int cost = active.profile.applyStepCost(route.stepCost);
+
+      options.add(
+        TravelOption(
+          id: to.id,
+          displayName: to.displayName,
+          terrain: to.terrain,
+          stepCost: cost,
+          isReached: active.state.world.isUnlocked(to.id),
+          affordable: cost <= banked,
+          missingRequirements: <String>[
+            for (final ContentId item in to.entryRequirements)
+              if (!active.state.inventory.has(item))
+                content.items[item]?.displayName ?? item.value,
+          ],
+          resourceCount: to.resourceNodes.length,
+        ),
+      );
+    }
+
+    // Nearest first. A list of journeys is a list of prices, and the cheapest
+    // one is the question a player with a small balance is actually asking.
+    options.sort(
+      (TravelOption a, TravelOption b) => a.stepCost.compareTo(b.stepCost),
+    );
+    return options;
+  }
+
+  /// Every recipe in the content pack, with every reason it can or cannot be
+  /// made right now.
+  ///
+  /// All of them, not only the craftable ones. A Craft screen that hid what the
+  /// player cannot yet make would answer "what can I do" and never "what am I
+  /// working towards", and the second question is the one that makes a walk
+  /// feel aimed at something.
+  List<RecipeOption> get recipeOptions {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <RecipeOption>[];
+
+    final List<RecipeOption> options = <RecipeOption>[
+      for (final RecipeDefinition recipe in content.recipes.values)
+        if (content.skills[recipe.skill] case final SkillDefinition skill)
+          RecipeOption(
+            id: recipe.id,
+            displayName: recipe.displayName,
+            skillName: skill.displayName,
+            requiredLevel: recipe.requiredLevel,
+            currentLevel: skill.levelAt(
+              active.state.skills.experienceIn(recipe.skill),
+            ),
+            ingredients: <RecipeIngredientLine>[
+              for (final RecipeIngredient i in recipe.ingredients)
+                RecipeIngredientLine(
+                  item: i.item,
+                  displayName:
+                      content.items[i.item]?.displayName ?? i.item.value,
+                  required: i.quantity,
+                  held: active.state.inventory.quantityOf(i.item),
+                ),
+            ],
+            outputItem: recipe.outputItem,
+            outputName:
+                content.items[recipe.outputItem]?.displayName ??
+                recipe.outputItem.value,
+            outputQuantity: active.profile.applyYield(recipe.outputQuantity),
+            experience: active.profile.applyXp(recipe.xp),
+          ),
+    ];
+
+    // Craftable first, then by the skill level they ask for. The player's own
+    // progression is the order they think in, and "what can I make now" should
+    // not be at the bottom of a list sorted alphabetically.
+    options.sort((RecipeOption a, RecipeOption b) {
+      if (a.canCraft != b.canCraft) return a.canCraft ? -1 : 1;
+      final int byLevel = a.requiredLevel.compareTo(b.requiredLevel);
+      if (byLevel != 0) return byLevel;
+      return a.displayName.compareTo(b.displayName);
+    });
+    return options;
+  }
+
+  /// Every skill's full standing — level, XP into the level, and the span to the
+  /// next one. **F-07.**
+  ///
+  /// Derived by [SkillDefinition.standingAt], in `stride_core`, for the reason
+  /// [skillSummaries] gives about levels and which applies twice as strongly
+  /// here: the span between two thresholds is threshold math, and a widget
+  /// doing it would be a second implementation of the curve.
+  List<SkillStanding> get skillStandings {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <SkillStanding>[];
+    return <SkillStanding>[
+      for (final MapEntry<ContentId, SkillDefinition> e
+          in content.skills.entries)
+        e.value.standingAt(active.state.skills.experienceIn(e.key)),
+    ];
+  }
+
+  /// What the player could gather with this skill, and what it still asks of
+  /// them — so a Skills screen can say what a level is *for*.
+  ///
+  /// A progression screen that shows only a number tells the player they are
+  /// level 4 and not what level 5 buys. These are the nodes and recipes that
+  /// skill gates, in the order they open.
+  List<SkillUnlock> unlocksFor(ContentId skill) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <SkillUnlock>[];
+
+    final SkillDefinition? definition = content.skills[skill];
+    if (definition == null) return const <SkillUnlock>[];
+    final int level = definition.levelAt(
+      active.state.skills.experienceIn(skill),
+    );
+
+    final List<SkillUnlock> unlocks = <SkillUnlock>[
+      for (final ResourceNodeDefinition node in content.resourceNodes.values)
+        if (node.skill == skill)
+          SkillUnlock(
+            displayName: node.displayName,
+            requiredLevel: node.requiredLevel,
+            unlocked: level >= node.requiredLevel,
+            where: _hostOf(node.id, content),
+          ),
+      for (final RecipeDefinition recipe in content.recipes.values)
+        if (recipe.skill == skill)
+          SkillUnlock(
+            displayName: recipe.displayName,
+            requiredLevel: recipe.requiredLevel,
+            unlocked: level >= recipe.requiredLevel,
+            where: null,
+          ),
+    ];
+
+    unlocks.sort((SkillUnlock a, SkillUnlock b) {
+      final int byLevel = a.requiredLevel.compareTo(b.requiredLevel);
+      return byLevel != 0 ? byLevel : a.displayName.compareTo(b.displayName);
+    });
+    return unlocks;
+  }
+
+  static String? _hostOf(ContentId node, ContentRegistry content) {
+    for (final LocationDefinition location in content.locations.values) {
+      if (location.resourceNodes.contains(node)) return location.displayName;
+    }
+    return null;
+  }
+
+  /// Steps that were banked before the Phase 2 cutover and are not spendable.
+  ///
+  /// Zero for a game that has never migrated. Surfaced rather than hidden: the
+  /// owner walked these, and a product that silently forgot them would be lying
+  /// about its own history (`DECISIONS/0016`).
+  int get retiredSteps => engine?.state.steps.epoch.retiredSteps ?? 0;
 
   /// The display name of a content id, for anything the read model does not
   /// already project. Falls back to the raw id rather than throwing.

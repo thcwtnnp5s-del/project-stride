@@ -35,6 +35,7 @@ import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/components/screen_header.dart';
 import 'package:stride/ui/components/sprite_animation.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
+import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/icons/sprite_footprints.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
@@ -220,7 +221,7 @@ void main() {
       final StrideSession reopened = (await tester.runAsync(() => launch()))!;
       expect(reopened.usableEnergy, 1041);
 
-      await tester.pumpWidget(StrideApp(session: reopened));
+      await tester.pumpWidget(StrideApp(session: reopened, syncOnStart: false));
 
       // NO pumpAndSettle before this assertion. With it, the test cannot fail
       // for the defect it exists to catch: a UI that loads after the first
@@ -273,7 +274,7 @@ void main() {
         return;
       }
 
-      await tester.pumpWidget(StrideApp(session: broken));
+      await tester.pumpWidget(StrideApp(session: broken, syncOnStart: false));
       await tester.pumpAndSettle();
 
       expect(find.text('Stride could not start'), findsOneWidget);
@@ -299,7 +300,7 @@ void main() {
           ],
         ),
       );
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       expect(find.text('0'), findsWidgets, reason: 'starts empty');
@@ -334,7 +335,7 @@ void main() {
         tester,
         source: MockStepSource(script: <SyncFetch>[page(1000)]),
       );
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       await tapAndAwait(
@@ -372,7 +373,7 @@ void main() {
         tester,
         source: MockStepSource(script: <SyncFetch>[page(1000)]),
       );
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       await tapAndAwait(
@@ -450,7 +451,7 @@ void main() {
         source: MockStepSource(script: <SyncFetch>[page(50)]),
       );
       await tester.runAsync(() => session.syncSteps());
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Walk 40 more steps'), findsOneWidget);
@@ -469,7 +470,7 @@ void main() {
         tester,
         source: MockStepSource(script: <SyncFetch>[page(1000)]),
       );
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
       await tapAndAwait(
         tester,
@@ -516,7 +517,7 @@ void main() {
         source: MockStepSource(script: <SyncFetch>[page(1000)]),
       );
       await tester.runAsync(() => session.syncSteps());
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       final Finder button = find.textContaining('Gather —');
@@ -575,7 +576,7 @@ void main() {
       // A moves the durable head under B.
       await tester.runAsync(() => a.gather(kNode));
 
-      await tester.pumpWidget(StrideApp(session: b));
+      await tester.pumpWidget(StrideApp(session: b, syncOnStart: false));
       await tester.pumpAndSettle();
 
       await tapAndAwait(
@@ -620,7 +621,9 @@ void main() {
         await tester.runAsync(() => session.syncSteps());
         await tester.runAsync(() => session.gather(kNode));
 
-        await tester.pumpWidget(StrideApp(session: session));
+        await tester.pumpWidget(
+          StrideApp(session: session, syncOnStart: false),
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 
@@ -656,7 +659,7 @@ void main() {
       await tester.pumpWidget(
         MediaQuery(
           data: const MediaQueryData(viewPadding: insets, padding: insets),
-          child: StrideApp(session: session),
+          child: StrideApp(session: session, syncOnStart: false),
         ),
       );
       await tester.pumpAndSettle();
@@ -712,7 +715,7 @@ void main() {
       WidgetTester tester,
     ) async {
       final StrideSession session = await boot(tester);
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       for (final Element element in find.byType(Text).evaluate()) {
@@ -727,25 +730,131 @@ void main() {
       }
     });
 
-    testWidgets('the two unbuilt tabs do not navigate', (
+    /// Phase 1 asserted the inverse of this — that Skills and Craft were inert,
+    /// because neither had a screen and a live-looking tab that does nothing is
+    /// the one genuinely misleading option. Both are built as of Phase 2
+    /// (`DECISIONS/0017`), so the assertion flips with them.
+    ///
+    /// What is *not* dropped is the property underneath: a destination and the
+    /// screen behind it must agree. That is now enforced by the shell's switch
+    /// being exhaustive with no `_` arm, so a seventh tab added without a screen
+    /// is a compile error rather than a blank tab.
+    testWidgets('all six tabs navigate to their own screen', (
       WidgetTester tester,
     ) async {
       final StrideSession session = await boot(tester);
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
-      // Present, so the player sees the app's real shape.
-      expect(find.text('Skills'), findsOneWidget);
-      expect(find.text('Craft'), findsOneWidget);
+      for (final String tab in <String>[
+        'Skills',
+        'Craft',
+        'Inventory',
+        'Character',
+        'World',
+        'Adventure',
+      ]) {
+        expect(find.text(tab), findsWidgets, reason: '$tab is missing');
+        // The tab bar's own label, not a screen's — `Craft` is also a button on
+        // the Craft screen, so tapping "any Craft" would be ambiguous.
+        await tester.tap(
+          find.descendant(
+            of: find.byType(StrideTabBar),
+            matching: find.text(tab),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      // And inert, so neither is a control that lies.
-      await tester.tap(find.text('Craft'), warnIfMissed: false);
+        // The header title is the selected destination's label, so finding it
+        // in the header is what proves the shell actually moved.
+        expect(
+          find.descendant(
+            of: find.byType(ScreenHeader),
+            matching: find.text(tab),
+          ),
+          findsOneWidget,
+          reason:
+              'tapping $tab did not put $tab in the header; the shell did not '
+              'navigate, or the destination has no screen',
+        );
+      }
+    });
+
+    testWidgets('the Skills screen shows derived progression, not raw XP', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Adventure'),
-        findsWidgets,
-        reason: 'the shell stayed on Adventure',
+      await tester.tap(
+        find.descendant(
+          of: find.byType(StrideTabBar),
+          matching: find.text('Skills'),
+        ),
       );
+      await tester.pumpAndSettle();
+
+      // All five, from content.
+      for (final String skill in <String>[
+        'Foraging',
+        'Woodcutting',
+        'Mining',
+        'Smithing',
+        'Cooking',
+      ]) {
+        expect(find.text(skill), findsWidgets, reason: '$skill is missing');
+      }
+
+      // A fresh save is level 1 in everything, and Foraging's second threshold
+      // is 100 — the figure that proves the span came from the curve rather
+      // than from a placeholder.
+      expect(find.text('LV 1'), findsNWidgets(5));
+      expect(find.text('0 / 100 XP'), findsWidgets);
+      expect(
+        find.textContaining('to level 2'),
+        findsWidgets,
+        reason: 'the screen must say what the next level costs',
+      );
+    });
+
+    testWidgets('the Craft screen lists real recipes and refuses truthfully', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(tester);
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(StrideTabBar),
+          matching: find.text('Craft'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // From recipes.json, not written into the widget. `findsWidgets` because
+      // each card names its output twice — as the recipe and as "Makes …".
+      expect(find.text('Herb Broth'), findsWidgets);
+      expect(find.text('Bronze Ingot'), findsWidgets);
+
+      // A fresh save holds no materials, so every card must be disabled *and*
+      // say why. A grey button with no sentence beside it is indistinguishable
+      // from a broken one.
+      expect(find.textContaining('Nothing can be made yet'), findsOneWidget);
+      expect(
+        find.textContaining('Needs 3 more Meadow Herb'),
+        findsOneWidget,
+        reason: 'the shortfall must name the item and the amount',
+      );
+
+      for (final Element element in find.byType(StrideButton).evaluate()) {
+        final StrideButton button = element.widget as StrideButton;
+        if (button.label != 'Craft') continue;
+        expect(
+          button.onPressed,
+          isNull,
+          reason: 'no recipe is craftable on a fresh save',
+        );
+      }
     });
   });
 
@@ -755,7 +864,7 @@ void main() {
 
   group('the World screen', () {
     Future<void> openWorld(WidgetTester tester, StrideSession session) async {
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
       await tester.tap(find.text('World'));
       await tester.pumpAndSettle();
@@ -773,6 +882,7 @@ void main() {
         "Haven's Rest",
         'Whispering Woods',
         'Stonefall Mine',
+        'Frostmere',
         'Forgotten Hollow',
       ]) {
         expect(
@@ -799,28 +909,48 @@ void main() {
       // asserting what it was written to assert — the position of the row in
       // the region list — rather than passing on the strength of the new
       // caption sitting above everything by construction.
-      final double here = tester.getTopLeft(find.text("Haven's Rest").last).dy;
+      // Scoped to the region card, because Phase 2 put a place name in three
+      // places on this screen: the travel card (ordered by price), the region
+      // list (ordered with the current location first), and the map's caption.
+      // `.first` or `.last` would each measure a different card depending on
+      // the layout of the day; naming the card measures the rule this test is
+      // about.
+      // Uppercase: `SectionHeading` renders `label.toUpperCase()`, so the
+      // string in the tree is not the string the widget was given.
+      final Finder regionCard = find.ancestor(
+        of: find.text('THIS REGION'),
+        matching: find.byType(SectionCard),
+      );
+      double rowY(String place) => tester
+          .getTopLeft(
+            find.descendant(of: regionCard, matching: find.text(place)),
+          )
+          .dy;
+
+      final double here = rowY("Haven's Rest");
       for (final String elsewhere in <String>[
         'Forgotten Hollow',
+        'Frostmere',
         'Stonefall Mine',
         'Whispering Woods',
       ]) {
         expect(
-          tester.getTopLeft(find.text(elsewhere)).dy,
+          rowY(elsewhere),
           greaterThan(here),
           reason: 'the current location leads the region list',
         );
       }
     });
 
-    /// The defect this screen exists to avoid: a travel affordance for a system
-    /// that does not exist.
+    /// Phase 1 asserted that this screen had **no controls at all**, because no
+    /// travel command existed and a button would have been the most convincing
+    /// lie in the demo.
     ///
-    /// Asserting the absence of specific words is weak on its own, so it is
-    /// paired with a structural check — no tappable control anywhere on the
-    /// screen's body. The map draws real roads and the content pack supplies
-    /// real step costs, so a button here would be convincing and wrong.
-    testWidgets('offers no way to travel, because nothing can', (
+    /// `TravelTo` exists now, so the prohibition is satisfied rather than
+    /// overridden — and the property that replaces it is the one that made the
+    /// old rule worth having: **every control here must correspond to a real
+    /// command, and offer only journeys the engine would accept.**
+    testWidgets('every travel control corresponds to a real route', (
       WidgetTester tester,
     ) async {
       final StrideSession session = await boot(
@@ -830,45 +960,99 @@ void main() {
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
 
-      for (final String word in <String>['Travel', 'Go', 'Depart', 'Set out']) {
+      // Haven's Rest connects to two places and to no others. Frostmere is in
+      // the content pack and is reached through Stonefall — so it must appear
+      // in the region legend and *not* as a journey from here.
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsNWidgets(2));
+      expect(find.text('Whispering Woods'), findsWidgets);
+      expect(find.text('Stonefall Mine'), findsWidgets);
+
+      final Finder journeys = find.byType(StrideButton);
+      for (final Element element in journeys.evaluate()) {
         expect(
-          find.widgetWithText(StrideButton, word),
-          findsNothing,
-          reason: 'no travel control may exist while no travel command does',
+          (element.widget as StrideButton).onPressed,
+          isNotNull,
+          reason: '50,000 banked affords every route out of Haven\'s Rest',
         );
       }
-      expect(
-        find.byType(StrideButton),
-        findsNothing,
-        reason: 'the World screen is presentation; it has no controls at all',
-      );
-
-      // And it says so, rather than leaving the player hunting the map for a
-      // tappable road.
-      expect(find.textContaining('not built yet'), findsOneWidget);
     });
 
-    /// Banked steps are teal; a distance is not. `ART_DIRECTION.md` L-16
-    /// reserves the accent for steps the player owns, and the route costs on
-    /// this screen are the most tempting place to spend it wrongly — they are
-    /// step figures that the player cannot spend.
-    testWidgets('route distances do not use the banked-steps accent', (
+    testWidgets('an unaffordable journey is disabled and states the gap', (
+      WidgetTester tester,
+    ) async {
+      // 100 banked against a 600 route: the control must refuse and say how far
+      // short, rather than failing on tap.
+      final StrideSession session = await boot(
+        tester,
+        source: MockStepSource(script: <SyncFetch>[page(100)]),
+      );
+      await tester.runAsync(() => session.syncSteps());
+      await openWorld(tester, session);
+
+      expect(find.textContaining('Walk 500 more steps'), findsOneWidget);
+      for (final Element element in find.byType(StrideButton).evaluate()) {
+        expect((element.widget as StrideButton).onPressed, isNull);
+      }
+    });
+
+    testWidgets('travelling spends exactly the cost and moves the player', (
+      WidgetTester tester,
+    ) async {
+      final StrideSession session = await boot(
+        tester,
+        source: MockStepSource(script: <SyncFetch>[page(2000)]),
+      );
+      await tester.runAsync(() => session.syncSteps());
+      await openWorld(tester, session);
+
+      await tapAndAwait(
+        tester,
+        find.widgetWithText(StrideButton, 'Travel').first,
+        until: () => session.currentLocation?.value != 'location.havens_rest',
+      );
+
+      expect(
+        session.usableEnergy,
+        1400,
+        reason: '2,000 − 600, the Whispering Woods route from content',
+      );
+      expect(
+        session.currentLocation?.value,
+        'location.whispering_woods',
+        reason: 'the cheapest route is listed first, and it leads to the woods',
+      );
+    });
+
+    /// Banked steps are teal; a route cost is not. `ART_DIRECTION.md` L-16
+    /// reserves the accent for steps the player *owns*, and the route figures
+    /// are the most tempting place to spend it wrongly — they are step
+    /// quantities that are not the player's balance.
+    ///
+    /// Still true now that they are prices rather than distances: a price is a
+    /// quantity of steps, not a holding of them.
+    testWidgets('route costs do not use the banked-steps accent', (
       WidgetTester tester,
     ) async {
       final StrideSession session = await boot(tester);
       await openWorld(tester, session);
 
-      final Finder distance = find.descendant(
+      final Finder cost = find.descendant(
         of: find.byType(WorldScreen),
-        matching: find.text('1,200'),
+        matching: find.text('600'),
       );
-      expect(distance, findsOneWidget, reason: 'the route cost from content');
-
       expect(
-        tester.widget<Text>(distance).style?.color,
-        isNot(StrideColors.accentSteps),
-        reason: 'a distance is not steps the player owns',
+        cost,
+        findsWidgets,
+        reason: 'the Whispering Woods route cost, from content',
       );
+
+      for (final Element element in cost.evaluate()) {
+        expect(
+          (element.widget as Text).style?.color,
+          isNot(StrideColors.accentSteps),
+          reason: 'a route price is not steps the player owns',
+        );
+      }
     });
   });
 
@@ -891,7 +1075,7 @@ void main() {
         source: MockStepSource(script: <SyncFetch>[page(89)]),
       );
       await tester.runAsync(() => session.syncSteps());
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       expect(
@@ -922,7 +1106,7 @@ void main() {
       WidgetTester tester,
     ) async {
       final StrideSession session = await boot(tester);
-      await tester.pumpWidget(StrideApp(session: session));
+      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
       final GroundedSprite grounded = tester.widget<GroundedSprite>(

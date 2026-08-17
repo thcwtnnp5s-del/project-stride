@@ -35,7 +35,14 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const UI = path.join(ROOT, 'assets', 'ui', 'v1');
 
 const PAIRS = ['nav_adventure', 'nav_character', 'nav_inventory'];
-const TARGET = 'nav_world';
+
+// The reference pairs stay the three that shipped with a `_hi` variant.
+//
+// Deliberately not widened to include the ones this script itself produced:
+// deriving the mapping from its own output would let a single wrong index
+// entrench itself as evidence, and the three originals are the only files whose
+// active variant a human actually authored.
+const TARGETS = ['nav_world', 'nav_skills', 'nav_craft'];
 
 const checkOnly = process.argv.includes('--check');
 
@@ -144,53 +151,68 @@ for (const index of contested) remap.delete(index);
 
 // ------------------------------------------------------------------- output
 
-const source = readIndices(path.join(UI, `${TARGET}.png`));
-const unmapped = new Set();
-const mapped = Buffer.from(source.indices);
-for (let i = 0; i < mapped.length; i++) {
-  if (remap.has(mapped[i])) {
-    mapped[i] = remap.get(mapped[i]);
+/** The `_hi` bytes [name] should have, derived from the shared remap. */
+function activeVariant(name) {
+  const source = readIndices(path.join(UI, `${name}.png`));
+  const unmapped = new Set();
+  const mapped = Buffer.from(source.indices);
+  for (let i = 0; i < mapped.length; i++) {
+    if (remap.has(mapped[i])) {
+      mapped[i] = remap.get(mapped[i]);
+    } else {
+      unmapped.add(mapped[i]);
+    }
+  }
+
+  const { chunks } = readChunks(path.join(UI, `${name}.png`));
+  const raw = Buffer.alloc(source.height * (source.width + 1));
+  for (let y = 0; y < source.height; y++) {
+    raw[y * (source.width + 1)] = 0;
+    mapped.copy(
+      raw,
+      y * (source.width + 1) + 1,
+      y * source.width,
+      (y + 1) * source.width,
+    );
+  }
+
+  return {
+    unmapped,
+    bytes: Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk('IHDR', chunks.find((c) => c.type === 'IHDR').body),
+      chunk('PLTE', chunks.find((c) => c.type === 'PLTE').body),
+      chunk('tRNS', chunks.find((c) => c.type === 'tRNS').body),
+      chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+      chunk('IEND', Buffer.alloc(0)),
+    ]),
+  };
+}
+
+let stale = 0;
+for (const name of TARGETS) {
+  const { bytes, unmapped } = activeVariant(name);
+  const target = path.join(UI, `${name}_hi.png`);
+
+  if (checkOnly) {
+    if (!fs.existsSync(target) || !fs.readFileSync(target).equals(bytes)) {
+      console.error(`stale: assets/ui/v1/${name}_hi.png`);
+      stale++;
+      continue;
+    }
+    console.log(`nav active variant: assets/ui/v1/${name}_hi.png up to date`);
   } else {
-    unmapped.add(mapped[i]);
+    fs.writeFileSync(target, bytes);
+    console.log(
+      `nav active variant: wrote assets/ui/v1/${name}_hi.png`
+      + ` (${remap.size} palette indices remapped`
+      + `${contested.size > 0 ? `, ${contested.size} contested and left alone` : ''}`
+      + `${unmapped.size > 0 ? `, ${unmapped.size} unseen in the reference pairs` : ''})`,
+    );
   }
 }
 
-const { chunks } = readChunks(path.join(UI, `${TARGET}.png`));
-const raw = Buffer.alloc(source.height * (source.width + 1));
-for (let y = 0; y < source.height; y++) {
-  raw[y * (source.width + 1)] = 0;
-  mapped.copy(
-    raw,
-    y * (source.width + 1) + 1,
-    y * source.width,
-    (y + 1) * source.width,
-  );
-}
-
-const bytes = Buffer.concat([
-  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-  chunk('IHDR', chunks.find((c) => c.type === 'IHDR').body),
-  chunk('PLTE', chunks.find((c) => c.type === 'PLTE').body),
-  chunk('tRNS', chunks.find((c) => c.type === 'tRNS').body),
-  chunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
-  chunk('IEND', Buffer.alloc(0)),
-]);
-
-const target = path.join(UI, `${TARGET}_hi.png`);
-
-if (checkOnly) {
-  if (!fs.existsSync(target) || !fs.readFileSync(target).equals(bytes)) {
-    console.error(`stale: assets/ui/v1/${TARGET}_hi.png`);
-    console.error('Run: node Scripts/art/nav-active-variant.js');
-    process.exit(1);
-  }
-  console.log(`nav active variant: assets/ui/v1/${TARGET}_hi.png up to date`);
-} else {
-  fs.writeFileSync(target, bytes);
-  console.log(
-    `nav active variant: wrote assets/ui/v1/${TARGET}_hi.png`
-    + ` (${remap.size} palette indices remapped`
-    + `${contested.size > 0 ? `, ${contested.size} contested and left alone` : ''}`
-    + `${unmapped.size > 0 ? `, ${unmapped.size} unseen in the reference pairs` : ''})`,
-  );
+if (stale > 0) {
+  console.error('Run: node Scripts/art/nav-active-variant.js');
+  process.exit(1);
 }

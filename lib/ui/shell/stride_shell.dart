@@ -10,7 +10,9 @@ import '../components/stride_scaffold.dart';
 import '../components/stride_tab_bar.dart';
 import '../screens/adventure/adventure_screen.dart';
 import '../screens/character/character_screen.dart';
+import '../screens/craft/craft_screen.dart';
 import '../screens/inventory/inventory_screen.dart';
+import '../screens/skills/skills_screen.dart';
 import '../screens/world/world_screen.dart';
 import '../state/session_controller.dart';
 import '../state/session_scope.dart';
@@ -71,14 +73,16 @@ class _StrideShellState extends State<StrideShell> {
           ),
         ),
       ),
+      // Exhaustive, with no `_` arm, deliberately. Every destination now has a
+      // screen; a seventh added without one would be a compile error here
+      // rather than a silently blank tab.
       body: switch (_selected) {
         StrideDestination.adventure => const AdventureScreen(),
         StrideDestination.character => const CharacterScreen(),
+        StrideDestination.skills => const SkillsScreen(),
         StrideDestination.inventory => const InventoryScreen(),
+        StrideDestination.craft => const CraftScreen(),
         StrideDestination.world => const WorldScreen(),
-        // Unreachable: the tab bar refuses taps on a disabled destination, so
-        // _selected can only ever hold an enabled one.
-        _ => const SizedBox.shrink(),
       },
       bottomBar: StrideTabBar(
         selected: _selected,

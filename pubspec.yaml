@@ -74,9 +74,11 @@ flutter:
     - assets/ui/v1/nav_character.png
     - assets/ui/v1/nav_character_hi.png
     - assets/ui/v1/nav_skills.png
+    - assets/ui/v1/nav_skills_hi.png
     - assets/ui/v1/nav_inventory.png
     - assets/ui/v1/nav_inventory_hi.png
     - assets/ui/v1/nav_craft.png
+    - assets/ui/v1/nav_craft_hi.png
     - assets/ui/v1/nav_world.png
     - assets/ui/v1/nav_world_hi.png
     - assets/ui/v1/glyph_steps.png
@@ -122,4 +124,8 @@ flutter:
     - assets/art/v1/anim/gather_f6.png
     - assets/art/v1/anim/gather_f7.png
     - assets/art/v1/location/havens_rest.png
+    - assets/art/v1/location/whispering_woods.png
+    - assets/art/v1/location/stonefall_mine.png
+    - assets/art/v1/location/frostmere.png
+    - assets/art/v1/location/forgotten_hollow.png
     - assets/art/v1/world/region_map.png

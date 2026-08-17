@@ -181,7 +181,7 @@ void main() {
       await tester.pumpWidget(
         MediaQuery(
           data: MediaQueryData(viewPadding: insets, padding: insets),
-          child: StrideApp(session: session),
+          child: StrideApp(session: session, syncOnStart: false),
         ),
       );
       await tester.pumpAndSettle();

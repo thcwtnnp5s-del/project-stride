@@ -1,21 +1,34 @@
-/// Where the player is, and what else is out there.
+/// Where the player is, where they can go, and what the journey costs.
 ///
-/// ## The two questions this screen answers, and the one it must not
+/// ## What changed in Phase 2, and why the change was allowed
 ///
-/// It answers **"where am I?"** and **"where can I eventually go?"**. It does
-/// not answer "how do I get there", because nothing in `stride_core` can.
+/// This screen used to carry a written prohibition, and it is worth preserving
+/// the shape of it because it is the argument that had to be answered before a
+/// button could appear here:
 ///
-/// There is no travel activity at any layer. `EnterLocation` exists, and its own
-/// comment records the gap: *"No travel cost here. Travel consumes steps over
-/// time."* The command that spends banked steps to cross a route is not
-/// written.
+/// > It answers "where am I?" and "where can I eventually go?". It does not
+/// > answer "how do I get there", because nothing in `stride_core` can. …
+/// > **Nothing on this screen is a control.** … A `Travel` button here would be
+/// > the most convincing lie in the demo: the map draws the roads, the content
+/// > pack supplies real costs, and the player has real banked steps to spend.
+/// > Every part of the illusion is present except the system.
 ///
-/// So **nothing on this screen is a control.** The map is an image with no hit
-/// testing, the legend rows are text, and the step figures beside them are
-/// labelled as distances rather than prices. A `Travel` button here would be the
-/// most convincing lie in the demo: the map draws the roads, the content pack
-/// supplies real costs, and the player has real banked steps to spend. Every
-/// part of the illusion is present except the system.
+/// **The system now exists.** `TravelTo` spends banked steps, moves the player
+/// atomically, and is refused when the route, the requirements or the balance
+/// do not allow it (`DECISIONS/0017`). So the affordance is no longer an
+/// illusion, and the prohibition has been satisfied rather than overridden.
+///
+/// The distinction that mattered then still holds now: **a control may exist
+/// here only because a command exists behind it.** Every button on this screen
+/// dispatches `SessionController.travel`, and every disabled one says which of
+/// the engine's own refusals it is anticipating. Nothing is computed here that
+/// the engine does not also check.
+///
+/// ## Still not a joystick
+///
+/// Travel is strategic menu travel powered by real steps. There is no free
+/// roam, no avatar token on the map, no drag, and no real-time walking figure.
+/// The map remains an image with no hit testing; the controls are rows.
 ///
 /// ## The current location is marked by weight, not by teal
 ///
@@ -48,9 +61,11 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:stride_core/stride_core.dart' show Terrain;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
+import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
@@ -76,16 +91,94 @@ class WorldScreen extends StatelessWidget {
       // Full-bleed map, gutters re-applied per child. Same reason as Adventure.
       padding: const EdgeInsets.only(bottom: StrideSpace.s16),
       children: <Widget>[
-        // The whole map, at ×1, scrolling with the page. It is 640 px tall — no
-        // phone shows it at once, and squeezing it into a viewport would mean
-        // downscaling a picture whose roads are two pixels wide.
+        // ## The travel card comes before the map, and that is a Phase 2 change
         //
-        // **Deliberately left at full height.** The obvious facelift move is to
-        // give it a `viewportHeight` so the legend arrives sooner. The map's
+        // The map is 640 px tall and is deliberately **not** cropped: its
         // subjects are distributed over its whole length — the settlement at the
         // top, the mine mouths on the right flank, the ruin at the bottom — so
         // any crop that buys a screenful of scrolling deletes a place the legend
-        // then names. Cropping the world to shorten a scroll is the wrong trade.
+        // then names. Cropping the world to shorten a scroll is the wrong trade,
+        // and that reasoning is unchanged.
+        //
+        // What changed is the screen's job. In Phase 1 this was presentation, so
+        // opening with the picture was right. It now carries the milestone's
+        // main new control, and behind a 640 px image that control was
+        // **entirely below the fold** — about 77 dp of the travel card visible
+        // on a 393 × 852 phone. A feature the owner is meant to spend a week
+        // testing should not require a scroll to discover.
+        //
+        // So the order follows the screen's question: *where can I go and what
+        // does it cost*, then *what else is out there*, then the picture. Both
+        // text sections are within a short scroll; the map is a full-bleed
+        // illustration you arrive at rather than one you scroll past.
+        //
+        // Putting the map between them was tried and is worse: the legend
+        // landed ~900 dp down, far enough that the lazy `ListView` had not even
+        // built it — which is a fair proxy for "no player will see this".
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.screenGutter,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SizedBox(height: StrideSpace.s12),
+              if (s.isStale) ...<Widget>[
+                StaleBanner(busy: c.busy, onReload: c.reload),
+                const SizedBox(height: StrideSpace.cardGap),
+              ],
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const SectionHeading(label: 'Travel from here'),
+                    const SizedBox(height: StrideSpace.s10),
+                    if (s.destinations.isEmpty)
+                      Text(
+                        'No route leads anywhere from here.',
+                        style: StrideType.micro.copyWith(
+                          color: StrideColors.textMuted,
+                        ),
+                      ),
+                    for (final TravelOption option in s.destinations)
+                      _DestinationRow(option: option),
+                    if (c.lastTravel != null) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s8),
+                      _TravelResult(report: c.lastTravel!),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: StrideSpace.cardGap),
+
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const SectionHeading(label: 'This region'),
+                    const SizedBox(height: StrideSpace.s10),
+                    for (final RegionPlace place in places)
+                      _PlaceRow(place: place),
+                    const SizedBox(height: StrideSpace.s4),
+                    // The old line here said travel was not built. It is, so the
+                    // sentence that remains is the one still worth saying: this
+                    // list is the whole world, including the parts no road
+                    // reaches from where the player is standing.
+                    Text(
+                      'Every place in the region. Routes run only between '
+                      'neighbours, so some are reached by way of another.',
+                      style: StrideType.micro.copyWith(
+                        color: StrideColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: StrideSpace.cardGap),
+            ],
+          ),
+        ),
+
         // Where the player is, written **on** the map's lower edge rather than
         // under it.
         //
@@ -106,47 +199,6 @@ class WorldScreen extends StatelessWidget {
           overlay: Align(
             alignment: Alignment.bottomLeft,
             child: _CurrentPlaceBar(places: places),
-          ),
-        ),
-        const SizedBox(height: StrideSpace.cardGap),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: StrideSpace.screenGutter,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (s.isStale) ...<Widget>[
-                StaleBanner(busy: c.busy, onReload: c.reload),
-                const SizedBox(height: StrideSpace.cardGap),
-              ],
-
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const SectionHeading(label: 'This region'),
-                    const SizedBox(height: StrideSpace.s10),
-                    for (final RegionPlace place in places)
-                      _PlaceRow(place: place),
-                    const SizedBox(height: StrideSpace.s4),
-                    // Stated outright rather than left to be inferred from the
-                    // absence of buttons. A player who cannot find the travel
-                    // control will conclude it is broken, or hunt the map for a
-                    // tappable road. Saying so costs one line and removes both.
-                    Text(
-                      'Travelling between places is not built yet. The step '
-                      'figures above are how far apart they are, not something '
-                      'you can spend yet.',
-                      style: StrideType.micro.copyWith(
-                        color: StrideColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ),
         ),
       ],
@@ -230,6 +282,136 @@ class _CurrentPlaceBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One journey the player could set out on.
+///
+/// The row is the control. Every reason it might be disabled is stated on it,
+/// because a grey button with no sentence beside it is indistinguishable from a
+/// broken one — and because the reasons are actionable in different ways: a
+/// shortfall means walk, a requirement means go and make something.
+class _DestinationRow extends StatelessWidget {
+  const _DestinationRow({required this.option});
+
+  final TravelOption option;
+
+  @override
+  Widget build(BuildContext context) {
+    final SessionController watched = SessionScope.of(context);
+    final SessionController controller = SessionScope.read(context);
+    final int banked = watched.session.usableEnergy;
+    final bool enabled =
+        option.canTravel && !watched.busy && watched.session.isReady;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: StrideSpace.s10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: AdaptiveText(
+                  option.displayName,
+                  style: StrideType.itemName,
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              // The step figure keeps the muted "steps as a unit" glyph it had
+              // as a distance. It is a price now, but it is still a quantity of
+              // steps rather than the player's own balance, and L-16's two-tone
+              // rule turns on exactly that distinction.
+              const WalkingGlyph(role: WalkingRole.unit),
+              const SizedBox(width: StrideSpace.s4),
+              AdaptiveText(
+                formatSteps(option.stepCost),
+                style: StrideType.itemCount,
+                color: option.affordable
+                    ? StrideColors.textPrimary
+                    : StrideColors.textMuted,
+              ),
+            ],
+          ),
+          const SizedBox(height: StrideSpace.s4),
+          AdaptiveText(
+            _subtitle(option, banked),
+            style: StrideType.micro,
+            color: StrideColors.textMuted,
+          ),
+          const SizedBox(height: StrideSpace.s8),
+          StrideButton.secondary(
+            label: watched.busy ? 'Travelling…' : 'Travel',
+            onPressed: enabled ? () => controller.travel(option.id) : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The one line that explains the row.
+  ///
+  /// Ordered the way the engine refuses: the requirement first, then the price.
+  /// Telling a player they are 400 steps short of Forgotten Hollow, when the
+  /// real answer is that it needs a Bronze Sword, sends them walking toward a
+  /// wall they will still hit.
+  static String _subtitle(TravelOption option, int banked) {
+    if (option.isBlocked) {
+      return 'Needs ${option.missingRequirements.join(', ')}';
+    }
+    if (!option.affordable) {
+      return 'Walk ${formatSteps(option.shortfallFrom(banked))} more steps';
+    }
+    final String places = option.resourceCount == 1
+        ? '1 resource'
+        : '${option.resourceCount} resources';
+    return option.isReached
+        ? '${_terrainWord(option)} · $places'
+        : 'Not yet reached · ${_terrainWord(option)} · $places';
+  }
+
+  /// The terrain, as a word a player would use rather than an enum name.
+  static String _terrainWord(TravelOption option) => switch (option.terrain) {
+    Terrain.grassland => 'Grassland',
+    Terrain.forest => 'Forest',
+    Terrain.foothills => 'Foothills',
+    Terrain.alpine => 'Alpine',
+  };
+}
+
+class _TravelResult extends StatelessWidget {
+  const _TravelResult({required this.report});
+
+  final TravelReport report;
+
+  @override
+  Widget build(BuildContext context) => SurfaceBlock(
+    child: AdaptiveText(
+      report.succeeded
+          ? report.firstVisit
+                ? 'Arrived at ${report.destinationName} for the first time · '
+                      '${formatSteps(report.cost)} steps'
+                : 'Arrived at ${report.destinationName} · '
+                      '${formatSteps(report.cost)} steps'
+          : _refusalText(report),
+      style: StrideType.sub,
+      color: report.succeeded
+          ? StrideColors.textPrimary
+          : StrideColors.textSecondary,
+    ),
+  );
+
+  /// Keyed on the stable wire code, never on the explanation sentence.
+  static String _refusalText(TravelReport report) => switch (report.rejection) {
+    'insufficient_steps' => 'Not enough banked steps for that journey.',
+    'entry_requirement_unmet' =>
+      'You are not carrying what that place requires.',
+    'route_not_found' => 'No route runs there from here.',
+    'already_at_location' => 'You are already there.',
+    'session_busy' => 'Something else is still running.',
+    'session_not_ready' => 'The game is not ready. Reload and try again.',
+    'commit_refused' => 'That did not save. Reload before travelling again.',
+    _ => 'You could not travel there.',
+  };
 }
 
 class _PlaceRow extends StatelessWidget {

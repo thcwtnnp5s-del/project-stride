@@ -93,12 +93,28 @@ abstract final class PixelIcons {
 
   // ----------------------------------------------------------------- scenes
 
-  /// The illustrated region map. **Presentation only** — it depicts routes that
-  /// no command can walk, so nothing on it is a control.
+  /// The illustrated region map.
+  ///
+  /// **Still not a control**, and the distinction is finer than it was. `TravelTo`
+  /// exists as of Phase 2, so the routes drawn here *can* now be walked — but
+  /// they are walked from the World screen's destination rows, not from the
+  /// picture. The map has no hit testing, no pin, and nothing draggable.
   static const String regionMap = '$_art/world/region_map.png';
 
+  /// One arrival vignette per location, all five.
+  ///
+  /// Four of these are Phase 2 (`GAME_BIBLE/ART/exploration/PIXELLAB_
+  /// STABILIZATION_01/out/location/`). Before them, travelling to Whispering
+  /// Woods showed the same screen as staying home minus a picture — the Adventure
+  /// screen was already location-aware in its *nodes* and had art for exactly one
+  /// place, so the milestone's headline feature arrived somewhere that looked
+  /// like nowhere.
   static const Map<String, String> _vignetteByLocation = <String, String>{
     'location.havens_rest': '$_art/location/havens_rest.png',
+    'location.whispering_woods': '$_art/location/whispering_woods.png',
+    'location.stonefall_mine': '$_art/location/stonefall_mine.png',
+    'location.frostmere': '$_art/location/frostmere.png',
+    'location.forgotten_hollow': '$_art/location/forgotten_hollow.png',
   };
 
   /// The arrival vignette for a location, or null where none is drawn.
@@ -211,9 +227,15 @@ abstract final class PixelIcons {
   static const String navCraft = '$_base/nav_craft.png';
   static const String navWorld = '$_base/nav_world.png';
 
-  /// Derived from [navWorld] by `Scripts/art/nav-active-variant.js`, using the
-  /// index remap measured from the three glyph pairs that already shipped — so
-  /// the fourth selectable tab brightens exactly like the other three rather
-  /// than by a rule invented for it.
+  /// The three active variants derived by `Scripts/art/nav-active-variant.js`,
+  /// using the index remap measured from the three glyph pairs that already
+  /// shipped — so every selectable tab brightens exactly like the originals
+  /// rather than by a rule invented per glyph.
+  ///
+  /// The reference pairs are deliberately never widened to include these:
+  /// deriving the mapping from the script's own output would let one wrong
+  /// index entrench itself as evidence.
   static const String navWorldActive = '$_base/nav_world_hi.png';
+  static const String navSkillsActive = '$_base/nav_skills_hi.png';
+  static const String navCraftActive = '$_base/nav_craft_hi.png';
 }

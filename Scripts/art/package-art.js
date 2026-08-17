@@ -279,18 +279,65 @@ function keyBorderWhite(raster, threshold = 248) {
   return cleared;
 }
 
-const vignette = png.load(
-  path.join(STABLE, 'location', 'havens_rest_vignette_512x384.png'),
-);
-keyBorderWhite(vignette);
-emit(
-  'location/havens_rest.png',
-  encode(png.crop(
-    vignette,
-    VIGNETTE_CROP.x, VIGNETTE_CROP.y,
-    VIGNETTE_CROP.width, VIGNETTE_CROP.height,
-  )),
-);
+/**
+ * Every location's crop window, chosen once and reviewable here.
+ *
+ * `x` is 64 on all four Phase 2 scenes — (512 − 384) / 2, a true horizontal
+ * centre — because none of them has a subject pushed to one side the way Haven's
+ * Rest's gate does. Haven's Rest keeps its authored 56 and is deliberately left
+ * alone; re-centring it would move a framing the owner has already seen on a
+ * device for no reason but symmetry.
+ *
+ * `y` is the part that carries judgement, and each is written down with what the
+ * window is *for* — the same standard the Haven's Rest note above sets. A crop
+ * is 46% of a 384 × 176 band's content decision, and "it looked fine" is not a
+ * reason a later reader can check.
+ */
+const VIGNETTE_CROPS = {
+  // The gate and its approach trail, the lodge, the forge, the well, and grass
+  // on both flanks. Authored for Phase 1 and unchanged.
+  havens_rest: { x: 56, y: 132 },
+
+  // Trunk bases rather than canopy. The band that says "deep forest" is the one
+  // with the path running into darkness between thick trunks; the canopy above
+  // is atmosphere and reads as an undifferentiated green mass at 176 px.
+  whispering_woods: { x: 64, y: 150 },
+
+  // The adit mouth **with its timber lintel intact**, and the rails running out
+  // of it. The first attempt at y 96 sheared the top beam off the frame and left
+  // a dark hole in a rock face, which reads as a cave rather than as a working
+  // mine — the whole point of the scene is that someone timbered it. Raising the
+  // window to 64 costs the ore cart at the bottom, and that is the right trade:
+  // the frame says "mine", the cart only says "worked".
+  stonefall_mine: { x: 64, y: 64 },
+
+  // The frozen tarn and both flanks that explain it: dark conifer below the
+  // treeline on the left, bare scree above it on the right. Cropping to the ice
+  // alone would lose the altitude, which is the whole identity of the place.
+  frostmere: { x: 64, y: 104 },
+
+  // The ruin in the bottom of the hollow, with the lip of the vale above it and
+  // the standing damp below. The bare branches at the top are the mood and the
+  // ruin is the subject, so the window favours the ruin.
+  forgotten_hollow: { x: 64, y: 128 },
+};
+
+for (const [id, window] of Object.entries(VIGNETTE_CROPS)) {
+  const vignette = png.load(
+    path.join(STABLE, 'location', `${id}_vignette_512x384.png`),
+  );
+  // Harmless where there is no white ground — a border flood fill on an image
+  // whose edge pixels are dark clears nothing at all.
+  keyBorderWhite(vignette);
+  emit(
+    `location/${id}.png`,
+    encode(png.crop(
+      vignette,
+      window.x, window.y,
+      VIGNETTE_CROP.width, VIGNETTE_CROP.height,
+    )),
+  );
+}
 
 // -------------------------------------------------------- footprint metrics
 

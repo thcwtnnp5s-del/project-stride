@@ -194,7 +194,9 @@ void main() {
               reason: 'the fixture must actually reach the stress value',
             );
 
-            await tester.pumpWidget(StrideApp(session: session));
+            await tester.pumpWidget(
+              StrideApp(session: session, syncOnStart: false),
+            );
             await tester.pumpAndSettle();
 
             // 1. The whole string is present, character for character.
@@ -265,7 +267,9 @@ void main() {
         ))!;
         if (banked > 0) await tester.runAsync(() => session.syncSteps());
 
-        await tester.pumpWidget(StrideApp(session: session));
+        await tester.pumpWidget(
+          StrideApp(session: session, syncOnStart: false),
+        );
         await tester.pumpAndSettle();
         lefts.add(tester.getTopLeft(find.byType(BankedStepsReadout)).dx);
       }
@@ -299,7 +303,9 @@ void main() {
               session.gather(ContentId.unchecked('resource_node.meadow_patch')),
         );
 
-        await tester.pumpWidget(StrideApp(session: session));
+        await tester.pumpWidget(
+          StrideApp(session: session, syncOnStart: false),
+        );
         await tester.pumpAndSettle();
         expect(clippedLines(tester), isEmpty, reason: 'Adventure');
         expect(tester.takeException(), isNull);
@@ -340,7 +346,9 @@ void main() {
             ),
           );
 
-          await tester.pumpWidget(scaled(StrideApp(session: session), factor));
+          await tester.pumpWidget(
+            scaled(StrideApp(session: session, syncOnStart: false), factor),
+          );
           await tester.pumpAndSettle();
 
           // The banked figure survives in full at every scale. This is the

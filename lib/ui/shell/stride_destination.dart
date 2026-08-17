@@ -4,7 +4,15 @@
 /// designer's to change. There is no seventh tab and no combat tab — combat is a
 /// modal.
 ///
-/// ## Why the unbuilt three are shown disabled rather than hidden
+/// ## All six are built as of Playable Phase 2
+///
+/// Skills and Craft were the last two, and the reasoning below is preserved
+/// rather than deleted because it is the argument that would have to be made
+/// again the next time a destination ships ahead of its screen. [enabled]
+/// stays — it is what made the wait honest, and it is what would make the next
+/// one honest too.
+///
+/// ## Why the unbuilt ones were shown disabled rather than hidden
 ///
 /// "Least misleading" is a claim about what a viewer concludes, so compare the
 /// false belief each option produces.
@@ -39,14 +47,19 @@ enum StrideDestination {
     PixelIcons.navCharacterActive,
     enabled: true,
   ),
-  skills('Skills', PixelIcons.navSkills, PixelIcons.navSkills),
+  skills(
+    'Skills',
+    PixelIcons.navSkills,
+    PixelIcons.navSkillsActive,
+    enabled: true,
+  ),
   inventory(
     'Inventory',
     PixelIcons.navInventory,
     PixelIcons.navInventoryActive,
     enabled: true,
   ),
-  craft('Craft', PixelIcons.navCraft, PixelIcons.navCraft),
+  craft('Craft', PixelIcons.navCraft, PixelIcons.navCraftActive, enabled: true),
   world('World', PixelIcons.navWorld, PixelIcons.navWorldActive, enabled: true);
 
   const StrideDestination(
@@ -64,6 +77,11 @@ enum StrideDestination {
   /// asset.
   final String glyphActive;
 
-  /// Whether this destination has a Phase 1 screen behind it.
+  /// Whether this destination has a screen behind it.
+  ///
+  /// True for all six since Playable Phase 2. Kept rather than removed: it is
+  /// the mechanism that prevents a live-looking tab that does nothing, and
+  /// deleting it would mean re-inventing it the next time a destination is
+  /// added ahead of its screen.
   final bool enabled;
 }

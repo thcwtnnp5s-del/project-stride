@@ -47,6 +47,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -99,9 +100,7 @@ void main() {
     }
   });
 
-  testWidgets('the four Phase 1 screens at 393 x 852', (
-    WidgetTester tester,
-  ) async {
+  testWidgets('the six screens at 393 x 852', (WidgetTester tester) async {
     // The reference viewport the approved renders were authored at. DPR 1 so
     // the golden's pixel dimensions equal its logical dimensions and a reviewer
     // comparing it to the 393x852 HTML render is comparing like with like.
@@ -120,7 +119,7 @@ void main() {
     await tester.runAsync(() => session.gather(kNode));
     await tester.runAsync(() => session.gather(kNode));
 
-    await tester.pumpWidget(StrideApp(session: session));
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
     await tester.pumpAndSettle();
 
     /// Decodes every `Image` currently in the tree, then settles.
@@ -145,23 +144,50 @@ void main() {
       matchesGoldenFile('goldens/phase1_adventure.png'),
     );
 
-    await tester.tap(find.text('Inventory'));
-    await tester.pumpAndSettle();
-    await settleImages();
+    // Tapped through the tab bar specifically. `Craft` is also a button label
+    // on the Craft screen, so `find.text('Craft')` alone is ambiguous the
+    // moment that screen is the one on show.
+    Future<void> open(String tab) async {
+      await tester.tap(
+        find.descendant(
+          of: find.byType(StrideTabBar),
+          matching: find.text(tab),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await settleImages();
+    }
+
+    await open('Inventory');
     await expectLater(
       find.byType(StrideApp),
       matchesGoldenFile('goldens/phase1_inventory.png'),
     );
 
-    await tester.tap(find.text('Character'));
-    await tester.pumpAndSettle();
-    await settleImages();
+    await open('Character');
     await expectLater(
       find.byType(StrideApp),
       matchesGoldenFile('goldens/phase1_character.png'),
     );
 
-    await tester.tap(find.text('World'));
+    await open('Skills');
+    await expectLater(
+      find.byType(StrideApp),
+      matchesGoldenFile('goldens/phase2_skills.png'),
+    );
+
+    await open('Craft');
+    await expectLater(
+      find.byType(StrideApp),
+      matchesGoldenFile('goldens/phase2_craft.png'),
+    );
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(StrideTabBar),
+        matching: find.text('World'),
+      ),
+    );
     await tester.pumpAndSettle();
     await settleImages();
     await expectLater(
@@ -189,7 +215,7 @@ void main() {
   /// **This still cannot judge insets**, and Roboto is not the iPhone's SF Pro. It is
   /// regression evidence that the layout has not moved at a realistic value.
   /// `ui_responsive_test.dart` is what actually asserts the figure is whole.
-  testWidgets('the four screens at the accepted save, 455,281 banked', (
+  testWidgets('the six screens at the accepted save, 455,281 banked', (
     WidgetTester tester,
   ) async {
     tester.view.physicalSize = const Size(393, 852);
@@ -211,7 +237,7 @@ void main() {
       reason: 'the fixture must reach the figure the defect was found at',
     );
 
-    await tester.pumpWidget(StrideApp(session: session));
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
     await tester.pumpAndSettle();
 
     Future<void> settleImages() async {
@@ -232,9 +258,16 @@ void main() {
     for (final (String tab, String file) in <(String, String)>[
       ('Inventory', 'phase1_inventory_large.png'),
       ('Character', 'phase1_character_large.png'),
+      ('Skills', 'phase2_skills_large.png'),
+      ('Craft', 'phase2_craft_large.png'),
       ('World', 'phase1_world_large.png'),
     ]) {
-      await tester.tap(find.text(tab));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(StrideTabBar),
+          matching: find.text(tab),
+        ),
+      );
       await tester.pumpAndSettle();
       await settleImages();
       await expectLater(

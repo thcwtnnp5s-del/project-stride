@@ -32,9 +32,30 @@ import 'state/session_scope.dart';
 import 'theme/stride_theme.dart';
 
 class StrideApp extends StatefulWidget {
-  const StrideApp({super.key, required this.session});
+  const StrideApp({super.key, required this.session, this.syncOnStart = true});
 
   final StrideSession session;
+
+  /// Whether to reconcile new foreground health data once, after the first
+  /// frame. True in the app; `main.dart` never passes it.
+  ///
+  /// ## Why this seam exists, and why it is not the feature being weakened
+  ///
+  /// A widget test runs under `FakeAsync`. A post-frame callback that starts
+  /// real file and platform I/O produces a future `pumpAndSettle` cannot
+  /// advance, so the controller stays `busy` for the rest of the test and every
+  /// control in the tree is disabled — a hang wearing the costume of a layout
+  /// bug. The sync is fine; the harness cannot finish it.
+  ///
+  /// So tests that drive their own sync compose it away, and the startup path
+  /// gets its own test that runs inside `runAsync` and can actually await it
+  /// (`test/startup_sync_test.dart`). The behaviour is still covered — it is
+  /// covered by the test that is able to observe it, rather than half-started by
+  /// every test that is not.
+  ///
+  /// It is deliberately **not** a general "disable health" switch. It gates one
+  /// call, at one moment, and `syncSteps` remains reachable either way.
+  final bool syncOnStart;
 
   @override
   State<StrideApp> createState() => _StrideAppState();
@@ -44,6 +65,29 @@ class _StrideAppState extends State<StrideApp> {
   // Synchronous. There is no async gap between the session existing and the
   // controller existing.
   late final SessionController _controller = SessionController(widget.session);
+
+  @override
+  void initState() {
+    super.initState();
+    // Foreground startup sync, once, after the first frame.
+    //
+    // `addPostFrameCallback` rather than an `await` in `main`: startup already
+    // awaits the session above `runApp`, so every figure on the first frame is
+    // the real loaded save. Holding that frame for a HealthKit round trip as
+    // well would trade a truthful immediate paint for a blank one.
+    //
+    // The two operations therefore stay visibly distinguishable — the save is
+    // on screen, and the sync then adds to it or says why it could not. There
+    // is no flash of zero, because zero is never what gets painted.
+    //
+    // One shot. H-5 permits foreground sync only, and `startupSync` is
+    // idempotent, so neither a rebuild nor a hot reload can produce a second.
+    if (!widget.syncOnStart) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _controller.startupSync();
+    });
+  }
 
   @override
   void dispose() {

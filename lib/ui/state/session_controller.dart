@@ -39,6 +39,10 @@ class SessionController extends ChangeNotifier {
   ActionReport? _lastAction;
   ContentId? _lastActionNode;
   SyncReport? _lastSync;
+  TravelReport? _lastTravel;
+  CraftReport? _lastCraft;
+  ContentId? _lastCraftRecipe;
+  bool _startupSyncDone = false;
   Timer? _resultTimer;
 
   /// True while a session command is in flight. For a spinner and a disabled
@@ -55,6 +59,14 @@ class SessionController extends ChangeNotifier {
   /// The report from the last sync, while it is still on screen.
   SyncReport? get lastSync => _lastSync;
 
+  /// The report from the last journey, while it is still on screen.
+  TravelReport? get lastTravel => _lastTravel;
+
+  /// The report from the last craft, and which recipe it was — so a card knows
+  /// whether the line on screen is about it.
+  CraftReport? get lastCraft => _lastCraft;
+  ContentId? get lastCraftRecipe => _lastCraftRecipe;
+
   /// Runs a foreground step sync and keeps its report for display.
   Future<void> syncSteps() async {
     if (_busy) return;
@@ -68,6 +80,38 @@ class SessionController extends ChangeNotifier {
       _busy = false;
       notifyListeners();
     }
+  }
+
+  /// Reconciles new foreground health data once, shortly after launch.
+  ///
+  /// ## What this is, and what it deliberately is not
+  ///
+  /// It is **one** sync, on the first frame after startup, and nothing more.
+  /// `RULES.md` H-5 permits foreground sync only; there is no observer query, no
+  /// background delivery, no lifecycle hook, and — asserted by
+  /// `s01a_vertical_slice_test.dart` — no `Timer.periodic` anywhere in `lib/`.
+  ///
+  /// ## Why it runs after the first frame rather than before it
+  ///
+  /// Startup already awaits `StrideSession.start()` above `runApp`, so the save
+  /// is loaded and every figure is real before anything is painted. Awaiting a
+  /// HealthKit round trip there too would hold the first frame on a permission
+  /// dialog or a slow read.
+  ///
+  /// Running it after means **save load and health reconciliation stay visibly
+  /// distinguishable**, which is what the milestone asked for: the player sees
+  /// their real banked figure immediately, and the sync either adds to it or
+  /// truthfully says why it could not. There is no flash of zero, because zero
+  /// is never rendered — the loaded save is.
+  ///
+  /// Idempotent by [_startupSyncDone], so a rebuild cannot fire a second one.
+  /// A duplicate would grant nothing anyway — the ledger's slice bookkeeping
+  /// sees to that — but it would spend a device read and race the manual button.
+  Future<void> startupSync() async {
+    if (_startupSyncDone) return;
+    _startupSyncDone = true;
+    if (!_session.isReady) return;
+    await syncSteps();
   }
 
   /// Works [node] once.
@@ -85,6 +129,41 @@ class SessionController extends ChangeNotifier {
     try {
       _lastAction = await _session.gather(node);
       _lastActionNode = node;
+      _armResultTimer();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Walks a route to [destination].
+  ///
+  /// Nothing is rendered optimistically across the await, for the reason
+  /// [gather] gives — and here the optimistic render would be the player's own
+  /// location, which is the last thing that should be shown wrong.
+  Future<void> travel(ContentId destination) async {
+    if (_busy) return;
+    _busy = true;
+    _clearResults(notify: false);
+    notifyListeners();
+    try {
+      _lastTravel = await _session.travel(destination);
+      _armResultTimer();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Makes [recipe] once.
+  Future<void> craft(ContentId recipe) async {
+    if (_busy) return;
+    _busy = true;
+    _clearResults(notify: false);
+    notifyListeners();
+    try {
+      _lastCraft = await _session.craft(recipe);
+      _lastCraftRecipe = recipe;
       _armResultTimer();
     } finally {
       _busy = false;
@@ -117,6 +196,9 @@ class SessionController extends ChangeNotifier {
     _lastAction = null;
     _lastActionNode = null;
     _lastSync = null;
+    _lastTravel = null;
+    _lastCraft = null;
+    _lastCraftRecipe = null;
     if (notify) notifyListeners();
   }
 
