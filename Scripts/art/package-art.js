@@ -99,6 +99,21 @@ const ITEM_ICONS = {
   'item.training_pickaxe': 'icon_training_pickaxe_48.png',
   'item.training_sword': 'icon_training_sword_48.png',
   'item.traveler_tunic': 'icon_traveler_tunic_48.png',
+
+  // Phase 2. Two foraged materials and the two things cooked from them.
+  //
+  // Before these, all four rendered as the `unknown` slab — including on the
+  // Craft screen, where two of them are the *output*, so the screen showed a
+  // blank placeholder for the thing it was offering to make.
+  //
+  // The pairs are legible as pairs: the skewer carries the duskcap's own cap
+  // shape and palette, and the tea carries the rime blossom's pale blue. That
+  // is the only cue linking ingredient to product at 48 px, and it is
+  // deliberate — see the QA record in `SKILL_ICONS_OD04/ROUND_01_RESULT.md`.
+  'item.duskcap': 'icon_duskcap_48.png',
+  'item.rime_blossom': 'icon_rime_blossom_48.png',
+  'item.duskcap_skewer': 'icon_duskcap_skewer_48.png',
+  'item.frostbloom_tea': 'icon_frostbloom_tea_48.png',
 };
 
 for (const [id, file] of Object.entries(ITEM_ICONS)) {
@@ -218,17 +233,35 @@ for (let i = 0; i < GATHER_FRAMES; i++) {
  */
 const TARN_PATCH = { x: 120, y: 224 };
 
-const regionMap = png.load(path.join(STABLE, 'world', 'region_map_384x640.png'));
-png.blit(
-  regionMap,
-  png.load(path.join(
-    EXPLORE, 'PHASE1_CARRIED_CORRECTIONS', 'out',
-    'region_map_tarn_patch_96x96.png',
+/**
+ * SUPERSEDED BY THE PHASE 2 MAP — the block above is preserved as the record of
+ * the Phase 1 map and its one carried correction, because the *lesson* in it
+ * outlives the image: value beats area, and an elliptical mask beats a
+ * rectangular one.
+ *
+ * The Phase 1 map is retired rather than patched. It drew four locations, and
+ * the implemented world now has five — Frostmere is a real destination in the
+ * travel graph with a real 1,500-step route to it, and it was nowhere on the
+ * picture. A map that omits a place the World screen offers to sell you a
+ * journey to is not incomplete, it is wrong.
+ *
+ * The Phase 2 map is generated whole rather than patched, so the tarn
+ * correction does not carry forward and does not need to: this generation was
+ * asked for an edge-to-edge composition and returned one, with 0 white pixels
+ * on the frame edge and 0 non-opaque pixels — verified, because the first
+ * attempt came back with a 15 px white border that would have shown the page
+ * ground through a full-bleed banner.
+ *
+ * **No post-processing at all.** No key, no crop, no patch. The bytes emitted
+ * are the bytes PixelLab returned, which is the simplest provenance this tree
+ * has.
+ */
+emit(
+  'world/region_map.png',
+  encode(png.load(
+    path.join(STABLE, 'world', 'region_map_phase2_384x640.png'),
   )),
-  TARN_PATCH.x,
-  TARN_PATCH.y,
 );
-emit('world/region_map.png', encode(regionMap));
 
 /**
  * LOCATION VIGNETTE — keyed, then framed.

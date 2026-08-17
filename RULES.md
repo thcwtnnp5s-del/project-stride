@@ -199,3 +199,31 @@ documents reflect reality.
 **G-7 — One canonical home per concept.**
 No document duplicates another's authority. New requirements extend the
 existing canonical location rather than opening a second one.
+
+**G-8 — Stage explicit paths. Never `git add -A` or `git add .`**
+Name the paths a commit is for, or read `git status --short` before committing.
+A blind stage published 929 untracked files — including third-party reference
+imagery marked `DO NOT COMMIT` — to a public repository, and required a history
+rewrite to undo. A commit that adds far more files than its message describes is
+a defect signal, not a tidy-up.
+→ `MISTAKES.md` M-08
+
+---
+
+## Production art
+
+**A-1 — PixelLab is the production-art and production-animation engine.**
+Claude may art-direct, prompt, select outputs, edit and inpaint through
+PixelLab, and integrate the results. Claude may **not** manufacture new
+production artwork or animation frames in code when PixelLab can do the creative
+task. Where PixelLab fails: preserve the temporary asset, record the failure,
+escalate — never silently substitute code-drawn art.
+→ owner direction, 2026-08-17
+
+**A-2 — Deterministic transformation of approved art is not authoring.**
+Crop, nearest-neighbour scale, sprite-sheet assembly, keying, palette or index
+remap, selected/disabled-state derivation, and format conversion are permitted
+in code, **provided they invent no new object, silhouette, animation frame, or
+illustrated content.** The nav `_hi` variants are a derivation of this kind and
+stand.
+→ owner direction, 2026-08-17

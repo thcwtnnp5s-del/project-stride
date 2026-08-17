@@ -195,6 +195,10 @@ abstract final class PixelIcons {
     'item.training_pickaxe': '$_art/item/training_pickaxe.png',
     'item.training_sword': '$_art/item/training_sword.png',
     'item.traveler_tunic': '$_art/item/traveler_tunic.png',
+    'item.duskcap': '$_art/item/duskcap.png',
+    'item.rime_blossom': '$_art/item/rime_blossom.png',
+    'item.duskcap_skewer': '$_art/item/duskcap_skewer.png',
+    'item.frostbloom_tea': '$_art/item/frostbloom_tea.png',
   };
 
   /// A deliberately non-representational slab, for an item with no icon.

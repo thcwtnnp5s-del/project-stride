@@ -21,6 +21,78 @@ to `M-02` stays valid.
 
 ---
 
+## M-08 — `git add -A` published 929 files, including third-party imagery, to a public repository
+
+**Date:** 2026-08-17 · **Category:** process / repository hygiene ·
+**Graduated to:** `RULES.md` G-8, `.gitignore`
+
+### What happened
+
+Four Playable Phase 2 commits were staged with `git add -A`. The working tree
+contained a large body of **untracked** visual-exploration evidence from earlier
+sessions, and all of it went in: **929 files across nineteen directories**.
+
+Twelve of them are in `GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/`, and
+nine of those are **third-party reference imagery** — screenshots of a
+commercial game and external pixel-art references, gathered for a forensic style
+study.
+
+That directory's own README opens with:
+
+```text
+STATUS: REFERENCE EVIDENCE ONLY — NOT CANON — NOT A PROJECT STRIDE ASSET
+DO NOT COMMIT
+```
+
+The repository is **public and deliberately so** (`PROJECT_STATE.md`). The
+commits were pushed.
+
+### Root cause
+
+**`git add -A` stages by absence of a rule, not by intent.** It cannot
+distinguish "a file I just created for this commit" from "a file that has been
+sitting in the tree for three sessions because nobody wanted it tracked". The
+only thing standing between an untracked file and publication was a README —
+that is, a document addressed to a *reader*, guarding against an action taken by
+a *command*.
+
+Three things made it invisible rather than obvious:
+
+- The commit message was written from intent, not from `git status`. The staged
+  list was never read.
+- `git commit` reports a count, not a manifest, and 946 files added is not
+  visibly different from 17 in a terminal that scrolls.
+- `.gitignore` had no rule for `GAME_BIBLE/ART/exploration/`, because until then
+  nothing had ever tried to add it.
+
+### Consequence
+
+The material was publicly fetchable for the time the branch was pushed.
+**Untracking at the tip is not a remedy** — the blobs remain reachable through
+the pushed commits — so this required a history rewrite and a force-push, which
+is the most disruptive operation available on a shared branch and was needed
+only because of a two-character flag.
+
+It also inflated the branch: 929 files of prior evidence landed in a milestone
+whose actual art output was six images.
+
+### Prevention
+
+- **`RULES.md` G-8: stage explicit paths.** `git add -A` and `git add .` are not
+  to be used. Name the paths, or read `git status --short` before committing.
+- **Invert the default where the risk lives.** `.gitignore` now ignores
+  `GAME_BIBLE/ART/exploration/**` and re-includes the specific packaging sources
+  and round records that must be tracked. A rule beats a README, because the
+  README was already right and was still not read by the command that mattered.
+- **Never rely on an in-file instruction to prevent a repository action.** A
+  `DO NOT COMMIT` header is a note to a person. The mechanism has to be a rule a
+  tool enforces.
+- **A commit that adds more files than the change describes is a defect
+  signal.** If the message names four screens and the commit adds nine hundred
+  files, the two do not agree and the commit is wrong.
+
+---
+
 ## M-07 — Every structural validator passed, and the loop was unplayable
 
 **Date:** 2026-08-17 · **Category:** content / verification ·

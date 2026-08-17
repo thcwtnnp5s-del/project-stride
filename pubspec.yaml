@@ -112,6 +112,10 @@ flutter:
     - assets/art/v1/item/training_pickaxe.png
     - assets/art/v1/item/training_sword.png
     - assets/art/v1/item/traveler_tunic.png
+    - assets/art/v1/item/duskcap.png
+    - assets/art/v1/item/rime_blossom.png
+    - assets/art/v1/item/duskcap_skewer.png
+    - assets/art/v1/item/frostbloom_tea.png
     - assets/art/v1/item/unknown.png
     - assets/art/v1/portrait/traveler.png
     - assets/art/v1/sprite/traveler_south.png

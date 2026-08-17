@@ -76,6 +76,21 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
+      # `material_fonts` is a lazily-downloaded artifact, and `cache: true`
+      # above caches the SDK rather than fetching it. Without this step the
+      # runner has no Roboto, and `test/support/real_font.dart` **fails rather
+      # than skips** — deliberately, per `MISTAKES.md` M-06: a width assertion
+      # taken against `flutter_test`'s fallback font measures the harness, not
+      # the app.
+      #
+      # This surfaced on the first CI run over UI Facelift 01's work. That
+      # milestone introduced `loadRealFont()` and closed on device review
+      # without a CI dispatch, so the guard had never executed on Linux. It is
+      # not a Phase 2 regression; Phase 2 is simply the first run that reached
+      # it.
+      - name: Fetch font artifacts
+        run: flutter precache --universal
+
       - name: Resolve dependencies
         run: |
           flutter pub get

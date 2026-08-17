@@ -84,6 +84,18 @@ before the work starts** (`RULES.md` G-1, `MISTAKES.md` M-01).
 Android. A health task does not touch combat. Shared code is the only exception,
 and it needs saying out loud.
 
+**Stage explicit paths when committing.** Never `git add -A` or `git add .`.
+Name the paths, or read `git status --short` first. A blind stage published 929
+untracked files — third-party reference imagery among them — to this public
+repository and needed a history rewrite to undo (`RULES.md` G-8,
+`MISTAKES.md` M-08).
+
+**PixelLab makes the art.** Claude art-directs, prompts, selects, edits,
+animates through PixelLab, then crops, scales, packages and integrates. Claude
+does not draw production artwork or animation frames in code when PixelLab can
+do the creative task; if PixelLab fails, keep the temporary asset and escalate
+(`RULES.md` A-1, A-2).
+
 **Record durable knowledge in repository documents.** Anything a future session
 must know goes in the repo — a decision, a spec, a state update, a mistake
 entry. Chat memory is not project memory (`RULES.md` G-5).

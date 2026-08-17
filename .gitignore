@@ -133,3 +133,51 @@ Scripts/tooling/node_modules/
 # Golden-failure artefacts. Written by flutter_test on a golden mismatch;
 # never evidence, and never something to commit.
 test/failures/
+
+# ---------------------------------------------------------------------------
+# Visual exploration evidence — local by default, tracked by exception
+#
+# `GAME_BIBLE/ART/exploration/` is a working area. It holds rejected rounds,
+# contact sheets, blind-QA plates, per-round tooling, and — in at least one
+# directory — **third-party reference imagery that must never be published**.
+# `WALKSCAPE_REFERENCE_SET/README.md` says so in its own header: "REFERENCE
+# EVIDENCE ONLY — NOT CANON — NOT A PROJECT STRIDE ASSET / DO NOT COMMIT".
+#
+# That instruction was not enough on its own. A `git add -A` during Playable
+# Phase 2 swept 929 untracked files from this tree into the history of a
+# **public** repository, the reference set among them. Untracking them at the
+# tip does not remove them from pushed commits; that needed a history rewrite.
+# See `MISTAKES.md` M-08.
+#
+# So the default is inverted: nothing here is tracked unless it is named below.
+# A rule beats a README, because the README was already right and was still not
+# read by the command that mattered.
+#
+# What stays tracked, and why:
+#
+#   * PIXELLAB_STABILIZATION_01/out/  — the packaging SOURCES. `package-art.js`
+#     reads item icons, the gather animation, the world map and the location
+#     vignettes from here, so `--check` cannot pass without them.
+#   * PIXELLAB_PROOF_02/out/character/traveler_south_64.png and
+#     traveler_portrait_64.png — the sprite and portrait the same script reads.
+#   * PHASE1_CARRIED_CORRECTIONS/     — the Phase 1 correction patch.
+#   * SKILL_ICONS_OD04/               — the OD-04 round that failed blind QA.
+#     Kept deliberately: a failed round with a written verdict is the evidence
+#     the next round is built on.
+#   * *.md                            — round records and specifications.
+#
+# To track something new here, add an exception rather than removing this rule.
+# ---------------------------------------------------------------------------
+GAME_BIBLE/ART/exploration/**
+!GAME_BIBLE/ART/exploration/**/
+!GAME_BIBLE/ART/exploration/**/*.md
+!GAME_BIBLE/ART/exploration/PIXELLAB_STABILIZATION_01/out/**
+!GAME_BIBLE/ART/exploration/PIXELLAB_PROOF_02/out/character/traveler_south_64.png
+!GAME_BIBLE/ART/exploration/PIXELLAB_PROOF_02/out/character/traveler_portrait_64.png
+!GAME_BIBLE/ART/exploration/PHASE1_CARRIED_CORRECTIONS/**
+!GAME_BIBLE/ART/exploration/SKILL_ICONS_OD04/**
+
+# Never, under any exception: third-party reference imagery.
+GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg
+GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpeg
+GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.png
