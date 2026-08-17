@@ -186,9 +186,12 @@ class _StepsBudgetCard extends StatelessWidget {
       final int? cost = s.costOf(nodes.first.id);
       if (cost != null && cost > 0) {
         final int count = s.usableEnergy ~/ cost;
+        // Thousands-separated like every other figure in the app. It was the
+        // one bare integer on a screen carrying `455,281` and `455,371`
+        // twenty pixels away, and at a real save it reaches four digits.
         affordance = count == 1
             ? 'Enough banked for 1 more gather'
-            : 'Enough banked for $count more gathers';
+            : 'Enough banked for ${formatSteps(count)} more gathers';
       }
     }
 
@@ -198,25 +201,19 @@ class _StepsBudgetCard extends StatelessWidget {
         children: <Widget>[
           const SectionHeading(label: 'Your walking'),
           const SizedBox(height: StrideSpace.s10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: LabeledValueTile(
-                  label: 'Total walked',
-                  value: formatSteps(s.totalGranted),
-                  unit: 'steps earned',
-                  leading: const WalkingGlyph(role: WalkingRole.stock),
-                  valueColor: StrideColors.accentSteps,
-                ),
+          ValueTileRow(
+            tiles: <LabeledValueTile>[
+              LabeledValueTile(
+                label: 'Total walked',
+                value: formatSteps(s.totalGranted),
+                unit: 'steps earned',
+                leading: const WalkingGlyph(role: WalkingRole.stock),
+                valueColor: StrideColors.accentSteps,
               ),
-              const SizedBox(width: StrideSpace.s8),
-              Expanded(
-                child: LabeledValueTile(
-                  label: 'Spent',
-                  value: formatSteps(s.totalSpent),
-                  unit: 'on gathering',
-                ),
+              LabeledValueTile(
+                label: 'Spent',
+                value: formatSteps(s.totalSpent),
+                unit: 'on gathering',
               ),
             ],
           ),

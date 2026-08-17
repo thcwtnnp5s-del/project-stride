@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
+import 'adaptive_text.dart';
 import 'walking_glyph.dart';
 
 /// Eyebrow and title on the left, a trailing slot on the right.
@@ -27,43 +28,54 @@ class ScreenHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: StrideGeometry.headerHeight,
-    padding: const EdgeInsets.symmetric(horizontal: StrideSpace.screenGutter),
+    // A minimum, not a fixed height. See `StrideGeometry.headerMinHeight`: a
+    // fixed 61 dp vertically clips the eyebrow/title stack under an enlarged
+    // text scale, which is D-01's shape on the other axis.
+    constraints: const BoxConstraints(
+      minHeight: StrideGeometry.headerMinHeight,
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: StrideSpace.screenGutter,
+      vertical: StrideSpace.s6,
+    ),
     alignment: Alignment.center,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                eyebrow.toUpperCase(),
-                style: StrideType.screenEyebrow,
-                maxLines: 1,
-                // Clip, never ellipsis. A clipped label is visibly clipped,
-                // which is information; an ellipsis is a claim that a string
-                // was too long, about strings that are fixed and were designed
-                // to fit.
-                overflow: TextOverflow.clip,
-                softWrap: false,
-              ),
-              Text(
-                title,
-                style: StrideType.screenTitle,
-                maxLines: 1,
-                overflow: TextOverflow.clip,
-                softWrap: false,
-              ),
-            ],
+    child: LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) => Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Shrink-within-bounds rather than clip. These strings are
+                // fixed and short, which is exactly why they are the right
+                // side of the header to yield: the banked figure is player
+                // data and grows, the titles are four known words.
+                AdaptiveText(
+                  eyebrow.toUpperCase(),
+                  style: StrideType.screenEyebrow,
+                ),
+                AdaptiveText(title, style: StrideType.screenTitle),
+              ],
+            ),
           ),
-        ),
-        if (trailing != null) ...<Widget>[
-          const SizedBox(width: StrideSpace.s8),
-          trailing!,
+          if (trailing != null) ...<Widget>[
+            const SizedBox(width: StrideSpace.s8),
+            // Bounded, so the readout cannot take the whole bar, and generous,
+            // so the figure wins the contest against the title. Without the
+            // cap this is a non-flex `Row` child with unbounded constraints.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth:
+                    constraints.maxWidth *
+                    StrideGeometry.bankedFigureMaxFraction,
+              ),
+              child: trailing!,
+            ),
+          ],
         ],
-      ],
+      ),
     ),
   );
 }
@@ -78,6 +90,17 @@ class BankedStepsReadout extends StatelessWidget {
 
   final int bankedSteps;
 
+  /// The label under the figure.
+  ///
+  /// **`BANKED STEPS`, shortened from `BANKED FROM WALKING`.** Nineteen
+  /// letter-spaced uppercase characters measured wider than the figure they
+  /// captioned, so the readout's width — and therefore how little was left for
+  /// the screen title — was being set by its own caption rather than by the
+  /// player's data. The teal and the walking glyph beside it already say "from
+  /// walking" (`ART_DIRECTION.md` L-16); the words were saying it a second time,
+  /// in the widest possible form, in the tightest space in the app.
+  static const String label = 'BANKED STEPS';
+
   @override
   Widget build(BuildContext context) => Column(
     mainAxisSize: MainAxisSize.min,
@@ -89,28 +112,33 @@ class BankedStepsReadout extends StatelessWidget {
           // Teal: these are steps the player has walked and owns.
           const WalkingGlyph(role: WalkingRole.stock),
           const SizedBox(width: StrideSpace.iconLabelGap),
-          SizedBox(
-            // Fixed width, right-aligned, tabular — so a growing figure never
-            // shifts the eyebrow beside it, and never lands the glyph on a
-            // fractional x.
-            width: StrideGeometry.bankedFigureWidth,
-            child: Text(
-              formatSteps(bankedSteps),
-              style: StrideType.headerValue,
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              softWrap: false,
+          // A **minimum** width, right-aligned, tabular — so a growing figure
+          // never shifts the eyebrow beside it and never lands the glyph on a
+          // fractional x, and so a figure wider than the minimum is drawn in
+          // full rather than clipped. This is the D-01 fix.
+          //
+          // `Flexible` matters: the parent caps the readout, and without it a
+          // `Row` child with `mainAxisSize.min` would still demand its full
+          // intrinsic width and overflow that cap instead of shrinking into it.
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: StrideGeometry.bankedFigureMinWidth,
+              ),
+              child: AdaptiveText(
+                formatSteps(bankedSteps),
+                style: StrideType.headerValue,
+                textAlign: TextAlign.right,
+              ),
             ),
           ),
         ],
       ),
-      Text(
-        'BANKED FROM WALKING',
-        style: StrideType.screenEyebrow.copyWith(color: StrideColors.textMuted),
-        maxLines: 1,
-        overflow: TextOverflow.clip,
-        softWrap: false,
+      AdaptiveText(
+        label,
+        style: StrideType.screenEyebrow,
+        color: StrideColors.textMuted,
+        textAlign: TextAlign.right,
       ),
     ],
   );

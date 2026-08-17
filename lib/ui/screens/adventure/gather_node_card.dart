@@ -7,11 +7,9 @@ import 'package:stride_core/stride_core.dart'
 
 import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
-import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/sprite_animation.dart';
 import '../../components/surfaces.dart';
-import '../../components/walking_glyph.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
 import '../../state/session_controller.dart';
@@ -78,25 +76,18 @@ class GatherNodeCard extends StatelessWidget {
             skillName: skillName,
           ),
 
-          const SizedBox(height: StrideSpace.s10),
-          Row(
-            children: <Widget>[
-              const WalkingGlyph(role: WalkingRole.stock),
-              const SizedBox(width: StrideSpace.iconLabelGap),
-              Text('AVAILABLE', style: StrideType.microLabel),
-              const SizedBox(width: StrideSpace.s6),
-              Expanded(
-                child: Text(
-                  formatSteps(s.usableEnergy),
-                  style: StrideType.micro.copyWith(
-                    color: StrideColors.accentSteps,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: StrideSpace.s10),
+          // The `AVAILABLE 455,281` row that sat here is gone.
+          //
+          // It printed `s.usableEnergy` — the identical value the header prints
+          // persistently, on this screen and every other, in accent teal at
+          // 19 px. Three restatements of one number (header, the Your Walking
+          // card's affordance sentence, and this row) is what made the card feel
+          // like a form rather than an action, and the smallest of the three was
+          // the one immediately above the button, competing with it.
+          //
+          // Nothing is lost: the shortfall case still names the exact number of
+          // steps to walk, on the button itself, where the player is looking.
+          const SizedBox(height: StrideSpace.s12),
           _GatherControl(node: node, cost: cost),
         ],
       ),
@@ -180,55 +171,55 @@ class _CostTriple extends StatelessWidget {
   final String yieldName;
   final String skillName;
 
+  /// Three tiles, no arrows and no glyph — and both removals are measurements
+  /// rather than taste.
+  ///
+  /// At 320 dp the card has 264 dp inside its padding. Two arrow glyphs at
+  /// 24 dp plus their 8 dp of padding took **64 of it — a quarter of the card**
+  /// — to decorate a sequence the three labels already state in order. What was
+  /// left gave each tile 65 dp, and the leading walking glyph took 30 of the
+  /// first tile's 45 dp of content, so `90` was drawn in 16 dp and needed 19.8.
+  /// The step figure on the gather card was clipped on every 320 dp phone.
+  ///
+  /// Without them each tile has 82 dp and every value and label fits at full
+  /// size. The walking glyph is not lost: it is on the header permanently and
+  /// on the Your Walking card above, both of which have room for it.
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      Expanded(
-        child: LabeledValueTile(
-          label: 'Steps',
-          value: formatSteps(cost),
-          unit: 'per gather',
-          // Muted: this is a price, not steps the player owns.
-          leading: const WalkingGlyph(role: WalkingRole.unit),
-        ),
+  Widget build(BuildContext context) => ValueTileRow(
+    tiles: <LabeledValueTile>[
+      LabeledValueTile(
+        label: 'Steps',
+        value: formatSteps(cost),
+        unit: 'per gather',
       ),
-      const _Arrow(),
-      Expanded(
-        child: LabeledValueTile(
-          label: 'Yield',
-          // Not scaled by the balance profile, unlike cost — there is no
-          // `yieldOf` to match `costOf`. Under `profile.production` every
-          // multiplier is 100 so this is exact; under an accelerated QA profile
-          // it would under-report. Recorded as Q-UI-10, not silently ignored.
-          value: '×${node.yieldsQuantity}',
-          unit: yieldName,
-        ),
+      LabeledValueTile(
+        label: 'Yield',
+        // Not scaled by the balance profile, unlike cost — there is no
+        // `yieldOf` to match `costOf`. Under `profile.production` every
+        // multiplier is 100 so this is exact; under an accelerated QA profile
+        // it would under-report. Recorded as Q-UI-10, not silently ignored.
+        value: '×${node.yieldsQuantity}',
+        unit: yieldName,
       ),
-      const _Arrow(),
-      Expanded(
-        child: LabeledValueTile(
-          label: 'Experience',
-          value: '+${node.xp}',
-          unit: '$skillName XP',
-        ),
+      LabeledValueTile(
+        label: 'Experience',
+        value: '+${node.xp}',
+        unit: '$skillName XP',
       ),
     ],
   );
 }
 
-class _Arrow extends StatelessWidget {
-  const _Arrow();
-
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.symmetric(horizontal: StrideSpace.s4),
-    child: Padding(
-      padding: EdgeInsets.only(top: 24),
-      child: PixelAsset.glyph(PixelIcons.arrowGlyph),
-    ),
-  );
-}
+// The `→` glyph that sat between the cost tiles is gone; `_CostTriple`'s own
+// doc records the measurement. It was additionally positioned by `top: 24`, a
+// constant that is correct at exactly one text scale — the label line, the gap
+// and the value line above it all grow with the scaler — so it was a second
+// instance of a number standing in for a measurement, on the vertical axis.
+//
+// `PixelIcons.arrowGlyph` is left in the asset set and the packaging script. It
+// is not deleted here: whether the sequence arrow returns in some form is a
+// visual-identity question for the owner, and removing the asset would make
+// that decision on their behalf.
 
 /// The button, and the ephemeral line beneath it.
 class _GatherControl extends StatelessWidget {

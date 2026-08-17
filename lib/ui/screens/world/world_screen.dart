@@ -28,6 +28,7 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
@@ -56,7 +57,22 @@ class WorldScreen extends StatelessWidget {
         // The whole map, at ×1, scrolling with the page. It is 640 px tall — no
         // phone shows it at once, and squeezing it into a viewport would mean
         // downscaling a picture whose roads are two pixels wide.
+        //
+        // **Deliberately left at full height.** The obvious facelift move is to
+        // give it a `viewportHeight` so the legend arrives sooner. The map's
+        // subjects are distributed over its whole length — the settlement at the
+        // top, the mine mouths on the right flank, the ruin at the bottom — so
+        // any crop that buys a screenful of scrolling deletes a place the legend
+        // then names. Cropping the world to shorten a scroll is the wrong trade.
         const PixelScene.regionMap(PixelIcons.regionMap),
+
+        // Where the player is, immediately under the picture, before any card.
+        //
+        // The screen's first question is "where am I?" and the answer was in the
+        // first row of a legend 640 dp below the top of the page — reachable
+        // only by scrolling past the entire map. The legend still carries it;
+        // this puts it where the eye lands.
+        _CurrentPlaceBar(places: places),
         const SizedBox(height: StrideSpace.cardGap),
 
         Padding(
@@ -99,6 +115,58 @@ class WorldScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// `YOU ARE HERE · Haven's Rest`, on the map's own lower edge.
+///
+/// A caption, not a control: no border, no fill that reads as a chip, nothing
+/// tappable. The World screen's whole discipline is that it must not imply
+/// travel (see this file's header), and a highlighted place name is exactly the
+/// element that would — so it is set as a label above a name, the same pattern
+/// every read-only figure in the app uses, rather than as a pin or a button.
+class _CurrentPlaceBar extends StatelessWidget {
+  const _CurrentPlaceBar({required this.places});
+
+  final List<RegionPlace> places;
+
+  @override
+  Widget build(BuildContext context) {
+    // `regionPlaces` puts the player's own location first, so this is a lookup
+    // rather than a search — but it is written as one, because "first" is a
+    // presentation choice in `StrideSession` and this must not silently depend
+    // on it.
+    RegionPlace? here;
+    for (final RegionPlace place in places) {
+      if (place.isCurrent) here = place;
+    }
+    if (here == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        StrideSpace.screenGutter,
+        StrideSpace.s12,
+        StrideSpace.screenGutter,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('YOU ARE HERE', style: StrideType.microLabel, maxLines: 1),
+          const SizedBox(height: StrideSpace.s2),
+          // `textPrimary`, NOT the teal `_PlaceRow` uses for the same place.
+          // `ART_DIRECTION.md` L-16 reserves teal for walking, steps and banked
+          // quantity — "nothing else, anywhere, ever" — and a place name is
+          // none of those. The label above it is what carries the emphasis.
+          //
+          // The existing teal in `_PlaceRow` is left alone: it predates this
+          // pass, changing it is an identity call rather than a layout one, and
+          // it is raised for the owner in the facelift report instead of being
+          // decided here (`RULES.md` G-3).
+          AdaptiveText(here.displayName, style: StrideType.cardTitle),
+        ],
+      ),
     );
   }
 }

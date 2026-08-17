@@ -22,6 +22,7 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
@@ -57,60 +58,64 @@ class CharacterScreen extends StatelessWidget {
           const SizedBox(height: StrideSpace.cardGap),
         ],
 
+        // Identity and standing, in one card.
+        //
+        // These were two: a portrait card whose right 40% was empty beside the
+        // word `Traveler`, and a separate card of two tiles directly beneath it.
+        // The screen therefore answered "who am I" and "how far along am I" in
+        // two places that had to be read in sequence, and spent a card boundary
+        // and 10 dp of gap separating a fact from its own subject.
+        //
+        // The earlier attempt to put a tile beside the portrait was reverted
+        // because a 22 px numeral overflowed the 73 dp tile it produced at
+        // 320 dp. What sits here now is not that tile — it is text that wraps
+        // and shrinks, in a column that yields, so the failure mode it was
+        // reverted for cannot occur. The two-tile pair is not recreated
+        // elsewhere; the figures it carried are the two lines below.
+        //
+        // Both are projections, not rule math: the character level is stored,
+        // and the skill totals sum `skillSummaries`, whose levels already came
+        // from the content curve's own `levelAt`.
         SectionCard(
           padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               const InsetWell.square(
                 contentSize: StrideGeometry.portraitContent,
                 child: PixelAsset.portrait(PixelIcons.portraitTraveler),
               ),
               const SizedBox(width: StrideSpace.s12),
-              const Expanded(
-                child: Text('Traveler', style: StrideType.cardTitle),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: StrideSpace.cardGap),
-
-        // Two tiles across the card's FULL width, rather than squeezed into the
-        // column beside the portrait.
-        //
-        // Visual QA found a single narrow tile leaving the right 40% of the
-        // identity card empty, which read as incomplete because every other card
-        // in the system fills its width. Adding a second tile beside the
-        // portrait fixed the emptiness and created a 73 dp tile at 320 dp, which
-        // a 22 px numeral overflows. Giving the pair the full width is the fix
-        // that holds at every supported size instead of trading one defect for
-        // another.
-        //
-        // Both figures are projections, not rule math: the character level is
-        // stored, and the skill totals sum `skillSummaries`, whose levels
-        // already came from the content curve's own `levelAt`.
-        SectionCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
               Expanded(
-                child: LabeledValueTile(
-                  label: 'Level',
-                  value: '${s.characterLevel}',
-                  unit: 'character',
-                ),
-              ),
-              const SizedBox(width: StrideSpace.s8),
-              Expanded(
-                child: LabeledValueTile(
-                  label: 'Skill levels',
-                  value:
-                      '${skills.fold(0, (int a, SkillSummary k) => a + k.level)}'
-                      ' / '
-                      '${skills.fold(0, (int a, SkillSummary k) => a + k.maxLevel)}',
-                  unit:
-                      '${skills.length} skills, cap '
-                      '${skills.isEmpty ? 0 : skills.first.maxLevel} each',
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text('Traveler', style: StrideType.cardTitle),
+                    const SizedBox(height: StrideSpace.s10),
+                    _IdentityFact(
+                      // `Level`, not `Character level`. The longer wording read
+                      // better and then needed 151 dp at text scale 1.4 in the
+                      // 120 this column has beside the portrait at 320 dp — a
+                      // clearer label that clips is not clearer. `Skill levels`
+                      // directly beneath it supplies the contrast.
+                      label: 'Level',
+                      value: '${s.characterLevel}',
+                      // The label already says which level this is; `character`
+                      // beside the numeral was a qualifier reading as a
+                      // sentence fragment.
+                      unit: '',
+                    ),
+                    const SizedBox(height: StrideSpace.s8),
+                    _IdentityFact(
+                      label: 'Skill levels',
+                      value:
+                          '${skills.fold(0, (int a, SkillSummary k) => a + k.level)}'
+                          ' / '
+                          '${skills.fold(0, (int a, SkillSummary k) => a + k.maxLevel)}',
+                      unit: '${skills.length} skills',
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -124,23 +129,19 @@ class CharacterScreen extends StatelessWidget {
             children: <Widget>[
               const SectionHeading(label: 'What walking has built'),
               const SizedBox(height: StrideSpace.s10),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: LabeledValueTile(
-                      label: 'Total walked',
-                      value: formatSteps(s.totalGranted),
-                      unit: 'steps earned',
-                      leading: const WalkingGlyph(role: WalkingRole.stock),
-                      valueColor: StrideColors.accentSteps,
-                    ),
+              ValueTileRow(
+                tiles: <LabeledValueTile>[
+                  LabeledValueTile(
+                    label: 'Total walked',
+                    value: formatSteps(s.totalGranted),
+                    unit: 'steps earned',
+                    leading: const WalkingGlyph(role: WalkingRole.stock),
+                    valueColor: StrideColors.accentSteps,
                   ),
-                  const SizedBox(width: StrideSpace.s8),
-                  Expanded(
-                    child: LabeledValueTile(
-                      label: 'Total skill XP',
-                      value: formatSteps(s.totalSkillExperience),
-                    ),
+                  LabeledValueTile(
+                    label: 'Total skill XP',
+                    value: formatSteps(s.totalSkillExperience),
+                    unit: 'across every skill',
                   ),
                 ],
               ),
@@ -162,6 +163,49 @@ class CharacterScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+/// A label, a figure and a unit on one line, for the identity card.
+///
+/// Deliberately **not** a [LabeledValueTile]: a tile is a filled block, and two
+/// of them stacked beside the portrait would give the card three competing
+/// surfaces in 128 dp. These are lines of type in the card's own ground, so the
+/// portrait stays the only object in the card.
+class _IdentityFact extends StatelessWidget {
+  const _IdentityFact({
+    required this.label,
+    required this.value,
+    required this.unit,
+  });
+
+  final String label;
+  final String value;
+  final String unit;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      // Adaptive, not plain: this column is what is left of a 320 dp card after
+      // a 130 dp portrait, so it is the narrowest label surface in the app.
+      AdaptiveText(
+        label.toUpperCase(),
+        style: StrideType.microLabel,
+        minScale: 0.8,
+      ),
+      const SizedBox(height: StrideSpace.s2),
+      AdaptiveText(value, style: StrideType.sectionHeading, minScale: 0.8),
+      // The unit is on its own line, and that is a correction rather than a
+      // preference.
+      //
+      // It first sat on the value's baseline, which rendered the skill-levels
+      // fact as `5 / 100 5 skills` — three numbers and a slash in one run,
+      // second thing the eye reaches on the screen. Visual QA misparsed it, and
+      // a reviewer who cannot parse a figure has found a defect in the figure.
+      if (unit.isNotEmpty) Text(unit, style: StrideType.micro, maxLines: 2),
+    ],
+  );
 }
 
 class _SkillRow extends StatelessWidget {
@@ -203,9 +247,18 @@ class _SkillRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.clip,
                 ),
+                // The XP figure is the only per-skill number that moves, and it
+                // was set in the same muted 11 px as an inline caption. Tabular
+                // and in the secondary text colour, it reads as a value in a
+                // column of values.
                 Text(
                   '${formatSteps(skill.experience)} XP',
-                  style: StrideType.micro,
+                  style: StrideType.micro.copyWith(
+                    color: StrideColors.textSecondary,
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
+                  ),
                   maxLines: 1,
                 ),
               ],

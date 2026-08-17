@@ -45,7 +45,9 @@ class InventoryScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         StrideSpace.screenGutter,
-        StrideSpace.s12,
+        // 10, not 12. The heading is a micro-label and needs less air above it
+        // than a card does; the grid is the content and should start sooner.
+        StrideSpace.s10,
         StrideSpace.screenGutter,
         StrideSpace.s16,
       ),
@@ -56,12 +58,18 @@ class InventoryScreen extends StatelessWidget {
         ],
         SectionHeading(
           label: 'Carried',
+          // The carried total, given the weight of a figure rather than of a
+          // footnote. It is the one aggregate on the screen and it was set in
+          // the same 11 px muted style as an inline caption.
           trailing: Text(
             total == 1 ? '1 item' : '$total items',
-            style: StrideType.micro,
+            style: StrideType.micro.copyWith(
+              color: StrideColors.textPrimary,
+              fontSize: 12.5,
+            ),
           ),
         ),
-        const SizedBox(height: StrideSpace.s10),
+        const SizedBox(height: StrideSpace.s8),
         if (entries.isEmpty)
           const SectionCard(
             child: Text('You are carrying nothing.', style: StrideType.body),
@@ -126,14 +134,56 @@ class _ItemGrid extends StatelessWidget {
           // mainAxisExtent, not childAspectRatio: an aspect ratio forces a
           // height derived from the width, and a wrapped two-line item name
           // then clips instead of growing the row.
-          mainAxisExtent: StrideGeometry.itemTileMinHeight,
+          //
+          // **But `mainAxisExtent` is exact, not minimum**, and
+          // `itemTileMinHeight` was documented as a floor and passed straight
+          // in. A grid cell is therefore a fixed box around type that grows
+          // with the text scaler: at 1.4 the second line of a wrapped name and
+          // the count beneath it had nowhere to go, and clipped silently. That
+          // is D-01's shape in the inventory.
+          //
+          // A grid needs one height for every cell, so the extent is computed
+          // from the same terms the tile spends — icon, two name lines, the
+          // count, and the tile's own padding — under the ambient scaler, and
+          // floored at the designed value so nothing shrinks below the
+          // approved proportion.
+          mainAxisExtent: _tileExtent(MediaQuery.textScalerOf(context)),
         ),
         itemBuilder: (BuildContext context, int i) =>
             _ItemTile(entry: entries[i]),
       );
     },
   );
+
+  /// The height one cell needs at [scaler], never below the designed floor.
+  ///
+  /// Two name lines, always — the tile reserves the wrap whether or not this
+  /// particular name uses it, because a grid cannot give one cell a different
+  /// height from its neighbours and reserving is the only way the tall case
+  /// fits.
+  static double _tileExtent(TextScaler scaler) {
+    double lineOf(TextStyle style) =>
+        scaler.scale(style.fontSize!) * (style.height ?? 1);
+
+    const double iconEdge = 48; // PixelAsset.item at x1.
+    const double padding = _tilePadTop + _tilePadBottom;
+    const double gaps = StrideSpace.s6 * 2; // spaceBetween, at minimum.
+
+    final double needed =
+        padding +
+        iconEdge +
+        gaps +
+        lineOf(StrideType.itemName) * 2 +
+        lineOf(StrideType.itemCount);
+
+    return needed > StrideGeometry.itemTileMinHeight
+        ? needed
+        : StrideGeometry.itemTileMinHeight;
+  }
 }
+
+const double _tilePadTop = 12;
+const double _tilePadBottom = 8;
 
 class _ItemTile extends StatelessWidget {
   const _ItemTile({required this.entry});
@@ -147,7 +197,7 @@ class _ItemTile extends StatelessWidget {
       border: Border.all(color: StrideColors.borderDefault),
       borderRadius: StrideRadius.inner,
     ),
-    padding: const EdgeInsets.fromLTRB(3, 12, 3, 7),
+    padding: const EdgeInsets.fromLTRB(3, _tilePadTop, 3, _tilePadBottom),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
@@ -159,6 +209,9 @@ class _ItemTile extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.clip,
         ),
+        // `×24` in the primary text colour, one step up from the name beside
+        // it. Icon leads, count confirms, name disambiguates — the L-17 unit
+        // with a hierarchy inside it instead of three flat runs.
         Text('×${entry.count}', style: StrideType.itemCount),
       ],
     ),

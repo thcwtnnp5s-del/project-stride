@@ -27,6 +27,10 @@ class StrideTabBar extends StatelessWidget {
         border: Border(top: BorderSide(color: StrideColors.borderDefault)),
       ),
       child: SizedBox(
+        // Fixed rather than minimum, and legitimately so: the labels below run
+        // under `withNoTextScaling`, so nothing inside this bar can grow. That
+        // clamp is what makes a fixed height safe here and nowhere else in the
+        // app — see `StrideGeometry.tabBarHeight`.
         height: StrideGeometry.tabBarHeight,
         child: MediaQuery.withNoTextScaling(
           // Scoped to the tab-bar labels ONLY, and this is a real accessibility
@@ -101,7 +105,15 @@ class _Tab extends StatelessWidget {
       // Not built yet, and honest about it. No snackbar, no dialog, no
       // navigation — a disabled control that explains itself by doing nothing
       // is less misleading than one that acknowledges a tap it will not honour.
-      return IgnorePointer(child: Opacity(opacity: 0.4, child: body));
+      //
+      // **0.28, down from 0.4.** Independent Visual QA, given the requirement in
+      // advance, still read `Skills` and `Craft` as tappable across all four
+      // screens and called it the highest-frequency defect in the set. The
+      // reason 0.4 was not enough is that the *enabled* tabs are already
+      // restrained — a muted 9.5 px label under a two-tone glyph — so 40% of
+      // subdued is not obviously less than subdued. The margin has to be judged
+      // against the live tabs, not against full strength.
+      return IgnorePointer(child: Opacity(opacity: 0.28, child: body));
     }
 
     return GestureDetector(

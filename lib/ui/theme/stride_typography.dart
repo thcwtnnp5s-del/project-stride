@@ -163,25 +163,40 @@ abstract final class StrideType {
   );
 
   /// Inventory item names. Two-line clamp at the call site.
+  ///
+  /// **10.5, up from 10.** The grid's semantic unit is icon + label + count
+  /// (**L-17**), and at 10 px the label was the weakest of the three by a margin
+  /// that made the grid scan as icons alone. Half a point is deliberately small:
+  /// the icon still leads.
   static const TextStyle itemName = TextStyle(
-    fontSize: 10,
-    height: 13 / 10,
+    fontSize: 10.5,
+    height: 13.5 / 10.5,
     fontWeight: FontWeight.w600,
     color: StrideColors.textSecondary,
   );
 
   /// `×24`.
+  ///
+  /// **14.5, up from 13.** Visual QA read the count as the second line of the
+  /// item's name rather than as a quantity — the three parts of L-17's unit were
+  /// all present and the discriminating one was not *reading* as a count. A
+  /// point and a half over [itemName], in the primary colour rather than the
+  /// secondary, is what separates them.
   static const TextStyle itemCount = TextStyle(
-    fontSize: 13,
-    height: 14 / 13,
+    fontSize: 14.5,
+    height: 16 / 14.5,
     fontWeight: FontWeight.w700,
     fontFeatures: _tabular,
     color: StrideColors.textPrimary,
   );
 
+  /// **15, up from 13.5.** The primary action was set smaller than the card
+  /// titles, the skill names and the section headings around it, which is the
+  /// wrong end of the hierarchy for the only control on the screen. It is still
+  /// below [cardTitle], so the card still announces itself before its button.
   static const TextStyle buttonLabel = TextStyle(
-    fontSize: 13.5,
-    height: 16 / 13.5,
+    fontSize: 15,
+    height: 18 / 15,
     fontWeight: FontWeight.w700,
     color: StrideColors.textPrimary,
   );
