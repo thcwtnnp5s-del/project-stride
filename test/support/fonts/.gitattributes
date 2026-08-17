@@ -1,0 +1,17 @@
+# A font is bytes, not text.
+#
+# The same rule and the same reason as `test/fixtures/save/.gitattributes`:
+# this repository is developed on Windows with `core.autocrlf=true`, and a TTF
+# contains 0x0D and 0x0A bytes throughout its tables. Left to line-ending
+# normalization the file is silently corrupted on checkout, the font fails to
+# parse, and `loadRealFont()` reports the harness fault it exists to report —
+# on Linux only, from a repository that looks correct on the machine that
+# committed it.
+#
+# Git's binary auto-detection currently gets this right; the committed blobs
+# were verified byte-identical to the SDK originals. This makes it a rule
+# rather than a coincidence.
+*.ttf binary
+
+# The licence is text and should normalize like any other text file.
+*.txt text
