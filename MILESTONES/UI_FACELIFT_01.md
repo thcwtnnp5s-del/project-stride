@@ -1,9 +1,19 @@
 # UI Facelift 01 — responsive hardening and presentation quality
 
 ```
-STATUS: IMPLEMENTATION COMPLETE — awaiting physical-device review
+RESPONSIVE HARDENING: PASS — owner, physical iPhone, 2026-08-17
+VISUAL FACELIFT:      composition pass applied, awaiting owner device review
 Branch: ui-facelift-01
 ```
+
+**D-01 is confirmed fixed on hardware.** The owner ran the branch on a physical
+iPhone and reports the full real banked value `459,043` rendering correctly on
+Adventure, Inventory, Character and World. The responsive architecture is
+accepted and is not reopened.
+
+The owner did **not** accept the workstream as a visual facelift: *"the app is
+cleaner and safer, but visually it still feels too close to Phase 1."* §7 below
+records the composition pass that answers that.
 
 Opened after Playable Demo Phase 1 closed on a physical iPhone, to make the UI
 feel deliberate before large new systems are built on it, and to fix **D-01** as
@@ -269,10 +279,88 @@ belongs to the owner.
 
 ---
 
-## 6. What this pass does NOT cover
+## 7. The composition pass — owner device review, 2026-08-17
 
-- **The physical device.** Not run. It needs the owner's Mac and iPhone, and
-  this facelift is not complete without it (`MISTAKES.md` M-06).
+The owner accepted the responsive work and refused the facelift: the screens
+read as *"location image, then a large walking card, then a large activity
+card"* rather than as one gameplay surface, and `Sync steps` — a utility — had
+more visual weight than `Gather`, which is the game.
+
+One focused pass. No gameplay, save, HealthKit, ledger or progression change.
+
+### Adventure — the priority
+
+| Was | Is |
+|---|---|
+| Walking in a full `SectionCard`: heading, two 22 px value tiles in filled blocks, affordance line, full-width filled `Sync steps` — **~215 dp** | A **~70 dp band** attached to the vignette's lower edge: `TOTAL WALKED 455,371  SPENT 90` at 13 px, the affordance sentence, and a compact outlined `Sync steps` beside them |
+| `Sync steps` — 48 dp, full width, `surfaceRaised`: identical species to `Gather` | `StrideButton.secondary` — 34 dp, shrink-wrapped, `surfaceBlock` with an outline, 13 px label |
+| Activity stage a **full-width band above** the identity: a 128 dp sprite centred in ~330 dp, ~85% empty ground, name below it — two objects, ~220 dp | Stage and identity **side by side**, one object ~145 dp. Same sprite, same contact shadow, same play-on-success token |
+| `THIS ACTION` section heading above three tiles labelled STEPS / YIELD / EXPERIENCE | Removed — 28 dp of caption between the player and the control |
+
+**Net: the `Gather` button moved from roughly 700 dp down the page to ~605, so
+the whole action — figure, name, requirements, cost, control — is inside the
+first screenful at 393 × 852.** That is the change the owner asked for.
+
+The demotion of `Sync steps` is by **size, weight and width, not hue**: the
+palette has one accent and L-16 reserves it for walking and steps, so there is no
+secondary colour available and inventing one would be a palette change smuggled
+in as a layout fix.
+
+Every figure the walking card carried is still present and still exact.
+
+### Inventory
+
+- The grid moved **into a `SectionCard`**. It used to sit on the page ground
+  under a bare heading, so five items read as a cluster floating above 430 dp of
+  black. A frame puts the emptiness *outside* the container, which is what
+  sparse looks like, instead of inside it, which is what broken looks like.
+- **Grouped by `ItemCategory`** — `MATERIALS`, `EQUIPMENT`. That field is on
+  `ItemDefinition` and already drives `ContentLoader`; this reads existing
+  content data. **No capacity, no encumbrance, no rarity, no new system.** The
+  group label appears only when there is more than one group, and items whose
+  category the pack omits are kept in a trailing group rather than dropped.
+
+### Character
+
+- `Traveler` promoted from 21 px to `numericHero` 28, with a **hairline rule**
+  under it — the first caller `StrideColors.separator` has ever had.
+- `LEVEL` and `SKILL LEVELS` promoted from 16 px to `numericValue` 22. At 16 they
+  sat beside a 128 dp portrait and lost, which is exactly the owner's report:
+  the portrait dominates and the progression beside it reads as metadata.
+- Skill rows: `LEVEL 1 / 20` **inline**, replacing a stacked 22 px numeral over a
+  muted maximum. Five skills at level 1 produced a column of five identical bold
+  numerals that were the loudest thing on the card while saying the least; the XP
+  figure beside them is the datum that varies.
+
+### World
+
+- `YOU ARE HERE / Haven's Rest` moved **onto the map's lower edge**, over the
+  same gradient the Adventure vignette uses. Map and caption are one object, and
+  the app's two art bands now share a treatment.
+- The gradient takes **three stops**. A linear fade reaches about a third of its
+  opacity where the label sits, and that label lands on lit forest canopy — the
+  brightest part of the map's lower edge. The first render of it was a muted
+  11 px label over pale green.
+- **No pin, no marker, no control.** A mark *on* the terrain is the thing a
+  player tries to drag; the caption names the place in words at the frame's edge.
+- The map itself is untouched — same asset, same ×1 scale, same full height.
+
+### Deliberately unchanged
+
+- The bottom navigation. The owner passed it; it was not touched.
+- No loading or title screen.
+- The region map asset, its scale and its framing.
+- The banked-steps readout's full-value behaviour.
+- The vignette, the discrete gather mechanic, the truthful 90 / ×2 / +10 figures,
+  and the absence of timers, progress bars and persistent activity.
+
+
+## 10. What this pass does NOT cover
+
+- **The physical device, for the composition pass.** The owner ran the
+  *responsive* build on an iPhone and passed it; §7's changes have been seen only
+  as renders. Same rule as before — a facelift is not complete until it has been
+  looked at, running, on a device (`MISTAKES.md` M-06).
 - **Safe-area insets.** Still zero under `flutter test`; the shell's inset
   handling is guarded by an existing test but only against synthetic values.
 - **SF Pro.** Roboto is a stand-in with similar advance widths, not the font an
@@ -285,7 +373,7 @@ belongs to the owner.
 
 ---
 
-## 6. Known limitations and open judgment calls
+## 11. Known limitations and open judgment calls
 
 1. **Text scale 1.4 at 320 dp is met by stacking, not by fitting.** Two value
    tiles side by side cannot hold `9,999,999` at that scale in 106 dp; the row

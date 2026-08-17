@@ -91,8 +91,19 @@ class CharacterScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text('Traveler', style: StrideType.cardTitle),
-                    const SizedBox(height: StrideSpace.s10),
+                    const AdaptiveText(
+                      'Traveler',
+                      style: StrideType.numericHero,
+                      minScale: 0.7,
+                    ),
+                    const SizedBox(height: StrideSpace.s8),
+                    // A rule, not a gap. The name is the character; the two
+                    // facts under it are the sheet. Without the separator the
+                    // owner read the whole right column as metadata beside a
+                    // portrait, which is a fair description of four unrelated
+                    // text runs stacked at the same weight.
+                    const _Rule(),
+                    const SizedBox(height: StrideSpace.s8),
                     _IdentityFact(
                       // `Level`, not `Character level`. The longer wording read
                       // better and then needed 151 dp at text scale 1.4 in the
@@ -195,7 +206,12 @@ class _IdentityFact extends StatelessWidget {
         minScale: 0.8,
       ),
       const SizedBox(height: StrideSpace.s2),
-      AdaptiveText(value, style: StrideType.sectionHeading, minScale: 0.8),
+      // `numericValue`, not `sectionHeading`. At 16 px these figures sat beside
+      // a 128 dp portrait and lost — the owner's device read was that the
+      // portrait dominates and the progression beside it is metadata. 22 px is
+      // the weight every other figure in the app gets, and it is what makes
+      // this column a character sheet rather than a caption.
+      AdaptiveText(value, style: StrideType.numericValue, minScale: 0.8),
       // The unit is on its own line, and that is a correction rather than a
       // preference.
       //
@@ -264,15 +280,51 @@ class _SkillRow extends StatelessWidget {
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          // `LEVEL 1 / 20`, on one line, with the level the only emphasised
+          // part.
+          //
+          // It was a stacked 22 px `1` over a muted `/ 20`, five rows deep —
+          // and with every skill at level 1 that produced a column of five
+          // identical bold numerals that were the loudest thing on the card
+          // while saying the least. The XP figure beside them is the datum that
+          // actually varies. Same numbers, same source, one line, and the
+          // stripe is gone.
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
-              Text('${skill.level}', style: StrideType.numericValue),
-              Text('/ ${skill.maxLevel}', style: StrideType.micro),
+              Text('LEVEL', style: StrideType.microLabel),
+              const SizedBox(width: StrideSpace.s6),
+              Text(
+                '${skill.level}',
+                style: StrideType.sectionHeading.copyWith(
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
+              ),
+              Text(' / ${skill.maxLevel}', style: StrideType.micro),
             ],
           ),
         ],
       ),
     );
   }
+}
+
+/// A hairline rule inside a card.
+///
+/// `separator`, not `borderDefault` — the border ladder is exactly one weight in
+/// exactly one colour and is for *outlines*. This is a within-card division,
+/// which is what `StrideColors.separator` was defined for and, until now, the
+/// only thing in the palette with no caller.
+class _Rule extends StatelessWidget {
+  const _Rule();
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+    color: StrideColors.separator,
+    child: SizedBox(height: 1, width: double.infinity),
+  );
 }

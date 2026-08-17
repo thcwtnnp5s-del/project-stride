@@ -201,6 +201,15 @@ abstract final class StrideType {
     color: StrideColors.textPrimary,
   );
 
+  /// A utility control's label. Two points under [buttonLabel], which is the
+  /// type half of demoting `Sync steps` beneath `Gather`.
+  static const TextStyle buttonLabelSecondary = TextStyle(
+    fontSize: 13,
+    height: 16 / 13,
+    fontWeight: FontWeight.w600,
+    color: StrideColors.textSecondary,
+  );
+
   /// `REQUIRES FORAGING 1`, `NO TOOL NEEDED`.
   static const TextStyle gateLabel = TextStyle(
     fontSize: 10,

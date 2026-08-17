@@ -297,7 +297,26 @@ class StrideButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.subLabel,
-  });
+  }) : secondary = false;
+
+  /// A **utility** control, not the screen's game action.
+  ///
+  /// Shorter, quieter, and shrink-wrapped rather than stretched. `Sync steps`
+  /// is the case this exists for: the owner's device review found it reading as
+  /// more important than `Gather`, which is the actual game action — a
+  /// full-width filled control at the same height and fill as the one that
+  /// spends steps and yields loot.
+  ///
+  /// Demotion is by **size, weight and width**, not by hue: the palette has one
+  /// accent and `ART_DIRECTION.md` L-16 reserves it for walking and steps, so
+  /// there is no "secondary colour" available and inventing one would be a
+  /// palette change smuggled in as a layout fix.
+  const StrideButton.secondary({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  }) : subLabel = null,
+       secondary = true;
 
   final String label;
 
@@ -306,6 +325,8 @@ class StrideButton extends StatelessWidget {
 
   /// A `micro` line beneath the label — the shortfall, usually.
   final String? subLabel;
+
+  final bool secondary;
 
   @override
   Widget build(BuildContext context) {
@@ -316,17 +337,28 @@ class StrideButton extends StatelessWidget {
       // shape again, and the sub-label variant was a second magic number
       // (56) derived from the first.
       constraints: BoxConstraints(
-        minHeight: subLabel == null
+        minHeight: secondary
+            ? StrideGeometry.buttonHeightSecondary
+            : subLabel == null
             ? StrideGeometry.buttonHeight
             : StrideGeometry.buttonHeight + 12,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: StrideSpace.s12,
-        vertical: StrideSpace.s6,
+      padding: EdgeInsets.symmetric(
+        horizontal: secondary ? StrideSpace.s10 : StrideSpace.s12,
+        vertical: secondary ? StrideSpace.s4 : StrideSpace.s6,
       ),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: enabled ? StrideColors.surfaceRaised : StrideColors.surfaceBlock,
+        color: !enabled
+            ? StrideColors.surfaceBlock
+            // One rung down the surface ladder from the primary control, which
+            // is the only level that reads as *raised*.
+            : secondary
+            ? StrideColors.surfaceBlock
+            : StrideColors.surfaceRaised,
+        border: secondary
+            ? Border.all(color: StrideColors.borderDefault)
+            : null,
         borderRadius: StrideRadius.inner,
       ),
       child: Column(
@@ -334,7 +366,9 @@ class StrideButton extends StatelessWidget {
         children: <Widget>[
           AdaptiveText(
             label,
-            style: StrideType.buttonLabel,
+            style: secondary
+                ? StrideType.buttonLabelSecondary
+                : StrideType.buttonLabel,
             color: enabled ? null : StrideColors.textMuted,
             textAlign: TextAlign.center,
           ),
@@ -360,7 +394,15 @@ class StrideButton extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onPressed,
-        child: body,
+        // A secondary control shrink-wraps; a primary one fills its column.
+        // Width is half of what makes the primary action read as primary.
+        child: secondary
+            ? Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 1,
+                child: body,
+              )
+            : body,
       ),
     );
   }

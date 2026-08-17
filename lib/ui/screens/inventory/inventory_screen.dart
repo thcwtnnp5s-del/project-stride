@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:stride_core/stride_core.dart' show ItemCategory;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/pixel_asset.dart';
@@ -41,6 +42,7 @@ class InventoryScreen extends StatelessWidget {
     final SessionController c = SessionScope.of(context);
     final List<InventoryEntry> entries = c.session.inventoryEntries;
     final int total = entries.fold(0, (int a, InventoryEntry e) => a + e.count);
+    final List<_Group> groups = _groups(entries);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -56,29 +58,105 @@ class InventoryScreen extends StatelessWidget {
           StaleBanner(busy: c.busy, onReload: c.reload),
           const SizedBox(height: StrideSpace.cardGap),
         ],
-        SectionHeading(
-          label: 'Carried',
-          // The carried total, given the weight of a figure rather than of a
-          // footnote. It is the one aggregate on the screen and it was set in
-          // the same 11 px muted style as an inline caption.
-          trailing: Text(
-            total == 1 ? '1 item' : '$total items',
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textPrimary,
-              fontSize: 12.5,
-            ),
-          ),
-        ),
-        const SizedBox(height: StrideSpace.s8),
         if (entries.isEmpty)
           const SectionCard(
             child: Text('You are carrying nothing.', style: StrideType.body),
           )
         else
-          _ItemGrid(entries: entries),
+          // One card, holding the whole of what the player owns.
+          //
+          // The grid used to sit directly on the page ground under a bare
+          // heading, so an early-game inventory of five things was a small
+          // cluster of tiles floating above 430 dp of black — which the owner
+          // and Visual QA both read as unfinished rather than as sparse. A
+          // frame gives the sparseness an edge: the emptiness is now clearly
+          // *outside* the container, which is what "you own a few things" looks
+          // like, instead of *inside* it, which is what a broken screen looks
+          // like.
+          SectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SectionHeading(
+                  label: 'Carried',
+                  // The carried total, given the weight of a figure rather than
+                  // of a footnote. It is the one aggregate on the screen and it
+                  // was set in the same 11 px muted style as an inline caption.
+                  trailing: Text(
+                    total == 1 ? '1 item' : '$total items',
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textPrimary,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+                for (final _Group group in groups) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s10),
+                  // The group's name, only where there is more than one group.
+                  // With a single kind of thing a divider label is noise.
+                  if (groups.length > 1) ...<Widget>[
+                    Text(
+                      group.label.toUpperCase(),
+                      style: StrideType.compactLabel,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: StrideSpace.s6),
+                  ],
+                  _ItemGrid(entries: group.entries),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
+
+  /// The player's items, grouped by the category the **content pack** already
+  /// assigns them.
+  ///
+  /// `InventoryEntry.category` is `ItemCategory` straight off
+  /// `ItemDefinition` — the same field `ContentLoader` uses to decide what a
+  /// gather may yield. So this is reading existing data, not inventing a
+  /// classification: no new system, no capacity, no encumbrance, no rarity, and
+  /// nothing here that survives a content pack that stops setting it.
+  ///
+  /// Order is the enum's, which runs material → equipment → consumable → quest:
+  /// what walking produces first, then what it is spent on. Entries whose
+  /// category the pack does not supply are kept, in a trailing group, rather
+  /// than dropped — an item the player owns must appear.
+  static List<_Group> _groups(List<InventoryEntry> entries) {
+    const Map<ItemCategory, String> names = <ItemCategory, String>{
+      ItemCategory.material: 'Materials',
+      ItemCategory.equipment: 'Equipment',
+      ItemCategory.consumable: 'Consumables',
+      ItemCategory.quest: 'Quest',
+    };
+
+    return <_Group>[
+      for (final ItemCategory category in ItemCategory.values)
+        if (entries.any((InventoryEntry e) => e.category == category))
+          _Group(
+            label: names[category]!,
+            entries: entries
+                .where((InventoryEntry e) => e.category == category)
+                .toList(growable: false),
+          ),
+      if (entries.any((InventoryEntry e) => e.category == null))
+        _Group(
+          label: 'Other',
+          entries: entries
+              .where((InventoryEntry e) => e.category == null)
+              .toList(growable: false),
+        ),
+    ];
+  }
+}
+
+class _Group {
+  const _Group({required this.label, required this.entries});
+
+  final String label;
+  final List<InventoryEntry> entries;
 }
 
 class _ItemGrid extends StatelessWidget {

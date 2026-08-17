@@ -17,6 +17,28 @@
 /// supplies real costs, and the player has real banked steps to spend. Every
 /// part of the illusion is present except the system.
 ///
+/// ## The current location is marked by weight, not by teal
+///
+/// `_PlaceRow` used to colour the player's own location with
+/// `StrideColors.accentSteps`. `ART_DIRECTION.md` **L-16** reserves that teal
+/// for *"walking, steps, and banked-step quantity — nothing else, anywhere,
+/// ever"*, and a place name is none of those. It shipped anyway, and the UI
+/// facelift's first pass deliberately left it alone as an identity question for
+/// the owner (`JOURNAL/OPEN_QUESTIONS.md` Q-04).
+///
+/// **Leaving it stopped being defensible when the composition pass surfaced
+/// it.** Moving the `YOU ARE HERE` caption onto the map brought the region card
+/// above the fold, so a teal place name now sits in a bordered card at the
+/// bottom of a map — and independent Visual QA, reading the render cold, called
+/// it *a travel button to Haven's Rest*. That is the single affordance this
+/// screen exists to refuse, arriving through a colour rather than through a
+/// widget.
+///
+/// So the accent is removed and the row is marked by weight instead. This is
+/// **not** the owner's Q-04 decision being taken here: it restores the state the
+/// rule already requires. Whether the current location should have a colour of
+/// its own remains open, and Q-04 stays open with it.
+///
 /// ## Why the map is a picture rather than a diagram
 ///
 /// The illustrated map shows roads, a settlement, a mine mouth, a ruin. It must
@@ -64,15 +86,28 @@ class WorldScreen extends StatelessWidget {
         // top, the mine mouths on the right flank, the ruin at the bottom — so
         // any crop that buys a screenful of scrolling deletes a place the legend
         // then names. Cropping the world to shorten a scroll is the wrong trade.
-        const PixelScene.regionMap(PixelIcons.regionMap),
-
-        // Where the player is, immediately under the picture, before any card.
+        // Where the player is, written **on** the map's lower edge rather than
+        // under it.
         //
-        // The screen's first question is "where am I?" and the answer was in the
-        // first row of a legend 640 dp below the top of the page — reachable
-        // only by scrolling past the entire map. The legend still carries it;
-        // this puts it where the eye lands.
-        _CurrentPlaceBar(places: places),
+        // The caption used to sit below the image as a separate block, which the
+        // owner's device review read as "a large static image, then a label" —
+        // two objects, with the relationship between them left to inference. On
+        // the picture, over the same gradient the Adventure vignette uses, the
+        // map and the place it says you are standing in are one object, and the
+        // two art bands in the app now share a treatment.
+        //
+        // Still a caption, still not a control: no pin, no marker, nothing
+        // tappable, and it names the place in words at the frame's edge rather
+        // than pointing at a coordinate. A mark *on* the terrain is the thing a
+        // player tries to drag, which is the affordance this screen must not
+        // assert.
+        PixelScene.regionMap(
+          PixelIcons.regionMap,
+          overlay: Align(
+            alignment: Alignment.bottomLeft,
+            child: _CurrentPlaceBar(places: places),
+          ),
+        ),
         const SizedBox(height: StrideSpace.cardGap),
 
         Padding(
@@ -143,14 +178,40 @@ class _CurrentPlaceBar extends StatelessWidget {
     }
     if (here == null) return const SizedBox.shrink();
 
-    return Padding(
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
         StrideSpace.screenGutter,
-        StrideSpace.s12,
+        StrideSpace.s16,
         StrideSpace.screenGutter,
-        0,
+        StrideSpace.s10,
+      ),
+      // A gradient, not a plate. Same reason and same values as the Adventure
+      // vignette's caption: the map's lower edge is forest and trail, and a
+      // solid band would cut the picture with a hard line where a gradient lets
+      // the ground run out under the text.
+      //
+      // Three stops, not two, and the middle one is why. A linear fade reaches
+      // only about a third of its opacity where `YOU ARE HERE` sits, and that
+      // label lands on lit forest canopy — the brightest part of the map's
+      // lower edge. The first render of this had a muted 11 px label over pale
+      // green. Reaching most of the way to opaque by the time the text starts
+      // keeps the whole caption legible while still letting the ground run out
+      // under it rather than being cut by a plate.
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            Color(0x00000000),
+            Color(0xC414120F),
+            Color(0xF214120F),
+          ],
+          stops: <double>[0, 0.42, 1],
+        ),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text('YOU ARE HERE', style: StrideType.microLabel, maxLines: 1),
@@ -202,13 +263,15 @@ class _PlaceRow extends StatelessWidget {
                 Text(
                   place.displayName,
                   style: StrideType.sub.copyWith(
-                    // The current location is the only emphasis on the list.
-                    // Colouring the others by unlock state would read as an
+                    color: StrideColors.textPrimary,
+                    // The current location leads the list and its detail line
+                    // says `You are here`; the weight is what marks it, not a
+                    // hue. Colouring the others by unlock state would read as an
                     // availability system — which is exactly the affordance this
                     // screen must not assert.
-                    color: place.isCurrent
-                        ? StrideColors.accentSteps
-                        : StrideColors.textPrimary,
+                    fontWeight: place.isCurrent
+                        ? FontWeight.w700
+                        : FontWeight.w600,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.clip,

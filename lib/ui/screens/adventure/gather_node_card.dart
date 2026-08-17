@@ -6,6 +6,7 @@ import 'package:stride_core/stride_core.dart'
     show ContentId, ResourceNodeDefinition, ToolKind;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/sprite_animation.dart';
@@ -32,23 +33,34 @@ class GatherNodeCard extends StatelessWidget {
     final String skillName = s.displayNameOf(node.skill);
     final String yieldName = s.displayNameOf(node.yieldsItem);
 
+    final Widget identity = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SkillChip(skill: node.skill, label: skillName),
+        const SizedBox(height: StrideSpace.s6),
+        Text(node.displayName, style: StrideType.cardTitle, maxLines: 2),
+        Text('Gathering $yieldName', style: StrideType.sub, maxLines: 2),
+      ],
+    );
+
     return SectionCard(
       padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          _ActivityStage(node: node),
-          const SizedBox(height: StrideSpace.s10),
-
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              SkillChip(skill: node.skill, label: skillName),
-              const SizedBox(height: StrideSpace.s6),
-              Text(node.displayName, style: StrideType.cardTitle, maxLines: 2),
-              Text('Gathering $yieldName', style: StrideType.sub, maxLines: 2),
-            ],
-          ),
+          // The figure and what it is doing, side by side.
+          //
+          // The stage used to be a full-width band above the identity: a
+          // 128 dp sprite centred in a ~330 dp box, so about 85% of the largest
+          // rectangle on the screen was empty ground, and the node's name
+          // arrived below it. Two objects, ~220 dp, one of them mostly nothing.
+          //
+          // Beside each other they are one object about 145 dp tall, and the
+          // card now says "this figure, gathering this thing, here" in a single
+          // read. The gathering presentation itself is unchanged — same sprite,
+          // same contact shadow, same play-on-success token.
+          _StageAndIdentity(node: node, identity: identity),
 
           const SizedBox(height: StrideSpace.s10),
           Wrap(
@@ -66,9 +78,12 @@ class GatherNodeCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: StrideSpace.s12),
-          const SectionHeading(label: 'This action'),
-          const SizedBox(height: StrideSpace.s8),
+          // The `THIS ACTION` heading is gone. Three tiles labelled STEPS,
+          // YIELD and EXPERIENCE, directly above a button that says
+          // `Gather — 90 steps`, do not need a caption telling the player they
+          // describe an action; it cost 28 dp between the player and the
+          // control.
+          const SizedBox(height: StrideSpace.s10),
           _CostTriple(
             node: node,
             cost: cost,
@@ -93,6 +108,69 @@ class GatherNodeCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The stage beside the node's identity, or above it where the phone is too
+/// narrow for both.
+///
+/// The threshold is **measured, not chosen**: the identity column needs enough
+/// width for the node's own title, so the same `AdaptiveText.fitsWithin` the
+/// title will use is asked first. On a 320 dp phone `Meadow Patch` at
+/// `cardTitle` fits the 124 dp left over, so the row holds; a longer name from
+/// a future content pack, or an enlarged text scale, drops it back to the
+/// stacked arrangement rather than crushing the title.
+class _StageAndIdentity extends StatelessWidget {
+  const _StageAndIdentity({required this.node, required this.identity});
+
+  final ResourceNodeDefinition node;
+  final Widget identity;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextScaler scaler = MediaQuery.textScalerOf(context);
+    final TextStyle inherited = DefaultTextStyle.of(context).style;
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double beside =
+            constraints.maxWidth - _stageWidth - StrideSpace.s12;
+        final bool sideBySide =
+            beside > 0 &&
+            AdaptiveText.fitsWithin(
+              node.displayName,
+              inherited.merge(StrideType.cardTitle),
+              scaler,
+              beside,
+            );
+
+        if (!sideBySide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _ActivityStage(node: node),
+              const SizedBox(height: StrideSpace.s10),
+              identity,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            SizedBox(
+              width: _stageWidth,
+              child: _ActivityStage(node: node),
+            ),
+            const SizedBox(width: StrideSpace.s12),
+            Expanded(child: identity),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The sprite's displayed edge — 64 native × 2 — plus the stage's own border.
+  static const double _stageWidth = 130;
 }
 
 /// The activity's contextual art: the Traveler, standing on ground, who gathers

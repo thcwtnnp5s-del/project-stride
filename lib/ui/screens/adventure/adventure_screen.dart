@@ -28,6 +28,7 @@ import 'package:stride_core/stride_core.dart'
 import 'package:stride_health/stride_health.dart' show SyncFault;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
@@ -65,11 +66,20 @@ class AdventureScreen extends StatelessWidget {
       // is meant to be a window.
       padding: const EdgeInsets.only(bottom: StrideSpace.s16),
       children: <Widget>[
+        // WHERE I AM — the picture, and the walking that funds what is below it.
+        //
+        // The strip is attached to the vignette rather than floated as its own
+        // card. The owner's device review found the screen reading as "location
+        // image, then a large walking card, then a large activity card" —
+        // three independent objects — and the walking card was the one with the
+        // least to say and the second-most visual mass on the screen.
         if (vignette != null) ...<Widget>[
           _LocationVignette(assetPath: vignette, name: s.locationName),
-          const SizedBox(height: StrideSpace.cardGap),
         ] else
           const SizedBox(height: StrideSpace.s12),
+
+        _Gutter(child: _WalkingStrip(controller: c)),
+        const SizedBox(height: StrideSpace.cardGap),
 
         _Gutter(
           child: Column(
@@ -79,9 +89,7 @@ class AdventureScreen extends StatelessWidget {
                 const SizedBox(height: StrideSpace.cardGap),
               ],
 
-              _StepsBudgetCard(controller: c),
-              const SizedBox(height: StrideSpace.cardGap),
-
+              // WHAT I CAN DO HERE — immediately, not after a second card.
               if (nodes.isEmpty)
                 const SectionCard(
                   child: Text(
@@ -147,7 +155,11 @@ class _LocationVignette extends StatelessWidget {
           StrideSpace.screenGutter,
           StrideSpace.s16,
           StrideSpace.screenGutter,
-          StrideSpace.s8,
+          // 12, not 8. The walking band now sits directly under the vignette
+          // with no card gap between them, so the caption was riding about
+          // 5 dp off the image's crop with the darkest part of its own gradient
+          // below it rather than behind it.
+          StrideSpace.s12,
         ),
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -162,9 +174,26 @@ class _LocationVignette extends StatelessWidget {
   );
 }
 
-/// What walking has produced, and how far it goes.
-class _StepsBudgetCard extends StatelessWidget {
-  const _StepsBudgetCard({required this.controller});
+/// WHAT WALKING LETS ME DO — one band, not a card.
+///
+/// ## What this replaced, and why the mass came out
+///
+/// This was a full `SectionCard`: a section heading, two 22 px value tiles in
+/// filled blocks, the affordance sentence, and a full-width filled `Sync steps`
+/// button — roughly 215 dp, second only to the gather card, sitting between the
+/// player and the only action on the screen.
+///
+/// **Every figure it carried is still here and still exact.** `TOTAL WALKED`,
+/// `SPENT` and the affordance sentence read the same projections they always
+/// did. What changed is their weight: they are supporting facts about a stock
+/// the header already shows in 19 px teal, and they were being drawn at the
+/// size of a headline. The band is about 70 dp.
+///
+/// It is attached to the vignette's lower edge — no gap, no card, a rule under
+/// the picture — so "where I am" and "what my walking has bought me here" read
+/// as one object rather than two.
+class _WalkingStrip extends StatelessWidget {
+  const _WalkingStrip({required this.controller});
 
   final SessionController controller;
 
@@ -195,49 +224,194 @@ class _StepsBudgetCard extends StatelessWidget {
       }
     }
 
-    return SectionCard(
+    final List<_WalkingFact> facts = <_WalkingFact>[
+      _WalkingFact(
+        label: 'Total walked',
+        value: formatSteps(s.totalGranted),
+        leading: const WalkingGlyph(role: WalkingRole.stock),
+        valueColor: StrideColors.accentSteps,
+      ),
+      _WalkingFact(label: 'Spent', value: formatSteps(s.totalSpent)),
+    ];
+
+    // Demoted to a utility control beside the facts it refreshes, rather than a
+    // full-width filled button under them. It is the only thing on this screen
+    // that is not the game action, and it was reading as the game action.
+    final Widget sync = StrideButton.secondary(
+      label: controller.busy ? 'Checking…' : 'Sync steps',
+      onPressed: controller.busy || !controller.session.isReady
+          ? null
+          : controller.syncSteps,
+    );
+
+    final Widget factRow = Wrap(
+      spacing: StrideSpace.s12,
+      runSpacing: StrideSpace.s4,
+      children: facts,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: StrideSpace.s10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const SectionHeading(label: 'Your walking'),
-          const SizedBox(height: StrideSpace.s10),
-          ValueTileRow(
-            tiles: <LabeledValueTile>[
-              LabeledValueTile(
-                label: 'Total walked',
-                value: formatSteps(s.totalGranted),
-                unit: 'steps earned',
-                leading: const WalkingGlyph(role: WalkingRole.stock),
-                valueColor: StrideColors.accentSteps,
-              ),
-              LabeledValueTile(
-                label: 'Spent',
-                value: formatSteps(s.totalSpent),
-                unit: 'on gathering',
-              ),
-            ],
-          ),
+          _FactsAndSync(facts: facts, factRow: factRow, sync: sync),
           if (affordance case final String a) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            Row(
-              children: <Widget>[
-                const WalkingGlyph(role: WalkingRole.unit),
-                const SizedBox(width: StrideSpace.iconLabelGap),
-                Expanded(child: Text(a, style: StrideType.micro)),
-              ],
-            ),
+            const SizedBox(height: StrideSpace.s6),
+            Text(a, style: StrideType.micro),
           ],
-          const SizedBox(height: StrideSpace.s10),
-          _SyncRow(controller: controller),
+          _SyncResult(controller: controller),
         ],
       ),
     );
   }
 }
 
-/// The foreground health sync, and what the last one did.
-class _SyncRow extends StatelessWidget {
-  const _SyncRow({required this.controller});
+/// The walking facts and the sync control on one line, or on two where the line
+/// is not wide enough for both.
+///
+/// The band's whole point is low mass, so the first instinct is to keep it on
+/// one line and let the facts compress. That is wrong for the same reason D-01
+/// was wrong: at 320 dp and text scale 1.4 the label `TOTAL WALKED` needs
+/// 99.8 dp beside the button and has 66, and compressing it means clipping a
+/// word. The band growing by one line is cheaper than a figure the player
+/// cannot read, and it only happens where the width genuinely is not there.
+class _FactsAndSync extends StatelessWidget {
+  const _FactsAndSync({
+    required this.facts,
+    required this.factRow,
+    required this.sync,
+  });
+
+  final List<_WalkingFact> facts;
+  final Widget factRow;
+  final Widget sync;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextScaler scaler = MediaQuery.textScalerOf(context);
+    final TextStyle inherited = DefaultTextStyle.of(context).style;
+
+    double widthOf(String data, TextStyle style) {
+      final TextPainter p = TextPainter(
+        text: TextSpan(text: data, style: inherited.merge(style)),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      final double w = p.width;
+      p.dispose();
+      return w;
+    }
+
+    // The widest single fact, at full size. The `Wrap` can run the facts onto
+    // separate lines on its own; what it cannot do is make one of them narrower
+    // than its own content.
+    double widest = 0;
+    for (final _WalkingFact f in facts) {
+      final double needs =
+          (f.leading == null ? 0 : 24 + StrideSpace.iconLabelGap) +
+          widthOf(f.label.toUpperCase(), StrideType.microLabel) +
+          StrideSpace.s6 +
+          widthOf(f.value, StrideType.sub);
+      if (needs > widest) widest = needs;
+    }
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        // The button shrink-wraps, so its width is its label plus its padding.
+        final double syncWidth =
+            widthOf('Sync steps', StrideType.buttonLabelSecondary) +
+            StrideSpace.s10 * 2;
+
+        final bool sideBySide =
+            widest + StrideSpace.s8 + syncWidth <= constraints.maxWidth;
+
+        if (sideBySide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(child: factRow),
+              const SizedBox(width: StrideSpace.s8),
+              sync,
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            factRow,
+            const SizedBox(height: StrideSpace.s8),
+            sync,
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// A label and a figure on one line — the walking band's unit.
+///
+/// Deliberately **not** a [LabeledValueTile]: a tile is a filled block with a
+/// 22 px numeral, and two of them are what gave this section the mass the owner
+/// asked to remove. The value keeps its accent and its tabular figures, at the
+/// weight of a supporting fact rather than of a headline.
+class _WalkingFact extends StatelessWidget {
+  const _WalkingFact({
+    required this.label,
+    required this.value,
+    this.leading,
+    this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Widget? leading;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: <Widget>[
+      if (leading case final Widget g) ...<Widget>[
+        g,
+        const SizedBox(width: StrideSpace.iconLabelGap),
+      ],
+      // Flexible, and adaptive, because these sit in a `Wrap` that hands each
+      // child the full line width — a `Row(mainAxisSize.min)` of plain `Text`
+      // inside one overflows rather than wrapping, which is a yellow stripe
+      // and not a layout.
+      Flexible(
+        child: AdaptiveText(
+          label.toUpperCase(),
+          style: StrideType.microLabel,
+          minScale: 0.8,
+        ),
+      ),
+      const SizedBox(width: StrideSpace.s6),
+      Flexible(
+        child: AdaptiveText(
+          value,
+          style: StrideType.sub.copyWith(
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+          ),
+          color: valueColor ?? StrideColors.textPrimary,
+          minScale: 0.8,
+        ),
+      ),
+    ],
+  );
+}
+
+/// What the last foreground sync did.
+///
+/// Split out of the old `_SyncRow`, which owned both the button and this line.
+/// The button now lives beside the walking facts it refreshes; the result is
+/// still reported underneath them, unchanged.
+class _SyncResult extends StatelessWidget {
+  const _SyncResult({required this.controller});
 
   final SessionController controller;
 
@@ -247,14 +421,8 @@ class _SyncRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        StrideButton(
-          label: controller.busy ? 'Checking…' : 'Sync steps',
-          onPressed: controller.busy || !controller.session.isReady
-              ? null
-              : controller.syncSteps,
-        ),
         if (r != null) ...<Widget>[
-          const SizedBox(height: StrideSpace.s8),
+          const SizedBox(height: StrideSpace.s6),
           Text(_describe(r), style: StrideType.micro),
           // Faults are rendered, never filtered. `RULES.md` H-4 names
           // `cursorOfferedWhenProhibited` specifically: it "must never be

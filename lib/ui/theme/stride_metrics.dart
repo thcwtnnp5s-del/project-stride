@@ -135,6 +135,15 @@ abstract final class StrideGeometry {
   /// deliberate rather than as another pill.
   static const double buttonHeight = 48;
 
+  /// A utility control's minimum height — `Sync steps`, and nothing on the
+  /// gameplay path.
+  ///
+  /// 34, which is deliberately **below** the 44 dp touch minimum for a primary
+  /// control and above the 32 dp a compact secondary conventionally gets. The
+  /// gap between 34 and the primary's 48 is the demotion; making them equal is
+  /// what let a utility action read as the game action on the owner's phone.
+  static const double buttonHeightSecondary = 34;
+
   /// A floor, not a fixed height — a wrapped two-line item name grows the row
   /// rather than clipping.
   ///
