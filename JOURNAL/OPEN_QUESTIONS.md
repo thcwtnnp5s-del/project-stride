@@ -2,6 +2,18 @@
 
 Nothing in this folder is approved. These are questions worth answering later, recorded so they are not rediscovered expensively.
 
+## Two kinds of entry live here
+
+**Q-entries** are genuinely open questions — nobody knows the answer, and the entry records why it is deferred rather than guessed.
+
+**OD-entries are owner direction.** The *direction* is settled and is not open for an agent to relitigate; only the **design and implementation are deferred**, and they are deferred because the owner has not authorised the work. Treat an OD-entry as a standing requirement waiting for its milestone, not as an invitation to debate.
+
+An OD-entry is not canon. When one is implemented it graduates into the canonical home named in its entry — `GAME_BIBLE/`, a `DECISIONS/` ADR, or both — and the entry is closed with a pointer. Recording it here rather than in `GAME_BIBLE/` is deliberate: a requirement written into canon before it has been designed becomes a constraint on its own design.
+
+> **`OD-` not `D-`.** `D-01` is already taken by a *defect* — the banked-steps
+> header clip, in `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md` §5. Two
+> registers, two prefixes, no collision.
+
 ---
 
 ## Q-01 — What does Stride offer a player who cannot walk this week?
@@ -94,3 +106,123 @@ Canvas size may be reopened only where the locked requirements are shown to be *
 ### Why the bar is set this high
 
 Widening the canvas is the cheapest available response and the one `PIXEL_ART_CRAFT_SPEC.md` CR-1 and §7 most directly warn against. The allocation fix had never been tried; until an attempt is made against the frozen spec, there is no evidence about what 24 columns can hold.
+
+---
+
+## OD-01 — The step-economy cutover
+
+**Raised by:** owner, immediately after Playable Demo Phase 1 closure
+**Date:** 2026-08-16
+**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
+**Graduates to:** a `DECISIONS/` ADR, and `GAME_BIBLE/SYSTEMS/` once designed
+
+### The direction
+
+The large historical banked balance is **validation history, not the intended
+long-term player economy**. At Phase 1 closure it stood at 459,043 banked from
+459,223 granted — roughly 5,100 gathers' worth, accumulated by a device
+integration proving it could count, not by a player choosing to walk.
+
+Before significant progression is built on top of it, there is to be a
+**deliberate one-time cutover** so the playable game begins from zero banked
+steps at a defined point in time.
+
+### Required long-term behaviour
+
+- Historical steps before the cutover **do not become spendable game currency**.
+- Banked steps **start from zero** at the cutover.
+- Only steps **observed after the cutover** are granted.
+- Manual **Sync Steps remains valid**.
+- Eventually, **foreground startup should automatically reconcile** new steps.
+- **No background-sync work is implied.** S-01B stays out of scope.
+- **No loss of the no-double-count guarantees.**
+
+### Why this is not a small change, and must not be done casually
+
+Recorded now so whoever picks it up does not discover it late:
+
+- **`RULES.md` H-2 says granted is monotonic and there is no clawback.** A
+  cutover that reduces `totalGranted` contradicts it. So the cutover is almost
+  certainly **not** a subtraction — it is more likely a new epoch, a reset
+  cursor, or a fresh ledger, leaving the historical figures intact and simply no
+  longer spendable. Which of those it is, is exactly the design question.
+- **The cursor is the mechanism that prevents double-counting** (`H-3`). Any
+  reset that discards or rewinds it risks re-granting history — the precise
+  failure the last two device runs proved absent. A cutover that reintroduces it
+  would be a severe regression in the one guarantee the architecture exists for.
+- **`P-5` says nothing decays and earned opportunity never expires.** Retiring
+  banked steps needs to be squared with that, or the rule needs amending by its
+  owner. It is a Kernel-adjacent question, not an implementation detail.
+- The **save format** (`DECISIONS/0012`) has no concept of an epoch today.
+
+### What it is not
+
+Not authorisation to implement. Not a licence to weaken H-2, H-3 or P-5 to make
+a reset convenient — an invariant that is inconvenient is still an invariant
+(`G-4`), and changing one belongs to its owner.
+
+### The obvious first question when this opens
+
+Is the cutover a **save migration** (rewrite the ledger once, at a version
+boundary) or a **runtime epoch** (keep the ledger, move a "spendable from" mark)?
+The second preserves H-2 by construction and is the one to cost first.
+
+---
+
+## OD-02 — Regional ecology: the world as a geographic and economic system
+
+**Raised by:** owner, immediately after Playable Demo Phase 1 closure
+**Date:** 2026-08-16
+**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
+**Graduates to:** `GAME_BIBLE/WORLD/`, extending `01_WORLD_STRUCTURE.md`
+
+### The direction
+
+Future world design expands beyond the current region into a **coherent
+geographic world** of multiple meaningful biomes — potentially grassland and
+temperate, snow / ice / alpine, dry / sandy / arid, mountain ranges, forests, and
+rivers, lakes and coast where geographically appropriate.
+
+**Resources and professions are to be geographically grounded**, not distributed
+for gameplay convenience:
+
+- ore availability tied to geology and mountain regions
+- wood species tied to forest and biome
+- fishing species tied to local waters
+- hunting tied to regional fauna
+- herbs and foraging tied to climate
+- cooking ingredients tied to local resources
+- towns and settlements shaped by what the surrounding land produces
+
+> The World Map is to be designed as **a coherent geographic and economic system,
+> not a collection of themed zones.**
+
+That sentence is the whole requirement. A themed-zone world can be assembled
+piecemeal; a geographic one cannot, because where things are has to follow from
+the terrain, and the terrain has to be decided first.
+
+### Scope of the eventual workstream
+
+A later dedicated world-design workstream — which **may** use a specialised
+design agent — would cover region layout, biome transitions, mountain and water
+geography, towns and settlements, travel relationships, regional resources,
+profession and resource gates, and deliberate space for future expansion.
+
+### Explicitly NOT authorised now
+
+**Do not generate or canonise the expanded world map.** The current region map
+(`assets/art/v1/world/region_map.png`) stands as Phase 1's presentation and is
+not to be replaced or extended on the strength of this entry.
+
+### Two dependencies worth naming before the workstream opens
+
+- **There is no travel activity at any layer.** `EnterLocation` exists but takes
+  no step cost, and the command that spends banked steps to cross a route is
+  unwritten. A geography whose whole point is that places are *far apart* needs
+  that system to exist, or the map is describing distances nothing can traverse
+  — which is exactly the honesty problem the Phase 1 World screen had to solve
+  with a sentence.
+- **Geographic grounding is a content-schema question before it is an art
+  question.** `locations.json` has `resourceNodes` and `connections` but no
+  concept of biome, climate or terrain. Deciding what a region *is* in data
+  should precede drawing one.
