@@ -9,19 +9,26 @@
 ///
 /// ## What these images CANNOT show, and it is more than it looks
 ///
-/// **This harness has no real font.** Every glyph renders as a filled
-/// rectangle, so a golden cannot show an underline, a wrong weight, a clipped
-/// descender, or any typographic fault whatsoever.
-///
 /// **This harness supplies zero safe-area insets.** Any defect that is a
 /// function of real device padding measures as exactly 0 here and appears only
-/// on hardware.
+/// on hardware. That is how 57 dp of dead space landed above the inventory grid
+/// on a phone and nowhere in this file.
 ///
-/// Both of those are not hypothetical. Phase 1 passed 93 widget tests and four
-/// of these goldens while **every string in the application was underlined** —
-/// the app had no `Material` ancestor, and the underline merged into the filled
-/// rectangles. A second defect put 57 dp of dead space above the inventory grid
-/// on a phone and none at all here. `MISTAKES.md` M-06.
+/// **The harness had no real font either, and now it has one.** Every glyph used
+/// to render as a filled rectangle, so a golden could not show an underline, a
+/// wrong weight, or a clipped descender — which is how Phase 1 passed 93 widget
+/// tests and four of these goldens while **every string in the application was
+/// underlined** (`MISTAKES.md` M-06). `loadRealFont()` now registers Roboto, so
+/// these images carry real letterforms.
+///
+/// That is a smaller claim than it sounds and is worth stating precisely.
+/// Roboto is not SF Pro, so a glyph-level difference against an iPhone is
+/// expected and is not a defect. What the real font buys is that anything
+/// **typographic** — a decoration, a weight, a size, a line that does not fit —
+/// is now visible in the image instead of merging into a box. It also makes
+/// these goldens agree with the device about which layout branch is taken:
+/// `ValueTileRow` stacks or rows by measuring text, and against the fat fallback
+/// font it stacked here while a phone showed it in a row.
 ///
 /// So: a green run of this file means the layout has not moved. It does not
 /// mean the screen looks right, and it never can. **Look at a running build.**
@@ -43,6 +50,8 @@ import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
+
+import 'support/real_font.dart';
 
 final ContentId kNode = ContentId.unchecked('resource_node.meadow_patch');
 final StepOriginKey phone = StepOriginKey('a1b2c3d4e5f60718');
@@ -76,6 +85,8 @@ SyncFetch page(int steps) => SyncFetch(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(loadRealFont);
 
   late Directory root;
   setUp(() => root = Directory.systemTemp.createTempSync('stride_golden'));
@@ -157,5 +168,79 @@ void main() {
       find.byType(StrideApp),
       matchesGoldenFile('goldens/phase1_world.png'),
     );
+  });
+
+  /// The same screens against a **real save's figures**, not a demo's.
+  ///
+  /// The golden above banks `12,480`. That is six characters, it fits, and it
+  /// is the reason four green goldens said nothing about D-01 — the owner's
+  /// phone was showing `455,281`, which is seven, and the header drew six of
+  /// them (`MISTAKES.md` M-06, `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md`
+  /// §5).
+  ///
+  /// The numbers here are the ones from that run, to the step: 455,371 banked
+  /// after the backlog drained, then one gather taking it to **455,281**. A
+  /// fixture that resembles the accepted save rather than a convenient one.
+  ///
+  /// It is a second image rather than a replacement, because the small-value
+  /// case is also real — a new player has it — and a regression that only
+  /// affects short figures would otherwise have no golden at all.
+  ///
+  /// **This still cannot judge insets**, and Roboto is not the iPhone's SF Pro. It is
+  /// regression evidence that the layout has not moved at a realistic value.
+  /// `ui_responsive_test.dart` is what actually asserts the figure is whole.
+  testWidgets('the four screens at the accepted save, 455,281 banked', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final StrideSession session = (await tester.runAsync(
+      () => StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(script: <SyncFetch>[page(455371)]),
+      ),
+    ))!;
+    await tester.runAsync(() => session.syncSteps());
+    await tester.runAsync(() => session.gather(kNode));
+    expect(
+      session.usableEnergy,
+      455281,
+      reason: 'the fixture must reach the figure the defect was found at',
+    );
+
+    await tester.pumpWidget(StrideApp(session: session));
+    await tester.pumpAndSettle();
+
+    Future<void> settleImages() async {
+      await tester.runAsync(() async {
+        for (final Element e in find.byType(Image).evaluate()) {
+          await precacheImage((e.widget as Image).image, e);
+        }
+      });
+      await tester.pumpAndSettle();
+    }
+
+    await settleImages();
+    await expectLater(
+      find.byType(StrideApp),
+      matchesGoldenFile('goldens/phase1_adventure_large.png'),
+    );
+
+    for (final (String tab, String file) in <(String, String)>[
+      ('Inventory', 'phase1_inventory_large.png'),
+      ('Character', 'phase1_character_large.png'),
+      ('World', 'phase1_world_large.png'),
+    ]) {
+      await tester.tap(find.text(tab));
+      await tester.pumpAndSettle();
+      await settleImages();
+      await expectLater(
+        find.byType(StrideApp),
+        matchesGoldenFile('goldens/$file'),
+      );
+    }
   });
 }

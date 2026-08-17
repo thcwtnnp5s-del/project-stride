@@ -171,6 +171,34 @@ void main() {
     });
     await tester.pumpAndSettle();
     expect(until(), isTrue, reason: 'the tapped action did not complete');
+
+    // Then wait for the *controller* to leave its busy state, not only the
+    // session.
+    //
+    // These are two different clocks. `until` observes `StrideSession`, which
+    // the handler updates before `SessionController` clears `busy` and
+    // notifies — so there is a window where the figures are final and the
+    // buttons still read `Checking…` and `Gathering…`. A following step that
+    // looks for `Gather —` then finds nothing, and the failure surfaces as
+    // `Bad state: No element` inside `ensureVisible`, pointing at the finder
+    // rather than at the race.
+    //
+    // The 100 ms grace above covered it on a fast run and not on a slow one,
+    // which is why this suite was intermittent on Windows **before** the
+    // facelift as well as after it. This asserts a real property — the UI has
+    // returned to idle — rather than lengthening a sleep until it usually
+    // works.
+    bool busy() =>
+        find.text('Checking…').evaluate().isNotEmpty ||
+        find.text('Gathering…').evaluate().isNotEmpty;
+
+    for (int i = 0; i < 100 && busy(); i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pumpAndSettle();
+    }
+    expect(busy(), isFalse, reason: 'the control never returned to idle');
   }
 
   // =========================================================================
@@ -764,7 +792,14 @@ void main() {
       // place the player has never been — on a screen whose first question is
       // "where am I?". Asserting a vertical position rather than list index,
       // because what went wrong was what the player saw first.
-      final double here = tester.getTopLeft(find.text("Haven's Rest")).dy;
+      //
+      // `.last`, because the facelift added a `YOU ARE HERE` caption directly
+      // under the map, so the current location's name now appears twice. The
+      // caption is the higher of the two; taking the lower one keeps this
+      // asserting what it was written to assert — the position of the row in
+      // the region list — rather than passing on the strength of the new
+      // caption sitting above everything by construction.
+      final double here = tester.getTopLeft(find.text("Haven's Rest").last).dy;
       for (final String elsewhere in <String>[
         'Forgotten Hollow',
         'Stonefall Mine',
