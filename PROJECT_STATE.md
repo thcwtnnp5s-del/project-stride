@@ -12,6 +12,13 @@ five skills in the loop, a working Craft screen, and the **OD-01 economy
 cutover** — the playable balance now begins at zero without deleting history,
 lowering `totalGranted`, or rewinding the health cursor (`DECISIONS/0016`).
 
+**Starting a fresh session? Read**
+`MILESTONES/FRESH_CHAT_HANDOFF_2026_08_17.md` — the canonical snapshot written
+after the first Phase 2 device review. It carries the device findings, the
+current content tables, the settled owner directions (OD-05 atlas, OD-06 audio,
+combat, dungeons, ambient life), and a **DO NOT RESURRECT** list. This document
+remains canonical for project state; the handoff is the orientation map.
+
 **The finding worth carrying from this milestone** is in `MISTAKES.md` **M-07**:
 every structural validator passed and the loop was still unplayable, because
 none of them plays it.
