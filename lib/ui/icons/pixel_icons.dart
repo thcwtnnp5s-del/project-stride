@@ -25,9 +25,28 @@ abstract final class PixelIcons {
 
   // ------------------------------------------------------------------ glyphs
 
+  /// **TEMPORARY ART — awaiting a canonical step-economy mark.**
+  /// `JOURNAL/OPEN_QUESTIONS.md` **OD-03**, owner direction 2026-08-17.
+  ///
+  /// The turquoise boot below is placeholder work. It is the symbol of the
+  /// thing the whole product is about — real-world walking — and it appears
+  /// beside every step figure in the app: the persistent header readout, the
+  /// walking band, the cost tiles, the route distances on the World screen.
+  ///
+  /// **The replacement is one asset used everywhere the step economy is
+  /// named**, not a glyph redrawn per surface. Both variants below are the same
+  /// mark in two colours under the rule in `walking_glyph.dart`, and the
+  /// replacement must preserve that pairing or replace the rule with it.
+  ///
+  /// **Do not improvise a vector or icon-font substitute.** L-18 governs pixel
+  /// content and this is pixel content; a stopgap in another medium would be a
+  /// second visual language in the most-repeated mark in the product.
+  ///
   /// Teal. Steps the player has actually walked — a stock or flow they own.
   static const String stepsGlyph = '$_base/glyph_steps.png';
 
+  /// **TEMPORARY ART.** See [stepsGlyph] and `OPEN_QUESTIONS.md` OD-03.
+  ///
   /// Muted. Steps as a unit of measure — a price, a distance, a requirement.
   static const String stepsGlyphMuted = '$_base/glyph_steps_muted.png';
 
@@ -99,6 +118,24 @@ abstract final class PixelIcons {
   /// Character screen lists five skills, four rows had no icon, and the one
   /// that did read as a stray decoration rather than as a member of a set.
   /// Shipping four more 12 × 12 sprites was cheaper than the defect.
+  ///
+  /// **TEMPORARY ART — all five await a cohesive PixelLab replacement set.**
+  /// `JOURNAL/OPEN_QUESTIONS.md` **OD-04**, owner direction 2026-08-17.
+  ///
+  /// These were authored to close a gap, one sprite at a time, and they read
+  /// like it: Visual QA could not reliably separate the cooking pot from the
+  /// smithing anvil at icon size, and the five do not share a construction. The
+  /// replacement is **one workstream against one written specification** —
+  /// silhouette language, contour weight, palette placement, the 12 × 12 canvas
+  /// budget, and how each icon reads at ×2 against its own skill hue — not five
+  /// independent generations that happen to land in the same folder.
+  ///
+  /// They appear in two places at two scales: the Character screen's skill rows
+  /// and the gather card's skill chip. Both are ×2, so ×2 is the verdict view
+  /// (`MISTAKES.md` M-05).
+  ///
+  /// **Not authorised to generate.** Recorded here so the next visual session
+  /// finds the task rather than the assets' apparent finality.
   static const Map<String, String> _skillIcons = <String, String>{
     'skill.foraging': '$_base/skill_foraging.png',
     'skill.woodcutting': '$_base/skill_woodcutting.png',

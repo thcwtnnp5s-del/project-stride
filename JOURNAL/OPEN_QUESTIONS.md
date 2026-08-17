@@ -212,6 +212,104 @@ The second preserves H-2 by construction and is the one to cost first.
 
 ---
 
+## OD-03 — The step-economy mark is temporary art
+
+**Raised by:** owner, UI Facelift 01 physical-device review
+**Date:** 2026-08-17
+**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
+**Graduates to:** `GAME_BIBLE/ART/ART_DIRECTION.md`, and the asset set under
+`assets/ui/v1/`
+
+### The direction
+
+The current **turquoise boot glyph** (`glyph_steps.png` and its muted twin) is
+**temporary art and requires replacement by a canonical pixel-art
+walking/steps asset.**
+
+### Why this one matters more than its size suggests
+
+It is the symbol of the thing the product is about. Real-world walking is the
+entire input to the game, and this mark is how the interface names it. It is
+also the **most repeated** piece of art in the app: the persistent header
+readout on all four screens, the walking band, the cost tiles, the route
+distances on the World screen.
+
+`ART_DIRECTION.md` **L-16** already reserves teal `#58d6c0` for walking, steps
+and banked quantity. The colour is canon; the shape is not.
+
+### Required properties of the replacement
+
+- **One mark, used consistently everywhere the step economy appears.** Not a
+  glyph redrawn per surface.
+- It must survive the **two-colour rule** in
+  `lib/ui/components/walking_glyph.dart` — teal for steps the player owns, muted
+  for steps as a unit of measure — or replace that rule deliberately. Today both
+  variants are the same mark in two colours, and a replacement that breaks the
+  pairing breaks the rule with it.
+- **Pixel art, at an integer scale** (**L-18**). It is displayed at 12 × 12
+  native, ×2.
+- Read at **×2**, which is play scale and therefore verdict scale (`MISTAKES.md`
+  M-05).
+
+### Explicitly NOT authorised
+
+**Do not improvise a vector, icon-font or SVG substitute.** A stopgap in another
+medium would put a second visual language into the most-repeated mark in the
+product, and the hybrid identity is specifically *native chrome + pixel
+content*.
+
+Nothing about the current glyph blocks the UI, so this is scheduled art work,
+not a defect.
+
+---
+
+## OD-04 — The five skill icons are temporary art, and are one workstream
+
+**Raised by:** owner, UI Facelift 01 physical-device review
+**Date:** 2026-08-17
+**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
+**Graduates to:** `GAME_BIBLE/ART/`, as a specification plus the replacement set
+
+### The direction
+
+The five current skill icons — Foraging, Woodcutting, Mining, Smithing,
+Cooking — are **temporary art requiring a cohesive PixelLab replacement set.**
+
+> This is an **art workstream with a shared specification**, not five unrelated
+> icon generations.
+
+### Why they need replacing
+
+They were authored to close a gap, one sprite at a time. Only Foraging shipped
+first — the Character screen listed five skills with four empty icon slots, and
+the one that had a sprite read as a stray decoration rather than as a member of
+a set — and four more were added quickly to fix that.
+
+The consequence is visible: Visual QA could not reliably separate the cooking
+pot from the smithing anvil at icon size, and the five do not share a
+construction. They are five drawings that happen to be the same size.
+
+### What the specification has to settle before any asset is generated
+
+- **Silhouette language** — what makes these five read as one family, and as
+  *skills* rather than as items.
+- **Contour and interior weight** inside a 12 × 12 canvas.
+- **Palette placement**, including how each icon sits against its own skill hue
+  (`StrideColors.forSkill`) without the hue doing the identifying work.
+- **Distinctness under blind read at ×2** — the pot/anvil failure is the
+  acceptance case.
+- The two surfaces they appear on: the Character screen's skill rows, and the
+  gather card's skill chip. Both are ×2.
+
+### Explicitly NOT authorised
+
+**Do not generate replacement assets** during a UI or correction pass. The
+specification comes first, and the set is generated against it in one round so
+the five can be compared with each other rather than approved one at a time —
+which is how the current set happened.
+
+---
+
 ## OD-02 — Regional ecology: the world as a geographic and economic system
 
 **Raised by:** owner, immediately after Playable Demo Phase 1 closure

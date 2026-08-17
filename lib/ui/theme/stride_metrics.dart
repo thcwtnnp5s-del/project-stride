@@ -119,6 +119,27 @@ abstract final class StrideGeometry {
   /// fixed box around content that cannot grow is not the D-01 shape.
   static const double tabBarHeight = 64;
 
+  /// The activity stage: **a viewport for action, sized for the animations it
+  /// will hold rather than for the sprite in it today.**
+  ///
+  /// 180 × 180, against a 128 dp figure. The 52 dp of slack is the point and is
+  /// not to be optimised away: the composition pass shrank this box to the
+  /// sprite plus its padding, and the owner's device review asked for the room
+  /// back — a gathering swing, a recoil, a second combatant in a later
+  /// milestone all need somewhere to go, and a stage sized to its rest pose has
+  /// nowhere.
+  ///
+  /// **Square, and that is deliberate.** Combat is a later milestone and its
+  /// staging is undecided, but every plausible form of it needs lateral room
+  /// more than it needs height. A box that is wide enough for two figures and
+  /// tall enough for an arc above one is the shape that does not have to be
+  /// renegotiated when the first animation arrives.
+  ///
+  /// This is the number that competes with keeping the gather control above the
+  /// fold; `gather_node_card.dart` records the arithmetic. Raising it pushes the
+  /// button down.
+  static const double activityStage = 180;
+
   /// The portrait's displayed edge — 64 native × 2.
   ///
   /// The well around it is `portraitContent + 2`, computed by `InsetWell` rather

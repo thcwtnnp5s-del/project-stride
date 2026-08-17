@@ -355,6 +355,96 @@ Every figure the walking card carried is still present and still exact.
   and the absence of timers, progress bars and persistent activity.
 
 
+## 9b. Second device review — recomposition accepted, three follow-ups
+
+**2026-08-17.** The owner ran the composition pass on the iPhone and **passed the
+overall recomposition**. Inventory grouping and frame, Character composition and
+progression hierarchy, World framing and current-location treatment, the bottom
+navigation, the D-01 fix and the compact Sync hierarchy are all accepted and
+unchanged.
+
+Three follow-ups, one of them code.
+
+### 1. The activity stage is a viewport, not a frame — code
+
+The composition pass sized the stage to the sprite plus its padding, which is
+correct for the one animation that exists and wrong for every one that does not
+yet. The owner's direction: **restore meaningful vertical space and treat it as a
+future animation viewport**, without reverting the card.
+
+`StrideGeometry.activityStage` is now **180 × 180**, against a 128 dp figure, and
+the figure is **bottom-aligned** so the 52 dp of slack is headroom rather than
+floor — that is where a swing, a raised tool or a recoil goes, and slack under a
+standing figure reads as floating.
+
+**The above-the-fold gain is kept, and it is closer than estimated.** The owner
+refused to certify a 4 dp margin from desk evidence, and was right to: the
+estimate was wrong, and measuring it found a cliff.
+
+### The measurement, and the cliff it found
+
+`180` is not slightly too big on some phones. It is **fine on some and 95 dp
+wrong on others**, and the boundary is a hard one. Measured by rendering the real
+screen against real safe-area insets:
+
+| Viewport | Insets | Gather button clears the fold by |
+|---|---|---|
+| 375 × 812 — iPhone X / XS / 11 Pro | 44 / 34 | **−95 dp** |
+| 390 × 844 — iPhone 12 / 13 / 14 | 47 / 34 | +18 dp |
+| 393 × 852 — iPhone 14 / 15 Pro | 59 / 34 | +14 dp |
+| 430 × 932 — iPhone 15 Pro Max | 59 / 34 | +94 dp |
+| 360 × 780 — small Android | 24 / 0 | −83 dp |
+
+The −95 is not a slightly taller stage. It is `_StageAndIdentity` **falling back
+to the stacked arrangement**, which adds the identity's ~94 dp. At 375 dp the
+card has 319 dp of inner width; a 180 stage plus its 12 dp gap leaves 127, and
+`Meadow Patch` at `cardTitle` measures **137.3 dp**. Ten dp short, and the layout
+correctly refuses to crush the title.
+
+So the widest stage that keeps the identity beside it is:
+
+| Screen | Card inner | Widest side-by-side stage |
+|---|---|---|
+| 320 dp | 264 | 114.7 |
+| 360 dp | 304 | 154.7 |
+| **375 dp** | 319 | **169.7** |
+| 390 dp | 334 | 184.7 |
+| 393 dp | 337 | 187.7 |
+| 430 dp | 374 | 224.7 |
+
+**180 sits just the wrong side of 169.7.** A stage of ~168 would hold the
+side-by-side layout from 375 dp up and clear the fold on every phone in the table
+except the 360 dp Android — which is a different problem, since at 360 the widest
+side-by-side stage is 154.7 whatever else changes.
+
+This is the decision the device review exists to settle, and it is now a choice
+between named numbers rather than a guess. **The stage was not changed on the
+strength of this**; the owner asked to see 180 on hardware first.
+
+The goldens flatter all of it by 90–100 dp, because `flutter test` supplies no
+insets — which is why the golden shows the button comfortably clear and a phone
+may not.
+
+> **Worth building later, not now:** the probe that produced the first table is a
+> property test of exactly the M-06 shape — *does the primary control clear the
+> fold on the supported viewports* — and nothing in the repository asserts it.
+> It was run as a throwaway and deleted to keep this pass to its scope.
+
+### 2 and 3. Two art workstreams recorded, not started
+
+Both are recorded as **owner direction** in `JOURNAL/OPEN_QUESTIONS.md`, and
+flagged at the point of use in `lib/ui/icons/pixel_icons.dart` so a future
+session meets the task rather than the assets' apparent finality.
+
+| | |
+|---|---|
+| **OD-03** | The turquoise boot is **temporary art**. The replacement is one canonical pixel mark used everywhere the step economy appears, preserving the teal/muted pairing (`walking_glyph.dart`) or replacing that rule deliberately. **No vector or icon-font stopgap** — that would put a second visual language into the most-repeated mark in the product. |
+| **OD-04** | The five skill icons are **temporary art and one workstream**, not five generations. The specification — silhouette language, contour weight, palette placement against each skill hue, distinctness under blind read at ×2 — comes before any asset. The pot/anvil confusion Visual QA reported is the acceptance case. |
+
+**No assets were generated.** Neither is authorised, and neither blocks the UI.
+
+---
+
 ## 10. What this pass does NOT cover
 
 - **The physical device, for the composition pass.** The owner ran the

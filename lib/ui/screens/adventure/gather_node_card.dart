@@ -115,10 +115,46 @@ class GatherNodeCard extends StatelessWidget {
 ///
 /// The threshold is **measured, not chosen**: the identity column needs enough
 /// width for the node's own title, so the same `AdaptiveText.fitsWithin` the
-/// title will use is asked first. On a 320 dp phone `Meadow Patch` at
-/// `cardTitle` fits the 124 dp left over, so the row holds; a longer name from
-/// a future content pack, or an enlarged text scale, drops it back to the
-/// stacked arrangement rather than crushing the title.
+/// title will use is asked first. A longer name from a future content pack, or
+/// an enlarged text scale, drops it back to the stacked arrangement rather than
+/// crushing the title.
+///
+/// ## Why the stage stays beside the identity, and what it costs
+///
+/// The owner's device review asked for two things that pull against each other:
+/// **a stage generous enough to hold a future animation**, and **the gather
+/// control still above the fold**. The arithmetic is worth writing down, because
+/// the next person to grow either of them needs it.
+///
+/// A real iPhone at 852 dp gives the scroll view roughly **634 dp** once the
+/// status inset (59), the header (61), the tab bar (64) and the home indicator
+/// (34) are taken. The stack above the button spends:
+///
+/// ```text
+/// vignette             176
+/// walking band          70
+/// gap                   10
+/// card padding          12
+/// STAGE                180   <-- StrideGeometry.activityStage
+/// gap                   10
+/// requirement gates     24
+/// gap                   10
+/// cost tiles            78
+/// gap                   12
+/// button                48
+///                      ----
+/// button bottom        630   against 634
+/// ```
+///
+/// So the stage can be 180 **only because the identity sits beside it rather
+/// than under it**. Stacking them adds the identity's ~94 dp and puts the button
+/// 90 dp below the fold. That is what happens at 320 dp, where there is no room
+/// for both — and it is the right trade there, because a crushed node title is
+/// worse than a scroll.
+///
+/// The goldens flatter this by about 93 dp: `flutter test` supplies no insets,
+/// so the button looks comfortably clear in an image and is 4 dp clear on a
+/// phone. Judge it on the phone (`MISTAKES.md` M-06).
 class _StageAndIdentity extends StatelessWidget {
   const _StageAndIdentity({required this.node, required this.identity});
 
@@ -158,7 +194,7 @@ class _StageAndIdentity extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             SizedBox(
-              width: _stageWidth,
+              width: StrideGeometry.activityStage,
               child: _ActivityStage(node: node),
             ),
             const SizedBox(width: StrideSpace.s12),
@@ -169,8 +205,12 @@ class _StageAndIdentity extends StatelessWidget {
     );
   }
 
-  /// The sprite's displayed edge — 64 native × 2 — plus the stage's own border.
-  static const double _stageWidth = 130;
+  /// The width the identity column is measured against.
+  ///
+  /// The stage's own edge plus the gap between them. Stated once so the
+  /// fits-or-stacks decision and the box that decision is about cannot drift
+  /// apart.
+  static const double _stageWidth = StrideGeometry.activityStage;
 }
 
 /// The activity's contextual art: the Traveler, standing on ground, who gathers
@@ -180,6 +220,25 @@ class _StageAndIdentity extends StatelessWidget {
 /// art". It is deliberately **not** a scene the player moves through. There is
 /// no terrain to cross, no position, and no camera; there is a figure performing
 /// the action the button just executed.
+///
+/// ## It is a viewport, not a frame around a sprite
+///
+/// The box is [StrideGeometry.activityStage] square and the figure in it is
+/// 128 dp. **That slack is the feature.** The composition pass sized this to the
+/// rest pose plus padding, which was correct for the one animation that exists
+/// and wrong for every one that does not yet: a gathering swing, a recoil, a
+/// second combatant in a later milestone. The owner's device review asked for
+/// the room back and asked for it to be held.
+///
+/// So the figure is **seated low rather than centred** — its feet near the
+/// stage's floor, with the headroom above it. That is where an arc, a raised
+/// tool, or a projectile goes, and it is also simply how a figure standing on
+/// ground reads. Centring the sprite in a taller box would put the slack under
+/// its feet, which reads as floating and gives the animation nothing.
+///
+/// **Do not shrink this to fit the current sprite.** If a future layout needs
+/// the height back, the number and its cost are in
+/// `StrideGeometry.activityStage` and in `_StageAndIdentity`'s own doc.
 class _ActivityStage extends StatelessWidget {
   const _ActivityStage({required this.node});
 
@@ -201,6 +260,12 @@ class _ActivityStage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+      // A **minimum**, so the stage cannot be squeezed below the room the
+      // animations need, and so an enlarged text scale grows the card around it
+      // rather than cropping the figure.
+      constraints: const BoxConstraints(
+        minHeight: StrideGeometry.activityStage,
+      ),
       padding: const EdgeInsets.symmetric(vertical: StrideSpace.s6),
       decoration: BoxDecoration(
         // `surfaceBlock`, deliberately, and NOT the darker `surfaceGround` the
@@ -224,7 +289,11 @@ class _ActivityStage extends StatelessWidget {
         border: Border.all(color: StrideColors.borderDefault),
         borderRadius: StrideRadius.inner,
       ),
-      child: Center(
+      // Bottom-aligned, not centred: the figure stands on the stage's floor and
+      // the slack is headroom. See this class's doc — that is where a swing or
+      // a raised tool goes, and slack under a standing figure reads as floating.
+      child: Align(
+        alignment: Alignment.bottomCenter,
         child: SpriteAnimation(
           frames: PixelIcons.gatherFrames,
           footprint: SpriteFootprints.gather,
