@@ -1,5 +1,28 @@
 # Project Stride — Project State
 
+**Version:** 2.5
+**Status:** 🚧 **PLAYABLE PHASE 2 — implementation complete, awaiting the
+owner's physical-device acceptance.** Branch `playable-phase-2-multiregion`,
+from the approved UI baseline `3dd892d`.
+Records: `MILESTONES/PLAYABLE_PHASE_2.md`,
+`MILESTONES/PLAYABLE_PHASE_2_ACCEPTANCE.md`.
+
+Five locations across four terrains, real travel that spends real steps, all
+five skills in the loop, a working Craft screen, and the **OD-01 economy
+cutover** — the playable balance now begins at zero without deleting history,
+lowering `totalGranted`, or rewinding the health cursor (`DECISIONS/0016`).
+
+**The finding worth carrying from this milestone** is in `MISTAKES.md` **M-07**:
+every structural validator passed and the loop was still unplayable, because
+none of them plays it.
+
+**OD-01 and OD-02 graduate** into `DECISIONS/0016`, `DECISIONS/0017` and
+`GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md`. **OD-03 and OD-04 stay
+open** — a specified icon round was generated and **failed independent blind
+QA**, and was not shipped.
+
+---
+
 **Version:** 2.4
 **Status:** ✅ **PLAYABLE DEMO PHASE 1 — CLOSED.** All twenty acceptance criteria
 met on a physical iPhone (`eae7700`, iPhone 10 / iOS 26.6), verdict **PASS**
@@ -12,9 +35,9 @@ iPhone. Branch `ui-facelift-01`. Record: `MILESTONES/UI_FACELIFT_01.md`.
 **D-01 is closed** — the owner confirmed the full `459,043` renders on all four
 screens. Ten of ten closure criteria PASS.
 
-**Current Phase: none. No milestone is open.** F-07 remains unblocked and
-unstarted. OD-01 through OD-04 are recorded owner direction and unstarted.
-Phase 2 not begun.
+**Current Phase: Playable Phase 2, awaiting device acceptance.** F-07 is **done**
+(`SkillStanding`, in `stride_core`). OD-01 and OD-02 are **implemented and
+graduated**; OD-03 and OD-04 are **specified, attempted, and still open**.
 
 ## Project identity
 
@@ -62,6 +85,9 @@ Completed foundations:
 | 0012 | Two slots, CAS, cursor authority, origin privacy | `DECISIONS/0012_SAVE_FORMAT.md` |
 | 0013 | **Single-writer-isolate persistence; no background writer until S-01** | `DECISIONS/0013_SINGLE_WRITER_PERSISTENCE.md` |
 | 0014 | **S-01A precedes F-07; foreground health only, no background delivery** | `DECISIONS/0014_S01A_PRIORITY_AND_SCOPE.md` |
+| 0015 | No change is a delivery kind | `DECISIONS/0015_NO_CHANGE_IS_A_DELIVERY_KIND.md` |
+| 0016 | **The playable economy begins at an epoch, not at zero granted** | `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md` |
+| 0017 | **Phase 2 scope — five locations, travel and crafting as commands** | `DECISIONS/0017_PHASE_2_SCOPE.md` |
 
 ## Current milestone
 

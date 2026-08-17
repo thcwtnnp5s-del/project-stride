@@ -22,4 +22,11 @@ The first region includes:
 - Haven’s Rest
 - Whispering Woods
 - Stonefall Mine
+- **Frostmere** — added in Playable Phase 2 (`DECISIONS/0017`)
 - Forgotten Hollow
+
+**The geography, adjacency, travel costs, terrain and resource economics of
+these five are canonical in `GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md`**,
+which graduates `OD-02` for the first playable slice. This file remains
+canonical for the region *list* and for what every region needs; it does not
+duplicate the geography (`RULES.md` G-7).

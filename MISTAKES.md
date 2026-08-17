@@ -21,6 +21,81 @@ to `M-02` stays valid.
 
 ---
 
+## M-07 — Every structural validator passed, and the loop was unplayable
+
+**Date:** 2026-08-17 · **Category:** content / verification ·
+**Provenance:** Playable Phase 2, `MILESTONES/PLAYABLE_PHASE_2.md`
+
+### What happened
+
+Phase 2's content set passed everything the repository could ask of it. The
+loader resolved every reference. The **reachability validator** — 300 lines
+built precisely to catch progression deadlocks, with named diagnoses for tool
+bootstrap cycles and unobtainable gates — proved the whole bronze chain
+obtainable. New world-graph tests proved every location connected to the start,
+every route symmetric, every node hosted exactly once, every crafted output
+consumed by something.
+
+All green. Then a test walked the loop end to end and was refused at the forge:
+
+```text
+CraftItem was refused: "Bronze Ingot" needs Smithing 2; the player is level 1
+```
+
+**To smelt ore, you first had to whittle ten oak handles.** Bronze Ingot sat at
+Smithing 2, and the only level-1 Smithing recipe was Oak Handle at 15 xp — so
+150 xp meant ten handles, meaning twenty oak logs, meaning a return trip to a
+different region. A player who walked to Stonefall, mined copper and tin, and
+opened the Craft screen was told to go back to the woods.
+
+### Root cause
+
+**The validator answers "is this possible", and the question that mattered was
+"would anyone find it".**
+
+Reachability excludes skill levels *by design*, and the exclusion is correct and
+documented: a level requirement is always satisfiable given enough of an
+activity the player can already do, so folding it in would turn a structural
+check into a pacing check and hide the structural answer.
+
+That reasoning is sound and it leaves a gap exactly the width of this defect.
+The chain **was** completable. It was completable in an order nobody would guess
+and no screen explains, and "completable" was the only property anything
+measured.
+
+The tests that existed were all of the same *kind*: they inspect the content
+graph as a graph. Not one of them played it.
+
+### Consequence
+
+Caught before the device, by a test written during the integration critic pass
+rather than by any of the twelve validators. Had it shipped, the owner's first
+session would have ended at the Craft screen with ore in hand and no way to use
+it — on the milestone whose entire purpose was to feel like a game.
+
+### Prevention
+
+- **Walk the loop.** `phase2_loop_budget_test.dart` plays the advertised
+  sequence with the real engine and the real content, and fails if any step is
+  refused. It is the only test in the repository that would have caught this,
+  and it is thirty lines.
+- **Assert the bill, not just the possibility.** The same test prints the step
+  cost of every leg and asserts the total stays between one and five days of
+  ordinary walking. A retune that makes the milestone untestable now fails in CI
+  rather than on the owner's phone.
+- **A graph check and a play check are different instruments**, and the second
+  is not implied by any number of the first. This is `M-06`'s shape in a new
+  place: there, green tests said nothing about *appearance*; here, green tests
+  said nothing about *sequence*.
+- **Where a validator excludes something deliberately, that exclusion is a
+  named gap.** Reachability's own doc comment says it ignores levels. Nothing
+  covered what it left out until something did.
+
+**This does not license a validation campaign** (`RULES.md` G-1). One test that
+plays the loop, and it doubles as the balance record.
+
+---
+
 ## M-06 — A UI was declared done on evidence that was structurally blind to how it looked
 
 **Date:** 2026-08-16 · **Category:** process / verification ·

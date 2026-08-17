@@ -48,7 +48,13 @@ Time passing is never a substitute for movement. Progression is step-clocked.
 **P-5 — Absence is never punished.**
 No FOMO, login streaks, expiring rewards, decay, spoilage, or upkeep. Nothing
 stored decays or expires — ever.
-→ `PROJECT_KERNEL/06_ANTI_FEATURES.md`, `DECISIONS/0008_STEPLESS_WEEK.md`
+
+**Unamended by the Phase 2 economy cutover**, which is a single, deliberate,
+owner-authorized re-basing of one body of validation data at a defined point —
+not a recurring mechanism, and not something time or absence can trigger. The
+retired steps remain reportable. A second epoch would need its own decision.
+→ `PROJECT_KERNEL/06_ANTI_FEATURES.md`, `DECISIONS/0008_STEPLESS_WEEK.md`,
+`DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`
 
 **P-6 — No monetization systems.**
 No premium currency, ads, loot boxes, gacha, or battle passes, unless the owner
@@ -76,7 +82,11 @@ any two of them is how steps get double-counted or silently lost.
 **H-2 — Granted is monotonic. There is no clawback.**
 Granted energy never decreases. A correction reduces what is *observed*, never
 what was already credited.
-→ `DECISIONS/0012_SAVE_FORMAT.md`
+
+A **spendable balance** may be re-based, once, by an economy epoch — which moves
+a mark, not a counter, and leaves `totalGranted` untouched. That is what makes
+the Phase 2 cutover compatible with this rule rather than an exception to it.
+→ `DECISIONS/0012_SAVE_FORMAT.md`, `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`
 
 **H-3 — A candidate cursor becomes durable only after safe reconciliation and
 save commit.**
@@ -142,6 +152,12 @@ over-settling buries steps permanently. The two errors are not symmetric.
 **E-5 — Content is data, not code.**
 Data-driven content wherever practical; no hardcoded game content.
 → `PROJECT_KERNEL/05_NON_NEGOTIABLES.md`
+
+**E-6 — A content set is not proven until something plays it.**
+Reference validation, reachability, and graph checks answer *is this possible*.
+They cannot answer *would anyone find it*, and a chain that is completable only
+in an order nobody would guess passes every one of them.
+→ `MISTAKES.md` M-07, `packages/stride_core/test/phase2_loop_budget_test.dart`
 
 ---
 

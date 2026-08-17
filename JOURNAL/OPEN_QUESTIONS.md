@@ -152,12 +152,29 @@ goes.
 
 ---
 
-## OD-01 — The step-economy cutover
+## OD-01 — The step-economy cutover — ✅ **CLOSED, graduated**
+
+**Closed:** 2026-08-17, Playable Phase 2. **Graduated to
+`DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`**, which is now canonical for this.
+
+The entry's own guess was right and is worth recording as such: *"the second
+preserves H-2 by construction and is the one to cost first."* It is a **runtime
+epoch** — a mark on both running totals, from which `banked` is measured.
+Nothing is subtracted, deleted or rewound; H-2 and H-3 are intact by
+construction rather than by care; and the P-5 question the entry raised is
+answered in the ADR rather than waved past. The historical steps remain
+reportable.
+
+Exactly-once is the state version, and the migration commits through the
+ordinary transaction path. Eighteen tests cover the nine required behaviours.
+
+**The text below is the original direction, preserved unedited** so the ADR can
+be read against what was actually asked for.
 
 **Raised by:** owner, immediately after Playable Demo Phase 1 closure
 **Date:** 2026-08-16
-**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
-**Graduates to:** a `DECISIONS/` ADR, and `GAME_BIBLE/SYSTEMS/` once designed
+**Status:** ~~OWNER DIRECTION — recorded, **not authorised for implementation**~~
+**IMPLEMENTED** — `DECISIONS/0016`
 
 ### The direction
 
@@ -212,11 +229,24 @@ The second preserves H-2 by construction and is the one to cost first.
 
 ---
 
-## OD-03 — The step-economy mark is temporary art
+## OD-03 — The step-economy mark — 🔶 **STILL OPEN.** One attempt, not shipped
+
+**Round 01 ran on 2026-08-17 alongside OD-04 and did not ship.** The generation
+returned two footprints side by side. It was not taken to blind QA because it
+fails on inspection for the same reason OD-04 did: **two separate prints at
+12 × 12 are two small masses with a gap, and the gap is the first thing to close
+under reduction.** The result would be one blob.
+
+The brief for the retry is sharper than it was: the mark must be **one connected
+mass at 12 × 12** — either two prints overlapping enough to touch, or a single
+print rather than a pair.
+
+The turquoise boot glyph stays. Recorded in
+`GAME_BIBLE/ART/exploration/SKILL_ICONS_OD04/ROUND_01_RESULT.md`.
 
 **Raised by:** owner, UI Facelift 01 physical-device review
 **Date:** 2026-08-17
-**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
+**Status:** OWNER DIRECTION — **one round attempted, not shipped**
 **Graduates to:** `GAME_BIBLE/ART/ART_DIRECTION.md`, and the asset set under
 `assets/ui/v1/`
 
@@ -263,12 +293,34 @@ not a defect.
 
 ---
 
-## OD-04 — The five skill icons are temporary art, and are one workstream
+## OD-04 — The five skill icons — 🔶 **STILL OPEN.** Specified, attempted, failed QA
+
+**Round 01 ran on 2026-08-17 and did not ship.**
+
+- The specification exists and is frozen: `GAME_BIBLE/ART/SKILL_ICON_SPEC_01.md`.
+- One round of five was generated against it and taken to independent blind QA.
+- **Verdict FAIL.** Full record and spec amendments:
+  `GAME_BIBLE/ART/exploration/SKILL_ICONS_OD04/ROUND_01_RESULT.md`.
+
+**The acceptance case the spec named — pot versus anvil — passed.** The one
+nobody had written down did not: **at ×2 the axe and the pickaxe read as the
+same object**, because both reduce to a bar over a stick and the head shape that
+separates them lives in pixels the reduction cannot keep.
+
+The finding is worth more than the set would have been:
+
+> **Two hafted tools cannot be told apart at 12 × 12.** The next round must
+> separate Woodcutting and Mining by silhouette *family* — a mass rather than a
+> stick — not by head geometry.
+
+Three spec amendments are recorded and deliberately **not yet applied**, so the
+frozen §3 still says what round 01 was judged against.
+
+The current five icons stay. This entry stays open.
 
 **Raised by:** owner, UI Facelift 01 physical-device review
 **Date:** 2026-08-17
-**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
-**Graduates to:** `GAME_BIBLE/ART/`, as a specification plus the replacement set
+**Status:** OWNER DIRECTION — **specified, one round attempted and failed**
 
 ### The direction
 
@@ -310,12 +362,30 @@ which is how the current set happened.
 
 ---
 
-## OD-02 — Regional ecology: the world as a geographic and economic system
+## OD-02 — Regional ecology — ✅ **CLOSED for the first slice, graduated**
+
+**Closed:** 2026-08-17, Playable Phase 2. **Graduated to
+`GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md`**, which is canonical for the
+first playable geographic slice — five locations across four terrains, with
+resources following geology and climate rather than convenience.
+
+**Both dependencies the entry named are discharged.** Travel exists as
+`TravelTo` and spends real steps (`DECISIONS/0017`). Terrain is a required field
+on every location, so what a region *is* is now decided in data before anything
+is drawn — which was the entry's own stated ordering.
+
+**Closed for the first slice only.** The wider world — arid, coastal, wetland,
+the metal tier below Stonefall — remains unbuilt, and §8 of the new document
+names where each of them goes and why. The map art was deliberately **not**
+regenerated: the current region map still shows four locations and does not
+include Frostmere.
+
+**The text below is the original direction, preserved unedited.**
 
 **Raised by:** owner, immediately after Playable Demo Phase 1 closure
 **Date:** 2026-08-16
-**Status:** OWNER DIRECTION — recorded, **not authorised for implementation**
-**Graduates to:** `GAME_BIBLE/WORLD/`, extending `01_WORLD_STRUCTURE.md`
+**Status:** ~~OWNER DIRECTION — recorded, **not authorised for implementation**~~
+**IMPLEMENTED for the first slice** — `GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md`
 
 ### The direction
 
