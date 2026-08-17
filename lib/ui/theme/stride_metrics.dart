@@ -73,6 +73,20 @@ abstract final class StrideGeometry {
   /// A fixed-width, right-aligned, tabular box for the banked figure, so a
   /// growing number never shifts the eyebrow beside it and never gives the
   /// glyph a fractional x.
+  ///
+  /// **OPEN DEFECT D-01 — this value is too small, and is deferred to the UI
+  /// facelift by owner decision.** It clips the final digit of a seven-character
+  /// figure: physical acceptance ran at `455,281` and lost the `1`
+  /// (`MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md` §5).
+  ///
+  /// The fixed width itself is right and should survive the fix; 72 was simply
+  /// chosen for smaller numbers than a real player accumulates. A player who
+  /// walks for a month reaches seven characters and never goes back.
+  ///
+  /// Whoever fixes it: **the regression test must assert a rendered width or a
+  /// character count against a seven-figure value.** Asserting the absence of an
+  /// exception cannot work, because `TextOverflow.clip` never raises one — which
+  /// is exactly why five overflow tests and four goldens all missed this.
   static const double bankedFigureWidth = 72;
 
   /// Glyph + label. The bottom safe-area inset is added below this, not folded

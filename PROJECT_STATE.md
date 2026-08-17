@@ -1,12 +1,14 @@
 # Project Stride — Project State
 
-**Version:** 2.1
-**Status:** ✅ **Playable Demo Phase 1 implementation-complete** on branch
-`playable-demo-phase-1` — the whole loop runs through the **product UI**, not the
-dev harness. **Awaiting the owner's physical iPhone acceptance run**, which is
-the gate: `MILESTONES/PLAYABLE_DEMO_PHASE_1_ACCEPTANCE.md`.
-**Current Phase:** the player-facing milestone, defined at last (it was recorded
-as still-open through S-01A). F-07 remains unblocked and unstarted.
+**Version:** 2.2
+**Status:** ✅ **Playable Demo Phase 1 — all twenty acceptance criteria met on a
+physical iPhone** (`eae7700`, iPhone 10 / iOS 26.6, 2026-08-16). The whole loop
+runs through the **product UI**, not the dev harness.
+**Formal closure pending the verdict signature** — `MISTAKES.md` M-04 reserves
+that line for someone who did not build the feature.
+Record: `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md`.
+**Current Phase:** UI facelift, opening with defect **D-01** below. F-07 remains
+unblocked and unstarted. Phase 2 not begun.
 
 ## Project identity
 
@@ -165,8 +167,30 @@ The player must be able to:
     - Records: `MILESTONES/PLAYABLE_DEMO_PHASE_1_PLAN.md` (plan),
       `PLAYABLE_DEMO_PHASE_1_CLOSEOUT.md` (what shipped, what is limited),
       `PLAYABLE_DEMO_PHASE_1_ACCEPTANCE.md` (the owner's device script).
-    - **Not closed.** Physical iPhone acceptance has not been run, and a green
-      CI result does not substitute for it.
+    - **Physical acceptance RUN AND PASSED.** All twenty criteria met on the
+      owner's iPhone: the S-01A save loaded and was corroborated to the step
+      against `S01A_PHYSICAL_VALIDATION.md`; a 47,395-step backlog drained
+      exactly once; a gather spent exactly 90, yielded ×2 and +10 XP with
+      `TOTAL WALKED` unmoved (H-2); state survived a force-quit and a
+      Home Screen cold launch with no flash of zeros; and **two consecutive
+      syncs granted nothing the second time**.
+      Full record: `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md`.
+    - **Two run variables**, deliberately not corrected mid-run: the Mac had
+      **Flutter 3.47.0**, not the pinned 3.44.8 (it compiled the branch cleanly
+      with no source changes — the first favourable data point for the deferred
+      3.47 evaluation, and not that evaluation); and the build was **profile**,
+      because iOS 14+ will not launch a JIT debug build from the Home Screen.
+    - **Formal closure pending the verdict signature.** M-04 reserves it for
+      someone who did not build the feature.
+
+    - **Open defect D-01 — the banked-steps header clips its final digit.**
+      Presentation only; every value and invariant is correct. A fixed 72 dp
+      box with `TextOverflow.clip` cannot hold a seven-character figure like
+      `455,281`. **Deferred by owner decision to the UI facelift.**
+      `TextOverflow.clip` raises no exception and the goldens render a
+      six-character figure, so neither the overflow tests nor the goldens could
+      see it — `MISTAKES.md` M-06 a third time. Detail and the required shape of
+      its regression test are in the device result, §5.
 
 ## Next planned activity
 
