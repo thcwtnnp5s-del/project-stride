@@ -362,6 +362,122 @@ which is how the current set happened.
 
 ---
 
+## OD-05 — The interactive, animated world atlas
+
+**Raised by:** owner, after the Phase 2 provenance audit
+**Date:** 2026-08-17
+**Status:** OWNER DIRECTION — settled, **implementation deferred**
+**Graduates to:** `GAME_BIBLE/WORLD/`, `GAME_BIBLE/UI_UX/`, and the asset set
+
+### The direction
+
+The World screen becomes a **large interactive world atlas**: a substantially
+bigger illustrated map the player can **pan** around, with **zoom** where it
+improves mobile usability.
+
+The map shows the actual world geography — grassland, forest, mountain, alpine
+snow and ice, dry and arid ground, rivers, lakes, coastline where appropriate,
+settlements, and the routes and passes between them. **Regions and towns
+correspond to real implemented locations**, and the geography reflects the
+regional ecology and resources (`OD-02`,
+`GAME_BIBLE/WORLD/03_REGIONAL_ECOLOGY_PHASE_2.md`).
+
+### Ambient animation, and its limits
+
+Subtle ambient motion is wanted: slowly moving cloud layers, restrained wind,
+subtle vegetation movement, water movement, and snow or weather where
+appropriate.
+
+Every one of them is bounded by the same four rules:
+
+- remain subtle
+- never cover an important destination for long
+- never reduce map readability
+- **never imply free-roam character control**
+
+### The distinction that keeps this honest
+
+> The map is interactive because the player can **inspect and select legitimate
+> destinations** — not because they steer a character around it.
+
+Travel stays domain-owned, deliberate and step-powered. `TravelTo` remains the
+only way to move, and it still charges. This is the same line
+`PIXELLAB_STYLE_SPEC_01.md` draws in its governing rule — art must not imply a
+system the game does not have — applied to interaction rather than to
+illustration.
+
+### Division of labour
+
+**PixelLab produces the creative map, environment and animated visual assets**
+(`RULES.md` A-1).
+
+Claude implements the viewport, pan and zoom, layer stack, compositing, map
+coordinates, location hit targets, travel integration, animation playback, and
+technical post-processing (`RULES.md` A-2). Claude does **not** hand-draw or
+code-draw the production world artwork.
+
+### Why it is deferred
+
+Not authorised during the Phase 2 CI cleanup, and not to be started before the
+owner's device pass. The Phase 2 map is a single static 384 × 640 banner and is
+the correct scope for a milestone about whether the *game loop* works.
+
+---
+
+## OD-06 — Audio and environmental sound
+
+**Raised by:** owner, after the Phase 2 provenance audit
+**Date:** 2026-08-17
+**Status:** OWNER DIRECTION — settled, **implementation deferred**
+**Graduates to:** `GAME_BIBLE/AUDIO/01_AUDIO_IDENTITY.md`, and an audio layer
+
+### The direction
+
+Project Stride becomes a substantially richer audio experience. Scope:
+
+- region and biome ambience
+- town and interior ambience
+- wind and weather
+- environmental loops
+- travel feedback
+- UI feedback
+- gathering, woodcutting, mining, smithing, cooking
+- fishing, when implemented
+- combat, when implemented
+- regional music where appropriate
+
+Audio should eventually reinforce **biome, profession and world identity** —
+the same three axes `OD-02` grounds the geography on.
+
+### The source the owner has already supplied
+
+The owner previously shared GitHub audio-related resources.
+
+> **Do not guess or invent those repositories.** They are not in this session's
+> context, and a plausible-looking URL recorded here would be worse than an
+> acknowledged gap — it would be acted on later as though it were the owner's.
+
+When OD-06 opens, in this order:
+
+1. **Recover the exact previously-shared GitHub source**, or ask the owner for
+   it. Do not proceed on a guess.
+2. Audit **licensing**.
+3. Audit **Flutter and mobile compatibility**.
+4. Audit **formats, looping behaviour and memory footprint**.
+5. Decide what comes from that source versus custom-generated sound.
+6. Integrate through **one coherent Project Stride audio layer**, not per-screen
+   playback calls.
+
+**ElevenLabs may remain part of the custom sound-design pipeline** where useful.
+
+### Why it is deferred
+
+`DECISIONS/0005_AUDIO_SOURCING.md` already governs sourcing and provenance, and
+the Phase 2 brief was explicit that audio must not block the playtest. It does
+not block it now.
+
+---
+
 ## OD-02 — Regional ecology — ✅ **CLOSED for the first slice, graduated**
 
 **Closed:** 2026-08-17, Playable Phase 2. **Graduated to

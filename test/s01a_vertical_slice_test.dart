@@ -921,6 +921,24 @@ void main() {
       // Back to the top: tapping Sync scrolled the energy card out of the
       // viewport, and an unbuilt card is not a missing one.
       await tester.scrollUntilVisible(find.text('Usable energy'), -300);
+
+      // **Then** wait for the line, and not before.
+      //
+      // The obvious place for this wait is inside `tapAndAwait`, and it was
+      // tried there and does not work: the result lives in the scrollable that
+      // the tap just scrolled away from, so until the scroll above runs the
+      // text is not merely absent, it is *unbuilt*. A predicate waiting on it
+      // could never become true, and the wait would burn its whole bound before
+      // failing for the wrong reason.
+      //
+      // The ordering is the fix. `until` proves the ledger moved; the scroll
+      // brings the card back; this waits for the harness's own `setState` to
+      // reach the frame. Bounded so a genuine hang fails rather than hangs —
+      // the exit condition is the property, not a duration.
+      await pumpUntil(
+        tester,
+        () => find.textContaining('+1000 energy').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('+1000 energy'), findsOneWidget);
       expect(session.usableEnergy, 1000);
       expect(tester.widget<FilledButton>(gather).onPressed, isNotNull);
@@ -934,6 +952,15 @@ void main() {
         until: () => session.usableEnergy == 1000 - cost,
       );
       await tester.scrollUntilVisible(find.text('Usable energy'), -300);
+
+      // Same shape as the sync above, and for the same reason: the ledger moves
+      // inside `gather()` and the harness renders the line when that call
+      // resolves, so the two are ordered and the second one has to be waited
+      // for rather than assumed.
+      await pumpUntil(
+        tester,
+        () => find.textContaining('−$cost energy').evaluate().isNotEmpty,
+      );
 
       expect(session.usableEnergy, 1000 - cost);
       expect(find.textContaining('−$cost energy'), findsOneWidget);
@@ -988,6 +1015,47 @@ void main() {
 /// widget's own state is still one continuation behind. The grace period after
 /// the loop is what lets that continuation run — still inside `runAsync`,
 /// because the moment control returns to `FakeAsync` it never will.
+/// Pumps, advancing real time, until [ready] holds.
+///
+/// ## Why this exists rather than a longer sleep
+///
+/// The harness renders its result from its own `setState`, which runs when
+/// `session.syncSteps()` *resolves*. The ledger condition a caller waits on
+/// becomes true strictly earlier, inside that call — so there is a window in
+/// which the figures are final and the widget describing them does not exist.
+///
+/// That window used to be covered by a fixed `Future.delayed(100ms)` inside
+/// [tapAndAwait]. A fixed delay is a bet on the machine: it paid on a fast
+/// Windows run and did not pay on a CI runner, where the assertion then ran
+/// against a widget the harness had not built and failed looking for
+/// `+1000 energy`.
+///
+/// This waits on the property instead. The iteration bound exists so a genuine
+/// hang fails rather than hanging forever; it is a backstop, not the exit
+/// condition.
+///
+/// **It cannot mask a defect.** If the app never produces [ready], the loop
+/// exhausts and the caller's `expect` still fails. The wait changes *when* an
+/// assertion runs, never *whether* it can fail.
+Future<void> pumpUntil(
+  WidgetTester tester,
+  bool Function() ready, {
+  int attempts = 250,
+}) async {
+  for (int i = 0; i < attempts && !ready(); i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pumpAndSettle();
+  }
+}
+
+/// Taps, then waits for [until] to hold on the session.
+///
+/// The fixed 100 ms grace this used to end with is gone. Callers that need the
+/// *UI* to have caught up — not just the session — follow with [pumpUntil] on
+/// the specific thing they are about to assert, after any scrolling that has to
+/// happen first.
 Future<void> tapAndAwait(
   WidgetTester tester,
   Finder finder, {
@@ -1000,7 +1068,6 @@ Future<void> tapAndAwait(
     while (!until() && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
-    await Future<void>.delayed(const Duration(milliseconds: 100));
   });
   await tester.pumpAndSettle();
   expect(until(), isTrue, reason: 'the tapped action did not complete in time');

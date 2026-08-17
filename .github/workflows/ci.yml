@@ -88,8 +88,18 @@ jobs:
       # without a CI dispatch, so the guard had never executed on Linux. It is
       # not a Phase 2 regression; Phase 2 is simply the first run that reached
       # it.
+      # `--force` is load-bearing and is not belt-and-braces.
+      #
+      # Without it this step fetched **2 of 11** universal artifacts and skipped
+      # Material Fonts. `flutter-action`'s `cache: true` restores the SDK
+      # including each artifact's stamp file, so `precache` reads the stamp,
+      # concludes the work is done, and never notices the directory is absent.
+      # `--force` re-downloads regardless of stamps.
+      #
+      # Measured, not assumed: the non-force run logged only the two iOS USB
+      # artifacts, and the forced run logs `[1/11] Material Fonts`.
       - name: Fetch font artifacts
-        run: flutter precache --universal
+        run: flutter precache --universal --force
 
       - name: Resolve dependencies
         run: |

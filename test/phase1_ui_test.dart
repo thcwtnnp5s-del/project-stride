@@ -39,6 +39,8 @@ import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/icons/sprite_footprints.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
+import 'package:stride/ui/state/session_controller.dart';
+import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride_core/stride_core.dart';
@@ -166,9 +168,6 @@ void main() {
       while (!until() && DateTime.now().isBefore(deadline)) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
-      // `until` observes the session, which the handler updates before it
-      // notifies. The grace period lets that continuation run.
-      await Future<void>.delayed(const Duration(milliseconds: 100));
     });
     await tester.pumpAndSettle();
     expect(until(), isTrue, reason: 'the tapped action did not complete');
@@ -179,21 +178,39 @@ void main() {
     // These are two different clocks. `until` observes `StrideSession`, which
     // the handler updates before `SessionController` clears `busy` and
     // notifies — so there is a window where the figures are final and the
-    // buttons still read `Checking…` and `Gathering…`. A following step that
-    // looks for `Gather —` then finds nothing, and the failure surfaces as
-    // `Bad state: No element` inside `ensureVisible`, pointing at the finder
-    // rather than at the race.
+    // command is still in flight. A test that returns inside that window ends
+    // with real work outstanding, and the runner reports it against whichever
+    // test happened to be running when the continuation landed: *"This test
+    // failed after it had already completed."*
     //
-    // The 100 ms grace above covered it on a fast run and not on a slow one,
-    // which is why this suite was intermittent on Windows **before** the
-    // facelift as well as after it. This asserts a real property — the UI has
-    // returned to idle — rather than lengthening a sleep until it usually
-    // works.
-    bool busy() =>
-        find.text('Checking…').evaluate().isNotEmpty ||
-        find.text('Gathering…').evaluate().isNotEmpty;
+    // ## Why this reads the controller instead of matching labels
+    //
+    // It used to look for the strings `Checking…` and `Gathering…`. That is a
+    // hand-maintained list of every in-progress label in the product, and it
+    // went out of date the moment Phase 2 added `Travelling…` and `Crafting…`
+    // — so for travel and craft the loop saw no busy label, exited
+    // immediately, and the 100 ms grace above was the only thing standing
+    // between the test and its own pending commit. It held on a fast Windows
+    // run and did not hold on a CI runner.
+    //
+    // `SessionScope` is an `InheritedNotifier<SessionController>`, so the
+    // controller is reachable from the widget itself with no context. Reading
+    // `busy` observes the actual condition, covers every command the product
+    // has and every one it gains, and cannot fall out of date.
+    //
+    // The fixed 100 ms grace is gone with it. The loop below waits on a
+    // property; it does not wait for a duration and hope.
+    SessionController? controllerInTree() {
+      final Iterable<Element> scopes = find.byType(SessionScope).evaluate();
+      if (scopes.isEmpty) return null;
+      return (scopes.first.widget as SessionScope).notifier;
+    }
 
-    for (int i = 0; i < 100 && busy(); i++) {
+    bool busy() => controllerInTree()?.busy ?? false;
+
+    // Bounded only so a genuine hang fails instead of running forever. The
+    // loop's exit condition is the property, not the bound.
+    for (int i = 0; i < 250 && busy(); i++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
       );
