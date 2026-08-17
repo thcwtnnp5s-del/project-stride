@@ -1,11 +1,10 @@
 # Project Stride — Project State
 
-**Version:** 2.2
-**Status:** ✅ **Playable Demo Phase 1 — all twenty acceptance criteria met on a
-physical iPhone** (`eae7700`, iPhone 10 / iOS 26.6, 2026-08-16). The whole loop
-runs through the **product UI**, not the dev harness.
-**Formal closure pending the verdict signature** — `MISTAKES.md` M-04 reserves
-that line for someone who did not build the feature.
+**Version:** 2.3
+**Status:** ✅ **PLAYABLE DEMO PHASE 1 — CLOSED.** All twenty acceptance criteria
+met on a physical iPhone (`eae7700`, iPhone 10 / iOS 26.6), verdict **PASS**
+signed by the owner on 2026-08-16 under `MISTAKES.md` M-04. The whole loop runs
+through the **product UI**, not the dev harness.
 Record: `MILESTONES/PLAYABLE_DEMO_PHASE_1_DEVICE_RESULT.md`.
 **Current Phase:** UI facelift, opening with defect **D-01** below. F-07 remains
 unblocked and unstarted. Phase 2 not begun.
@@ -180,8 +179,10 @@ The player must be able to:
       with no source changes — the first favourable data point for the deferred
       3.47 evaluation, and not that evaluation); and the build was **profile**,
       because iOS 14+ will not launch a JIT debug build from the Home Screen.
-    - **Formal closure pending the verdict signature.** M-04 reserves it for
-      someone who did not build the feature.
+    - ✅ **CLOSED.** Verdict **PASS**, written by the owner on 2026-08-16 —
+      qualified under M-04, having run the script and not built the feature.
+      This is the first milestone the owner has closed by *playing* the product
+      rather than by reading a report.
 
     - **Open defect D-01 — the banked-steps header clips its final digit.**
       Presentation only; every value and invariant is correct. A fixed 72 dp

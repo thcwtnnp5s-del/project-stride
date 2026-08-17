@@ -1,7 +1,7 @@
 # Playable Demo Phase 1 — physical device acceptance result
 
 ```
-STATUS: ALL TWENTY CRITERIA MET · VERDICT LINE UNSIGNED
+STATUS: PASS — SIGNED AND CLOSED
 Run on a physical iPhone, 2026-08-16
 ```
 
@@ -197,12 +197,12 @@ I built this feature and therefore must not declare it passed. The owner ran the
 script and did not build it, and so is qualified to write the verdict.
 
 ```
-PHASE 1 DEVICE ACCEPTANCE:   PASS / FAIL   ______________
+PHASE 1 DEVICE ACCEPTANCE:   PASS
 Commit:                      eae7700
 Device / iOS:                iPhone 10 / iOS 26.6
 Date:                        2026-08-16
 Run by:                      owner
-Verdict written by:          ______________
+Verdict written by:          owner (did not build the feature — M-04)
 ```
 
 ## 7. What this run does NOT cover
