@@ -56,6 +56,7 @@ flutter:
     - assets/content/v1/recipes.json
     - assets/content/v1/resource_nodes.json
     - assets/content/v1/skills.json
+    - assets/content/v1/atlas/atlas_layout.json
 
     # Pixel content, v1. Same rule as content above, and for the same reason: an
     # undeclared file is an asset that does not exist, and a stray one is an
@@ -117,6 +118,25 @@ flutter:
     - assets/art/v1/item/duskcap_skewer.png
     - assets/art/v1/item/frostbloom_tea.png
     - assets/art/v1/item/unknown.png
+    # Transformation Build 01 — the nine that used to render the slab.
+    - assets/art/v1/item/hollow_root.png
+    - assets/art/v1/item/pine_plank.png
+    - assets/art/v1/item/bronze_sword.png
+    - assets/art/v1/item/bronze_axe.png
+    - assets/art/v1/item/bronze_pickaxe.png
+    - assets/art/v1/item/bronze_chestplate.png
+    - assets/art/v1/item/herb_broth.png
+    - assets/art/v1/item/hearty_stew.png
+    - assets/art/v1/item/hollow_sigil.png
+    # Transformation Build 01 — whole-directory families. These four are
+    # generated in bulk by the packaging script (185 ambient frames, the atlas
+    # base + landmarks, 29 env sprites, 8 node vignettes), and the script's
+    # `--check` is what guards their contents; listing each file here would be
+    # a second copy of that manifest that drifts.
+    - assets/art/v1/ambient/
+    - assets/art/v1/world/
+    - assets/art/v1/env/
+    - assets/art/v1/node/
     - assets/art/v1/portrait/traveler.png
     - assets/art/v1/sprite/traveler_south.png
     - assets/art/v1/anim/gather_f0.png
@@ -132,4 +152,3 @@ flutter:
     - assets/art/v1/location/stonefall_mine.png
     - assets/art/v1/location/frostmere.png
     - assets/art/v1/location/forgotten_hollow.png
-    - assets/art/v1/world/region_map.png

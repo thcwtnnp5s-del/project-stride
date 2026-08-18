@@ -49,4 +49,179 @@ abstract final class SpriteFootprints {
     right: 42,
     bottom: 63,
   );
+
+  /// `ambient_traveler_stretch` — 24 px of contact, 27..50.
+  static const SpriteFootprint ambientTravelerStretch = SpriteFootprint(
+    left: 27,
+    right: 50,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_drink` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerDrink = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_eat` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerEat = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_pack_check` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerPackCheck = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_axe_inspect` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerAxeInspect = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_pick_inspect` — 24 px of contact, 27..50.
+  static const SpriteFootprint ambientTravelerPickInspect = SpriteFootprint(
+    left: 27,
+    right: 50,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_head_scratch` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerHeadScratch = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_wipe_brow` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerWipeBrow = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_sit_ground` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerSitGround = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_pushups_side` — 12 px of contact, 34..45.
+  static const SpriteFootprint ambientTravelerPushupsSide = SpriteFootprint(
+    left: 34,
+    right: 45,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_dangle_string` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerDangleString = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_read` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerRead = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_crouch_pet` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerCrouchPet = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_pair_pet_cat` — 55 px of contact, 20..74.
+  static const SpriteFootprint ambientPairPetCat = SpriteFootprint(
+    left: 20,
+    right: 74,
+    bottom: 62,
+  );
+
+  /// `ambient_cat_stand` — 18 px of contact, 8..25.
+  static const SpriteFootprint ambientCatStand = SpriteFootprint(
+    left: 8,
+    right: 25,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_walk` — 19 px of contact, 8..26.
+  static const SpriteFootprint ambientCatWalk = SpriteFootprint(
+    left: 8,
+    right: 26,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_walk_west` — 17 px of contact, 14..30.
+  static const SpriteFootprint ambientCatWalkWest = SpriteFootprint(
+    left: 14,
+    right: 30,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_sit_down` — 16 px of contact, 9..24.
+  static const SpriteFootprint ambientCatSitDown = SpriteFootprint(
+    left: 9,
+    right: 24,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_settle` — 18 px of contact, 8..25.
+  static const SpriteFootprint ambientCatSettle = SpriteFootprint(
+    left: 8,
+    right: 25,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_lie_rest` — 19 px of contact, 12..30.
+  static const SpriteFootprint ambientCatLieRest = SpriteFootprint(
+    left: 12,
+    right: 30,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_roll` — 18 px of contact, 8..25.
+  static const SpriteFootprint ambientCatRoll = SpriteFootprint(
+    left: 8,
+    right: 25,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_bat_yarn` — 25 px of contact, 8..32.
+  static const SpriteFootprint ambientCatBatYarn = SpriteFootprint(
+    left: 8,
+    right: 32,
+    bottom: 27,
+  );
+
+  /// `ambient_cat_stretch` — 18 px of contact, 8..25.
+  static const SpriteFootprint ambientCatStretch = SpriteFootprint(
+    left: 8,
+    right: 25,
+    bottom: 27,
+  );
+
+  /// `ambient_prop_fire` — 15 px of contact, 8..22.
+  static const SpriteFootprint ambientPropFire = SpriteFootprint(
+    left: 8,
+    right: 22,
+    bottom: 28,
+  );
+
+  /// `ambient_prop_yarn` — 13 px of contact, 2..14.
+  static const SpriteFootprint ambientPropYarn = SpriteFootprint(
+    left: 2,
+    right: 14,
+    bottom: 12,
+  );
 }

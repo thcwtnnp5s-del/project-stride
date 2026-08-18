@@ -62,13 +62,17 @@ class PixelAsset extends StatelessWidget {
     : nativeWidth = 48,
       nativeHeight = 48;
 
-  /// Skill icons — **12 × 12**, not 14 × 14.
+  /// Skill icons — **24 × 24 native, drawn ×1**, since Transformation Build 01.
   ///
-  /// `UI_SYSTEM_PROPOSED_01.md` §5 records 14 × 14; that is wrong. Measured from
-  /// the PNG headers, and `build_html.js` agrees (`SKILL = px(n,[12,12],2)`).
-  const PixelAsset.skill(this.assetPath, {super.key, this.scale = 2})
-    : nativeWidth = 12,
-      nativeHeight = 12;
+  /// The temporary set was 12 × 12 at ×2. The OD-04 second round is a PixelLab
+  /// set authored at 24 (the tool cannot go below 16), and it ships at ×1 so the
+  /// icon keeps the same 24 logical px footprint in every row and chip. That is
+  /// a deliberate density exception to the ×2 UI grid, recorded in
+  /// `assets/ui/v1/README.md`; the 12 px nearest-neighbour reductions exist in
+  /// the round's output and lost the log rings and the anvil horn.
+  const PixelAsset.skill(this.assetPath, {super.key, this.scale = 1})
+    : nativeWidth = 24,
+      nativeHeight = 24;
 
   /// Navigation glyphs — 14 × 14.
   const PixelAsset.nav(this.assetPath, {super.key, this.scale = 2})

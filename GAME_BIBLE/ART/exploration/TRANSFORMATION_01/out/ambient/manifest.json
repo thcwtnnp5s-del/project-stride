@@ -1,0 +1,224 @@
+[
+ {
+  "id": "traveler_stretch",
+  "frames": 6,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 80,
+  "baseline": 70,
+  "note": "arms exceed 64px at frame 3; delivered on an 80x80 canvas centred on the same anchor (feet at row 70)"
+ },
+ {
+  "id": "traveler_drink",
+  "frames": 9,
+  "fps": 8,
+  "loop": "loop",
+  "canvas": 64,
+  "baseline": 62
+ },
+ {
+  "id": "traveler_eat",
+  "frames": 9,
+  "fps": 8,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62
+ },
+ {
+  "id": "traveler_pack_check",
+  "frames": 6,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "source frames 6-10 dropped: the pack turned into a slatted crate"
+ },
+ {
+  "id": "traveler_axe_inspect",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62
+ },
+ {
+  "id": "traveler_pick_inspect",
+  "frames": 9,
+  "fps": 7,
+  "loop": "loop",
+  "canvas": 80,
+  "baseline": 70,
+  "note": "pick head reaches x=77 of the 88 source; 80x80 canvas, feet at row 70"
+ },
+ {
+  "id": "traveler_head_scratch",
+  "frames": 9,
+  "fps": 8,
+  "loop": "loop",
+  "canvas": 64,
+  "baseline": 62
+ },
+ {
+  "id": "traveler_wipe_brow",
+  "frames": 7,
+  "fps": 7,
+  "loop": "loop",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "source frames 4-5 dropped: white sweat fleck by the head read as an emote"
+ },
+ {
+  "id": "traveler_sit_ground",
+  "frames": 11,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "sits down cross-legged and holds; pingpong = sit, rest, rise"
+ },
+ {
+  "id": "traveler_pushups_side",
+  "frames": 11,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 80,
+  "baseline": 70,
+  "note": "EAST-facing; plank spans 62px so 80x80 canvas, feet at row 70; frame 0 is the east idle rotation, not south"
+ },
+ {
+  "id": "traveler_dangle_string",
+  "frames": 9,
+  "fps": 7,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "string end at approx x=0-3,y=42-50 (64 canvas) for placing the cat beneath it"
+ },
+ {
+  "id": "traveler_read",
+  "frames": 9,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "MARGINAL: book is a small pale shape in the hands; head bowed carries the read"
+ },
+ {
+  "id": "traveler_crouch_pet",
+  "frames": 11,
+  "fps": 7,
+  "loop": "loop",
+  "canvas": 64,
+  "baseline": 63,
+  "note": "joint scene only: hand reaches to approx x=14-18,y=56-60 (64 canvas); composite a cat there; alone it could read as gathering"
+ },
+ {
+  "id": "pair_pet_cat",
+  "frames": 11,
+  "fps": 7,
+  "loop": "loop",
+  "canvas": [
+   96,
+   64
+  ],
+  "baseline": 62,
+  "note": "COMBINED 96x64 (non-square): Traveler + cat in one sprite, generated from a composed start frame; frame 0 = south idle + cat_sit_down f7 at x12,y37; cat drifts ~2px left over the sequence"
+ },
+ {
+  "id": "cat_stand",
+  "frames": 1,
+  "fps": 0,
+  "loop": "static",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "east rotation of the cat character, padded 36->40"
+ },
+ {
+  "id": "cat_walk",
+  "frames": 6,
+  "fps": 8,
+  "loop": "loop",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "faces east (right)"
+ },
+ {
+  "id": "cat_walk_west",
+  "frames": 6,
+  "fps": 8,
+  "loop": "loop",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "faces west (left); generated, not mirrored"
+ },
+ {
+  "id": "cat_sit_down",
+  "frames": 8,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "stand -> sit on haunches (frame 7 = seated hold pose)"
+ },
+ {
+  "id": "cat_settle",
+  "frames": 7,
+  "fps": 5,
+  "loop": "pingpong",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "stand -> lie down (frame 6 = lying)"
+ },
+ {
+  "id": "cat_lie_rest",
+  "frames": 4,
+  "fps": 3,
+  "loop": "loop",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "lying, breathing; source 44x40 cropped 2px each side; chains after cat_settle"
+ },
+ {
+  "id": "cat_roll",
+  "frames": 9,
+  "fps": 7,
+  "loop": "pingpong",
+  "canvas": 40,
+  "baseline": 27
+ },
+ {
+  "id": "cat_bat_yarn",
+  "frames": 8,
+  "fps": 8,
+  "loop": "loop",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "red yarn ball baked into the frames; source frame 0 (no ball) dropped"
+ },
+ {
+  "id": "cat_stretch",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 40,
+  "baseline": 27,
+  "note": "MARGINAL: late frames read long/pounce-like"
+ },
+ {
+  "id": "prop_fire",
+  "frames": 4,
+  "fps": 6,
+  "loop": "loop",
+  "canvas": 32,
+  "baseline": 28,
+  "note": "32x32 (spec said 24x32; pixen needs square below 32)"
+ },
+ {
+  "id": "prop_yarn",
+  "frames": 1,
+  "fps": 0,
+  "loop": "static",
+  "canvas": 16,
+  "baseline": 12
+ }
+]

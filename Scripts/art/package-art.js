@@ -372,6 +372,119 @@ for (const [id, window] of Object.entries(VIGNETTE_CROPS)) {
   );
 }
 
+// ------------------------------------------------- Transformation Build 01
+
+const TRANSFORM = path.join(EXPLORE, 'TRANSFORMATION_01', 'out');
+
+/**
+ * AMBIENT SCENES — the Traveler's downtime and the orange cat.
+ *
+ * Read from the PixelLab manifest, so the frame counts here cannot disagree
+ * with what the art stream delivered. Everything is a straight copy except the
+ * three 80 × 80 scenes, which are **cropped to 80 × 64 at rows 8..71**: the art
+ * stream cut them from the same 88 px source 8 px further out on every side, so
+ * dropping the top 8 rows and the bottom 8 puts the feet back on row 62 — the
+ * row every 64 × 64 Traveler frame stands on — while keeping the width the
+ * raised arms and the pick head need. A wider frame then shares the stage with
+ * the rest pose without the figure jumping (`ambient_scene.dart` `anchorX`).
+ *
+ * The 96 × 64 combined Traveler + cat sprite is copied whole; its anchor is
+ * declared in the scene table, not here.
+ *
+ * Footprints are measured on frame 0 of every sequence and emitted below, one
+ * per sequence, so a companion cat gets its own derived contact shadow.
+ */
+const AMBIENT_SRC = path.join(TRANSFORM, 'ambient');
+const ambientManifest = JSON.parse(
+  fs.readFileSync(path.join(AMBIENT_SRC, 'manifest.json'), 'utf8'),
+);
+const AMBIENT_TALL_CROP = { y: 8, height: 64 };
+const ambientFootprints = {};
+for (const entry of ambientManifest) {
+  const [w, h] = Array.isArray(entry.canvas)
+    ? entry.canvas
+    : [entry.canvas, entry.canvas];
+  for (let i = 0; i < entry.frames; i++) {
+    const src = path.join(AMBIENT_SRC, `${entry.id}_f${i}.png`);
+    let frame = png.load(src);
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}_f${i}: expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    if (entry.id.startsWith('traveler_') && h === 80) {
+      frame = png.crop(frame, 0, AMBIENT_TALL_CROP.y, w, AMBIENT_TALL_CROP.height);
+    }
+    if (i === 0) ambientFootprints[`ambient_${entry.id}`] = png.footprint(frame);
+    emit(`ambient/${entry.id}_f${i}.png`, encode(frame));
+  }
+}
+
+/**
+ * WORLD ATLAS — the base geography, five landmarks, scatter props and the
+ * ambient overlays (Transformation Build 01, stream C).
+ *
+ * The base is `create_image_pro` at 384 × 688 — the API's maximum for a 9:16
+ * portrait — shown at ×2 by the atlas viewport (`atlas_layout.json` scale 2).
+ * Straight copies, no post-processing: PixelLab returned an edge-to-edge
+ * composition with 0 border pixels and 0 non-opaque pixels, verified by the
+ * stream. Landmark and prop cutouts are `create_map_object` outputs whose
+ * palette was conformed to the base by a deterministic nearest-colour remap
+ * (A-2), recorded in `TRANSFORMATION_01/world/README.md`.
+ *
+ * Every world coordinate lives in `assets/content/v1/atlas/atlas_layout.json`,
+ * not here. This step only moves and renames.
+ */
+const WORLD_SRC = path.join(TRANSFORM, 'world');
+const ENV_SRC = path.join(TRANSFORM, 'env');
+const WORLD_FILES = {
+  'atlas_base_384x688.png': 'world/atlas_base.png',
+  'landmark_havens_rest_96x96.png': 'world/landmark_havens_rest.png',
+  'landmark_whispering_woods_96x80.png': 'world/landmark_whispering_woods.png',
+  'landmark_forgotten_hollow_96x80.png': 'world/landmark_forgotten_hollow.png',
+  'landmark_stonefall_mine_96x80.png': 'world/landmark_stonefall_mine.png',
+  'landmark_frostmere_96x72.png': 'world/landmark_frostmere.png',
+};
+for (const [src, dest] of Object.entries(WORLD_FILES)) {
+  emit(dest, encode(png.load(path.join(WORLD_SRC, src))));
+}
+for (const file of fs.readdirSync(ENV_SRC).filter((f) => f.endsWith('.png'))) {
+  // `prop_lone_oak_48x48.png` → `env/prop_lone_oak.png`;
+  // `overlay_forest_mist_96x48_f3.png` → `env/overlay_forest_mist_f3.png`.
+  const dest = file.replace(/_\d+x\d+(_f\d+)?\.png$/, '$1.png');
+  emit(`env/${dest}`, encode(png.load(path.join(ENV_SRC, file))));
+}
+
+/**
+ * ITEM ICONS — the nine that rendered the placeholder slab until now, and the
+ * eight gather-node vignettes (Transformation Build 01, stream F).
+ *
+ * Same 48 × 48 family and rules as `ITEM_ICONS` above; only the source root
+ * differs. The node art is a new family: 96 × 96, transparent, no figures,
+ * drawn on the Adventure gather card.
+ */
+const ITEMS_SRC = path.join(TRANSFORM, 'items');
+const ITEM_ICONS_T01 = [
+  'hollow_root', 'pine_plank', 'bronze_sword', 'bronze_axe', 'bronze_pickaxe',
+  'bronze_chestplate', 'herb_broth', 'hearty_stew', 'hollow_sigil',
+];
+for (const id of ITEM_ICONS_T01) {
+  const raster = png.load(path.join(ITEMS_SRC, `icon_${id}_48.png`));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
+  }
+  emit(`item/${id}.png`, encode(raster));
+}
+const NODE_ART = [
+  'meadow_patch', 'oak_stand', 'duskcap_grove', 'copper_seam', 'tin_seam',
+  'rimefrost_hollow', 'frostpine_stand', 'hollow_thicket',
+];
+for (const id of NODE_ART) {
+  const raster = png.load(path.join(ITEMS_SRC, `node_${id}_96.png`));
+  if (raster.width !== 96 || raster.height !== 96) {
+    throw new Error(`node_${id}_96: expected 96x96, got ${raster.width}x${raster.height}`);
+  }
+  emit(`node/${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**
@@ -386,6 +499,7 @@ for (const [id, window] of Object.entries(VIGNETTE_CROPS)) {
 const footprints = {
   'traveler_south': png.footprint(spriteSouth),
   'gather': png.footprint(gather[0]),
+  ...ambientFootprints,
 };
 
 const dart = `// GENERATED by Scripts/art/package-art.js — do not edit by hand.

@@ -23,7 +23,7 @@ unrepresentable in that pipeline), except where noted.
 | `glyph_steps.png` | 12 × 12 | 24 | **teal** — steps the player has walked and owns |
 | `glyph_steps_muted.png` | 12 × 12 | 24 | **muted** — steps as a unit of measure: a price, a distance |
 | `glyph_arrow.png` | 12 × 12 | 24 | the cost → outcome link |
-| `skill_*.png` (5) | 12 × 12 | 24 | all five Milestone 01 skills |
+| `skill_*.png` (5) | 24 × 24 | 24 (×1) | all five skills — **PixelLab, OD-04 round 2** (Transformation Build 01, `GAME_BIBLE/ART/exploration/TRANSFORMATION_01/items/`): leaf sprig, log round, ore lump, anvil, two-handled pot — five silhouette *families*, no two hafted tools. Drawn ×1 rather than ×2 because PixelLab cannot author below 16 px; the same 24 logical px footprint as before |
 
 ## The one file that needs explaining
 

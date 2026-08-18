@@ -21,13 +21,19 @@ art pipeline does not have to know what a tab bar is.
 
 | Path | Native | Displayed | Source |
 |---|---|---|---|
-| `item/*.png` (11) | 48 × 48 | 48 (×1) | `PIXELLAB_STABILIZATION_01/out/icons_full/` |
+| `item/*.png` (15) | 48 × 48 | 48 (×1) | `PIXELLAB_STABILIZATION_01/out/icons_full/` |
 | `item/unknown.png` | 48 × 48 | 48 (×1) | drawn by the packaging script — see below |
 | `portrait/traveler.png` | 64 × 64 | 128 (×2) | `PIXELLAB_PROOF_02/out/character/traveler_portrait_64.png` |
 | `sprite/traveler_south.png` | 64 × 64 | 128 (×2) | `PIXELLAB_PROOF_02/out/character/traveler_south_64.png` |
 | `anim/gather_f0..f7.png` | 64 × 64 | 128 (×2) | `PIXELLAB_STABILIZATION_01/out/animation/gather_trim_f*.png` |
 | `location/havens_rest.png` | 384 × 176 | 384 (×1) | `PIXELLAB_STABILIZATION_01/out/location/havens_rest_vignette_512x384.png`, keyed and cropped |
-| `world/region_map.png` | 384 × 640 | 384 (×1) | `PIXELLAB_STABILIZATION_01/out/world/region_map_384x640.png` |
+| `world/region_map.png` | 384 × 640 | — (retired from the World tab; kept as the atlas fallback) | `PIXELLAB_STABILIZATION_01/out/world/region_map_phase2_384x640.png` |
+| `world/atlas_base.png` | 384 × 688 | 768 × 1376 (×2, pannable) | `TRANSFORMATION_01/out/world/atlas_base_384x688.png` — the atlas base, straight copy |
+| `world/landmark_*.png` (5) | 96 × 72–96 | ×2 at atlas coordinates | `TRANSFORMATION_01/out/world/` — Haven's Rest and Frostmere are packaged but not placed (the base already draws them; Visual QA found the doubled palisade) |
+| `env/prop_*.png` (7), `env/overlay_*_f*.png` (22) | 32–96 px | ×2, overlays at a layout opacity | `TRANSFORMATION_01/out/env/` |
+| `ambient/*.png` (185) | 64 × 64 Traveler (80 × 64 for three wide scenes, 96 × 64 pair), 40 × 40 cat, 32 × 32 fire, 16 × 16 yarn | ×2 on the Adventure stage | `TRANSFORMATION_01/out/ambient/` via `manifest.json`; the three 80 × 80 sources are cropped to rows 8..71 so the feet stay on row 62 |
+| `node/*.png` (8) | 96 × 96 | 96 (×1) on the gather card | `TRANSFORMATION_01/out/items/node_*_96.png` |
+| `item/*.png` (+9) | 48 × 48 | 48 (×1) | `TRANSFORMATION_01/out/items/icon_*_48.png` — the bronze tier, both bowls, the root and the sigil |
 
 Every file is drawn through `PixelAsset` or `PixelScene` at an exact integer
 multiple of its native size, with nearest-neighbour filtering and no smoothing

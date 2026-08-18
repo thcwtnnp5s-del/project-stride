@@ -135,23 +135,16 @@ abstract final class PixelIcons {
   /// that did read as a stray decoration rather than as a member of a set.
   /// Shipping four more 12 × 12 sprites was cheaper than the defect.
   ///
-  /// **TEMPORARY ART — all five await a cohesive PixelLab replacement set.**
-  /// `JOURNAL/OPEN_QUESTIONS.md` **OD-04**, owner direction 2026-08-17.
+  /// **OD-04 round 2 — one PixelLab set, five silhouette families** (leaf
+  /// sprig, log round, ore lump, anvil, two-handled pot; Transformation Build
+  /// 01). Round 1 failed blind QA because two hafted tools were the same object
+  /// at play scale; this set has none. 24 × 24 native drawn ×1 — see
+  /// `PixelAsset.skill`. Awaiting the round's Visual QA verdict at play scale
+  /// (`TRANSFORMATION_01/items/README.md`); the temporary 12 × 12 set it
+  /// replaced is in git history should the verdict fail.
   ///
-  /// These were authored to close a gap, one sprite at a time, and they read
-  /// like it: Visual QA could not reliably separate the cooking pot from the
-  /// smithing anvil at icon size, and the five do not share a construction. The
-  /// replacement is **one workstream against one written specification** —
-  /// silhouette language, contour weight, palette placement, the 12 × 12 canvas
-  /// budget, and how each icon reads at ×2 against its own skill hue — not five
-  /// independent generations that happen to land in the same folder.
-  ///
-  /// They appear in two places at two scales: the Character screen's skill rows
-  /// and the gather card's skill chip. Both are ×2, so ×2 is the verdict view
-  /// (`MISTAKES.md` M-05).
-  ///
-  /// **Not authorised to generate.** Recorded here so the next visual session
-  /// finds the task rather than the assets' apparent finality.
+  /// They appear in two places: the Skills/Character rows and the gather
+  /// card's skill chip, both at 24 logical px, which is the verdict view.
   static const Map<String, String> _skillIcons = <String, String>{
     'skill.foraging': '$_base/skill_foraging.png',
     'skill.woodcutting': '$_base/skill_woodcutting.png',
@@ -180,9 +173,8 @@ abstract final class PixelIcons {
   /// grid at play scale, and the verdict across the whole grid was **"none
   /// outright contradict"** (`PIXELLAB_STABILIZATION_01/README.md` §3 item 4).
   ///
-  /// The remaining nine items in `items.json` — the bronze tier, the cooked
-  /// food, the Hollow Sigil — have no icon here and resolve to [itemUnknown].
-  /// None of them is craftable or obtainable in Phase 1.
+  /// Every item in `items.json` now has an icon; [itemUnknown] remains the
+  /// honest answer for a content pack that names one this set does not cover.
   static const Map<String, String> _itemIcons = <String, String>{
     'item.bronze_ingot': '$_art/item/bronze_ingot.png',
     'item.copper_ore': '$_art/item/copper_ore.png',
@@ -199,7 +191,41 @@ abstract final class PixelIcons {
     'item.rime_blossom': '$_art/item/rime_blossom.png',
     'item.duskcap_skewer': '$_art/item/duskcap_skewer.png',
     'item.frostbloom_tea': '$_art/item/frostbloom_tea.png',
+
+    // Transformation Build 01. The nine that rendered the slab: the whole
+    // bronze tier, the two cooked bowls, the Hollow's root and its sigil. Four
+    // of these are crafted outputs, so the Craft screen no longer offers to
+    // make a blank. Blind grid read of the sigil is recorded in
+    // `TRANSFORMATION_01/items/README.md`.
+    'item.hollow_root': '$_art/item/hollow_root.png',
+    'item.pine_plank': '$_art/item/pine_plank.png',
+    'item.bronze_sword': '$_art/item/bronze_sword.png',
+    'item.bronze_axe': '$_art/item/bronze_axe.png',
+    'item.bronze_pickaxe': '$_art/item/bronze_pickaxe.png',
+    'item.bronze_chestplate': '$_art/item/bronze_chestplate.png',
+    'item.herb_broth': '$_art/item/herb_broth.png',
+    'item.hearty_stew': '$_art/item/hearty_stew.png',
+    'item.hollow_sigil': '$_art/item/hollow_sigil.png',
   };
+
+  // ------------------------------------------------------------------ nodes
+
+  /// One vignette per gather node — 96 × 96, transparent, no figures — drawn
+  /// on the Adventure gather card so a node is a *place at the place* rather
+  /// than a name and a button. Null where a content pack names a node this
+  /// set does not cover; the card reserves the slot either way.
+  static const Map<String, String> _nodeArt = <String, String>{
+    'resource_node.meadow_patch': '$_art/node/meadow_patch.png',
+    'resource_node.oak_stand': '$_art/node/oak_stand.png',
+    'resource_node.duskcap_grove': '$_art/node/duskcap_grove.png',
+    'resource_node.copper_seam': '$_art/node/copper_seam.png',
+    'resource_node.tin_seam': '$_art/node/tin_seam.png',
+    'resource_node.rimefrost_hollow': '$_art/node/rimefrost_hollow.png',
+    'resource_node.frostpine_stand': '$_art/node/frostpine_stand.png',
+    'resource_node.hollow_thicket': '$_art/node/hollow_thicket.png',
+  };
+
+  static String? nodeFor(ContentId node) => _nodeArt[node.value];
 
   /// A deliberately non-representational slab, for an item with no icon.
   ///
