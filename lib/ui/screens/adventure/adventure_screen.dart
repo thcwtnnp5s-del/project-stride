@@ -25,7 +25,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart'
     show ContentId, ResourceNodeDefinition;
-import 'package:stride_health/stride_health.dart' show SyncFault;
+import 'package:stride_health/stride_health.dart'
+    show HealthAuthorization, SyncFault;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
@@ -440,6 +441,16 @@ class _SyncResult extends StatelessWidget {
   }
 
   static String _describe(SyncReport r) => switch (r.status) {
+    // Access first. On iOS a read the player has not allowed comes back
+    // empty, which the sync truthfully reports as "no change" — but the fact
+    // that matters to the player is that nobody was allowed to look. Denied
+    // and unavailable are separated because they have different remedies.
+    SyncStatus.noChange || SyncStatus.reconciled
+        when r.authorization == HealthAuthorization.denied =>
+      'Health access not granted — allow Steps in Settings › Health',
+    SyncStatus.noChange || SyncStatus.reconciled
+        when r.authorization == HealthAuthorization.unavailable =>
+      'Health is not available on this device',
     SyncStatus.reconciled when r.newlyGranted > 0 =>
       '+${formatSteps(r.newlyGranted)} steps banked',
     // Observed is shown beside newlyGranted, never instead of it. A restated

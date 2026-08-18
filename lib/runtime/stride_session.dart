@@ -106,6 +106,7 @@ final class SyncReport {
     this.intervalEndMillis,
     this.commitDetail,
     this.rejection,
+    this.authorization,
   });
 
   const SyncReport.unavailable(ProviderUnavailableReason reason)
@@ -159,6 +160,31 @@ final class SyncReport {
 
   /// Why the engine refused the batch, as the stable rejection code.
   final String? rejection;
+
+  /// What the platform said when the session asked for read access before
+  /// this sync — or null when it did not ask (a source-less session, or a
+  /// report built before the request). Read alongside [status]: on iOS a
+  /// denied read comes back as an *empty* result, so a "no new steps" report
+  /// with a non-granted authorization is not the same fact as one with a
+  /// granted one, and a UI must not render them the same way.
+  final HealthAuthorization? authorization;
+
+  SyncReport withAuthorization(HealthAuthorization? value) => SyncReport(
+    status: status,
+    pages: pages,
+    originCount: originCount,
+    bucketCount: bucketCount,
+    observedSteps: observedSteps,
+    newlyGranted: newlyGranted,
+    faults: faults,
+    deliveryKind: deliveryKind,
+    unavailableReason: unavailableReason,
+    intervalStartMillis: intervalStartMillis,
+    intervalEndMillis: intervalEndMillis,
+    commitDetail: commitDetail,
+    rejection: rejection,
+    authorization: value,
+  );
 }
 
 /// One line of the player's inventory, ready to render.
@@ -811,6 +837,13 @@ final class StrideSession {
   /// launch will delete.
   bool get isStale => _stale;
 
+  /// The most recent answer to the read-access request this session made
+  /// before syncing (see [syncSteps]); null until the first sync. Presentation:
+  /// lets a screen say "Health access is not granted" instead of "no new
+  /// steps" when a read came back empty because nobody was allowed to read.
+  HealthAuthorization? get lastAuthorization => _lastAuthorization;
+  HealthAuthorization? _lastAuthorization;
+
   /// Whether a game action — gather, travel, craft — may be issued now.
   ///
   /// False while [migrationPending]: the balance an action would spend from is
@@ -909,7 +942,24 @@ final class StrideSession {
     }
     _inFlight = true;
     try {
-      final SyncReport report = await _syncSteps(maxPages);
+      // ## Ask before reading, and keep asking until the answer is "granted"
+      //
+      // Read access is requested here, in the foreground, immediately before
+      // the read — not on a settings screen and not only from the dev harness.
+      // A fresh install that never asks never appears in Health's app list,
+      // its first read comes back empty, and the product shows "no new steps"
+      // for a player who was never asked (the Transformation Build 01 device
+      // finding). On iOS `requestAuthorization` presents the sheet only while
+      // the answer is undetermined and returns at once afterwards, so calling
+      // it before every sync until it reports granted costs nothing and lets a
+      // player who denied and then allowed Steps in Settings be picked up by
+      // the next tap of Sync. Still foreground-only (H-5), still no observer.
+      if (_lastAuthorization != HealthAuthorization.granted) {
+        _lastAuthorization = await requestPermission();
+      }
+      final SyncReport report = (await _syncSteps(
+        maxPages,
+      )).withAuthorization(_lastAuthorization);
       // After the sync, whatever it did. The pending migration waits for the
       // sync's one chance to observe the backlog, not for the backlog to have
       // been observed: an unavailable or denied source at the cutover means

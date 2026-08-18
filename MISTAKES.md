@@ -21,6 +21,41 @@ to `M-02` stays valid.
 
 ---
 
+## M-10 — The product never asked HealthKit for read access; the dev harness had
+
+**Date:** 2026-08-18 · **Category:** architecture / device workflow ·
+**Provenance:** Transformation Build 01 first Release install
+
+### What happened
+
+A genuinely fresh Release install showed `TOTAL WALKED 0`, banked 0, no
+permission sheet, and Project Stride absent from Health's app list. Startup
+sync and manual `Sync steps` both reported "no new steps".
+
+### Root cause
+
+`StrideSession.requestPermission` existed and was wired to the Swift adapter's
+`requestAuthorization` — and its **only caller was the dev harness**. Every
+earlier device run had authorised Steps through the S-01A harness once, and
+HealthKit authorisation persists per bundle id, so the product UI's omission
+was invisible for three milestones. On iOS an unauthorised read returns an
+empty result rather than an error, so the sync's honest "no change" report
+was indistinguishable from "nobody was allowed to look".
+
+### Prevention
+
+- The session asks for read access **immediately before every sync until the
+  answer is granted** (foreground, H-5 intact); the request lives beside the
+  read, not on a screen someone must remember to visit.
+- `SyncReport.authorization` carries the answer and the walking band renders
+  denied / unavailable distinctly from "no new steps".
+- **A device finding from a fresh container is a different test from a
+  reinstall over an authorised one.** `test/fresh_install_authorization_test`
+  pins the ask-before-read order; the device script now includes the
+  permission sheet as a step to observe.
+
+---
+
 ## M-09 — `flutter build ios --profile`, then Xcode's Run button, installed a Debug build
 
 **Date:** 2026-08-17 · **Category:** process / device workflow ·

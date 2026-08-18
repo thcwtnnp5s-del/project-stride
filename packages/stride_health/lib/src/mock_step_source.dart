@@ -30,8 +30,15 @@ final class MockStepSource implements StepSyncSource {
 
   final List<SyncFetch> _script;
 
-  /// What [requestAuthorization] reports.
-  final HealthAuthorization authorization;
+  /// What [requestAuthorization] reports. Mutable so a test can model a
+  /// player who denies the sheet and later allows Steps in Settings.
+  HealthAuthorization authorization;
+
+  /// How many times the caller asked for authorization, and the order of
+  /// asks and reads (`authorize` / `fetch`), so a test can assert that a fresh
+  /// session asks *before* its first read.
+  int authorizationRequests = 0;
+  final List<String> calls = <String>[];
 
   /// What [availability] reports. False models Android without Health Connect
   /// installed — a normal state the game must remain fully playable through.
@@ -64,11 +71,16 @@ final class MockStepSource implements StepSyncSource {
         );
 
   @override
-  Future<HealthAuthorization> requestAuthorization() async => authorization;
+  Future<HealthAuthorization> requestAuthorization() async {
+    authorizationRequests++;
+    calls.add('authorize');
+    return authorization;
+  }
 
   @override
   Future<SyncFetch> fetchSteps(SyncRequest request) async {
     requestsSeen.add(request);
+    calls.add('fetch');
 
     if (isExhausted) {
       // An exhausted script yields "nothing new" rather than throwing. A test

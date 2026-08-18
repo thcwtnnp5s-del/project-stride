@@ -130,6 +130,27 @@ and reviewed by eye and by Visual QA.
 11. **After 7 days** the free-team profile expires: rerun step 2 (reinstall in
     place; the save survives). Never delete the app to "refresh".
 
+## 7a. First device finding (2026-08-18) — and its consequence for the cutover
+
+The Release install worked (unplugged launch, trust, no tooling), but the
+fresh app never asked for Steps access (`MISTAKES.md` M-10) — fixed: the
+session now requests authorisation before each sync until granted, and the
+walking band says "Health access not granted" rather than "no new steps".
+
+**The install also arrived on a fresh container: `TOTAL WALKED 0`.** The
+Phase 2 save (464,946 walked, the v2 epoch) is not on the phone any more —
+consistent with the app having been deleted, or installed under a different
+team, before this build went on. Consequences, stated rather than papered
+over: (1) the v2→v3 deferred cutover has nothing to migrate on this device —
+it starts as a **new v3 game at the origin epoch**; (2) on a new game the
+first authorised sync grants the HealthKit **7-day retention window as
+spendable** (the Phase 1 backlog behaviour), so the "zero spendable at
+cutover" intent does **not** hold on this particular install unless the
+owner rules on a new-game first-sync policy. That is a design decision
+(`RULES.md` G-3) and is recorded in `JOURNAL/OPEN_QUESTIONS.md` as
+UNRESOLVED rather than taken here. The 0018 mechanism itself is unchanged and
+still correct for a save that carries history.
+
 ## 8. Known issues
 
 - **BLOCKER:** none known.

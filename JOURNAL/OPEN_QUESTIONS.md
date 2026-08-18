@@ -560,3 +560,20 @@ not to be replaced or extended on the strength of this entry.
   question.** `locations.json` has `resourceNodes` and `connections` but no
   concept of biome, climate or terrain. Deciding what a region *is* in data
   should precede drawing one.
+
+
+## Q-05 — UNRESOLVED: what should the first authorised sync of a *new* game bank?
+
+**Raised:** 2026-08-18, Transformation Build 01 device finding (`MILESTONES/
+TRANSFORMATION_BUILD_01.md` §7a). The owner's Phase 2 save was not present on
+the phone (fresh container, `TOTAL WALKED 0`), so the 0018 cutover had nothing
+to retire and the first authorised sync will grant the HealthKit 7-day
+retention window as spendable — Phase 1's accepted new-player behaviour, but
+not the "zero spendable at the playtest baseline" the owner intended for
+*this* install.
+
+Options, none taken: (a) accept — a new game's first week is its walking;
+(b) an owner-authorised rule that a new game's first successful reconcile is
+retired into history (a third epoch shape, needs its own decision and a
+P-5 answer); (c) restore the Phase 2 save from a backup if one exists.
+Not an accounting defect: H-2/H-3 hold either way.
