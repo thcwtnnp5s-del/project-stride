@@ -39,10 +39,23 @@ library;
 import 'dart:io' show Directory;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/services.dart' show AssetBundle;
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
 
+import 'atlas_layout.dart';
 import 'runtime_bootstrap.dart';
+
+export 'atlas_layout.dart'
+    show
+        AtlasLandmark,
+        AtlasLayout,
+        AtlasLocation,
+        AtlasOverlay,
+        AtlasProp,
+        AtlasRoute,
+        AtlasTile;
 
 /// How far a sync got, in terms nothing outside this file has to interpret.
 enum SyncStatus {
@@ -215,6 +228,27 @@ final class RegionPlace {
   /// A hint for rendering, not the authority. `TravelTo` re-checks adjacency in
   /// the engine, and the engine's answer is the one that counts.
   bool get isAdjacent => stepCostFromHere != null;
+}
+
+/// One route the content pack draws between two places, as the atlas needs it.
+///
+/// **Adjacency only.** It says a road exists and what it would cost, from
+/// content, so the atlas can draw the line and say "reached by way of". It is
+/// not the authority on whether the player may walk it — `TravelTo` re-checks
+/// adjacency, requirements and balance on execute — and it carries no
+/// affordance of its own.
+final class RegionRoute {
+  const RegionRoute({
+    required this.from,
+    required this.to,
+    required this.stepCost,
+  });
+
+  final ContentId from;
+  final ContentId to;
+
+  /// Profile-scaled, as it would be charged.
+  final int stepCost;
 }
 
 /// One destination the player could set out for, as the World screen needs it.
@@ -500,6 +534,8 @@ final class StrideSession {
     required this.saltFingerprint,
     required this.health,
     required this.keyingRefusal,
+    required this.atlasLayout,
+    required this.atlasLayoutProblems,
     this.migration,
   });
 
@@ -513,11 +549,21 @@ final class StrideSession {
     Directory? overrideRoot,
     StepSyncSource? source,
     Future<OriginKeyingInstall> Function(Uint8List salt)? openSource,
+    AssetBundle? atlasBundle,
   }) async {
     final StrideRuntime runtime = await bootstrapStride(
       overrideRoot: overrideRoot,
     );
     final BootstrapOutcome outcome = runtime.outcome;
+
+    // The atlas layout is read the way the content pack is: once, here, before
+    // any widget exists. It is presentation data and its absence blocks
+    // nothing — a session with no layout still travels; the World screen falls
+    // back to its list. Loaded before the switch so a blocked bootstrap and a
+    // broken layout are two independent facts rather than one masking the
+    // other.
+    final ({AtlasLayout? layout, List<String> problems}) atlas =
+        await _loadAtlas(atlasBundle, outcome);
 
     GameEngine? engine;
     ContentRegistry? registry;
@@ -585,18 +631,62 @@ final class StrideSession {
             },
       health: health,
       keyingRefusal: refusal,
+      atlasLayout: atlas.layout,
+      atlasLayoutProblems: atlas.problems,
       migration: migration,
     );
+  }
+
+  /// Reads the atlas layout and checks it against the content pack.
+  ///
+  /// Never throws. A layout that cannot be read or does not cover every content
+  /// location comes back as `null` with the reasons, and the reasons are printed
+  /// in debug so a broken layout is found at startup rather than on the World
+  /// tab. In release nothing is printed and the atlas is simply absent.
+  static Future<({AtlasLayout? layout, List<String> problems})> _loadAtlas(
+    AssetBundle? bundle,
+    BootstrapOutcome outcome,
+  ) async {
+    final List<String> problems = <String>[];
+    AtlasLayout? layout;
+    try {
+      layout = await loadAtlasLayoutFromAssets(bundle: bundle);
+    } on AtlasLayoutException catch (e) {
+      problems.add(e.message);
+    }
+    if (layout != null) {
+      final ContentRegistry? registry = switch (outcome) {
+        BootstrapNewGame() => outcome.registry,
+        BootstrapExistingGame() => outcome.registry,
+        BootstrapBlocked() => null,
+      };
+      if (registry != null) {
+        problems.addAll(layout.validateAgainst(registry.locations.keys));
+      }
+    }
+    if (problems.isNotEmpty) {
+      assert(() {
+        for (final String problem in problems) {
+          debugPrint('atlas_layout.json: $problem');
+        }
+        return true;
+      }());
+      return (layout: null, problems: List<String>.unmodifiable(problems));
+    }
+    return (layout: layout, problems: const <String>[]);
   }
 
   final StrideRuntime runtime;
   final BootstrapOutcome outcome;
 
-  /// Set when *this launch* re-based the playable economy (`DECISIONS/0016`).
+  /// Set when *this launch* migrated the save — and, for the two migrations
+  /// that exist, re-based the playable economy (`DECISIONS/0016`,
+  /// `DECISIONS/0018`).
   ///
   /// Null on every ordinary launch, including every launch after the first. It
   /// exists so the acceptance script can see the cutover happen once and then
   /// never again — a migration nobody can observe is one nobody can verify.
+  /// The developer harness renders it beside the energy figures.
   final StateMigrationReport? migration;
 
   /// The live engine, or null when the bootstrap was blocked.
@@ -618,6 +708,17 @@ final class StrideSession {
 
   /// Why the adapter refused the device identity, when it did.
   final OriginKeyingRefusal? keyingRefusal;
+
+  /// Where each place is drawn on the World Atlas, or null when the layout
+  /// could not be read or does not cover the content pack — in which case
+  /// [atlasLayoutProblems] says why and the World screen shows its list.
+  ///
+  /// Presentation data, loaded once at [start]. Not a game figure: nothing in
+  /// the engine reads it, and a place with no coordinate is still a place.
+  final AtlasLayout? atlasLayout;
+
+  /// Every reason [atlasLayout] is null, as sentences. Empty when it is not.
+  final List<String> atlasLayoutProblems;
 
   /// The durable head this session believes it is writing on top of.
   ///
@@ -1341,6 +1442,35 @@ final class StrideSession {
     ];
   }
 
+  /// Every route the content pack draws, from every place — not only from
+  /// where the player stands.
+  ///
+  /// The World Atlas draws its connection lines from this and answers "how
+  /// would I get there" for a place with no direct road. Both are read from
+  /// content adjacency, so a road drawn on the atlas is a road `TravelTo`
+  /// knows about, and there is no second list of routes in a widget.
+  ///
+  /// Directed, exactly as content declares them: `A→B` and `B→A` are two
+  /// entries when both are declared. A caller drawing lines dedupes; a caller
+  /// walking the graph wants the direction. Costs are profile-scaled, as
+  /// [destinations] scales them, so a figure shown from either projection is
+  /// the same figure.
+  List<RegionRoute> get regionRoutes {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <RegionRoute>[];
+    return <RegionRoute>[
+      for (final LocationDefinition from in content.locations.values)
+        for (final LocationConnection route in from.connections)
+          if (content.locations.containsKey(route.to))
+            RegionRoute(
+              from: from.id,
+              to: route.to,
+              stepCost: active.profile.applyStepCost(route.stepCost),
+            ),
+    ];
+  }
+
   /// The places the player could set out for from where they are standing.
   ///
   /// Adjacency, cost, entry requirements and affordability, all read from the
@@ -1521,11 +1651,14 @@ final class StrideSession {
     return null;
   }
 
-  /// Steps that were banked before the Phase 2 cutover and are not spendable.
+  /// Steps that were banked before the current playable economy began and are
+  /// not spendable — the whole retired body, across the Phase 2 cutover and the
+  /// Transformation playtest epoch.
   ///
   /// Zero for a game that has never migrated. Surfaced rather than hidden: the
   /// owner walked these, and a product that silently forgot them would be lying
-  /// about its own history (`DECISIONS/0016`).
+  /// about its own history (`DECISIONS/0016`, `DECISIONS/0018`). `TOTAL WALKED`
+  /// on the product screens is [totalGranted], which still carries every one.
   int get retiredSteps => engine?.state.steps.epoch.retiredSteps ?? 0;
 
   /// The display name of a content id, for anything the read model does not

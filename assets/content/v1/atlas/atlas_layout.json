@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "world": { "width": 768, "height": 1376 },
+  "scale": 2,
+  "base": {
+    "tiles": [
+      { "asset": "world/atlas_base", "x": 0, "y": 0, "width": 384, "height": 688 }
+    ]
+  },
+  "locations": [
+    { "id": "location.havens_rest", "x": 240, "y": 1142, "hitRadius": 44, "landmark": null },
+    { "id": "location.whispering_woods", "x": 200, "y": 592, "hitRadius": 40,
+      "landmark": { "asset": "world/landmark_whispering_woods", "width": 96, "height": 80, "anchorX": 48, "anchorY": 44 } },
+    { "id": "location.forgotten_hollow", "x": 160, "y": 270, "hitRadius": 40,
+      "landmark": { "asset": "world/landmark_forgotten_hollow", "width": 96, "height": 80, "anchorX": 48, "anchorY": 48 } },
+    { "id": "location.stonefall_mine", "x": 614, "y": 724, "hitRadius": 40,
+      "landmark": { "asset": "world/landmark_stonefall_mine", "width": 96, "height": 80, "anchorX": 48, "anchorY": 40 } },
+    { "id": "location.frostmere", "x": 590, "y": 170, "hitRadius": 44, "landmark": null }
+  ],
+  "routes": [
+    { "from": "location.havens_rest", "to": "location.whispering_woods",
+      "points": [[214, 988], [200, 708], [200, 620]] },
+    { "from": "location.havens_rest", "to": "location.stonefall_mine",
+      "points": [[300, 1078], [350, 1058], [470, 824], [500, 838], [600, 750]] },
+    { "from": "location.whispering_woods", "to": "location.stonefall_mine",
+      "points": [[200, 708], [470, 824], [600, 750]] },
+    { "from": "location.whispering_woods", "to": "location.forgotten_hollow",
+      "points": [[200, 430]] },
+    { "from": "location.stonefall_mine", "to": "location.frostmere",
+      "points": [[600, 680], [610, 430], [600, 240]] }
+  ],
+  "props": [
+    { "asset": "env/prop_lone_oak", "x": 120, "y": 940, "width": 48, "height": 48, "anchorX": 24, "anchorY": 46 },
+    { "asset": "env/prop_hedgerow", "x": 420, "y": 940, "width": 48, "height": 32, "anchorX": 24, "anchorY": 30 },
+    { "asset": "env/prop_boulders", "x": 600, "y": 940, "width": 48, "height": 40, "anchorX": 24, "anchorY": 38 },
+    { "asset": "env/prop_pine_clump", "x": 520, "y": 600, "width": 48, "height": 56, "anchorX": 24, "anchorY": 54 },
+    { "asset": "env/prop_cairn", "x": 624, "y": 500, "width": 32, "height": 40, "anchorX": 16, "anchorY": 38 },
+    { "asset": "env/prop_dead_tree", "x": 80, "y": 160, "width": 40, "height": 48, "anchorX": 20, "anchorY": 46 },
+    { "asset": "env/prop_snowdrift", "x": 680, "y": 280, "width": 48, "height": 32, "anchorX": 24, "anchorY": 30 }
+  ],
+  "overlays": [
+    { "asset": "env/overlay_cloud_shadow", "x": 100, "y": 900, "width": 96, "height": 48, "frames": 1, "frameMillis": 1000, "drift": { "x": 9, "y": 0 }, "opacity": 0.22 },
+    { "asset": "env/overlay_cloud_wisp", "x": 500, "y": 1000, "width": 96, "height": 48, "frames": 1, "frameMillis": 1000, "drift": { "x": 7, "y": 0 }, "opacity": 0.4 },
+    { "asset": "env/overlay_cloud_wisp", "x": 40, "y": 780, "width": 96, "height": 48, "frames": 1, "frameMillis": 1000, "drift": { "x": 5, "y": 0 }, "opacity": 0.35 },
+    { "asset": "env/overlay_forest_mist", "x": 120, "y": 150, "width": 96, "height": 48, "frames": 6, "frameMillis": 250, "drift": { "x": 0, "y": 0 }, "opacity": 0.5 },
+    { "asset": "env/overlay_forest_mist", "x": 30, "y": 300, "width": 96, "height": 48, "frames": 6, "frameMillis": 250, "drift": { "x": 0, "y": 0 }, "opacity": 0.4 },
+    { "asset": "env/overlay_snow_flurry", "x": 470, "y": 40, "width": 64, "height": 64, "frames": 8, "frameMillis": 167, "drift": { "x": 0, "y": 0 }, "opacity": 1 },
+    { "asset": "env/overlay_snow_flurry", "x": 630, "y": 220, "width": 64, "height": 64, "frames": 8, "frameMillis": 167, "drift": { "x": 0, "y": 0 }, "opacity": 1 },
+    { "asset": "env/overlay_forge_smoke", "x": 204, "y": 1000, "width": 32, "height": 48, "frames": 6, "frameMillis": 200, "drift": { "x": 0, "y": 0 }, "opacity": 0.7 }
+  ]
+}

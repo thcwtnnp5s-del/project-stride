@@ -35,9 +35,9 @@ import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/components/screen_header.dart';
 import 'package:stride/ui/components/sprite_animation.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
-import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/icons/sprite_footprints.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
@@ -876,7 +876,7 @@ void main() {
   });
 
   // =========================================================================
-  // World — presentation that must not become an affordance
+  // World — the atlas: presentation that must not outrun the domain
   // =========================================================================
 
   group('the World screen', () {
@@ -887,6 +887,25 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    /// Selects a place on the atlas by its hit target. The panel beneath the
+    /// viewport then describes it.
+    ///
+    /// Pans first, because the viewport opens on the current location and a
+    /// place two roads away is off-screen — exactly as it is for a player, who
+    /// drags the map to it. `tester.tap` on an off-screen target hits nothing
+    /// and warns rather than failing, so a tap without the pan would pass on
+    /// nothing.
+    Future<void> selectPlace(WidgetTester tester, String id) async {
+      final Finder target = find.byKey(ValueKey<String>('atlas-hit:$id'));
+      final Finder viewport = find.byType(AtlasViewport);
+      final Offset from = tester.getCenter(viewport);
+      final Offset delta = from - tester.getCenter(target);
+      await tester.dragFrom(from, delta);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('navigates, and renders the region from content', (
       WidgetTester tester,
     ) async {
@@ -894,69 +913,30 @@ void main() {
       await openWorld(tester, session);
 
       // Every location in the content pack, by its own display name — not a
-      // list written into the widget.
-      for (final String place in <String>[
-        "Haven's Rest",
-        'Whispering Woods',
-        'Stonefall Mine',
-        'Frostmere',
-        'Forgotten Hollow',
+      // list written into the widget. On the atlas each is a label under its
+      // marker, and each has a hit target keyed by its content id.
+      for (final (String id, String place) in <(String, String)>[
+        ('location.havens_rest', "Haven's Rest"),
+        ('location.whispering_woods', 'Whispering Woods'),
+        ('location.stonefall_mine', 'Stonefall Mine'),
+        ('location.frostmere', 'Frostmere'),
+        ('location.forgotten_hollow', 'Forgotten Hollow'),
       ]) {
         expect(
           find.text(place),
           findsWidgets,
           reason: '$place is in locations.json and must appear',
         );
-      }
-
-      // The player's own location is named as such, from world state.
-      expect(find.textContaining('You are here'), findsOneWidget);
-
-      // And it leads the list.
-      //
-      // `ContentRegistry.locations` iterates by content id, which is
-      // alphabetical, so the unordered list opened with *Forgotten Hollow* — a
-      // place the player has never been — on a screen whose first question is
-      // "where am I?". Asserting a vertical position rather than list index,
-      // because what went wrong was what the player saw first.
-      //
-      // `.last`, because the facelift added a `YOU ARE HERE` caption directly
-      // under the map, so the current location's name now appears twice. The
-      // caption is the higher of the two; taking the lower one keeps this
-      // asserting what it was written to assert — the position of the row in
-      // the region list — rather than passing on the strength of the new
-      // caption sitting above everything by construction.
-      // Scoped to the region card, because Phase 2 put a place name in three
-      // places on this screen: the travel card (ordered by price), the region
-      // list (ordered with the current location first), and the map's caption.
-      // `.first` or `.last` would each measure a different card depending on
-      // the layout of the day; naming the card measures the rule this test is
-      // about.
-      // Uppercase: `SectionHeading` renders `label.toUpperCase()`, so the
-      // string in the tree is not the string the widget was given.
-      final Finder regionCard = find.ancestor(
-        of: find.text('THIS REGION'),
-        matching: find.byType(SectionCard),
-      );
-      double rowY(String place) => tester
-          .getTopLeft(
-            find.descendant(of: regionCard, matching: find.text(place)),
-          )
-          .dy;
-
-      final double here = rowY("Haven's Rest");
-      for (final String elsewhere in <String>[
-        'Forgotten Hollow',
-        'Frostmere',
-        'Stonefall Mine',
-        'Whispering Woods',
-      ]) {
         expect(
-          rowY(elsewhere),
-          greaterThan(here),
-          reason: 'the current location leads the region list',
+          find.byKey(ValueKey<String>('atlas-hit:$id')),
+          findsOneWidget,
+          reason: '$place must be a target on the atlas',
         );
       }
+
+      // The player's own location is named as such, from world state: the
+      // panel opens on it before any tap.
+      expect(find.textContaining('You are here'), findsOneWidget);
     });
 
     /// Phase 1 asserted that this screen had **no controls at all**, because no
@@ -966,7 +946,9 @@ void main() {
     /// `TravelTo` exists now, so the prohibition is satisfied rather than
     /// overridden — and the property that replaces it is the one that made the
     /// old rule worth having: **every control here must correspond to a real
-    /// command, and offer only journeys the engine would accept.**
+    /// command, and offer only journeys the engine would accept.** On the atlas
+    /// that means: a place with a road from here gets a Travel button when
+    /// selected; a place without one gets a sentence and no button.
     testWidgets('every travel control corresponds to a real route', (
       WidgetTester tester,
     ) async {
@@ -977,21 +959,33 @@ void main() {
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
 
-      // Haven's Rest connects to two places and to no others. Frostmere is in
-      // the content pack and is reached through Stonefall — so it must appear
-      // in the region legend and *not* as a journey from here.
-      expect(find.widgetWithText(StrideButton, 'Travel'), findsNWidgets(2));
-      expect(find.text('Whispering Woods'), findsWidgets);
-      expect(find.text('Stonefall Mine'), findsWidgets);
+      // Nothing is offered until a place is chosen — the panel is on the
+      // current location, and there is no journey to *here*.
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
 
-      final Finder journeys = find.byType(StrideButton);
-      for (final Element element in journeys.evaluate()) {
+      // Haven's Rest connects to two places and to no others.
+      for (final String id in <String>[
+        'location.whispering_woods',
+        'location.stonefall_mine',
+      ]) {
+        await selectPlace(tester, id);
+        final Finder button = find.widgetWithText(StrideButton, 'Travel');
+        expect(button, findsOneWidget, reason: '$id has a road from here');
         expect(
-          (element.widget as StrideButton).onPressed,
+          (tester.widget(button) as StrideButton).onPressed,
           isNotNull,
           reason: '50,000 banked affords every route out of Haven\'s Rest',
         );
       }
+
+      // Frostmere is in the content pack and is reached through Stonefall — so
+      // it is on the atlas, selectable, and *not* offered as a journey.
+      await selectPlace(tester, 'location.frostmere');
+      expect(find.byType(StrideButton), findsNothing);
+      expect(
+        find.textContaining('reached by way of Stonefall Mine'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('an unaffordable journey is disabled and states the gap', (
@@ -1005,6 +999,7 @@ void main() {
       );
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
+      await selectPlace(tester, 'location.whispering_woods');
 
       expect(find.textContaining('Walk 500 more steps'), findsOneWidget);
       for (final Element element in find.byType(StrideButton).evaluate()) {
@@ -1021,10 +1016,11 @@ void main() {
       );
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
+      await selectPlace(tester, 'location.whispering_woods');
 
       await tapAndAwait(
         tester,
-        find.widgetWithText(StrideButton, 'Travel').first,
+        find.widgetWithText(StrideButton, 'Travel'),
         until: () => session.currentLocation?.value != 'location.havens_rest',
       );
 
@@ -1033,11 +1029,12 @@ void main() {
         1400,
         reason: '2,000 − 600, the Whispering Woods route from content',
       );
-      expect(
-        session.currentLocation?.value,
-        'location.whispering_woods',
-        reason: 'the cheapest route is listed first, and it leads to the woods',
-      );
+      expect(session.currentLocation?.value, 'location.whispering_woods');
+
+      // The panel follows the player: it now describes *here*, which is the
+      // woods, and offers no journey to the place they are standing in.
+      expect(find.textContaining('You are here'), findsOneWidget);
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
     });
 
     /// Banked steps are teal; a route cost is not. `ART_DIRECTION.md` L-16
@@ -1052,6 +1049,7 @@ void main() {
     ) async {
       final StrideSession session = await boot(tester);
       await openWorld(tester, session);
+      await selectPlace(tester, 'location.whispering_woods');
 
       final Finder cost = find.descendant(
         of: find.byType(WorldScreen),
