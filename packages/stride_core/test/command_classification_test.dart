@@ -29,6 +29,7 @@ List<GameCommand> allCommands() => <GameCommand>[
   GatherResource(node: ContentId.unchecked('resource_node.meadow_patch')),
   ReconcileStepSync(response: const NoChangeSync()),
   const EstablishEconomyEpoch(fromStateVersion: 1, toStateVersion: 2),
+  const EstablishNewGameBaseline(stateVersion: 3),
 ];
 
 /// The classification each command must carry.
@@ -64,6 +65,9 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   // re-bases the player's spendable balance must never be reachable from a
   // surface, a debug screen, or anywhere that could give it a second caller.
   'EstablishEconomyEpoch': false,
+  // Issued from exactly one place: the session, after a new game's first
+  // authorised sync (DECISIONS/0019). Same rule, same reason.
+  'EstablishNewGameBaseline': false,
 };
 
 /// Proves [allCommands] covers the sealed hierarchy.
@@ -83,6 +87,7 @@ String classify(GameCommand command) => switch (command) {
   GatherResource() => 'GatherResource',
   ReconcileStepSync() => 'ReconcileStepSync',
   EstablishEconomyEpoch() => 'EstablishEconomyEpoch',
+  EstablishNewGameBaseline() => 'EstablishNewGameBaseline',
 };
 
 void main() {
@@ -166,6 +171,7 @@ void main() {
       expect(internal, <String>[
         'EnterLocation',
         'EstablishEconomyEpoch',
+        'EstablishNewGameBaseline',
         'GrantSyntheticSteps',
         'ReconcileStepSync',
         'UnlockLocation',

@@ -81,6 +81,28 @@ void main() {
           )
           .then((StrideSession? s) => s!);
 
+  /// A brand-new game whose baseline is already set (DECISIONS/0019): the
+  /// store has nothing at install, one explicit sync retires that nothing,
+  /// and every page in [script] is served *after* it — so what the startup
+  /// sync under test grants is spendable, which is what these tests measure.
+  /// (The startup sync cannot itself be observed setting the baseline in this
+  /// harness — see the `isReady` note at the end of the file.)
+  Future<StrideSession> launchBaselined(
+    WidgetTester tester,
+    List<SyncFetch> script,
+  ) async {
+    final StrideSession session = await launch(
+      tester,
+      MockStepSource(
+        script: <SyncFetch>[SyncFetch(const NoChangeSync()), ...script],
+      ),
+    );
+    await tester.runAsync(() => session.syncSteps());
+    expect(session.baselinePending, isFalse);
+    expect(session.usableEnergy, 0);
+    return session;
+  }
+
   /// Mounts the app with startup sync live and waits for it to finish.
   ///
   /// The order is load-bearing and is not interchangeable with a tidier
@@ -124,10 +146,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final StrideSession session = await launch(
-      tester,
-      MockStepSource(script: <SyncFetch>[page(1200)]),
-    );
+    final StrideSession session = await launchBaselined(tester, <SyncFetch>[
+      page(1200),
+    ]);
     expect(
       session.usableEnergy,
       0,
@@ -151,15 +172,10 @@ void main() {
     // drain the second page and the figure would be 1,500 rather than 1,200 —
     // so this distinguishes "ran once" from "ran again and granted nothing",
     // which a single-page script could not.
-    final StrideSession session = await launch(
-      tester,
-      MockStepSource(
-        script: <SyncFetch>[
-          page(1200),
-          page(300, index: 1, cursor: 'c2'),
-        ],
-      ),
-    );
+    final StrideSession session = await launchBaselined(tester, <SyncFetch>[
+      page(1200),
+      page(300, index: 1, cursor: 'c2'),
+    ]);
 
     await mountAndSettle(tester, session);
     for (int i = 0; i < 5; i++) {
@@ -189,10 +205,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final StrideSession first = await launch(
-      tester,
-      MockStepSource(script: <SyncFetch>[page(900)]),
-    );
+    final StrideSession first = await launchBaselined(tester, <SyncFetch>[
+      page(900),
+    ]);
     await tester.runAsync(() => first.syncSteps());
     expect(first.usableEnergy, 900);
 
@@ -257,11 +272,11 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final StrideSession first = await launch(
-      tester,
-      MockStepSource(script: <SyncFetch>[page(700)]),
-    );
+    final StrideSession first = await launchBaselined(tester, <SyncFetch>[
+      page(700),
+    ]);
     await tester.runAsync(() => first.syncSteps());
+    expect(first.usableEnergy, 700);
 
     final StrideSession reopened = await launch(
       tester,
@@ -298,15 +313,10 @@ void main() {
   ) async {
     // The guard, tested directly rather than only through the widget. A rebuild
     // or a hot reload must not be able to produce a second one.
-    final StrideSession session = await launch(
-      tester,
-      MockStepSource(
-        script: <SyncFetch>[
-          page(400),
-          page(600, index: 1, cursor: 'c2'),
-        ],
-      ),
-    );
+    final StrideSession session = await launchBaselined(tester, <SyncFetch>[
+      page(400),
+      page(600, index: 1, cursor: 'c2'),
+    ]);
     final SessionController controller = SessionController(session);
     addTearDown(controller.dispose);
 

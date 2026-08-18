@@ -136,6 +136,26 @@ void main() {
   Future<StrideSession> relaunch({StepSyncSource? source}) =>
       launch(source: source ?? MockStepSource(script: const <SyncFetch>[]));
 
+  /// A health store that had nothing at install and serves [script] after.
+  ///
+  /// A brand-new game's first authorised sync is its baseline and retires
+  /// whatever it read (DECISIONS/0019). The leading empty answer is what
+  /// [launchBaselined] syncs to leave the origin; every page after it is
+  /// spendable, so a test's own first `syncSteps` is still the read under test.
+  MockStepSource baselined(List<SyncFetch> script) => MockStepSource(
+    script: <SyncFetch>[SyncFetch(const NoChangeSync()), ...script],
+  );
+
+  /// A cold launch of a new game whose baseline is already set: one explicit
+  /// sync over the empty store, leaving nothing spendable and nothing pending.
+  Future<StrideSession> launchBaselined(StepSyncSource source) async {
+    final StrideSession session = await launch(source: source);
+    await session.syncSteps();
+    expect(session.baselinePending, isFalse);
+    expect(session.usableEnergy, 0);
+    return session;
+  }
+
   int costOfHarnessNode(StrideSession session) => session.costOf(kHarnessNode)!;
 
   // =========================================================================
@@ -215,19 +235,17 @@ void main() {
         // The order matters: a grant lands first, so the assertion is that a
         // later revocation neither adds to it nor claws it back. A revocation
         // that reset the ledger would erase steps the player really walked.
-        final MockStepSource source = MockStepSource(
-          script: <SyncFetch>[
-            complete(
-              <StepObservation>[obs(phone, 0, 400)],
-              cursor: 'c1',
-              throughIndex: 1,
-            ),
-            MockStepSource.unavailable(
-              ProviderUnavailableReason.permissionUnavailable,
-            ),
-          ],
-        );
-        final StrideSession session = await launch(source: source);
+        final MockStepSource source = baselined(<SyncFetch>[
+          complete(
+            <StepObservation>[obs(phone, 0, 400)],
+            cursor: 'c1',
+            throughIndex: 1,
+          ),
+          MockStepSource.unavailable(
+            ProviderUnavailableReason.permissionUnavailable,
+          ),
+        ]);
+        final StrideSession session = await launchBaselined(source);
 
         await session.syncSteps();
         final List<Object?> afterGrant = ledgerFacts(session);
@@ -276,16 +294,14 @@ void main() {
 
   group('reconciliation', () {
     test('4 — a first sync grants the whole observed delta', () async {
-      final StrideSession session = await launch(
-        source: MockStepSource(
-          script: <SyncFetch>[
-            complete(
-              <StepObservation>[obs(phone, 0, 400), obs(watch, 0, 150)],
-              cursor: 'c1',
-              throughIndex: 1,
-            ),
-          ],
-        ),
+      final StrideSession session = await launchBaselined(
+        baselined(<SyncFetch>[
+          complete(
+            <StepObservation>[obs(phone, 0, 400), obs(watch, 0, 150)],
+            cursor: 'c1',
+            throughIndex: 1,
+          ),
+        ]),
       );
 
       final SyncReport report = await session.syncSteps();
@@ -305,21 +321,19 @@ void main() {
       // The absolute contract in one assertion. 400 restated is still 400, not
       // another 400, and it is the same code path as a correction, a deletion,
       // and an overlapping batch.
-      final MockStepSource source = MockStepSource(
-        script: <SyncFetch>[
-          complete(
-            <StepObservation>[obs(phone, 0, 400)],
-            cursor: 'c1',
-            throughIndex: 1,
-          ),
-          complete(
-            <StepObservation>[obs(phone, 0, 400)],
-            cursor: 'c1',
-            throughIndex: 1,
-          ),
-        ],
-      );
-      final StrideSession session = await launch(source: source);
+      final MockStepSource source = baselined(<SyncFetch>[
+        complete(
+          <StepObservation>[obs(phone, 0, 400)],
+          cursor: 'c1',
+          throughIndex: 1,
+        ),
+        complete(
+          <StepObservation>[obs(phone, 0, 400)],
+          cursor: 'c1',
+          throughIndex: 1,
+        ),
+      ]);
+      final StrideSession session = await launchBaselined(source);
 
       expect((await session.syncSteps()).newlyGranted, 400);
       expect((await session.syncSteps()).newlyGranted, 0);
@@ -328,21 +342,19 @@ void main() {
     });
 
     test('6 — a higher restatement grants only the increase', () async {
-      final MockStepSource source = MockStepSource(
-        script: <SyncFetch>[
-          complete(
-            <StepObservation>[obs(phone, 0, 400)],
-            cursor: 'c1',
-            throughIndex: 1,
-          ),
-          complete(
-            <StepObservation>[obs(phone, 0, 900)],
-            cursor: 'c2',
-            throughIndex: 1,
-          ),
-        ],
-      );
-      final StrideSession session = await launch(source: source);
+      final MockStepSource source = baselined(<SyncFetch>[
+        complete(
+          <StepObservation>[obs(phone, 0, 400)],
+          cursor: 'c1',
+          throughIndex: 1,
+        ),
+        complete(
+          <StepObservation>[obs(phone, 0, 900)],
+          cursor: 'c2',
+          throughIndex: 1,
+        ),
+      ]);
+      final StrideSession session = await launchBaselined(source);
 
       expect((await session.syncSteps()).newlyGranted, 400);
       expect((await session.syncSteps()).newlyGranted, 500);
@@ -350,21 +362,19 @@ void main() {
     });
 
     test('a downward correction records, and never claws back', () async {
-      final MockStepSource source = MockStepSource(
-        script: <SyncFetch>[
-          complete(
-            <StepObservation>[obs(phone, 0, 900)],
-            cursor: 'c1',
-            throughIndex: 1,
-          ),
-          complete(
-            <StepObservation>[obs(phone, 0, 100)],
-            cursor: 'c2',
-            throughIndex: 1,
-          ),
-        ],
-      );
-      final StrideSession session = await launch(source: source);
+      final MockStepSource source = baselined(<SyncFetch>[
+        complete(
+          <StepObservation>[obs(phone, 0, 900)],
+          cursor: 'c1',
+          throughIndex: 1,
+        ),
+        complete(
+          <StepObservation>[obs(phone, 0, 100)],
+          cursor: 'c2',
+          throughIndex: 1,
+        ),
+      ]);
+      final StrideSession session = await launchBaselined(source);
 
       await session.syncSteps();
       await session.syncSteps();
@@ -378,17 +388,15 @@ void main() {
       // Nothing to make durable. A cursor offered mid-read would record a
       // position for pages the caller has not seen, and resuming from it would
       // skip pages 2..N permanently.
-      final StrideSession session = await launch(
-        source: MockStepSource(
-          script: <SyncFetch>[
-            MockStepSource.partialPage(
-              phone.value,
-              startMillis: t0,
-              endMillis: t0 + hour,
-              steps: 300,
-            ),
-          ],
-        ),
+      final StrideSession session = await launchBaselined(
+        baselined(<SyncFetch>[
+          MockStepSource.partialPage(
+            phone.value,
+            startMillis: t0,
+            endMillis: t0 + hour,
+            steps: 300,
+          ),
+        ]),
       );
 
       await session.syncSteps();
@@ -428,22 +436,20 @@ void main() {
     );
 
     test('a paginated read drains every page and grants each once', () async {
-      final MockStepSource source = MockStepSource(
-        script: <SyncFetch>[
-          MockStepSource.partialPage(
-            phone.value,
-            startMillis: t0,
-            endMillis: t0 + hour,
-            steps: 300,
-          ),
-          complete(
-            <StepObservation>[obs(phone, 1, 250)],
-            cursor: 'c1',
-            throughIndex: 2,
-          ),
-        ],
-      );
-      final StrideSession session = await launch(source: source);
+      final MockStepSource source = baselined(<SyncFetch>[
+        MockStepSource.partialPage(
+          phone.value,
+          startMillis: t0,
+          endMillis: t0 + hour,
+          steps: 300,
+        ),
+        complete(
+          <StepObservation>[obs(phone, 1, 250)],
+          cursor: 'c1',
+          throughIndex: 2,
+        ),
+      ]);
+      final StrideSession session = await launchBaselined(source);
 
       final SyncReport report = await session.syncSteps();
 
@@ -451,8 +457,9 @@ void main() {
       expect(session.usableEnergy, 550);
       expect(session.hasCursor, isTrue);
       // The second request resumed the read with the continuation, not with a
-      // cursor the first page was never entitled to offer.
-      expect(source.requestsSeen[1].continuation, isNotNull);
+      // cursor the first page was never entitled to offer. (Request 0 is the
+      // baseline sync over the empty store.)
+      expect(source.requestsSeen[2].continuation, isNotNull);
     });
   });
 
@@ -461,16 +468,14 @@ void main() {
   // =========================================================================
 
   group('the playable action', () {
-    Future<StrideSession> walked(int steps) => launch(
-      source: MockStepSource(
-        script: <SyncFetch>[
-          complete(
-            <StepObservation>[obs(phone, 0, steps)],
-            cursor: 'c1',
-            throughIndex: 1,
-          ),
-        ],
-      ),
+    Future<StrideSession> walked(int steps) => launchBaselined(
+      baselined(<SyncFetch>[
+        complete(
+          <StepObservation>[obs(phone, 0, steps)],
+          cursor: 'c1',
+          throughIndex: 1,
+        ),
+      ]),
     );
 
     test('11 — insufficient energy cannot execute the action', () async {
@@ -884,16 +889,21 @@ void main() {
     ) async {
       final StrideSession session = await boot(
         tester,
-        source: MockStepSource(
-          script: <SyncFetch>[
-            complete(
-              <StepObservation>[obs(phone, 0, 1000)],
-              cursor: 'c1',
-              throughIndex: 1,
-            ),
-          ],
-        ),
+        source: baselined(<SyncFetch>[
+          complete(
+            <StepObservation>[obs(phone, 0, 1000)],
+            cursor: 'c1',
+            throughIndex: 1,
+          ),
+        ]),
       );
+      // Baseline first (DECISIONS/0019), so the tap on Sync below is the read
+      // that funds the action rather than the one that is retired as history.
+      await tester.runAsync(() async {
+        await session.syncSteps();
+        expect(session.baselinePending, isFalse);
+        expect(session.usableEnergy, 0);
+      });
 
       await tester.pumpWidget(StrideHarnessApp(session: session));
       await tester.pumpAndSettle();

@@ -276,6 +276,39 @@ final class EstablishEconomyEpoch extends GameCommand {
   String get name => 'EstablishEconomyEpoch';
 }
 
+/// Retire everything a brand-new game's first authorised reconcile observed,
+/// so the game begins spendable-zero (`DECISIONS/0019`).
+///
+/// **Internal, and issued from exactly one place**: `StrideSession`, after the
+/// first successful, authorised foreground sync of a game whose epoch is still
+/// the origin. A fresh install has no save to migrate, so 0018 cannot reach it
+/// — and without this the first sync would bank the health store's retention
+/// window as currency the player never walked *for the game*.
+///
+/// ## Exactly-once is the epoch itself
+///
+/// Accepted only while `epoch.isOrigin`. The event it produces moves the mark
+/// off the origin, so a second attempt is refused by the state alone — no flag,
+/// no counter, no version bump. Pure over the ledger it is handed: a crash
+/// between the sync's commit and this one is followed by a launch that reads
+/// the same totals and computes the same mark.
+@immutable
+final class EstablishNewGameBaseline extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
+  const EstablishNewGameBaseline({required this.stateVersion});
+
+  /// The running state version, recorded on the epoch as
+  /// `establishedAtStateVersion` so a later migration step (which only
+  /// re-bases marks established at an *older* version) leaves this mark alone
+  /// until it means to move it.
+  final int stateVersion;
+
+  @override
+  String get name => 'EstablishNewGameBaseline';
+}
+
 /// Work a resource node once, paying for it out of banked steps.
 ///
 /// **The first command that turns walking into something.** Until S-01A the

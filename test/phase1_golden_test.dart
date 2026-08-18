@@ -100,6 +100,29 @@ void main() {
     }
   });
 
+  /// A new game funded with [banked] spendable steps.
+  ///
+  /// A brand-new game's first authorised sync is its baseline and retires
+  /// whatever it read (DECISIONS/0019), so the store is empty at install, one
+  /// sync retires that nothing, and only then is the fixture page synced — the
+  /// figures the goldens render are unchanged.
+  Future<StrideSession> bootBaselined(WidgetTester tester, int banked) async {
+    final StrideSession session = (await tester.runAsync(
+      () => StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(banked)],
+        ),
+      ),
+    ))!;
+    await tester.runAsync(() => session.syncSteps());
+    expect(session.baselinePending, isFalse);
+    expect(session.usableEnergy, 0);
+    await tester.runAsync(() => session.syncSteps());
+    expect(session.usableEnergy, banked);
+    return session;
+  }
+
   testWidgets('the six screens at 393 x 852', (WidgetTester tester) async {
     // The reference viewport the approved renders were authored at. DPR 1 so
     // the golden's pixel dimensions equal its logical dimensions and a reviewer
@@ -109,13 +132,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final StrideSession session = (await tester.runAsync(
-      () => StrideSession.start(
-        overrideRoot: root,
-        source: MockStepSource(script: <SyncFetch>[page(12480)]),
-      ),
-    ))!;
-    await tester.runAsync(() => session.syncSteps());
+    final StrideSession session = await bootBaselined(tester, 12480);
     await tester.runAsync(() => session.gather(kNode));
     await tester.runAsync(() => session.gather(kNode));
 
@@ -223,13 +240,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final StrideSession session = (await tester.runAsync(
-      () => StrideSession.start(
-        overrideRoot: root,
-        source: MockStepSource(script: <SyncFetch>[page(455371)]),
-      ),
-    ))!;
-    await tester.runAsync(() => session.syncSteps());
+    final StrideSession session = await bootBaselined(tester, 455371);
     await tester.runAsync(() => session.gather(kNode));
     expect(
       session.usableEnergy,

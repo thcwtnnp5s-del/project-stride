@@ -562,7 +562,11 @@ not to be replaced or extended on the strength of this entry.
   should precede drawing one.
 
 
-## Q-05 — UNRESOLVED: what should the first authorised sync of a *new* game bank?
+## Q-05 — RESOLVED → `DECISIONS/0019` (2026-08-18): a new game's first authorised reconcile is retired; only later walking is spendable
+
+*(Kept as raised, for the record.)*
+
+### Q-05 — as raised: what should the first authorised sync of a *new* game bank?
 
 **Raised:** 2026-08-18, Transformation Build 01 device finding (`MILESTONES/
 TRANSFORMATION_BUILD_01.md` §7a). The owner's Phase 2 save was not present on

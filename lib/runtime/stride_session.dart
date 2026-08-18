@@ -872,6 +872,15 @@ final class StrideSession {
   int get usableEnergy =>
       migrationPending ? 0 : engine?.state.steps.banked ?? 0;
 
+  /// True for a new game whose economy mark has not yet been set by its
+  /// first authorised reconcile (`DECISIONS/0019`). Derived from the state,
+  /// never a flag: a game that has synced once under a granted authorisation
+  /// has left the origin. Deliberately **not** projected into [usableEnergy]:
+  /// a new game holds nothing until that first read, and the one exception —
+  /// a crash between the sync's commit and the baseline's — is healed by the
+  /// very next sync, which the app runs at startup.
+  bool get baselinePending => engine?.state.steps.epoch.isOrigin ?? false;
+
   int get totalGranted => engine?.state.steps.totalGranted ?? 0;
   int get totalSpent => engine?.state.steps.totalSpent ?? 0;
 
@@ -968,6 +977,10 @@ final class StrideSession {
       // until health cooperates, which `startup_sync_test.dart` says the game
       // must never do.
       if (migrationPending && !_stale) await _completeMigration();
+      // A brand-new game's first authorised reconcile sets its baseline
+      // (DECISIONS/0019). After the migration branch, deliberately: a
+      // migrated save has left the origin and this is a no-op for it.
+      if (!_stale && _baselineDue(report)) await _establishNewGameBaseline();
       return report;
     } finally {
       _inFlight = false;
@@ -1022,6 +1035,46 @@ final class StrideSession {
     _migration = migrated.report;
     _pendingMigration = null;
     _migrationRefusal = null;
+  }
+
+  /// Whether [report] is the first successful, authorised reconcile of a game
+  /// whose economy mark is still the origin — the one moment 0019 fires.
+  ///
+  /// "Successful" means the store was actually read (`reconciled` or
+  /// `noChange`) under a *granted* authorisation. A denied or undetermined
+  /// answer, an unavailable service, a keying fault or a refused commit all
+  /// leave the mark at the origin, so the baseline is set the first time a
+  /// real read happens — never on the strength of an empty answer nobody was
+  /// allowed to give.
+  bool _baselineDue(SyncReport report) {
+    final GameEngine? active = engine;
+    if (active == null || migrationPending) return false;
+    if (!active.state.steps.epoch.isOrigin) return false;
+    if (report.authorization != HealthAuthorization.granted) return false;
+    return report.status == SyncStatus.reconciled ||
+        report.status == SyncStatus.noChange;
+  }
+
+  /// Retires what a new game's first authorised reconcile observed, so the
+  /// game begins spendable-zero (`DECISIONS/0019`).
+  ///
+  /// One command, one commit, through the ordinary path — the sync's own
+  /// commit has already advanced the head. Exactly-once is the epoch itself:
+  /// the command is refused once the mark has left the origin, so a crash
+  /// between the sync's commit and this one is followed by a launch whose
+  /// first sync grants nothing new (the cursor advanced) and lands here with
+  /// the same totals. A refused commit marks the session stale like any
+  /// other; [reload] rebuilds from disk with the mark still at the origin, and
+  /// the next sync tries again.
+  Future<void> _establishNewGameBaseline() async {
+    final GameEngine? active = engine;
+    if (active == null) return;
+    final EngineResult result = active.execute(
+      EstablishNewGameBaseline(stateVersion: active.state.stateVersion),
+    );
+    if (result.rejection != null) return; // the mark already left the origin
+    final CommitOutcome commit = await _commit(active, result.events);
+    if (commit is CommitRefused) _stale = true;
   }
 
   Future<SyncReport> _syncSteps(int maxPages) async {

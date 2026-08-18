@@ -85,7 +85,9 @@ void main() {
     expect(source.calls, contains('fetch'));
     expect(report.authorization, HealthAuthorization.granted);
     expect(report.newlyGranted, 1200);
-    expect(session.usableEnergy, 1200);
+    // Granted as history and retired by the new-game baseline (0019).
+    expect(session.totalGranted, 1200);
+    expect(session.usableEnergy, 0);
   });
 
   test('once granted, later syncs read without asking again', () async {
@@ -97,9 +99,10 @@ void main() {
     await session.syncSteps();
     await session.syncSteps();
     expect(source.authorizationRequests, 1);
-    // Duplicate-safe as before: one grant, then nothing.
+    // Duplicate-safe as before: one grant, then nothing — and, as a new
+    // game's first read, retired into history (0019).
     expect(session.totalGranted, 500);
-    expect(session.usableEnergy, 500);
+    expect(session.usableEnergy, 0);
   });
 
   test(

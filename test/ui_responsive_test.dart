@@ -150,16 +150,30 @@ void main() {
   /// the one the engine produced, not a literal handed to a widget. A literal
   /// would make this test pass against a hardcoded readout, which is the defect
   /// class half of these files exist to catch.
-  Future<StrideSession> bootWith(WidgetTester tester, int banked) async {
+  ///
+  /// A brand-new game's first authorised sync is its baseline and retires what
+  /// it read (DECISIONS/0019), so the store is empty at install, one sync
+  /// retires that nothing, and only then is the funding page synced.
+  Future<StrideSession> bootWith(
+    WidgetTester tester,
+    int banked, {
+    Directory? at,
+  }) async {
     addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
     final StrideSession session = (await tester.runAsync(
       () => StrideSession.start(
-        overrideRoot: root,
+        overrideRoot: at ?? root,
         source: MockStepSource(
-          script: <SyncFetch>[if (banked > 0) page(banked)],
+          script: <SyncFetch>[
+            SyncFetch(const NoChangeSync()),
+            if (banked > 0) page(banked),
+          ],
         ),
       ),
     ))!;
+    await tester.runAsync(() => session.syncSteps());
+    expect(session.baselinePending, isFalse);
+    expect(session.usableEnergy, 0);
     if (banked > 0) await tester.runAsync(() => session.syncSteps());
     return session;
   }
@@ -257,15 +271,7 @@ void main() {
             // Windows handle lag.
           }
         });
-        final StrideSession session = (await tester.runAsync(
-          () => StrideSession.start(
-            overrideRoot: slot,
-            source: MockStepSource(
-              script: <SyncFetch>[if (banked > 0) page(banked)],
-            ),
-          ),
-        ))!;
-        if (banked > 0) await tester.runAsync(() => session.syncSteps());
+        final StrideSession session = await bootWith(tester, banked, at: slot);
 
         await tester.pumpWidget(
           StrideApp(session: session, syncOnStart: false),

@@ -144,6 +144,39 @@ void main() {
     return (await tester.runAsync(() => launch(source: source)))!;
   }
 
+  /// A health store that had nothing at install and serves [pages] afterwards.
+  ///
+  /// A brand-new game's first authorised sync is its baseline and retires
+  /// whatever it read (DECISIONS/0019), so the leading empty answer is what a
+  /// fresh session syncs to leave the origin, and every page after it is
+  /// spendable — which is what the tests below fund themselves with.
+  MockStepSource funded(List<SyncFetch> pages) => MockStepSource(
+    script: <SyncFetch>[SyncFetch(const NoChangeSync()), ...pages],
+  );
+
+  /// Baselines a fresh [session] with one explicit sync over an empty store.
+  Future<void> baseline(StrideSession session) async {
+    await session.syncSteps();
+    expect(session.baselinePending, isFalse);
+    expect(session.usableEnergy, 0);
+  }
+
+  /// [boot], over a store that serves [pages] once the baseline is set. The
+  /// funding sync is the caller's — a tap on `Sync steps` or an explicit call.
+  Future<StrideSession> bootFunded(
+    WidgetTester tester,
+    List<SyncFetch> pages, {
+    Size size = const Size(393 * 3, 852 * 3),
+  }) async {
+    final StrideSession session = await boot(
+      tester,
+      source: funded(pages),
+      size: size,
+    );
+    await tester.runAsync(() => baseline(session));
+    return session;
+  }
+
   /// Taps, waits for the session to reach a condition, then settles.
   Future<void> tapAndAwait(
     WidgetTester tester,
@@ -228,10 +261,9 @@ void main() {
       WidgetTester tester,
     ) async {
       // Bank some steps and make them durable, then relaunch cold.
-      final StrideSession first = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(1041)]),
-      );
+      final StrideSession first = await bootFunded(tester, <SyncFetch>[
+        page(1041),
+      ]);
       await tester.runAsync(() => first.syncSteps());
       expect(first.usableEnergy, 1041);
 
@@ -308,15 +340,10 @@ void main() {
       WidgetTester tester,
     ) async {
       // Two non-summing figures, so no single constant satisfies both.
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(
-          script: <SyncFetch>[
-            page(613),
-            page(428, index: 1, cursor: 'c2'),
-          ],
-        ),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(613),
+        page(428, index: 1, cursor: 'c2'),
+      ]);
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
@@ -348,10 +375,9 @@ void main() {
     testWidgets('the inventory count tracks two different states', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(1000)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(1000),
+      ]);
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
@@ -386,10 +412,9 @@ void main() {
     testWidgets('Foraging XP tracks two different states', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(1000)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(1000),
+      ]);
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
@@ -432,8 +457,9 @@ void main() {
     /// invisible except to a player who walked to exactly the cost.
     test('affordability is inclusive at exactly the cost', () async {
       final StrideSession at = await launch(
-        source: MockStepSource(script: <SyncFetch>[page(90)]),
+        source: funded(<SyncFetch>[page(90)]),
       );
+      await baseline(at);
       await at.syncSteps();
       expect(at.usableEnergy, 90);
       expect(at.costOf(kNode), 90);
@@ -453,8 +479,9 @@ void main() {
       });
       final StrideSession below = await StrideSession.start(
         overrideRoot: other,
-        source: MockStepSource(script: <SyncFetch>[page(89)]),
+        source: funded(<SyncFetch>[page(89)]),
       );
+      await baseline(below);
       await below.syncSteps();
       expect(below.usableEnergy, 89);
       expect(below.canGather(kNode), isFalse, reason: 'one short refuses');
@@ -463,10 +490,9 @@ void main() {
     testWidgets('below cost the control is disabled and states the shortfall', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(50)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(50),
+      ]);
       await tester.runAsync(() => session.syncSteps());
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
@@ -483,10 +509,9 @@ void main() {
     testWidgets('one tap spends exactly one cost, and the screen refreshes', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(1000)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(1000),
+      ]);
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
       await tapAndAwait(
@@ -529,10 +554,9 @@ void main() {
     testWidgets('a second tap while the first is in flight spends nothing more', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(1000)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(1000),
+      ]);
       await tester.runAsync(() => session.syncSteps());
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
@@ -579,10 +603,7 @@ void main() {
     testWidgets('refuses the action and says so instead of reporting success', (
       WidgetTester tester,
     ) async {
-      final StrideSession a = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(1000)]),
-      );
+      final StrideSession a = await bootFunded(tester, <SyncFetch>[page(1000)]);
       await tester.runAsync(() => a.syncSteps());
       // Commit once so B opens against a durable head that already has energy.
       await tester.runAsync(() => a.gather(kNode));
@@ -630,11 +651,9 @@ void main() {
       testWidgets('no overflow at ${width.toInt()} dp', (
         WidgetTester tester,
       ) async {
-        final StrideSession session = await boot(
-          tester,
-          source: MockStepSource(script: <SyncFetch>[page(1000)]),
-          size: Size(width * 3, 852 * 3),
-        );
+        final StrideSession session = await bootFunded(tester, <SyncFetch>[
+          page(1000),
+        ], size: Size(width * 3, 852 * 3));
         await tester.runAsync(() => session.syncSteps());
         await tester.runAsync(() => session.gather(kNode));
 
@@ -952,10 +971,9 @@ void main() {
     testWidgets('every travel control corresponds to a real route', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(50000)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(50000),
+      ]);
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
 
@@ -993,10 +1011,9 @@ void main() {
     ) async {
       // 100 banked against a 600 route: the control must refuse and say how far
       // short, rather than failing on tap.
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(100)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(100),
+      ]);
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
       await selectPlace(tester, 'location.whispering_woods');
@@ -1010,10 +1027,9 @@ void main() {
     testWidgets('travelling spends exactly the cost and moves the player', (
       WidgetTester tester,
     ) async {
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(2000)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(2000),
+      ]);
       await tester.runAsync(() => session.syncSteps());
       await openWorld(tester, session);
       await selectPlace(tester, 'location.whispering_woods');
@@ -1085,10 +1101,9 @@ void main() {
     ) async {
       // 89 banked against a 90 cost: the control is disabled, so no gather can
       // even be dispatched, and the stage must still be showing frame 0.
-      final StrideSession session = await boot(
-        tester,
-        source: MockStepSource(script: <SyncFetch>[page(89)]),
-      );
+      final StrideSession session = await bootFunded(tester, <SyncFetch>[
+        page(89),
+      ]);
       await tester.runAsync(() => session.syncSteps());
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();

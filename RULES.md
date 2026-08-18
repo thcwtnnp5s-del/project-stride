@@ -55,10 +55,11 @@ not a recurring mechanism, and not something time or absence can trigger. The
 retired steps remain reportable. A second epoch would need its own decision —
 and has one: the Transformation playtest epoch, a second and equally singular
 owner-authorised re-basing, after which any re-basing must be a named migration
-table step. Still unamended.
+table step — or a brand-new game's own first authorised reconcile, retired once
+as the game's baseline (`0019`). Still unamended.
 → `PROJECT_KERNEL/06_ANTI_FEATURES.md`, `DECISIONS/0008_STEPLESS_WEEK.md`,
 `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`,
-`DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`
+`DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`, `DECISIONS/0019_NEW_GAME_BASELINE.md`
 
 **P-6 — No monetization systems.**
 No premium currency, ads, loot boxes, gacha, or battle passes, unless the owner
@@ -91,9 +92,9 @@ A **spendable balance** may be re-based by an economy epoch — which moves a
 mark, not a counter, and leaves `totalGranted` untouched. That is what makes
 the Phase 2 cutover and the Transformation playtest epoch compatible with this
 rule rather than exceptions to it. Only a migration table step that names its
-decision may re-base.
+decision, or a new game's one-time baseline (`0019`), may set the mark.
 → `DECISIONS/0012_SAVE_FORMAT.md`, `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`,
-`DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`
+`DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`, `DECISIONS/0019_NEW_GAME_BASELINE.md`
 
 **H-3 — A candidate cursor becomes durable only after safe reconciliation and
 save commit.**

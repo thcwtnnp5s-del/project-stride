@@ -14,12 +14,13 @@ cat** between gathers, every gather node has **its own vignette** on the card,
 coordinated PixelLab set** (OD-04 round 2), the next playtest **begins at zero
 spendable steps** through a second, owner-authorised economy epoch carried by
 **state version 3** (`DECISIONS/0018`; the epoch is marked after the first
-sync of the migrating launch, so the pre-cutover backlog is retired too), and the iPhone install path is a
+sync of the migrating launch, so the pre-cutover backlog is retired too; a
+brand-new game retires its first authorised sync the same way, `DECISIONS/0019`), and the iPhone install path is a
 **Release build the owner can launch unplugged**
 (`TECHNICAL/IOS_DEVICE_INSTALL.md` — the previous "profile" install was in
 fact Debug, because Xcode's Run button rebuilds Debug; `MISTAKES.md` M-09).
 
-Suites: **552** `stride_core`, **108** `stride_storage`, app **214** incl.
+Suites: **552** `stride_core`, **108** `stride_storage`, app **224** incl.
 atlas and ambient tests, 12 goldens regenerated for the new art. Nothing in the
 gather / travel / craft / skill / equipment / persistence path changed except
 the state-version bump and the migration table.
@@ -121,6 +122,8 @@ Completed foundations:
 | 0015 | No change is a delivery kind | `DECISIONS/0015_NO_CHANGE_IS_A_DELIVERY_KIND.md` |
 | 0016 | **The playable economy begins at an epoch, not at zero granted** | `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md` |
 | 0017 | **Phase 2 scope — five locations, travel and crafting as commands** | `DECISIONS/0017_PHASE_2_SCOPE.md` |
+| 0018 | **Transformation playtest epoch — state v3, marked after the first sync** | `DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md` |
+| 0019 | **A new game retires its first authorised reconcile; spendable-zero baseline** | `DECISIONS/0019_NEW_GAME_BASELINE.md` |
 
 ## Current milestone
 

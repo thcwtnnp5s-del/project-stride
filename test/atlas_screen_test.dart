@@ -89,14 +89,24 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
 
+    // A new game's first authorised sync is its baseline (DECISIONS/0019):
+    // the store has nothing at install, one sync retires that nothing, and
+    // only what is synced afterwards is spendable — so the funding page comes
+    // second.
     final StrideSession session = (await tester.runAsync(
       () => StrideSession.start(
         overrideRoot: root,
         source: MockStepSource(
-          script: <SyncFetch>[if (banked > 0) page(banked)],
+          script: <SyncFetch>[
+            SyncFetch(const NoChangeSync()),
+            if (banked > 0) page(banked),
+          ],
         ),
       ),
     ))!;
+    await tester.runAsync(() => session.syncSteps());
+    expect(session.baselinePending, isFalse);
+    expect(session.usableEnergy, 0);
     if (banked > 0) await tester.runAsync(() => session.syncSteps());
     return session;
   }

@@ -167,7 +167,36 @@ final class GameEngine {
         GatherResource() => _gather(command, state),
         ReconcileStepSync() => _reconcile(command, state),
         EstablishEconomyEpoch() => _establishEpoch(command, state),
+        EstablishNewGameBaseline() => _establishBaseline(command, state),
       };
+
+  /// Retires a new game's first observed history. See
+  /// [EstablishNewGameBaseline]; refused by the state once the mark has left
+  /// the origin.
+  _Decision _establishBaseline(
+    EstablishNewGameBaseline command,
+    GameState state,
+  ) {
+    final EconomyEpoch epoch = state.steps.epoch;
+    if (!epoch.isOrigin) {
+      return _Decision.reject(
+        RejectionCode.economyEpochAlreadySet,
+        command,
+        'this game already has an economy mark at '
+        '${epoch.grantedAtStart} granted / ${epoch.spentAtStart} spent '
+        '(state v${epoch.establishedAtStateVersion}); a baseline is set once',
+      );
+    }
+    return _Decision.accept(<GameEvent>[
+      EconomyEpochEstablished(
+        sequence: state.eventSequence,
+        grantedAtStart: state.steps.totalGranted,
+        spentAtStart: state.steps.totalSpent,
+        fromStateVersion: command.stateVersion,
+        toStateVersion: command.stateVersion,
+      ),
+    ]);
+  }
 
   /// Re-bases the playable economy. See [EstablishEconomyEpoch].
   ///

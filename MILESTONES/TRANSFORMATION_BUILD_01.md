@@ -107,10 +107,12 @@ and reviewed by eye and by Visual QA.
    needs repeating: `bash Scripts/ios/install-device.sh --run`, then `q`.
    Accept Developer Mode / trust prompts on the phone. **Unplug.**
 3. **Unplugged launch** — tap Project Stride on the Home Screen. It must open.
-4. **First frame** — the header may show 0 while the startup sync runs (≈1 s);
-   after it lands the balance stays **0** — whatever you walked before this
-   launch has been retired into history. `TOTAL WALKED` ≈ 464,946 + that
-   backlog. Note both numbers.
+4. **First launch** — the HealthKit sheet appears: **allow Steps**. Project
+   Stride now appears under Health ▸ Data Access & Devices. The startup sync
+   then reads up to 7 days of steps and retires them (`DECISIONS/0019`):
+   banked stays **0**, `TOTAL WALKED` shows that backlog. Note both numbers.
+   (On a device that still carried the Phase 2 save, 0018 would instead show
+   ≈ 464,946 + backlog and banked 0.)
 5. **Duplicate sync** — tap **Sync steps**: banked must stay 0, TOTAL WALKED
    unmoved.
 6. **Walk** 500+ steps, reopen: banked rises once by exactly that amount;
@@ -144,12 +146,12 @@ team, before this build went on. Consequences, stated rather than papered
 over: (1) the v2→v3 deferred cutover has nothing to migrate on this device —
 it starts as a **new v3 game at the origin epoch**; (2) on a new game the
 first authorised sync grants the HealthKit **7-day retention window as
-spendable** (the Phase 1 backlog behaviour), so the "zero spendable at
-cutover" intent does **not** hold on this particular install unless the
-owner rules on a new-game first-sync policy. That is a design decision
-(`RULES.md` G-3) and is recorded in `JOURNAL/OPEN_QUESTIONS.md` as
-UNRESOLVED rather than taken here. The 0018 mechanism itself is unchanged and
-still correct for a save that carries history.
+spendable** (the Phase 1 backlog behaviour). **Resolved by `DECISIONS/0019`
+(owner ruling, 2026-08-18):** a new game's first successful, authorised
+reconcile is retired into history via `EstablishNewGameBaseline` — banked 0,
+`TOTAL WALKED` = the retired backlog, cursor advanced, later walking spendable
+once. The 0018 mechanism is unchanged and still correct for a save that
+carries history.
 
 ## 8. Known issues
 
