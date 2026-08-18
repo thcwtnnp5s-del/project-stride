@@ -126,7 +126,12 @@ not spendable.
 - A new game marks the origin `(0,0)`, under which the formula reduces exactly to
   `granted − spent`. No "is an epoch active" branch exists anywhere.
 
-**Exactly-once is the state version and nothing else.** The save format is at
+**Superseded on 2026-08-17 by Transformation Build 01:** the save format is now
+**state version 3** — a second, owner-authorised epoch (`DECISIONS/0018`) so the
+first "feels like a game" playtest starts at zero spendable steps; same
+mechanism, explicit per-version migration table. What follows describes v2.
+
+**Exactly-once is the state version and nothing else.** The save format was at
 **state version 2**; v1 decodes with the origin epoch, and
 `BootstrapCoordinator` migrates once through the ordinary transaction path
 (lock, CAS, journal-first, read-back). A migration that cannot commit **blocks

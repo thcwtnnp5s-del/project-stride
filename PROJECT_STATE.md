@@ -1,5 +1,30 @@
 # Project Stride — Project State
 
+**Version:** 2.6
+**Status:** 🚧 **TRANSFORMATION BUILD 01 — implementation complete, awaiting
+the owner's physical-device review.** Branch `playable-phase-2-multiregion`,
+on top of the device-tested Phase 2 build `852cf72`.
+Record: `MILESTONES/TRANSFORMATION_BUILD_01.md`.
+
+What changed, in one breath: the World tab is now a **pannable, zoomable atlas**
+(viewport + layers + real tap targets over a PixelLab base, `OD-05`), the
+Adventure stage plays **PixelLab ambient scenes of the Traveler and an orange
+cat** between gathers, every gather node has **its own vignette** on the card,
+**all 24 items have icons** (the nine slabs are gone), the **skill icons are a
+coordinated PixelLab set** (OD-04 round 2), the next playtest **begins at zero
+spendable steps** through a second, owner-authorised economy epoch carried by
+**state version 3** (`DECISIONS/0018`), and the iPhone install path is a
+**Release build the owner can launch unplugged**
+(`TECHNICAL/IOS_DEVICE_INSTALL.md` — the previous "profile" install was in
+fact Debug, because Xcode's Run button rebuilds Debug; `MISTAKES.md` M-09).
+
+Suites: **546** `stride_core`, **108** `stride_storage`, app **≈220** incl.
+atlas and ambient tests, 12 goldens regenerated for the new art. Nothing in the
+gather / travel / craft / skill / equipment / persistence path changed except
+the state-version bump and the migration table.
+
+---
+
 **Version:** 2.5
 **Status:** 🚧 **PLAYABLE PHASE 2 — implementation complete, awaiting the
 owner's physical-device acceptance.** Branch `playable-phase-2-multiregion`,
