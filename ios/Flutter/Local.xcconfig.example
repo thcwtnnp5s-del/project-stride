@@ -1,0 +1,13 @@
+// ios/Flutter/Local.xcconfig — PER-MACHINE, UNTRACKED (.gitignore). Copy this
+// file to `Local.xcconfig` on the Mac and fill in your Apple team identifier.
+//
+// Both Debug.xcconfig and Release.xcconfig `#include?` Local.xcconfig, so the
+// value reaches every configuration (Debug, Profile, Release) of the Runner
+// target without DEVELOPMENT_TEAM ever entering project.pbxproj — which is
+// public. Xcode ▸ Settings ▸ Accounts ▸ <your Apple ID> ▸ your Personal Team
+// shows the ten-character Team ID.
+//
+// The team is the ONLY thing that belongs here. Do not put a bundle identifier
+// (it is fixed in project.pbxproj), and never a device UDID.
+DEVELOPMENT_TEAM = ABCDE12345
+CODE_SIGN_STYLE = Automatic

@@ -21,6 +21,47 @@ to `M-02` stays valid.
 
 ---
 
+## M-09 — `flutter build ios --profile`, then Xcode's Run button, installed a Debug build
+
+**Date:** 2026-08-17 · **Category:** process / device workflow ·
+**Graduated to:** `TECHNICAL/IOS_DEVICE_INSTALL.md`, `Scripts/ios/`
+
+### What happened
+
+Two device installs were recorded as `--profile` builds because that is the
+`flutter build` command the acceptance documents named. On the owner's phone
+the app then refused to launch from the Home Screen: *debug-mode Flutter
+applications can only be launched from Flutter tooling*. The install was
+Debug.
+
+### Root cause
+
+`ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme` has
+`LaunchAction buildConfiguration="Debug"`. Pressing **Run** in Xcode rebuilds
+and installs Debug regardless of what `flutter build ios --profile` produced a
+moment earlier. Two tools, one phone, and the second one silently won. The
+milestone records described the command, not what landed on the device.
+
+### Consequence
+
+The Phase 2 device review was run tethered, and the "unplugged" test the
+milestone needed could not be run at all. Nothing about the health, save or
+gameplay evidence is affected — a Debug build computes the same numbers — but
+the *distribution* question was answered wrongly twice.
+
+### Prevention
+
+- **The install step must not end in Xcode's Run button.** `Scripts/ios/
+  build-release-device.sh` builds `--release` (codesigned) and
+  `install-device.sh` installs that bundle; the script verifies the bundle is
+  AOT (`kernel_blob.bin` absent) before handing off.
+- **Record what is on the phone, not what was typed.** A device record names
+  the build configuration as read from the bundle.
+- The signing team lives in an untracked `ios/Flutter/Local.xcconfig`, never
+  in the tracked project (`RULES.md` G-8's reasoning applied to a team id).
+
+---
+
 ## M-08 — `git add -A` published 929 files, including third-party imagery, to a public repository
 
 **Date:** 2026-08-17 · **Category:** process / repository hygiene ·

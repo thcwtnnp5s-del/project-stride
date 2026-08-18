@@ -46,6 +46,11 @@ flutter devices
 flutter build ios --profile
 ```
 
+> **SUPERSEDED (2026-08-17, `MISTAKES.md` M-09).** Pressing Run in Xcode
+> rebuilds and installs **Debug**, whatever `flutter build` produced. Use
+> `Scripts/ios/build-release-device.sh` per `TECHNICAL/IOS_DEVICE_INSTALL.md`.
+> The paragraph below is the historical record.
+
 Open `ios/Runner.xcworkspace` in Xcode, select your iPhone as the destination,
 confirm **Signing & Capabilities → Team** is your Personal Team, and press Run.
 

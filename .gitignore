@@ -176,8 +176,15 @@ GAME_BIBLE/ART/exploration/**
 !GAME_BIBLE/ART/exploration/PIXELLAB_PROOF_02/out/character/traveler_portrait_64.png
 !GAME_BIBLE/ART/exploration/PHASE1_CARRIED_CORRECTIONS/**
 !GAME_BIBLE/ART/exploration/SKILL_ICONS_OD04/**
+#   * TRANSFORMATION_01/out/          — Transformation Build 01 packaging sources
+#     (atlas base, landmarks, overlays, ambient frames, item/node icons). Only
+#     `out/` — candidates and rejects in the stream folders stay local.
+!GAME_BIBLE/ART/exploration/TRANSFORMATION_01/out/**
 
 # Never, under any exception: third-party reference imagery.
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpeg
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.png
+
+# Per-machine iOS signing team (DEVELOPMENT_TEAM). TECHNICAL/IOS_DEVICE_INSTALL.md.
+ios/Flutter/Local.xcconfig

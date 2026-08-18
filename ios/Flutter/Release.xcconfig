@@ -1,1 +1,4 @@
 #include "Generated.xcconfig"
+// Per-machine signing (DEVELOPMENT_TEAM), never committed. Optional include:
+// the build is unchanged when the file is absent. See TECHNICAL/IOS_DEVICE_INSTALL.md.
+#include? "Local.xcconfig"

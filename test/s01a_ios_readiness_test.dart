@@ -450,4 +450,125 @@ void main() {
       expect(registrant, contains('StrideSecureStorePlugin'));
     });
   });
+
+  // =========================================================================
+  // The unplugged device install — TECHNICAL/IOS_DEVICE_INSTALL.md
+  //
+  // A Flutter debug build is JIT and iOS refuses to launch it from the Home
+  // Screen. The release workflow depends on a handful of repository facts that
+  // no compile checks: the release configuration still includes Flutter's
+  // generated settings, the per-machine signing team has somewhere to live
+  // that is not the public repository, and the scripts the owner is told to
+  // run actually exist. The entitlement, usage-string and background-mode
+  // facts it also depends on are asserted above and are not repeated.
+  // =========================================================================
+
+  group('the device install workflow', () {
+    // A line that sets DEVELOPMENT_TEAM to a LITERAL ten-character team id, in
+    // xcconfig or shell form. Prose that names the setting does not match, and
+    // neither does the script forwarding `$STRIDE_IOS_TEAM` from the
+    // environment — that is the sanctioned way a team reaches a build.
+    final RegExp assignsTeam = RegExp(
+      r'^\s*(export\s+)?(FLUTTER_XCODE_)?DEVELOPMENT_TEAM\s*=\s*"?[A-Z0-9]{10}"?\s*;?\s*$',
+      multiLine: true,
+    );
+
+    test('Debug and Release xcconfig include Flutter, then the local team', () {
+      for (final String name in <String>['Debug', 'Release']) {
+        final String xcconfig = repoFile('ios/Flutter/$name.xcconfig');
+        // Flutter's build settings — without this include the Runner target
+        // has no FLUTTER_ROOT, no build name, no target and the build fails
+        // in a way that reads like a signing problem.
+        expect(xcconfig, contains('#include "Generated.xcconfig"'));
+        // OPTIONAL (#include?) so a machine without the file — CI, and any
+        // clone that has never signed — builds exactly as before.
+        expect(xcconfig, contains('#include? "Local.xcconfig"'));
+        // The committed files ASSIGN no team. That is the whole point of the
+        // indirection. Line-anchored: the comment naming the setting is not
+        // the setting.
+        expect(assignsTeam.hasMatch(xcconfig), isFalse, reason: name);
+      }
+    });
+
+    test(
+      'the local signing file is ignored, and only its example is tracked',
+      () {
+        // A tracked Local.xcconfig would put the owner's Apple team identifier
+        // in a public repository (RULES G-8, MISTAKES M-08).
+        final String gitignore = repoFile('.gitignore');
+        // Trimmed: under `core.autocrlf=true` a Windows checkout reads CRLF.
+        expect(
+          gitignore.split('\n').map((String l) => l.trim()),
+          contains('ios/Flutter/Local.xcconfig'),
+        );
+        final String example = repoFile('ios/Flutter/Local.xcconfig.example');
+        expect(
+          example,
+          contains('DEVELOPMENT_TEAM = ABCDE12345'),
+          reason: 'the example must carry the placeholder, never a real team',
+        );
+      },
+    );
+
+    test('the two owner scripts exist and are strict bash', () {
+      for (final String path in <String>[
+        'Scripts/ios/build-release-device.sh',
+        'Scripts/ios/install-device.sh',
+      ]) {
+        final String script = repoFile(path);
+        expect(script, startsWith('#!/usr/bin/env bash'), reason: path);
+        expect(script, contains('set -euo pipefail'), reason: path);
+        // No team identifier or device UDID may be written into a script; both
+        // arrive through the environment (STRIDE_IOS_TEAM, STRIDE_IOS_DEVICE).
+        expect(assignsTeam.hasMatch(script), isFalse, reason: path);
+        expect(script, contains('STRIDE_IOS_DEVICE'), reason: path);
+      }
+      // The release script builds signed, never --no-codesign: that flag is
+      // CI's compile-only build and its output cannot be installed.
+      final String build = repoFile('Scripts/ios/build-release-device.sh');
+      expect(build, contains('flutter build ios --release'));
+      expect(
+        RegExp(
+          r'^\s*flutter build ios[^\n]*--no-codesign',
+          multiLine: true,
+        ).hasMatch(build),
+        isFalse,
+      );
+    });
+
+    test('the owner scripts are executable in git once tracked', () {
+      // Windows checkouts do not carry the bit (core.fileMode=false), so the
+      // mode is asked of the index. Untracked is reported, not passed: the
+      // check goes live the moment the scripts are staged, and they must be
+      // staged with `git add --chmod=+x`.
+      for (final String path in <String>[
+        'Scripts/ios/build-release-device.sh',
+        'Scripts/ios/install-device.sh',
+      ]) {
+        final ProcessResult result = Process.runSync('git', <String>[
+          'ls-files',
+          '-s',
+          '--',
+          path,
+        ]);
+        if (result.exitCode != 0) {
+          markTestSkipped('git is not available; mode not checked');
+          return;
+        }
+        final String line = (result.stdout as String).trim();
+        if (line.isEmpty) {
+          markTestSkipped(
+            '$path is not tracked yet; stage it with '
+            'git add --chmod=+x so the mode is 100755',
+          );
+          continue;
+        }
+        expect(
+          line,
+          startsWith('100755'),
+          reason: '$path must be executable in git (git add --chmod=+x)',
+        );
+      }
+    });
+  });
 }
