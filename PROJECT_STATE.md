@@ -13,12 +13,13 @@ cat** between gathers, every gather node has **its own vignette** on the card,
 **all 24 items have icons** (the nine slabs are gone), the **skill icons are a
 coordinated PixelLab set** (OD-04 round 2), the next playtest **begins at zero
 spendable steps** through a second, owner-authorised economy epoch carried by
-**state version 3** (`DECISIONS/0018`), and the iPhone install path is a
+**state version 3** (`DECISIONS/0018`; the epoch is marked after the first
+sync of the migrating launch, so the pre-cutover backlog is retired too), and the iPhone install path is a
 **Release build the owner can launch unplugged**
 (`TECHNICAL/IOS_DEVICE_INSTALL.md` — the previous "profile" install was in
 fact Debug, because Xcode's Run button rebuilds Debug; `MISTAKES.md` M-09).
 
-Suites: **546** `stride_core`, **108** `stride_storage`, app **≈220** incl.
+Suites: **552** `stride_core`, **108** `stride_storage`, app **214** incl.
 atlas and ambient tests, 12 goldens regenerated for the new art. Nothing in the
 gather / travel / craft / skill / equipment / persistence path changed except
 the state-version bump and the migration table.

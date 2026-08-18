@@ -18,7 +18,7 @@ review (§7 script).
 | **Adventure stage** | Traveler rests on gather frame 0 | the Traveler plays **12 rotating ambient scenes** (stretch, drink, eat, pack check, wipe brow, dozing by a fire, dangling yarn for the cat, petting the cat, …) with the **orange cat** as a companion layer; a gather still interrupts and takes priority; **each gather node's own vignette** stands on the stage |
 | **Items** | 9 of 24 items rendered the placeholder slab, including 4 craft outputs | **all 24 items have PixelLab icons** |
 | **Skills** | 5 temporary code icons, two hafted tools alike | **OD-04 round 2**: leaf sprig, log round, ore lump, anvil, two-handled pot — five silhouette families, 24 px native |
-| **Economy** | banked ≈ 5,123 from Phase 2 validation | **banked = 0 at first launch** of this build; `TOTAL WALKED` unchanged; cursor unchanged (`DECISIONS/0018`, state v3) |
+| **Economy** | banked ≈ 5,123 from Phase 2 validation | **banked = 0 once the first launch's startup sync lands** — the pre-cutover backlog is retired with the rest; `TOTAL WALKED` keeps growing (history + backlog); cursor never rewound (`DECISIONS/0018`, state v3) |
 | **Install** | Debug build, launches only tethered | **Release build via `Scripts/ios/build-release-device.sh`**, launches from the Home Screen unplugged (`TECHNICAL/IOS_DEVICE_INSTALL.md`) |
 
 Unchanged by design: gathering, travel, crafting, skills, equipment, save
@@ -64,38 +64,57 @@ at ×1 (a density exception to the ×2 UI grid).
 
 ## 5. Steps / reset — `DECISIONS/0018`
 
-State version 3. Migration table `StateMigrations`: v1→v2 (0016, re-bases),
-v2→v3 (0018, re-bases); a future step re-bases only if it says so.
-`EconomyEpoch.establishedAtStateVersion` makes each re-basing exactly-once per
-version. `totalGranted`, `totalObserved`, `totalSpent`, slices, watermarks,
-cursor and sync count are byte-identical across the migration (asserted).
-Tests: `packages/stride_core/test/transformation_epoch_test.dart` (24) cover
-history-intact, banked 0, cursor unmoved, repeat sync grants 0, new steps grant
-once, spending after reset, save→reload, no second migration, v1→v3 chain.
-Frozen `v3_baseline.save` (+30 bytes = the new field). v1/v2 fixtures untouched.
+State version 3. Migration table `StateMigrations`: v1→v2 (0016), v2→v3
+(0018); a future step re-bases only if it says so. **The 0018 step is
+established after the first foreground sync of the migrating launch, not at
+load** (`afterFirstReconcile`): the app loads the v2 save, the startup sync
+drains whatever was walked since the last Phase 2 sync into `totalGranted`
+as history, and only then is the epoch marked — so the pre-cutover backlog is
+retired with the rest and **only walking after that first sync is spendable**.
+Until that commit lands (≈1 s after the first frame) the session is not ready
+for gather/travel/craft and projects 0 banked. Crash between the two commits:
+the next launch reads a v2 save whose cursor already advanced, sync grants 0,
+the migration completes with the same mark. Accepted edge: if HealthKit
+cannot be read at all at cutover, the mark is set without the backlog and a
+later-drained backlog would be spendable — the backlog is unobservable, not
+intended.
+`EconomyEpoch.establishedAtStateVersion` makes each re-basing exactly-once
+per version. `totalGranted`, `totalObserved`, `totalSpent`, slices,
+watermarks, cursor and sync count are never lowered or rewound (asserted).
+Tests: `transformation_epoch_test.dart` (core) and
+`test/deferred_epoch_session_test.dart` (session: pending refusals, backlog
+retired, repeat sync 0, new steps once, crash shape, unavailable/denied,
+startup + reload) — history-intact, banked 0, cursor unmoved, save→reload, no
+second migration, v1→v3 chain. Frozen `v3_baseline.save`; v1/v2 fixtures
+untouched.
 
 ## 6. Verification
 
 `Scripts/verify.sh --strict`, `flutter test` (app), `dart test` in
-`stride_core` (546) and `stride_storage` (108), `package-art.js --check`, the
+`stride_core` (552) and `stride_storage` (108), app 214, `package-art.js --check`, the
 UI-boundary / single-writer / origin-privacy / core-purity guards. Goldens
 regenerated once for the new art (world, adventure, character, craft, skills)
 and reviewed by eye and by Visual QA.
 
 ## 7. Physical-device test script (owner)
 
-1. **Install** — Mac: update clone, `git checkout playable-phase-2-multiregion`,
-   copy `ios/Flutter/Local.xcconfig.example` → `Local.xcconfig` with your Team
-   ID, plug in the iPhone, `bash Scripts/ios/build-release-device.sh`. Trust
-   the developer / enable Developer Mode if asked. **Unplug.**
-2. **Unplugged launch** — tap Project Stride on the Home Screen. It must open.
-3. **Zero balance** — header shows **0 banked steps**; `TOTAL WALKED` still
-   ≈ 464,946+ (history intact). Note the number.
-4. **Startup sync** — after the first frame the sync runs; if you have walked
-   since the last Phase 2 sync, banked rises by exactly those steps and
-   `TOTAL WALKED` by the same amount.
-5. **Duplicate sync** — tap **Sync steps** immediately: banked must not move.
-6. **Walk** — walk 500+ steps, reopen: banked rises once by that amount.
+1. **Mac** — update the clone, `git checkout playable-phase-2-multiregion`,
+   `cp ios/Flutter/Local.xcconfig.example ios/Flutter/Local.xcconfig` and put
+   your Team ID in it. Plug in the iPhone, unlock it, trust the Mac.
+2. **One command builds AND installs:**
+   `bash Scripts/ios/build-release-device.sh` (it ends by running
+   `install-device.sh`; `--no-install` opts out). If the install step alone
+   needs repeating: `bash Scripts/ios/install-device.sh --run`, then `q`.
+   Accept Developer Mode / trust prompts on the phone. **Unplug.**
+3. **Unplugged launch** — tap Project Stride on the Home Screen. It must open.
+4. **First frame** — the header may show 0 while the startup sync runs (≈1 s);
+   after it lands the balance stays **0** — whatever you walked before this
+   launch has been retired into history. `TOTAL WALKED` ≈ 464,946 + that
+   backlog. Note both numbers.
+5. **Duplicate sync** — tap **Sync steps**: banked must stay 0, TOTAL WALKED
+   unmoved.
+6. **Walk** 500+ steps, reopen: banked rises once by exactly that amount;
+   sync again — no change.
 7. **World** — drag the atlas around, pinch to zoom, tap Whispering Woods:
    panel shows cost 600 and **Travel**; tap Frostmere: no button, "reached by
    way of Stonefall Mine". Travel when affordable; the camera re-centres and
@@ -108,7 +127,7 @@ and reviewed by eye and by Visual QA.
    from training tools; five skill icons distinct at a glance.
 10. **Persistence** — force-quit, cold launch: balance, location, inventory,
     skills, equipped tools all intact; no flash of zeros.
-11. **After 7 days** the free-team profile expires: rerun step 1 (reinstall in
+11. **After 7 days** the free-team profile expires: rerun step 2 (reinstall in
     place; the save survives). Never delete the app to "refresh".
 
 ## 8. Known issues
