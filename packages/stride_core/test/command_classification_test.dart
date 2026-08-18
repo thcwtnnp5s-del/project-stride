@@ -28,7 +28,7 @@ List<GameCommand> allCommands() => <GameCommand>[
   CraftItem(recipe: ContentId.unchecked('recipe.oak_handle')),
   GatherResource(node: ContentId.unchecked('resource_node.meadow_patch')),
   ReconcileStepSync(response: const NoChangeSync()),
-  const EstablishEconomyEpoch(fromStateVersion: 1),
+  const EstablishEconomyEpoch(fromStateVersion: 1, toStateVersion: 2),
 ];
 
 /// The classification each command must carry.

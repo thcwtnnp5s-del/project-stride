@@ -219,7 +219,12 @@ Map<String, Object?> encodeStepLedger(StepLedger ledger) => <String, Object?>{
   // meant. Written unconditionally rather than omitted at the origin: this is
   // the field the whole cutover turns on, and a save that is silent about it is
   // a save that has to be interpreted.
+  //
+  // `establishedAtStateVersion` is state version 3 (`DECISIONS/0018`). Absent
+  // in a v2 save, where a non-origin epoch can only have been set by the
+  // Phase 2 cutover and so reads as 2 — see `V2StateDecoder`.
   'epoch': <String, Object?>{
+    'establishedAtStateVersion': ledger.epoch.establishedAtStateVersion,
     'grantedAtStart': ledger.epoch.grantedAtStart,
     'spentAtStart': ledger.epoch.spentAtStart,
   },
@@ -492,6 +497,7 @@ final class StateCodecs {
   static const List<StateDecoder> _decoders = <StateDecoder>[
     V1StateDecoder(),
     V2StateDecoder(),
+    V3StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -512,7 +518,7 @@ final class StateCodecs {
 /// A v1 state has no `steps.epoch`, so it decodes to [EconomyEpoch.origin]:
 /// every granted step is playable. That is not a fallback, it is what a v1 save
 /// meant. The state comes back declaring `stateVersion: 1`, which is the signal
-/// `BootstrapCoordinator` uses to run the Phase 2 cutover exactly once.
+/// `BootstrapCoordinator` uses to run the migration table from there.
 final class V1StateDecoder implements StateDecoder {
   const V1StateDecoder();
 
@@ -521,15 +527,24 @@ final class V1StateDecoder implements StateDecoder {
 
   @override
   GameState decode(Map<String, Object?> json) =>
-      _decodeStateShape(json, carriesEpoch: false);
+      _decodeStateShape(json, epochShape: _EpochShape.absent);
 }
 
-/// Decoder for state version 2 — the current shape.
+/// Decoder for state version 2.
+///
+/// **Frozen**, on the same terms as [V1StateDecoder]; `v2_baseline.save` is the
+/// proof it still reads one.
 ///
 /// Differs from v1 in exactly one place: `steps.epoch` is present and is read
 /// (`DECISIONS/0016`). Everything else is byte-for-byte the same geometry, which
-/// is why the two share one implementation rather than being copied — a copy
-/// would let the shapes drift in the fields that are supposed to be identical.
+/// is why the versions share one implementation rather than being copied — a
+/// copy would let the shapes drift in the fields that are supposed to be
+/// identical.
+///
+/// A v2 epoch has no `establishedAtStateVersion`. It decodes as **2** for any
+/// non-origin mark and **0** for the origin, and that is what a v2 save meant:
+/// the only re-basing migration that existed when v2 was current was the Phase
+/// 2 cutover, so a mark that is not the origin was set by it.
 final class V2StateDecoder implements StateDecoder {
   const V2StateDecoder();
 
@@ -538,13 +553,40 @@ final class V2StateDecoder implements StateDecoder {
 
   @override
   GameState decode(Map<String, Object?> json) =>
-      _decodeStateShape(json, carriesEpoch: true);
+      _decodeStateShape(json, epochShape: _EpochShape.marksOnly);
+}
+
+/// Decoder for state version 3 — the current shape.
+///
+/// Differs from v2 in exactly one place: `steps.epoch.establishedAtStateVersion`
+/// is present and is read (`DECISIONS/0018`).
+final class V3StateDecoder implements StateDecoder {
+  const V3StateDecoder();
+
+  @override
+  int get version => 3;
+
+  @override
+  GameState decode(Map<String, Object?> json) =>
+      _decodeStateShape(json, epochShape: _EpochShape.withEstablishedVersion);
+}
+
+/// The one field that differs between the shared shapes.
+enum _EpochShape {
+  /// State version 1: no `steps.epoch`. Its absence is the origin.
+  absent,
+
+  /// State version 2: `grantedAtStart` and `spentAtStart` only.
+  marksOnly,
+
+  /// State version 3: the marks and `establishedAtStateVersion`.
+  withEstablishedVersion,
 }
 
 /// The shared state shape, parameterised by the one field that differs.
 GameState _decodeStateShape(
   Map<String, Object?> json, {
-  required bool carriesEpoch,
+  required _EpochShape epochShape,
 }) {
   Map<String, Object?> objectAt(Map<String, Object?> from, String key) {
     final Object? v = from[key];
@@ -647,7 +689,7 @@ GameState _decodeStateShape(
     ),
     steps: _decodeLedger(
       objectAt(json, 'steps'),
-      carriesEpoch: carriesEpoch,
+      epochShape: epochShape,
       intAt: intAt,
       nullableIntAt: nullableIntAt,
       stringAt: stringAt,
@@ -659,12 +701,13 @@ GameState _decodeStateShape(
 
 /// The shared ledger shape.
 ///
-/// [carriesEpoch] is false for state version 1, whose saves predate the cutover
-/// field. Its absence there is not missing data — it is the origin epoch, which
-/// is what a v1 save meant by construction.
+/// [epochShape] says which of the epoch's fields this version wrote. What is
+/// absent is never missing data: a v1 save has no epoch and meant the origin;
+/// a v2 save has no `establishedAtStateVersion` and meant the Phase 2 cutover
+/// for any non-origin mark, the origin otherwise.
 StepLedger _decodeLedger(
   Map<String, Object?> json, {
-  required bool carriesEpoch,
+  required _EpochShape epochShape,
   required int Function(Map<String, Object?>, String) intAt,
   required int? Function(Map<String, Object?>, String) nullableIntAt,
   required String Function(Map<String, Object?>, String) stringAt,
@@ -730,14 +773,35 @@ StepLedger _decodeLedger(
   }
 
   final EconomyEpoch epoch;
-  if (!carriesEpoch) {
-    epoch = const EconomyEpoch.origin();
-  } else {
-    final Map<String, Object?> epochJson = objectAt(json, 'epoch');
-    epoch = EconomyEpoch(
-      grantedAtStart: intAt(epochJson, 'grantedAtStart'),
-      spentAtStart: intAt(epochJson, 'spentAtStart'),
-    );
+  switch (epochShape) {
+    case _EpochShape.absent:
+      epoch = const EconomyEpoch.origin();
+    case _EpochShape.marksOnly:
+      final Map<String, Object?> epochJson = objectAt(json, 'epoch');
+      final int grantedAtStart = intAt(epochJson, 'grantedAtStart');
+      final int spentAtStart = intAt(epochJson, 'spentAtStart');
+      // A v2 mark that is not the origin was set by the Phase 2 cutover: it
+      // is the only re-basing step that existed while v2 was current. A v2
+      // origin is a game that never migrated, and stays the origin. Either
+      // way the mark reads as established *before* state version 3, which is
+      // what lets the v3 step re-base it exactly once.
+      epoch = EconomyEpoch(
+        grantedAtStart: grantedAtStart,
+        spentAtStart: spentAtStart,
+        establishedAtStateVersion: grantedAtStart == 0 && spentAtStart == 0
+            ? 0
+            : 2,
+      );
+    case _EpochShape.withEstablishedVersion:
+      final Map<String, Object?> epochJson = objectAt(json, 'epoch');
+      epoch = EconomyEpoch(
+        grantedAtStart: intAt(epochJson, 'grantedAtStart'),
+        spentAtStart: intAt(epochJson, 'spentAtStart'),
+        establishedAtStateVersion: intAt(
+          epochJson,
+          'establishedAtStateVersion',
+        ),
+      );
   }
 
   return StepLedger(

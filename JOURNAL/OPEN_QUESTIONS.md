@@ -168,6 +168,13 @@ reportable.
 Exactly-once is the state version, and the migration commits through the
 ordinary transaction path. Eighteen tests cover the nine required behaviours.
 
+**Note, 2026-08-17 (Transformation Build 01):** the second epoch 0016 said
+"would need its own decision" has one — `DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`,
+state version 3, same mechanism, owner-directed, retiring the Phase 2
+device-validation balance so the first playtest starts at zero. Re-basing is now
+an opt-in flag on an explicit migration table step; the epoch records which
+step set it. P-5 remains unamended. Not reopened here.
+
 **The text below is the original direction, preserved unedited** so the ADR can
 be read against what was actually asked for.
 

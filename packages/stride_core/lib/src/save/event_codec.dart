@@ -109,6 +109,9 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'grantedAtStart': event.grantedAtStart,
     'spentAtStart': event.spentAtStart,
     'fromStateVersion': event.fromStateVersion,
+    'toStateVersion': event.toStateVersion,
+    'previousGrantedAtStart': event.previousGrantedAtStart,
+    'previousSpentAtStart': event.previousSpentAtStart,
   },
   StepRecoveryStarted() => <String, Object?>{
     't': 'StepRecoveryStarted',
@@ -329,11 +332,24 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
       // A negative mark would make `banked` larger than the ledger ever
       // granted -- a corrupt record minting spendable steps.
       if (granted < 0 || spentAt < 0) return null;
+      // `toStateVersion` arrived with state version 3 (`DECISIONS/0018`). A
+      // record without it was written by the Phase 2 cutover, which is the
+      // only re-basing migration that existed before the field, so its
+      // absence *means* 2 -- not a default standing in for missing data. The
+      // `previous*` marks likewise: before 0018 the only possible predecessor
+      // was the origin.
+      final int to = i('toStateVersion') ?? 2;
+      final int previousGranted = i('previousGrantedAtStart') ?? 0;
+      final int previousSpent = i('previousSpentAtStart') ?? 0;
+      if (to < 2 || previousGranted < 0 || previousSpent < 0) return null;
       return EconomyEpochEstablished(
         sequence: seq,
         grantedAtStart: granted,
         spentAtStart: spentAt,
         fromStateVersion: from,
+        toStateVersion: to,
+        previousGrantedAtStart: previousGranted,
+        previousSpentAtStart: previousSpent,
       );
 
     case 'ItemEquipped':

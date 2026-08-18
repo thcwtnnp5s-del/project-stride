@@ -61,19 +61,32 @@ GameState stateAt(int version, StepLedger ledger) => GameState(
 
 /// Runs the migration exactly as `BootstrapCoordinator._migrate` does.
 ///
-/// The two steps in the same order — reshape the format, then apply the
-/// meaning — through the real engine and the real command. A helper that
-/// reimplemented the arithmetic would prove the helper right and say nothing
-/// about the shipped path.
+/// The same order — reshape the format, then apply the meaning of every table
+/// step from the save's version — through the real engine and the real
+/// command. A helper that reimplemented the arithmetic would prove the helper
+/// right and say nothing about the shipped path.
+///
+/// Since `DECISIONS/0018` a v1 save walks two re-basing steps (v1→v2, v2→v3).
+/// Every assertion in this file that held for one still holds for two, which
+/// is itself the point: the second step retires nothing further from a ledger
+/// the first has just re-based, and it touches nothing else either.
 GameEngine migrate(GameState loaded) {
   final GameEngine engine = GameEngine(
     registry: saveRegistry,
     state: loaded.migratedToCurrentVersion(),
   );
-  final EngineResult result = engine.execute(
-    EstablishEconomyEpoch(fromStateVersion: loaded.stateVersion),
-  );
-  expect(result.isAccepted, isTrue, reason: '${result.rejection}');
+  for (final StateMigrationStep step in StateMigrations.pathFrom(
+    loaded.stateVersion,
+  )) {
+    if (!step.rebasesEconomy) continue;
+    final EngineResult result = engine.execute(
+      EstablishEconomyEpoch(
+        fromStateVersion: step.from,
+        toStateVersion: step.to,
+      ),
+    );
+    expect(result.isAccepted, isTrue, reason: '$step: ${result.rejection}');
+  }
   return engine;
 }
 
@@ -114,7 +127,7 @@ void main() {
       expect(engine.state.steps.banked, 5000);
 
       final EngineResult second = engine.execute(
-        const EstablishEconomyEpoch(fromStateVersion: 1),
+        const EstablishEconomyEpoch(fromStateVersion: 1, toStateVersion: 2),
       );
 
       expect(second.isRejected, isTrue);
@@ -318,7 +331,11 @@ void main() {
       expect(
         () => StepLedger.initial().copyWith(
           totalGranted: 100,
-          epoch: const EconomyEpoch(grantedAtStart: 500, spentAtStart: 0),
+          epoch: const EconomyEpoch(
+            grantedAtStart: 500,
+            spentAtStart: 0,
+            establishedAtStateVersion: 2,
+          ),
         ),
         throwsArgumentError,
       );
@@ -326,7 +343,11 @@ void main() {
         () => StepLedger.initial().copyWith(
           totalGranted: 100,
           totalSpent: 10,
-          epoch: const EconomyEpoch(grantedAtStart: 0, spentAtStart: 50),
+          epoch: const EconomyEpoch(
+            grantedAtStart: 0,
+            spentAtStart: 50,
+            establishedAtStateVersion: 2,
+          ),
         ),
         throwsArgumentError,
       );
@@ -340,7 +361,11 @@ void main() {
         () => StepLedger.initial().copyWith(
           totalGranted: 1000,
           totalSpent: 180,
-          epoch: const EconomyEpoch(grantedAtStart: 1000, spentAtStart: 0),
+          epoch: const EconomyEpoch(
+            grantedAtStart: 1000,
+            spentAtStart: 0,
+            establishedAtStateVersion: 2,
+          ),
         ),
         throwsArgumentError,
       );

@@ -158,9 +158,11 @@ final class ItemUnequipped extends GameEvent {
 
 /// The playable step economy was re-based at a cutover point.
 ///
-/// **Emitted exactly once per save, by the Phase 2 migration.** It records what
-/// the two running totals read at the moment the playable economy began; from
-/// then on `banked` is measured from those marks (`EconomyEpoch`).
+/// **Emitted exactly once per save per re-basing migration step** — the Phase 2
+/// cutover (`DECISIONS/0016`, `toStateVersion` 2) and the Transformation
+/// playtest epoch (`DECISIONS/0018`, `toStateVersion` 3). It records what the
+/// two running totals read at the moment the playable economy began; from then
+/// on `banked` is measured from those marks (`EconomyEpoch`).
 ///
 /// It is a fact about the *ledger's accounting origin*, not about steps. No step
 /// is created, destroyed, granted, or revoked by applying it: [StepLedger.
@@ -180,6 +182,9 @@ final class EconomyEpochEstablished extends GameEvent {
     required this.grantedAtStart,
     required this.spentAtStart,
     required this.fromStateVersion,
+    required this.toStateVersion,
+    this.previousGrantedAtStart = 0,
+    this.previousSpentAtStart = 0,
   });
 
   final int grantedAtStart;
@@ -188,6 +193,30 @@ final class EconomyEpochEstablished extends GameEvent {
   /// The state version the save was read at. Diagnostic — it is what makes a
   /// journal line say which migration this was.
   final int fromStateVersion;
+
+  /// The state version whose migration step established this mark, and the
+  /// value `EconomyEpoch.establishedAtStateVersion` takes when this is applied.
+  ///
+  /// **Load-bearing, not diagnostic**: it is what the exactly-once guard in
+  /// `EstablishEconomyEpoch` reads on the next re-basing step. A journal record
+  /// written before this field existed can only be a Phase 2 cutover, so it
+  /// decodes as `2` (`event_codec.dart`).
+  final int toStateVersion;
+
+  /// The mark that was in effect before this one — the origin for a Phase 2
+  /// cutover, the Phase 2 mark for the Transformation epoch.
+  ///
+  /// Diagnostic. It lets `StateMigrationReport` say how much of the retired
+  /// body *this* migration retired, as distinct from what was already retired,
+  /// without re-deriving it from a ledger that has since moved. Applying the
+  /// event does not read it.
+  final int previousGrantedAtStart;
+  final int previousSpentAtStart;
+
+  /// What this cutover retired, over and above what was already retired.
+  int get newlyRetiredSteps =>
+      (grantedAtStart - spentAtStart) -
+      (previousGrantedAtStart - previousSpentAtStart);
 
   @override
   String get name => 'EconomyEpochEstablished';

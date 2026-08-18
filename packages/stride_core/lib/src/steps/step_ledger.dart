@@ -210,14 +210,37 @@ final class SyncCheckpoint {
 /// reduce exactly to the pre-epoch definition. This is a generalization of the
 /// old behaviour, not a special case bolted beside it — which is why no code
 /// path needs to ask whether an epoch is "in effect".
+///
+/// ## Which migration established it
+///
+/// [establishedAtStateVersion] records the state version whose migration step
+/// set this mark — `0` for the origin, `2` for the Phase 2 cutover
+/// (`DECISIONS/0016`), `3` for the Transformation playtest epoch
+/// (`DECISIONS/0018`). It is what lets a later, separately-decided re-basing
+/// step run **exactly once** on a ledger that has already been re-based before:
+/// `EstablishEconomyEpoch` refuses whenever the mark it finds was established
+/// at, or after, the version it is being asked to establish. Without it the
+/// second cutover would have had to choose between "refuse every non-origin
+/// epoch" — which can never re-base a v2 save — and "re-base whatever is
+/// there" — which would re-base a v3 save again on the day some caller asked.
 @immutable
 final class EconomyEpoch {
-  const EconomyEpoch({required this.grantedAtStart, required this.spentAtStart})
-    : assert(grantedAtStart >= 0, 'an epoch mark cannot be negative'),
-      assert(spentAtStart >= 0, 'an epoch mark cannot be negative');
+  const EconomyEpoch({
+    required this.grantedAtStart,
+    required this.spentAtStart,
+    required this.establishedAtStateVersion,
+  }) : assert(grantedAtStart >= 0, 'an epoch mark cannot be negative'),
+       assert(spentAtStart >= 0, 'an epoch mark cannot be negative'),
+       assert(
+         establishedAtStateVersion >= 0,
+         'an epoch cannot be established at a negative state version',
+       );
 
   /// The epoch a new game starts under: everything ever granted is playable.
-  const EconomyEpoch.origin() : grantedAtStart = 0, spentAtStart = 0;
+  const EconomyEpoch.origin()
+    : grantedAtStart = 0,
+      spentAtStart = 0,
+      establishedAtStateVersion = 0;
 
   /// What [StepLedger.totalGranted] read when the playable economy began.
   final int grantedAtStart;
@@ -225,11 +248,26 @@ final class EconomyEpoch {
   /// What [StepLedger.totalSpent] read when the playable economy began.
   final int spentAtStart;
 
-  /// Whether this epoch retires nothing — the state of a game that has never
-  /// been through a cutover.
-  bool get isOrigin => grantedAtStart == 0 && spentAtStart == 0;
+  /// The state version whose migration step established this mark.
+  ///
+  /// `0` for the origin. Otherwise the `toStateVersion` of the migration step
+  /// that set it (`StateMigrations`), which is also the smallest state version
+  /// a save carrying this exact mark can have been written at.
+  final int establishedAtStateVersion;
+
+  /// Whether this epoch retires nothing and was set by no migration — the
+  /// state of a game that has never been through a cutover.
+  bool get isOrigin =>
+      grantedAtStart == 0 &&
+      spentAtStart == 0 &&
+      establishedAtStateVersion == 0;
 
   /// Steps credited before the cutover, and therefore not spendable.
+  ///
+  /// The **whole** retired body, across every cutover this ledger has been
+  /// through: a v3 mark set on top of a v2 one still reads
+  /// `grantedAtStart − spentAtStart`, which is everything ever banked before
+  /// the current playable economy began.
   ///
   /// Reportable, deliberately. The player walked these, and a product that
   /// silently forgot them would be lying about its own history.
@@ -239,14 +277,17 @@ final class EconomyEpoch {
   bool operator ==(Object other) =>
       other is EconomyEpoch &&
       other.grantedAtStart == grantedAtStart &&
-      other.spentAtStart == spentAtStart;
+      other.spentAtStart == spentAtStart &&
+      other.establishedAtStateVersion == establishedAtStateVersion;
 
   @override
-  int get hashCode => Object.hash(grantedAtStart, spentAtStart);
+  int get hashCode =>
+      Object.hash(grantedAtStart, spentAtStart, establishedAtStateVersion);
 
   @override
   String toString() =>
-      'EconomyEpoch(granted=$grantedAtStart;spent=$spentAtStart)';
+      'EconomyEpoch(granted=$grantedAtStart;spent=$spentAtStart;'
+      'establishedAt=v$establishedAtStateVersion)';
 }
 
 /// The step ledger.
@@ -399,8 +440,9 @@ final class StepLedger {
   /// step has ever been removed by the passage of time, by absence, or by any
   /// recurring mechanism. The epoch is a **single, deliberate, owner-authorized
   /// cutover** retiring one specific body of validation data
-  /// (`DECISIONS/0016`), not a decay rule — and there is no code path that can
-  /// move it a second time.
+  /// (`DECISIONS/0016`, and once more for the Transformation playtest under
+  /// `DECISIONS/0018`), not a decay rule — and no code path can move it except
+  /// a migration step that names its own decision (`StateMigrations`).
   int get banked => grantedThisEpoch - spentThisEpoch;
 
   /// How much the source has walked back relative to what was granted.
@@ -500,7 +542,8 @@ final class StepLedger {
 
   String get signature =>
       'obs=$totalObserved;granted=$totalGranted;spent=$totalSpent;'
-      'epoch=${epoch.grantedAtStart}/${epoch.spentAtStart};'
+      'epoch=${epoch.grantedAtStart}/${epoch.spentAtStart}'
+      '@v${epoch.establishedAtStateVersion};'
       'banked=$banked;pre=$grantedBeforeWatermark;'
       'slices=${grantedSlices.length};sync=${checkpoint.syncCount};'
       'wm=${checkpoint.watermarkMillis};recovery=${recovery.phase.name};'

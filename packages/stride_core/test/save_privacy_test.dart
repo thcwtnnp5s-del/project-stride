@@ -580,7 +580,15 @@ void main() {
                 as Map<String, Object?>)
             .keys
             .toSet(),
-        <String>{'grantedAtStart', 'spentAtStart'},
+        <String>{
+          'grantedAtStart',
+          'spentAtStart',
+          // Reviewed for the Transformation playtest epoch (`DECISIONS/0018`).
+          // A small integer naming the state version whose migration step set
+          // the mark: 0, 2 or 3. It is a fact about the save format, not
+          // about the player, and carries nothing health-derived.
+          'establishedAtStateVersion',
+        },
         reason: 'a new field inside the epoch needs a privacy review too',
       );
     });

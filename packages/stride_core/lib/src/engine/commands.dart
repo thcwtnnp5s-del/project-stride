@@ -219,10 +219,11 @@ final class CraftItem extends GameCommand {
 /// Re-base the playable step economy at a cutover point.
 ///
 /// **Internal, and issued from exactly one place**: the bootstrap migration
-/// path, when a save is read at a state version older than the current one
-/// (`DECISIONS/0016`). It is not a player action, not a debug action, and not
-/// something a surface may offer — a command that zeroes the player's balance
-/// must have exactly one caller.
+/// path, for each `StateMigrations` step that declares `rebasesEconomy`
+/// (`DECISIONS/0016` for state version 2, `DECISIONS/0018` for state version
+/// 3). It is not a player action, not a debug action, and not something a
+/// surface may offer — a command that zeroes the player's balance must have
+/// exactly one caller.
 ///
 /// ## Why exactly-once is the state version, and not a flag beside it
 ///
@@ -236,6 +237,17 @@ final class CraftItem extends GameCommand {
 /// launch reads a current-version save, [StateVersion.migrationRequired] is
 /// false, and this command is never issued.
 ///
+/// ## The defence behind the version
+///
+/// The command also refuses on its own evidence: the epoch it finds records the
+/// state version whose step established it (`EconomyEpoch.
+/// establishedAtStateVersion`), and the command refuses whenever that is at or
+/// beyond [toStateVersion]. So the v3 step re-bases a v2 epoch exactly once and
+/// refuses a v3 epoch; the v2 step re-bases the origin exactly once and refuses
+/// a v2 epoch. This is what a second cutover needed that "refuse any non-origin
+/// epoch" could not give — and it is still defence *behind* the version, not a
+/// second source of truth.
+///
 /// Crash safety falls out of the same property. If the commit never lands, the
 /// old-version save is still on disk and the next launch recomputes an identical
 /// migration from identical inputs — this command is a pure function of the
@@ -245,10 +257,20 @@ final class EstablishEconomyEpoch extends GameCommand {
   @override
   bool get isPlayerFacing => false;
 
-  const EstablishEconomyEpoch({required this.fromStateVersion});
+  const EstablishEconomyEpoch({
+    required this.fromStateVersion,
+    required this.toStateVersion,
+  }) : assert(
+         toStateVersion > fromStateVersion,
+         'a migration step moves the state version forward',
+       );
 
   /// The version the save was read at, recorded on the event for diagnosis.
   final int fromStateVersion;
+
+  /// The version this step establishes the epoch for. Recorded on the epoch as
+  /// `establishedAtStateVersion`, and the figure the exactly-once guard reads.
+  final int toStateVersion;
 
   @override
   String get name => 'EstablishEconomyEpoch';

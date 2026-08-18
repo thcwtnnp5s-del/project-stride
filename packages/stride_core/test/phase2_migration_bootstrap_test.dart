@@ -82,9 +82,16 @@ void main() {
       // And the launch says what it did, rather than doing it silently.
       expect(ready.migration, isNotNull);
       expect(ready.migration!.fromStateVersion, 1);
-      expect(ready.migration!.toStateVersion, 2);
+      // Since `DECISIONS/0018` a v1 save walks two table steps in one launch
+      // and lands at v3. The whole Phase 1 body is retired by the first step;
+      // the second finds nothing further to retire.
+      expect(ready.migration!.toStateVersion, StateVersion.current.value);
+      expect(ready.migration!.stepsApplied, hasLength(2));
       expect(ready.migration!.retiredSteps, 459043);
+      expect(ready.migration!.previouslyRetiredSteps, 0);
+      expect(ready.migration!.newlyRetiredSteps, 459043);
       expect(ready.migration!.bankedAfter, 0);
+      expect(ready.engine.state.steps.epoch.establishedAtStateVersion, 3);
 
       // History intact.
       expect(ready.engine.state.steps.totalGranted, 459223);

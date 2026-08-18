@@ -43,6 +43,14 @@
 // 4. Never chain v1→v2→v3. `StateCodecs` is a fan-in of direct decoders; see
 //    the note on `StateDecoder`.
 //
+// That is what happened for state version 2 (`DECISIONS/0016`), and it happened
+// again for state version 3 (`DECISIONS/0018`): `V3StateDecoder`, a frozen
+// `v3_baseline.save` generated once by `tool/generate_v3_baseline.dart` from
+// the v2 fixture through the real migration, and the v2 round trip became
+// decode-only in its turn. Neither older fixture was touched. (Rule 4 is about
+// *decoders* — the meaning applied after decoding is a table of steps,
+// `StateMigrations`, and that one is deliberately a chain.)
+//
 // `dart:io` is used here and only here in this file's own directory. Only
 // `lib/` is guarded by `Scripts/check-core-purity.sh` and
 // `core_purity_test.dart`; test files read from disk freely, which is why the
@@ -118,6 +126,14 @@ import 'save_support.dart';
 /// which is precisely what a v1 save meant: every granted step is playable.
 /// `banked` therefore still reads 641, exactly as it did before this field
 /// existed, which is asserted directly below rather than left to inference.
+///
+/// ## The state version 3 amendment
+///
+/// `"establishedAtStateVersion":0` was added inside the epoch when
+/// `StateVersion.current` became 3 (`DECISIONS/0018`), on the same reasoning:
+/// the current encoder writes it, and `0` is the only value a v1 save can decode
+/// to, because the origin epoch was established by no migration. Every other
+/// value in the literal is byte-identical to what it was.
 const String expectedV1Signature =
     '{"contentPackVersion":1,'
     '"equipment":{"weapon":"item.training_sword"},'
@@ -135,7 +151,8 @@ const String expectedV1Signature =
     '"steps":{"checkpoint":{"cursor":"Y3Vyc29yLTI=","syncCount":2,'
     '"watermarkMillis":null},'
     '"correctionsObserved":0,'
-    '"epoch":{"grantedAtStart":0,"spentAtStart":0},'
+    '"epoch":{"establishedAtStateVersion":0,"grantedAtStart":0,'
+    '"spentAtStart":0},'
     '"grantedBeforeWatermark":0,'
     '"grantedSlices":['
     '{"e":1750007200000,"g":137,"o":"0f1e2d3c4b5a6978","s":1750003600000},'
@@ -185,6 +202,15 @@ Uint8List get v1Baseline => _frozen(fixtureFile);
 /// wired into the test run — a fixture a test can regenerate is a fixture that
 /// silently agrees with whatever the code does today.
 Uint8List get v2Baseline => _frozen(v2FixtureFile);
+
+File get v3FixtureFile =>
+    File('${fixtureDirectory.path}/save/v3_baseline.save');
+
+/// The v2 fixture, after the Transformation playtest epoch, frozen in its turn.
+///
+/// Generated **once** by `tool/generate_v3_baseline.dart` from `v2_baseline.save`
+/// through the real v2→v3 step (`DECISIONS/0018`). Same terms as v1 and v2.
+Uint8List get v3Baseline => _frozen(v3FixtureFile);
 
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
@@ -338,9 +364,58 @@ void main() {
     });
   });
 
-  group('B2 — the round trip, carried forward to v2', () {
-    test('encode(decode(fixture)) is byte-identical to the v2 fixture', () {
-      final Uint8List fixture = v2Baseline;
+  // ## Why B2 is decode-only from state version 3 onward
+  //
+  // The same reasoning as B, one version later. `v2_baseline.save` is now the
+  // artifact a device that took the Phase 2 cutover but not the Transformation
+  // epoch actually holds, and what must hold is that decoding it changes no
+  // value it carries — including that its epoch reads as *established at v2*,
+  // which is what the v2→v3 step's exactly-once guard turns on.
+  group('B2 — decoding a v2 save changes no value it carries', () {
+    test('the v2 fixture is the migrated v1 fixture, and says so', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v2Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 2);
+      // History intact: the same two totals the v1 fixture carried.
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      // And the cutover applied to them.
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 2,
+        ),
+        reason:
+            'a v2 save has no establishedAtStateVersion field, and a non-origin '
+            'mark in one can only have been set by the Phase 2 cutover — so it '
+            'reads as established at 2, not as missing data',
+      );
+      expect(state.steps.banked, 0);
+      expect(state.steps.epoch.retiredSteps, 641);
+    });
+
+    test('a v2 save is flagged as needing migration', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v2Baseline).payload!,
+      );
+      expect(
+        StateVersion.migrationRequired(envelope.state.stateVersion),
+        isTrue,
+        reason:
+            'this flag is the only durable signal that the Transformation '
+            'playtest epoch has not run on a save (`DECISIONS/0018`)',
+      );
+    });
+  });
+
+  group('B3 — the round trip, carried forward to v3', () {
+    test('encode(decode(fixture)) is byte-identical to the v3 fixture', () {
+      final Uint8List fixture = v3Baseline;
       final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
 
       final Uint8List reencoded = encodeSnapshot(
@@ -355,33 +430,39 @@ void main() {
       // thinking about saves. Without it the change is entirely silent until a
       // player's save fails to load in the field.
       //
-      // If this fires: the encoder and the v2 decoder no longer agree. Either
-      // the new field belongs in state version 3 (add a decoder, add a new
-      // fixture, and make this test decode-only for v2), or the encoder has an
-      // ordering or type defect. Editing the fixture is never the fix.
+      // If this fires: the encoder and the v3 decoder no longer agree. Either
+      // the new field belongs in state version 4 (add a decoder, add a new
+      // fixture, add a `StateMigrations` step that says whether it re-bases —
+      // it should not — and make this test decode-only for v3), or the encoder
+      // has an ordering or type defect. Editing the fixture is never the fix.
       expect(
         reencoded,
         fixture,
         reason:
-            'the canonical encoder no longer reproduces a v2 save. See the '
+            'the canonical encoder no longer reproduces a v3 save. See the '
             'regeneration policy at the top of this file.',
       );
     });
 
-    test('the v2 fixture is the migrated v1 fixture, and says so', () {
+    test('the v3 fixture is the migrated v2 fixture, and says so', () {
       final SaveEnvelope envelope = decodeEnvelope(
-        unframe(v2Baseline).payload!,
+        unframe(v3Baseline).payload!,
       );
       final GameState state = envelope.state;
 
-      expect(state.stateVersion, 2);
-      // History intact: the same two totals the v1 fixture carried.
+      expect(state.stateVersion, 3);
+      // History intact, twice over.
       expect(state.steps.totalGranted, 1041);
       expect(state.steps.totalSpent, 400);
-      // And the cutover applied to them.
+      // The v2 fixture was already at banked 0, so the v3 step re-based at the
+      // same two marks — and recorded that it did so, at v3.
       expect(
         state.steps.epoch,
-        const EconomyEpoch(grantedAtStart: 1041, spentAtStart: 400),
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 3,
+        ),
       );
       expect(state.steps.banked, 0);
       expect(state.steps.epoch.retiredSteps, 641);
@@ -400,6 +481,8 @@ void main() {
       expect(StateCodecs.decoderFor(1)!.version, 1);
       expect(StateCodecs.decoderFor(2), isNotNull);
       expect(StateCodecs.decoderFor(2)!.version, 2);
+      expect(StateCodecs.decoderFor(3), isNotNull);
+      expect(StateCodecs.decoderFor(3)!.version, 3);
       expect(
         StateCodecs.decoderFor(StateVersion.current.value + 1),
         isNull,

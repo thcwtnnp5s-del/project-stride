@@ -379,6 +379,19 @@ Future<String> runPersistenceScript(
 /// 51 for the same reason with non-zero marks (1041 and 400 are three more
 /// digits than 0 and 0, plus the two-byte key-order shift), which is the same
 /// arithmetic confirming itself against different data.
+///
+/// ## Amended a second time, for state version 3 — same review
+///
+/// The Transformation playtest epoch (`DECISIONS/0018`) added
+/// `establishedAtStateVersion` inside `steps.epoch`, so both slot lengths and
+/// both digests moved again. Every behavioural line above the digests is again
+/// byte-identical — same journal length and journal digest included, because
+/// the conformance sequence contains no migration and so writes no
+/// `EconomyEpochEstablished` record. Both slots grew by **30 bytes**, which is
+/// the exact length of `"establishedAtStateVersion":0,` (a 25-character key in
+/// quotes, a colon, one digit and the separating comma; the key sorts first
+/// inside the epoch object so the comma follows it). The frozen v2→v3 fixture
+/// grew by the same 30 with the digit `3` in place of `0`.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -388,8 +401,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1273:8e8ab31f
-slot_b:1275:bd687894''';
+slot_a:1303:407722d9
+slot_b:1305:e27b86bc''';
 
 // ---------------------------------------------------------------------------
 // The suite

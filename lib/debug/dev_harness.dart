@@ -268,6 +268,8 @@ class _DevHarnessScreenState extends State<DevHarnessScreen> {
           usable: session.usableEnergy,
           granted: session.totalGranted,
           spent: session.totalSpent,
+          retired: session.retiredSteps,
+          migration: session.migration,
           lastEvent: _lastEvent,
         ),
         const SizedBox(height: 16),
@@ -497,12 +499,23 @@ class _EnergyCard extends StatelessWidget {
     required this.usable,
     required this.granted,
     required this.spent,
+    required this.retired,
+    required this.migration,
     required this.lastEvent,
   });
 
   final int usable;
   final int granted;
   final int spent;
+
+  /// The retired body (`EconomyEpoch.retiredSteps`), so the harness can show
+  /// that the historical steps are still accounted for and merely unspendable.
+  final int retired;
+
+  /// Non-null only on the launch that migrated the save. Rendered so the
+  /// acceptance script can see the cutover happen once and never again.
+  final StateMigrationReport? migration;
+
   final String? lastEvent;
 
   @override
@@ -523,9 +536,16 @@ class _EnergyCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'granted $granted · spent $spent',
+              'granted $granted · spent $spent · retired $retired',
               style: theme.textTheme.bodySmall,
             ),
+            if (migration != null) ...<Widget>[
+              const SizedBox(height: 4),
+              Text(
+                'This launch migrated the save: $migration',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             if (lastEvent != null) ...<Widget>[
               const SizedBox(height: 12),
               Text(lastEvent!, style: theme.textTheme.bodyMedium),

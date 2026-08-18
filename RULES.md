@@ -52,9 +52,13 @@ stored decays or expires — ever.
 **Unamended by the Phase 2 economy cutover**, which is a single, deliberate,
 owner-authorized re-basing of one body of validation data at a defined point —
 not a recurring mechanism, and not something time or absence can trigger. The
-retired steps remain reportable. A second epoch would need its own decision.
+retired steps remain reportable. A second epoch would need its own decision —
+and has one: the Transformation playtest epoch, a second and equally singular
+owner-authorised re-basing, after which any re-basing must be a named migration
+table step. Still unamended.
 → `PROJECT_KERNEL/06_ANTI_FEATURES.md`, `DECISIONS/0008_STEPLESS_WEEK.md`,
-`DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`
+`DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`,
+`DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`
 
 **P-6 — No monetization systems.**
 No premium currency, ads, loot boxes, gacha, or battle passes, unless the owner
@@ -83,10 +87,13 @@ any two of them is how steps get double-counted or silently lost.
 Granted energy never decreases. A correction reduces what is *observed*, never
 what was already credited.
 
-A **spendable balance** may be re-based, once, by an economy epoch — which moves
-a mark, not a counter, and leaves `totalGranted` untouched. That is what makes
-the Phase 2 cutover compatible with this rule rather than an exception to it.
-→ `DECISIONS/0012_SAVE_FORMAT.md`, `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`
+A **spendable balance** may be re-based by an economy epoch — which moves a
+mark, not a counter, and leaves `totalGranted` untouched. That is what makes
+the Phase 2 cutover and the Transformation playtest epoch compatible with this
+rule rather than exceptions to it. Only a migration table step that names its
+decision may re-base.
+→ `DECISIONS/0012_SAVE_FORMAT.md`, `DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md`,
+`DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md`
 
 **H-3 — A candidate cursor becomes durable only after safe reconciliation and
 save commit.**

@@ -82,10 +82,12 @@ import '../engine/events.dart';
 import '../engine/game_engine.dart';
 import '../engine/game_state.dart';
 import '../engine/rejection.dart';
+import '../engine/state_migrations.dart';
 import '../engine/state_version.dart';
 import '../ports/identity_store.dart';
 import '../save/save_outcomes.dart';
 import '../save/save_repository.dart';
+import '../steps/step_ledger.dart';
 
 /// Where startup has got to.
 ///
@@ -258,26 +260,45 @@ final class StateMigrationReport {
     required this.fromStateVersion,
     required this.toStateVersion,
     required this.retiredSteps,
+    required this.previouslyRetiredSteps,
     required this.bankedAfter,
+    required this.stepsApplied,
   });
 
   final int fromStateVersion;
   final int toStateVersion;
 
-  /// Steps that were banked before the cutover and are no longer spendable.
+  /// Steps that were banked before the current playable economy began and are
+  /// not spendable — the **whole** retired body, across every cutover.
   ///
   /// They are not gone — `totalGranted` still carries every one of them, and
   /// `EconomyEpoch.retiredSteps` still reports them. They are simply outside the
   /// playable economy now.
   final int retiredSteps;
 
-  /// The playable balance the migration produced. Zero, for the Phase 2 cutover.
+  /// Of [retiredSteps], the part that was already retired *before* this launch
+  /// — the Phase 2 body, when the Transformation epoch runs on a v2 save. Zero
+  /// when the save came from the origin epoch.
+  final int previouslyRetiredSteps;
+
+  /// What this launch retired: [retiredSteps] − [previouslyRetiredSteps]. The
+  /// figure the acceptance script compares against the balance it saw before
+  /// upgrading.
+  int get newlyRetiredSteps => retiredSteps - previouslyRetiredSteps;
+
+  /// The playable balance the migration produced. Zero, for every re-basing
+  /// step so far.
   final int bankedAfter;
+
+  /// The table steps this launch applied, in order.
+  final List<StateMigrationStep> stepsApplied;
 
   @override
   String toString() =>
       'StateMigrationReport(v$fromStateVersion→v$toStateVersion; '
-      'retired=$retiredSteps; banked=$bankedAfter)';
+      'steps=${stepsApplied.length}; retired=$retiredSteps '
+      '(previously $previouslyRetiredSteps, newly $newlyRetiredSteps); '
+      'banked=$bankedAfter)';
 }
 
 /// An existing save loaded.
@@ -704,6 +725,17 @@ final class BootstrapCoordinator {
   /// see `EstablishEconomyEpoch` for why a second flag beside it would be a
   /// liability rather than a belt.
   ///
+  /// ## The table, and one commit for the whole path
+  ///
+  /// The steps come from `StateMigrations.pathFrom`, and only a step that
+  /// declares `rebasesEconomy` issues `EstablishEconomyEpoch` — with its own
+  /// `toStateVersion`, so the command's guard can tell a v2 epoch from a v3 one.
+  /// A v1 save therefore runs the v1→v2 step and then the v2→v3 step, in that
+  /// order, and every event they produce is committed **once**, together. Two
+  /// commits would make representable a durable save at an intermediate version
+  /// carrying a later step's epoch — after a crash between them — which is
+  /// exactly the shape the command would then refuse forever.
+  ///
   /// ## Crash safety
   ///
   /// Every step before the commit is pure. If the process dies at any point, the
@@ -716,33 +748,44 @@ final class BootstrapCoordinator {
     ReconciliationIdentity identity,
   ) async {
     final int from = load.state.stateVersion;
+    final List<StateMigrationStep> path = StateMigrations.pathFrom(from);
+    final EconomyEpoch epochBefore = load.state.steps.epoch;
 
     // Format first, meaning second. `migratedToCurrentVersion` restates the
-    // shape; the command supplies what the new shape *means*.
+    // shape; the steps supply what the new shape *means*.
     final GameState reshaped = load.state.migratedToCurrentVersion();
     final GameEngine engine = GameEngine(registry: registry, state: reshaped);
 
-    final EngineResult result = engine.execute(
-      EstablishEconomyEpoch(fromStateVersion: from),
-    );
-    final CommandRejection? refused = result.rejection;
-    if (refused != null) {
-      // Only reachable if a v1 save somehow already carried a non-origin epoch,
-      // which the v1 decoder cannot produce. Refused rather than ignored: a
-      // migration that cannot explain itself must not proceed quietly.
-      return BootstrapBlocked(
-        reason: BootstrapBlockReason.stateMigrationNotCommittable,
-        stoppedAt: BootstrapPhase.validatingState,
-        explanation:
-            'Stride could not upgrade your saved progress. Nothing was '
-            'changed, and your progress is kept.',
-        detail: <String>[refused.format()],
+    final List<GameEvent> events = <GameEvent>[];
+    for (final StateMigrationStep step in path) {
+      if (!step.rebasesEconomy) continue;
+      final EngineResult result = engine.execute(
+        EstablishEconomyEpoch(
+          fromStateVersion: step.from,
+          toStateVersion: step.to,
+        ),
       );
+      final CommandRejection? refused = result.rejection;
+      if (refused != null) {
+        // Only reachable if the save already carried an epoch established at
+        // or beyond this step's version, which no decoder for an older version
+        // can produce. Refused rather than ignored: a migration that cannot
+        // explain itself must not proceed quietly.
+        return BootstrapBlocked(
+          reason: BootstrapBlockReason.stateMigrationNotCommittable,
+          stoppedAt: BootstrapPhase.validatingState,
+          explanation:
+              'Stride could not upgrade your saved progress. Nothing was '
+              'changed, and your progress is kept.',
+          detail: <String>['$step', refused.format()],
+        );
+      }
+      events.addAll(result.events);
     }
 
     final CommitOutcome outcome = await repository.commit(
       after: engine.state,
-      events: result.events,
+      events: events,
       saveId: load.saveId,
       expectation: CommitExpectation(
         expectedSnapshotGeneration: load.generation,
@@ -771,7 +814,9 @@ final class BootstrapCoordinator {
         fromStateVersion: from,
         toStateVersion: StateVersion.current.value,
         retiredSteps: engine.state.steps.epoch.retiredSteps,
+        previouslyRetiredSteps: epochBefore.retiredSteps,
         bankedAfter: engine.state.steps.banked,
+        stepsApplied: path,
       ),
     );
   }

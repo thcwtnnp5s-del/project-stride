@@ -62,11 +62,14 @@ enum RejectionCode {
   /// The destination requires an item the player does not hold.
   entryRequirementUnmet('entry_requirement_unmet'),
 
-  /// The playable economy has already been re-based on this ledger.
+  /// The playable economy has already been re-based on this ledger, for the
+  /// state version asked for or a later one.
   ///
   /// A refusal rather than a silent no-op: re-running the cutover would zero the
   /// player's balance a second time, and a command that can do that must say so
-  /// out loud when it is asked to do it twice.
+  /// out loud when it is asked to do it twice. Precise about *which* cutover:
+  /// a v3 step re-bases a v2 epoch once and refuses a v3 epoch
+  /// (`DECISIONS/0018`).
   economyEpochAlreadySet('economy_epoch_already_set'),
 
   /// The node exists, but not at the location the player is standing in.

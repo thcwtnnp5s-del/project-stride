@@ -14,8 +14,12 @@
 // test in `save_migration_test.dart` is a tautology.
 //
 // If a future change makes this generator's output differ from the checked-in
-// file, **that is the test doing its job.** The fix is a state version 3, a new
-// decoder, and a new fixture — never a re-run of this script.
+// file, **that is the test doing its job.** The fix is a new state version, a
+// new decoder, and a new fixture — never a re-run of this script. (That is
+// exactly what happened for state version 3: see `generate_v3_baseline.dart`.
+// This script is kept for provenance and would now refuse to run, since its
+// target exists; it also could no longer produce the same bytes, because the
+// current encoder writes v3.)
 //
 // ## What it produces
 //
@@ -88,7 +92,10 @@ void main() {
     state: envelope.state.migratedToCurrentVersion(),
   );
   final EngineResult result = engine.execute(
-    EstablishEconomyEpoch(fromStateVersion: envelope.state.stateVersion),
+    EstablishEconomyEpoch(
+      fromStateVersion: envelope.state.stateVersion,
+      toStateVersion: 2,
+    ),
   );
   if (result.isRejected) {
     stderr.writeln('The migration was refused: ${result.rejection}');

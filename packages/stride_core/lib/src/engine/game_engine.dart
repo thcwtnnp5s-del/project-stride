@@ -175,14 +175,21 @@ final class GameEngine {
   /// two counters currently read. That is what makes the migration idempotent
   /// under retry — a crashed commit is followed by a launch that reads the same
   /// unchanged save and computes the same two numbers.
+  ///
+  /// The guard is on the epoch's own record of which step established it, not
+  /// on "is it the origin". An epoch established at or after
+  /// [EstablishEconomyEpoch.toStateVersion] has already been through this step
+  /// (or a later one) and is refused; an earlier one is re-based exactly once.
   _Decision _establishEpoch(EstablishEconomyEpoch command, GameState state) {
-    if (!state.steps.epoch.isOrigin) {
+    final EconomyEpoch epoch = state.steps.epoch;
+    if (epoch.establishedAtStateVersion >= command.toStateVersion) {
       return _Decision.reject(
         RejectionCode.economyEpochAlreadySet,
         command,
-        'the playable economy was already re-based at '
-        '${state.steps.epoch.grantedAtStart} granted / '
-        '${state.steps.epoch.spentAtStart} spent',
+        'the playable economy was already re-based for state '
+        'v${epoch.establishedAtStateVersion} at '
+        '${epoch.grantedAtStart} granted / ${epoch.spentAtStart} spent; '
+        'v${command.toStateVersion} may not re-base it again',
       );
     }
     return _Decision.accept(<GameEvent>[
@@ -190,7 +197,10 @@ final class GameEngine {
         sequence: state.eventSequence,
         grantedAtStart: state.steps.totalGranted,
         spentAtStart: state.steps.totalSpent,
+        previousGrantedAtStart: epoch.grantedAtStart,
+        previousSpentAtStart: epoch.spentAtStart,
         fromStateVersion: command.fromStateVersion,
+        toStateVersion: command.toStateVersion,
       ),
     ]);
   }

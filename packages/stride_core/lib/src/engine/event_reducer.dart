@@ -65,6 +65,7 @@ final class EventReducer {
           epoch: EconomyEpoch(
             grantedAtStart: event.grantedAtStart,
             spentAtStart: event.spentAtStart,
+            establishedAtStateVersion: event.toStateVersion,
           ),
         ),
       ),

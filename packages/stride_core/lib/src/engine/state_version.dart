@@ -7,13 +7,16 @@ import 'package:meta/meta.dart';
 /// content change, a new field on the player is a state change. Sharing one
 /// number would force a content edit to look like a save-breaking change.
 ///
-/// **This is still not a migration framework**, and deliberately so. There is no
-/// registry of migration steps and no chain of transformations. What exists is a
-/// table of *direct decoders per historical version* (`StateCodecs`), plus one
-/// place — `BootstrapCoordinator` — that asks [migrationRequired] and applies the
-/// single upgrade this project has needed. A framework would be built for
-/// migrations nobody has written; two decoders and one branch are built for the
-/// one that exists.
+/// **This is still not a migration framework.** *Decoding* is a table of direct
+/// decoders per historical version (`StateCodecs`) — a v1 save is read by the
+/// v1 decoder, never by v1→v2→v3 transformations of its JSON. What *is* a
+/// chain is the **meaning** applied after decoding: `StateMigrations` is an
+/// explicit table of one step per version bump, each declaring in code whether
+/// it re-bases the economy and which decision authorised it, and
+/// `BootstrapCoordinator` walks the steps from the save's version to [current]
+/// inside one transaction. The table exists so that a re-basing can never
+/// happen as a side effect of a format bump: a future v3→v4 that only adds a
+/// field says `rebasesEconomy: false` and touches no balance.
 ///
 /// ## Version history
 ///
@@ -21,6 +24,7 @@ import 'package:meta/meta.dart';
 /// |---:|---|---|
 /// | 1 | F-03 | The original state shape |
 /// | 2 | Playable Phase 2 | `steps.epoch` — the playable-economy cutover (`DECISIONS/0016`) |
+/// | 3 | Transformation Build 01 | `steps.epoch.establishedAtStateVersion` — the Transformation playtest epoch (`DECISIONS/0018`) |
 @immutable
 final class StateVersion implements Comparable<StateVersion> {
   const StateVersion(this.value);
@@ -28,15 +32,16 @@ final class StateVersion implements Comparable<StateVersion> {
   final int value;
 
   /// The version new games are created at.
-  static const StateVersion current = StateVersion(2);
+  static const StateVersion current = StateVersion(3);
 
   /// The oldest version this build can read.
   ///
-  /// **Version 1 must stay readable.** The owner's device holds a v1 save
-  /// carrying the whole Phase 1 acceptance run, and that save is the input the
-  /// Phase 2 cutover exists to migrate. Raising this floor would not "drop
-  /// legacy support" — it would refuse to load the one save the migration is
-  /// for.
+  /// **Version 1 must stay readable.** The owner's device held a v1 save
+  /// carrying the whole Phase 1 acceptance run, and a v1 save is still the
+  /// input the Phase 2 cutover exists to migrate — through the v1→v2 step and
+  /// then the v2→v3 one, in a single launch. Raising this floor would not
+  /// "drop legacy support" — it would refuse to load the one save the
+  /// migration is for.
   static const StateVersion minimumSupported = StateVersion(1);
 
   static bool supports(int version) =>
@@ -44,8 +49,8 @@ final class StateVersion implements Comparable<StateVersion> {
 
   /// Whether a state at [version] must be migrated before it is played.
   ///
-  /// The single durable signal that the Phase 2 cutover has not yet run on this
-  /// save. It is deliberately the *only* such signal — see
+  /// The single durable signal that some `StateMigrations` step has not yet
+  /// run on this save. It is deliberately the *only* such signal — see
   /// `EstablishEconomyEpoch` for why a boolean beside it would be a second
   /// mechanism recording one fact.
   static bool migrationRequired(int version) =>
