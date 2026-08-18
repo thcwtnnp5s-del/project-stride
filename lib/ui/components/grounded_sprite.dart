@@ -82,9 +82,20 @@ class GroundedSprite extends StatelessWidget {
     required this.assetPath,
     required this.footprint,
     this.scale = 2,
+    this.canvas = 64,
+    this.canvasHeight,
   });
 
   final String assetPath;
+
+  /// Native frame width, in sprite pixels. 64 for a Traveler sprite; smaller
+  /// for an ambient companion layer such as the cat. Every canvas gets the same
+  /// footprint-derived shadow, which is the point of the widget.
+  final int canvas;
+
+  /// Native frame height; defaults to [canvas] (square). Three ambient scenes
+  /// are 80 × 72 and one is 96 × 64 — see `ambient_assets.dart`.
+  final int? canvasHeight;
 
   /// Where this sprite meets the ground, measured at packaging time.
   final SpriteFootprint footprint;
@@ -93,7 +104,15 @@ class GroundedSprite extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PixelAsset sprite = PixelAsset.sprite(assetPath, scale: scale);
+    final int height = canvasHeight ?? canvas;
+    final PixelAsset sprite = canvas == 64 && height == 64
+        ? PixelAsset.sprite(assetPath, scale: scale)
+        : PixelAsset(
+            assetPath: assetPath,
+            nativeWidth: canvas,
+            nativeHeight: height,
+            scale: scale,
+          );
     final double bleed = ContactShadowSpec.bleed * scale;
 
     return SizedBox(

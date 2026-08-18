@@ -38,7 +38,13 @@ class SpriteAnimation extends StatefulWidget {
     required this.footprint,
     required this.playToken,
     this.scale = 2,
+    this.onPlayingChanged,
   });
+
+  /// Called with `true` when a play starts and `false` when it completes, so a
+  /// parent that shows something else while this rests can yield the moment a
+  /// gather begins. Presentation wiring only; nothing is decided here.
+  final ValueChanged<bool>? onPlayingChanged;
 
   /// In order. Frame 0 is the rest pose and is what shows when nothing is
   /// playing.
@@ -62,10 +68,13 @@ class SpriteAnimation extends StatefulWidget {
 
 class _SpriteAnimationState extends State<SpriteAnimation>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: _frameDuration * widget.frames.length,
-  )..addListener(_onTick);
+  late final AnimationController _controller =
+      AnimationController(
+          vsync: this,
+          duration: _frameDuration * widget.frames.length,
+        )
+        ..addListener(_onTick)
+        ..addStatusListener(_onStatus);
 
   int _frame = 0;
   bool _precached = false;
@@ -88,6 +97,17 @@ class _SpriteAnimationState extends State<SpriteAnimation>
     super.didUpdateWidget(old);
     if (widget.playToken != null && widget.playToken != old.playToken) {
       _controller.forward(from: 0);
+    }
+  }
+
+  void _onStatus(AnimationStatus status) {
+    switch (status) {
+      case AnimationStatus.forward:
+        widget.onPlayingChanged?.call(true);
+      case AnimationStatus.completed || AnimationStatus.dismissed:
+        widget.onPlayingChanged?.call(false);
+      case AnimationStatus.reverse:
+        break;
     }
   }
 

@@ -7,10 +7,12 @@ import 'package:stride_core/stride_core.dart'
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
+import '../../components/ambient_stage.dart';
 import '../../components/data_display.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
-import '../../components/sprite_animation.dart';
 import '../../components/surfaces.dart';
+import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
 import '../../state/session_controller.dart';
@@ -292,13 +294,42 @@ class _ActivityStage extends StatelessWidget {
       // Bottom-aligned, not centred: the figure stands on the stage's floor and
       // the slack is headroom. See this class's doc — that is where a swing or
       // a raised tool goes, and slack under a standing figure reads as floating.
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: SpriteAnimation(
-          frames: PixelIcons.gatherFrames,
-          footprint: SpriteFootprints.gather,
-          playToken: playToken,
-        ),
+      //
+      // Between gathers the stage is not empty: `AmbientStage` rotates the
+      // Traveler through a few ambient scenes and settles back on the same
+      // rest pose. Presentation only — the scenes grant nothing, read nothing,
+      // and the gather still plays exactly on `playToken`, taking priority.
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: <Widget>[
+          // The node itself — an oak stand, a copper seam — behind the figure
+          // and to one side, so the stage reads "this figure, at this place".
+          // Terrain art from PixelLab at ×1; the figure in front of it at ×2 is
+          // the same near/far scale split the location vignettes already use.
+          // Not a scene the player moves through: nothing here is a position.
+          if (PixelIcons.nodeFor(node.id) case final String art)
+            Positioned(
+              right: StrideSpace.s6,
+              bottom: 0,
+              child: PixelAsset(
+                assetPath: art,
+                nativeWidth: 96,
+                nativeHeight: 96,
+                scale: 1,
+              ),
+            ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: AmbientStage(
+              gatherFrames: PixelIcons.gatherFrames,
+              gatherFootprint: SpriteFootprints.gather,
+              playToken: playToken,
+              scenes: AmbientAssets.scenes,
+              restFrame: AmbientAssets.restFrame,
+              restFootprint: AmbientAssets.restFootprint,
+            ),
+          ),
+        ],
       ),
     );
   }
