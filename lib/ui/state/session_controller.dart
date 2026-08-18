@@ -107,10 +107,16 @@ class SessionController extends ChangeNotifier {
   /// Idempotent by [_startupSyncDone], so a rebuild cannot fire a second one.
   /// A duplicate would grant nothing anyway — the ledger's slice bookkeeping
   /// sees to that — but it would spend a device read and race the manual button.
+  ///
+  /// Gated by `canSync`, not `isReady`: on the launch that migrates a save to
+  /// the Transformation epoch (`DECISIONS/0018`) the session is deliberately
+  /// not ready for actions until this sync has run, because the sync is what
+  /// completes the migration. `isReady` here would skip the one sync the
+  /// cutover is waiting for.
   Future<void> startupSync() async {
     if (_startupSyncDone) return;
     _startupSyncDone = true;
-    if (!_session.isReady) return;
+    if (!_session.canSync) return;
     await syncSteps();
   }
 
@@ -172,6 +178,13 @@ class SessionController extends ChangeNotifier {
   }
 
   /// The recovery from a stale session: reread the save and rebuild from disk.
+  ///
+  /// If the disk still holds a save that owes the first-sync migration — the
+  /// case where that migration's own commit was the one refused — the reload
+  /// re-enters the pending state, and a sync is run straight after so the
+  /// session does not sit unready waiting for a tap on a control the pending
+  /// state has disabled. The sync grants only what the disk has not already
+  /// recorded, and completes the migration.
   Future<void> reload() async {
     if (_busy) return;
     _busy = true;
@@ -179,6 +192,10 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
     try {
       await _session.reload();
+      if (_session.migrationPending && _session.canSync) {
+        _lastSync = await _session.syncSteps();
+        _armResultTimer();
+      }
     } finally {
       _busy = false;
       notifyListeners();

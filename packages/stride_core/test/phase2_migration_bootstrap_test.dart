@@ -13,12 +13,25 @@
 // is a migration that appears to work, is not durable, and runs a second time
 // against totals that have moved — which is a permanently wrong balance and is
 // silent.
+//
+// ## Since `DECISIONS/0018`: the whole path waits for the first sync
+//
+// A v1 save's path is v1→v2→v3, and the v2→v3 step declares
+// `afterFirstReconcile`. When any step on the path does, the coordinator
+// commits **nothing** at bootstrap and hands the whole path back as
+// `pendingMigration`; the session completes it after its first sync, in one
+// commit. So the v1→v2 cutover no longer lands at bootstrap on this build —
+// it lands with v2→v3, together, after the sync — and the tests below drive
+// that completion the way the session does (`migration_support.dart`). The
+// properties they pin are the same ones: exactly once, durable, retry-safe,
+// and the old save untouched until the commit lands.
 
 import 'package:stride_core/stride_core.dart';
 import 'package:test/test.dart';
 
 import 'bootstrap_test.dart'
     show MemoryIdentityStore, boot, deviceWithSnapshot, liveIdentity;
+import 'migration_support.dart';
 import 'save_support.dart';
 
 /// A v1 state shaped like the owner's device at Phase 1 closure.
@@ -52,64 +65,79 @@ GameState phase1Save() => GameState(
 
 void main() {
   group('the cutover, through the real startup path', () {
-    test('a v1 save migrates on first launch and reports it', () async {
-      final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
-      final ({
-        BootstrapOutcome outcome,
-        FaultingDevice device,
-        MemoryIdentityStore identity,
-        int mintCalls,
-      })
-      run = await boot(
-        device: deviceWithSnapshot(
+    test(
+      'a v1 save is handed back pending, and migrates after the first sync',
+      () async {
+        final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+        final FaultingDevice device = deviceWithSnapshot(
           phase1Save(),
           originSaltFingerprint: liveIdentity.saltFingerprint,
-        ),
-        identity: identity,
-      );
+        );
+        final SaveRepository repo = newRepo(device).repo;
+        final ({
+          BootstrapOutcome outcome,
+          FaultingDevice device,
+          MemoryIdentityStore identity,
+          int mintCalls,
+        })
+        run = await boot(device: device, identity: identity, repository: repo);
 
-      expect(
-        run.outcome,
-        isA<BootstrapExistingGame>(),
-        reason: '${run.outcome}',
-      );
-      final BootstrapExistingGame ready = run.outcome as BootstrapExistingGame;
+        expect(
+          run.outcome,
+          isA<BootstrapExistingGame>(),
+          reason: '${run.outcome}',
+        );
+        final BootstrapExistingGame ready =
+            run.outcome as BootstrapExistingGame;
 
-      // The player is playable, at zero.
-      expect(ready.engine.state.steps.banked, 0);
-      expect(ready.engine.state.stateVersion, StateVersion.current.value);
+        // Nothing committed yet: the save is loaded as it is, at v1, and the
+        // whole path is owed.
+        expect(ready.migration, isNull);
+        expect(ready.pendingMigration, isNotNull);
+        expect(ready.pendingMigration!.fromStateVersion, 1);
+        expect(ready.pendingMigration!.steps, hasLength(2));
+        expect(ready.engine.state.stateVersion, 1);
+        expect(ready.engine.state.steps.banked, 459043);
 
-      // And the launch says what it did, rather than doing it silently.
-      expect(ready.migration, isNotNull);
-      expect(ready.migration!.fromStateVersion, 1);
-      // Since `DECISIONS/0018` a v1 save walks two table steps in one launch
-      // and lands at v3. The whole Phase 1 body is retired by the first step;
-      // the second finds nothing further to retire.
-      expect(ready.migration!.toStateVersion, StateVersion.current.value);
-      expect(ready.migration!.stepsApplied, hasLength(2));
-      expect(ready.migration!.retiredSteps, 459043);
-      expect(ready.migration!.previouslyRetiredSteps, 0);
-      expect(ready.migration!.newlyRetiredSteps, 459043);
-      expect(ready.migration!.bankedAfter, 0);
-      expect(ready.engine.state.steps.epoch.establishedAtStateVersion, 3);
+        final DeferredMigrationRun done = await completeAfterFirstSync(
+          ready,
+          repo,
+          saltFingerprint: liveIdentity.saltFingerprint,
+        );
 
-      // History intact.
-      expect(ready.engine.state.steps.totalGranted, 459223);
-      expect(ready.engine.state.steps.totalSpent, 180);
-      expect(ready.engine.state.steps.checkpoint.syncCount, 12);
-      expect(
-        ready.engine.state.steps.checkpoint.cursor,
-        SyncCursor.ofString('phase-1-closure'),
-        reason: 'the health cursor must survive the cutover verbatim',
-      );
+        // The player is playable, at zero.
+        expect(done.engine.state.steps.banked, 0);
+        expect(done.engine.state.stateVersion, StateVersion.current.value);
 
-      // The commit that must not be optional.
-      expect(
-        run.identity.writes,
-        isEmpty,
-        reason: 'a resumed game writes no identity, migration or not',
-      );
-    });
+        // And the launch says what it did, rather than doing it silently.
+        final StateMigrationReport report = done.report!;
+        expect(report.fromStateVersion, 1);
+        expect(report.toStateVersion, StateVersion.current.value);
+        expect(report.stepsApplied, hasLength(2));
+        expect(report.retiredSteps, 459043);
+        expect(report.previouslyRetiredSteps, 0);
+        expect(report.newlyRetiredSteps, 459043);
+        expect(report.bankedAfter, 0);
+        expect(done.engine.state.steps.epoch.establishedAtStateVersion, 3);
+
+        // History intact.
+        expect(done.engine.state.steps.totalGranted, 459223);
+        expect(done.engine.state.steps.totalSpent, 180);
+        expect(done.engine.state.steps.checkpoint.syncCount, 12);
+        expect(
+          done.engine.state.steps.checkpoint.cursor,
+          SyncCursor.ofString('phase-1-closure'),
+          reason: 'the health cursor must survive the cutover verbatim',
+        );
+
+        // The commit that must not be optional.
+        expect(
+          run.identity.writes,
+          isEmpty,
+          reason: 'a resumed game writes no identity, migration or not',
+        );
+      },
+    );
 
     test(
       'the migration is durable, and the next launch does not rerun',
@@ -121,12 +149,21 @@ void main() {
           originSaltFingerprint: liveIdentity.saltFingerprint,
         );
         final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+        final SaveRepository repo = newRepo(device).repo;
 
-        final BootstrapOutcome first = (await boot(
-          device: device,
-          identity: identity,
-        )).outcome;
-        expect((first as BootstrapExistingGame).migration, isNotNull);
+        final BootstrapExistingGame first =
+            (await boot(
+                  device: device,
+                  identity: identity,
+                  repository: repo,
+                )).outcome
+                as BootstrapExistingGame;
+        final DeferredMigrationRun done = await completeAfterFirstSync(
+          first,
+          repo,
+          saltFingerprint: liveIdentity.saltFingerprint,
+        );
+        expect(done.report, isNotNull);
 
         // A launch is a fresh process reading the same medium.
         final BootstrapOutcome second = (await boot(
@@ -140,6 +177,7 @@ void main() {
           isNull,
           reason: 'the second launch must not migrate anything',
         );
+        expect(again.pendingMigration, isNull);
         expect(again.engine.state.stateVersion, StateVersion.current.value);
         expect(again.engine.state.steps.banked, 0);
         expect(again.engine.state.steps.totalGranted, 459223);
@@ -164,27 +202,32 @@ void main() {
                 repository: repo,
               )).outcome
               as BootstrapExistingGame;
+      final DeferredMigrationRun done = await completeAfterFirstSync(
+        first,
+        repo,
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
 
-      final EngineResult walked = first.engine.execute(
+      final EngineResult walked = done.engine.execute(
         const GrantSyntheticSteps(steps: 5000, reason: 'a real walk'),
       );
       expect(walked.isAccepted, isTrue);
-      expect(first.engine.state.steps.banked, 5000);
+      expect(done.engine.state.steps.banked, 5000);
 
       final CommitOutcome committed = await repo.commit(
-        after: first.engine.state,
+        after: done.engine.state,
         events: walked.events,
         saveId: liveIdentity.saveId,
-        // `expectation`, not `load` — the migration committed between them.
-        expectation: first.expectation,
+        // The head after the migration's commit, not the load's.
+        expectation: done.head,
         originSaltFingerprint: liveIdentity.saltFingerprint,
       );
       expect(
         committed,
         isA<CommitDurable>(),
         reason:
-            'if this is a conflict, BootstrapExistingGame.expectation is wrong '
-            'and every session that migrates loses its first action',
+            'if this is a conflict, the head after the deferred commit is '
+            'wrong and every session that migrates loses its first action',
       );
 
       final BootstrapExistingGame relaunched =
@@ -192,6 +235,7 @@ void main() {
               as BootstrapExistingGame;
 
       expect(relaunched.migration, isNull);
+      expect(relaunched.pendingMigration, isNull);
       expect(
         relaunched.engine.state.steps.banked,
         5000,
@@ -221,15 +265,17 @@ void main() {
   });
 
   group('a migration that cannot be persisted is refused, not played', () {
-    test('startup blocks, and the pre-migration save is untouched', () async {
+    test('the deferred commit refuses, and the old save is untouched', () async {
       final FaultingDevice device = deviceWithSnapshot(
         phase1Save(),
         originSaltFingerprint: liveIdentity.saltFingerprint,
       );
       final String before = device.image();
+      final SaveRepository repo = newRepo(device).repo;
 
-      // The migration commits journal-first, so refusing the journal append is
-      // the earliest and cleanest way to make it undurable.
+      // Bootstrap writes nothing for a deferred path, so the fault is planned
+      // for the migration's own commit. Journal-first, so refusing the append
+      // is the earliest and cleanest way to make it undurable.
       device.plan(<Fault>[
         const Fault(
           op: 'append',
@@ -241,12 +287,22 @@ void main() {
       final BootstrapOutcome outcome = (await boot(
         device: device,
         identity: MemoryIdentityStore(liveIdentity),
+        repository: repo,
       )).outcome;
+      expect(outcome, isA<BootstrapExistingGame>(), reason: '$outcome');
+      expect(device.image(), before, reason: 'bootstrap commits nothing');
 
-      expect(outcome, isA<BootstrapBlocked>(), reason: '$outcome');
+      final DeferredMigrationRun run = await completeAfterFirstSync(
+        outcome as BootstrapExistingGame,
+        repo,
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+      expect(run.migrationCommit, isA<CommitRefused>());
+      expect(run.report, isNull);
       expect(
-        (outcome as BootstrapBlocked).reason,
-        BootstrapBlockReason.stateMigrationNotCommittable,
+        run.engine.state.stateVersion,
+        1,
+        reason: 'the engine handed back is still the unmigrated one',
       );
       expect(
         device.image(),
@@ -265,6 +321,7 @@ void main() {
         originSaltFingerprint: liveIdentity.saltFingerprint,
       );
       final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+      final SaveRepository repo = newRepo(device).repo;
 
       device.plan(<Fault>[
         const Fault(
@@ -273,22 +330,38 @@ void main() {
           effect: FaultEffect.failBefore,
         ),
       ]);
-      expect(
-        (await boot(device: device, identity: identity)).outcome,
-        isA<BootstrapBlocked>(),
+      final DeferredMigrationRun refused = await completeAfterFirstSync(
+        (await boot(
+              device: device,
+              identity: identity,
+              repository: repo,
+            )).outcome
+            as BootstrapExistingGame,
+        repo,
+        saltFingerprint: liveIdentity.saltFingerprint,
       );
+      expect(refused.migrationCommit, isA<CommitRefused>());
 
       device.plan(const <Fault>[]);
+      final FaultingDevice rebooted = device.reboot();
+      final SaveRepository repo2 = newRepo(rebooted).repo;
       final BootstrapOutcome retried = (await boot(
-        device: device.reboot(),
+        device: rebooted,
         identity: identity,
+        repository: repo2,
       )).outcome;
-
       final BootstrapExistingGame ready = retried as BootstrapExistingGame;
-      expect(ready.migration, isNotNull);
-      expect(ready.migration!.retiredSteps, 459043);
-      expect(ready.engine.state.steps.banked, 0);
-      expect(ready.engine.state.steps.totalGranted, 459223);
+      expect(ready.pendingMigration, isNotNull);
+
+      final DeferredMigrationRun done = await completeAfterFirstSync(
+        ready,
+        repo2,
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+      expect(done.migrationCommit, isA<CommitDurable>());
+      expect(done.report!.retiredSteps, 459043);
+      expect(done.engine.state.steps.banked, 0);
+      expect(done.engine.state.steps.totalGranted, 459223);
     });
   });
 }

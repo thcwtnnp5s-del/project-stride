@@ -18,6 +18,12 @@
 // 3. It lowers `totalGranted` — a clawback.
 // 4. **It runs by accident** — a v3→v4 step that only adds a field re-bases
 //    the economy because "older than current" was the whole condition.
+// 5. **It runs too early** — at bootstrap, before the first sync has seen the
+//    steps walked since the last Phase 2 sync, so that backlog lands *after*
+//    the mark and the playtest begins at "whatever I walked yesterday" rather
+//    than at zero. Group 5 is where that is pinned: the step declares
+//    `afterFirstReconcile`, bootstrap commits nothing, and the mark is taken
+//    from the post-sync totals.
 //
 // As in `economy_epoch_cutover_test.dart`, most of the assertions are about
 // what the migration does *not* do.
@@ -27,6 +33,7 @@ import 'package:test/test.dart';
 
 import 'bootstrap_test.dart'
     show MemoryIdentityStore, boot, deviceWithSnapshot, liveIdentity;
+import 'migration_support.dart';
 import 'save_support.dart';
 import 'step_support.dart';
 
@@ -478,9 +485,50 @@ void main() {
     });
   });
 
-  group('5 — through the real startup path', () {
+  group('5 — through the real startup path: the cutover waits for the sync', () {
+    // The owner's device between the last Phase 2 sync and the first
+    // Transformation launch: the walking in between is the *backlog*, and it
+    // is the whole reason the v2→v3 step is deferred. Marked at bootstrap the
+    // epoch would leave it outside the retired body; marked after the first
+    // sync it is inside.
+    const int backlogSteps = 2213;
+    SyncResponse backlog() => incremental(<StepObservation>[
+      obs(phone, 301, backlogSteps),
+    ], next: 'transformation-first-sync');
+
+    test('a v2 save is handed back pending, with nothing committed', () async {
+      final FaultingDevice device = deviceWithSnapshot(
+        phase2Save(),
+        originSaltFingerprint: liveIdentity.saltFingerprint,
+      );
+      final String before = device.image();
+
+      final BootstrapOutcome outcome = (await boot(
+        device: device,
+        identity: MemoryIdentityStore(liveIdentity),
+      )).outcome;
+
+      expect(outcome, isA<BootstrapExistingGame>(), reason: '$outcome');
+      final BootstrapExistingGame ready = outcome as BootstrapExistingGame;
+      expect(ready.migration, isNull);
+      expect(ready.pendingMigration, isNotNull);
+      expect(ready.pendingMigration!.fromStateVersion, 2);
+      expect(
+        ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
+        <int>[3],
+      );
+      // The engine is the save as it is on disk: still v2, still 5,123.
+      expect(ready.engine.state.stateVersion, 2);
+      expect(ready.engine.state.steps.banked, 5123);
+      // And the disk is untouched; the expectation is the load's own head.
+      expect(device.image(), before);
+      expect(ready.expectation.expectedSnapshotGeneration, 0);
+      expect(ready.expectation.expectedLastAppliedTransaction, 1);
+    });
+
     test(
-      'a v2 save migrates on first launch, in one commit, and reports it',
+      '(a) after the first sync the backlog is retired, banked is 0, and the '
+      'cursor moved forward once',
       () async {
         final FaultingDevice device = deviceWithSnapshot(
           phase2Save(),
@@ -488,33 +536,54 @@ void main() {
         );
         final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
         final SaveRepository repo = newRepo(device).repo;
+        final BootstrapExistingGame ready =
+            (await boot(
+                  device: device,
+                  identity: identity,
+                  repository: repo,
+                )).outcome
+                as BootstrapExistingGame;
 
-        final BootstrapOutcome outcome = (await boot(
-          device: device,
-          identity: identity,
-          repository: repo,
-        )).outcome;
+        final DeferredMigrationRun run = await completeAfterFirstSync(
+          ready,
+          repo,
+          backlog: backlog(),
+          saltFingerprint: liveIdentity.saltFingerprint,
+        );
 
-        expect(outcome, isA<BootstrapExistingGame>(), reason: '$outcome');
-        final BootstrapExistingGame ready = outcome as BootstrapExistingGame;
+        expect(run.syncCommit, isA<CommitDurable>());
+        expect(run.migrationCommit, isA<CommitDurable>());
+        final GameState after = run.engine.state;
+        expect(after.stateVersion, 3);
+        expect(after.steps.epoch.establishedAtStateVersion, 3);
+        expect(after.steps.banked, 0);
+        expect(after.steps.totalGranted, 464946 + backlogSteps);
+        expect(
+          after.steps.epoch.grantedAtStart,
+          464946 + backlogSteps,
+          reason: 'the mark includes the backlog — that is the whole point',
+        );
+        expect(after.steps.epoch.spentAtStart, 780);
+        expect(after.steps.epoch.retiredSteps, 464166 + backlogSteps);
+        expect(
+          after.steps.checkpoint.cursor,
+          cursor('transformation-first-sync'),
+          reason: 'advanced by the sync, once; never rewound',
+        );
+        expect(after.steps.checkpoint.syncCount, 15);
 
-        expect(ready.engine.state.steps.banked, 0);
-        expect(ready.engine.state.stateVersion, 3);
-        expect(ready.engine.state.steps.epoch.establishedAtStateVersion, 3);
-        expect(ready.engine.state.steps.totalGranted, 464946);
-
-        final StateMigrationReport report = ready.migration!;
+        final StateMigrationReport report = run.report!;
         expect(report.fromStateVersion, 2);
         expect(report.toStateVersion, 3);
+        expect(report.bankedAfter, 0);
+        expect(report.previouslyRetiredSteps, 459043);
+        expect(report.newlyRetiredSteps, 5123 + backlogSteps);
         expect(report.stepsApplied.map((StateMigrationStep s) => s.to), <int>[
           3,
         ]);
-        expect(report.retiredSteps, 464166);
-        expect(report.previouslyRetiredSteps, 459043);
-        expect(report.newlyRetiredSteps, 5123);
-        expect(report.bankedAfter, 0);
 
-        // One commit: the durable head moved by exactly one transaction.
+        // Two transactions: the sync's, then the migration's — the migration
+        // itself is still one commit.
         final SaveLoaded reread =
             await repo.load(
                   registry: saveRegistry,
@@ -523,11 +592,179 @@ void main() {
                 as SaveLoaded;
         expect(
           reread.lastAppliedTransaction,
-          2,
+          3,
           reason: 'was 1 in the fixture',
         );
-        expect(reread.generation, 1, reason: 'was 0 in the fixture');
         expect(reread.state.stateVersion, 3);
+        expect(reread.state.steps.banked, 0);
+      },
+    );
+
+    test('(b) an immediate repeat sync grants 0 and banked stays 0', () async {
+      final FaultingDevice device = deviceWithSnapshot(
+        phase2Save(),
+        originSaltFingerprint: liveIdentity.saltFingerprint,
+      );
+      final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+      final SaveRepository repo = newRepo(device).repo;
+      final BootstrapExistingGame ready =
+          (await boot(
+                device: device,
+                identity: identity,
+                repository: repo,
+              )).outcome
+              as BootstrapExistingGame;
+      final DeferredMigrationRun run = await completeAfterFirstSync(
+        ready,
+        repo,
+        backlog: backlog(),
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+
+      final EngineResult again = sync(run.engine, backlog());
+      expect(again.isAccepted, isTrue);
+      expect(grantedBy(again), 0);
+      expect(run.engine.state.steps.banked, 0);
+    });
+
+    test(
+      '(c) steps walked after the cutover grant once and are spendable',
+      () async {
+        final FaultingDevice device = deviceWithSnapshot(
+          phase2Save(),
+          originSaltFingerprint: liveIdentity.saltFingerprint,
+        );
+        final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+        final SaveRepository repo = newRepo(device).repo;
+        final BootstrapExistingGame ready =
+            (await boot(
+                  device: device,
+                  identity: identity,
+                  repository: repo,
+                )).outcome
+                as BootstrapExistingGame;
+        final DeferredMigrationRun run = await completeAfterFirstSync(
+          ready,
+          repo,
+          backlog: backlog(),
+          saltFingerprint: liveIdentity.saltFingerprint,
+        );
+
+        final SyncResponse walk = incremental(<StepObservation>[
+          obs(phone, 302, 1187),
+        ], next: 'after-transformation-1');
+        expect(grantedBy(sync(run.engine, walk)), 1187);
+        expect(run.engine.state.steps.banked, 1187);
+        expect(grantedBy(sync(run.engine, walk)), 0);
+        expect(run.engine.state.steps.banked, 1187);
+
+        final EngineResult gathered = run.engine.execute(
+          GatherResource(node: meadow),
+        );
+        expect(gathered.isAccepted, isTrue, reason: '${gathered.rejection}');
+        expect(run.engine.state.steps.banked, 1187 - gatherCost);
+      },
+    );
+
+    test('(d) a crash between the sync commit and the migration commit: the '
+        'relaunch grants 0 and completes it with the same result', () async {
+      final FaultingDevice device = deviceWithSnapshot(
+        phase2Save(),
+        originSaltFingerprint: liveIdentity.saltFingerprint,
+      );
+      final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+      final SaveRepository repo = newRepo(device).repo;
+      final BootstrapExistingGame first =
+          (await boot(
+                device: device,
+                identity: identity,
+                repository: repo,
+              )).outcome
+              as BootstrapExistingGame;
+
+      // The sync lands; the process dies before the migration commit.
+      final DeferredMigrationRun interrupted = await completeAfterFirstSync(
+        first,
+        repo,
+        backlog: backlog(),
+        commitMigration: false,
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+      expect(interrupted.syncCommit, isA<CommitDurable>());
+      expect(interrupted.migrationCommit, isNull);
+
+      // Relaunch: a v2 save whose cursor already advanced.
+      final FaultingDevice rebooted = device.reboot();
+      final SaveRepository repo2 = newRepo(rebooted).repo;
+      final BootstrapExistingGame second =
+          (await boot(
+                device: rebooted,
+                identity: identity,
+                repository: repo2,
+              )).outcome
+              as BootstrapExistingGame;
+      expect(second.pendingMigration, isNotNull);
+      expect(second.engine.state.stateVersion, 2);
+      expect(second.engine.state.steps.totalGranted, 464946 + backlogSteps);
+      expect(
+        second.engine.state.steps.checkpoint.cursor,
+        cursor('transformation-first-sync'),
+      );
+
+      // Its first sync is the same batch again — the provider restates from
+      // the durable cursor — and grants nothing; then the migration lands.
+      final DeferredMigrationRun completed = await completeAfterFirstSync(
+        second,
+        repo2,
+        backlog: backlog(),
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+      expect(completed.migrationCommit, isA<CommitDurable>());
+      expect(completed.engine.state.stateVersion, 3);
+      expect(completed.engine.state.steps.banked, 0);
+      expect(
+        completed.engine.state.steps.totalGranted,
+        464946 + backlogSteps,
+        reason: 'the backlog was granted exactly once, across the crash',
+      );
+      expect(
+        completed.engine.state.steps.epoch.grantedAtStart,
+        464946 + backlogSteps,
+      );
+      expect(completed.report!.newlyRetiredSteps, 5123 + backlogSteps);
+    });
+
+    test(
+      '(f) a sync that observes nothing still completes the cutover, at 0',
+      () async {
+        // Health unavailable or denied at the cutover: the sync has nothing to
+        // reconcile and commits nothing. The migration still runs — the player
+        // must not be held hostage to the provider — and marks what is known.
+        final FaultingDevice device = deviceWithSnapshot(
+          phase2Save(),
+          originSaltFingerprint: liveIdentity.saltFingerprint,
+        );
+        final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+        final SaveRepository repo = newRepo(device).repo;
+        final BootstrapExistingGame ready =
+            (await boot(
+                  device: device,
+                  identity: identity,
+                  repository: repo,
+                )).outcome
+                as BootstrapExistingGame;
+
+        final DeferredMigrationRun run = await completeAfterFirstSync(
+          ready,
+          repo,
+          saltFingerprint: liveIdentity.saltFingerprint,
+        );
+        expect(run.syncCommit, isNull);
+        expect(run.migrationCommit, isA<CommitDurable>());
+        expect(run.engine.state.steps.banked, 0);
+        expect(run.engine.state.steps.totalGranted, 464946);
+        expect(run.report!.newlyRetiredSteps, 5123);
+        expect(run.head.expectedLastAppliedTransaction, 2);
       },
     );
 
@@ -537,22 +774,34 @@ void main() {
         originSaltFingerprint: liveIdentity.saltFingerprint,
       );
       final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+      final SaveRepository repo = newRepo(device).repo;
 
       final BootstrapExistingGame first =
-          (await boot(device: device, identity: identity)).outcome
+          (await boot(
+                device: device,
+                identity: identity,
+                repository: repo,
+              )).outcome
               as BootstrapExistingGame;
-      expect(first.migration, isNotNull);
+      final DeferredMigrationRun run = await completeAfterFirstSync(
+        first,
+        repo,
+        backlog: backlog(),
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+      expect(run.report, isNotNull);
 
       final BootstrapExistingGame second =
           (await boot(device: device.reboot(), identity: identity)).outcome
               as BootstrapExistingGame;
       expect(second.migration, isNull);
+      expect(second.pendingMigration, isNull);
       expect(second.engine.state.steps.banked, 0);
       expect(second.engine.state.steps.epoch.establishedAtStateVersion, 3);
       // And the head did not move: no commit on an ordinary launch.
       expect(
         second.expectation.expectedLastAppliedTransaction,
-        first.expectation.expectedLastAppliedTransaction,
+        run.head.expectedLastAppliedTransaction,
       );
     });
 
@@ -571,14 +820,20 @@ void main() {
                 repository: repo,
               )).outcome
               as BootstrapExistingGame;
-      final EngineResult walked = first.engine.execute(
+      final DeferredMigrationRun run = await completeAfterFirstSync(
+        first,
+        repo,
+        backlog: backlog(),
+        saltFingerprint: liveIdentity.saltFingerprint,
+      );
+      final EngineResult walked = run.engine.execute(
         const GrantSyntheticSteps(steps: 2500, reason: 'a real walk'),
       );
       final CommitOutcome committed = await repo.commit(
-        after: first.engine.state,
+        after: run.engine.state,
         events: walked.events,
         saveId: liveIdentity.saveId,
-        expectation: first.expectation,
+        expectation: run.head,
         originSaltFingerprint: liveIdentity.saltFingerprint,
       );
       expect(committed, isA<CommitDurable>());
@@ -587,75 +842,95 @@ void main() {
           (await boot(device: device.reboot(), identity: identity)).outcome
               as BootstrapExistingGame;
       expect(relaunched.migration, isNull);
+      expect(relaunched.pendingMigration, isNull);
       expect(relaunched.engine.state.steps.banked, 2500);
-      expect(relaunched.engine.state.steps.totalGranted, 464946 + 2500);
-    });
-
-    test('(i) a v1 save walks v1→v2→v3 in one launch and one commit', () async {
-      final GameState v1 = stateAt(
-        1,
-        StepLedger.initial().copyWith(
-          totalObserved: 459223,
-          totalGranted: 459223,
-          totalSpent: 180,
-          checkpoint: SyncCheckpoint(
-            cursor: cursor('phase-1-closure'),
-            syncCount: 12,
-          ),
-          sourceState: SourceState.available,
-        ),
-      );
-      final FaultingDevice device = deviceWithSnapshot(
-        v1,
-        originSaltFingerprint: liveIdentity.saltFingerprint,
-      );
-      final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
-      final SaveRepository repo = newRepo(device).repo;
-
-      final BootstrapExistingGame ready =
-          (await boot(
-                device: device,
-                identity: identity,
-                repository: repo,
-              )).outcome
-              as BootstrapExistingGame;
-
-      expect(ready.engine.state.stateVersion, 3);
-      expect(ready.engine.state.steps.banked, 0);
-      expect(ready.engine.state.steps.epoch.establishedAtStateVersion, 3);
-      expect(ready.engine.state.steps.totalGranted, 459223);
       expect(
-        ready.engine.state.steps.checkpoint.cursor,
-        cursor('phase-1-closure'),
+        relaunched.engine.state.steps.totalGranted,
+        464946 + backlogSteps + 2500,
       );
-
-      final StateMigrationReport report = ready.migration!;
-      expect(report.fromStateVersion, 1);
-      expect(report.toStateVersion, 3);
-      expect(report.stepsApplied.map((StateMigrationStep s) => s.to), <int>[
-        2,
-        3,
-      ]);
-      expect(report.retiredSteps, 459043);
-      expect(report.previouslyRetiredSteps, 0);
-
-      // Exactly one commit, carrying both events.
-      final SaveLoaded reread =
-          await repo.load(
-                registry: saveRegistry,
-                originSaltFingerprint: liveIdentity.saltFingerprint,
-              )
-              as SaveLoaded;
-      expect(reread.lastAppliedTransaction, 2);
-      expect(reread.state.stateVersion, 3);
-      // Note the two epoch events landed in one transaction: after a reboot
-      // the state is v3 and no further migration is required.
-      final BootstrapExistingGame again =
-          (await boot(device: device.reboot(), identity: identity)).outcome
-              as BootstrapExistingGame;
-      expect(again.migration, isNull);
-      expect(again.engine.state.steps.epoch.establishedAtStateVersion, 3);
     });
+
+    test(
+      '(i) a v1 save defers the whole path and lands at v3 in one commit',
+      () async {
+        // The path v1→v2→v3 contains a deferring step, so *all* of it waits:
+        // a v1 save is not committed at v2 in between. Same one-transaction
+        // property `DECISIONS/0018` §4 requires, reached the same way.
+        final GameState v1 = stateAt(
+          1,
+          StepLedger.initial().copyWith(
+            totalObserved: 459223,
+            totalGranted: 459223,
+            totalSpent: 180,
+            checkpoint: SyncCheckpoint(
+              cursor: cursor('phase-1-closure'),
+              syncCount: 12,
+            ),
+            sourceState: SourceState.available,
+          ),
+        );
+        final FaultingDevice device = deviceWithSnapshot(
+          v1,
+          originSaltFingerprint: liveIdentity.saltFingerprint,
+        );
+        final MemoryIdentityStore identity = MemoryIdentityStore(liveIdentity);
+        final SaveRepository repo = newRepo(device).repo;
+
+        final BootstrapExistingGame ready =
+            (await boot(
+                  device: device,
+                  identity: identity,
+                  repository: repo,
+                )).outcome
+                as BootstrapExistingGame;
+        expect(ready.migration, isNull);
+        expect(ready.engine.state.stateVersion, 1);
+        expect(
+          ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
+          <int>[2, 3],
+        );
+
+        final DeferredMigrationRun run = await completeAfterFirstSync(
+          ready,
+          repo,
+          saltFingerprint: liveIdentity.saltFingerprint,
+        );
+        expect(run.engine.state.stateVersion, 3);
+        expect(run.engine.state.steps.banked, 0);
+        expect(run.engine.state.steps.epoch.establishedAtStateVersion, 3);
+        expect(run.engine.state.steps.totalGranted, 459223);
+        expect(
+          run.engine.state.steps.checkpoint.cursor,
+          cursor('phase-1-closure'),
+        );
+
+        final StateMigrationReport report = run.report!;
+        expect(report.fromStateVersion, 1);
+        expect(report.toStateVersion, 3);
+        expect(report.stepsApplied.map((StateMigrationStep s) => s.to), <int>[
+          2,
+          3,
+        ]);
+        expect(report.retiredSteps, 459043);
+        expect(report.previouslyRetiredSteps, 0);
+
+        // Exactly one commit, carrying both events.
+        final SaveLoaded reread =
+            await repo.load(
+                  registry: saveRegistry,
+                  originSaltFingerprint: liveIdentity.saltFingerprint,
+                )
+                as SaveLoaded;
+        expect(reread.lastAppliedTransaction, 2);
+        expect(reread.state.stateVersion, 3);
+        final BootstrapExistingGame again =
+            (await boot(device: device.reboot(), identity: identity)).outcome
+                as BootstrapExistingGame;
+        expect(again.migration, isNull);
+        expect(again.pendingMigration, isNull);
+        expect(again.engine.state.steps.epoch.establishedAtStateVersion, 3);
+      },
+    );
 
     test(
       'a new game starts at v3, at the origin, and never migrates',
@@ -667,5 +942,51 @@ void main() {
         expect(fresh.engine.state.steps.epoch.establishedAtStateVersion, 0);
       },
     );
+  });
+
+  group('6 — the codec writes and reads an old-version state unchanged', () {
+    test('a v2 state with a sync applied round-trips as v2', () {
+      // The sync's commit happens while the in-memory state is still v2. The
+      // encoder writes `state.stateVersion` into both the header and the
+      // payload, and the v2 decoder ignores the one field it never wrote —
+      // `establishedAtStateVersion` — deriving it again from the marks. So the
+      // next launch reads a v2 save and re-enters the pending path.
+      final GameEngine engine = GameEngine(
+        registry: saveRegistry,
+        state: phase2Save(),
+      );
+      expect(engine.state.stateVersion, 2);
+      final EngineResult synced = sync(
+        engine,
+        incremental(<StepObservation>[obs(phone, 301, 2213)], next: 'x'),
+      );
+      expect(grantedBy(synced), 2213);
+      expect(engine.state.stateVersion, 2, reason: 'a sync moves no version');
+
+      final SaveEnvelope reloaded = decodeEnvelope(
+        unframe(
+          encodeSnapshot(
+            state: engine.state,
+            saveId: 'v2-after-sync',
+            generation: 1,
+            lastAppliedTransaction: 2,
+            originSaltFingerprint: null,
+          ),
+        ).payload!,
+      );
+      expect(reloaded.gameStateVersion, 2);
+      expect(reloaded.state.stateVersion, 2);
+      expect(
+        StateVersion.migrationRequired(reloaded.state.stateVersion),
+        isTrue,
+      );
+      expect(reloaded.state.steps.epoch.establishedAtStateVersion, 2);
+      expect(reloaded.state.steps.totalGranted, 464946 + 2213);
+      expect(reloaded.state.steps.checkpoint.cursor, cursor('x'));
+      expect(
+        canonicalDurableGameState(reloaded.state),
+        canonicalDurableGameState(engine.state),
+      );
+    });
   });
 }

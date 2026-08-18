@@ -301,6 +301,130 @@ final class StateMigrationReport {
       'banked=$bankedAfter)';
 }
 
+/// The result of applying a migration path to a state, in memory.
+///
+/// Pure. Nothing here has touched storage; the caller commits [engine]'s state
+/// and [events] together, once, and only a `CommitDurable` makes the migration
+/// real.
+@immutable
+sealed class StateMigrationApplication {
+  const StateMigrationApplication();
+}
+
+/// Every step applied. [engine] holds the migrated state; [events] is what the
+/// steps produced, to be committed with it; [report] is what happened.
+final class StateMigrationApplied extends StateMigrationApplication {
+  const StateMigrationApplied({
+    required this.engine,
+    required this.events,
+    required this.report,
+  });
+
+  final GameEngine engine;
+  final List<GameEvent> events;
+  final StateMigrationReport report;
+}
+
+/// A step's command was refused by the engine. Only reachable if the state
+/// already carried an epoch established at or beyond the step's version, which
+/// no decoder for an older version can produce.
+final class StateMigrationRefused extends StateMigrationApplication {
+  const StateMigrationRefused({required this.step, required this.rejection});
+
+  final StateMigrationStep step;
+  final CommandRejection rejection;
+}
+
+/// Applies [path] to [state], exactly as the coordinator does: reshape to the
+/// current version first, then every re-basing step's `EstablishEconomyEpoch`,
+/// in order, through the real engine.
+///
+/// The one implementation of "run the migration table", shared by the
+/// bootstrap-time path and the deferred one, so the two cannot drift.
+StateMigrationApplication applyStateMigrationPath({
+  required ContentRegistry registry,
+  required GameState state,
+  required List<StateMigrationStep> path,
+}) {
+  final int from = state.stateVersion;
+  final EconomyEpoch epochBefore = state.steps.epoch;
+
+  // Format first, meaning second. `migratedToCurrentVersion` restates the
+  // shape; the steps supply what the new shape *means*.
+  final GameEngine engine = GameEngine(
+    registry: registry,
+    state: state.migratedToCurrentVersion(),
+  );
+
+  final List<GameEvent> events = <GameEvent>[];
+  for (final StateMigrationStep step in path) {
+    if (!step.rebasesEconomy) continue;
+    final EngineResult result = engine.execute(
+      EstablishEconomyEpoch(
+        fromStateVersion: step.from,
+        toStateVersion: step.to,
+      ),
+    );
+    final CommandRejection? refused = result.rejection;
+    if (refused != null) {
+      return StateMigrationRefused(step: step, rejection: refused);
+    }
+    events.addAll(result.events);
+  }
+
+  return StateMigrationApplied(
+    engine: engine,
+    events: events,
+    report: StateMigrationReport(
+      fromStateVersion: from,
+      toStateVersion: StateVersion.current.value,
+      retiredSteps: engine.state.steps.epoch.retiredSteps,
+      previouslyRetiredSteps: epochBefore.retiredSteps,
+      bankedAfter: engine.state.steps.banked,
+      stepsApplied: path,
+    ),
+  );
+}
+
+/// A migration the coordinator loaded but deliberately did not commit.
+///
+/// Produced when the save's remaining path contains a step that says
+/// `afterFirstReconcile` (`StateMigrationStep.afterFirstReconcile`). The engine
+/// handed back with it is at the save's **on-disk** version, and every commit
+/// the session makes before completing the migration — the first sync's, above
+/// all — is written at that version too. The next launch therefore reads an
+/// old-version save, finds the same pending migration, and completes it then if
+/// this launch could not; exactly-once is still the state version.
+///
+/// [apply] runs the whole path over whatever state the session has reached —
+/// **after** the first sync, so the epoch marks totals that include the
+/// backlog. The session commits the result once, through its ordinary commit
+/// path.
+@immutable
+final class PendingStateMigration {
+  const PendingStateMigration({
+    required this.fromStateVersion,
+    required this.steps,
+  });
+
+  /// The version the save was read at.
+  final int fromStateVersion;
+
+  /// The whole remaining path, in order.
+  final List<StateMigrationStep> steps;
+
+  /// Applies [steps] to [state]. Pure; see [applyStateMigrationPath].
+  StateMigrationApplication apply({
+    required ContentRegistry registry,
+    required GameState state,
+  }) => applyStateMigrationPath(registry: registry, state: state, path: steps);
+
+  @override
+  String toString() =>
+      'PendingStateMigration(v$fromStateVersion→v${StateVersion.current.value}; '
+      'steps=${steps.length})';
+}
+
 /// An existing save loaded.
 final class BootstrapExistingGame extends BootstrapOutcome {
   BootstrapExistingGame({
@@ -309,7 +433,11 @@ final class BootstrapExistingGame extends BootstrapOutcome {
     required this.identity,
     required this.load,
     this.migration,
-  });
+    this.pendingMigration,
+  }) : assert(
+         migration == null || pendingMigration == null,
+         'a migration is either done or pending, not both',
+       );
 
   final GameEngine engine;
   final ContentRegistry registry;
@@ -323,8 +451,14 @@ final class BootstrapExistingGame extends BootstrapOutcome {
   /// [CommitExpectation] must use [expectation], not these.
   final SaveLoaded load;
 
-  /// Set when this launch migrated the save. Null on every ordinary launch.
+  /// Set when this launch migrated the save at bootstrap. Null on every
+  /// ordinary launch, and null when the migration is [pendingMigration].
   final StateMigrationReport? migration;
+
+  /// Set when the save needs a migration that must wait for the session's first
+  /// foreground sync. Nothing was committed; [engine] is at the save's on-disk
+  /// version, and [expectation] is the load's own head.
+  final PendingStateMigration? pendingMigration;
 
   /// The compare-and-swap expectation for this session's next commit.
   ///
@@ -706,7 +840,9 @@ final class BootstrapCoordinator {
     );
   }
 
-  /// Brings an older save up to [StateVersion.current], durably, exactly once.
+  /// Brings an older save up to [StateVersion.current], durably, exactly once
+  /// — at bootstrap, or, for a path that must see the first sync, by handing
+  /// the session a [PendingStateMigration] to complete (see the last section).
   ///
   /// ## Why this runs here and not in the decoder
   ///
@@ -742,6 +878,38 @@ final class BootstrapCoordinator {
   /// pre-migration save is still on disk, unchanged, and the next launch derives
   /// the identical migration from the identical inputs. There is no partial
   /// state to detect and no repair to run, because nothing was written.
+  ///
+  /// ## The deferred path — a step that must see the first sync
+  ///
+  /// A re-basing step marks the epoch at the ledger's *current* totals, and at
+  /// bootstrap those totals do not include the steps walked since the player's
+  /// last sync. A bootstrap-time v2→v3 mark would leave that backlog outside the
+  /// retired body, and the first sync — which runs after the first frame —
+  /// would then grant it as spendable: the owner's playtest would begin at
+  /// "whatever I walked since yesterday" rather than at zero.
+  ///
+  /// So a step may declare `afterFirstReconcile`, and when any step on the
+  /// save's remaining path does, this method **commits nothing**. It returns
+  /// [BootstrapExistingGame] with the engine at the save's on-disk version and
+  /// [BootstrapExistingGame.pendingMigration] carrying the whole path. The
+  /// session runs its first foreground sync against that engine — the sync
+  /// commits at the old version, which the codec writes and the next launch
+  /// reads back as that version — and then applies the path to the post-sync
+  /// state, through [PendingStateMigration.apply], and commits once.
+  ///
+  /// The whole path is deferred, not just the deferring step, so the migration
+  /// remains one commit; a v1 save is not committed at v2 in between. That is
+  /// the same one-transaction property this method already has, and it costs
+  /// nothing here: a v1 save's Phase 1 body would be retired by the v1→v2 mark
+  /// either way, and the v2→v3 mark then finds nothing to add.
+  ///
+  /// Exactly-once is unchanged: the version is still the only signal. A crash
+  /// between the sync's commit and the migration's commit leaves an old-version
+  /// save whose cursor has already advanced; the next launch re-enters this
+  /// path, its first sync grants nothing new, and the migration completes then
+  /// with the same result. If the migration's commit is refused, the session
+  /// goes stale like any other refused commit and a reload re-enters the
+  /// pending state from disk.
   Future<BootstrapOutcome> _migrate(
     ContentRegistry registry,
     SaveLoaded load,
@@ -749,43 +917,44 @@ final class BootstrapCoordinator {
   ) async {
     final int from = load.state.stateVersion;
     final List<StateMigrationStep> path = StateMigrations.pathFrom(from);
-    final EconomyEpoch epochBefore = load.state.steps.epoch;
 
-    // Format first, meaning second. `migratedToCurrentVersion` restates the
-    // shape; the steps supply what the new shape *means*.
-    final GameState reshaped = load.state.migratedToCurrentVersion();
-    final GameEngine engine = GameEngine(registry: registry, state: reshaped);
-
-    final List<GameEvent> events = <GameEvent>[];
-    for (final StateMigrationStep step in path) {
-      if (!step.rebasesEconomy) continue;
-      final EngineResult result = engine.execute(
-        EstablishEconomyEpoch(
-          fromStateVersion: step.from,
-          toStateVersion: step.to,
+    if (StateMigrations.defersPastFirstReconcile(path)) {
+      return BootstrapExistingGame(
+        engine: GameEngine(registry: registry, state: load.state),
+        registry: registry,
+        identity: identity,
+        load: load,
+        pendingMigration: PendingStateMigration(
+          fromStateVersion: from,
+          steps: path,
         ),
       );
-      final CommandRejection? refused = result.rejection;
-      if (refused != null) {
-        // Only reachable if the save already carried an epoch established at
-        // or beyond this step's version, which no decoder for an older version
-        // can produce. Refused rather than ignored: a migration that cannot
-        // explain itself must not proceed quietly.
-        return BootstrapBlocked(
-          reason: BootstrapBlockReason.stateMigrationNotCommittable,
-          stoppedAt: BootstrapPhase.validatingState,
-          explanation:
-              'Stride could not upgrade your saved progress. Nothing was '
-              'changed, and your progress is kept.',
-          detail: <String>['$step', refused.format()],
-        );
-      }
-      events.addAll(result.events);
     }
 
+    final StateMigrationApplication applied = applyStateMigrationPath(
+      registry: registry,
+      state: load.state,
+      path: path,
+    );
+    if (applied is StateMigrationRefused) {
+      // Only reachable if the save already carried an epoch established at
+      // or beyond this step's version, which no decoder for an older version
+      // can produce. Refused rather than ignored: a migration that cannot
+      // explain itself must not proceed quietly.
+      return BootstrapBlocked(
+        reason: BootstrapBlockReason.stateMigrationNotCommittable,
+        stoppedAt: BootstrapPhase.validatingState,
+        explanation:
+            'Stride could not upgrade your saved progress. Nothing was '
+            'changed, and your progress is kept.',
+        detail: <String>['${applied.step}', applied.rejection.format()],
+      );
+    }
+    final StateMigrationApplied migrated = applied as StateMigrationApplied;
+
     final CommitOutcome outcome = await repository.commit(
-      after: engine.state,
-      events: events,
+      after: migrated.engine.state,
+      events: migrated.events,
       saveId: load.saveId,
       expectation: CommitExpectation(
         expectedSnapshotGeneration: load.generation,
@@ -806,18 +975,11 @@ final class BootstrapCoordinator {
     }
 
     return BootstrapExistingGame(
-      engine: engine,
+      engine: migrated.engine,
       registry: registry,
       identity: identity,
       load: load,
-      migration: StateMigrationReport(
-        fromStateVersion: from,
-        toStateVersion: StateVersion.current.value,
-        retiredSteps: engine.state.steps.epoch.retiredSteps,
-        previouslyRetiredSteps: epochBefore.retiredSteps,
-        bankedAfter: engine.state.steps.banked,
-        stepsApplied: path,
-      ),
+      migration: migrated.report,
     );
   }
 

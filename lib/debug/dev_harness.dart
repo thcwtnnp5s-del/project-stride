@@ -270,6 +270,8 @@ class _DevHarnessScreenState extends State<DevHarnessScreen> {
           spent: session.totalSpent,
           retired: session.retiredSteps,
           migration: session.migration,
+          migrationPending: session.migrationPending,
+          migrationRefusal: session.migrationRefusal,
           lastEvent: _lastEvent,
         ),
         const SizedBox(height: 16),
@@ -501,6 +503,8 @@ class _EnergyCard extends StatelessWidget {
     required this.spent,
     required this.retired,
     required this.migration,
+    required this.migrationPending,
+    required this.migrationRefusal,
     required this.lastEvent,
   });
 
@@ -515,6 +519,15 @@ class _EnergyCard extends StatelessWidget {
   /// Non-null only on the launch that migrated the save. Rendered so the
   /// acceptance script can see the cutover happen once and never again.
   final StateMigrationReport? migration;
+
+  /// True between load and the first sync on the launch that migrates a v2
+  /// save (`DECISIONS/0018`): the cutover is waiting to see the backlog, and
+  /// `usable` is the zero it will leave. Rendered so the script can see the
+  /// order — pending, then the report — rather than infer it.
+  final bool migrationPending;
+
+  /// Set only if the engine refused the pending migration. Should never show.
+  final String? migrationRefusal;
 
   final String? lastEvent;
 
@@ -539,6 +552,20 @@ class _EnergyCard extends StatelessWidget {
               'granted $granted · spent $spent · retired $retired',
               style: theme.textTheme.bodySmall,
             ),
+            if (migrationPending) ...<Widget>[
+              const SizedBox(height: 4),
+              Text(
+                'Save migration pending — completes after the first sync',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            if (migrationRefusal != null) ...<Widget>[
+              const SizedBox(height: 4),
+              Text(
+                'Save migration REFUSED: $migrationRefusal',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             if (migration != null) ...<Widget>[
               const SizedBox(height: 4),
               Text(

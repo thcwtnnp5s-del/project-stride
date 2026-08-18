@@ -37,6 +37,7 @@ final class StateMigrationStep {
     required this.to,
     required this.rebasesEconomy,
     required this.decision,
+    this.afterFirstReconcile = false,
   }) : assert(to == from + 1, 'a step moves exactly one version');
 
   /// The state version this step reads.
@@ -52,12 +53,33 @@ final class StateMigrationStep {
   /// format bump from being a balance reset by accident.
   final bool rebasesEconomy;
 
+  /// Whether this step must be applied **after the first foreground health
+  /// reconciliation** of the launch that migrates, rather than at bootstrap.
+  ///
+  /// A re-basing step marks the epoch at the ledger's *current* totals. At
+  /// bootstrap those totals do not yet include the steps walked between the
+  /// player's last sync and this launch — the unsynced backlog — so a
+  /// bootstrap-time mark would leave that backlog *outside* the retired body,
+  /// and the first sync would then grant it as spendable. `DECISIONS/0018`
+  /// wants the opposite: only walking after the cutover is spendable, and the
+  /// backlog is retired with everything before it. So the step asks to run
+  /// after the sync has had its one chance to observe the backlog.
+  ///
+  /// When any step on a save's remaining path sets this, `BootstrapCoordinator`
+  /// commits **nothing** at bootstrap and hands the whole path back as a
+  /// `PendingStateMigration` for the session to complete after its first sync
+  /// — the whole path, not the tail, so that the migration is still one commit
+  /// (`DECISIONS/0018` §4). False for a step that has no reason to wait: the
+  /// Phase 2 cutover ran at bootstrap and its saves are already durable.
+  final bool afterFirstReconcile;
+
   /// The `DECISIONS/` document that authorised this step.
   final String decision;
 
   @override
   String toString() =>
       'StateMigrationStep(v$from→v$to; rebasesEconomy=$rebasesEconomy; '
+      '${afterFirstReconcile ? 'afterFirstReconcile; ' : ''}'
       '$decision)';
 }
 
@@ -85,13 +107,23 @@ final class StateMigrations {
     // The Transformation playtest epoch. The Phase 2 device-validation balance
     // is retired on the same terms, so the first "feels like a game" playtest
     // starts at zero spendable steps. Owner direction, 2026-08-17.
+    //
+    // Deferred past the first sync so the walking between the owner's last
+    // Phase 2 sync and this launch is retired with the rest, rather than
+    // arriving as a spendable balance a second after the cutover.
     StateMigrationStep(
       from: 2,
       to: 3,
       rebasesEconomy: true,
+      afterFirstReconcile: true,
       decision: 'DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md',
     ),
   ];
+
+  /// Whether [path] must wait for the first foreground reconciliation before
+  /// it is applied and committed. True when any step on it says so.
+  static bool defersPastFirstReconcile(List<StateMigrationStep> path) =>
+      path.any((StateMigrationStep s) => s.afterFirstReconcile);
 
   /// The steps that bring a state at [fromVersion] up to
   /// [StateVersion.current], in the order they must be applied.

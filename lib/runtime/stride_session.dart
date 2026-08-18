@@ -520,9 +520,9 @@ final class ActionReport {
 /// state the app is supposed to be able to present.
 final class StrideSession {
   // The engine and the durable head are positional, and the rest are named.
-  // A named parameter cannot begin with an underscore, so an initializing
-  // formal for a private field is not expressible any other way — the same
-  // constraint `IdentityVault` documents.
+  // They predate the SDK accepting `this._field` as a named initializing
+  // formal; the two migration fields below use that form, and the older three
+  // are left as they are.
   StrideSession._(
     this._engine,
     this._generation,
@@ -536,7 +536,9 @@ final class StrideSession {
     required this.keyingRefusal,
     required this.atlasLayout,
     required this.atlasLayoutProblems,
-    this.migration,
+    // Non-final: a deferred migration fills the first and clears the second.
+    this._migration,
+    this._pendingMigration,
   });
 
   /// Opens storage, runs bootstrap, and installs the device identity into the
@@ -571,6 +573,7 @@ final class StrideSession {
     int generation = -1;
     int lastTransaction = 0;
     StateMigrationReport? migration;
+    PendingStateMigration? pendingMigration;
 
     switch (outcome) {
       case BootstrapNewGame(:final SaveLoaded load):
@@ -590,10 +593,14 @@ final class StrideSession {
         // head. Starting from it would make this session's first real commit
         // fail compare-and-swap, and a conflict surfacing two actions later
         // reads as a storage fault rather than as an arithmetic slip here.
+        //
+        // When the migration is *pending* nothing was committed and
+        // `expectation` is the load's own head; the first sync commits on it.
         final CommitExpectation head = outcome.expectation;
         generation = head.expectedSnapshotGeneration;
         lastTransaction = head.expectedLastAppliedTransaction;
         migration = outcome.migration;
+        pendingMigration = outcome.pendingMigration;
       case BootstrapBlocked():
         // No engine, no health source, nothing opened. The refusal is the
         // whole result and the harness renders it.
@@ -634,6 +641,7 @@ final class StrideSession {
       atlasLayout: atlas.layout,
       atlasLayoutProblems: atlas.problems,
       migration: migration,
+      pendingMigration: pendingMigration,
     );
   }
 
@@ -687,7 +695,36 @@ final class StrideSession {
   /// exists so the acceptance script can see the cutover happen once and then
   /// never again — a migration nobody can observe is one nobody can verify.
   /// The developer harness renders it beside the energy figures.
-  final StateMigrationReport? migration;
+  ///
+  /// For a migration that waits for the first sync (`DECISIONS/0018`) this is
+  /// null until [syncSteps] has completed it — see [migrationPending].
+  StateMigrationReport? get migration => _migration;
+  StateMigrationReport? _migration;
+
+  /// The migration this launch still owes the save, or null.
+  ///
+  /// Set by bootstrap when the save's migration path contains a step that must
+  /// run **after the first foreground reconciliation** — the v2→v3
+  /// Transformation epoch. Bootstrap committed nothing; the engine is at the
+  /// save's on-disk version, and the first [syncSteps] of this launch commits
+  /// the backlog at that version and then applies and commits the migration
+  /// once, through the ordinary commit path. Cleared only by that
+  /// `CommitDurable`; re-derived from disk by [reload].
+  PendingStateMigration? _pendingMigration;
+
+  /// True while a save-version migration is waiting on the first sync.
+  ///
+  /// While true, [isReady] is false — gather, travel and craft refuse with
+  /// `session_not_ready`, because the balance they would spend from is about to
+  /// be retired — and [usableEnergy] projects the zero the cutover leaves. Only
+  /// [syncSteps] proceeds, and it is what clears this.
+  bool get migrationPending => _pendingMigration != null;
+
+  /// Why the pending migration could not be applied, when the engine refused
+  /// it. Null otherwise. Not reachable from a save any decoder produces; kept
+  /// so a refusal is visible rather than silent.
+  String? get migrationRefusal => _migrationRefusal;
+  String? _migrationRefusal;
 
   /// The live engine, or null when the bootstrap was blocked.
   ///
@@ -774,10 +811,33 @@ final class StrideSession {
   /// launch will delete.
   bool get isStale => _stale;
 
-  bool get isReady => engine != null && !_stale && !_inFlight;
+  /// Whether a game action — gather, travel, craft — may be issued now.
+  ///
+  /// False while [migrationPending]: the balance an action would spend from is
+  /// the one the imminent cutover retires. Syncing is gated by [canSync]
+  /// instead, because the sync is what completes the migration.
+  bool get isReady =>
+      engine != null && !_stale && !_inFlight && !migrationPending;
+
+  /// Whether [syncSteps] may run now. Unlike [isReady] this is true while a
+  /// migration is pending — the first sync is the step that completes it.
+  bool get canSync => engine != null && !_stale && !_inFlight;
 
   /// Banked energy: granted and unspent. Never expires (`DECISIONS/0008`).
-  int get usableEnergy => engine?.state.steps.banked ?? 0;
+  ///
+  /// **Projects zero while [migrationPending].** The pending step is a
+  /// deterministic re-basing that leaves `banked` at exactly zero (asserted by
+  /// `transformation_epoch_test.dart`), and it lands within a second of the
+  /// first frame. Showing the pre-cutover figure for that second would flash a
+  /// balance the player is about to see vanish. This is the session's job as
+  /// the projection layer, not a UI's: no widget knows a migration exists. It
+  /// cannot mask a failed migration — a refused migration commit marks the
+  /// session stale, and [reload] re-enters the pending state from disk, so the
+  /// projection is only ever shown ahead of a cutover that will run.
+  /// [totalGranted], [totalSpent] and [retiredSteps] are not projected: they
+  /// are history, and the cutover moves none of them.
+  int get usableEnergy =>
+      migrationPending ? 0 : engine?.state.steps.banked ?? 0;
 
   int get totalGranted => engine?.state.steps.totalGranted ?? 0;
   int get totalSpent => engine?.state.steps.totalSpent ?? 0;
@@ -849,10 +909,69 @@ final class StrideSession {
     }
     _inFlight = true;
     try {
-      return await _syncSteps(maxPages);
+      final SyncReport report = await _syncSteps(maxPages);
+      // After the sync, whatever it did. The pending migration waits for the
+      // sync's one chance to observe the backlog, not for the backlog to have
+      // been observed: an unavailable or denied source at the cutover means
+      // the backlog could not be seen, and the epoch marks what is known.
+      // Waiting for a sync that succeeds would leave the player unable to act
+      // until health cooperates, which `startup_sync_test.dart` says the game
+      // must never do.
+      if (migrationPending && !_stale) await _completeMigration();
+      return report;
     } finally {
       _inFlight = false;
     }
+  }
+
+  /// Applies and commits the migration bootstrap deferred, once, over the
+  /// post-sync state.
+  ///
+  /// The commit goes through [_commit] with the session's current expectation
+  /// — the sync's own commit, if there was one, has already advanced it. On
+  /// `CommitDurable` the engine is swapped for the migrated one, [migration] is
+  /// populated (with `bankedAfter == 0` and the backlog inside the retired
+  /// body), and the pending state clears.
+  ///
+  /// A refused commit is handled exactly like every other refused commit here:
+  /// the session goes stale, the in-memory engine is left at the old version,
+  /// and [reload] rebuilds from disk — which still holds an old-version save
+  /// and so re-enters the pending state. It does not block startup. If the
+  /// process dies before this commit lands, the next launch reads an
+  /// old-version save whose cursor already advanced, its first sync grants
+  /// nothing new, and this runs then with the same result.
+  Future<void> _completeMigration() async {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final PendingStateMigration? pending = _pendingMigration;
+    if (active == null || content == null || pending == null) return;
+
+    final StateMigrationApplication applied = pending.apply(
+      registry: content,
+      state: active.state,
+    );
+    if (applied is StateMigrationRefused) {
+      // Not reachable from a save any decoder produces. Left pending and
+      // reported rather than played: a re-basing that cannot explain itself
+      // must not proceed quietly, and continuing on an unmigrated state would
+      // let the retired balance be spent.
+      _migrationRefusal = '${applied.step}: ${applied.rejection.format()}';
+      return;
+    }
+    final StateMigrationApplied migrated = applied as StateMigrationApplied;
+
+    final CommitOutcome commit = await _commit(
+      migrated.engine,
+      migrated.events,
+    );
+    if (commit is CommitRefused) {
+      _stale = true;
+      return;
+    }
+    _engine = migrated.engine;
+    _migration = migrated.report;
+    _pendingMigration = null;
+    _migrationRefusal = null;
   }
 
   Future<SyncReport> _syncSteps(int maxPages) async {
@@ -1061,7 +1180,7 @@ final class StrideSession {
     final String name = definition?.displayName ?? node.value;
     final int cost = costOf(node) ?? 0;
 
-    if (active == null || content == null || _stale) {
+    if (active == null || content == null || _stale || migrationPending) {
       return ActionReport(
         succeeded: false,
         nodeName: name,
@@ -1069,6 +1188,8 @@ final class StrideSession {
         rejection: 'session_not_ready',
         detail: _stale
             ? 'the last commit did not land; reload before acting'
+            : migrationPending
+            ? 'the save is being brought up to date; sync steps first'
             : 'the game did not start',
       );
     }
@@ -1146,7 +1267,7 @@ final class StrideSession {
     final ContentRegistry? content = registry;
     final String name = _locationName(destination);
 
-    if (active == null || content == null || _stale) {
+    if (active == null || content == null || _stale || migrationPending) {
       return TravelReport(
         succeeded: false,
         destinationName: name,
@@ -1154,6 +1275,8 @@ final class StrideSession {
         rejection: 'session_not_ready',
         detail: _stale
             ? 'the last commit did not land; reload before acting'
+            : migrationPending
+            ? 'the save is being brought up to date; sync steps first'
             : 'the game did not start',
       );
     }
@@ -1226,13 +1349,15 @@ final class StrideSession {
     final ContentRegistry? content = registry;
     final String name = content?.recipes[recipe]?.displayName ?? recipe.value;
 
-    if (active == null || content == null || _stale) {
+    if (active == null || content == null || _stale || migrationPending) {
       return CraftReport(
         succeeded: false,
         recipeName: name,
         rejection: 'session_not_ready',
         detail: _stale
             ? 'the last commit did not land; reload before acting'
+            : migrationPending
+            ? 'the save is being brought up to date; sync steps first'
             : 'the game did not start',
       );
     }
@@ -1490,7 +1615,9 @@ final class StrideSession {
         content.locations[active.state.world.currentLocation];
     if (from == null) return const <TravelOption>[];
 
-    final int banked = active.state.steps.banked;
+    // The projected figure, not the raw one, so a destination is not offered
+    // as affordable out of a balance the pending cutover is about to retire.
+    final int banked = usableEnergy;
     final List<TravelOption> options = <TravelOption>[];
 
     for (final LocationConnection route in from.connections) {
@@ -1708,6 +1835,23 @@ final class StrideSession {
     _lastTransaction = loaded.lastAppliedTransaction;
     _stale = false;
     _engine = GameEngine(registry: content, state: loaded.state);
+    // Re-derived from what is on disk, the same way bootstrap derives it. A
+    // reload after a refused migration commit finds an old-version save and
+    // owes it the same migration; a reload after a durable one finds the
+    // current version and owes nothing. The report from a migration this
+    // launch already completed is kept — it happened, and the disk agrees.
+    if (StateVersion.migrationRequired(loaded.state.stateVersion)) {
+      final List<StateMigrationStep> path = StateMigrations.pathFrom(
+        loaded.state.stateVersion,
+      );
+      _pendingMigration = PendingStateMigration(
+        fromStateVersion: loaded.state.stateVersion,
+        steps: path,
+      );
+    } else {
+      _pendingMigration = null;
+    }
+    _migrationRefusal = null;
   }
 
   /// Erases every local artifact.
