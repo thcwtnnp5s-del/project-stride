@@ -136,7 +136,9 @@ TestFlight route waits on the paid membership.
 ### 1.3 Data persistence across reinstalls — what to expect
 
 - **Reinstall of the same bundle id, signed by the same team** (which is what
-  every 7-day renewal is): iOS performs an in-place upgrade. The app
+  every 7-day renewal is), **by an installer that replaces rather than
+  uninstalls** (§1.4 — `flutter install` does not qualify): iOS performs an
+  in-place upgrade. The app
   container — Documents and Library/Application Support, i.e. **the save** —
   is preserved. The Keychain identity is preserved. HealthKit authorisation is
   keyed to the bundle id and normally persists, so the Health sheet usually
@@ -146,10 +148,88 @@ TestFlight route waits on the paid membership.
   nothing, and the project relies on nothing (`identity_vault_orphan_test`
   covers a save without its identity). Do not delete the app to "refresh" it.
 - **Same bundle id, different team**: iOS refuses to install over the existing
-  app, because the application identifier (team prefix + bundle id) changed.
-  Delete first — and accept the save loss — or keep using the same Apple ID.
+  app, because the application identifier (team prefix + bundle id) changed
+  (Apple TN2319, "rejecting upgrade"). Delete first — and accept the save
+  loss — or keep using the same Apple ID.
 - A save written by the earlier debug/profile install is the same save the
   release build opens; build mode does not change the container or the format.
+
+### 1.4 Updating in place — does the save survive?
+
+**Inspected 2026-08-19** (Windows session; scripts and tool sources read,
+nothing run on the Mac). Prompted by `MILESTONES/TRANSFORMATION_BUILD_01.md`
+§7a: the first Release install arrived on a fresh container (`TOTAL WALKED 0`).
+
+**What the script used to do, and why that wiped the save.** Until this
+inspection `install-device.sh` defaulted to `flutter install --release`. That
+command's output line *Uninstalling old version...* is literal:
+`flutter_tools/lib/src/commands/install.dart` (`installApp`, `uninstall =
+true`, checked at the CI-pinned tag 3.44.8 and on master) calls
+`device.uninstallApp` whenever the app is already present, and *then*
+`device.installApp`. There is no `--no-uninstall` flag; the only flag is
+`--uninstall-only`. On an iOS 17+ phone (`isCoreDevice`) the uninstall is
+`xcrun devicectl device uninstall app --device <id> <bundle id>`; on older
+phones it is `ios-deploy --uninstall_only`. Either way iOS removes the app
+**and its data container** — the two save slots and the journal
+(`DECISIONS/0012`, `0013`) with it. So the §7a fresh container is exactly what
+the default route does to an existing install; no team change is needed to
+explain it. (Team change remains a *second* way to lose the container, below.)
+
+**What preserves the container.** iOS replaces an app in place when a new
+build with the same bundle id **and the same application-identifier prefix
+(Team ID)** is installed over it; the data container (Documents,
+Library/Application Support — where the save is) is carried over. Apple staff
+on the developer forums: an update writes the new bundle, moves the container
+contents across, then removes the old bundle; sandbox contents are not
+touched. Installers that do this, on this Mac/phone combination:
+
+| Route | Mechanism | Container |
+|---|---|---|
+| `xcrun devicectl device install app --device <id> Runner.app` (Xcode 15+, iOS 17+) | CoreDevice install; replaces in place | **kept** |
+| `flutter run --release` | on iOS 17+ Flutter calls the same `devicectl device install app` (no uninstall unless `--uninstall-first`, default off), then launches | **kept** |
+| `ios-deploy --bundle Runner.app` (no `-r`) | in-place install | **kept** |
+| Xcode ▸ Run | in-place install (but Debug — M-09) | kept |
+| `flutter install --release` | **uninstall, then install** | **deleted** |
+| `ios-deploy --uninstall`/`-r` or `--uninstall_only` | uninstall (`AMDeviceSecureUninstallApplication`; README: "app cache and data are cleared") | deleted |
+| Deleting the app on the phone | uninstall | deleted |
+| Same bundle id, **different Team ID** | iOS refuses the upgrade — *"Upgrade's application-identifier entitlement string … does not match installed application's … ; rejecting upgrade"* (Apple TN2319). Nothing is installed; the old app and save stay until you delete the app, which deletes the save | refused → (deleted if you then delete) |
+| Profile expiry (day 8, free team) | nothing is uninstalled; the app just refuses to launch until re-signed and replaced in place | kept |
+
+**Recommended routine-update command** (what the scripts now do):
+
+```bash
+bash Scripts/ios/build-release-device.sh          # build Release, verify AOT, then
+#   → install-device.sh: xcrun devicectl device install app (in place) + launch
+bash Scripts/ios/install-device.sh                # install the last build again, in place
+bash Scripts/ios/install-device.sh --run          # flutter run --release; also in place; press q
+```
+
+`flutter install` is now only reachable as `install-device.sh --wipe-reinstall`,
+which asks you to type `WIPE`; use it only when a fresh container is the point.
+
+**Verification the owner should run on the Mac (UNVERIFIED here — nothing in
+this section was executed on hardware):** note `TOTAL WALKED` on the phone,
+run `bash Scripts/ios/build-release-device.sh` over the existing app, unplug,
+launch: `TOTAL WALKED` must show the same figure and the Health sheet must not
+reappear. If it shows 0, the install path uninstalled — copy the script's
+console output into the milestone record. Also unverified: that `xcrun
+devicectl list devices --hide-headers` is accepted by the installed Xcode (if
+not, the script falls back to `flutter run --release`, which is also in place).
+
+**Backup / export before an install?** Not needed for routine updates once
+the install is in place, and an in-container backup would be pointless: it
+lives in the same container and dies with it. A real export (share sheet /
+Files) would be a product feature, not an install-script concern, and is
+**not** built here. Until it exists the protection is procedural: never
+delete the app, never run `--wipe-reinstall` on a save you want, and always
+sign with the same Apple ID (Team ID) as the build already on the phone.
+
+Sources: `flutter_tools` `commands/install.dart`, `ios/devices.dart`,
+`ios/core_devices.dart`, `ios/ios_deploy.dart` at tag 3.44.8; ios-deploy
+README (`-r, --uninstall … app cache and data are cleared`); Apple TN2319
+"Upgrade's application-identifier does not match the installed app"; Apple
+Developer Forums thread 111903 (Documents persist across updates; the
+container is moved, not recreated).
 
 ---
 
@@ -159,7 +239,7 @@ TestFlight route waits on the paid membership.
 |---|---|
 | `TECHNICAL/IOS_DEVICE_INSTALL.md` | this document |
 | `Scripts/ios/build-release-device.sh` | preconditions → record `flutter --version` (and warn against the CI pin) → signing source → optional `flutter clean` → `flutter pub get` → **`flutter build ios --release` (codesigned)** → verify AOT + entitlements → hand off to install |
-| `Scripts/ios/install-device.sh` | `flutter install --release` by default; `--devicectl` uses `xcrun devicectl device install app` + `process launch`; `--run` uses `flutter run --release` as the always-works fallback. Prints the phone-side taps |
+| `Scripts/ios/install-device.sh` | `xcrun devicectl device install app` + `process launch` by default (in place; falls back to `flutter run --release`, also in place); `--run` forces `flutter run --release`; `--wipe-reinstall` is the old `flutter install --release` (uninstall + install, deletes the save) behind a typed confirmation — §1.4. Prints the phone-side taps |
 | `ios/Flutter/Debug.xcconfig`, `ios/Flutter/Release.xcconfig` | `+ #include? "Local.xcconfig"` |
 | `ios/Flutter/Local.xcconfig.example` | tracked template with the placeholder `ABCDE12345` |
 | `.gitignore` | `+ ios/Flutter/Local.xcconfig` (last lines of the file) |
@@ -255,6 +335,8 @@ evaluation that RULES G-2 / MISTAKES M-02 reserve for its own branch.
   the guard and the release script refuse a bundle that carries it.
 - Ad-hoc and TestFlight distribution do not exist for this project until the
   paid Developer Program is joined (DECISIONS/0011).
-- `flutter install --release` installs the bundle that `flutter build ios
-  --release` produced; it does not rebuild. `flutter run --release` builds,
-  installs and launches, and the app remains after `q`.
+- The routine install is IN PLACE (`xcrun devicectl device install app`, or
+  `flutter run --release`); the save survives. `flutter install` uninstalls
+  first and is only reachable as `install-device.sh --wipe-reinstall` (§1.4).
+  `flutter run --release` builds, installs and launches, and the app remains
+  after `q`.

@@ -14,6 +14,7 @@
 #
 # Usage (from anywhere; the script finds the repository root itself):
 #   bash Scripts/ios/build-release-device.sh [--clean] [--no-install] [--devicectl]
+#   (--devicectl is now the default install route and is accepted for compatibility)
 #
 # Environment (all optional, none ever written to the repository):
 #   STRIDE_IOS_TEAM=<10-char team id>   pass the signing team for this run only
@@ -25,9 +26,12 @@
 #
 # Exit codes: 0 built (and installed), 1 a named precondition or build failure.
 #
-# Idempotent: re-running rebuilds and reinstalls over the existing app; the app
-# container (the save) is preserved by an in-place reinstall of the same bundle
-# id signed by the same team.
+# Idempotent: re-running rebuilds and reinstalls over the existing app IN PLACE
+# (install-device.sh: xcrun devicectl device install app, or flutter run
+# --release). The app container (the save) survives an in-place replace of the
+# same bundle id signed by the same team. It does NOT survive `flutter install`
+# (which uninstalls first) or deleting the app; see TECHNICAL/IOS_DEVICE_INSTALL.md
+# §1.4. This script never calls `flutter install`.
 
 set -euo pipefail
 
