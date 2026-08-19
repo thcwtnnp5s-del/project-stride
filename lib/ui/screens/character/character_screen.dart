@@ -171,7 +171,72 @@ class CharacterScreen extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: StrideSpace.cardGap),
+
+        // COMBAT — the figures the next encounter will be snapshotted from.
+        //
+        // Every one of them is `combatFigures`, a projection of
+        // `CombatRules.loadoutFor` and the level curve — the same function the
+        // engine calls at encounter start. Nothing here is arithmetic in a
+        // widget: "XP to next" is a field, not `threshold - experience` done
+        // here, so the day the curve moves this card moves with it.
+        //
+        // Below the skills, not above them: the skills card is what walking
+        // has built and stays above the fold at 393 dp; where this block sits
+        // in the sheet's order is the owner's call once the slice is played.
+        _CombatBlock(figures: s.combatFigures),
       ],
+    );
+  }
+}
+
+/// Level, XP to next, Max HP, Attack (with the weapon that counts), Defence
+/// (with the armour that counts). Small, in the existing tile style.
+class _CombatBlock extends StatelessWidget {
+  const _CombatBlock({required this.figures});
+
+  final CombatFigures figures;
+
+  @override
+  Widget build(BuildContext context) {
+    final CombatFigures f = figures;
+    final int? next = f.nextLevelThreshold;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeading(label: 'Combat'),
+          const SizedBox(height: StrideSpace.s10),
+          ValueTileRow(
+            tiles: <LabeledValueTile>[
+              LabeledValueTile(label: 'Level', value: '${f.level}'),
+              LabeledValueTile(
+                label: 'Experience',
+                value: formatSteps(f.experience),
+                // At the cap there is no next threshold, and saying so is
+                // more honest than a bar that cannot move.
+                unit: next == null ? 'at the cap' : '/ ${formatSteps(next)}',
+              ),
+              LabeledValueTile(label: 'Max HP', value: '${f.maxHp}'),
+            ],
+          ),
+          const SizedBox(height: StrideSpace.s8),
+          ValueTileRow(
+            tiles: <LabeledValueTile>[
+              LabeledValueTile(
+                label: 'Attack',
+                value: '${f.attack}',
+                unit: f.weaponName ?? 'unarmed',
+              ),
+              LabeledValueTile(
+                label: 'Defence',
+                value: '${f.defence}',
+                unit: f.armorName ?? 'no armour',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

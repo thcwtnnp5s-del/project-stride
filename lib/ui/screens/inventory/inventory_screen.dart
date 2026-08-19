@@ -4,11 +4,19 @@
 /// **L-17**). The icon lets the eye sort the grid; the label removes the
 /// remaining ambiguity.
 ///
-/// ## What is not here, and why
+/// ## Equipping
 ///
-/// **No `EQUIPPED` card.** `EventReducer._started` adds the starting loadout to
-/// *inventory only* — nothing is equipped on a new game — and Phase 1 has no
-/// equip affordance. The card would be three permanently empty slots.
+/// `EventReducer._started` adds the starting loadout to *inventory only* —
+/// nothing is equipped on a new game — and gathering nodes require an
+/// **equipped** tool, so without a control here Woodcutting and Mining were
+/// unreachable on the phone. Each equipment tile therefore carries a compact
+/// `Equip` / `Unequip` control and an `EQUIPPED` marker, and the Equipment
+/// group opens with a one-line summary of the three slots. All of it is read
+/// from the session's projections (`equippedIn`, `isEquipped`) and dispatched
+/// through `SessionController` — the screen decides nothing about what may be
+/// worn; the engine refuses, and the refusal is rendered (`RULES.md` E-2).
+///
+/// ## What is not here, and why
 ///
 /// **No category filter pills.** Phase 1's item set is five kinds, and the pills
 /// would additionally assert quest and consumable systems that have no items.
@@ -21,9 +29,12 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show ItemCategory;
+import 'package:stride_core/stride_core.dart'
+    show ContentId, EquipmentSlot, ItemCategory;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
+import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
@@ -102,7 +113,15 @@ class InventoryScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: StrideSpace.s6),
                   ],
-                  _ItemGrid(entries: group.entries),
+                  if (group.equipment) ...<Widget>[
+                    const _EquippedSummary(),
+                    if (c.lastEquip case final EquipReport report) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s6),
+                      _EquipResult(report: report, removed: c.lastEquipRemoved),
+                    ],
+                    const SizedBox(height: StrideSpace.s8),
+                  ],
+                  _ItemGrid(entries: group.entries, equipment: group.equipment),
                 ],
               ],
             ),
@@ -137,6 +156,7 @@ class InventoryScreen extends StatelessWidget {
         if (entries.any((InventoryEntry e) => e.category == category))
           _Group(
             label: names[category]!,
+            equipment: category == ItemCategory.equipment,
             entries: entries
                 .where((InventoryEntry e) => e.category == category)
                 .toList(growable: false),
@@ -144,6 +164,7 @@ class InventoryScreen extends StatelessWidget {
       if (entries.any((InventoryEntry e) => e.category == null))
         _Group(
           label: 'Other',
+          equipment: false,
           entries: entries
               .where((InventoryEntry e) => e.category == null)
               .toList(growable: false),
@@ -153,16 +174,117 @@ class InventoryScreen extends StatelessWidget {
 }
 
 class _Group {
-  const _Group({required this.label, required this.entries});
+  const _Group({
+    required this.label,
+    required this.equipment,
+    required this.entries,
+  });
 
   final String label;
+
+  /// Whether these tiles carry the equip control. Only the equipment group
+  /// does — materials and consumables occupy no slot.
+  final bool equipment;
   final List<InventoryEntry> entries;
 }
 
+/// The three slots and what is in each — `—` when empty.
+///
+/// A summary, not a second control: the tiles below carry the buttons. It is
+/// here so the player can see at a glance what they are wielding without
+/// scanning the grid for markers.
+class _EquippedSummary extends StatelessWidget {
+  const _EquippedSummary();
+
+  static const List<(EquipmentSlot, String)> _slots = <(EquipmentSlot, String)>[
+    (EquipmentSlot.weapon, 'Weapon'),
+    (EquipmentSlot.armor, 'Armour'),
+    (EquipmentSlot.tool, 'Tool'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final StrideSession session = SessionScope.of(context).session;
+    return SurfaceBlock(
+      child: Row(
+        children: <Widget>[
+          for (final (EquipmentSlot slot, String label) in _slots)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    label.toUpperCase(),
+                    style: StrideType.compactLabel,
+                    maxLines: 1,
+                  ),
+                  const SizedBox(height: StrideSpace.s2),
+                  AdaptiveText(
+                    _nameOf(session, session.equippedIn(slot)),
+                    style: StrideType.sub,
+                    color: session.equippedIn(slot) == null
+                        ? StrideColors.textMuted
+                        : StrideColors.textPrimary,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The display name of an equipped item, via the same inventory projection
+  /// the grid renders from — an equipped item is always still owned.
+  static String _nameOf(StrideSession session, ContentId? item) {
+    if (item == null) return '—';
+    for (final InventoryEntry e in session.inventoryEntries) {
+      if (e.id == item) return e.displayName;
+    }
+    return item.value;
+  }
+}
+
+class _EquipResult extends StatelessWidget {
+  const _EquipResult({required this.report, required this.removed});
+
+  final EquipReport report;
+  final bool removed;
+
+  @override
+  Widget build(BuildContext context) => SurfaceBlock(
+    child: AdaptiveText(
+      report.succeeded
+          ? removed
+                ? 'Set ${report.itemName} aside.'
+                : 'Equipped ${report.itemName}.'
+          : _refusalText(report),
+      style: StrideType.sub,
+      color: report.succeeded
+          ? StrideColors.textPrimary
+          : StrideColors.textSecondary,
+    ),
+  );
+
+  /// Refusals are keyed on the stable wire code, never on the explanation
+  /// string — the code is the contract and the sentence is free to change.
+  static String _refusalText(EquipReport report) => switch (report.rejection) {
+    'item_not_owned' => 'You no longer have that.',
+    'invalid_equipment_slot' => 'That cannot be worn or wielded.',
+    'unknown_item' => 'That item is not in this content pack.',
+    'slot_empty' => 'Nothing is equipped there.',
+    'session_busy' => 'Something else is still running.',
+    'session_not_ready' => 'The game is not ready. Reload and try again.',
+    'commit_refused' => 'That did not save. Reload before trying again.',
+    _ => 'That could not be equipped.',
+  };
+}
+
 class _ItemGrid extends StatelessWidget {
-  const _ItemGrid({required this.entries});
+  const _ItemGrid({required this.entries, required this.equipment});
 
   final List<InventoryEntry> entries;
+  final bool equipment;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -225,10 +347,13 @@ class _ItemGrid extends StatelessWidget {
           // count, and the tile's own padding — under the ambient scaler, and
           // floored at the designed value so nothing shrinks below the
           // approved proportion.
-          mainAxisExtent: _tileExtent(MediaQuery.textScalerOf(context)),
+          mainAxisExtent: _tileExtent(
+            MediaQuery.textScalerOf(context),
+            equipment: equipment,
+          ),
         ),
         itemBuilder: (BuildContext context, int i) =>
-            _ItemTile(entry: entries[i]),
+            _ItemTile(entry: entries[i], equipment: equipment),
       );
     },
   );
@@ -239,7 +364,11 @@ class _ItemGrid extends StatelessWidget {
   /// particular name uses it, because a grid cannot give one cell a different
   /// height from its neighbours and reserving is the only way the tall case
   /// fits.
-  static double _tileExtent(TextScaler scaler) {
+  ///
+  /// An [equipment] cell additionally spends the `EQUIPPED` marker line and
+  /// the control beneath it — reserved for every cell in the group, equipped
+  /// or not, for the same reason.
+  static double _tileExtent(TextScaler scaler, {required bool equipment}) {
     double lineOf(TextStyle style) =>
         scaler.scale(style.fontSize!) * (style.height ?? 1);
 
@@ -254,9 +383,21 @@ class _ItemGrid extends StatelessWidget {
         lineOf(StrideType.itemName) * 2 +
         lineOf(StrideType.itemCount);
 
-    return needed > StrideGeometry.itemTileMinHeight
+    final double base = needed > StrideGeometry.itemTileMinHeight
         ? needed
         : StrideGeometry.itemTileMinHeight;
+
+    if (!equipment) return base;
+
+    // The marker line, the control at its minimum, and the gaps around them.
+    // The control's own label grows with the scaler inside its minimum, so
+    // only the line above it is scaled here.
+    final double control =
+        StrideSpace.s6 +
+        lineOf(StrideType.compactLabel) +
+        StrideSpace.s6 +
+        StrideGeometry.buttonHeightSecondary;
+    return base + control;
   }
 }
 
@@ -264,9 +405,12 @@ const double _tilePadTop = 12;
 const double _tilePadBottom = 8;
 
 class _ItemTile extends StatelessWidget {
-  const _ItemTile({required this.entry});
+  const _ItemTile({required this.entry, required this.equipment});
 
   final InventoryEntry entry;
+
+  /// Whether this tile carries the equip control and marker.
+  final bool equipment;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -291,7 +435,66 @@ class _ItemTile extends StatelessWidget {
         // it. Icon leads, count confirms, name disambiguates — the L-17 unit
         // with a hierarchy inside it instead of three flat runs.
         Text('×${entry.count}', style: StrideType.itemCount),
+        if (equipment) _EquipControl(item: entry.id),
       ],
     ),
   );
+}
+
+/// The `EQUIPPED` marker and the `Equip` / `Unequip` control on one tile.
+///
+/// The marker line is reserved even when empty so every tile in the group
+/// puts its control at the same height; the grid gives them all one extent.
+class _EquipControl extends StatelessWidget {
+  const _EquipControl({required this.item});
+
+  final ContentId item;
+
+  @override
+  Widget build(BuildContext context) {
+    final SessionController controller = SessionScope.read(context);
+    final SessionController watched = SessionScope.of(context);
+    final StrideSession session = watched.session;
+    final bool equipped = session.isEquipped(item);
+    final bool enabled = !watched.busy && session.isReady;
+
+    // Unequip is by slot, and the slot is whichever one holds this item —
+    // read from the same projection that marked it EQUIPPED.
+    EquipmentSlot? slotOf() {
+      for (final EquipmentSlot slot in EquipmentSlot.values) {
+        if (session.equippedIn(slot) == item) return slot;
+      }
+      return null;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          equipped ? 'EQUIPPED' : '',
+          style: StrideType.compactLabel.copyWith(
+            color: StrideColors.textPrimary,
+          ),
+          maxLines: 1,
+        ),
+        const SizedBox(height: StrideSpace.s6),
+        // Centred in the tile: the secondary control shrink-wraps to the left
+        // of whatever it is given, and a left-hugging button in a centred
+        // column of icon, name and count would read as misaligned.
+        Center(
+          child: StrideButton.secondary(
+            label: equipped ? 'Unequip' : 'Equip',
+            onPressed: !enabled
+                ? null
+                : equipped
+                ? () {
+                    final EquipmentSlot? slot = slotOf();
+                    if (slot != null) controller.unequip(slot);
+                  }
+                : () => controller.equip(item),
+          ),
+        ),
+      ],
+    );
+  }
 }

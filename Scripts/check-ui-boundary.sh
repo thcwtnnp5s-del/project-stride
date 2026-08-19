@@ -100,7 +100,7 @@ done
 #
 # The UI dispatches through StrideSession; it never constructs a command. Word
 # anchored so a longer identifier containing one of these does not trip it.
-scan "(^|[^A-Za-z0-9_])(GameEngine|GameCommand|SaveRepository|StorageLayout|GatherResource|ReconcileStepSync|AllocateSteps|GrantSyntheticSteps|EquipItem|UnequipItem|EnterLocation|UnlockLocation)([^A-Za-z0-9_]|$)" \
+scan "(^|[^A-Za-z0-9_])(GameEngine|GameCommand|SaveRepository|StorageLayout|GatherResource|ReconcileStepSync|AllocateSteps|GrantSyntheticSteps|EquipItem|UnequipItem|EnterLocation|UnlockLocation|StartEncounter|CombatAttack|CombatEat|CombatRetreat)([^A-Za-z0-9_]|$)" \
   "lib/ui must not name the engine, the repository, or a command type"
 
 # 3. Reaching through the session to what it wraps.

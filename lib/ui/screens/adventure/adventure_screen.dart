@@ -41,7 +41,9 @@ import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
+import '../combat/combat_screen.dart';
 import '../system/stale_banner.dart';
+import 'encounter_card.dart';
 import 'gather_node_card.dart';
 
 class AdventureScreen extends StatelessWidget {
@@ -59,6 +61,35 @@ class AdventureScreen extends StatelessWidget {
     // gain from crashing over it.
     final ContentId? here = s.currentLocation;
     final String? vignette = here == null ? null : PixelIcons.vignetteFor(here);
+
+    // THE FIGHT — in place of the vignette, the walking band and the cards.
+    //
+    // While an encounter is active the tab *is* the encounter (`DECISIONS/0020`
+    // §Consequences): a cold relaunch mid-fight lands here from state alone,
+    // with no navigation to persist. The stage also stays up while the last
+    // round's outcome — a win, a loss, a retreat — has not been acknowledged,
+    // because the engine clears the encounter on the same commit that decides
+    // it, and the result would otherwise vanish before it was read. The stale
+    // banner is kept: a refused commit mid-fight is exactly when it matters.
+    if (s.encounter != null || c.lastCombat?.outcome != null) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(
+          StrideSpace.screenGutter,
+          StrideSpace.s12,
+          StrideSpace.screenGutter,
+          StrideSpace.s16,
+        ),
+        children: <Widget>[
+          if (s.isStale) ...<Widget>[
+            StaleBanner(busy: c.busy, onReload: c.reload),
+            const SizedBox(height: StrideSpace.cardGap),
+          ],
+          const CombatScreen(),
+        ],
+      );
+    }
+
+    final List<EncounterOption> encounters = s.encountersHere;
 
     return ListView(
       // Zero horizontal padding: the vignette is full-bleed, and every other
@@ -103,6 +134,15 @@ class AdventureScreen extends StatelessWidget {
                   GatherNodeCard(node: node),
                   const SizedBox(height: StrideSpace.cardGap),
                 ],
+
+              // WHAT I CAN FIGHT HERE — one card per enemy at this location,
+              // below the gather cards. Absent where the content has no enemy
+              // (Haven's Rest), rather than an empty-state card: a safe place
+              // does not need to announce it.
+              for (final EncounterOption option in encounters) ...<Widget>[
+                EncounterCard(option: option),
+                const SizedBox(height: StrideSpace.cardGap),
+              ],
             ],
           ),
         ),

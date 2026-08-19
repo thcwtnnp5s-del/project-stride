@@ -538,6 +538,320 @@ final class ActionReport {
   final String? detail;
 }
 
+// -- Combat (Combat Slice 01, `DECISIONS/0020`) --------------------------------
+
+/// The fight in progress, as the combat stage needs it. Null when none.
+///
+/// Every figure is read from `EncounterState` — the snapshot the engine took
+/// at encounter start — and from content for the names. Nothing here is
+/// derived by arithmetic in this file: `enemyHp` is the committed value, and a
+/// stage that animated towards anything else would be showing a fight the
+/// disk does not have.
+final class EncounterView {
+  const EncounterView({
+    required this.enemyId,
+    required this.enemyName,
+    required this.location,
+    required this.locationName,
+    required this.turn,
+    required this.playerHp,
+    required this.playerMaxHp,
+    required this.playerAttack,
+    required this.playerDefence,
+    required this.enemyHp,
+    required this.enemyMaxHp,
+    required this.telegraph,
+    required this.behavior,
+    required this.isBoss,
+  });
+
+  final ContentId enemyId;
+  final String enemyName;
+  final ContentId location;
+  final String locationName;
+
+  /// 1-based; the turn the player is about to take.
+  final int turn;
+
+  final int playerHp;
+  final int playerMaxHp;
+  final int playerAttack;
+  final int playerDefence;
+  final int enemyHp;
+  final int enemyMaxHp;
+
+  /// True when the enemy's next reply is a heavy strike (guarded behaviour).
+  final bool telegraph;
+  final EnemyBehavior behavior;
+  final bool isBoss;
+}
+
+/// One enemy the player could fight where they stand, with the reason it
+/// cannot be fought right now, if any.
+///
+/// **A hint, not the authority.** `StartEncounter` re-checks every one of
+/// these on execute (`RULES.md` E-2). [reason] follows the engine's own
+/// refusal order so the card and the refusal that would arrive anyway agree.
+final class EncounterOption {
+  const EncounterOption({
+    required this.enemyId,
+    required this.name,
+    required this.isBoss,
+    required this.behavior,
+    required this.maxHealth,
+    required this.attack,
+    required this.defence,
+    required this.xp,
+    required this.dropNames,
+    required this.available,
+    this.reason,
+  });
+
+  final ContentId enemyId;
+  final String name;
+  final bool isBoss;
+  final EnemyBehavior behavior;
+
+  /// Profile-scaled, as the encounter would begin — the same figure the
+  /// engine writes on `EncounterStarted`.
+  final int maxHealth;
+  final int attack;
+  final int defence;
+
+  /// Profile-scaled, as it would be awarded.
+  final int xp;
+
+  /// Every possible drop by display name; chance is deliberately not shown.
+  final List<String> dropNames;
+
+  final bool available;
+
+  /// `encounter_in_progress` · `enemy_driven_off` · `session_not_ready`, or
+  /// null when [available].
+  final String? reason;
+}
+
+/// The player's combat figures right now, for the Character screen.
+///
+/// From `CombatRules.loadoutFor` — the same function the engine snapshots an
+/// encounter from — and `CombatRules.levelThresholds`. Reading a domain
+/// function, not computing a rule.
+final class CombatFigures {
+  const CombatFigures({
+    required this.maxHp,
+    required this.attack,
+    required this.defence,
+    required this.level,
+    required this.experience,
+    this.weaponName,
+    this.armorName,
+    this.nextLevelThreshold,
+  });
+
+  final int maxHp;
+  final int attack;
+  final int defence;
+  final String? weaponName;
+  final String? armorName;
+  final int level;
+
+  /// Cumulative character experience.
+  final int experience;
+
+  /// Cumulative experience at which the next level is reached; null at the
+  /// level cap.
+  final int? nextLevelThreshold;
+
+  /// Experience still to earn before the next level; null at the cap.
+  int? get experienceToNextLevel {
+    final int? next = nextLevelThreshold;
+    if (next == null) return null;
+    final int missing = next - experience;
+    return missing < 0 ? 0 : missing;
+  }
+}
+
+/// One owned consumable that heals, as the Eat chooser lists it.
+final class EdibleOption {
+  const EdibleOption({
+    required this.itemId,
+    required this.name,
+    required this.healing,
+    required this.count,
+  });
+
+  final ContentId itemId;
+  final String name;
+
+  /// The item's healing figure from content. What a bite actually restores is
+  /// `min(healing, missing)` and is reported on the [ConsumableUsedBeat].
+  final int healing;
+  final int count;
+}
+
+/// One thing that happened in a round, in the order it happened.
+///
+/// A presentation-neutral narration of the engine's combat events, built by
+/// the session from the events the command returned. **The stage animates from
+/// these and never re-derives them from a state diff**: every figure is copied
+/// from the event that carries it, so an HP bar settles to the committed value
+/// and a level-up is shown exactly when the event that produced it was
+/// applied. Sealed, so a stage that switches over the kinds is told by the
+/// analyzer when a new kind arrives.
+sealed class CombatBeat {
+  const CombatBeat();
+}
+
+/// The fight began. Carries the opening figures.
+final class EncounterStartedBeat extends CombatBeat {
+  const EncounterStartedBeat({
+    required this.enemyName,
+    required this.playerHp,
+    required this.playerMaxHp,
+    required this.enemyHp,
+    required this.enemyMaxHp,
+  });
+
+  final String enemyName;
+  final int playerHp;
+  final int playerMaxHp;
+  final int enemyHp;
+  final int enemyMaxHp;
+}
+
+/// The player hit the enemy.
+final class PlayerStruckBeat extends CombatBeat {
+  const PlayerStruckBeat({required this.damage, required this.enemyHpAfter});
+
+  final int damage;
+  final int enemyHpAfter;
+}
+
+/// The player ate. Exactly one of the item left the inventory.
+final class ConsumableUsedBeat extends CombatBeat {
+  const ConsumableUsedBeat({
+    required this.itemName,
+    required this.healed,
+    required this.playerHpAfter,
+  });
+
+  final String itemName;
+
+  /// As healed, never the item's raw healing figure.
+  final int healed;
+  final int playerHpAfter;
+}
+
+/// The enemy hit the player. A flurry produces two per round, [strikeIndex]
+/// 0 and 1; a guarded enemy's every-third-turn blow carries [heavy].
+final class EnemyStruckBeat extends CombatBeat {
+  const EnemyStruckBeat({
+    required this.damage,
+    required this.playerHpAfter,
+    required this.heavy,
+    required this.strikeIndex,
+  });
+
+  final int damage;
+  final int playerHpAfter;
+  final bool heavy;
+  final int strikeIndex;
+}
+
+/// The round is over and the fight goes on. [turn] is the turn the player is
+/// about to take; [telegraph] warns of a heavy reply next round.
+final class RoundEndedBeat extends CombatBeat {
+  const RoundEndedBeat({required this.turn, required this.telegraph});
+
+  final int turn;
+  final bool telegraph;
+}
+
+/// The enemy fell. The whole reward, as awarded, once.
+final class WonBeat extends CombatBeat {
+  const WonBeat({
+    required this.xp,
+    required this.levelBefore,
+    required this.levelAfter,
+    required this.drops,
+  });
+
+  /// Profile-scaled, as awarded.
+  final int xp;
+  final int levelBefore;
+  final int levelAfter;
+
+  /// What dropped, by display name and quantity.
+  final List<(String, int)> drops;
+
+  bool get levelledUp => levelAfter > levelBefore;
+}
+
+/// The player fell and was moved to [retreatToName]. Nothing was lost.
+final class LostBeat extends CombatBeat {
+  const LostBeat({required this.retreatToName});
+
+  final String retreatToName;
+}
+
+/// The player chose to leave for [retreatToName]. Nothing was lost.
+final class RetreatedBeat extends CombatBeat {
+  const RetreatedBeat({required this.retreatToName});
+
+  final String retreatToName;
+}
+
+/// What a combat command did.
+///
+/// On success [events] narrates the round in order; on refusal it is empty and
+/// [rejection] carries the stable wire code.
+final class CombatReport {
+  const CombatReport({
+    required this.succeeded,
+    required this.enemyName,
+    this.events = const <CombatBeat>[],
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String enemyName;
+
+  /// The round's beats, in the order the engine emitted them.
+  final List<CombatBeat> events;
+
+  /// The stable [RejectionCode.wire] value, or null on success.
+  final String? rejection;
+  final String? detail;
+
+  /// The beat that ended the encounter, if this round ended it: a [WonBeat],
+  /// [LostBeat] or [RetreatedBeat]. Null while the fight goes on.
+  CombatBeat? get outcome {
+    if (events.isEmpty) return null;
+    final CombatBeat last = events.last;
+    return last is WonBeat || last is LostBeat || last is RetreatedBeat
+        ? last
+        : null;
+  }
+}
+
+/// What an equip or unequip did.
+final class EquipReport {
+  const EquipReport({
+    required this.succeeded,
+    required this.itemName,
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String itemName;
+
+  /// The stable [RejectionCode.wire] value, or null on success.
+  final String? rejection;
+  final String? detail;
+}
+
 /// A running game, with the health source opened if one could be.
 ///
 /// Created by [start], which is the only entry point. A blocked bootstrap
@@ -1503,6 +1817,218 @@ final class StrideSession {
     );
   }
 
+  // -- Equipment ------------------------------------------------------------
+
+  /// Wears or wields an owned item, and commits it atomically.
+  ///
+  /// Costs no steps. Allowed during an encounter — the engine snapshotted the
+  /// fight's figures at its start, so this changes the *next* fight only
+  /// (`GAME_BIBLE/COMBAT/02` §8).
+  Future<EquipReport> equip(ContentId item) =>
+      _equipment(EquipItem(item: item), item);
+
+  /// Empties [slot], and commits it atomically.
+  Future<EquipReport> unequip(EquipmentSlot slot) =>
+      _equipment(UnequipItem(slot: slot), engine?.state.equipment.inSlot(slot));
+
+  Future<EquipReport> _equipment(GameCommand command, ContentId? item) async {
+    final String name = item == null
+        ? '—'
+        : registry?.items[item]?.displayName ?? item.value;
+    if (_inFlight) {
+      return EquipReport(
+        succeeded: false,
+        itemName: name,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return EquipReport(
+          succeeded: false,
+          itemName: name,
+          rejection: 'session_not_ready',
+          detail: _notReadyDetail,
+        );
+      }
+      final EngineResult result = active.execute(command);
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return EquipReport(
+          succeeded: false,
+          itemName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return EquipReport(
+          succeeded: false,
+          itemName: name,
+          rejection: 'commit_refused',
+          detail: commit.reason.name,
+        );
+      }
+      return EquipReport(succeeded: true, itemName: name);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  // -- Combat (Combat Slice 01, `DECISIONS/0020`) ---------------------------
+  //
+  // Four commands, each one round and one commit, single-flighted through
+  // `_inFlight` exactly as `gather` is and for the same reason: two concurrent
+  // rounds would both compute against the same encounter and the loser's
+  // commit would be refused as a compare-and-swap conflict — a real refusal
+  // manufactured by a double tap. The reports narrate the round from the
+  // engine's events (`CombatBeat`) so a stage never diffs state to find out
+  // what happened.
+
+  /// Begins a fight with [enemy] where the player stands. Costs no steps.
+  Future<CombatReport> startEncounter(ContentId enemy) =>
+      _combat(StartEncounter(enemy: enemy), enemy);
+
+  /// One round: the player strikes, then the enemy replies unless it fell.
+  Future<CombatReport> combatAttack() =>
+      _combat(const CombatAttack(), engine?.state.encounter?.enemy);
+
+  /// One round: the player eats one [item], then the enemy replies.
+  Future<CombatReport> combatEat(ContentId item) =>
+      _combat(CombatEat(item: item), engine?.state.encounter?.enemy);
+
+  /// Leaves the fight for the nearest safe place. Nothing is lost.
+  Future<CombatReport> combatRetreat() =>
+      _combat(const CombatRetreat(), engine?.state.encounter?.enemy);
+
+  Future<CombatReport> _combat(GameCommand command, ContentId? enemy) async {
+    final String name = enemy == null
+        ? '—'
+        : registry?.enemies[enemy]?.displayName ?? enemy.value;
+    if (_inFlight) {
+      return CombatReport(
+        succeeded: false,
+        enemyName: name,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      return await _combatRound(command, name);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<CombatReport> _combatRound(GameCommand command, String name) async {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+
+    if (active == null || content == null || _stale || migrationPending) {
+      return CombatReport(
+        succeeded: false,
+        enemyName: name,
+        rejection: 'session_not_ready',
+        detail: _notReadyDetail,
+      );
+    }
+
+    final EngineResult result = active.execute(command);
+    if (result case RejectedResult(:final CommandRejection rejection)) {
+      return CombatReport(
+        succeeded: false,
+        enemyName: name,
+        rejection: rejection.code.wire,
+        detail: rejection.explanation,
+      );
+    }
+
+    final CommitOutcome commit = await _commit(active, result.events);
+    if (commit is CommitRefused) {
+      // The engine resolved the round and the disk did not take it. Stale
+      // rather than reported as success: the player would otherwise watch a
+      // blow land that the next launch never saw.
+      _stale = true;
+      return CombatReport(
+        succeeded: false,
+        enemyName: name,
+        rejection: 'commit_refused',
+        detail: commit.reason.name,
+      );
+    }
+
+    return CombatReport(
+      succeeded: true,
+      enemyName: name,
+      events: <CombatBeat>[
+        for (final GameEvent event in result.events)
+          if (_beatOf(event, content) case final CombatBeat beat) beat,
+      ],
+    );
+  }
+
+  /// One event to one beat. Every figure is copied from the event; names come
+  /// from content. Non-combat events (none are expected in a combat result)
+  /// produce no beat.
+  static CombatBeat? _beatOf(GameEvent event, ContentRegistry content) {
+    String itemName(ContentId id) => content.items[id]?.displayName ?? id.value;
+    String placeName(ContentId id) =>
+        content.locations[id]?.displayName ?? id.value;
+    return switch (event) {
+      EncounterStarted(:final ContentId enemy) => EncounterStartedBeat(
+        enemyName: content.enemies[enemy]?.displayName ?? enemy.value,
+        playerHp: event.playerHp,
+        playerMaxHp: event.playerMaxHp,
+        enemyHp: event.enemyHp,
+        enemyMaxHp: event.enemyMaxHp,
+      ),
+      CombatPlayerStruck() => PlayerStruckBeat(
+        damage: event.damage,
+        enemyHpAfter: event.enemyHpAfter,
+      ),
+      CombatConsumableUsed() => ConsumableUsedBeat(
+        itemName: itemName(event.item),
+        healed: event.healed,
+        playerHpAfter: event.playerHpAfter,
+      ),
+      CombatEnemyStruck() => EnemyStruckBeat(
+        damage: event.damage,
+        playerHpAfter: event.playerHpAfter,
+        heavy: event.heavy,
+        strikeIndex: event.strikeIndex,
+      ),
+      CombatRoundEnded() => RoundEndedBeat(
+        turn: event.turn,
+        telegraph: event.telegraph,
+      ),
+      EncounterWon() => WonBeat(
+        xp: event.characterXp,
+        levelBefore: event.levelBefore,
+        levelAfter: event.levelAfter,
+        drops: <(String, int)>[
+          for (final MapEntry<ContentId, int> d in event.drops.entries)
+            (itemName(d.key), d.value),
+        ],
+      ),
+      EncounterLost() => LostBeat(retreatToName: placeName(event.retreatTo)),
+      EncounterRetreated() => RetreatedBeat(
+        retreatToName: placeName(event.retreatTo),
+      ),
+      _ => null,
+    };
+  }
+
+  String get _notReadyDetail => _stale
+      ? 'the last commit did not land; reload before acting'
+      : migrationPending
+      ? 'the save is being brought up to date; sync steps first'
+      : 'the game did not start';
+
   String _locationName(ContentId location) =>
       registry?.locations[location]?.displayName ?? location.value;
 
@@ -1563,6 +2089,18 @@ final class StrideSession {
     ];
   }
 
+  /// The item worn or wielded in [slot], or null when the slot is empty.
+  ///
+  /// Read straight off `Equipment.inSlot` — the same lookup `GameEngine` makes
+  /// when a gather asks for a tool or a fight reads the weapon — so the slot
+  /// the screen shows is the slot the rules consult.
+  ContentId? equippedIn(EquipmentSlot slot) =>
+      engine?.state.equipment.inSlot(slot);
+
+  /// Whether [item] currently occupies any equipment slot.
+  bool isEquipped(ContentId item) =>
+      engine?.state.equipment.isEquipped(item) ?? false;
+
   /// Every skill in the content pack, with its level derived from the curve.
   ///
   /// The level comes from [SkillDefinition.levelAt] — the same function
@@ -1595,6 +2133,134 @@ final class StrideSession {
       0,
       (int a, int b) => a + b,
     );
+  }
+
+  /// The fight in progress, or null. Read live from the engine's snapshot;
+  /// nothing is cached, so a reload that restores an encounter shows it.
+  EncounterView? get encounter {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final EncounterState? e = active?.state.encounter;
+    if (active == null || content == null || e == null) return null;
+    final EnemyDefinition? enemy = content.enemies[e.enemy];
+    return EncounterView(
+      enemyId: e.enemy,
+      enemyName: enemy?.displayName ?? e.enemy.value,
+      location: e.location,
+      locationName: _locationName(e.location),
+      turn: e.turn,
+      playerHp: e.playerHp,
+      playerMaxHp: e.playerMaxHp,
+      playerAttack: e.playerAttack,
+      playerDefence: e.playerDefence,
+      enemyHp: e.enemyHp,
+      enemyMaxHp: e.enemyMaxHp,
+      telegraph: e.telegraph,
+      behavior: enemy?.behavior ?? EnemyBehavior.steady,
+      isBoss: enemy?.isBoss ?? false,
+    );
+  }
+
+  /// The enemies at the player's current location, each with whether it can
+  /// be fought now and, if not, why — in the engine's refusal order.
+  ///
+  /// Health and XP are scaled through the same profile the engine applies at
+  /// encounter start and at victory, so the card and the fight agree.
+  List<EncounterOption> get encountersHere {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <EncounterOption>[];
+    final ContentId here = active.state.world.currentLocation;
+    final bool fighting = active.state.encounter != null;
+    final bool ready = isReady;
+    return <EncounterOption>[
+      for (final EnemyDefinition enemy in content.enemies.values)
+        if (enemy.location == here)
+          () {
+            final String? reason = fighting
+                ? 'encounter_in_progress'
+                : active.state.world.isDrivenOff(enemy.id)
+                ? 'enemy_driven_off'
+                : !ready
+                ? 'session_not_ready'
+                : null;
+            return EncounterOption(
+              enemyId: enemy.id,
+              name: enemy.displayName,
+              isBoss: enemy.isBoss,
+              behavior: enemy.behavior,
+              maxHealth: active.profile.applyEnemyHealth(enemy.health),
+              attack: enemy.attack,
+              defence: enemy.defence,
+              xp: active.profile.applyXp(enemy.xp),
+              dropNames: <String>[
+                for (final EnemyDrop drop in enemy.drops)
+                  content.items[drop.item]?.displayName ?? drop.item.value,
+              ],
+              available: reason == null,
+              reason: reason,
+            );
+          }(),
+    ];
+  }
+
+  /// The player's combat figures right now, from `CombatRules.loadoutFor` —
+  /// the same function the engine snapshots the next encounter from.
+  CombatFigures get combatFigures {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) {
+      return const CombatFigures(
+        maxHp: 0,
+        attack: 0,
+        defence: 0,
+        level: 0,
+        experience: 0,
+      );
+    }
+    final PlayerCombatLoadout loadout = CombatRules.loadoutFor(
+      active.state,
+      content,
+    );
+    final int level = active.state.player.level;
+    final List<int> thresholds = CombatRules.levelThresholds;
+    return CombatFigures(
+      maxHp: loadout.maxHp,
+      attack: loadout.attack,
+      defence: loadout.defence,
+      level: level,
+      experience: active.state.player.experience,
+      weaponName: loadout.weaponItem == null
+          ? null
+          : content.items[loadout.weaponItem!]?.displayName,
+      armorName: loadout.armorItem == null
+          ? null
+          : content.items[loadout.armorItem!]?.displayName,
+      // `thresholds[level]` is the cumulative XP that reaches level + 1; at
+      // the cap there is no such entry.
+      nextLevelThreshold: level >= 1 && level < thresholds.length
+          ? thresholds[level]
+          : null,
+    );
+  }
+
+  /// Owned consumables that heal, in inventory order.
+  List<EdibleOption> get edibles {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <EdibleOption>[];
+    return <EdibleOption>[
+      for (final MapEntry<ContentId, int> e
+          in active.state.inventory.counts.entries)
+        if (content.items[e.key] case final ItemDefinition item
+            when item.category == ItemCategory.consumable && item.healing > 0)
+          EdibleOption(
+            itemId: e.key,
+            name: item.displayName,
+            healing: item.healing,
+            count: e.value,
+          ),
+    ];
   }
 
   /// The resource nodes at the player's current location.

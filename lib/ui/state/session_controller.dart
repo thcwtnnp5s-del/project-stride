@@ -15,7 +15,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:stride_core/stride_core.dart' show ContentId;
+import 'package:stride_core/stride_core.dart' show ContentId, EquipmentSlot;
 
 import '../../runtime/stride_session.dart';
 
@@ -42,6 +42,9 @@ class SessionController extends ChangeNotifier {
   TravelReport? _lastTravel;
   CraftReport? _lastCraft;
   ContentId? _lastCraftRecipe;
+  EquipReport? _lastEquip;
+  bool _lastEquipRemoved = false;
+  CombatReport? _lastCombat;
   bool _startupSyncDone = false;
   Timer? _resultTimer;
 
@@ -66,6 +69,29 @@ class SessionController extends ChangeNotifier {
   /// whether the line on screen is about it.
   CraftReport? get lastCraft => _lastCraft;
   ContentId? get lastCraftRecipe => _lastCraftRecipe;
+
+  /// The report from the last equip or unequip, while it is still on screen,
+  /// and whether that command was an unequip — the report itself does not say,
+  /// and the line reads differently for taking something off.
+  EquipReport? get lastEquip => _lastEquip;
+  bool get lastEquipRemoved => _lastEquipRemoved;
+
+  /// The report from the last combat command — start, attack, eat or retreat.
+  ///
+  /// **Not on the result timer.** The combat stage plays the round's beats in
+  /// order and needs the report to stand until that sequence has played, so
+  /// it is cleared by [acknowledgeCombat] (the stage's "OK", or the end of its
+  /// sequence) and by the next command — never by the clock. It is still
+  /// ephemeral: it is the report the command returned, not state, and a
+  /// relaunch has none.
+  CombatReport? get lastCombat => _lastCombat;
+
+  /// Clears [lastCombat] once the stage has finished presenting it.
+  void acknowledgeCombat() {
+    if (_lastCombat == null) return;
+    _lastCombat = null;
+    notifyListeners();
+  }
 
   /// Runs a foreground step sync and keeps its report for display.
   Future<void> syncSteps() async {
@@ -177,6 +203,65 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  /// Wears or wields [item]. Costs no steps; the engine swaps out whatever the
+  /// slot already held.
+  Future<void> equip(ContentId item) =>
+      _equipment(() => _session.equip(item), removed: false);
+
+  /// Empties [slot].
+  Future<void> unequip(EquipmentSlot slot) =>
+      _equipment(() => _session.unequip(slot), removed: true);
+
+  /// One equipment command, like [craft]: nothing is rendered optimistically
+  /// across the await, and the report rides the result timer.
+  Future<void> _equipment(
+    Future<EquipReport> Function() command, {
+    required bool removed,
+  }) async {
+    if (_busy) return;
+    _busy = true;
+    _clearResults(notify: false);
+    notifyListeners();
+    try {
+      _lastEquip = await command();
+      _lastEquipRemoved = removed;
+      _armResultTimer();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Begins a fight with [enemy]. Costs no steps.
+  Future<void> startEncounter(ContentId enemy) =>
+      _combat(() => _session.startEncounter(enemy));
+
+  /// One round: strike, then take the enemy's reply.
+  Future<void> combatAttack() => _combat(_session.combatAttack);
+
+  /// One round: eat one [item], then take the enemy's reply.
+  Future<void> combatEat(ContentId item) =>
+      _combat(() => _session.combatEat(item));
+
+  /// Leaves the fight for the nearest safe place. Nothing is lost.
+  Future<void> combatRetreat() => _combat(_session.combatRetreat);
+
+  /// One combat command, like [gather]: nothing is rendered optimistically
+  /// across the await, and the report is kept for the stage to play — see
+  /// [lastCombat] for why it does not ride the result timer.
+  Future<void> _combat(Future<CombatReport> Function() command) async {
+    if (_busy) return;
+    _busy = true;
+    _clearResults(notify: false);
+    notifyListeners();
+    try {
+      _lastCombat = await command();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
   /// The recovery from a stale session: reread the save and rebuild from disk.
   ///
   /// If the disk still holds a save that owes the first-sync migration — the
@@ -204,10 +289,16 @@ class SessionController extends ChangeNotifier {
 
   void _armResultTimer() {
     _resultTimer?.cancel();
-    _resultTimer = Timer(_resultLifetime, () => _clearResults(notify: true));
+    _resultTimer = Timer(
+      _resultLifetime,
+      () => _clearResults(notify: true, combat: false),
+    );
   }
 
-  void _clearResults({required bool notify}) {
+  /// Clears the result lines. [combat] is false only from the timer: the
+  /// combat report is cleared by the next command or by [acknowledgeCombat],
+  /// never by the clock.
+  void _clearResults({required bool notify, bool combat = true}) {
     _resultTimer?.cancel();
     _resultTimer = null;
     _lastAction = null;
@@ -216,6 +307,9 @@ class SessionController extends ChangeNotifier {
     _lastTravel = null;
     _lastCraft = null;
     _lastCraftRecipe = null;
+    _lastEquip = null;
+    _lastEquipRemoved = false;
+    if (combat) _lastCombat = null;
     if (notify) notifyListeners();
   }
 
