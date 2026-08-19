@@ -109,6 +109,58 @@ abstract final class StrideColors {
     _ => textSecondary,
   };
 
+  // ------------------------------------------------------------ rarity inks
+  //
+  // Five ranks, one ink and one dim companion each. **Read only through
+  // `RarityStyle` (`lib/ui/theme/rarity_style.dart`)** — these constants exist
+  // so the palette keeps one home, and the style table is the only lookup. A
+  // screen that switches on a `Rarity` itself has started a second one.
+  //
+  // Chosen to sit inside this palette rather than beside it: every ink is a
+  // desaturated member of the warm dark world above, not the saturated
+  // convention an MMO uses. The order the owner authored is gray → green →
+  // blue → purple → orange (`MILESTONES/WORLD_REWARD_DEPTH_01.md` §5), which
+  // puts Uncommon *below* Common; that is content's decision, not the
+  // palette's, and this file only supplies the five hues.
+  //
+  // **None of them is [accentSteps].** L-16 reserves teal for walking, steps
+  // and banked quantity, so the Rare rank is a cobalt that leans blue-violet
+  // rather than the blue-green next to the accent — and it is also pushed off
+  // [skillMining]'s 210° so a rarity and a skill hue never read as the same
+  // statement. `test/rarity_ui_test.dart` asserts the teal half of that.
+  //
+  // Contrast, measured against the surfaces these sit on (WCAG ratio, ink on
+  // [surfaceCard] / [surfaceBlock]): uncommon 6.5 / 5.8, common 6.7 / 5.9,
+  // rare 5.6 / 5.0, epic 5.7 / 5.1, legendary 7.7 / 6.9. All clear 4.5.
+
+  /// Rank 0 — a desaturated warm gray.
+  static const Color rarityUncommon = Color(0xFFA8A093);
+
+  /// Rank 1 — moss, not the yellow-green of [skillForaging].
+  static const Color rarityCommon = Color(0xFF86B06A);
+
+  /// Rank 2 — cobalt. **Never the teal accent**, and off [skillMining].
+  static const Color rarityRare = Color(0xFF7D91DE);
+
+  /// Rank 3 — dusk purple.
+  static const Color rarityEpic = Color(0xFFA987D8);
+
+  /// Rank 4 — amber. Nothing carries it yet; the rank exists so the table and
+  /// the tests cover it before content needs it.
+  static const Color rarityLegendary = Color(0xFFE0A63F);
+
+  // The dim companions: the 1 px rule, plate and border weight of each rank.
+  // Same relationship [accentStepsDim] has to [accentSteps] — the same hue,
+  // dropped to where it reads as an edge on a dark card rather than as a
+  // second piece of type. A reward row is framed by one of these; it is never
+  // filled with one.
+
+  static const Color rarityUncommonDim = Color(0xFF4A453D);
+  static const Color rarityCommonDim = Color(0xFF3E4F32);
+  static const Color rarityRareDim = Color(0xFF3A4268);
+  static const Color rarityEpicDim = Color(0xFF4C3D66);
+  static const Color rarityLegendaryDim = Color(0xFF664A1D);
+
   // --------------------------------------------------------- category hues
   //
   // DEFINED AND UNUSED, deliberately. Round 03 removed the 3 px category bar

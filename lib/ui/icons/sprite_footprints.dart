@@ -211,6 +211,13 @@ abstract final class SpriteFootprints {
     bottom: 12,
   );
 
+  /// `ambient_traveler_pick_inspect` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerPickInspect = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
   /// `ambient_traveler_read` — 24 px of contact, 19..42.
   static const SpriteFootprint ambientTravelerRead = SpriteFootprint(
     left: 19,
@@ -218,8 +225,15 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
-  /// `ambient_traveler_pick_inspect` — 24 px of contact, 19..42.
-  static const SpriteFootprint ambientTravelerPickInspect = SpriteFootprint(
+  /// `ambient_traveler_idle_breathe` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerIdleBreathe = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_look_around` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerLookAround = SpriteFootprint(
     left: 19,
     right: 42,
     bottom: 62,
@@ -335,5 +349,26 @@ abstract final class SpriteFootprints {
     left: 38,
     right: 57,
     bottom: 83,
+  );
+
+  /// `combat_lynx_idle` — 23 px of contact, 22..44.
+  static const SpriteFootprint combatLynxIdle = SpriteFootprint(
+    left: 22,
+    right: 44,
+    bottom: 39,
+  );
+
+  /// `combat_lynx_attack` — 23 px of contact, 22..44.
+  static const SpriteFootprint combatLynxAttack = SpriteFootprint(
+    left: 22,
+    right: 44,
+    bottom: 39,
+  );
+
+  /// `combat_lynx_defeat` — 23 px of contact, 22..44.
+  static const SpriteFootprint combatLynxDefeat = SpriteFootprint(
+    left: 22,
+    right: 44,
+    bottom: 39,
   );
 }

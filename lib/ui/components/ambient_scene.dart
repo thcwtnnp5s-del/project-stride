@@ -221,11 +221,18 @@ final class AmbientScene {
     this.weight = 1,
     SpriteBounds? bounds,
     this.companionAllowance = 0,
+    this.idleWeight = 0,
+    this.idleOnly = false,
   }) : canvasHeight = canvasHeight ?? 64,
        anchorX = anchorX ?? (canvas - 64) ~/ 2,
        measuredBounds = bounds,
        assert(weight > 0, 'a scene with no weight can never play'),
-       assert(companionAllowance >= 0, 'an allowance is a size');
+       assert(companionAllowance >= 0, 'an allowance is a size'),
+       assert(idleWeight >= 0, 'a weight is not negative'),
+       assert(
+         !idleOnly || idleWeight > 0,
+         'an idle-only scene with no idle weight can never play at all',
+       );
 
   /// A stable identifier — the manifest's scene name.
   final String id;
@@ -289,9 +296,42 @@ final class AmbientScene {
     (SpriteBounds b, AmbientLayer l) => b.union(l.placedBounds),
   );
 
+  /// Relative likelihood of being chosen as a **micro-idle** — the small piece
+  /// of business the idle cadence plays between long rests. Zero, the default,
+  /// keeps the scene out of that pool entirely.
+  ///
+  /// Two weights rather than one because the two pools want different things.
+  /// A visit wants variety, so the cat scenes carry it; an idle beat wants the
+  /// subtlest thing in the table, because it recurs for as long as the player
+  /// leaves the screen open. Presentation flavour only, exactly like [weight].
+  final double idleWeight;
+
+  /// True for a scene that plays **only** as a micro-idle and never as one of
+  /// a visit's scenes — a breath, a look around. Nothing else about it differs;
+  /// it is still measured and still held to the composition rules.
+  final bool idleOnly;
+
   /// The scene lasts as long as its Traveler track. Layers longer than that are
   /// cut; shorter ones hold their last frame.
   Duration get duration => traveler.duration;
+
+  /// The same scene at a different [weight] — how a scene authored once for the
+  /// visit joins the micro-idle pool at its [idleWeight]. Every measured number
+  /// is carried across, so the two pools cannot disagree about the geometry.
+  AmbientScene withWeight(double weight) => AmbientScene(
+    id: id,
+    traveler: traveler,
+    footprint: footprint,
+    canvas: canvas,
+    canvasHeight: canvasHeight,
+    anchorX: anchorX,
+    layers: layers,
+    weight: weight,
+    bounds: measuredBounds,
+    companionAllowance: companionAllowance,
+    idleWeight: idleWeight,
+    idleOnly: idleOnly,
+  );
 }
 
 /// The scenes the stage rotates through.
@@ -321,6 +361,21 @@ final class AmbientSceneSet {
     return pool.last;
   }
 
+  /// The scenes a *visit* draws from: everything not marked
+  /// [AmbientScene.idleOnly].
+  AmbientSceneSet get visitScenes => AmbientSceneSet(<AmbientScene>[
+    for (final AmbientScene s in scenes)
+      if (!s.idleOnly) s,
+  ]);
+
+  /// The micro-idle pool: every scene with an [AmbientScene.idleWeight], taken
+  /// at that weight. Empty when the table declares none — the player then falls
+  /// back to the full set rather than inventing a pool.
+  AmbientSceneSet get microIdles => AmbientSceneSet(<AmbientScene>[
+    for (final AmbientScene s in scenes)
+      if (s.idleWeight > 0) s.withWeight(s.idleWeight),
+  ]);
+
   /// Every asset path any scene touches, for precaching.
   Iterable<String> get allFrames sync* {
     for (final AmbientScene s in scenes) {
@@ -330,4 +385,50 @@ final class AmbientSceneSet {
       }
     }
   }
+}
+
+/// How the stage behaves *after* a visit's scenes are spent: the idle cadence.
+///
+/// A visit — a few authored scenes with short rests — answers "is this pleasant
+/// to open". It does not answer "is this pleasant to leave open", and the
+/// owner's device review found the difference: the figure did its four things
+/// and then stood still for as long as the screen was up, which reads as a
+/// frozen app rather than a resting Traveler.
+///
+/// The cadence is the answer, and it is deliberately slow. Each idle beat is a
+/// hold on the rest frame, of a length drawn from the bounds below, then one
+/// short piece of business — usually a **micro-idle**
+/// ([AmbientScene.idleWeight]), and every [fullSceneEvery]-th beat one of the
+/// visit's full scenes. More than half of an idle cycle is the rest frame,
+/// because a figure that never stops moving starts to imply that something is
+/// happening, and nothing is (`FRESH_CHAT_HANDOFF §16`: ambient life "must not
+/// pretend gameplay is happening").
+///
+/// Every number here is a presentation length fed to an `AnimationController`.
+/// None of it is read from a clock, none of it is persisted, and none of it can
+/// grant anything (`RULES.md` P-4, S-01A).
+final class AmbientCadence {
+  const AmbientCadence({
+    this.microRestShortest = const Duration(seconds: 2),
+    this.microRestLongest = const Duration(seconds: 4),
+    this.sceneRestShortest = const Duration(seconds: 4),
+    this.sceneRestLongest = const Duration(seconds: 8),
+    this.fullSceneEvery = 3,
+  }) : assert(fullSceneEvery > 0, 'a full scene has to come round eventually');
+
+  /// The bounds on the hold before a micro-idle. Varied inside them from the
+  /// player's own seeded draw, so two beats in a row are not the same length.
+  final Duration microRestShortest;
+  final Duration microRestLongest;
+
+  /// The bounds on the longer hold before a full scene.
+  final Duration sceneRestShortest;
+  final Duration sceneRestLongest;
+
+  /// Every n-th idle beat is a full scene rather than a micro-idle.
+  final int fullSceneEvery;
+
+  /// What the app runs. Named so a reader of the player sees a decision rather
+  /// than four literals.
+  static const AmbientCadence standard = AmbientCadence();
 }

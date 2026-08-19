@@ -1,0 +1,47 @@
+[
+ {
+  "id": "traveler_read",
+  "frames": 9,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "bounds": {
+   "left": 15,
+   "top": 1,
+   "right": 46,
+   "bottom": 62
+  },
+  "note": "book-scale correction of the PLAYABLE_EXPANSION_01 traveler_read (device finding: the book is huge). Small brown leather book with a pale spine held in both hands at chest height, head bowed; frames 0-2 are the reach, 3-8 the read and page turn. The book never widens the sprite: union opaque box 15,1..46,62 is the standing figure's own 32-px silhouette (the shipped read reached x 1..61)."
+ },
+ {
+  "id": "traveler_idle_breathe",
+  "frames": 7,
+  "fps": 5,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "bounds": {
+   "left": 13,
+   "top": 0,
+   "right": 48,
+   "bottom": 62
+  },
+  "note": "micro-idle for the ambient cadence (milestone 9). Frame 0 IS the rest pose: the character's south rotation and assets/art/v1/anim/gather_f0.png differ by 10 alpha pixels out of a 32x62 figure (overlay in qa/_ref_vs_gather_x6.png), so keep_first_frame gives the rest frame exactly. Breath and weight shift only; f6 has returned most of the way to f0, and pingpong closes the loop."
+ },
+ {
+  "id": "traveler_look_around",
+  "frames": 7,
+  "fps": 5,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "bounds": {
+   "left": 12,
+   "top": 1,
+   "right": 51,
+   "bottom": 62
+  },
+  "note": "micro-idle: the head turns to one side, pauses, crosses to the other, and comes back; arms and feet stay put. f6 returns near the rest pose; pingpong closes the loop."
+ }
+]

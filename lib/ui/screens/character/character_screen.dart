@@ -20,11 +20,14 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:stride_core/stride_core.dart' show EquipmentSlot;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
+import '../../components/rarity_badge.dart';
+import '../../components/rarity_item_title.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
@@ -184,7 +187,7 @@ class CharacterScreen extends StatelessWidget {
         // Below the skills, not above them: the skills card is what walking
         // has built and stays above the fold at 393 dp; where this block sits
         // in the sheet's order is the owner's call once the slice is played.
-        _CombatBlock(figures: s.combatFigures),
+        _CombatBlock(figures: s.combatFigures, equipped: s.equippedSummary),
       ],
     );
   }
@@ -192,10 +195,44 @@ class CharacterScreen extends StatelessWidget {
 
 /// Level, XP to next, Max HP, Attack (with the weapon that counts), Defence
 /// (with the armour that counts). Small, in the existing tile style.
+///
+/// ## Where the weapon and armour names sit, and why they moved
+///
+/// They were the `unit` line under the Attack and Defence figures, which is a
+/// plain [StrideType.micro] string with no colour of its own — there is no way
+/// to give one of those a rarity ink without teaching [LabeledValueTile] about
+/// rarity, and that primitive is shared with three screens that have no items
+/// on them.
+///
+/// So an occupied slot is now a **line of its own** beneath the tiles: the slot
+/// word, the item's name in its rank's ink, and the rank as a word. An empty
+/// slot keeps its `unarmed` / `no armour` unit line exactly as before, because
+/// that belongs to the *figure* — it is why Attack is 1 — rather than to an
+/// item. The name still appears once.
 class _CombatBlock extends StatelessWidget {
-  const _CombatBlock({required this.figures});
+  const _CombatBlock({required this.figures, required this.equipped});
 
   final CombatFigures figures;
+
+  /// Every occupied slot, with rarity, from `StrideSession.equippedSummary` —
+  /// the projection over the same `Equipment.bySlot` the fight reads.
+  final List<EquippedSummary> equipped;
+
+  /// The two slots that count in a fight, in the order the tiles above them
+  /// run. The tool slot is deliberately absent: a tool never enters combat
+  /// (`EquippedSummary.power`), and listing it here would imply it does.
+  static const List<(EquipmentSlot, String)> _fighting =
+      <(EquipmentSlot, String)>[
+        (EquipmentSlot.weapon, 'Weapon'),
+        (EquipmentSlot.armor, 'Armour'),
+      ];
+
+  EquippedSummary? _inSlot(EquipmentSlot slot) {
+    for (final EquippedSummary e in equipped) {
+      if (e.slot == slot) return e;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -226,19 +263,66 @@ class _CombatBlock extends StatelessWidget {
               LabeledValueTile(
                 label: 'Attack',
                 value: '${f.attack}',
-                unit: f.weaponName ?? 'unarmed',
+                unit: f.weaponName == null ? 'unarmed' : null,
               ),
               LabeledValueTile(
                 label: 'Defence',
                 value: '${f.defence}',
-                unit: f.armorName ?? 'no armour',
+                unit: f.armorName == null ? 'no armour' : null,
               ),
             ],
           ),
+          for (final (EquipmentSlot slot, String label) in _fighting)
+            if (_inSlot(slot) case final EquippedSummary worn) ...<Widget>[
+              const SizedBox(height: StrideSpace.s8),
+              _EquippedLine(label: label, worn: worn),
+            ],
         ],
       ),
     );
   }
+}
+
+/// `WEAPON · Bronze Sword · RARE` on one line, in the card's own ground.
+///
+/// Not a [SurfaceBlock]: the two tiles above it are already filled blocks, and
+/// a third one would make the Combat card three competing surfaces. Same
+/// reasoning as [_IdentityFact], one card down.
+class _EquippedLine extends StatelessWidget {
+  const _EquippedLine({required this.label, required this.worn});
+
+  final String label;
+  final EquippedSummary worn;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: <Widget>[
+      SizedBox(
+        // The wider of the two words at the designed size, so `Bronze Sword`
+        // and `Traveler Tunic` start at the same x and the two lines read as a
+        // column. Not a fixed box around a growing value — the *name* beside it
+        // is the value, and it takes the rest of the row.
+        width: 56,
+        child: AdaptiveText(
+          label.toUpperCase(),
+          style: StrideType.compactLabel,
+          minScale: 0.8,
+        ),
+      ),
+      const SizedBox(width: StrideSpace.s6),
+      Expanded(
+        child: RarityName(
+          name: worn.displayName,
+          rarity: worn.rarity,
+          style: StrideType.sub,
+        ),
+      ),
+      if (worn.rarity != null) ...<Widget>[
+        const SizedBox(width: StrideSpace.s8),
+        RarityBadge(rarity: worn.rarity),
+      ],
+    ],
+  );
 }
 
 /// A label, a figure and a unit on one line, for the identity card.

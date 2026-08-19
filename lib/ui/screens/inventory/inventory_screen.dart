@@ -30,16 +30,19 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart'
-    show ContentId, EquipmentSlot, ItemCategory;
+    show ContentId, EquipmentSlot, ItemCategory, Rarity;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
+import '../../components/rarity_badge.dart';
+import '../../components/rarity_item_title.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
+import '../../theme/rarity_style.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
@@ -205,8 +208,15 @@ class _EquippedSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final StrideSession session = SessionScope.of(context).session;
+    // Slot → what is in it, with its rarity, from the projection the engine's
+    // own `Equipment.bySlot` backs. Read once rather than per column.
+    final Map<EquipmentSlot, EquippedSummary> worn =
+        <EquipmentSlot, EquippedSummary>{
+          for (final EquippedSummary e in session.equippedSummary) e.slot: e,
+        };
     return SurfaceBlock(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           for (final (EquipmentSlot slot, String label) in _slots)
             Expanded(
@@ -219,29 +229,28 @@ class _EquippedSummary extends StatelessWidget {
                     maxLines: 1,
                   ),
                   const SizedBox(height: StrideSpace.s2),
-                  AdaptiveText(
-                    _nameOf(session, session.equippedIn(slot)),
+                  RarityName(
+                    name: worn[slot]?.displayName ?? '—',
+                    rarity: worn[slot]?.rarity,
                     style: StrideType.sub,
-                    color: session.equippedIn(slot) == null
-                        ? StrideColors.textMuted
-                        : StrideColors.textPrimary,
+                    fallback: worn.containsKey(slot)
+                        ? StrideColors.textPrimary
+                        : StrideColors.textMuted,
                   ),
+                  // The rarity word under the name, compact: each of these
+                  // three columns is a third of the block, which at 320 dp is
+                  // about 76 dp — narrower than the plated badge, and the
+                  // reason the compact form exists.
+                  if (worn[slot]?.rarity case final Rarity r) ...<Widget>[
+                    const SizedBox(height: StrideSpace.s2),
+                    RarityBadge.compact(rarity: r),
+                  ],
                 ],
               ),
             ),
         ],
       ),
     );
-  }
-
-  /// The display name of an equipped item, via the same inventory projection
-  /// the grid renders from — an equipped item is always still owned.
-  static String _nameOf(StrideSession session, ContentId? item) {
-    if (item == null) return '—';
-    for (final InventoryEntry e in session.inventoryEntries) {
-      if (e.id == item) return e.displayName;
-    }
-    return item.value;
   }
 }
 
@@ -368,16 +377,23 @@ class _ItemGrid extends StatelessWidget {
   /// An [equipment] cell additionally spends the `EQUIPPED` marker line and
   /// the control beneath it — reserved for every cell in the group, equipped
   /// or not, for the same reason.
+  ///
+  /// Since the rarity pass the cell also spends [RarityRule.thickness] and one
+  /// more gap, reserved for every cell whether or not the content pack gave
+  /// that item a definition — an unreserved rule is the same defect the two
+  /// name lines exist to avoid, since a grid has one height for all its cells.
+  /// It does not scale: a 2 dp mark is a mark, not type.
   static double _tileExtent(TextScaler scaler, {required bool equipment}) {
     double lineOf(TextStyle style) =>
         scaler.scale(style.fontSize!) * (style.height ?? 1);
 
     const double iconEdge = 48; // PixelAsset.item at x1.
     const double padding = _tilePadTop + _tilePadBottom;
-    const double gaps = StrideSpace.s6 * 2; // spaceBetween, at minimum.
+    const double gaps = StrideSpace.s6 * 3; // spaceBetween, at minimum.
 
     final double needed =
         padding +
+        RarityRule.thickness +
         iconEdge +
         gaps +
         lineOf(StrideType.itemName) * 2 +
@@ -423,10 +439,21 @@ class _ItemTile extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
+        // The rank's mark, and not its word, for a measured reason
+        // ([RarityRule]): `UNCOMMON` needs 72.3 dp at text scale 1.4 in a
+        // 393 dp four-column cell that has 68.8. The word is carried by every
+        // surface that gives an item a full row — the equipped summary
+        // directly above this grid, the victory panel, the craft card.
+        RarityRule(rarity: entry.rarity),
         PixelAsset.item(PixelIcons.itemFor(entry.id)),
         Text(
           entry.displayName,
-          style: StrideType.itemName,
+          style: StrideType.itemName.copyWith(
+            // The rarity recolours the name and changes nothing else about it
+            // — same size, same weight, same two-line clamp. A rank is not a
+            // promotion (`rarity_item_title.dart`).
+            color: RarityStyle.inkOr(entry.rarity, StrideColors.textSecondary),
+          ),
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.clip,

@@ -420,12 +420,27 @@ const ambientFixManifest = [
 ];
 const ambientFixIds = new Set(ambientFixManifest.map((e) => e.id));
 
+/**
+ * WORLD & REWARD DEPTH 01 — ambient (`WORLD_REWARD_DEPTH_01/ambient/README.md`).
+ * A third pass, run after the PE01 corrections: `manifest.json` holds only the
+ * sequences the blind Visual QA passed (the book-scale `traveler_read`
+ * replacing the PE01 one, and the two micro-idles for the idle cadence). Every
+ * id in it supersedes the same id in the earlier passes.
+ */
+const AMBIENT_WRD_SRC = path.join(
+  EXPLORE, 'WORLD_REWARD_DEPTH_01', 'ambient', 'out', 'ambient',
+);
+const ambientWrdManifest = JSON.parse(
+  fs.readFileSync(path.join(AMBIENT_WRD_SRC, 'manifest.json'), 'utf8'),
+);
+const ambientWrdIds = new Set(ambientWrdManifest.map((e) => e.id));
+
 const AMBIENT_TALL_CROP = { y: 8, height: 64 };
 const ambientFootprints = {};
 for (const entry of ambientManifest) {
   // Superseded by the Playable Expansion 01 correction pass below; emitting the
   // original here would make `--check` report the corrected file as stale.
-  if (ambientFixIds.has(entry.id)) continue;
+  if (ambientFixIds.has(entry.id) || ambientWrdIds.has(entry.id)) continue;
   const [w, h] = Array.isArray(entry.canvas)
     ? entry.canvas
     : [entry.canvas, entry.canvas];
@@ -461,6 +476,7 @@ for (const entry of ambientManifest) {
  * `--check` sweep below reports them as unexpected if they linger.
  */
 for (const entry of ambientFixManifest) {
+  if (ambientWrdIds.has(entry.id)) continue; // superseded below
   const [w, h] = Array.isArray(entry.canvas)
     ? entry.canvas
     : [entry.canvas, entry.canvas];
@@ -468,6 +484,20 @@ for (const entry of ambientFixManifest) {
     const frame = png.load(path.join(AMBIENT_FIX_SRC, `${entry.id}_f${i}.png`));
     if (frame.width !== w || frame.height !== h) {
       throw new Error(`${entry.id}_f${i} (correction): expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    if (i === 0) ambientFootprints[`ambient_${entry.id}`] = png.footprint(frame);
+    emit(`ambient/${entry.id}_f${i}.png`, encode(frame));
+  }
+}
+
+for (const entry of ambientWrdManifest) {
+  const [w, h] = Array.isArray(entry.canvas)
+    ? entry.canvas
+    : [entry.canvas, entry.canvas];
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(path.join(AMBIENT_WRD_SRC, `${entry.id}_f${i}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}_f${i} (WRD01): expected ${w}x${h}, got ${frame.width}x${frame.height}`);
     }
     if (i === 0) ambientFootprints[`ambient_${entry.id}`] = png.footprint(frame);
     emit(`ambient/${entry.id}_f${i}.png`, encode(frame));
@@ -508,6 +538,44 @@ for (const file of fs.readdirSync(ENV_SRC).filter((f) => f.endsWith('.png'))) {
   const dest = file.replace(/_\d+x\d+(_f\d+)?\.png$/, '$1.png');
   emit(`env/${dest}`, encode(png.load(path.join(ENV_SRC, file))));
 }
+
+/**
+ * WORLD ATLAS — World & Reward Depth 01 (`WORLD_REWARD_DEPTH_01/world/
+ * README.md`, `PACKAGING.md`, `QA_VERDICT_ROUND1.md`). The round produced a
+ * 2 × 2 tile grid; **two independent blind Visual QA passes failed the
+ * composite on seam continuity** (hard hue / value / texture lines at the
+ * east and south-east joins), while the base ↔ south join held. So the shipped
+ * world is the **base + south** column (384 × 1376 native, ×2 in the
+ * viewport): one more tile, the five location-kind marker glyphs, and only
+ * the scatter / seam props the layout places. The east and south-east tiles,
+ * the four landmark cutouts (unplaced — the tiles already draw those
+ * features) and the unused props stay in the exploration directory,
+ * withheld, for a future round. Straight copies: the round conformed every
+ * cutout's palette to the base (A-2) and keyed the pick glyph's pad to
+ * transparent (A-2, keying). Every world coordinate lives in
+ * `atlas_layout.json`, not here.
+ */
+const WRD = path.join(EXPLORE, 'WORLD_REWARD_DEPTH_01', 'world', 'out');
+const WORLD_WRD_FILES = {
+  'atlas_south_384x688.png': 'world/atlas_south.png',
+  'marker_haven_20x20.png': 'world/marker_haven.png',
+  'marker_wilds_20x20.png': 'world/marker_wilds.png',
+  'marker_worksite_20x20.png': 'world/marker_worksite.png',
+  'marker_perilous_20x20.png': 'world/marker_perilous.png',
+  'marker_landmark_20x20.png': 'world/marker_landmark.png',
+};
+for (const [src, dest] of Object.entries(WORLD_WRD_FILES)) {
+  const raster = png.load(path.join(WRD, 'world', src));
+  const [, w, h] = src.match(/_(\d+)x(\d+)\.png$/).map(Number);
+  if (raster.width !== w || raster.height !== h) {
+    throw new Error(`${src}: expected ${w}x${h}, got ${raster.width}x${raster.height}`);
+  }
+  emit(dest, encode(raster));
+}
+// No WRD01 env props ship: every placed prop on the base + south column is one
+// the Transformation set already has (oak, pine clump, hedgerow, dead tree);
+// the crag / dune / sea stack / reed and strip props belong to the withheld
+// tiles and stay in `WORLD_REWARD_DEPTH_01/world/out/env/`.
 
 /**
  * ITEM ICONS — the nine that rendered the placeholder slab until now, and the
@@ -588,6 +656,51 @@ for (const entry of combatManifest) {
     }
     emit(`combat/${entry.id}_f${i}.png`, encode(frame));
   }
+}
+
+/**
+ * WORLD & REWARD DEPTH 01 — the Frost Lynx (Frostmere's first enemy, west-
+ * facing, 56² canvas, anchor row 39), the alpine backdrop, and four item icons
+ * (`WORLD_REWARD_DEPTH_01/{combat,items}/README.md`). Only manifest entries
+ * with status `accepted` — the blind Visual QA verdict — are emitted;
+ * `lynx_hit` is withheld (reads as a prowl) and the stage recoils the figure.
+ */
+const COMBAT_WRD_SRC = path.join(
+  EXPLORE, 'WORLD_REWARD_DEPTH_01', 'combat', 'out', 'combat',
+);
+const combatWrdManifest = JSON.parse(
+  fs.readFileSync(path.join(COMBAT_WRD_SRC, 'manifest.json'), 'utf8'),
+).filter((entry) => entry.status === 'accepted');
+for (const entry of combatWrdManifest) {
+  const [w, h] = Array.isArray(entry.canvas)
+    ? entry.canvas
+    : [entry.canvas, entry.canvas];
+  if (entry.kind === 'backdrop') {
+    const frame = png.load(path.join(COMBAT_WRD_SRC, `${entry.id}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}: expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    emit(`combat/${entry.id}.png`, encode(frame));
+    continue;
+  }
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(path.join(COMBAT_WRD_SRC, `${entry.id}_f${i}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}_f${i}: expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    if (i === 0) combatFootprints[`combat_${entry.id}`] = png.footprint(frame);
+    emit(`combat/${entry.id}_f${i}.png`, encode(frame));
+  }
+}
+const ITEMS_WRD_SRC = path.join(
+  EXPLORE, 'WORLD_REWARD_DEPTH_01', 'items', 'out',
+);
+for (const id of ['wolf_pelt', 'lynx_pelt', 'wolfhide_jerkin', 'frostlined_jerkin']) {
+  const raster = png.load(path.join(ITEMS_WRD_SRC, `icon_${id}_48.png`));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
+  }
+  emit(`item/${id}.png`, encode(raster));
 }
 
 // -------------------------------------------------------- footprint metrics

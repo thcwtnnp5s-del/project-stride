@@ -209,6 +209,57 @@ void main() {
     },
   );
 
+  testWidgets('the victory panel at 393 x 852: the wolf felled, XP and the '
+      'drops as rarity rows', (WidgetTester tester) async {
+    // World & Reward Depth 01: the shipped look of winning — VICTORY, the
+    // EXPERIENCE block, one framed reward row per drop with icon, rank ink,
+    // badge and count, and Continue. A golden so a change to the rarity style
+    // or the panel is a deliberate regeneration.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession s = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(5000)],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      await s.equip(trainingSword);
+      await s.equip(tunic);
+      final TravelReport t = await s.travel(woods);
+      expect(t.succeeded, isTrue, reason: '${t.rejection}');
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: s, syncOnStart: false));
+    await tester.pumpAndSettle();
+    final Element scope = find.byType(SessionScope).evaluate().first;
+    final SessionController c = (scope.widget as SessionScope).notifier!;
+    // The seeded resolver makes the fight deterministic, so the drops — and
+    // therefore the golden — are stable across runs.
+    await tester.runAsync(() async {
+      await c.startEncounter(wolf);
+      for (int i = 0; i < 60 && s.encounter != null; i++) {
+        await c.combatAttack();
+      }
+    });
+    expect(s.encounter, isNull);
+    expect(c.lastCombat?.outcome, isA<WonBeat>());
+    await tester.pumpAndSettle();
+    await settleImages(tester);
+    expect(find.text('VICTORY'), findsOneWidget);
+    await expectLater(
+      find.byType(StrideApp),
+      matchesGoldenFile('goldens/combat_victory.png'),
+    );
+  });
+
   testWidgets('evidence: the guardian in the Hollow, idle and landing the '
       'heavy blow', (WidgetTester tester) async {
     if ((Platform.environment['COMBAT_EVIDENCE_DIR'] ?? '').isEmpty) return;

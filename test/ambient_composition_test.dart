@@ -78,6 +78,39 @@ void main() {
     expect(scenery, hasLength(8), reason: 'one entry per node vignette');
   });
 
+  test(
+    'every scene the player can draw is one of the scenes measured here',
+    () {
+      // The idle cadence has two pools, and both are derived from the one table
+      // above — a micro-idle is a scene, held to every rule below like any
+      // other. This is the assertion that keeps it that way: a pool assembled
+      // anywhere else would put frames on the stage that nothing has measured.
+      final Set<String> measured = scenes.map((AmbientScene s) => s.id).toSet();
+      for (final AmbientSceneSet pool in <AmbientSceneSet>[
+        AmbientAssets.scenes.visitScenes,
+        AmbientAssets.scenes.microIdles,
+      ]) {
+        for (final AmbientScene s in pool.scenes) {
+          expect(
+            measured,
+            contains(s.id),
+            reason: '${s.id} is not in the table',
+          );
+        }
+      }
+      expect(
+        AmbientAssets.scenes.microIdles.isEmpty,
+        isFalse,
+        reason: 'with no pool the cadence idles on full scenes',
+      );
+      expect(
+        AmbientAssets.scenes.visitScenes.isEmpty,
+        isFalse,
+        reason: 'a visit needs scenes that are not idle-only',
+      );
+    },
+  );
+
   for (final AmbientStageLayout layout in _layouts) {
     group('stage ${layout.width.toInt()} × ${layout.height.toInt()}', () {
       test('the 64-box and its ground line are on the stage', () {

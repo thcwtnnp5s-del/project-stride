@@ -77,9 +77,18 @@ void main() {
   }) async {
     // The tile's name label specifically — once equipped, the slot summary
     // shows the same string in a different style.
+    //
+    // Matched on the role **with the colour normalised away**: since the
+    // rarity pass the tile paints the name in its rank's ink, so the style is
+    // `itemName.copyWith(color: …)` and never the bare role. Size, weight and
+    // height still have to match, which is what distinguishes a grid cell's
+    // label from the slot summary's.
     final Finder name = find.byWidgetPredicate(
       (Widget w) =>
-          w is Text && w.data == item && w.style == StrideType.itemName,
+          w is Text &&
+          w.data == item &&
+          w.style?.copyWith(color: StrideType.itemName.color) ==
+              StrideType.itemName,
     );
     final Finder tile = find.ancestor(
       of: name,

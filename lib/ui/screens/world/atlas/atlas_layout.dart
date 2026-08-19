@@ -39,6 +39,52 @@ final class AtlasEdge {
 
   final AtlasNode a;
   final AtlasNode b;
+
+  /// The edge's identity, independent of which way it was declared. Used as a
+  /// set key by the route layer so highlighting is a lookup rather than a
+  /// scan.
+  String get key => '${a.id.value}|${b.id.value}';
+
+  /// The key an edge between [x] and [y] would have, in either order.
+  static String keyOf(ContentId x, ContentId y) =>
+      x.compareTo(y) <= 0 ? '${x.value}|${y.value}' : '${y.value}|${x.value}';
+}
+
+/// What the inspector needs to describe a journey, and the route layer needs
+/// to draw it.
+///
+/// **Every figure here comes from the session**, profile-scaled as it gives
+/// them, and none of it is a rule: `TravelTo` charges the first leg and
+/// re-checks everything. [totalCost] is the sum of the legs of a walk the
+/// player will make one road at a time — a *quotation for the whole journey*,
+/// not a price anything charges at once.
+final class AtlasWay {
+  const AtlasWay({
+    required this.hops,
+    required this.edges,
+    required this.totalCost,
+    required this.firstLegCost,
+  });
+
+  /// Each leg's destination, in order, ending at the target. Length is the
+  /// number of roads walked; `hops.first` is the place the Travel button
+  /// actually sets out for.
+  final List<AtlasNode> hops;
+
+  /// The edges the walk uses, for the preview.
+  final List<AtlasEdge> edges;
+
+  /// The sum of every leg's step cost.
+  final int totalCost;
+
+  /// The first leg's cost — the figure the Travel button charges.
+  final int firstLegCost;
+
+  /// Whether the target is one road away.
+  bool get isDirect => hops.length == 1;
+
+  /// The places passed through on the way, excluding the target.
+  List<AtlasNode> get via => hops.sublist(0, hops.length - 1);
 }
 
 final class AtlasScene {
@@ -49,6 +95,8 @@ final class AtlasScene {
     required this.current,
     required this.destinations,
     required this._neighbours,
+    required this._legCost,
+    required this._byId,
   });
 
   /// Joins [layout] to what [session] projects. Returns null when the layout is
@@ -56,10 +104,29 @@ final class AtlasScene {
   static AtlasScene? build(StrideSession session) {
     final AtlasLayout? layout = session.atlasLayout;
     if (layout == null) return null;
+    return join(
+      layout: layout,
+      places: session.regionPlaces,
+      routes: session.regionRoutes,
+      options: session.destinations,
+    );
+  }
 
+  /// The join itself, over values rather than a session.
+  ///
+  /// Exists so a test can build a scene over a fixture layout — a world of a
+  /// different size, a layout carrying landmarks — without booting a save.
+  /// [build] is the only caller in the app, and it passes the session's own
+  /// projections unaltered: this is not a second source of any of them.
+  static AtlasScene? join({
+    required AtlasLayout layout,
+    required List<RegionPlace> places,
+    required List<RegionRoute> routes,
+    required List<TravelOption> options,
+  }) {
     final Map<ContentId, AtlasNode> byId = <ContentId, AtlasNode>{};
     AtlasNode? current;
-    for (final RegionPlace place in session.regionPlaces) {
+    for (final RegionPlace place in places) {
       final AtlasLocation? at = layout.locationFor(place.id);
       // Validated at load, so this cannot be null for a shipped layout; a
       // place the layout does not know is skipped rather than drawn at (0, 0).
@@ -72,10 +139,14 @@ final class AtlasScene {
 
     final Map<ContentId, List<ContentId>> neighbours =
         <ContentId, List<ContentId>>{};
+    final Map<String, int> legCost = <String, int>{};
     final Set<String> seen = <String>{};
     final List<AtlasEdge> edges = <AtlasEdge>[];
-    for (final RegionRoute route in session.regionRoutes) {
+    for (final RegionRoute route in routes) {
       neighbours.putIfAbsent(route.from, () => <ContentId>[]).add(route.to);
+      // Directed, because a road may be priced differently each way and the
+      // quotation must be for the direction the player would walk.
+      legCost['${route.from.value}>${route.to.value}'] = route.stepCost;
       final AtlasNode? from = byId[route.from];
       final AtlasNode? to = byId[route.to];
       if (from == null || to == null) continue;
@@ -93,10 +164,11 @@ final class AtlasScene {
       edges: List<AtlasEdge>.unmodifiable(edges),
       current: current,
       destinations: <ContentId, TravelOption>{
-        for (final TravelOption option in session.destinations)
-          option.id: option,
+        for (final TravelOption option in options) option.id: option,
       },
       neighbours: neighbours,
+      legCost: legCost,
+      byId: byId,
     );
   }
 
@@ -112,15 +184,16 @@ final class AtlasScene {
 
   final Map<ContentId, List<ContentId>> _neighbours;
 
+  /// `from>to` → the profile-scaled cost of that one road, as the session
+  /// gave it.
+  final Map<String, int> _legCost;
+
+  final Map<ContentId, AtlasNode> _byId;
+
   double get worldWidth => layout.worldWidth.toDouble();
   double get worldHeight => layout.worldHeight.toDouble();
 
-  AtlasNode? nodeFor(ContentId id) {
-    for (final AtlasNode node in nodes) {
-      if (node.id == id) return node;
-    }
-    return null;
-  }
+  AtlasNode? nodeFor(ContentId id) => _byId[id];
 
   /// The travel option for [id], or null when no road runs there from here.
   TravelOption? optionFor(ContentId id) => destinations[id];
@@ -158,5 +231,71 @@ final class AtlasScene {
       }
     }
     return null;
+  }
+
+  /// The whole walk from [current] to [target] — its legs, the edges it uses,
+  /// what it costs in all, and what the first leg costs.
+  ///
+  /// Null when [target] is where the player already stands, or when no chain
+  /// of roads reaches it: in both cases there is nothing to preview and
+  /// nothing highlights.
+  ///
+  /// The costs are sums of [RegionRoute.stepCost], which the session already
+  /// scaled through the active balance profile. Nothing is computed here that
+  /// the engine does not also compute — the engine charges leg by leg, and
+  /// [AtlasWay.firstLegCost] is the leg it would charge first.
+  AtlasWay? routeSummary(ContentId target) {
+    if (target == current.id) return null;
+    final List<ContentId>? via = wayTo(target);
+    if (via == null) return null;
+
+    final List<ContentId> chain = <ContentId>[...via, target];
+    final List<AtlasNode> hops = <AtlasNode>[];
+    final List<AtlasEdge> path = <AtlasEdge>[];
+    final Map<String, AtlasEdge> byKey = <String, AtlasEdge>{
+      for (final AtlasEdge edge in edges) edge.key: edge,
+    };
+
+    int total = 0;
+    int first = 0;
+    ContentId from = current.id;
+    for (final (int i, ContentId to) in chain.indexed) {
+      final AtlasNode? node = nodeFor(to);
+      if (node == null) return null;
+      hops.add(node);
+      final int cost = _legCost['${from.value}>${to.value}'] ?? 0;
+      total += cost;
+      if (i == 0) first = cost;
+      final AtlasEdge? edge = byKey[AtlasEdge.keyOf(from, to)];
+      if (edge != null) path.add(edge);
+      from = to;
+    }
+
+    return AtlasWay(
+      hops: List<AtlasNode>.unmodifiable(hops),
+      edges: List<AtlasEdge>.unmodifiable(path),
+      totalCost: total,
+      firstLegCost: first,
+    );
+  }
+
+  /// How much room [node]'s hit target has before it starts stealing another
+  /// place's thumb space, in world pixels. Infinite for a lone place.
+  ///
+  /// Measured on the **larger axis** rather than as a straight-line distance,
+  /// because a hit target is a square: two squares of half-width `r` centred
+  /// `d` apart on their widest axis miss each other exactly when `2r < d`, and
+  /// a Euclidean measure would permit a diagonal pair to overlap on both axes
+  /// while passing the test.
+  double separationAround(AtlasNode node) {
+    double nearest = double.infinity;
+    for (final AtlasNode other in nodes) {
+      if (other.id == node.id) continue;
+      final double dx = (other.x - node.x).abs();
+      final double dy = (other.y - node.y).abs();
+      final double d = dx > dy ? dx : dy;
+      if (d < nearest) nearest = d;
+    }
+    return nearest;
   }
 }

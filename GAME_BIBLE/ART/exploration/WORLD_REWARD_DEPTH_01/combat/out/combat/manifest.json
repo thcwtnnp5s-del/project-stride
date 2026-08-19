@@ -1,0 +1,86 @@
+[
+ {
+  "id": "lynx_idle",
+  "kind": "enemy.frost_lynx",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 56,
+  "anchor": 39,
+  "baseline": 39,
+  "bounds": {
+   "left": 10,
+   "top": 13,
+   "right": 51,
+   "bottom": 39
+  },
+  "status": "accepted",
+  "note": "breathing/settling idle, west; frame 0 is the west rotation pose (shared anchor with every other lynx track)"
+ },
+ {
+  "id": "lynx_attack",
+  "kind": "enemy.frost_lynx",
+  "frames": 9,
+  "fps": 10,
+  "loop": "once",
+  "canvas": 56,
+  "anchor": 39,
+  "baseline": 39,
+  "bounds": {
+   "left": 3,
+   "top": 13,
+   "right": 52,
+   "bottom": 39
+  },
+  "status": "accepted",
+  "note": "crouch (f2-f5, jaws open) then pounce-swipe (f6-f8). The lunge travels ~10 px toward the Traveler and does not return inside the sequence; the stage returns to lynx_idle after."
+ },
+ {
+  "id": "lynx_hit",
+  "kind": "enemy.frost_lynx",
+  "frames": 7,
+  "fps": 10,
+  "loop": "once",
+  "canvas": 56,
+  "anchor": 39,
+  "baseline": 39,
+  "bounds": {
+   "left": 8,
+   "top": 13,
+   "right": 51,
+   "bottom": 39
+  },
+  "status": "withheld",
+  "note": "author withholds: the flinch reads as a crouching prowl, the same failure the wolf hit had three rounds of in PLAYABLE_EXPANSION_01. Staged for QA only."
+ },
+ {
+  "id": "lynx_defeat",
+  "kind": "enemy.frost_lynx",
+  "frames": 7,
+  "fps": 8,
+  "loop": "once",
+  "canvas": 56,
+  "anchor": 39,
+  "baseline": 40,
+  "bounds": {
+   "left": 5,
+   "top": 13,
+   "right": 51,
+   "bottom": 40
+  },
+  "status": "accepted",
+  "note": "sinks and lies flat; the last three frames are the resting pose (baseline dips to 40 while lying)."
+ },
+ {
+  "id": "backdrop_frostmere",
+  "kind": "backdrop",
+  "frames": 1,
+  "canvas": [
+   192,
+   96
+  ],
+  "groundRow": 88,
+  "status": "accepted",
+  "note": "192x96 opaque; flat snow band across the bottom third, frost pines and a boulder mid, ridge and cold sky. Palette-conformed to assets/art/v1/location/frostmere.png."
+ }
+]

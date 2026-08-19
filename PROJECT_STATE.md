@@ -1,5 +1,43 @@
 # Project Stride — Project State
 
+**Version:** 2.8
+**Status:** 🚧 **WORLD & REWARD DEPTH 01 — implementation complete, awaiting
+the owner's physical-device test.** Branch `playable-phase-2-multiregion`, on
+top of the device-validated Playable Expansion 01 (`e962420`).
+Record: `MILESTONES/WORLD_REWARD_DEPTH_01.md` (device script §16).
+
+What changed, in one breath: combat is **repeatable** — an authored number of
+fights per enemy per visit (wolf 2, goblin 2, boss 1), reset by travel, never
+by the clock, rewards still exactly once, encounter state at **state version
+5** (`DECISIONS/0021`); **Frostmere has its first enemy**, the Frost Lynx, on
+a PixelLab alpine backdrop; wolves and lynxes drop **pelts** that feed two
+narrow smithing recipes; every item carries an **authored rarity**
+(Uncommon · Common · Rare · Epic · Legendary — gray / green / blue / purple /
+orange, one style table, label beside colour) shown on the **victory panel**
+(headline, experience block, framed reward rows with icon · name · rank ·
+count, Continue), in Inventory, Craft and Character; the World tab is a
+**bigger atlas** — a second PixelLab tile doubles the world southward
+(farmland, Millbridge, Ferry Crossing, the road to the Far Town as
+non-interactive landmarks), location-kind glyphs under the rings, a **route
+preview** with the multi-leg cost, and an **inspector** that lists the real
+gathering sites and encounters at a place; the ambient stage **no longer
+freezes** after four scenes — an idle cadence of PixelLab micro-idles
+(breathe, look around) keeps the Traveler alive while the app is open, the
+reading book is book-sized, and `pick_inspect` is out of rotation on a blind
+verdict. The east and south-east atlas tiles were generated and **withheld**
+after two independent blind Visual QA passes failed the composite on seam
+continuity (`MISTAKES.md` M-12).
+
+Suites: **613** `stride_core`, **108** `stride_storage`, app **≈ 500** incl.
+combat recurrence / session / UI / stage / victory golden, rarity UI, atlas
+schema v2 / scene / inspector / screen, ambient cadence (185). **Nothing in
+the health / step-accounting path changed** (the only core change near it is
+the v4→v5 table step, `rebasesEconomy: false`); the in-place `devicectl`
+install remains the default. Audio remains deferred. PixelLab balance 700 →
+335. Open: `JOURNAL/OPEN_QUESTIONS.md` Q-06, **Q-07**.
+
+---
+
 **Version:** 2.7
 **Status:** 🚧 **PLAYABLE EXPANSION 01 — implementation complete, awaiting the
 owner's physical-device test.** Branch `playable-phase-2-multiregion`, on top
@@ -159,6 +197,7 @@ Completed foundations:
 | 0018 | **Transformation playtest epoch — state v3, marked after the first sync** | `DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md` |
 | 0019 | **A new game retires its first authorised reconcile; spendable-zero baseline** | `DECISIONS/0019_NEW_GAME_BASELINE.md` |
 | 0020 | **Combat Slice 01 — encounter state in the save (v4), one round = one commit, driven-off rule, retreat to the nearest safe place** | `DECISIONS/0020_COMBAT_SLICE_01.md` |
+| 0021 | **Repeatable encounters per visit (v5), authored item rarity, derived location kind** | `DECISIONS/0021_REPEATABLE_ENCOUNTERS_AND_RARITY.md` |
 
 ## Current milestone
 

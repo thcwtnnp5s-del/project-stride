@@ -16,11 +16,21 @@
 /// is a packaging fault that `PixelAsset` makes visible in debug.
 ///
 /// - **Base tiles** — key `world/<name>` → `assets/art/v1/world/<name>.png`.
-///   One image today (`world/region_map`, 384 × 640); a grid of tiles later,
-///   each with its own `x, y, width, height` in native pixels.
+///   One tile today (`world/atlas_base`); a grid later, each tile with its own
+///   `x, y, width, height` in native pixels. **No size is written down here**:
+///   the layout declares every one, because the grid is about to change shape.
 /// - **Landmarks** — key `world/landmark_<slug>` →
 ///   `assets/art/v1/world/landmark_<slug>.png`. 48–96 px square, transparent
-///   background, with the anchor pixel recorded in the layout.
+///   background, with the anchor pixel recorded in the layout. The same key
+///   shape serves a location's landmark and a named landmark's own art; the
+///   two differ only in which list of the layout declares them.
+/// - **Marker glyphs** — key `world/marker_<kind>` for each of `haven`,
+///   `wilds`, `worksite`, `perilous`, `landmark` →
+///   `assets/art/v1/world/marker_<kind>.png`. 16–20 px, transparent, drawn
+///   under the marker ring at the layout's scale, anchored at its centre.
+///   Named in the layout's `kindMarkers` block, which is **absent until the
+///   art lands** — and absent is a supported state, not a broken one: the
+///   marker layer draws its ring chrome and nothing is missing.
 /// - **Overlay frame sequences** — key `env/<name>` →
 ///   `assets/art/v1/env/<name>_f0.png … _f<n-1>.png`. 32–96 px, transparent,
 ///   4–8 loop frames, all the same size.

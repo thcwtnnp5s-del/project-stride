@@ -1,0 +1,66 @@
+[
+ {
+  "id": "icon_wolf_pelt_48",
+  "size": [
+   48,
+   48
+  ],
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 46,
+   "bottom": 47
+  },
+  "colours": 21,
+  "status": "accepted",
+  "note": "c2 (seed 5102). c1 (seed 5101) rejected: a bright cream-orange stripe down the centre read as a flame / emissive seam, against the style clause's no-glow rule."
+ },
+ {
+  "id": "icon_lynx_pelt_48",
+  "size": [
+   48,
+   48
+  ],
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 47,
+   "bottom": 46
+  },
+  "colours": 42,
+  "status": "accepted",
+  "note": "c1 (seed 5201). c2 (seed 5202) rejected: it drew a whole spread-out cat with a long tail, not a cut pelt."
+ },
+ {
+  "id": "icon_wolfhide_jerkin_48",
+  "size": [
+   48,
+   48
+  ],
+  "bounds": {
+   "left": 3,
+   "top": 1,
+   "right": 44,
+   "bottom": 46
+  },
+  "colours": 26,
+  "status": "accepted",
+  "note": "c1 (seed 5301), one roll. Dark brown laced leather body with a shaggy grey-brown fur collar; sits in the same worn-garment presentation as the shipped traveler_tunic and bronze_chestplate."
+ },
+ {
+  "id": "icon_frostlined_jerkin_48",
+  "size": [
+   48,
+   48
+  ],
+  "bounds": {
+   "left": 5,
+   "top": 1,
+   "right": 43,
+   "bottom": 45
+  },
+  "colours": 46,
+  "status": "accepted",
+  "note": "c1 (seed 5401), one roll. Same jerkin with a full pale frost-grey fur collar AND a pale fur hem band — the added hem is what separates it from the wolfhide jerkin at x1."
+ }
+]

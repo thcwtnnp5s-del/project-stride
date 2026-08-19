@@ -35,8 +35,13 @@ library;
 import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/pixel_asset.dart';
+import '../../components/rarity_badge.dart';
+import '../../components/rarity_item_title.dart';
 import '../../components/surfaces.dart';
+import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -86,7 +91,15 @@ class _CombatScreenState extends State<CombatScreen> {
     // outcome first and the panel follows.
     if (view == null) {
       if (outcome == null || report == null) return const SizedBox.shrink();
-      return _ResultPanel(report: report, outcome: outcome, controller: c);
+      return _ResultPanel(
+        // Keyed on the outcome, so a second fight in the same visit builds a
+        // fresh State and replays its reveal rather than inheriting the last
+        // panel's finished clock.
+        key: ObjectKey(outcome),
+        report: report,
+        outcome: outcome,
+        controller: c,
+      );
     }
 
     final bool ended = live == null;
@@ -101,7 +114,12 @@ class _CombatScreenState extends State<CombatScreen> {
         ),
         const SizedBox(height: StrideSpace.cardGap),
         if (ended && outcome != null && report != null && !_playing)
-          _ResultPanel(report: report, outcome: outcome, controller: c)
+          _ResultPanel(
+            key: ObjectKey(outcome),
+            report: report,
+            outcome: outcome,
+            controller: c,
+          )
         else
           SectionCard(
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
@@ -319,9 +337,32 @@ class _CombatControlsState extends State<_CombatControls> {
   }
 }
 
-/// Victory, defeat or retreat, once, with an OK that acknowledges it.
-class _ResultPanel extends StatelessWidget {
+/// Victory, defeat or retreat, once, with a Continue that acknowledges it.
+///
+/// ## What a victory reads as, top to bottom
+///
+/// `VICTORY` · *the enemy falls* · the **experience block**, on its own nested
+/// ground so the figure is not one more sentence · **REWARDS**, one framed row
+/// per drop carrying icon, name in its rarity's ink, the rarity word, and the
+/// quantity · `Continue`.
+///
+/// The separation is the point. The shipped panel ran the XP and the drops
+/// together as two lines of prose — `+30 XP` then `Drops: Meadow Herb, Wolf
+/// Pelt ×2` — so winning a fight and winning *something* arrived as the same
+/// sentence, and the rarity the content authors had already decided was
+/// invisible.
+///
+/// ## What it deliberately is not
+///
+/// No chest, no reveal, no "tap to open", no burst, no currency, nothing
+/// stacked or sequenced to be opened. `RULES.md` **P-6** forbids the systems
+/// that presentation belongs to, and a panel that *looks* like a loot box
+/// teaches the loop that a loot box exists. The one flourish is
+/// [_RewardIcon] — a single scale-and-fade of art already on disk, once,
+/// never looping.
+class _ResultPanel extends StatefulWidget {
   const _ResultPanel({
+    super.key,
     required this.report,
     required this.outcome,
     required this.controller,
@@ -332,7 +373,80 @@ class _ResultPanel extends StatelessWidget {
   final SessionController controller;
 
   @override
+  State<_ResultPanel> createState() => _ResultPanelState();
+}
+
+class _ResultPanelState extends State<_ResultPanel>
+    with SingleTickerProviderStateMixin {
+  /// One controller for the whole panel, sliced by [Interval] per row, rather
+  /// than one controller and one delayed callback per row.
+  ///
+  /// Deterministic by construction: with a single clock the stagger is a
+  /// function of the row index, so the reveal is identical on every run and a
+  /// test can settle it. Per-row `Future.delayed` would put N timers in flight
+  /// that outlive a dispose.
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: _revealTotal(_rewardCount),
+  );
+
+  /// Resolved from the ambient `MediaQuery`, so it is read in
+  /// [didChangeDependencies] and not in `initState`.
+  bool _started = false;
+
+  int get _rewardCount => switch (widget.outcome) {
+    final WonBeat w => w.drops.length,
+    _ => 0,
+  };
+
+  /// One row's reveal, and the gap between two rows starting.
+  static const Duration _rowDuration = Duration(milliseconds: 350);
+  static const Duration _rowStagger = Duration(milliseconds: 80);
+
+  static Duration _revealTotal(int rows) => Duration(
+    milliseconds:
+        _rowDuration.inMilliseconds +
+        _rowStagger.inMilliseconds * (rows > 0 ? rows - 1 : 0),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Reduced motion is honoured by arriving already finished, not by playing
+    // faster: the rows are the information, and the animation is the only part
+    // anyone asked to be rid of.
+    if (MediaQuery.disableAnimationsOf(context) || _rewardCount == 0) {
+      _reveal.value = 1;
+    } else {
+      // One-shot. Nothing here repeats, reverses, or waits on the clock for a
+      // second pass — the panel is a still image three hundred milliseconds
+      // after it appears.
+      _reveal.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reveal.dispose();
+    super.dispose();
+  }
+
+  /// The slice of [_reveal] that belongs to row [index].
+  Animation<double> _rowCurve(int index) {
+    final int total = _revealTotal(_rewardCount).inMilliseconds;
+    final double begin = (_rowStagger.inMilliseconds * index) / total;
+    final double end = begin + _rowDuration.inMilliseconds / total;
+    return CurvedAnimation(
+      parent: _reveal,
+      curve: Interval(begin, end > 1 ? 1 : end, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final CombatBeat outcome = widget.outcome;
     final String heading = switch (outcome) {
       WonBeat() => 'Victory',
       LostBeat() => 'Driven back',
@@ -340,31 +454,12 @@ class _ResultPanel extends StatelessWidget {
       _ => 'Encounter over',
     };
     // Victory itemises; the two retreats say where the player now is and that
-    // nothing was lost, in the log's own words.
-    final CombatBeat o = outcome;
-    final List<Widget> lines = switch (o) {
-      WonBeat() => <Widget>[
-        Text('${report.enemyName} falls.', style: StrideType.body, maxLines: 2),
-        const SizedBox(height: StrideSpace.s6),
-        Text(
-          '+${o.xp} XP'
-          '${o.levelledUp ? ' — level ${o.levelAfter}!' : ''}',
-          style: StrideType.numericValue.copyWith(
-            color: StrideColors.textPrimary,
-          ),
-        ),
-        if (o.drops.isNotEmpty) ...<Widget>[
-          const SizedBox(height: StrideSpace.s6),
-          Text(
-            'Drops: ${dropsText(o.drops)}',
-            style: StrideType.sub.copyWith(color: StrideColors.textPrimary),
-            maxLines: 3,
-          ),
-        ],
-      ],
+    // nothing was lost, in the log's own words — unchanged.
+    final List<Widget> body = switch (outcome) {
+      final WonBeat o => _victory(o),
       _ => <Widget>[
         Text(
-          describeBeat(outcome, report.enemyName),
+          describeBeat(outcome, widget.report.enemyName),
           style: StrideType.body,
           maxLines: 4,
         ),
@@ -374,13 +469,171 @@ class _ResultPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SectionHeading(label: heading),
+          // Victory gets the headline weight a win deserves — the card title,
+          // not a section eyebrow; the two retreats keep the quieter heading,
+          // because losing nothing is not an event to celebrate.
+          if (outcome is WonBeat)
+            AdaptiveText(heading.toUpperCase(), style: StrideType.cardTitle)
+          else
+            SectionHeading(label: heading),
           const SizedBox(height: StrideSpace.s10),
-          ...lines,
+          ...body,
           const SizedBox(height: StrideSpace.s12),
-          StrideButton(label: 'OK', onPressed: controller.acknowledgeCombat),
+          // Primary and full width: it is the only thing to do here, and the
+          // acknowledgement is what clears the report and returns the cards.
+          // `acknowledgeCombat` is idempotent — a second tap on a panel that
+          // is already gone would find no report and do nothing.
+          StrideButton(
+            label: 'Continue',
+            onPressed: widget.controller.acknowledgeCombat,
+          ),
         ],
       ),
     );
   }
+
+  List<Widget> _victory(WonBeat o) => <Widget>[
+    Text(
+      '${widget.report.enemyName} falls.',
+      style: StrideType.body,
+      maxLines: 2,
+    ),
+    const SizedBox(height: StrideSpace.s10),
+    // The experience, on its own ground.
+    SurfaceBlock(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text('EXPERIENCE', style: StrideType.microLabel, maxLines: 1),
+          const SizedBox(height: StrideSpace.s4),
+          AdaptiveText('+${o.xp} XP', style: StrideType.numericValue),
+          if (o.levelledUp) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            AdaptiveText(
+              'Level ${o.levelAfter}!',
+              style: StrideType.sub,
+              color: StrideColors.textPrimary,
+            ),
+          ],
+        ],
+      ),
+    ),
+    const SizedBox(height: StrideSpace.s12),
+    const Text('REWARDS', style: StrideType.microLabel, maxLines: 1),
+    const SizedBox(height: StrideSpace.s6),
+    if (o.drops.isEmpty)
+      // Quiet, and never an apology. Nothing was lost and nothing is owed;
+      // the drop tables are chances, and a chance that did not land is a fact
+      // rather than a failure (`RULES.md` P-5, P-7).
+      const Text('No drops this time.', style: StrideType.micro, maxLines: 2)
+    else
+      for (int i = 0; i < o.drops.length; i++) ...<Widget>[
+        if (i > 0) const SizedBox(height: StrideSpace.s6),
+        _RewardRow(line: o.drops[i], reveal: _rowCurve(i)),
+      ],
+  ];
+}
+
+/// One dropped item: its icon, its name in its rarity's ink, the rarity word,
+/// and how many — inside a 1 px frame of the same rarity's accent.
+///
+/// The quantity is [StrideType.itemCount], the same role the inventory grid
+/// gives `×24`, so `×2` here and `×2` there are the same object.
+///
+/// ## Why the badge is on its own line
+///
+/// It shared the name's column first, and that column is what is left of the
+/// row after a 48 px icon and a three-digit count. At 320 dp and text scale 1.4
+/// it comes to about 93 dp, and `LEGENDARY` — the longest of the five words,
+/// and the rank nothing carries yet, so nobody would have found this on a
+/// device — needs 131.4. Beneath the name it has the frame's full width less
+/// the icon indent, which is 184 dp in the same case.
+class _RewardRow extends StatelessWidget {
+  const _RewardRow({required this.line, required this.reveal});
+
+  final RewardLine line;
+  final Animation<double> reveal;
+
+  /// The icon's edge plus its gap: what the badge is indented by, so the word
+  /// starts under the name rather than under the picture.
+  static const double _nameIndent = 48 + StrideSpace.s10;
+
+  @override
+  Widget build(BuildContext context) => RarityFrame(
+    rarity: line.rarity,
+    padding: const EdgeInsets.all(StrideSpace.s8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            // `itemFor` never returns null: an item this icon set does not
+            // cover yet — the new pelts and jerkins, until the lead packages
+            // them — gets the deliberately non-representational slab, and the
+            // name beside it carries the meaning (**L-17**).
+            _RewardIcon(assetPath: PixelIcons.itemFor(line.id), reveal: reveal),
+            const SizedBox(width: StrideSpace.s10),
+            Expanded(
+              // Wrapping, because this is the narrowest full-width name
+              // surface in the app: at 320 dp the name column is 116 dp and
+              // `Frost-lined Jerkin` needs 198.9 at this role. A name is
+              // prose; it takes the second line rather than the smaller type.
+              child: RarityName.wrapping(
+                name: line.name,
+                rarity: line.rarity,
+                style: StrideType.sub,
+              ),
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            AdaptiveText('×${line.quantity}', style: StrideType.itemCount),
+          ],
+        ),
+        // The word, always. Colour is never the only carrier.
+        if (line.rarity != null) ...<Widget>[
+          const SizedBox(height: StrideSpace.s6),
+          Padding(
+            padding: const EdgeInsets.only(left: _nameIndent),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: RarityBadge(rarity: line.rarity),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// The one flourish: an approved 48 px item icon, scaled and faded in once.
+///
+/// **A-2, and nothing more.** This invents no object, no silhouette, no frame
+/// and no illustrated content — it is a deterministic transformation of art
+/// PixelLab already made, played once. It does not loop, it does not bounce
+/// past 1, and there is no second element on screen that exists only to move.
+///
+/// [FadeTransition] and [ScaleTransition] rather than an [AnimatedBuilder]
+/// around the sprite: both rebuild nothing, so the `Image` is decoded once and
+/// the transform runs on the layer.
+class _RewardIcon extends StatelessWidget {
+  const _RewardIcon({required this.assetPath, required this.reveal});
+
+  final String assetPath;
+  final Animation<double> reveal;
+
+  /// The scale it starts from. **0.86, not 0** — a sprite scaled from nothing
+  /// is resampled through every fractional size on the way up, and this is
+  /// pixel art whose whole reason for existing is landing on whole pixels. A
+  /// short, shallow move reads as arrival without ever putting the icon far
+  /// off its integer multiple for long.
+  static const double _from = 0.86;
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: reveal,
+    child: ScaleTransition(
+      scale: Tween<double>(begin: _from, end: 1).animate(reveal),
+      child: PixelAsset.item(assetPath),
+    ),
+  );
 }

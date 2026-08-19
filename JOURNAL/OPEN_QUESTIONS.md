@@ -605,15 +605,50 @@ design question the owner's device play should answer before it is fixed:
 - **A guard / brace action.** The Guardian telegraphs its heavy strike; today
   the player's only answer is to eat. If a second tactical action earns its
   place, "brace" (halve the next hit, deal none) is the candidate.
-- **The driven-off rule.** One victory per enemy per visit, cleared by any
-  move. It is the only limiter on repeat fights and the only thing keeping a
-  goblin from being a free mine. Whether the *right* limiter is travel, a
-  step-counted return, or regional variants is a play question.
-- **Drops that duplicate gathering.** The goblin drops ore, the wolf a herb —
-  canonical content, kept. Whether combat should instead yield materials that
-  only combat yields (a pelt, a fang) is a content question for the next
-  slice, not this one.
-- **Enemy variants per region.** Three archetypes across three regions
-  today. The owner's "~3 per region" is a content target; adding variants is
-  cheap once the resolver is proven and should follow evidence about which
-  behaviour reads as fun.
+- **The driven-off rule.** ✅ **Answered by play → `DECISIONS/0021`
+  (2026-08-19).** One victory per enemy per visit felt too restrictive on the
+  phone; the limiter stays travel (any move clears the visit), but the count
+  is now authored per enemy (`encountersPerVisit`: normal 2, boss 1).
+  Whether a step-counted return should ever replace travel remains a play
+  question, not a planned change.
+- **Drops that duplicate gathering.** ✅ **Answered in part (World & Reward
+  Depth 01):** the wolf now also drops a Wolf Pelt and the Frost Lynx a Frost
+  Lynx Pelt — combat-only materials feeding two narrow smithing recipes
+  (`GAME_BIBLE/COMBAT/02` §5, `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`). The
+  goblin still drops ore (canonical, kept).
+- **Enemy variants per region.** One step taken (World & Reward Depth 01):
+  the Frost Lynx gives Frostmere its first encounter. Two per region remains
+  a content target for later evidence.
+
+---
+
+## Q-07 — World & Reward Depth 01: the small choices the milestone left open
+
+**Raised:** 2026-08-19, World & Reward Depth 01
+(`MILESTONES/WORLD_REWARD_DEPTH_01.md`). Each was implemented one way so the
+build could ship, labelled here so the choice is visibly provisional
+(`RULES.md` G-3):
+
+- **Uncommon below Common.** The owner's tier list reads Uncommon (gray) →
+  Common (green) → Rare → Epic → Legendary. Implemented exactly as written
+  (`DECISIONS/0021` §4). If the two names were meant the conventional way
+  round, it is a two-line content swap (`GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`).
+- **Location kind words.** The atlas inspector says *Settlement · Wilds ·
+  Worksite · Perilous*. "Perilous" is an adjective among nouns; the words are
+  one enum line each (`lib/ui/screens/world/atlas/atlas_place_info.dart`) and
+  belong to the Creative Director.
+- **Landmark names.** *Millbridge*, *Ferry Crossing*, *Far Town* (future tier,
+  drawn as "Far Town —") are the art stream's proposals, not World Designer
+  decisions; the withheld east / south-east tiles carry *Old Watch*, *The Nine
+  Stones*, *Drowned Harbour* the same way.
+- **The multi-leg total cost.** The inspector quotes "By way of Stonefall Mine ·
+  2,300 steps in all, 800 for the first leg". The total is a figure no button
+  charges; it helps a player plan a week's walking, and it could read as a sum
+  to save up in one go. Whether to quote it at all is the owner's.
+- **Rarity in the inventory grid is colour-only.** The tile carries a rarity
+  rule and the name in rarity ink, no word — `UNCOMMON` needs 72 dp where a
+  393 dp × 1.4 cell gives 69. The word appears in the Equipped summary above
+  the grid and on every full-width row elsewhere. Spelling it in the grid
+  costs one column at large text scales.
+- **The "future" landmark treatment.** A trailing em dash ("Far Town —") over
+  a caption. Untested on a device; it may read as a truncation.

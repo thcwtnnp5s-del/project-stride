@@ -210,17 +210,22 @@ void main() {
     // The result panel stands until acknowledged — the cards do not return
     // on their own, because the encounter cleared on the winning commit.
     expect(find.text('VICTORY'), findsOneWidget);
-    // The panel itemises: the fall, the XP line, and the drops on their own
-    // lines (the log keeps its one-line form).
+    // The panel itemises: the fall, the experience on its own ground under
+    // its own label, and one framed row per drop (the log keeps its one-line
+    // form). `test/rarity_ui_test.dart` owns the row's anatomy.
     expect(find.text('Forest Wolf falls.'), findsOneWidget);
+    expect(find.text('EXPERIENCE'), findsOneWidget);
     expect(find.text('+30 XP'), findsOneWidget);
-    expect(find.textContaining('Drops: Meadow Herb'), findsOneWidget);
+    expect(find.text('REWARDS'), findsOneWidget);
+    expect(find.text('Meadow Herb'), findsOneWidget);
+    // The drops are rows now, not a `Drops: …` sentence.
+    expect(find.textContaining('Drops:'), findsNothing);
     // The stage stays up behind the panel with the wolf felled and the
     // controls gone.
     expect(find.text('0 / 20'), findsOneWidget);
     expect(find.widgetWithText(StrideButton, 'Attack'), findsNothing);
     expect(find.text('Start Combat'), findsNothing);
-    await tester.tap(find.widgetWithText(StrideButton, 'OK'));
+    await tester.tap(find.widgetWithText(StrideButton, 'Continue'));
     await tester.pumpAndSettle();
     expect(c.lastCombat, isNull);
 
@@ -239,7 +244,7 @@ void main() {
       }
     });
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(StrideButton, 'OK'));
+    await tester.tap(find.widgetWithText(StrideButton, 'Continue'));
     await tester.pumpAndSettle();
 
     start = find.widgetWithText(StrideButton, 'Start Combat');

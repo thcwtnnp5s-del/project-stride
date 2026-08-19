@@ -52,6 +52,17 @@
 /// and the combined sprite were all authored that way, and the cats all face
 /// east, towards him — under the raised scenery, on the ground.
 ///
+/// ## The micro-idle pool
+///
+/// `AmbientPlayer`'s idle cadence draws its small beats from the scenes in this
+/// table that carry an `idleWeight` — the pool is *derived* from the one list
+/// (`AmbientSceneSet.microIdles`), so a micro-idle is measured, composed and
+/// tested exactly like any other scene and there is no second list to keep in
+/// step. The dedicated idles `idle_breathe` (3) and `look_around` (2.5) carry
+/// most beats; `wipe_brow` (1.2), `pack_check` (0.8) and `head_scratch` (0.5)
+/// stay in the pool at low weight so the idle never repeats one gesture.
+/// `traveler_shift_weight` was withheld (it does not return to the rest pose).
+///
 /// ## What this is not
 ///
 /// A pet system, a fire system, or a rest system. Nothing here has state, and
@@ -159,16 +170,24 @@ const SpriteBounds _bPackCheck = SpriteBounds(
   right: 56,
   bottom: 62,
 );
-const SpriteBounds _bPickInspect = SpriteBounds(
-  left: 3,
-  top: 1,
-  right: 63,
-  bottom: 63,
-);
+// World & Reward Depth 01: the book-scale correction keeps the book inside the
+// standing silhouette (measured 2026-08-19; the PE01 read reached x 1..61).
 const SpriteBounds _bRead = SpriteBounds(
-  left: 1,
+  left: 15,
   top: 1,
-  right: 61,
+  right: 46,
+  bottom: 62,
+);
+const SpriteBounds _bIdleBreathe = SpriteBounds(
+  left: 13,
+  top: 0,
+  right: 48,
+  bottom: 62,
+);
+const SpriteBounds _bLookAround = SpriteBounds(
+  left: 12,
+  top: 1,
+  right: 51,
   bottom: 62,
 );
 const SpriteBounds _bPushupsSide = SpriteBounds(
@@ -229,8 +248,11 @@ AmbientLayer _catSitsAt(int dx) => AmbientLayer(
 /// `traveler_pick_inspect` (crouched over a pick held horizontal and low, never
 /// raised — PASS-WITH-NOTE "holding a pick, not mining; second read
 /// idle-with-tool", enabled by lead override because that note *is* the read
-/// the correction was for). Both are in the rotation below; the axe frames stay
-/// packaged and out.
+/// the correction was for). World & Reward Depth 01 then re-rolled the read at
+/// book scale (the PE01 book was "huge" on the phone) and a second blind pass
+/// read the pick scene as "pickaxe pops into existence, no action" — FAIL — so
+/// the override is withdrawn: the read below is the corrected one, and the
+/// pick and axe frames stay packaged and out.
 abstract final class AmbientAssets {
   /// The frame the Traveler rests on between scenes and after a visit. The
   /// gather rest pose, so ambient → gather → ambient has no visual pop: every
@@ -320,9 +342,15 @@ abstract final class AmbientAssets {
       footprint: SpriteFootprints.ambientTravelerDrink,
       bounds: _bDrink,
     ),
-    // Playable Expansion 01 corrections (see the class doc). Solo scenes: the
-    // book spans x 1..61 and the pick x 3..63, so a companion would have to sit
-    // at |dx| ≥ 44 to clear them — none is placed.
+    // World & Reward Depth 01: the read scene re-rolled at book scale after the
+    // owner saw the PE01 book "huge" on the phone — blind Visual QA read the
+    // shipped frames as "unfolding a giant map" (FAIL) and the replacement as
+    // "reading a small book" (PASS-WITH-NOTE: one-shot, closed by pingpong).
+    // Solo scene; bounds 15..46, so a companion could now sit beside it — none
+    // is placed yet. `pick_inspect` is OUT of the rotation: the same blind pass
+    // read the shipped frames as "pickaxe pops into existence, no grip, no
+    // action" (FAIL); the PE01 lead override is withdrawn and the frames stay
+    // packaged (WORLD_REWARD_DEPTH_01/ambient/README.md §8).
     AmbientScene(
       id: 'read',
       traveler: AmbientTrack(
@@ -334,17 +362,36 @@ abstract final class AmbientAssets {
       footprint: SpriteFootprints.ambientTravelerRead,
       bounds: _bRead,
     ),
+    // The idle-cadence micro-idles (World & Reward Depth 01, blind QA PASS /
+    // PASS-WITH-NOTE). `idleOnly`: never one of a visit's scenes; `idleWeight`
+    // ~3 so they carry most idle beats over the stand-ins below.
     AmbientScene(
-      id: 'pick_inspect',
+      id: 'idle_breathe',
       traveler: AmbientTrack(
-        frames: _frames('traveler_pick_inspect', 7),
-        fps: 6,
+        frames: _frames('traveler_idle_breathe', 7),
+        fps: 5,
         loop: AmbientLoop.pingpong,
-        repeats: 2,
+        // One breath out and back (2.4 s): a micro-idle recurs, so it stays
+        // under the cadence's 4 s ceiling.
+        repeats: 1,
       ),
-      footprint: SpriteFootprints.ambientTravelerPickInspect,
-      bounds: _bPickInspect,
-      weight: 0.8,
+      footprint: SpriteFootprints.ambientTravelerIdleBreathe,
+      bounds: _bIdleBreathe,
+      idleWeight: 3,
+      idleOnly: true,
+    ),
+    AmbientScene(
+      id: 'look_around',
+      traveler: AmbientTrack(
+        frames: _frames('traveler_look_around', 7),
+        fps: 5,
+        loop: AmbientLoop.pingpong,
+        repeats: 1,
+      ),
+      footprint: SpriteFootprints.ambientTravelerLookAround,
+      bounds: _bLookAround,
+      idleWeight: 2.5,
+      idleOnly: true,
     ),
     AmbientScene(
       id: 'pack_check',
@@ -356,6 +403,8 @@ abstract final class AmbientAssets {
       ),
       footprint: SpriteFootprints.ambientTravelerPackCheck,
       bounds: _bPackCheck,
+      // Micro-idle stand-in — see the class doc.
+      idleWeight: 0.8,
     ),
     AmbientScene(
       id: 'wipe_brow',
@@ -366,6 +415,9 @@ abstract final class AmbientAssets {
       ),
       footprint: SpriteFootprints.ambientTravelerWipeBrow,
       bounds: _bWipeBrow,
+      // Micro-idle stand-in — see the class doc. The shortest solo scene in
+      // the table (2.0 s) and the least eventful, so it carries the pool.
+      idleWeight: 1.2,
     ),
 
     // ----------------------------------------------- scenes with the cat
@@ -505,6 +557,10 @@ abstract final class AmbientAssets {
           dy: _catDy,
         ),
       ],
+      // Micro-idle stand-in — see the class doc. Lowest of the three: the cat
+      // rolling is the most eventful thing in the pool, so it comes round
+      // least often.
+      idleWeight: 0.5,
     ),
     AmbientScene(
       id: 'pushups',

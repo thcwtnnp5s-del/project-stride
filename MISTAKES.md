@@ -21,6 +21,50 @@ to `M-02` stays valid.
 
 ---
 
+## M-12 — A tiled AI-generated world measured as joined and read as four paintings
+
+**Date:** 2026-08-19 · **Category:** art pipeline / verification (M-04 family) ·
+**Provenance:** World & Reward Depth 01, world atlas stream
+
+### What happened
+
+The atlas was grown from one 384 × 688 PixelLab tile to a 2 × 2 grid. Every
+tile was generated with the same palette reference, prompts were written from
+the measured colours of the neighbouring edge, a per-band seam-distance tool
+was built, a re-roll lowered the worst seam's measured distance from 48 to 28,
+and the author's own ×2 composites looked plausible. **Two independent blind
+Visual QA passes failed the composite on continuity** — "four maps from
+different games pasted into a grid" — while passing almost every single-tile
+viewport. 335 generations were spent across the two rounds; only the one join
+both reviewers called faint (base ↔ south, where the river continues across)
+shipped. The east and south-east tiles are withheld.
+
+### Root cause
+
+A seam is perceived as a **simultaneous** hue, value, saturation *and texture*
+step, and the reviewers named texture ("flat geometric fields against
+illustrated ones", "smooth ground against speckled scree") as often as colour.
+Palette conform and colour-distance metrics cannot see texture or drawing
+hand, and PixelLab cannot outpaint at this tier, so every tile is a fresh
+painting whose edge merely *describes* its neighbour. Full-width cover strips
+made it worse (they read as ruled borders). The measurement told the author
+the seam was fixed; only the blind read could say it was not.
+
+### Prevention
+
+- **A tile is not accepted until its join passes a blind read** — a seam
+  metric is a triage tool, not a verdict. Gate the *second* tile on the first
+  join, as the brief said, and stop when the join fails twice.
+- A world that grows should grow by **natural boundaries the art can own** —
+  a coast, a ridge, a river the new tile is generated *around* — or by
+  re-generating the whole base at the size wanted, never by butting paintings
+  edge to edge and hoping palette carries it.
+- Keep the withheld tiles: a future round that regenerates the *east* tile
+  from the base's measured edge has the only unqualified-PASS tile to
+  start from.
+
+---
+
 ## M-11 — Two device milestones shipped with no way to equip anything
 
 **Date:** 2026-08-19 · **Category:** content / verification (M-07 family) ·

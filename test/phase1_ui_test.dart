@@ -1000,10 +1000,7 @@ void main() {
       // it is on the atlas, selectable, and *not* offered as a journey.
       await selectPlace(tester, 'location.frostmere');
       expect(find.byType(StrideButton), findsNothing);
-      expect(
-        find.textContaining('reached by way of Stonefall Mine'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('By way of Stonefall Mine'), findsOneWidget);
     });
 
     testWidgets('an unaffordable journey is disabled and states the gap', (

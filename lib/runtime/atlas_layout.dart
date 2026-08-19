@@ -36,9 +36,26 @@ import 'package:stride_core/stride_core.dart' show ContentId, ContentIdParse;
 /// like every other asset.
 const String atlasLayoutAsset = 'assets/content/v1/atlas/atlas_layout.json';
 
-/// The schema this reader understands. A file declaring another version is
+/// The schema this reader writes and prefers. A file declaring a version
+/// outside [atlasLayoutMinimumSchemaVersion] … [atlasLayoutSchemaVersion] is
 /// refused rather than guessed at.
-const int atlasLayoutSchemaVersion = 1;
+///
+/// **v2 adds two optional blocks and nothing else.** Every v1 document is a
+/// valid v2 document with `landmarks` and `kindMarkers` absent, which is why
+/// both versions parse here rather than one of them needing a converter:
+///
+/// - `landmarks` — named, non-interactive geography (a ruin, a ferry, a far
+///   town). It has a name and a coordinate and *no* hit target, no panel and no
+///   travel: it is a caption on the map, in the same sense the current-location
+///   ring is a caption. A place the player can go to is a `location`, and the
+///   two lists may not name the same id.
+/// - `kindMarkers` — the glyph art for each kind of place (`world/marker_haven`
+///   and its four siblings). Absent until the art lands, and absent is not a
+///   fault: the marker layer draws its ring chrome instead.
+const int atlasLayoutSchemaVersion = 2;
+
+/// The oldest schema this reader still accepts.
+const int atlasLayoutMinimumSchemaVersion = 1;
 
 /// Thrown when the layout cannot be parsed. Carries the field that failed so
 /// the message points at the JSON, not at the reader.
@@ -74,12 +91,17 @@ final class AtlasTile {
   final int height;
 }
 
-/// A landmark drawn at a location, in **native pixels**.
+/// A sprite anchored on a world coordinate, in **native pixels**.
 ///
-/// [anchorX] and [anchorY] name the pixel of the landmark image that sits on
-/// the location's world coordinate — the base of a gate, the mouth of a mine —
-/// so the art can be authored on any canvas and still stand where the marker
-/// is.
+/// [anchorX] and [anchorY] name the pixel of the image that sits on the
+/// coordinate — the base of a gate, the mouth of a mine, the centre of a
+/// marker glyph — so the art can be authored on any canvas and still stand
+/// where the coordinate is.
+///
+/// Three things are described by this one shape, and deliberately so: a
+/// location's landmark building, a named landmark's own art, and the kind
+/// glyph under a marker. They differ in *where* they are declared, never in
+/// what the renderer has to know.
 final class AtlasLandmark {
   const AtlasLandmark({
     required this.asset,
@@ -120,6 +142,81 @@ final class AtlasLocation {
   /// Null until the art stream delivers one; the marker and label stand alone.
   final AtlasLandmark? landmark;
 }
+
+/// How loudly a named landmark is drawn.
+enum AtlasLandmarkTier {
+  /// Geography inside the known world — a ruin beside a road, a ferry
+  /// crossing. Drawn small and quiet, below the place labels.
+  minor('minor'),
+
+  /// Somewhere the roads point at and do not yet reach. Quieter still, and
+  /// suffixed so it cannot be mistaken for a place with a panel behind it.
+  future('future');
+
+  const AtlasLandmarkTier(this.wireName);
+
+  /// The word in the JSON. Never derived from the enum name, so renaming the
+  /// enum is not a content migration.
+  final String wireName;
+
+  static AtlasLandmarkTier? ofWire(String wire) {
+    for (final AtlasLandmarkTier tier in values) {
+      if (tier.wireName == wire) return tier;
+    }
+    return null;
+  }
+}
+
+/// A named piece of geography that is **not** a place.
+///
+/// It has a name and a coordinate and nothing else: no hit target, no panel,
+/// no travel, no state. The rule it exists to keep is the one the prompt
+/// states as "clearly non-interactive" — a player must be able to tell, before
+/// touching the screen, that *Ruined Watchtower* is scenery and *Stonefall
+/// Mine* is somewhere they can walk to.
+///
+/// [id] is a plain string, not a `ContentId`, because a landmark is not
+/// content: the engine has never heard of it and never will. It must still be
+/// unique, and must not collide with a location id — a landmark wearing a
+/// place's id would be a place drawn twice, once without a way in.
+final class AtlasNamedLandmark {
+  const AtlasNamedLandmark({
+    required this.id,
+    required this.name,
+    required this.x,
+    required this.y,
+    required this.tier,
+    required this.marker,
+  });
+
+  final String id;
+
+  /// What the label says. Authored, never derived from [id].
+  final String name;
+
+  /// World pixels — the point the label hangs under and the marker anchors on.
+  final double x;
+  final double y;
+
+  final AtlasLandmarkTier tier;
+
+  /// The art, when there is any. Null draws the label alone.
+  final AtlasLandmark? marker;
+}
+
+/// The five glyph slots a marker may be drawn from, by wire name.
+///
+/// The words match `LocationKind` in `stride_core` plus `landmark`, but this
+/// library deliberately does **not** import that enum: a layout file is
+/// packaging data that must parse before any content is loaded, and a marker
+/// slot is an art key rather than a game concept.
+const List<String> atlasMarkerKinds = <String>[
+  'haven',
+  'wilds',
+  'worksite',
+  'perilous',
+  'landmark',
+];
 
 /// A small looping sprite composited over the geography — cloud, mist, smoke.
 ///
@@ -227,14 +324,22 @@ final class AtlasLayout {
     required this.overlays,
     this.props = const <AtlasProp>[],
     this.routes = const <AtlasRoute>[],
+    this.landmarks = const <AtlasNamedLandmark>[],
+    this.kindMarkers = const <String, AtlasLandmark>{},
+    this.schemaVersion = atlasLayoutSchemaVersion,
   });
 
   /// The world surface, in world pixels.
   final int worldWidth;
   final int worldHeight;
 
-  /// World pixels per native art pixel. `2` for the current pass: base art is
-  /// authored at 384 × 640 and shown at ×2 nearest-neighbour.
+  /// World pixels per native art pixel. `2` for the current pass: the base
+  /// tiles are authored at their native size and shown at ×2 nearest
+  /// neighbour.
+  ///
+  /// **Nothing outside this file may assume the world's size.** It is one tile
+  /// today and a 2 × 2 grid once the art stream lands; every camera bound,
+  /// zoom floor and clamp reads [worldWidth] and [worldHeight].
   final int scale;
 
   final List<AtlasTile> tiles;
@@ -242,6 +347,21 @@ final class AtlasLayout {
   final List<AtlasOverlay> overlays;
   final List<AtlasProp> props;
   final List<AtlasRoute> routes;
+
+  /// Named, non-interactive geography. Empty for a v1 document.
+  final List<AtlasNamedLandmark> landmarks;
+
+  /// The glyph art for each kind of marker, by wire name
+  /// ([atlasMarkerKinds]). Empty until the art lands; the marker layer draws
+  /// ring chrome for a kind with no entry, which is the state this ships in.
+  final Map<String, AtlasLandmark> kindMarkers;
+
+  /// The version the document declared. Kept so a screen can say what it read
+  /// rather than what it hoped for.
+  final int schemaVersion;
+
+  /// The glyph for [kind], or null when the art has not landed.
+  AtlasLandmark? markerForKind(String kind) => kindMarkers[kind];
 
   /// The drawn course between [a] and [b], or null to draw it straight.
   AtlasRoute? routeBetween(ContentId a, ContentId b) {
@@ -273,9 +393,11 @@ final class AtlasLayout {
     }
 
     final int version = _int(decoded, 'schemaVersion');
-    if (version != atlasLayoutSchemaVersion) {
+    if (version < atlasLayoutMinimumSchemaVersion ||
+        version > atlasLayoutSchemaVersion) {
       throw AtlasLayoutException(
-        'schemaVersion $version is not $atlasLayoutSchemaVersion',
+        'schemaVersion $version is outside $atlasLayoutMinimumSchemaVersion'
+        '..$atlasLayoutSchemaVersion',
       );
     }
 
@@ -333,6 +455,37 @@ final class AtlasLayout {
           _route(raw, i),
     ];
 
+    // The two v2 blocks. A v1 document carrying either is a version lie, not a
+    // forward-compatible file: it would parse under a reader that has never
+    // heard of landmarks and silently lose them.
+    if (version < 2 &&
+        (decoded['landmarks'] != null || decoded['kindMarkers'] != null)) {
+      throw const AtlasLayoutException(
+        'landmarks and kindMarkers need schemaVersion 2',
+      );
+    }
+    final List<AtlasNamedLandmark> landmarks = <AtlasNamedLandmark>[
+      if (decoded['landmarks'] != null)
+        for (final (int i, Object? raw) in _list(decoded, 'landmarks').indexed)
+          _namedLandmark(raw, i),
+    ];
+    final Map<String, AtlasLandmark> kindMarkers = <String, AtlasLandmark>{};
+    if (decoded['kindMarkers'] != null) {
+      final Map<String, Object?> raw = _object(decoded, 'kindMarkers');
+      for (final MapEntry<String, Object?> entry in raw.entries) {
+        if (!atlasMarkerKinds.contains(entry.key)) {
+          throw AtlasLayoutException(
+            'kindMarkers.${entry.key} is not one of '
+            '${atlasMarkerKinds.join(', ')}',
+          );
+        }
+        kindMarkers[entry.key] = _landmarkArt(
+          entry.value,
+          'kindMarkers.${entry.key}',
+        );
+      }
+    }
+
     return AtlasLayout(
       worldWidth: worldWidth,
       worldHeight: worldHeight,
@@ -342,6 +495,9 @@ final class AtlasLayout {
       overlays: List<AtlasOverlay>.unmodifiable(overlays),
       props: List<AtlasProp>.unmodifiable(props),
       routes: List<AtlasRoute>.unmodifiable(routes),
+      landmarks: List<AtlasNamedLandmark>.unmodifiable(landmarks),
+      kindMarkers: Map<String, AtlasLandmark>.unmodifiable(kindMarkers),
+      schemaVersion: version,
     );
   }
 
@@ -423,6 +579,39 @@ final class AtlasLayout {
           overlay.x > worldWidth ||
           overlay.y > worldHeight) {
         problems.add('overlay ${overlay.asset} starts outside the world');
+      }
+    }
+
+    // Landmarks. A landmark is scenery with a name, so the faults worth
+    // catching are the ones that would make it look like a place: a duplicate
+    // id (drawn twice), an id a location already owns (a place with a second,
+    // dead label), or a coordinate off the surface (a name clipped away).
+    final Set<String> landmarkIds = <String>{};
+    final Set<String> placeIds = <String>{
+      ...known,
+      for (final AtlasLocation location in locations) location.id.value,
+    };
+    for (final AtlasNamedLandmark landmark in landmarks) {
+      if (!landmarkIds.add(landmark.id)) {
+        problems.add('landmarks lists ${landmark.id} more than once');
+      }
+      if (placeIds.contains(landmark.id)) {
+        problems.add(
+          'landmark ${landmark.id} uses the id of a place the player can '
+          'travel to',
+        );
+      }
+      if (landmark.name.trim().isEmpty) {
+        problems.add('landmark ${landmark.id} has no name to draw');
+      }
+      if (landmark.x < 0 ||
+          landmark.y < 0 ||
+          landmark.x > worldWidth ||
+          landmark.y > worldHeight) {
+        problems.add(
+          'landmark ${landmark.id} lies outside the $worldWidth×$worldHeight '
+          'world at (${landmark.x}, ${landmark.y})',
+        );
       }
     }
     return problems;
@@ -517,29 +706,61 @@ final class AtlasLayout {
       throw AtlasLayoutException('$at.id: ${parsed.explanation}');
     }
     final Object? landmarkRaw = raw['landmark'];
-    AtlasLandmark? landmark;
-    if (landmarkRaw != null) {
-      if (landmarkRaw is! Map<String, Object?>) {
-        throw AtlasLayoutException('$at.landmark must be an object or null');
-      }
-      final String lat = '$at.landmark';
-      landmark = AtlasLandmark(
-        asset: _string(landmarkRaw, 'asset', within: lat),
-        width: _int(landmarkRaw, 'width', within: lat),
-        height: _int(landmarkRaw, 'height', within: lat),
-        anchorX: _int(landmarkRaw, 'anchorX', within: lat),
-        anchorY: _int(landmarkRaw, 'anchorY', within: lat),
-      );
-      if (landmark.width <= 0 || landmark.height <= 0) {
-        throw AtlasLayoutException('$lat size must be positive');
-      }
-    }
+    final AtlasLandmark? landmark = landmarkRaw == null
+        ? null
+        : _landmarkArt(landmarkRaw, '$at.landmark');
     return AtlasLocation(
       id: id,
       x: _number(raw, 'x', within: at),
       y: _number(raw, 'y', within: at),
       hitRadius: _number(raw, 'hitRadius', within: at),
       landmark: landmark,
+    );
+  }
+
+  /// The `{asset, width, height, anchorX, anchorY}` block, wherever it appears
+  /// — a location's landmark, a named landmark's art, a kind glyph. [at] is
+  /// the JSON path, so the message names the caller's field rather than this
+  /// helper's.
+  static AtlasLandmark _landmarkArt(Object? raw, String at) {
+    if (raw is! Map<String, Object?>) {
+      throw AtlasLayoutException('$at must be an object or null');
+    }
+    final AtlasLandmark art = AtlasLandmark(
+      asset: _string(raw, 'asset', within: at),
+      width: _int(raw, 'width', within: at),
+      height: _int(raw, 'height', within: at),
+      anchorX: _int(raw, 'anchorX', within: at),
+      anchorY: _int(raw, 'anchorY', within: at),
+    );
+    if (art.width <= 0 || art.height <= 0) {
+      throw AtlasLayoutException('$at size must be positive');
+    }
+    return art;
+  }
+
+  static AtlasNamedLandmark _namedLandmark(Object? raw, int index) {
+    if (raw is! Map<String, Object?>) {
+      throw AtlasLayoutException('landmarks[$index] must be an object');
+    }
+    final String at = 'landmarks[$index]';
+    final String tierWire = _string(raw, 'tier', within: at);
+    final AtlasLandmarkTier? tier = AtlasLandmarkTier.ofWire(tierWire);
+    if (tier == null) {
+      throw AtlasLayoutException(
+        '$at.tier "$tierWire" is not one of '
+        '${AtlasLandmarkTier.values.map((AtlasLandmarkTier t) => t.wireName).join(', ')}',
+      );
+    }
+    final Object? markerRaw = raw['marker'];
+    return AtlasNamedLandmark(
+      // `_string` already refuses an empty name and an empty id.
+      id: _string(raw, 'id', within: at),
+      name: _string(raw, 'name', within: at),
+      x: _number(raw, 'x', within: at),
+      y: _number(raw, 'y', within: at),
+      tier: tier,
+      marker: markerRaw == null ? null : _landmarkArt(markerRaw, '$at.marker'),
     );
   }
 

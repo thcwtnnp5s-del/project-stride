@@ -25,10 +25,14 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:stride_core/stride_core.dart' show Rarity;
+
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
+import '../../components/rarity_badge.dart';
+import '../../components/rarity_item_title.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
@@ -118,7 +122,10 @@ class _RecipeCard extends StatelessWidget {
           if (controller.lastCraftRecipe == recipe.id &&
               controller.lastCraft != null) ...<Widget>[
             SizedBox(height: StrideSpace.s8),
-            _CraftResult(report: controller.lastCraft!),
+            _CraftResult(
+              report: controller.lastCraft!,
+              rarity: recipe.outputRarity,
+            ),
           ],
         ],
       ),
@@ -147,7 +154,27 @@ class _Identity extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            AdaptiveText(recipe.displayName, style: StrideType.cardTitle),
+            // The recipe's name in the ink of what it *makes*. Nearly every
+            // recipe is named after its output, so this is the output name in
+            // rarity ink for all but the cases the subtitle below covers — and
+            // where they differ, the badge and the `Makes …` line carry the
+            // rank to the right item.
+            RarityName(
+              name: recipe.displayName,
+              rarity: recipe.outputRarity,
+              style: StrideType.cardTitle,
+            ),
+            // What the player is working towards, as a word. The whole reason
+            // a locked recipe is listed at all is that it is a destination
+            // (see the library doc); the rank is part of what makes it worth
+            // walking to.
+            //
+            // Absent when the pack has no definition for the output — the gap
+            // above it goes too, so a content fault does not leave a hole.
+            if (recipe.outputRarity != null) ...<Widget>[
+              SizedBox(height: StrideSpace.s4),
+              RarityBadge(rarity: recipe.outputRarity),
+            ],
             // The output line only when it says something the title does not.
             //
             // Nearly every recipe is named after what it makes, so the obvious
@@ -281,24 +308,55 @@ class _CraftControl extends StatelessWidget {
   }
 }
 
+/// What the last craft did, framed in the rank it produced.
+///
+/// The rarity comes from the **recipe** rather than from [CraftReport], which
+/// carries no rank: this line only ever appears inside the card of the recipe
+/// that produced it (`_RecipeCard` checks `lastCraftRecipe == recipe.id`), so
+/// the output is the same item either way, and adding a field to a report the
+/// domain owns would be a change to stream B's contract for a colour.
 class _CraftResult extends StatelessWidget {
-  const _CraftResult({required this.report});
+  const _CraftResult({required this.report, required this.rarity});
 
   final CraftReport report;
 
+  /// The output's rank, or null when the pack has no definition for it — in
+  /// which case this frames like any other nested block.
+  final Rarity? rarity;
+
   @override
-  Widget build(BuildContext context) => SurfaceBlock(
-    child: AdaptiveText(
-      report.succeeded
-          ? 'Made ${report.quantity} × ${report.outputName}  ·  '
-                '+${report.experience} ${report.skillName}'
-          : _refusalText(report),
-      style: StrideType.sub,
-      color: report.succeeded
-          ? StrideColors.textPrimary
-          : StrideColors.textSecondary,
-    ),
-  );
+  Widget build(BuildContext context) {
+    if (!report.succeeded) {
+      // A refusal is not a rarity event: nothing was made, so nothing here is
+      // coloured by what would have been.
+      return SurfaceBlock(
+        child: AdaptiveText(
+          _refusalText(report),
+          style: StrideType.sub,
+          color: StrideColors.textSecondary,
+        ),
+      );
+    }
+    return RarityFrame(
+      rarity: rarity,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: AdaptiveText(
+              'Made ${report.quantity} × ${report.outputName}  ·  '
+              '+${report.experience} ${report.skillName}',
+              style: StrideType.sub,
+              color: StrideColors.textPrimary,
+            ),
+          ),
+          if (rarity != null) ...<Widget>[
+            SizedBox(width: StrideSpace.s8),
+            RarityBadge(rarity: rarity),
+          ],
+        ],
+      ),
+    );
+  }
 
   /// Refusals are keyed on the stable wire code, never on the explanation
   /// string — the code is the contract and the sentence is free to change.

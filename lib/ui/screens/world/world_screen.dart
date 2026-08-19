@@ -82,13 +82,22 @@ import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
 import 'atlas/atlas_layout.dart';
+import 'atlas/atlas_place_info.dart';
 import 'atlas/atlas_selection_panel.dart';
 import 'atlas/atlas_viewport.dart';
 
 /// How much of the screen the viewport takes. The rest is the panel, which
 /// scrolls; the atlas never does.
-const double _viewportFraction = 0.56;
-const double _viewportMinHeight = 200;
+///
+/// **0.5, down from 0.56.** The panel grew from a name and a price into an
+/// inspector with two optional sections, and the balance that was right for
+/// three lines is not right for a dozen. The floor went the other way — 200 to
+/// 240 — because the thing the fraction protects is the *map's* usefulness on a
+/// short window, and a 200 dp atlas is a keyhole. Between them the atlas keeps
+/// half the screen on a phone and the panel scrolls for the rest, which is the
+/// arrangement the screen has always had: the atlas never scrolls.
+const double _viewportFraction = 0.5;
+const double _viewportMinHeight = 240;
 const double _viewportMaxHeight = 560;
 
 class WorldScreen extends StatefulWidget {
@@ -115,6 +124,17 @@ class _WorldScreenState extends State<WorldScreen> {
     final AtlasNode selected =
         (_selected == null ? null : scene.nodeFor(_selected!)) ?? scene.current;
 
+    // Resolved once per build, for every place on the surface, through the one
+    // adapter this stream reads place detail with. The marker layer wants a
+    // kind per node; nothing below it asks the session anything.
+    final Map<ContentId, AtlasPlaceKind> kinds = <ContentId, AtlasPlaceKind>{
+      for (final AtlasNode node in scene.nodes)
+        node.id: AtlasPlaceInfo.kindOf(s, node.place),
+    };
+    // The preview: the roads the selected journey would use. Null for *here*
+    // and for a place no chain of roads reaches, and nothing highlights then.
+    final AtlasWay? way = scene.routeSummary(selected.id);
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double viewportHeight =
@@ -130,6 +150,8 @@ class _WorldScreenState extends State<WorldScreen> {
               child: AtlasViewport(
                 scene: scene,
                 selected: selected.id,
+                kinds: kinds,
+                way: way,
                 onSelect: (ContentId id) => setState(() => _selected = id),
               ),
             ),
@@ -153,9 +175,10 @@ class _WorldScreenState extends State<WorldScreen> {
                   ),
                   const SizedBox(height: StrideSpace.cardGap),
                   Text(
-                    'Drag to look around; pinch to look closer. Routes run '
-                    'only between neighbours, so some places are reached by '
-                    'way of another.',
+                    'Drag to look around; pinch to look closer. '
+                    'Routes run only between neighbours, so some places are '
+                    'reached by way of another. Faint names are landmarks — '
+                    'geography, not destinations.',
                     style: StrideType.micro.copyWith(
                       color: StrideColors.textMuted,
                     ),

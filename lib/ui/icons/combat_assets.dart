@@ -208,6 +208,7 @@ abstract final class CombatAssets {
   static const String backdropForest = '$_art/backdrop_forest.png';
   static const String backdropMine = '$_art/backdrop_mine.png';
   static const String backdropHollow = '$_art/backdrop_hollow.png';
+  static const String backdropFrostmere = '$_art/backdrop_frostmere.png';
 
   /// The backdrop for a fight at [location]. Forest is the fallback: a new
   /// location arriving in a content pack must not crash the stage
@@ -215,6 +216,7 @@ abstract final class CombatAssets {
   static String backdropFor(ContentId location) => switch (location.value) {
     'location.stonefall_mine' => backdropMine,
     'location.forgotten_hollow' => backdropHollow,
+    'location.frostmere' => backdropFrostmere,
     _ => backdropForest,
   };
 
@@ -295,6 +297,49 @@ abstract final class CombatAssets {
     ),
     // Opaque rows 12..40: the body's centre is about row 26.
     impactRise: 14,
+  );
+
+  /// The Frost Lynx — Frostmere's first enemy (World & Reward Depth 01;
+  /// `WORLD_REWARD_DEPTH_01/combat/README.md`). Blind Visual QA at ×2: idle
+  /// "a grey cat stalking" PASS-WITH-NOTE, attack "a cat pouncing/swiping"
+  /// PASS, defeat "flattens until prone, legible as a downed animal" PASS;
+  /// `lynx_hit` withheld (read as a prowl) — the stage recoils the figure, as
+  /// for the wolf. 56² canvas, anchor row 39 on every track.
+  static final CombatantArt lynx = CombatantArt(
+    idle: _track(
+      'lynx_idle',
+      7,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 39,
+      footprint: SpriteFootprints.combatLynxIdle,
+    ),
+    attack: _track(
+      'lynx_attack',
+      9,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 39,
+      footprint: SpriteFootprints.combatLynxAttack,
+    ),
+    // f6 = the pounce lands (manifest: crouch f2–f5, pounce-swipe f6–f8).
+    strikeFrame: 6,
+    defeat: _track(
+      'lynx_defeat',
+      7,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 39,
+      footprint: SpriteFootprints.combatLynxDefeat,
+    ),
+    // Opaque rows 13..40: the body's centre is about row 26.
+    impactRise: 13,
   );
 
   static final CombatantArt goblin = CombatantArt(
@@ -405,6 +450,7 @@ abstract final class CombatAssets {
     'enemy.forest_wolf' => wolf,
     'enemy.cave_goblin' => goblin,
     'enemy.hollow_guardian' => guardian,
+    'enemy.frost_lynx' => lynx,
     _ => null,
   };
 
@@ -430,10 +476,12 @@ abstract final class CombatAssets {
     canvas: 32,
   );
 
-  /// The effect drawn on the Traveler when [enemy] lands a blow: the wolf
-  /// bites, everything else strikes.
+  /// The effect drawn on the Traveler when [enemy] lands a blow: the wolf and
+  /// the lynx bite, everything else strikes.
   static EffectArt strikeEffectOf(ContentId enemy) =>
-      enemy.value == 'enemy.forest_wolf' ? fxBite : fxImpact;
+      enemy.value == 'enemy.forest_wolf' || enemy.value == 'enemy.frost_lynx'
+      ? fxBite
+      : fxImpact;
 
   /// Every frame the stage may draw for a fight against [enemy] — what it
   /// precaches on mount. The other enemies' tracks are not decoded.

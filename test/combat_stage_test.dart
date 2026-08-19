@@ -251,6 +251,43 @@ void main() {
     expect(find.text('Hollow Guardian'), findsOneWidget);
   });
 
+  testWidgets('the Frost Lynx fights at Frostmere on the alpine backdrop, '
+      'feet on the ground row', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(
+            enemy: 'enemy.frost_lynx',
+            enemyName: 'Frost Lynx',
+            location: 'location.frostmere',
+          ),
+          report: null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final Iterable<PixelAsset> backdrops = tester
+        .widgetList<PixelAsset>(find.byType(PixelAsset))
+        .where((PixelAsset p) => p.assetPath.contains('backdrop_'));
+    expect(backdrops.map((PixelAsset p) => p.assetPath), <String>[
+      CombatAssets.backdropFrostmere,
+    ]);
+    final GroundedSprite lynx = tester
+        .widgetList<GroundedSprite>(find.byType(GroundedSprite))
+        .last;
+    expect(lynx.assetPath, endsWith('lynx_idle_f0.png'));
+    expect(lynx.canvas, 56);
+    // Anchor row 39 on ground row 88, both ×2.
+    final Positioned placed = tester.widget<Positioned>(
+      find
+          .ancestor(of: find.byWidget(lynx), matching: find.byType(Positioned))
+          .first,
+    );
+    expect(placed.top, 176 - 39 * 2);
+    expect(find.text('Frost Lynx'), findsOneWidget);
+  });
+
   testWidgets('under TickerMode(enabled: false) nothing advances', (
     WidgetTester tester,
   ) async {

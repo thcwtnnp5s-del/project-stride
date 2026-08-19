@@ -1,0 +1,32 @@
+[
+ {
+  "id": "traveler_read_alt",
+  "frames": 9,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "bounds": {
+   "left": 14,
+   "top": 1,
+   "right": 46,
+   "bottom": 62
+  },
+  "note": "alternative book-scale correction: an OPEN small book, dark brown cover with a cream page block, same scale rule. Pages are a thin sliver in f3-f5 and only fully read in f7-f8. Staged for QA beside traveler_read; only one of the two is meant to ship."
+ },
+ {
+  "id": "traveler_shift_weight",
+  "frames": 7,
+  "fps": 5,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "bounds": {
+   "left": 12,
+   "top": 1,
+   "right": 50,
+   "bottom": 62
+  },
+  "note": "micro-idle candidate: the motion came out larger than asked (the stance splays and the head sinks 3 px) and f6 does not return to the rest pose. Author withholds; staged for QA only."
+ }
+]

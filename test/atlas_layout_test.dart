@@ -11,8 +11,16 @@
 ///   simply misses — so they are refused at load.
 /// - **A structural fault reported as a partial layout.** `parse` throws and
 ///   names the field; it never returns a layout missing a list.
+/// - **A schema bump that silently drops data.** v2 adds `landmarks` and
+///   `kindMarkers`; a v1 document must still parse (there is one in the field —
+///   the shipped file until this milestone), and a v1 document *carrying* the
+///   v2 blocks must be refused rather than read with them thrown away.
+/// - **A landmark that is really a place.** A landmark has no hit target and no
+///   panel, so one that duplicates a location id, or a second landmark's id, is
+///   a place drawn twice with only one way in.
 library;
 
+import 'dart:convert' show JsonEncoder, jsonDecode;
 import 'dart:io';
 import 'dart:ui' show Rect;
 
@@ -29,6 +37,7 @@ void main() {
   /// them, so the assertion is against what the game will actually load.
   late List<ContentId> contentLocations;
   late String shippedLayout;
+  late String bareLayout;
 
   setUpAll(() {
     final ContentLoadResult result = const ContentLoader().load(
@@ -45,6 +54,14 @@ void main() {
     shippedLayout = File(
       'assets/content/v1/atlas/atlas_layout.json',
     ).readAsStringSync();
+    // The shipped world with its landmarks and glyph table removed: the
+    // schema cases below drop their own entries into an empty `landmarks`
+    // list against the real world size, ids and validator.
+    final Map<String, Object?> bare =
+        (jsonDecode(shippedLayout) as Map<String, Object?>)
+          ..['landmarks'] = <Object?>[]
+          ..remove('kindMarkers');
+    bareLayout = const JsonEncoder.withIndent('  ').convert(bare);
   });
 
   group('the shipped layout', () {
@@ -162,14 +179,190 @@ void main() {
     });
   });
 
-  group('the reader', () {
-    test('refuses another schema version', () {
+  group('the schema', () {
+    /// The shipped document with its version reset and the v2 blocks removed —
+    /// which is exactly what the file was before this milestone.
+    String asV1() => bareLayout
+        .replaceFirst('"schemaVersion": 2', '"schemaVersion": 1')
+        .replaceFirst('"landmarks": [],\n', '');
+
+    test('ships at the current version', () {
+      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 2);
+      expect(atlasLayoutSchemaVersion, 2);
+    });
+
+    test('still reads a v1 document, with no landmarks', () {
+      final AtlasLayout v1 = AtlasLayout.parse(asV1());
+      expect(v1.schemaVersion, 1);
+      expect(v1.landmarks, isEmpty);
+      expect(v1.kindMarkers, isEmpty);
+      // Everything else is unchanged: the two versions describe one world.
+      final AtlasLayout v2 = AtlasLayout.parse(shippedLayout);
+      expect(v1.locations.length, v2.locations.length);
+      expect(v1.worldWidth, v2.worldWidth);
+      expect(v1.routes.length, v2.routes.length);
+    });
+
+    test('refuses v1 carrying v2 blocks rather than dropping them', () {
+      final String lying = bareLayout.replaceFirst(
+        '"schemaVersion": 2',
+        '"schemaVersion": 1',
+      );
       expect(
-        () => AtlasLayout.parse('{"schemaVersion": 2}'),
+        () => AtlasLayout.parse(lying),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('schemaVersion 2'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses a version it has never heard of', () {
+      for (final String version in <String>['0', '3', '99']) {
+        expect(
+          () => AtlasLayout.parse('{"schemaVersion": $version}'),
+          throwsA(isA<AtlasLayoutException>()),
+          reason: version,
+        );
+      }
+    });
+
+    test('reads landmarks, their tier and their optional art', () {
+      final AtlasLayout layout = AtlasLayout.parse(
+        _withLandmarks(bareLayout, '''
+          { "id": "landmark.ruined_watchtower", "name": "Ruined Watchtower",
+            "x": 700, "y": 900, "tier": "minor",
+            "marker": { "asset": "world/landmark_watchtower", "width": 48,
+                        "height": 48, "anchorX": 24, "anchorY": 46 } },
+          { "id": "landmark.far_town", "name": "Far Town",
+            "x": 80, "y": 60, "tier": "future" }
+        '''),
+      );
+      expect(layout.landmarks, hasLength(2));
+      expect(layout.landmarks.first.name, 'Ruined Watchtower');
+      expect(layout.landmarks.first.tier, AtlasLandmarkTier.minor);
+      expect(layout.landmarks.first.marker?.anchorY, 46);
+      expect(layout.landmarks.last.tier, AtlasLandmarkTier.future);
+      expect(layout.landmarks.last.marker, isNull);
+      expect(layout.validateAgainst(contentLocations), isEmpty);
+    });
+
+    test('refuses a tier it cannot draw', () {
+      expect(
+        () => AtlasLayout.parse(
+          _withLandmarks(bareLayout, '''
+            { "id": "landmark.x", "name": "X", "x": 10, "y": 10,
+              "tier": "major" }
+          '''),
+        ),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('landmarks[0].tier'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses a landmark with no name to draw', () {
+      expect(
+        () => AtlasLayout.parse(
+          _withLandmarks(bareLayout, '''
+            { "id": "landmark.x", "name": "", "x": 10, "y": 10,
+              "tier": "minor" }
+          '''),
+        ),
         throwsA(isA<AtlasLayoutException>()),
       );
     });
 
+    test('reports a duplicate landmark id, and one stolen from a place', () {
+      final AtlasLayout layout = AtlasLayout.parse(
+        _withLandmarks(bareLayout, '''
+          { "id": "landmark.x", "name": "X", "x": 10, "y": 10, "tier": "minor" },
+          { "id": "landmark.x", "name": "X again", "x": 20, "y": 20, "tier": "minor" },
+          { "id": "location.frostmere", "name": "Not Frostmere", "x": 30, "y": 30,
+            "tier": "minor" }
+        '''),
+      );
+      final List<String> problems = layout.validateAgainst(contentLocations);
+      expect(problems, hasLength(2));
+      expect(problems.first, contains('more than once'));
+      expect(problems.last, contains('location.frostmere'));
+    });
+
+    test('reports a landmark that lies off the surface', () {
+      final AtlasLayout layout = AtlasLayout.parse(
+        _withLandmarks(bareLayout, '''
+          { "id": "landmark.x", "name": "X", "x": 99999, "y": 10,
+            "tier": "minor" }
+        '''),
+      );
+      expect(
+        layout.validateAgainst(contentLocations).single,
+        contains('outside the'),
+      );
+    });
+
+    test('refuses a marker glyph for a kind that does not exist', () {
+      final String bad = bareLayout.replaceFirst(
+        '"landmarks": [],',
+        '"landmarks": [], "kindMarkers": { "hamlet": '
+            '{ "asset": "world/marker_hamlet", "width": 16, "height": 16, '
+            '"anchorX": 8, "anchorY": 8 } },',
+      );
+      expect(
+        () => AtlasLayout.parse(bad),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('kindMarkers.hamlet'),
+          ),
+        ),
+      );
+    });
+
+    test('reads the five marker glyph slots when they are declared', () {
+      final String withGlyphs = bareLayout.replaceFirst(
+        '"landmarks": [],',
+        '"landmarks": [], "kindMarkers": {'
+            '${atlasMarkerKinds.map((String k) => '"$k": {"asset": "world/marker_$k", '
+                '"width": 16, "height": 16, "anchorX": 8, "anchorY": 8}').join(',')}},',
+      );
+      final AtlasLayout layout = AtlasLayout.parse(withGlyphs);
+      expect(layout.kindMarkers, hasLength(atlasMarkerKinds.length));
+      expect(layout.markerForKind('worksite')?.asset, 'world/marker_worksite');
+      expect(layout.markerForKind('hamlet'), isNull);
+    });
+
+    test('ships the five glyphs, three landmarks and the base + south world', () {
+      // World & Reward Depth 01: the PixelLab glyphs and the south tile landed
+      // (the east / south-east tiles are withheld — two blind QA passes failed
+      // the 2 × 2 composite on seam continuity), so the ring chrome is no
+      // longer the fallback in the shipped layout. Asserted so removing a
+      // glyph, a tile or a landmark is a deliberate edit here too.
+      final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
+      expect(layout.kindMarkers.keys, unorderedEquals(atlasMarkerKinds));
+      expect(layout.tiles, hasLength(2));
+      expect(layout.worldWidth, 768);
+      expect(layout.worldHeight, 2752);
+      expect(layout.landmarks, hasLength(3));
+      expect(
+        layout.landmarks.where(
+          (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,
+        ),
+        hasLength(1),
+      );
+      expect(layout.validateAgainst(contentLocations), isEmpty);
+    });
+  });
+
+  group('the reader', () {
     test('refuses a location that is not a content id, naming the field', () {
       final String bad = shippedLayout.replaceFirst(
         '"location.havens_rest"',
@@ -228,6 +421,13 @@ void main() {
     });
   });
 }
+
+/// The shipped document with [entries] dropped into its empty `landmarks`
+/// list. Written this way so every landmark case is tested against the real
+/// world size, the real location ids and the real validator — a hand-built
+/// fixture would prove the parser reads a fixture.
+String _withLandmarks(String layout, String entries) =>
+    layout.replaceFirst('"landmarks": [],', '"landmarks": [$entries],');
 
 /// A bundle with nothing in it, so the loader's "not declared" path runs.
 class _EmptyBundle extends AssetBundle {

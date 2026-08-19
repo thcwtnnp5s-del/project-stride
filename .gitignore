@@ -181,6 +181,10 @@ GAME_BIBLE/ART/exploration/**
 #     `out/` — candidates and rejects in the stream folders stay local.
 !GAME_BIBLE/ART/exploration/TRANSFORMATION_01/out/**
 !GAME_BIBLE/ART/exploration/PLAYABLE_EXPANSION_01/out/**
+!GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/ambient/out/**
+!GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/combat/out/**
+!GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/items/out/**
+!GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/world/out/**
 
 # Never, under any exception: third-party reference imagery.
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg

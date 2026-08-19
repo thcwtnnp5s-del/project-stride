@@ -172,6 +172,7 @@ class AmbientStage extends StatefulWidget {
     this.scenery,
     this.scale = 2,
     this.scenesPerVisit = 4,
+    this.cadence = AmbientCadence.standard,
     this.seed,
   });
 
@@ -185,6 +186,10 @@ class AmbientStage extends StatefulWidget {
   final String restFrame;
   final SpriteFootprint restFootprint;
   final int? scenesPerVisit;
+
+  /// What the player does after the visit. `null` is the visit and then the
+  /// rest frame; the default is the idle cadence. See [AmbientPlayer].
+  final AmbientCadence? cadence;
   final int? seed;
 
   /// The far vignette behind the figures, or none.
@@ -268,6 +273,7 @@ class _AmbientStageState extends State<AmbientStage> {
               scale: widget.scale,
               suspended: _gatherPlaying,
               scenesPerVisit: widget.scenesPerVisit,
+              cadence: widget.cadence,
               seed: widget.seed,
               onSceneChanged: _onScene,
             ),

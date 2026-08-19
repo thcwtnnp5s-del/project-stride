@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layers.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
@@ -175,6 +176,23 @@ void main() {
     // And the camera opened on it: the current place is inside the window.
     final Rect window = tester.getRect(find.byType(AtlasViewport));
     expect(window.contains(here), isTrue);
+
+    // Every place carries its kind glyph under the ring, from the shipped
+    // table — one hut, two trees, one pick, one dead tree (DECISIONS/0021 §5)
+    // — and each of the three landmarks its cairn.
+    final List<String> glyphs = tester
+        .widgetList<PixelAsset>(find.byType(PixelAsset))
+        .map((PixelAsset a) => a.assetPath)
+        .where((String path) => path.contains('/world/marker_'))
+        .toList();
+    expect(glyphs, hasLength(8));
+    int count(String tail) =>
+        glyphs.where((String p) => p.endsWith(tail)).length;
+    expect(count('marker_haven.png'), 1);
+    expect(count('marker_wilds.png'), 2);
+    expect(count('marker_worksite.png'), 1);
+    expect(count('marker_perilous.png'), 1);
+    expect(count('marker_landmark.png'), 3);
   });
 
   testWidgets('tapping a place opens its panel with what the rows carried', (
@@ -195,11 +213,19 @@ void main() {
       find.descendant(of: panel, matching: find.text('Stonefall Mine')),
       findsOneWidget,
     );
-    // Terrain and resources, from content. Two nodes at the mine.
+    // The kind word and the ground, from content, in the header caption.
+    // Asserted on the terrain half only: the kind word is the one thing here
+    // still coming from the `isSafe` placeholder derivation, and it changes to
+    // "Worksite" the day `RegionPlace.kind` lands.
+    expect(
+      find.descendant(of: panel, matching: find.textContaining('· Foothills')),
+      findsOneWidget,
+    );
+    // A road from here, and its price, said in words rather than implied.
     expect(
       find.descendant(
         of: panel,
-        matching: find.textContaining('Foothills · 2 resources'),
+        matching: find.text('Road from here · 800 steps'),
       ),
       findsOneWidget,
     );
@@ -246,20 +272,58 @@ void main() {
 
     await select(tester, 'location.frostmere');
     expect(find.byType(StrideButton), findsNothing);
+    // The whole journey and the leg the button would charge, from the content
+    // pack's own costs: Haven → Stonefall Mine 800, Mine → Frostmere 1,500.
     expect(
-      find.textContaining(
-        'Not reachable from here directly · reached by way of Stonefall Mine',
+      find.text(
+        'By way of Stonefall Mine · 2,300 steps in all, 800 for the first leg',
       ),
       findsOneWidget,
     );
 
-    // Two roads away: the way names both places, in order.
+    // Two roads away the other direction: the way names the place between.
     await select(tester, 'location.forgotten_hollow');
     expect(find.byType(StrideButton), findsNothing);
+    expect(find.textContaining('By way of Whispering Woods'), findsOneWidget);
+  });
+
+  testWidgets('the route preview highlights exactly the roads on the way', (
+    WidgetTester tester,
+  ) async {
+    // The dots the player follows must be the edges of the walk the panel
+    // describes — the same object, so the picture and the sentence cannot
+    // disagree. Selecting *here* highlights nothing at all.
+    final StrideSession session = await boot(tester, banked: 50000);
+    await pumpWorld(tester, session);
+
+    AtlasRouteLayer layer() =>
+        tester.widget<AtlasRouteLayer>(find.byType(AtlasRouteLayer));
+
+    expect(layer().way, isNull, reason: 'the selection opens on *here*');
+
+    await select(tester, 'location.frostmere');
+    final AtlasWay way = layer().way!;
+    expect(way.totalCost, 2300);
+    expect(way.firstLegCost, 800);
+    expect(way.edges.map((AtlasEdge e) => e.key).toSet(), <String>{
+      AtlasEdge.keyOf(
+        ContentId.unchecked('location.havens_rest'),
+        ContentId.unchecked('location.stonefall_mine'),
+      ),
+      AtlasEdge.keyOf(
+        ContentId.unchecked('location.stonefall_mine'),
+        ContentId.unchecked('location.frostmere'),
+      ),
+    });
+    // The surface has more roads than the walk uses, so this is a filter and
+    // not "everything".
     expect(
-      find.textContaining('reached by way of Whispering Woods'),
-      findsOneWidget,
+      AtlasScene.build(session)!.edges.length,
+      greaterThan(way.edges.length),
     );
+
+    await select(tester, 'location.havens_rest');
+    expect(layer().way, isNull);
   });
 
   testWidgets('a requirement is stated before a price, as the engine refuses', (
@@ -302,7 +366,7 @@ void main() {
     expect(state.camera, isNot(before), reason: 'the drag moved the window');
     expect(state.camera.dx, greaterThanOrEqualTo(0));
     expect(state.camera.dy, greaterThanOrEqualTo(0));
-    expect(state.zoom, AtlasZoom.min);
+    expect(state.zoom, AtlasZoom.initial);
 
     expect(session.usableEnergy, bankedBefore);
     expect(session.currentLocation?.value, 'location.havens_rest');
@@ -378,7 +442,7 @@ void main() {
 
     await pinch(tester, 100, 133);
     final double settled = state.zoom;
-    expect(settled, inExclusiveRange(AtlasZoom.min, AtlasZoom.max));
+    expect(settled, inExclusiveRange(state.minZoom, AtlasZoom.max));
     expect(
       (settled * 6).roundToDouble(),
       settled * 6,
@@ -386,8 +450,13 @@ void main() {
     );
     await pinch(tester, 100, 400);
     expect(state.zoom, AtlasZoom.max);
-    await pinch(tester, 300, 50);
-    expect(state.zoom, AtlasZoom.min);
+    await pinch(tester, 300, 40);
+    // The floor for a 768-wide world in a 393 dp window is the zoom at which
+    // its whole width fits, rounded up onto the pixel grid — not 1, and not
+    // the absolute 0.5 a wider world would get.
+    expect(state.zoom, lessThan(AtlasZoom.initial));
+    expect(state.zoom, greaterThanOrEqualTo(state.minZoom));
+    expect(state.zoom - state.minZoom, lessThan(1 / 6));
   });
 
   testWidgets('the camera cannot leave the world', (WidgetTester tester) async {
@@ -471,6 +540,9 @@ void main() {
     final SessionController controller = await pumpWorld(tester, session);
     await select(tester, 'location.whispering_woods');
     expect(find.widgetWithText(StrideButton, 'Travel'), findsOneWidget);
+    // Opening the screen is not an arrival: nothing bursts until one happens.
+    expect(find.byType(AtlasArrivalBurst), findsNothing);
+
     await tester.runAsync(
       () => controller.travel(ContentId.unchecked('location.whispering_woods')),
     );
@@ -481,6 +553,15 @@ void main() {
     final Offset here = tester.getCenter(hit('location.whispering_woods'));
     expect((window.center - here).distance, lessThan(2));
     expect(find.textContaining('You are here'), findsOneWidget);
+
+    // And the destination gets its one beat, on the marker the player now
+    // stands on. No avatar walked there; the burst is the arrival's
+    // punctuation.
+    expect(find.byType(AtlasArrivalBurst), findsOneWidget);
+    expect(
+      (tester.getCenter(find.byType(AtlasArrivalBurst)) - here).distance,
+      lessThan(1),
+    );
   });
 
   testWidgets('the pulse runs only while the app is resumed', (
