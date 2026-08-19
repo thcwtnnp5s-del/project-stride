@@ -47,22 +47,23 @@ name, which is the only spelling `items.json` accepts.
 | 3 | Epic | `epic` | purple | The end of a chain: a boss token, the best armour authored |
 | 4 | Legendary | `legendary` | orange | **Nothing yet** — reserved |
 
-### The caveat, written down rather than quietly fixed
+### The caveat — raised, and closed by the owner
 
 **Uncommon sits below Common.** That is the reverse of the convention most RPGs
 use, where Common is the floor and Uncommon the first step up.
 
-It is implemented exactly as the owner's rarity list wrote it — those names, in
-that order, with those colours. An implementation that "corrected" it would
-have made a design decision while pretending to fix a typo (`RULES.md` G-3), so
-it did not.
+It was implemented exactly as the owner's rarity list wrote it — those names,
+in that order, with those colours — and flagged rather than quietly
+"corrected", because an implementation that fixed it would have made a design
+decision while pretending to fix a typo (`RULES.md` G-3).
 
-If the names were meant the conventional way round, the fix is a two-line
-content swap: every `"rarity": "uncommon"` becomes `"common"` and vice versa in
-`assets/content/v1/items.json`. Nothing in code, no state version, no save
-migration — rarity is content, and a save carries item ids rather than ranks.
-The colours would stay where they are (grey lowest, green next), because the
-*order* is what the owner chose and only the two labels would move.
+✅ **RESOLVED — owner ruling, 2026-08-19:** the order and colour mapping are
+**intentional and canonical**: Uncommon = gray → Common = green → Rare = blue →
+Epic = purple → Legendary = orange, ascending in exactly this order. This is
+Stride's own ladder, not a transcription slip, and it is no longer open to
+"conventional" correction. The flag in `Rarity`'s doc comment,
+`rarity_test.dart` and the milestone record predates this ruling; this
+document is the canonical answer they point at.
 
 Legendary is deliberately empty. The enum declares it, the UI style table
 covers it, and `production_content_test.dart` asserts that no shipped item

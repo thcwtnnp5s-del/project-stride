@@ -105,8 +105,10 @@ Merge order: B → (C, D, F in the main tree, file-disjoint) → art packaging
 | Legendary | orange | *none yet — reserved; the enum, style and tests cover it* |
 
 **Note for the owner:** the prompt lists Uncommon (gray) *below* Common
-(green). Implemented exactly as written; if the names were meant the
-conventional way round, it is a two-line content swap.
+(green). Implemented exactly as written. ✅ **Owner-resolved, 2026-08-19:
+intentional and canonical** — recorded in `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`
+and closed in `JOURNAL/OPEN_QUESTIONS.md` Q-07 (that bullet only; the other
+Q-07 items stay open for the device review).
 
 ## 6. Session projections (B provides, C and D consume)
 
@@ -313,7 +315,8 @@ Balance 700 → **335**. Records and verdicts: `GAME_BIBLE/ART/exploration/WORLD
 
 - **BLOCKER:** none known.
 - **GAMEPLAY / DESIGN:** balance provisional (lynx untested on a phone); Q-06
-  open; Q-07 (Uncommon/Common order, kind words, landmark names, multi-leg
+  open; Q-07 (the Uncommon/Common order is **owner-resolved as intentional**,
+  2026-08-19 — the rest stay open: kind words, landmark names, multi-leg
   total, grid colour-only, future-tier dash); pelts drop only from victories,
   so the jerkin chain starts at the wolf.
 - **COSMETIC:** the world is 1 × 2, not 2 × 2 — the east country (watchtower,

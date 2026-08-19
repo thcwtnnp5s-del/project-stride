@@ -629,10 +629,13 @@ design question the owner's device play should answer before it is fixed:
 build could ship, labelled here so the choice is visibly provisional
 (`RULES.md` G-3):
 
-- **Uncommon below Common.** The owner's tier list reads Uncommon (gray) →
-  Common (green) → Rare → Epic → Legendary. Implemented exactly as written
-  (`DECISIONS/0021` §4). If the two names were meant the conventional way
-  round, it is a two-line content swap (`GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`).
+- **Uncommon below Common.** ✅ **RESOLVED — owner ruling, 2026-08-19:** the
+  order and colour mapping are intentional and canonical — Uncommon = gray →
+  Common = green → Rare = blue → Epic = purple → Legendary = orange, ascending
+  in exactly this order. Recorded in `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`
+  (the canonical home); `DECISIONS/0021` §4 stands as written. Not open to
+  "conventional" correction. The remaining bullets below stay open for the
+  device review.
 - **Location kind words.** The atlas inspector says *Settlement · Wilds ·
   Worksite · Perilous*. "Perilous" is an adjective among nouns; the words are
   one enum line each (`lib/ui/screens/world/atlas/atlas_place_info.dart`) and
