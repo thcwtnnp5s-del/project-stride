@@ -436,6 +436,14 @@ the correct scope for a milestone about whether the *game loop* works.
 **Raised by:** owner, after the Phase 2 provenance audit
 **Date:** 2026-08-17
 **Status:** OWNER DIRECTION — settled, **implementation deferred**
+
+**Note, 2026-08-19 (Playable Expansion 01):** the repository and the working
+context were searched for the owner's previously shared audio resource
+references — none exist in the repo (no URLs, no manifest rows, no audio
+dependency). Nothing was guessed; the audio foundation stays deferred until the
+owner resends them. Combat now emits the events an audio layer would hook
+(`CombatPlayerStruck`, `CombatEnemyStruck`, `EncounterWon`, …), so the first
+audio pass has concrete cues waiting.
 **Graduates to:** `GAME_BIBLE/AUDIO/01_AUDIO_IDENTITY.md`, and an audio layer
 
 ### The direction
@@ -581,3 +589,31 @@ Options, none taken: (a) accept — a new game's first week is its walking;
 retired into history (a third epoch shape, needs its own decision and a
 P-5 answer); (c) restore the Phase 2 save from a backup if one exists.
 Not an accounting defect: H-2/H-3 hold either way.
+
+
+## Q-06 — Combat Slice 01: what the first fights leave deliberately open
+
+**Raised:** 2026-08-19, Playable Expansion 01 (`DECISIONS/0020`,
+`GAME_BIBLE/COMBAT/02_COMBAT_SLICE_01.md`). The slice made the smallest set of
+reversible choices that produce a playable fight. Each of these is a real
+design question the owner's device play should answer before it is fixed:
+
+- **Persistent HP and rest.** Every encounter starts at full HP; food matters
+  only inside a fight. A carried-over HP would need a step-clocked recovery
+  rule (never wall-clock) and a place to rest. Deferred until the fights are
+  played.
+- **A guard / brace action.** The Guardian telegraphs its heavy strike; today
+  the player's only answer is to eat. If a second tactical action earns its
+  place, "brace" (halve the next hit, deal none) is the candidate.
+- **The driven-off rule.** One victory per enemy per visit, cleared by any
+  move. It is the only limiter on repeat fights and the only thing keeping a
+  goblin from being a free mine. Whether the *right* limiter is travel, a
+  step-counted return, or regional variants is a play question.
+- **Drops that duplicate gathering.** The goblin drops ore, the wolf a herb —
+  canonical content, kept. Whether combat should instead yield materials that
+  only combat yields (a pelt, a fang) is a content question for the next
+  slice, not this one.
+- **Enemy variants per region.** Three archetypes across three regions
+  today. The owner's "~3 per region" is a content target; adding variants is
+  cheap once the resolver is proven and should follow evidence about which
+  behaviour reads as fun.

@@ -1,5 +1,39 @@
 # Project Stride — Project State
 
+**Version:** 2.7
+**Status:** 🚧 **PLAYABLE EXPANSION 01 — implementation complete, awaiting the
+owner's physical-device test.** Branch `playable-phase-2-multiregion`, on top
+of the device-validated Transformation Build 01 (`f66b29d`).
+Record: `MILESTONES/PLAYABLE_EXPANSION_01.md` (device script §10).
+
+What changed, in one breath: the game has **combat** — the three canonical
+enemies at their canonical locations, fought on an animated side-view stage
+with PixelLab art (Traveler east combat set, wolf / goblin / guardian,
+impact effects, three backdrops), Attack · Eat · Retreat, one round = one
+command = one commit, a seeded deterministic resolver, character XP and
+level feeding HP and attack, the Bronze Sword and Chestplate finally
+mattering, victory rewards exactly once, defeat as **retreat with nothing
+lost**, an enemy *driven off until you move*, and encounter state in the save
+at **state version 4** (`DECISIONS/0020`, `GAME_BIBLE/COMBAT/02`). The
+Inventory screen gained the product's first **Equip / Unequip** control
+(Woodcutting and Mining were unreachable on the phone without one —
+`MISTAKES.md` M-11). The ambient stage is now **one authored composition**
+(far scenery behind-left, figure near-right, cat grounded, clipped, a
+stretch-square bug fixed; read and pick-inspect corrected through PixelLab and
+back in rotation). The atlas got a device pass (bullseye current marker,
+contoured route dots, mist off the landmarks, tap/zoom/pan tests). The iPhone
+install is now **in place** — `flutter install` was uninstalling first and
+deleting the save (`TECHNICAL/IOS_DEVICE_INSTALL.md` §1.4).
+
+Suites: **592** `stride_core`, **108** `stride_storage`, app suite with
+combat session / UI / stage / golden, inventory equip, ambient composition
+(164 cases) and atlas tests; 13 goldens regenerated. **Nothing in the
+health / step-accounting path changed** (the only core change near it is the
+v3→v4 table step, `rebasesEconomy: false`). Audio remains deferred — no
+owner-supplied source references exist in the repository.
+
+---
+
 **Version:** 2.6
 **Status:** 🚧 **TRANSFORMATION BUILD 01 — implementation complete, awaiting
 the owner's physical-device review.** Branch `playable-phase-2-multiregion`,
@@ -124,6 +158,7 @@ Completed foundations:
 | 0017 | **Phase 2 scope — five locations, travel and crafting as commands** | `DECISIONS/0017_PHASE_2_SCOPE.md` |
 | 0018 | **Transformation playtest epoch — state v3, marked after the first sync** | `DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md` |
 | 0019 | **A new game retires its first authorised reconcile; spendable-zero baseline** | `DECISIONS/0019_NEW_GAME_BASELINE.md` |
+| 0020 | **Combat Slice 01 — encounter state in the save (v4), one round = one commit, driven-off rule, retreat to the nearest safe place** | `DECISIONS/0020_COMBAT_SLICE_01.md` |
 
 ## Current milestone
 

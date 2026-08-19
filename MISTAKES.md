@@ -21,6 +21,44 @@ to `M-02` stays valid.
 
 ---
 
+## M-11 — Two device milestones shipped with no way to equip anything
+
+**Date:** 2026-08-19 · **Category:** content / verification (M-07 family) ·
+**Provenance:** Playable Expansion 01, found while wiring combat
+
+### What happened
+
+`GameStarted` grants the starting loadout to the *inventory only*; the
+engine requires a tool to be **equipped** to work `oak_stand` or
+`copper_seam`, and the combat slice reads the *equipped* weapon and armour.
+No product surface — and not the debug harness either — has ever offered an
+equip control. `PLAYABLE_PHASE_2_ACCEPTANCE.md` step 25 says "Equip the
+Training Axe in Inventory"; the Inventory screen's own header comment says
+there is deliberately no equipped card "because Phase 1 has no equip
+affordance". Woodcutting and Mining were therefore unreachable on the phone
+through Playable Phase 2 *and* Transformation Build 01, and nobody noticed
+because the owner's device sessions foraged, travelled and synced.
+
+### Root cause
+
+The same shape as M-07: every structural check passed (the command exists,
+the engine equips, the reachability validator proves the bronze chain) and
+nothing *plays* the product UI end to end. The acceptance script named an
+affordance the UI did not have, and a script step nobody executed is
+indistinguishable from one that passed.
+
+### Prevention
+
+- Inventory now carries **Equip / Unequip** on equipment tiles and an
+  Equipped summary; the session exposes `equip` / `unequip`.
+- **An acceptance-script step must name a control that exists in the build
+  it tests**, and the device script for this milestone exercises equip
+  explicitly (steps 6–7).
+- A widget test now drives new game → equip Training Axe → the tool slot is
+  filled, so the affordance cannot silently vanish again.
+
+---
+
 ## M-10 — The product never asked HealthKit for read access; the dev harness had
 
 **Date:** 2026-08-18 · **Category:** architecture / device workflow ·
