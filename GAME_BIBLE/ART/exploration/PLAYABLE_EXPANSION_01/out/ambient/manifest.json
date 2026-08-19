@@ -1,0 +1,11 @@
+[
+ {
+  "id": "traveler_read",
+  "frames": 9,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "correction of T01 traveler_read: large dark-covered book with a bright page block, opened at chest height"
+ }
+]

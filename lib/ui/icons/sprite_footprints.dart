@@ -85,13 +85,6 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
-  /// `ambient_traveler_pick_inspect` — 24 px of contact, 27..50.
-  static const SpriteFootprint ambientTravelerPickInspect = SpriteFootprint(
-    left: 27,
-    right: 50,
-    bottom: 62,
-  );
-
   /// `ambient_traveler_head_scratch` — 24 px of contact, 19..42.
   static const SpriteFootprint ambientTravelerHeadScratch = SpriteFootprint(
     left: 19,
@@ -122,13 +115,6 @@ abstract final class SpriteFootprints {
 
   /// `ambient_traveler_dangle_string` — 24 px of contact, 19..42.
   static const SpriteFootprint ambientTravelerDangleString = SpriteFootprint(
-    left: 19,
-    right: 42,
-    bottom: 62,
-  );
-
-  /// `ambient_traveler_read` — 24 px of contact, 19..42.
-  static const SpriteFootprint ambientTravelerRead = SpriteFootprint(
     left: 19,
     right: 42,
     bottom: 62,
@@ -223,5 +209,131 @@ abstract final class SpriteFootprints {
     left: 2,
     right: 14,
     bottom: 12,
+  );
+
+  /// `ambient_traveler_read` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerRead = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_pick_inspect` — 24 px of contact, 19..42.
+  static const SpriteFootprint ambientTravelerPickInspect = SpriteFootprint(
+    left: 19,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_combat_idle` — 12 px of contact, 28..39.
+  static const SpriteFootprint combatTravelerCombatIdle = SpriteFootprint(
+    left: 28,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_attack` — 12 px of contact, 34..45.
+  static const SpriteFootprint combatTravelerAttack = SpriteFootprint(
+    left: 34,
+    right: 45,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_hit` — 11 px of contact, 27..37.
+  static const SpriteFootprint combatTravelerHit = SpriteFootprint(
+    left: 27,
+    right: 37,
+    bottom: 62,
+  );
+
+  /// `combat_wolf_idle` — 25 px of contact, 21..45.
+  static const SpriteFootprint combatWolfIdle = SpriteFootprint(
+    left: 21,
+    right: 45,
+    bottom: 40,
+  );
+
+  /// `combat_wolf_attack` — 25 px of contact, 21..45.
+  static const SpriteFootprint combatWolfAttack = SpriteFootprint(
+    left: 21,
+    right: 45,
+    bottom: 40,
+  );
+
+  /// `combat_wolf_hit` — 25 px of contact, 21..45.
+  static const SpriteFootprint combatWolfHit = SpriteFootprint(
+    left: 21,
+    right: 45,
+    bottom: 40,
+  );
+
+  /// `combat_goblin_idle` — 14 px of contact, 22..35.
+  static const SpriteFootprint combatGoblinIdle = SpriteFootprint(
+    left: 22,
+    right: 35,
+    bottom: 46,
+  );
+
+  /// `combat_goblin_attack` — 14 px of contact, 22..35.
+  static const SpriteFootprint combatGoblinAttack = SpriteFootprint(
+    left: 22,
+    right: 35,
+    bottom: 46,
+  );
+
+  /// `combat_goblin_hit` — 14 px of contact, 22..35.
+  static const SpriteFootprint combatGoblinHit = SpriteFootprint(
+    left: 22,
+    right: 35,
+    bottom: 46,
+  );
+
+  /// `combat_guardian_idle` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianIdle = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
+  );
+
+  /// `combat_guardian_attack` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianAttack = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
+  );
+
+  /// `combat_guardian_swipe` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianSwipe = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
+  );
+
+  /// `combat_guardian_hit` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianHit = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
+  );
+
+  /// `combat_wolf_defeat` — 25 px of contact, 21..45.
+  static const SpriteFootprint combatWolfDefeat = SpriteFootprint(
+    left: 21,
+    right: 45,
+    bottom: 40,
+  );
+
+  /// `combat_goblin_defeat` — 14 px of contact, 22..35.
+  static const SpriteFootprint combatGoblinDefeat = SpriteFootprint(
+    left: 22,
+    right: 35,
+    bottom: 46,
+  );
+
+  /// `combat_guardian_defeat` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianDefeat = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
   );
 }

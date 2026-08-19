@@ -1,0 +1,349 @@
+[
+ {
+  "id": "traveler_combat_idle",
+  "kind": "traveler",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": [
+   64,
+   64
+  ],
+  "baseline": 62,
+  "facing": "east",
+  "status": "accepted",
+  "anchor": 62,
+  "note": "v3 guard idle from a custom start frame (= attack f5): sword low; f0 matches the attack's last frame"
+ },
+ {
+  "id": "traveler_attack",
+  "kind": "traveler",
+  "frames": 4,
+  "fps": 10,
+  "loop": "once",
+  "canvas": [
+   80,
+   64
+  ],
+  "baseline": 62,
+  "facing": "east",
+  "status": "accepted",
+  "anchor": 62,
+  "note": "wind-up, raise, forward slash (f2 = extended blade), low guard; source f4 (blade hidden behind the body) dropped after QA read it as the sword vanishing; 80 wide for the blade — anchor like the ambient 80x64 scenes; f3 feet 2 px above row 62 (lunge)"
+ },
+ {
+  "id": "traveler_hit",
+  "kind": "traveler",
+  "frames": 6,
+  "fps": 8,
+  "loop": "once",
+  "canvas": [
+   64,
+   64
+  ],
+  "baseline": 62,
+  "facing": "east",
+  "status": "accepted",
+  "anchor": 62,
+  "note": "template taking-punch"
+ },
+ {
+  "id": "wolf_idle",
+  "kind": "enemy",
+  "frames": 8,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 40,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 40,
+  "enemyId": "enemy.forest_wolf",
+  "note": "v3 (round 2): head lowers and lifts, chest breathing; the template idle was imperceptible at x2 (QA)"
+ },
+ {
+  "id": "wolf_attack",
+  "kind": "enemy",
+  "frames": 9,
+  "fps": 10,
+  "loop": "once",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 40,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 40,
+  "enemyId": "enemy.forest_wolf",
+  "note": "crouch, lunge left with jaws open (f5 = bite), land, back to stance"
+ },
+ {
+  "id": "wolf_hit",
+  "kind": "enemy",
+  "frames": 4,
+  "fps": 10,
+  "loop": "once",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 41,
+  "facing": "west",
+  "status": "withheld",
+  "anchor": 40,
+  "enemyId": "enemy.forest_wolf",
+  "note": "v3 (round 3): rears, leaps back, lands low. Three rounds: r1 baked a white flash, r2 read as a trot, r3 read as a run cycle + crouch in the blind strip. Withheld per the ≤2 re-roll rule; in stage context the motion is away from the Traveler and the lead may choose to enable it, or pair fx_impact with a UI-side recoil offset"
+ },
+ {
+  "id": "goblin_idle",
+  "kind": "enemy",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 46,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 46,
+  "enemyId": "enemy.cave_goblin",
+  "note": "v3 (round 2): breathing and head bob only; round 1 read as a punch (QA)"
+ },
+ {
+  "id": "goblin_attack",
+  "kind": "enemy",
+  "frames": 9,
+  "fps": 10,
+  "loop": "once",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 46,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 46,
+  "enemyId": "enemy.cave_goblin",
+  "note": "club raised behind the head (f2), overhand strike forward-down (f4-f5), recover"
+ },
+ {
+  "id": "goblin_hit",
+  "kind": "enemy",
+  "frames": 4,
+  "fps": 10,
+  "loop": "pingpong",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 46,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 46,
+  "enemyId": "enemy.cave_goblin",
+  "note": "v3 (round 3): knocked off its feet onto its back — pingpong so it comes back up; rounds 1-2 read as a punch (QA)"
+ },
+ {
+  "id": "guardian_idle",
+  "kind": "enemy",
+  "frames": 7,
+  "fps": 4,
+  "loop": "pingpong",
+  "canvas": [
+   96,
+   96
+  ],
+  "baseline": 83,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 83,
+  "enemyId": "enemy.hollow_guardian",
+  "note": "v3 character (round 3, ee019008): slow sway and breathing. The standard-mode guardian (3a1d9fdc) was retired after QA read its moss patch as a badge/marker"
+ },
+ {
+  "id": "guardian_attack",
+  "kind": "enemy",
+  "frames": 7,
+  "fps": 6,
+  "loop": "once",
+  "canvas": [
+   96,
+   96
+  ],
+  "baseline": 83,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 83,
+  "enemyId": "enemy.hollow_guardian",
+  "note": "the heavy (telegraphed) strike: arm raised high with splayed twig fingers (f2), brought down and forward (f3), recover. Generated as the swipe prompt; QA read it as an overhead swipe/slam, so it carries the heavy-strike id. Play slow"
+ },
+ {
+  "id": "guardian_swipe",
+  "kind": "enemy",
+  "frames": 9,
+  "fps": 8,
+  "loop": "once",
+  "canvas": [
+   96,
+   96
+  ],
+  "baseline": 83,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 83,
+  "enemyId": "enemy.hollow_guardian",
+  "note": "the normal strike: arms up slightly, then a forward hunch with both arms extended low (a grab/lunge). Generated as the slam prompt; QA read it as a lunge/grab, so it carries the normal-strike id. The f4→f5 cut is abrupt and the twig crown collapses in the hunched frames (QA) — MARGINAL"
+ },
+ {
+  "id": "guardian_hit",
+  "kind": "enemy",
+  "frames": 4,
+  "fps": 8,
+  "loop": "once",
+  "canvas": [
+   96,
+   96
+  ],
+  "baseline": 83,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 83,
+  "enemyId": "enemy.hollow_guardian",
+  "note": "lean back, arm swung back, arm reaching (source f3-f5 dropped: QA read them as a bulkier body and a spin/dance). MARGINAL — reads stagger or sweep"
+ },
+ {
+  "id": "wolf_defeat",
+  "kind": "enemy",
+  "frames": 7,
+  "fps": 8,
+  "loop": "once",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 41,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 40,
+  "enemyId": "enemy.forest_wolf",
+  "note": "sinks onto its belly and lies still (f4-f6 hold); baseline 41 in the lying frames"
+ },
+ {
+  "id": "goblin_defeat",
+  "kind": "enemy",
+  "frames": 7,
+  "fps": 8,
+  "loop": "once",
+  "canvas": [
+   56,
+   56
+  ],
+  "baseline": 46,
+  "facing": "west",
+  "status": "accepted",
+  "anchor": 46,
+  "enemyId": "enemy.cave_goblin",
+  "note": "sits down slumped, head forward"
+ },
+ {
+  "id": "guardian_defeat",
+  "kind": "enemy",
+  "frames": 7,
+  "fps": 6,
+  "loop": "once",
+  "canvas": [
+   96,
+   96
+  ],
+  "baseline": 83,
+  "facing": "west",
+  "status": "withheld",
+  "anchor": 83,
+  "enemyId": "enemy.hollow_guardian",
+  "note": "QA: last frames read as a quadruped with a tail (identity drift). Withheld; the stage may hold the hit pose on victory instead"
+ },
+ {
+  "id": "fx_impact",
+  "kind": "effect",
+  "frames": 5,
+  "fps": 12,
+  "loop": "once",
+  "canvas": [
+   32,
+   32
+  ],
+  "baseline": 27,
+  "facing": "none",
+  "status": "accepted",
+  "note": "cream/rust burst → ring → specks"
+ },
+ {
+  "id": "fx_bite",
+  "kind": "effect",
+  "frames": 5,
+  "fps": 12,
+  "loop": "once",
+  "canvas": [
+   32,
+   32
+  ],
+  "baseline": 26,
+  "facing": "none",
+  "status": "accepted",
+  "note": "three diagonal ochre streaks shrinking; MARGINAL — 1 px streaks"
+ },
+ {
+  "id": "backdrop_forest",
+  "kind": "backdrop",
+  "frames": 1,
+  "fps": 0,
+  "loop": "static",
+  "canvas": [
+   192,
+   96
+  ],
+  "baseline": 95,
+  "facing": "none",
+  "status": "accepted",
+  "groundRow": 88,
+  "note": "pixen seed 11; palette conformed to the Whispering Woods vignette (nearest colour, ≤48)"
+ },
+ {
+  "id": "backdrop_mine",
+  "kind": "backdrop",
+  "frames": 1,
+  "fps": 0,
+  "loop": "static",
+  "canvas": [
+   192,
+   96
+  ],
+  "baseline": 95,
+  "facing": "none",
+  "status": "accepted",
+  "groundRow": 88,
+  "note": "pixen seed 23 (second roll: man-height timbered adit in a cliff); conformed to the Stonefall Mine vignette"
+ },
+ {
+  "id": "backdrop_hollow",
+  "kind": "backdrop",
+  "frames": 1,
+  "fps": 0,
+  "loop": "static",
+  "canvas": [
+   192,
+   96
+  ],
+  "baseline": 95,
+  "facing": "none",
+  "status": "accepted",
+  "groundRow": 88,
+  "note": "pixen seed 11; conformed to the Forgotten Hollow vignette"
+ }
+]

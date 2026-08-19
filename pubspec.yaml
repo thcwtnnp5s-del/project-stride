@@ -134,6 +134,7 @@ flutter:
     # `--check` is what guards their contents; listing each file here would be
     # a second copy of that manifest that drifts.
     - assets/art/v1/ambient/
+    - assets/art/v1/combat/
     - assets/art/v1/world/
     - assets/art/v1/env/
     - assets/art/v1/node/

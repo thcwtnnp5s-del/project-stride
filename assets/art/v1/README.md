@@ -31,9 +31,11 @@ art pipeline does not have to know what a tab bar is.
 | `world/atlas_base.png` | 384 × 688 | 768 × 1376 (×2, pannable) | `TRANSFORMATION_01/out/world/atlas_base_384x688.png` — the atlas base, straight copy |
 | `world/landmark_*.png` (5) | 96 × 72–96 | ×2 at atlas coordinates | `TRANSFORMATION_01/out/world/` — Haven's Rest and Frostmere are packaged but not placed (the base already draws them; Visual QA found the doubled palisade) |
 | `env/prop_*.png` (7), `env/overlay_*_f*.png` (22) | 32–96 px | ×2, overlays at a layout opacity | `TRANSFORMATION_01/out/env/` |
-| `ambient/*.png` (185) | 64 × 64 Traveler (80 × 64 for three wide scenes, 96 × 64 pair), 40 × 40 cat, 32 × 32 fire, 16 × 16 yarn | ×2 on the Adventure stage | `TRANSFORMATION_01/out/ambient/` via `manifest.json`; the three 80 × 80 sources are cropped to rows 8..71 so the feet stay on row 62 |
+| `ambient/*.png` (183) | 64 × 64 Traveler (80 × 64 for three wide scenes, 96 × 64 pair), 40 × 40 cat, 32 × 32 fire, 16 × 16 yarn | ×2 on the Adventure stage | `TRANSFORMATION_01/out/ambient/` via `manifest.json`; the three 80 × 80 sources are cropped to rows 8..71 so the feet stay on row 62. **Playable Expansion 01 corrections** overwrite two sequences by id from `PLAYABLE_EXPANSION_01/out/ambient/` — `traveler_read` (9 f, `manifest.json`, QA PASS) and `traveler_pick_inspect` (7 f, `withheld_manifest.json`, lead override) — see that round's README |
 | `node/*.png` (8) | 96 × 96 | 96 (×1) on the gather card | `TRANSFORMATION_01/out/items/node_*_96.png` |
 | `item/*.png` (+9) | 48 × 48 | 48 (×1) | `TRANSFORMATION_01/out/items/icon_*_48.png` — the bronze tier, both bowls, the root and the sigil |
+| `item/pine_log.png` | 48 × 48 | 48 (×1) | `PLAYABLE_EXPANSION_01/out/items/icon_pine_log_48.png` — re-authored for oak/pine separation (Visual QA PASS); replaces the STABILIZATION_01 source for this one id |
+| `combat/*.png` (119) | 64 × 64 Traveler (80 × 64 attack), 56 × 56 wolf and goblin, 96 × 96 guardian, 32 × 32 / 48 × 48 effects, 192 × 96 backdrops | ×2 on the combat stage | `PLAYABLE_EXPANSION_01/out/combat/` via `manifest.json` (kind, frames, fps, loop, canvas, baseline, `anchor`, `groundRow`, `status`); frames are already cropped there — straight copies. Sequences with `status: withheld` are packaged but must not be drawn |
 
 Every file is drawn through `PixelAsset` or `PixelScene` at an exact integer
 multiple of its native size, with nearest-neighbour filtering and no smoothing

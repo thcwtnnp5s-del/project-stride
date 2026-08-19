@@ -1,0 +1,38 @@
+[
+ {
+  "id": "traveler_axe_inspect",
+  "frames": 5,
+  "fps": 5,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "correction of T01 traveler_axe_inspect: dark iron head, wooden haft, held low across the body and looked over; source f1 (no axe yet) and f2/f4/f6 (the head flashes pale in those frames) dropped so the head stays dark"
+ },
+ {
+  "id": "traveler_pick_inspect",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 63,
+  "note": "correction of T01 traveler_pick_inspect: crouched over a pick held horizontal and low, never raised; source f1-2 (crouch before the pick appears) dropped; feet on row 63 in the crouch frames"
+ },
+ {
+  "id": "traveler_pick_inspect_alt",
+  "frames": 7,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "alternate: kneeling with the pick across the knees; source f1-2 dropped"
+ },
+ {
+  "id": "traveler_stretch_side",
+  "frames": 9,
+  "fps": 6,
+  "loop": "pingpong",
+  "canvas": 64,
+  "baseline": 62,
+  "note": "alternative stretch: one arm bent over the head, hand on hip, side lean; 64 canvas (the T01 overhead stretch needed 80)"
+ }
+]

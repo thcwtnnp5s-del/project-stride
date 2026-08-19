@@ -116,8 +116,19 @@ const ITEM_ICONS = {
   'item.frostbloom_tea': 'icon_frostbloom_tea_48.png',
 };
 
+// Playable Expansion 01 re-authored one of these for readability: the pine log
+// was a hue-twin of the oak log at play scale (TRANSFORMATION_01/items QA). The
+// corrected icon (Visual QA PASS at ×1/×2, PLAYABLE_EXPANSION_01/ambient/
+// README.md §C) is read from that round's out/ folder; the emitted path is
+// unchanged.
+const ITEM_ICON_SOURCE_OVERRIDES = {
+  'item.pine_log': path.join(EXPLORE, 'PLAYABLE_EXPANSION_01', 'out', 'items'),
+};
+
 for (const [id, file] of Object.entries(ITEM_ICONS)) {
-  const raster = png.load(path.join(STABLE, 'icons_full', file));
+  const raster = png.load(
+    path.join(ITEM_ICON_SOURCE_OVERRIDES[id] ?? path.join(STABLE, 'icons_full'), file),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${file}: expected 48x48, got ${raster.width}x${raster.height}`);
   }
@@ -398,9 +409,23 @@ const AMBIENT_SRC = path.join(TRANSFORM, 'ambient');
 const ambientManifest = JSON.parse(
   fs.readFileSync(path.join(AMBIENT_SRC, 'manifest.json'), 'utf8'),
 );
+const AMBIENT_FIX_SRC = path.join(
+  EXPLORE, 'PLAYABLE_EXPANSION_01', 'out', 'ambient',
+);
+const AMBIENT_FIX_OVERRIDES = new Set(['traveler_pick_inspect']);
+const ambientFixManifest = [
+  ...JSON.parse(fs.readFileSync(path.join(AMBIENT_FIX_SRC, 'manifest.json'), 'utf8')),
+  ...JSON.parse(fs.readFileSync(path.join(AMBIENT_FIX_SRC, 'withheld_manifest.json'), 'utf8'))
+    .filter((entry) => AMBIENT_FIX_OVERRIDES.has(entry.id)),
+];
+const ambientFixIds = new Set(ambientFixManifest.map((e) => e.id));
+
 const AMBIENT_TALL_CROP = { y: 8, height: 64 };
 const ambientFootprints = {};
 for (const entry of ambientManifest) {
+  // Superseded by the Playable Expansion 01 correction pass below; emitting the
+  // original here would make `--check` report the corrected file as stale.
+  if (ambientFixIds.has(entry.id)) continue;
   const [w, h] = Array.isArray(entry.canvas)
     ? entry.canvas
     : [entry.canvas, entry.canvas];
@@ -412,6 +437,37 @@ for (const entry of ambientManifest) {
     }
     if (entry.id.startsWith('traveler_') && h === 80) {
       frame = png.crop(frame, 0, AMBIENT_TALL_CROP.y, w, AMBIENT_TALL_CROP.height);
+    }
+    if (i === 0) ambientFootprints[`ambient_${entry.id}`] = png.footprint(frame);
+    emit(`ambient/${entry.id}_f${i}.png`, encode(frame));
+  }
+}
+
+/**
+ * AMBIENT CORRECTIONS — Playable Expansion 01 (`PLAYABLE_EXPANSION_01/ambient/
+ * README.md`). A second pass over a second manifest, run AFTER the
+ * Transformation set so a corrected sequence overwrites the original by id.
+ *
+ * `manifest.json` holds the sequences Visual QA passed at ×2 (`traveler_read`).
+ * `withheld_manifest.json` holds the rest; ONE of them is packaged by lead
+ * override, recorded in the README's disposition: `traveler_pick_inspect`, whose
+ * QA line was PASS-WITH-NOTE "holding a pick, not mining; second read
+ * idle-with-tool" — which is the read the correction was for. Everything else
+ * in that file stays out of the shipped tree; the current assets stand.
+ *
+ * All 64 × 64, feet on row 62 (63 in the pick crouch frames), so no tall-crop
+ * branch. Frame counts differ from the T01 originals (read 9 → 9, pick 9 → 7):
+ * the T01 frames beyond the new count are simply not emitted, and the
+ * `--check` sweep below reports them as unexpected if they linger.
+ */
+for (const entry of ambientFixManifest) {
+  const [w, h] = Array.isArray(entry.canvas)
+    ? entry.canvas
+    : [entry.canvas, entry.canvas];
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(path.join(AMBIENT_FIX_SRC, `${entry.id}_f${i}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}_f${i} (correction): expected ${w}x${h}, got ${frame.width}x${frame.height}`);
     }
     if (i === 0) ambientFootprints[`ambient_${entry.id}`] = png.footprint(frame);
     emit(`ambient/${entry.id}_f${i}.png`, encode(frame));
@@ -485,6 +541,55 @@ for (const id of NODE_ART) {
   emit(`node/${id}.png`, encode(raster));
 }
 
+// ------------------------------------------------- Playable Expansion 01
+
+/**
+ * COMBAT STAGE — the Traveler's east-facing combat set, the three enemies
+ * (west-facing), the hit effects and the three side-view backdrops
+ * (Combat Slice 01, `GAME_BIBLE/COMBAT/02_COMBAT_SLICE_01.md` §10).
+ *
+ * Read from the combat manifest so frame counts, canvases and baselines cannot
+ * disagree with what the art round delivered. Everything is a straight copy:
+ * the art round already cropped every Traveler frame to the 64 × 64 anchor
+ * (feet on row 62, the same row as `sprite/traveler_south.png` and the ambient
+ * set) or to 80 × 64 for the wide attack, and every enemy to one fixed square
+ * canvas per enemy (wolf 56, goblin 56, guardian 96) with a constant standing
+ * baseline (`anchor` in the manifest). Backdrops are 192 × 96, drawn at ×2.
+ *
+ * Sequences the manifest marks `withheld` are still emitted — the frames are
+ * packaged so a correction round can compare against them — but the manifest
+ * status is the contract: the stage must not draw a withheld sequence.
+ *
+ * Footprints are measured on frame 0 of every figure sequence and emitted as
+ * `combat_<id>`, so an enemy gets its own derived contact shadow.
+ */
+const COMBAT_SRC = path.join(EXPLORE, 'PLAYABLE_EXPANSION_01', 'out', 'combat');
+const combatManifest = JSON.parse(
+  fs.readFileSync(path.join(COMBAT_SRC, 'manifest.json'), 'utf8'),
+);
+const combatFootprints = {};
+for (const entry of combatManifest) {
+  const [w, h] = entry.canvas;
+  if (entry.kind === 'backdrop') {
+    const frame = png.load(path.join(COMBAT_SRC, `${entry.id}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}: expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    emit(`combat/${entry.id}.png`, encode(frame));
+    continue;
+  }
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(path.join(COMBAT_SRC, `${entry.id}_f${i}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}_f${i}: expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    if (i === 0 && entry.kind !== 'effect') {
+      combatFootprints[`combat_${entry.id}`] = png.footprint(frame);
+    }
+    emit(`combat/${entry.id}_f${i}.png`, encode(frame));
+  }
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**
@@ -500,6 +605,7 @@ const footprints = {
   'traveler_south': png.footprint(spriteSouth),
   'gather': png.footprint(gather[0]),
   ...ambientFootprints,
+  ...combatFootprints,
 };
 
 const dart = `// GENERATED by Scripts/art/package-art.js — do not edit by hand.

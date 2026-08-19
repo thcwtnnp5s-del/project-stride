@@ -180,6 +180,7 @@ GAME_BIBLE/ART/exploration/**
 #     (atlas base, landmarks, overlays, ambient frames, item/node icons). Only
 #     `out/` — candidates and rejects in the stream folders stay local.
 !GAME_BIBLE/ART/exploration/TRANSFORMATION_01/out/**
+!GAME_BIBLE/ART/exploration/PLAYABLE_EXPANSION_01/out/**
 
 # Never, under any exception: third-party reference imagery.
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg
