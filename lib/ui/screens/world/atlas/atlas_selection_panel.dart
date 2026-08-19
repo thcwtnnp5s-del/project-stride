@@ -209,6 +209,7 @@ class TravelResultLine extends StatelessWidget {
     'entry_requirement_unmet' =>
       'You are not carrying what that place requires.',
     'route_not_found' => 'No route runs there from here.',
+    'encounter_in_progress' => 'Finish or retreat from your encounter first.',
     'already_at_location' => 'You are already there.',
     'session_busy' => 'Something else is still running.',
     'session_not_ready' => 'The game is not ready. Reload and try again.',

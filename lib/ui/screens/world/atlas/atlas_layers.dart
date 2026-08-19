@@ -103,10 +103,17 @@ class _RoutePainter extends CustomPainter {
   static const double _pitch = 10;
   static const double _dot = 3;
 
+  /// The dark square under each dot, one world pixel proud on every side. A
+  /// light dot with only a drop shadow vanished on Frostmere's snow and the
+  /// pale rock above the mine (device review, checklist item 4); a full dark
+  /// contour is what every sprite on the atlas carries for the same reason,
+  /// and it costs the line nothing on grass or forest.
+  static const double _contour = _dot + 2;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint shadow = Paint()..color = const Color(0x8014120F);
-    final Paint ink = Paint()..color = const Color(0xB3F0E7D8);
+    final Paint contour = Paint()..color = const Color(0xB314120F);
+    final Paint ink = Paint()..color = const Color(0xD9F0E7D8);
     for (final AtlasEdge edge in scene.edges) {
       // Follow the drawn course where the layout gives one — the dots then
       // ride the track the base art paints — otherwise the straight line.
@@ -149,7 +156,14 @@ class _RoutePainter extends CustomPainter {
             width: _dot,
             height: _dot,
           );
-          canvas.drawRect(dot.shift(const Offset(1, 1)), shadow);
+          canvas.drawRect(
+            Rect.fromCenter(
+              center: dot.center,
+              width: _contour,
+              height: _contour,
+            ),
+            contour,
+          );
           canvas.drawRect(dot, ink);
           d += _pitch;
         }
@@ -415,6 +429,13 @@ abstract final class AtlasMarkerSpec {
   static const double currentRingRadius = 9;
   static const double currentRingStroke = 3;
 
+  /// The solid centre inside the current location's ring: *here* as a
+  /// bullseye. It is the one cue that does not depend on motion — the pulse
+  /// stops under reduced motion and before the platform reports resumed — and
+  /// it is what tells the current place from a selected one, whose extra ring
+  /// is a hollow one outside. Chrome, not art: it depicts nothing but a point.
+  static const double currentDotRadius = 3;
+
   /// The selection ring, drawn outside whichever ring the place already has.
   static const double selectedRadius = 14;
   static const double selectedStroke = 2;
@@ -448,6 +469,8 @@ class _StaticRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..color = StrideColors.textPrimary;
     final Paint fill = Paint()..color = const Color(0x8014120F);
+    final Paint dark = Paint()..color = const Color(0xE614120F);
+    final Paint light = Paint()..color = StrideColors.textPrimary;
 
     for (final AtlasNode node in scene.nodes) {
       final Offset c = Offset(node.x, node.y);
@@ -463,6 +486,10 @@ class _StaticRingPainter extends CustomPainter {
       // on forest alike — the same reason every sprite carries a dark contour.
       canvas.drawCircle(c, r, outline..strokeWidth = stroke + 2);
       canvas.drawCircle(c, r, ink..strokeWidth = stroke);
+      if (current) {
+        canvas.drawCircle(c, AtlasMarkerSpec.currentDotRadius + 1, dark);
+        canvas.drawCircle(c, AtlasMarkerSpec.currentDotRadius, light);
+      }
 
       if (node.id == selected) {
         canvas.drawCircle(
@@ -536,6 +563,17 @@ class _PulsePainter extends CustomPainter {
         (AtlasMarkerSpec.pulseRadius - AtlasMarkerSpec.currentRingRadius) * t;
     // Fades to nothing before the loop restarts, so there is no visible snap.
     final double alpha = (1 - t) * (1 - t) * 0.85;
+    // A dark contour under the light ring, as the static rings have: a light
+    // ring alone is invisible over Frostmere's snow, and the current place
+    // must read wherever the player stands.
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..color = const Color(0xFF14120F).withValues(alpha: alpha * 0.9),
+    );
     canvas.drawCircle(
       c,
       r,

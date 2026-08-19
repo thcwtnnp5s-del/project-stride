@@ -24,6 +24,7 @@ import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layers.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -309,6 +310,177 @@ void main() {
     // And nothing was selected by dragging: the panel is still on *here*.
     expect(find.textContaining('You are here'), findsOneWidget);
     expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
+  });
+
+  /// A two-finger pinch about the viewport's centre, from [from] to [to]
+  /// pixels apart, in ten steps.
+  Future<void> pinch(WidgetTester tester, double from, double to) async {
+    final Offset c = tester.getCenter(find.byType(AtlasViewport));
+    final TestGesture a = await tester.startGesture(c - Offset(from / 2, 0));
+    final TestGesture b = await tester.startGesture(c + Offset(from / 2, 0));
+    await tester.pump();
+    for (int i = 1; i <= 10; i++) {
+      final double gap = from + (to - from) * i / 10;
+      await a.moveTo(c - Offset(gap / 2, 0));
+      await b.moveTo(c + Offset(gap / 2, 0));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await a.up();
+    await b.up();
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('no two targets overlap, at either end of the zoom range', (
+    WidgetTester tester,
+  ) async {
+    // Device review, checklist item 1. A thumb on one place must not be a
+    // tap on another; the floor and the separation are checked at 1× and
+    // again at 2×, where the targets are simply twice the size.
+    final StrideSession session = await boot(tester);
+    await pumpWorld(tester, session);
+    const List<String> ids = <String>[
+      'location.havens_rest',
+      'location.whispering_woods',
+      'location.stonefall_mine',
+      'location.frostmere',
+      'location.forgotten_hollow',
+    ];
+    void check(double zoom) {
+      for (int i = 0; i < ids.length; i++) {
+        final Rect a = tester.getRect(hit(ids[i]));
+        expect(a.width, greaterThanOrEqualTo(44 * zoom), reason: ids[i]);
+        for (int j = i + 1; j < ids.length; j++) {
+          expect(
+            a.overlaps(tester.getRect(hit(ids[j]))),
+            isFalse,
+            reason: '${ids[i]} and ${ids[j]} share thumb space',
+          );
+        }
+      }
+    }
+
+    check(1);
+    await pinch(tester, 100, 300);
+    expect(viewportState(tester).zoom, AtlasZoom.max);
+    check(2);
+  });
+
+  testWidgets('pinch zoom is clamped and settles on whole device pixels', (
+    WidgetTester tester,
+  ) async {
+    // Checklist item 5. Beyond 2× the map stops growing; below 1× it stops
+    // shrinking; and a pinch that lets go in between lands on a zoom at
+    // which one art pixel is a whole number of device pixels — at dpr 3 and
+    // art scale 2, a multiple of one sixth — so pixel art never blurs at rest.
+    final StrideSession session = await boot(tester);
+    await pumpWorld(tester, session);
+    final AtlasViewportState state = viewportState(tester);
+
+    await pinch(tester, 100, 133);
+    final double settled = state.zoom;
+    expect(settled, inExclusiveRange(AtlasZoom.min, AtlasZoom.max));
+    expect(
+      (settled * 6).roundToDouble(),
+      settled * 6,
+      reason: 'a sixth: 2 (art) × zoom × 3 (dpr) is integral',
+    );
+    await pinch(tester, 100, 400);
+    expect(state.zoom, AtlasZoom.max);
+    await pinch(tester, 300, 50);
+    expect(state.zoom, AtlasZoom.min);
+  });
+
+  testWidgets('the camera cannot leave the world', (WidgetTester tester) async {
+    // Checklist item 6: a drag past any edge stops at it — no void, no
+    // over-scroll — at both zooms.
+    final StrideSession session = await boot(tester);
+    await pumpWorld(tester, session);
+    final AtlasViewportState state = viewportState(tester);
+    final Rect window = tester.getRect(find.byType(AtlasViewport));
+    final AtlasScene scene = AtlasScene.build(session)!;
+
+    Future<void> dragAndCheck() async {
+      final Offset centre = window.center;
+      for (final Offset delta in <Offset>[
+        const Offset(2000, 3000),
+        const Offset(-2000, -3000),
+      ]) {
+        await tester.dragFrom(centre, delta);
+        await tester.pumpAndSettle();
+        final Offset camera = state.camera;
+        expect(camera.dx, greaterThanOrEqualTo(0));
+        expect(camera.dy, greaterThanOrEqualTo(0));
+        expect(
+          camera.dx,
+          lessThanOrEqualTo(scene.worldWidth - window.width / state.zoom),
+        );
+        expect(
+          camera.dy,
+          lessThanOrEqualTo(scene.worldHeight - window.height / state.zoom),
+        );
+      }
+    }
+
+    await dragAndCheck();
+    await pinch(tester, 100, 300);
+    expect(state.zoom, AtlasZoom.max);
+    await dragAndCheck();
+  });
+
+  testWidgets('overlays paint below the markers and take no taps', (
+    WidgetTester tester,
+  ) async {
+    // Checklist item 7. Cloud, mist and smoke may drift under a place; they
+    // may never cover its ring, its name or its target. That is a z-order
+    // fact about one Stack, asserted here so a layer added later cannot
+    // quietly land on top.
+    final StrideSession session = await boot(tester);
+    await pumpWorld(tester, session);
+    final Stack world = tester.widget<Stack>(
+      find
+          .ancestor(
+            of: find.byType(AtlasMarkerLayer),
+            matching: find.byType(Stack),
+          )
+          .first,
+    );
+    final List<Type> order = world.children
+        .map((Widget w) => w.runtimeType)
+        .toList();
+    expect(order.indexOf(AtlasOverlayLayer), greaterThanOrEqualTo(0));
+    expect(
+      order.indexOf(AtlasOverlayLayer),
+      lessThan(order.indexOf(AtlasMarkerLayer)),
+    );
+    expect(order.last, AtlasMarkerLayer, reason: 'nothing paints over a name');
+    expect(
+      find.descendant(
+        of: find.byType(AtlasOverlayLayer),
+        matching: find.byType(IgnorePointer),
+      ),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('arriving somewhere recentres the window on it', (
+    WidgetTester tester,
+  ) async {
+    // Checklist item 6: after a journey the map shows *here*, not the place
+    // the player left — and the panel follows.
+    final StrideSession session = await boot(tester, banked: 5000);
+    final SessionController controller = await pumpWorld(tester, session);
+    await select(tester, 'location.whispering_woods');
+    expect(find.widgetWithText(StrideButton, 'Travel'), findsOneWidget);
+    await tester.runAsync(
+      () => controller.travel(ContentId.unchecked('location.whispering_woods')),
+    );
+    await tester.pumpAndSettle();
+    expect(session.currentLocation?.value, 'location.whispering_woods');
+
+    final Rect window = tester.getRect(find.byType(AtlasViewport));
+    final Offset here = tester.getCenter(hit('location.whispering_woods'));
+    expect((window.center - here).distance, lessThan(2));
+    expect(find.textContaining('You are here'), findsOneWidget);
   });
 
   testWidgets('the pulse runs only while the app is resumed', (

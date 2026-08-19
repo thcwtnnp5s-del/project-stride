@@ -14,6 +14,7 @@
 library;
 
 import 'dart:io';
+import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:flutter/services.dart' show AssetBundle, ByteData;
@@ -92,6 +93,53 @@ void main() {
         }
       },
     );
+
+    test('no overlay sits on, or sweeps across, a landmark', () {
+      // OD-05: animation must never obscure a destination. Overlays paint
+      // *above* the landmark layer (markers and labels sit above overlays, so
+      // they are safe by z-order), which makes this the one thing the layout
+      // itself has to keep true. Device review found the forest mist parked
+      // on the Forgotten Hollow's ruin and a cloud sweeping the mine's base.
+      final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
+      final int scale = layout.scale;
+      final List<(String, Rect)> landmarks = <(String, Rect)>[
+        for (final AtlasLocation location in layout.locations)
+          if (location.landmark case final AtlasLandmark landmark)
+            (
+              location.id.value,
+              Rect.fromLTWH(
+                location.x - landmark.anchorX * scale,
+                location.y - landmark.anchorY * scale,
+                (landmark.width * scale).toDouble(),
+                (landmark.height * scale).toDouble(),
+              ),
+            ),
+      ];
+      expect(landmarks, isNotEmpty);
+      for (final AtlasOverlay overlay in layout.overlays) {
+        // A drifting overlay wraps across the whole axis it drifts on, so it
+        // passes over everything in its band.
+        final Rect swept = Rect.fromLTWH(
+          overlay.driftX != 0 ? 0 : overlay.x,
+          overlay.driftY != 0 ? 0 : overlay.y,
+          overlay.driftX != 0
+              ? layout.worldWidth.toDouble()
+              : (overlay.width * scale).toDouble(),
+          overlay.driftY != 0
+              ? layout.worldHeight.toDouble()
+              : (overlay.height * scale).toDouble(),
+        );
+        for (final (String id, Rect landmark) in landmarks) {
+          expect(
+            swept.overlaps(landmark),
+            isFalse,
+            reason:
+                '${overlay.asset} at (${overlay.x}, ${overlay.y}) would '
+                'obscure the landmark of $id',
+          );
+        }
+      }
+    });
 
     test('the base tiles cover the world at the declared scale', () {
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
