@@ -65,7 +65,7 @@ class EncounterCard extends StatelessWidget {
           const SizedBox(height: StrideSpace.s12),
           StrideButton(
             label: c.busy ? 'Starting…' : 'Start Combat',
-            subLabel: c.busy ? null : _reasonText(o.reason),
+            subLabel: c.busy ? null : _subLabel(o),
             onPressed: c.busy || !o.available
                 ? null
                 : () => c.startEncounter(o.enemyId),
@@ -83,9 +83,23 @@ class EncounterCard extends StatelessWidget {
 
   static String _rewards(EncounterOption o) {
     final String xp = '${o.xp} XP';
-    if (o.dropNames.isEmpty) return 'Rewards: $xp';
-    return 'Rewards: $xp, ${o.dropNames.join(', ')}';
+    if (o.drops.isEmpty) return 'Rewards: $xp';
+    final String names = o.drops.map((DropPreview d) => d.name).join(', ');
+    return 'Rewards: $xp, $names';
   }
+
+  /// What the button says under itself: how much of this visit is left, or the
+  /// truthful reason it is disabled, in the engine's order.
+  ///
+  /// An available enemy now carries a figure rather than nothing, because
+  /// "you can fight this" and "you can fight this twice more before you have
+  /// to travel" are different pieces of planning and the second is the one a
+  /// player with a route in mind is actually asking about
+  /// (`DECISIONS/0021` §1). The spent line is unchanged, word for word: the
+  /// player's experience of it did not change, only how many wins it took.
+  static String? _subLabel(EncounterOption o) => o.available
+      ? '${o.remainingThisVisit} of ${o.encountersPerVisit} this visit'
+      : _reasonText(o.reason);
 
   /// The truthful reason the button is disabled, in the engine's order.
   static String? _reasonText(String? reason) => switch (reason) {

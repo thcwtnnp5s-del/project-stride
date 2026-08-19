@@ -49,8 +49,7 @@
       "displayName": "Oak Log",
       "category": "material",
       "rarity": "uncommon",
-      "tier": 0,
-      "stackible": true
+      "tier": 0
     },
     {
       "id": "item.pine_log",
@@ -140,7 +139,7 @@
       "id": "item.bronze_sword",
       "displayName": "Bronze Sword",
       "category": "equipment",
-      "rarity": "rare",
+      "rarity": "mythic",
       "slot": "weapon",
       "tier": 1,
       "power": 9,

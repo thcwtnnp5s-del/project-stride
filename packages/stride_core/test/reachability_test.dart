@@ -156,8 +156,8 @@ void main() {
       final ContentRegistry registry = buildRegistry(
         items: '''
 {"schemaVersion":1,"kind":"items","entries":[
-  {"id":"item.oak_log","displayName":"Oak Log","category":"material","tier":0},
-  {"id":"item.good_axe","displayName":"Good Axe","category":"equipment","slot":"tool","toolKind":"axe","tier":1,"stackable":false}
+  {"id":"item.oak_log","displayName":"Oak Log","category":"material","rarity":"common","tier":0},
+  {"id":"item.good_axe","displayName":"Good Axe","category":"equipment","rarity":"common","slot":"tool","toolKind":"axe","tier":1,"stackable":false}
 ]}''',
         nodes: '''
 {"schemaVersion":1,"kind":"resource_nodes","entries":[
@@ -186,9 +186,9 @@ void main() {
       final ContentRegistry registry = buildRegistry(
         items: '''
 {"schemaVersion":1,"kind":"items","entries":[
-  {"id":"item.oak_log","displayName":"Oak Log","category":"material","tier":0},
-  {"id":"item.rare_gem","displayName":"Rare Gem","category":"material","tier":5},
-  {"id":"item.trophy","displayName":"Trophy","category":"equipment","slot":"weapon","tier":1,"stackable":false}
+  {"id":"item.oak_log","displayName":"Oak Log","category":"material","rarity":"common","tier":0},
+  {"id":"item.rare_gem","displayName":"Rare Gem","category":"material","rarity":"common","tier":5},
+  {"id":"item.trophy","displayName":"Trophy","category":"equipment","rarity":"common","slot":"weapon","tier":1,"stackable":false}
 ]}''',
         nodes: '''
 {"schemaVersion":1,"kind":"resource_nodes","entries":[
@@ -215,10 +215,10 @@ void main() {
       final ContentRegistry registry = buildRegistry(
         items: '''
 {"schemaVersion":1,"kind":"items","entries":[
-  {"id":"item.oak_log","displayName":"Oak Log","category":"material","tier":0},
-  {"id":"item.plank","displayName":"Plank","category":"equipment","slot":"tool","tier":1,"stackable":false},
-  {"id":"item.alpha","displayName":"Alpha","category":"material","tier":1},
-  {"id":"item.beta","displayName":"Beta","category":"material","tier":1}
+  {"id":"item.oak_log","displayName":"Oak Log","category":"material","rarity":"common","tier":0},
+  {"id":"item.plank","displayName":"Plank","category":"equipment","rarity":"common","slot":"tool","tier":1,"stackable":false},
+  {"id":"item.alpha","displayName":"Alpha","category":"material","rarity":"common","tier":1},
+  {"id":"item.beta","displayName":"Beta","category":"material","rarity":"common","tier":1}
 ]}''',
         nodes: '''
 {"schemaVersion":1,"kind":"resource_nodes","entries":[
@@ -249,10 +249,10 @@ void main() {
       final ContentRegistry registry = buildRegistry(
         items: '''
 {"schemaVersion":1,"kind":"items","entries":[
-  {"id":"item.oak_log","displayName":"Oak Log","category":"material","tier":0},
-  {"id":"item.plank","displayName":"Plank","category":"equipment","slot":"tool","tier":1,"stackable":false},
-  {"id":"item.vault_key","displayName":"Vault Key","category":"quest","tier":1},
-  {"id":"item.vault_gem","displayName":"Vault Gem","category":"quest","tier":1}
+  {"id":"item.oak_log","displayName":"Oak Log","category":"material","rarity":"common","tier":0},
+  {"id":"item.plank","displayName":"Plank","category":"equipment","rarity":"common","slot":"tool","tier":1,"stackable":false},
+  {"id":"item.vault_key","displayName":"Vault Key","category":"quest","rarity":"common","tier":1},
+  {"id":"item.vault_gem","displayName":"Vault Gem","category":"quest","rarity":"common","tier":1}
 ]}''',
         nodes: '''
 {"schemaVersion":1,"kind":"resource_nodes","entries":[
@@ -292,9 +292,9 @@ void main() {
       final ContentRegistry registry = buildRegistry(
         items: '''
 {"schemaVersion":1,"kind":"items","entries":[
-  {"id":"item.oak_log","displayName":"Oak Log","category":"material","tier":0},
-  {"id":"item.plank","displayName":"Plank","category":"equipment","slot":"tool","tier":1,"stackable":false},
-  {"id":"item.phantom","displayName":"Phantom","category":"quest","tier":1}
+  {"id":"item.oak_log","displayName":"Oak Log","category":"material","rarity":"common","tier":0},
+  {"id":"item.plank","displayName":"Plank","category":"equipment","rarity":"common","slot":"tool","tier":1,"stackable":false},
+  {"id":"item.phantom","displayName":"Phantom","category":"quest","rarity":"common","tier":1}
 ]}''',
         nodes: '''
 {"schemaVersion":1,"kind":"resource_nodes","entries":[

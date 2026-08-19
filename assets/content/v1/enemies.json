@@ -12,8 +12,10 @@
       "isBoss": false,
       "behavior": "flurry",
       "xp": 30,
+      "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.meadow_herb", "quantity": 1, "chancePercent": 60 }
+        { "item": "item.meadow_herb", "quantity": 1, "chancePercent": 60 },
+        { "item": "item.wolf_pelt", "quantity": 1, "chancePercent": 45 }
       ]
     },
     {
@@ -26,9 +28,26 @@
       "isBoss": false,
       "behavior": "steady",
       "xp": 60,
+      "encountersPerVisit": 2,
       "drops": [
         { "item": "item.copper_ore", "quantity": 2, "chancePercent": 55 },
         { "item": "item.tin_ore", "quantity": 1, "chancePercent": 30 }
+      ]
+    },
+    {
+      "id": "enemy.frost_lynx",
+      "displayName": "Frost Lynx",
+      "location": "location.frostmere",
+      "health": 30,
+      "attack": 9,
+      "defence": 2,
+      "isBoss": false,
+      "behavior": "flurry",
+      "xp": 80,
+      "encountersPerVisit": 2,
+      "drops": [
+        { "item": "item.rime_blossom", "quantity": 1, "chancePercent": 50 },
+        { "item": "item.lynx_pelt", "quantity": 1, "chancePercent": 35 }
       ]
     },
     {
@@ -41,6 +60,7 @@
       "isBoss": true,
       "behavior": "guarded",
       "xp": 150,
+      "encountersPerVisit": 1,
       "drops": [
         { "item": "item.hollow_sigil", "quantity": 1, "chancePercent": 100 },
         { "item": "item.hollow_root", "quantity": 2, "chancePercent": 70 }

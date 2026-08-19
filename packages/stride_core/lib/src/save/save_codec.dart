@@ -180,10 +180,16 @@ Map<String, Object?> encodeGameState(GameState state) => <String, Object?>{
     'unlockedLocations':
         state.world.unlockedLocations.map((ContentId id) => id.value).toList()
           ..sort(),
-    // State version 4 (`DECISIONS/0020`). Written unconditionally, empty or
-    // not, so a v4 save is never silent about it.
-    'drivenOff': state.world.drivenOff.map((ContentId id) => id.value).toList()
-      ..sort(),
+    // State version 5 (`DECISIONS/0021`), replacing v4's `drivenOff` list.
+    // Written unconditionally, empty or not, so a v5 save is never silent
+    // about it. An object rather than a list of pairs: the counts are keyed by
+    // enemy id, `canonicalJson` sorts object keys, and a map cannot carry the
+    // same enemy twice the way a list could.
+    'visitVictories': <String, Object?>{
+      for (final MapEntry<ContentId, int> e
+          in state.world.visitVictories.entries)
+        e.key.value: e.value,
+    },
   },
   'steps': encodeStepLedger(state.steps),
   // State version 4. Written as an explicit null when no fight is on: an
@@ -525,6 +531,7 @@ final class StateCodecs {
     V2StateDecoder(),
     V3StateDecoder(),
     V4StateDecoder(),
+    V5StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -612,10 +619,19 @@ final class V3StateDecoder implements StateDecoder {
   );
 }
 
-/// Decoder for state version 4 — the current shape.
+/// Decoder for state version 4.
+///
+/// **Frozen**, on the same terms as [V1StateDecoder]; `v4_baseline.save` is the
+/// proof it still reads one.
 ///
 /// Differs from v3 in exactly two places: `encounter` (null or an object) and
 /// `world.drivenOff` are present and are read (`DECISIONS/0020`).
+///
+/// The `drivenOff` **list** decodes into the current `visitVictories` **map**
+/// with every listed enemy at a count of `1`. That is not a default standing
+/// in for missing data — it is what a v4 save said: at v4 one victory was the
+/// entire allowance, so an enemy in the set had been beaten exactly once since
+/// the player last moved (`DECISIONS/0021` §3).
 final class V4StateDecoder implements StateDecoder {
   const V4StateDecoder();
 
@@ -626,18 +642,42 @@ final class V4StateDecoder implements StateDecoder {
   GameState decode(Map<String, Object?> json) => _decodeStateShape(
     json,
     epochShape: _EpochShape.withEstablishedVersion,
-    combatShape: _CombatShape.present,
+    combatShape: _CombatShape.drivenOffSet,
   );
 }
 
-/// Whether the shape carries the Combat Slice 01 fields.
+/// Decoder for state version 5 — the current shape.
+///
+/// Differs from v4 in exactly one place: `world.drivenOff` (a sorted list of
+/// enemy ids) is gone and `world.visitVictories` (an object of enemy id →
+/// count) is present and is read (`DECISIONS/0021`).
+final class V5StateDecoder implements StateDecoder {
+  const V5StateDecoder();
+
+  @override
+  int get version => 5;
+
+  @override
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withEstablishedVersion,
+    combatShape: _CombatShape.visitVictories,
+  );
+}
+
+/// Whether — and how — the shape carries the combat fields.
 enum _CombatShape {
-  /// State versions 1–3: no `encounter`, no `world.drivenOff`. Their absence
-  /// means no fight and nothing driven off.
+  /// State versions 1–3: no `encounter`, no per-visit combat record at all.
+  /// Their absence means no fight on and nothing beaten this visit.
   absent,
 
-  /// State version 4: both are present and read.
-  present,
+  /// State version 4: `encounter`, and `world.drivenOff` as a list of enemy
+  /// ids. Each listed enemy decodes to a visit count of 1.
+  drivenOffSet,
+
+  /// State version 5: `encounter`, and `world.visitVictories` as an object of
+  /// enemy id → count.
+  visitVictories,
 }
 
 /// The one field that differs between the shared shapes.
@@ -725,17 +765,35 @@ GameState _decodeStateShape(
         throw SaveCodecException('$key entry is not a string'),
   };
 
-  // State version 4. Absent in v1–v3, where absence means no fight on and
-  // nothing driven off — what those saves meant, not a default for missing
-  // data. In v4 both keys must be present: `encounter` as null or an object.
-  final Set<ContentId> drivenOff;
+  // The combat fields. Absent in v1–v3, where absence means no fight on and
+  // nothing beaten this visit — what those saves meant, not a default for
+  // missing data. From v4 the `encounter` key must be present, as null or an
+  // object; the per-visit record changes shape at v5.
+  final Map<ContentId, int> visitVictories;
   final EncounterState? encounter;
   switch (combatShape) {
     case _CombatShape.absent:
-      drivenOff = const <ContentId>{};
+      visitVictories = const <ContentId, int>{};
       encounter = null;
-    case _CombatShape.present:
-      drivenOff = idSet(worldJson, 'drivenOff');
+    case _CombatShape.drivenOffSet:
+    case _CombatShape.visitVictories:
+      visitVictories = combatShape == _CombatShape.drivenOffSet
+          // A v4 save listed the enemies beaten once each; the count is 1 by
+          // what that version meant, not by assumption (`DECISIONS/0021` §3).
+          ? <ContentId, int>{
+              for (final ContentId id in idSet(worldJson, 'drivenOff')) id: 1,
+            }
+          : <ContentId, int>{
+              for (final MapEntry<String, Object?> e in objectAt(
+                worldJson,
+                'visitVictories',
+              ).entries)
+                idOf(e.key, 'world.visitVictories'): e.value is int
+                    ? e.value! as int
+                    : throw SaveCodecException(
+                        'world.visitVictories.${e.key} is not an integer',
+                      ),
+            };
       if (!json.containsKey('encounter')) {
         throw const SaveCodecException('encounter is missing');
       }
@@ -800,7 +858,7 @@ GameState _decodeStateShape(
               'world.unlockedLocations entry is not a string',
             ),
       },
-      drivenOff: drivenOff,
+      visitVictories: visitVictories,
     ),
     encounter: encounter,
     steps: _decodeLedger(

@@ -6,18 +6,18 @@
       "id": "enemy.forest_wolf",
       "displayName": "Forest Wolf",
       "location": "location.whispering_woods",
-      "health": 0,
+      "health": 20,
       "attack": 4,
       "defence": 0,
       "isBoss": false,
       "behavior": "flurry",
       "xp": 30,
-      "encountersPerVisit": 2,
+      "encountersPerVisit": 0,
       "drops": [
         {
           "item": "item.meadow_herb",
           "quantity": 1,
-          "chancePercent": 250
+          "chancePercent": 60
         },
         {
           "item": "item.wolf_pelt",

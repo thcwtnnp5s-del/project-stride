@@ -193,6 +193,7 @@ final class InventoryEntry {
     required this.id,
     required this.displayName,
     required this.category,
+    required this.rarity,
     required this.count,
   });
 
@@ -203,8 +204,83 @@ final class InventoryEntry {
   /// problem, not a rendering one, so it is reported rather than defaulted.
   final ItemCategory? category;
 
+  /// The item's authored rarity, or null on the same terms as [category].
+  ///
+  /// **Nullable here and required in content.** `ItemDefinition.rarity` cannot
+  /// be absent — the loader refuses an item without one — so a null in this
+  /// projection means only that the *definition* is missing, which is the same
+  /// content fault [category] reports and is never a rarity the author chose.
+  /// A default would turn a missing definition into a plausible grey label.
+  final Rarity? rarity;
+
   /// Always greater than zero.
   final int count;
+}
+
+/// One item in a reward, drop preview, or equipped line, with its rarity.
+///
+/// Three projections needed the same three fields — an id to look anything
+/// else up by, a name to show, and a rank to colour by — so they share one
+/// type rather than each growing their own (`DECISIONS/0021` §4: the UI has
+/// **one** rarity style table, and one shape for it to read).
+final class DropPreview {
+  const DropPreview({
+    required this.id,
+    required this.name,
+    required this.rarity,
+  });
+
+  final ContentId id;
+  final String name;
+
+  /// Null only when the content pack has no definition for [id].
+  final Rarity? rarity;
+}
+
+/// One line of a victory reward: what dropped, how much, and its rarity.
+final class RewardLine {
+  const RewardLine({
+    required this.id,
+    required this.name,
+    required this.quantity,
+    required this.rarity,
+  });
+
+  final ContentId id;
+  final String name;
+
+  /// As awarded, off the `EncounterWon` event — never recomputed here.
+  final int quantity;
+
+  /// Null only when the content pack has no definition for [id].
+  final Rarity? rarity;
+}
+
+/// One occupied equipment slot, for the Character and Inventory screens.
+///
+/// Read straight off `Equipment.bySlot` — the same map `GameEngine` consults
+/// when a gather asks for a tool or a fight reads the weapon — so the line the
+/// screen shows is the line the rules use. Empty slots are simply absent;
+/// a screen that wants to show "nothing equipped" knows its own slot list.
+final class EquippedSummary {
+  const EquippedSummary({
+    required this.slot,
+    required this.itemId,
+    required this.displayName,
+    required this.rarity,
+    required this.power,
+  });
+
+  final EquipmentSlot slot;
+  final ContentId itemId;
+  final String displayName;
+
+  /// Null only when the content pack has no definition for [itemId].
+  final Rarity? rarity;
+
+  /// The item's contribution: attack for a weapon, defence for armour, and
+  /// nothing at all for a tool, which never counts in a fight.
+  final int power;
 }
 
 /// One skill's standing, with its level already derived from the content curve.
@@ -222,10 +298,17 @@ final class RegionPlace {
     required this.stepCostFromHere,
     required this.resourceCount,
     required this.terrain,
+    required this.kind,
   });
 
   final ContentId id;
   final String displayName;
+
+  /// What kind of place this is, **derived** from content by
+  /// `LocationKinds.kindFor` (`DECISIONS/0021` §5) — never authored, so the
+  /// atlas cannot disagree with the enemies and nodes the pack actually
+  /// places here.
+  final LocationKind kind;
 
   /// Whether the player is standing here.
   final bool isCurrent;
@@ -254,6 +337,103 @@ final class RegionPlace {
   /// A hint for rendering, not the authority. `TravelTo` re-checks adjacency in
   /// the engine, and the engine's answer is the one that counts.
   bool get isAdjacent => stepCostFromHere != null;
+}
+
+/// Everything the atlas inspector says about one place.
+///
+/// A separate projection from [RegionPlace], deliberately. The legend needs
+/// one row per location and is built for every place at once; the inspector
+/// needs the *contents* of one place — its gathering, its enemies — and
+/// building that for five locations to render one of them would put four
+/// unused walks of the content graph behind every map frame.
+///
+/// Everything here is read from content and from the committed state. No row
+/// carries an affordance: `GatherResource` and `StartEncounter` re-check every
+/// one of these on execute, and the engine's answer is the one that counts
+/// (`RULES.md` E-2).
+final class PlaceDetails {
+  const PlaceDetails({
+    required this.id,
+    required this.displayName,
+    required this.kind,
+    required this.isSafe,
+    required this.terrain,
+    required this.isCurrent,
+    required this.gatherSites,
+    required this.encounters,
+  });
+
+  final ContentId id;
+  final String displayName;
+
+  /// Derived by `LocationKinds.kindFor` (`DECISIONS/0021` §5).
+  final LocationKind kind;
+
+  /// Whether defeat returns the player here (`DECISIONS/0003`).
+  final bool isSafe;
+  final Terrain terrain;
+
+  /// Whether the player is standing here. What makes [encounters]'
+  /// `remainingThisVisit` a live figure rather than the authored maximum.
+  final bool isCurrent;
+
+  final List<GatherSiteLine> gatherSites;
+  final List<PlaceEncounterLine> encounters;
+}
+
+/// One gatherable node at a place, with what it asks of the player.
+final class GatherSiteLine {
+  const GatherSiteLine({
+    required this.id,
+    required this.name,
+    required this.skillName,
+    required this.requiredLevel,
+    required this.toolWord,
+  });
+
+  final ContentId id;
+  final String name;
+
+  /// The skill's display name, not its id — the inspector shows words.
+  final String skillName;
+
+  final int requiredLevel;
+
+  /// "Axe" · "Pickaxe" · null when bare hands will do.
+  ///
+  /// A word rather than the `ToolKind` enum because the inspector's line is
+  /// prose, and because the *tier* the node also asks for is not shown: the
+  /// player's answer to "can I gather this" is the engine's, and a card that
+  /// spelled out minimum tool tiers would be re-implementing the check.
+  final String? toolWord;
+}
+
+/// One enemy at a place, with how much of this visit it has left.
+final class PlaceEncounterLine {
+  const PlaceEncounterLine({
+    required this.enemyId,
+    required this.name,
+    required this.isBoss,
+    required this.behavior,
+    required this.encountersPerVisit,
+    required this.remainingThisVisit,
+  });
+
+  final ContentId enemyId;
+  final String name;
+  final bool isBoss;
+  final EnemyBehavior behavior;
+
+  /// From content (`DECISIONS/0021` §1).
+  final int encountersPerVisit;
+
+  /// Fights left here before the player must travel.
+  ///
+  /// **Equal to [encountersPerVisit] when the place is not the player's
+  /// current one**, and that is the truth rather than a placeholder: the visit
+  /// count is emptied by every move, so a place the player is not standing in
+  /// has a full allowance waiting the moment they arrive.
+  final int remainingThisVisit;
 }
 
 /// One route the content pack draws between two places, as the atlas needs it.
@@ -341,6 +521,7 @@ final class RecipeOption {
     required this.ingredients,
     required this.outputItem,
     required this.outputName,
+    required this.outputRarity,
     required this.outputQuantity,
     required this.experience,
   });
@@ -353,8 +534,16 @@ final class RecipeOption {
 
   final List<RecipeIngredientLine> ingredients;
 
+  /// The item this recipe makes. Named `outputItem` since Phase 2 and kept —
+  /// it is already the id the contract's `outputItemId` asks for, and renaming
+  /// a field every caller reads would be churn with no reader behind it.
   final ContentId outputItem;
   final String outputName;
+
+  /// The rarity of what this makes, so a Craft row can be coloured by what the
+  /// player is working towards. Null only when the pack has no definition for
+  /// [outputItem].
+  final Rarity? outputRarity;
 
   /// Profile-scaled, as it would be produced.
   final int outputQuantity;
@@ -602,7 +791,9 @@ final class EncounterOption {
     required this.attack,
     required this.defence,
     required this.xp,
-    required this.dropNames,
+    required this.drops,
+    required this.encountersPerVisit,
+    required this.remainingThisVisit,
     required this.available,
     this.reason,
   });
@@ -621,8 +812,17 @@ final class EncounterOption {
   /// Profile-scaled, as it would be awarded.
   final int xp;
 
-  /// Every possible drop by display name; chance is deliberately not shown.
-  final List<String> dropNames;
+  /// Every possible drop, with the rarity to colour it by; chance is
+  /// deliberately not shown. A preview of what could fall, not a promise.
+  final List<DropPreview> drops;
+
+  /// How many fights with this enemy one visit holds, from content
+  /// (`DECISIONS/0021` §1).
+  final int encountersPerVisit;
+
+  /// How many of those are left before the player has to travel. Zero when the
+  /// visit is spent, in which case [reason] is `enemy_driven_off`.
+  final int remainingThisVisit;
 
   final bool available;
 
@@ -781,8 +981,11 @@ final class WonBeat extends CombatBeat {
   final int levelBefore;
   final int levelAfter;
 
-  /// What dropped, by display name and quantity.
-  final List<(String, int)> drops;
+  /// What dropped, as awarded, once — with the rarity each line is coloured
+  /// by. Built from the `EncounterWon` event's own map; nothing here is
+  /// re-derived from a state diff, which is what keeps a victory panel showing
+  /// the reward the disk actually holds.
+  final List<RewardLine> drops;
 
   bool get levelledUp => levelAfter > levelBefore;
 }
@@ -2010,9 +2213,14 @@ final class StrideSession {
         xp: event.characterXp,
         levelBefore: event.levelBefore,
         levelAfter: event.levelAfter,
-        drops: <(String, int)>[
+        drops: <RewardLine>[
           for (final MapEntry<ContentId, int> d in event.drops.entries)
-            (itemName(d.key), d.value),
+            RewardLine(
+              id: d.key,
+              name: itemName(d.key),
+              quantity: d.value,
+              rarity: content.items[d.key]?.rarity,
+            ),
         ],
       ),
       EncounterLost() => LostBeat(retreatToName: placeName(event.retreatTo)),
@@ -2084,7 +2292,30 @@ final class StrideSession {
           id: e.key,
           displayName: content.items[e.key]?.displayName ?? e.key.value,
           category: content.items[e.key]?.category,
+          rarity: content.items[e.key]?.rarity,
           count: e.value,
+        ),
+    ];
+  }
+
+  /// Every occupied equipment slot, in slot order, with rarity.
+  ///
+  /// `Equipment.bySlot` is ordered by slot rather than by insertion, so the
+  /// Character screen's three lines do not reshuffle when the player swaps a
+  /// weapon.
+  List<EquippedSummary> get equippedSummary {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <EquippedSummary>[];
+    return <EquippedSummary>[
+      for (final MapEntry<EquipmentSlot, ContentId> e
+          in active.state.equipment.bySlot.entries)
+        EquippedSummary(
+          slot: e.key,
+          itemId: e.value,
+          displayName: content.items[e.value]?.displayName ?? e.value.value,
+          rarity: content.items[e.value]?.rarity,
+          power: content.items[e.value]?.power ?? 0,
         ),
     ];
   }
@@ -2177,9 +2408,13 @@ final class StrideSession {
       for (final EnemyDefinition enemy in content.enemies.values)
         if (enemy.location == here)
           () {
+            final int remaining = active.state.world.remaining(
+              enemy.id,
+              enemy.encountersPerVisit,
+            );
             final String? reason = fighting
                 ? 'encounter_in_progress'
-                : active.state.world.isDrivenOff(enemy.id)
+                : remaining <= 0
                 ? 'enemy_driven_off'
                 : !ready
                 ? 'session_not_ready'
@@ -2193,10 +2428,18 @@ final class StrideSession {
               attack: enemy.attack,
               defence: enemy.defence,
               xp: active.profile.applyXp(enemy.xp),
-              dropNames: <String>[
+              drops: <DropPreview>[
                 for (final EnemyDrop drop in enemy.drops)
-                  content.items[drop.item]?.displayName ?? drop.item.value,
+                  DropPreview(
+                    id: drop.item,
+                    name:
+                        content.items[drop.item]?.displayName ??
+                        drop.item.value,
+                    rarity: content.items[drop.item]?.rarity,
+                  ),
               ],
+              encountersPerVisit: enemy.encountersPerVisit,
+              remainingThisVisit: remaining,
               available: reason == null,
               reason: reason,
             );
@@ -2332,9 +2575,72 @@ final class StrideSession {
                     ?.stepCost,
           resourceCount: location.resourceNodes.length,
           terrain: location.terrain,
+          kind: LocationKinds.kindFor(content, location.id),
         ),
     ];
   }
+
+  /// Everything the atlas inspector says about one place, or null when the
+  /// content pack has no such location.
+  ///
+  /// Built on demand for the one place a player selected — see [PlaceDetails]
+  /// for why this is not a field of [regionPlaces].
+  PlaceDetails? placeDetailsFor(ContentId location) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return null;
+    final LocationDefinition? place = content.locations[location];
+    if (place == null) return null;
+
+    final bool isCurrent = active.state.world.currentLocation == location;
+
+    return PlaceDetails(
+      id: place.id,
+      displayName: place.displayName,
+      kind: LocationKinds.kindFor(content, place.id),
+      isSafe: place.isSafe,
+      terrain: place.terrain,
+      isCurrent: isCurrent,
+      gatherSites: <GatherSiteLine>[
+        for (final ContentId nodeId in place.resourceNodes)
+          if (content.resourceNodes[nodeId] case final ResourceNodeDefinition n)
+            GatherSiteLine(
+              id: n.id,
+              name: n.displayName,
+              skillName: content.skills[n.skill]?.displayName ?? n.skill.value,
+              requiredLevel: n.requiredLevel,
+              toolWord: _toolWord(n.requiredToolKind),
+            ),
+      ],
+      encounters: <PlaceEncounterLine>[
+        for (final EnemyDefinition enemy in content.enemies.values)
+          if (enemy.location == place.id)
+            PlaceEncounterLine(
+              enemyId: enemy.id,
+              name: enemy.displayName,
+              isBoss: enemy.isBoss,
+              behavior: enemy.behavior,
+              encountersPerVisit: enemy.encountersPerVisit,
+              // Away from here the whole allowance is waiting, because every
+              // move empties the visit map. That is the truth, not a
+              // placeholder (`DECISIONS/0021` §1).
+              remainingThisVisit: isCurrent
+                  ? active.state.world.remaining(
+                      enemy.id,
+                      enemy.encountersPerVisit,
+                    )
+                  : enemy.encountersPerVisit,
+            ),
+      ],
+    );
+  }
+
+  /// The word an inspector row uses for a tool requirement, or null for none.
+  static String? _toolWord(ToolKind kind) => switch (kind) {
+    ToolKind.axe => 'Axe',
+    ToolKind.pickaxe => 'Pickaxe',
+    ToolKind.none => null,
+  };
 
   /// Every route the content pack draws, from every place — not only from
   /// where the player stands.
@@ -2462,6 +2768,7 @@ final class StrideSession {
             outputName:
                 content.items[recipe.outputItem]?.displayName ??
                 recipe.outputItem.value,
+            outputRarity: content.items[recipe.outputItem]?.rarity,
             outputQuantity: active.profile.applyYield(recipe.outputQuantity),
             experience: active.profile.applyXp(recipe.xp),
           ),

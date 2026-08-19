@@ -6,7 +6,8 @@
     {
       "id": "item.future_thing",
       "displayName": "Future Thing",
-      "category": "material"
+      "category": "material",
+      "rarity": "common"
     }
   ]
 }

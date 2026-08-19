@@ -137,7 +137,12 @@ void main() {
     ..writeln('  epoch     ${applied.engine.state.steps.epoch}')
     ..writeln('  banked    ${applied.engine.state.steps.banked}')
     ..writeln('  encounter ${applied.engine.state.encounter}')
-    ..writeln('  drivenOff ${applied.engine.state.world.drivenOff}')
+    // `world.drivenOff` became `world.visitVictories` at state version 5
+    // (`DECISIONS/0021`). This line moved with it so the file still compiles;
+    // it is a diagnostic print and nothing about the fixture this script
+    // produced changed — the script itself is inert, refusing to run against
+    // any build whose current version is not 4.
+    ..writeln('  victories ${applied.engine.state.world.visitVictories}')
     ..writeln('')
     ..writeln('Check this file in. Do not run this script again.');
 }

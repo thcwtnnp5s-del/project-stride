@@ -6,15 +6,23 @@
       "id": "enemy.forest_wolf",
       "displayName": "Forest Wolf",
       "location": "location.whispering_wood",
-      "health": 40,
-      "attack": 5,
-      "defence": 2,
+      "health": 20,
+      "attack": 4,
+      "defence": 0,
       "isBoss": false,
+      "behavior": "flurry",
+      "xp": 30,
+      "encountersPerVisit": 2,
       "drops": [
         {
           "item": "item.meadow_herb",
           "quantity": 1,
-          "chancePercent": 40
+          "chancePercent": 60
+        },
+        {
+          "item": "item.wolf_pelt",
+          "quantity": 1,
+          "chancePercent": 45
         }
       ]
     },
@@ -22,10 +30,13 @@
       "id": "enemy.cave_goblin",
       "displayName": "Cave Goblin",
       "location": "location.stonefall_mine",
-      "health": 70,
-      "attack": 9,
-      "defence": 5,
+      "health": 32,
+      "attack": 8,
+      "defence": 3,
       "isBoss": false,
+      "behavior": "steady",
+      "xp": 60,
+      "encountersPerVisit": 2,
       "drops": [
         {
           "item": "item.copper_ore",
@@ -40,13 +51,40 @@
       ]
     },
     {
+      "id": "enemy.frost_lynx",
+      "displayName": "Frost Lynx",
+      "location": "location.frostmere",
+      "health": 30,
+      "attack": 9,
+      "defence": 2,
+      "isBoss": false,
+      "behavior": "flurry",
+      "xp": 80,
+      "encountersPerVisit": 2,
+      "drops": [
+        {
+          "item": "item.rime_blossom",
+          "quantity": 1,
+          "chancePercent": 50
+        },
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 1,
+          "chancePercent": 35
+        }
+      ]
+    },
+    {
       "id": "enemy.hollow_guardian",
       "displayName": "Hollow Guardian",
       "location": "location.forgotten_hollow",
-      "health": 220,
-      "attack": 18,
-      "defence": 12,
+      "health": 60,
+      "attack": 11,
+      "defence": 4,
       "isBoss": true,
+      "behavior": "guarded",
+      "xp": 150,
+      "encountersPerVisit": 1,
       "drops": [
         {
           "item": "item.hollow_sigil",

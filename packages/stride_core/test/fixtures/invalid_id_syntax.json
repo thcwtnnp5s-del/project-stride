@@ -6,7 +6,8 @@
     {
       "id": "Item.Bad_Thing",
       "displayName": "Bad Thing",
-      "category": "material"
+      "category": "material",
+      "rarity": "common"
     }
   ]
 }

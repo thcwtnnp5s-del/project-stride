@@ -283,7 +283,9 @@ void main() {
       host(CombatStage(view: view(enemyHp: 5), report: null)),
     );
     await tester.pumpAndSettle();
-    const CombatReport won = CombatReport(
+    // Not `const`: a `RewardLine` carries a parsed `ContentId`, and parsing
+    // is a method call.
+    final CombatReport won = CombatReport(
       succeeded: true,
       enemyName: 'Forest Wolf',
       events: <CombatBeat>[
@@ -292,7 +294,14 @@ void main() {
           xp: 30,
           levelBefore: 1,
           levelAfter: 1,
-          drops: <(String, int)>[('Meadow Herb', 1)],
+          drops: <RewardLine>[
+            RewardLine(
+              id: ContentId.unchecked('item.meadow_herb'),
+              name: 'Meadow Herb',
+              quantity: 1,
+              rarity: Rarity.uncommon,
+            ),
+          ],
         ),
       ],
     );

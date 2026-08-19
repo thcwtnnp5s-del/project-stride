@@ -121,7 +121,16 @@ void main() {
     expect(here.single.reason, isNull);
     expect(here.single.maxHealth, 20);
     expect(here.single.xp, 30);
-    expect(here.single.dropNames, <String>['Meadow Herb']);
+    expect(
+      here.single.drops.map((DropPreview d) => (d.name, d.rarity)),
+      <(String, Rarity?)>[
+        ('Meadow Herb', Rarity.uncommon),
+        ('Wolf Pelt', Rarity.common),
+      ],
+    );
+    // Two fights a visit, both of them still ahead (`DECISIONS/0021` §1).
+    expect(here.single.encountersPerVisit, 2);
+    expect(here.single.remainingThisVisit, 2);
 
     final CombatFigures before = s.combatFigures;
     expect(before.level, 1);
@@ -180,30 +189,205 @@ void main() {
     expect(s.combatFigures.experience, 30);
     expect(s.combatFigures.experienceToNextLevel, 70);
 
-    // Driven off — the card says so, and the engine agrees — until travel.
-    expect(s.encountersHere.single.reason, 'enemy_driven_off');
-    expect((await s.startEncounter(wolf)).rejection, 'enemy_driven_off');
+    // One of the two fights this visit is spent; the card counts down rather
+    // than closing (`DECISIONS/0021` §1).
+    expect(s.encountersHere.single.available, isTrue);
+    expect(s.encountersHere.single.remainingThisVisit, 1);
+    expect(s.encountersHere.single.reason, isNull);
 
-    // A cold reload finds no encounter and the drops exactly once.
+    // A cold reload — the save read back off disk — finds no encounter, the
+    // drops exactly once, and the *same* count still standing. The reward is
+    // durable at commit; nothing about acknowledging it on a screen moves an
+    // item, which is why a relaunch before the OK button changes nothing.
     final StrideSession again = await launch();
     expect(again.encounter, isNull);
     expect(again.currentLocation, woods);
     expect(again.combatFigures.experience, 30);
     final int herbsDropped = won.drops
-        .where(((String, int) d) => d.$1 == 'Meadow Herb')
-        .fold(0, (int a, (String, int) d) => a + d.$2);
+        .where((RewardLine d) => d.name == 'Meadow Herb')
+        .fold(0, (int a, RewardLine d) => a + d.quantity);
     expect(
       again.inventoryCount(ContentId.unchecked('item.meadow_herb')),
       herbsBefore + herbsDropped,
     );
-    expect(again.encountersHere.single.reason, 'enemy_driven_off');
+    expect(again.encountersHere.single.remainingThisVisit, 1);
 
-    // Moving clears the driven-off set.
+    // Second fight, same visit, no travel between them: allowed, and it pays
+    // once more.
+    expect((await again.startEncounter(wolf)).succeeded, isTrue);
+    expect(await fightToTheEnd(again), isA<WonBeat>());
+    expect(again.combatFigures.experience, 60);
+
+    // Now spent — the card says so, in the words it always used, and the
+    // engine agrees.
+    expect(again.encountersHere.single.available, isFalse);
+    expect(again.encountersHere.single.remainingThisVisit, 0);
+    expect(again.encountersHere.single.reason, 'enemy_driven_off');
+    expect((await again.startEncounter(wolf)).rejection, 'enemy_driven_off');
+
+    // Moving empties the visit map.
     expect((await again.travel(haven)).succeeded, isTrue);
     expect(again.encountersHere, isEmpty, reason: "Haven's Rest is safe");
     expect((await again.travel(woods)).succeeded, isTrue);
     expect(again.encountersHere.single.available, isTrue);
+    expect(again.encountersHere.single.remainingThisVisit, 2);
   });
+
+  test(
+    'a relaunch mid-visit keeps the count, and the drop lands once',
+    () async {
+      final StrideSession s = await atWoods();
+      expect((await s.startEncounter(wolf)).succeeded, isTrue);
+      final WonBeat won = await fightToTheEnd(s) as WonBeat;
+
+      // What the drop actually was, by id, off the event — not re-derived from
+      // an inventory diff, which is the thing being checked.
+      final Map<ContentId, int> awarded = <ContentId, int>{
+        for (final RewardLine d in won.drops) d.id: d.quantity,
+      };
+
+      // Three cold starts over the same root. Each one replays the journal; a
+      // reward applied per replay rather than per event would compound here, and
+      // a visit count held in memory rather than in the save would reset.
+      for (int launchNo = 0; launchNo < 3; launchNo++) {
+        final StrideSession cold = await launch();
+        expect(cold.currentLocation, woods);
+        expect(cold.combatFigures.experience, 30);
+        for (final MapEntry<ContentId, int> e in awarded.entries) {
+          expect(
+            cold.inventoryCount(e.key),
+            e.value,
+            reason: '${e.key} after ${launchNo + 1} launch(es)',
+          );
+        }
+        expect(
+          cold.encountersHere.single.remainingThisVisit,
+          1,
+          reason: 'the visit count is in the save, not in the session',
+        );
+      }
+    },
+  );
+
+  test('every rarity-carrying projection agrees with content', () async {
+    final StrideSession s = await atWoods();
+
+    // Inventory: the starting loadout is all Common.
+    for (final InventoryEntry e in s.inventoryEntries) {
+      expect(e.rarity, isNotNull, reason: '${e.id} has no rarity');
+    }
+    expect(
+      s.inventoryEntries
+          .firstWhere((InventoryEntry e) => e.id == trainingSword)
+          .rarity,
+      Rarity.common,
+    );
+
+    // Equipped lines carry it too.
+    expect(
+      s.equippedSummary.map(
+        (EquippedSummary e) => (e.slot, e.displayName, e.rarity),
+      ),
+      <(EquipmentSlot, String, Rarity)>[
+        (EquipmentSlot.weapon, 'Training Sword', Rarity.common),
+        (EquipmentSlot.armor, 'Traveler Tunic', Rarity.common),
+      ],
+    );
+
+    // Recipes carry the rarity of what they make.
+    final RecipeOption jerkin = s.recipeOptions.firstWhere(
+      (RecipeOption r) => r.id == ContentId.unchecked('recipe.wolfhide_jerkin'),
+    );
+    expect(jerkin.outputItem, ContentId.unchecked('item.wolfhide_jerkin'));
+    expect(jerkin.outputRarity, Rarity.rare);
+
+    // And a victory reward line does.
+    expect((await s.startEncounter(wolf)).succeeded, isTrue);
+    final WonBeat won = await fightToTheEnd(s) as WonBeat;
+    for (final RewardLine d in won.drops) {
+      expect(d.rarity, isNotNull, reason: '${d.id} dropped with no rarity');
+    }
+  });
+
+  test(
+    'placeDetailsFor reports real nodes, enemies and a derived kind',
+    () async {
+      final StrideSession s = await atWoods();
+
+      // Where the player stands: the live remaining count.
+      final PlaceDetails here = s.placeDetailsFor(woods)!;
+      expect(here.displayName, 'Whispering Woods');
+      expect(here.kind, LocationKind.wilds);
+      expect(here.isSafe, isFalse);
+      expect(here.isCurrent, isTrue);
+      expect(
+        here.gatherSites.map(
+          (GatherSiteLine g) =>
+              (g.name, g.skillName, g.requiredLevel, g.toolWord),
+        ),
+        <(String, String, int, String?)>[
+          ('Oak Stand', 'Woodcutting', 1, 'Axe'),
+          ('Duskcap Grove', 'Foraging', 3, null),
+        ],
+      );
+      expect(
+        here.encounters.map(
+          (PlaceEncounterLine e) =>
+              (e.name, e.isBoss, e.encountersPerVisit, e.remainingThisVisit),
+        ),
+        <(String, bool, int, int)>[('Forest Wolf', false, 2, 2)],
+      );
+
+      // Somewhere else: the full allowance is waiting, because a move empties
+      // the visit map — that is the truth, not a placeholder.
+      expect((await s.startEncounter(wolf)).succeeded, isTrue);
+      expect(await fightToTheEnd(s), isA<WonBeat>());
+      expect(s.placeDetailsFor(woods)!.encounters.single.remainingThisVisit, 1);
+
+      final PlaceDetails mine = s.placeDetailsFor(
+        ContentId.unchecked('location.stonefall_mine'),
+      )!;
+      expect(
+        mine.kind,
+        LocationKind.worksite,
+        reason: 'its nodes need a pickaxe',
+      );
+      expect(
+        mine.gatherSites.every((GatherSiteLine g) => g.toolWord == 'Pickaxe'),
+        isTrue,
+      );
+      expect(mine.encounters.single.remainingThisVisit, 2);
+
+      // The derived kinds the atlas draws with (`DECISIONS/0021` §5).
+      expect(s.placeDetailsFor(haven)!.kind, LocationKind.haven);
+      expect(
+        s
+            .placeDetailsFor(ContentId.unchecked('location.forgotten_hollow'))!
+            .kind,
+        LocationKind.perilous,
+      );
+      expect(
+        s
+            .placeDetailsFor(ContentId.unchecked('location.frostmere'))!
+            .encounters
+            .map((PlaceEncounterLine e) => e.name),
+        <String>['Frost Lynx'],
+      );
+
+      // A location the pack does not define answers null rather than inventing
+      // an empty place.
+      expect(
+        s.placeDetailsFor(ContentId.unchecked('location.nowhere')),
+        isNull,
+      );
+
+      // The legend carries the same derived word.
+      expect(
+        s.regionPlaces.firstWhere((RegionPlace p) => p.id == haven).kind,
+        LocationKind.haven,
+      );
+    },
+  );
 
   test('a cold reload mid-encounter restores the same fight', () async {
     final StrideSession s = await atWoods();

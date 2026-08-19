@@ -225,8 +225,14 @@ String describeBeat(CombatBeat b, String enemy) => switch (b) {
 };
 
 /// `Meadow Herb, Wolf Pelt ×2`.
-String dropsText(List<(String, int)> drops) => drops
-    .map(((String, int) d) => d.$2 == 1 ? d.$1 : '${d.$1} ×${d.$2}')
+///
+/// Names and quantities only. Rarity now rides along on each [RewardLine] and
+/// is deliberately *not* folded into this string — a colour is not a word, and
+/// the victory panel that shows it is stream C's redesign.
+String dropsText(List<RewardLine> drops) => drops
+    .map(
+      (RewardLine d) => d.quantity == 1 ? d.name : '${d.name} ×${d.quantity}',
+    )
     .join(', ');
 
 /// Attack · Eat · Retreat, all disabled while a command is in flight and

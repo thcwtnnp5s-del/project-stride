@@ -6,6 +6,7 @@
       "id": "item.training_sword",
       "displayName": "Training Sword",
       "category": "equipment",
+      "rarity": "common",
       "slot": "weapon",
       "tier": 0,
       "power": 3,
@@ -15,6 +16,7 @@
       "id": "item.training_axe",
       "displayName": "Training Axe",
       "category": "equipment",
+      "rarity": "common",
       "slot": "tool",
       "toolKind": "axe",
       "tier": 0,
@@ -25,6 +27,7 @@
       "id": "item.training_pickaxe",
       "displayName": "Training Pickaxe",
       "category": "equipment",
+      "rarity": "common",
       "slot": "tool",
       "toolKind": "pickaxe",
       "tier": 0,
@@ -35,6 +38,7 @@
       "id": "item.traveler_tunic",
       "displayName": "Traveler Tunic",
       "category": "equipment",
+      "rarity": "common",
       "slot": "armor",
       "tier": 0,
       "power": 2,
@@ -44,18 +48,21 @@
       "id": "item.oak_log",
       "displayName": "Oak Log",
       "category": "material",
+      "rarity": "uncommon",
       "tier": 0
     },
     {
       "id": "item.pine_log",
       "displayName": "Pine Log",
       "category": "material",
+      "rarity": "common",
       "tier": 1
     },
     {
       "id": "item.copper_ore",
       "displayName": "Copper Ore",
       "category": "material",
+      "rarity": "uncommon",
       "tier": 0,
       "qaOnly": true
     },
@@ -63,42 +70,77 @@
       "id": "item.tin_ore",
       "displayName": "Tin Ore",
       "category": "material",
+      "rarity": "uncommon",
       "tier": 0
     },
     {
       "id": "item.meadow_herb",
       "displayName": "Meadow Herb",
       "category": "material",
+      "rarity": "uncommon",
       "tier": 0
+    },
+    {
+      "id": "item.duskcap",
+      "displayName": "Duskcap",
+      "category": "material",
+      "rarity": "uncommon",
+      "tier": 0
+    },
+    {
+      "id": "item.rime_blossom",
+      "displayName": "Rime Blossom",
+      "category": "material",
+      "rarity": "common",
+      "tier": 1
     },
     {
       "id": "item.hollow_root",
       "displayName": "Hollow Root",
       "category": "material",
+      "rarity": "common",
+      "tier": 1
+    },
+    {
+      "id": "item.wolf_pelt",
+      "displayName": "Wolf Pelt",
+      "category": "material",
+      "rarity": "common",
+      "tier": 0
+    },
+    {
+      "id": "item.lynx_pelt",
+      "displayName": "Frost Lynx Pelt",
+      "category": "material",
+      "rarity": "rare",
       "tier": 1
     },
     {
       "id": "item.oak_handle",
       "displayName": "Oak Handle",
       "category": "material",
+      "rarity": "common",
       "tier": 0
     },
     {
       "id": "item.bronze_ingot",
       "displayName": "Bronze Ingot",
       "category": "material",
+      "rarity": "common",
       "tier": 1
     },
     {
       "id": "item.pine_plank",
       "displayName": "Pine Plank",
       "category": "material",
+      "rarity": "common",
       "tier": 1
     },
     {
       "id": "item.bronze_sword",
       "displayName": "Bronze Sword",
       "category": "equipment",
+      "rarity": "rare",
       "slot": "weapon",
       "tier": 1,
       "power": 9,
@@ -108,6 +150,7 @@
       "id": "item.bronze_axe",
       "displayName": "Bronze Axe",
       "category": "equipment",
+      "rarity": "rare",
       "slot": "tool",
       "toolKind": "axe",
       "tier": 1,
@@ -118,6 +161,7 @@
       "id": "item.bronze_pickaxe",
       "displayName": "Bronze Pickaxe",
       "category": "equipment",
+      "rarity": "rare",
       "slot": "tool",
       "toolKind": "pickaxe",
       "tier": 1,
@@ -128,22 +172,61 @@
       "id": "item.bronze_chestplate",
       "displayName": "Bronze Chestplate",
       "category": "equipment",
+      "rarity": "rare",
       "slot": "armor",
       "tier": 1,
       "power": 7,
       "stackable": false
     },
     {
+      "id": "item.wolfhide_jerkin",
+      "displayName": "Wolfhide Jerkin",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "armor",
+      "tier": 1,
+      "power": 4,
+      "stackable": false
+    },
+    {
+      "id": "item.frostlined_jerkin",
+      "displayName": "Frost-lined Jerkin",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "armor",
+      "tier": 2,
+      "power": 6,
+      "stackable": false
+    },
+    {
       "id": "item.herb_broth",
       "displayName": "Herb Broth",
       "category": "consumable",
+      "rarity": "common",
       "tier": 0,
       "healing": 12
+    },
+    {
+      "id": "item.duskcap_skewer",
+      "displayName": "Duskcap Skewer",
+      "category": "consumable",
+      "rarity": "common",
+      "tier": 0,
+      "healing": 20
+    },
+    {
+      "id": "item.frostbloom_tea",
+      "displayName": "Frostbloom Tea",
+      "category": "consumable",
+      "rarity": "rare",
+      "tier": 1,
+      "healing": 40
     },
     {
       "id": "item.hearty_stew",
       "displayName": "Hearty Stew",
       "category": "consumable",
+      "rarity": "rare",
       "tier": 1,
       "healing": 30
     },
@@ -151,6 +234,7 @@
       "id": "item.hollow_sigil",
       "displayName": "Hollow Sigil",
       "category": "quest",
+      "rarity": "epic",
       "tier": 1
     }
   ]

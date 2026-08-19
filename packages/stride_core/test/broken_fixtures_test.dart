@@ -232,6 +232,53 @@ void main() {
       expectActionable(report);
     });
 
+    test('missing item rarity', () {
+      // `rarity` is required (`DECISIONS/0021` §4). Defaulting it would answer
+      // for an author who never asked, and a wrong answer would look exactly
+      // like a considered one.
+      final ValidationReport report = expectRejected('missing_rarity.json');
+      expect(
+        reports(report, 'the required field "rarity" is missing'),
+        isTrue,
+        reason: report.format(),
+      );
+      expect(reports(report, 'item.oak_log'), isTrue);
+      expectActionable(report);
+    });
+
+    test('unknown item rarity', () {
+      final ValidationReport report = expectRejected('unknown_rarity.json');
+      expect(
+        reports(report, '"mythic" is not a recognised value'),
+        isTrue,
+        reason: report.format(),
+      );
+      // The suggestion must list the ranks, so the fix is in the message.
+      for (final Rarity rarity in Rarity.values) {
+        expect(
+          reports(report, rarity.wireName),
+          isTrue,
+          reason: '${rarity.wireName} missing from the suggestion',
+        );
+      }
+      expectActionable(report);
+    });
+
+    test('encountersPerVisit below one', () {
+      // Zero would ship an enemy that stands at a location and can never be
+      // fought there (`DECISIONS/0021` §1).
+      final ValidationReport report = expectRejected(
+        'invalid_encounters_per_visit.json',
+      );
+      expect(
+        reports(report, 'below the allowed minimum of 1'),
+        isTrue,
+        reason: report.format(),
+      );
+      expect(reports(report, 'encountersPerVisit'), isTrue);
+      expectActionable(report);
+    });
+
     test('broken XP curve', () {
       final ValidationReport report = expectRejected('broken_xp_curve.json');
       expect(

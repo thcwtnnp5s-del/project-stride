@@ -206,49 +206,83 @@ final class WorldState {
   WorldState({
     required this.currentLocation,
     required Set<ContentId> unlockedLocations,
-    Set<ContentId> drivenOff = const <ContentId>{},
+    Map<ContentId, int> visitVictories = const <ContentId, int>{},
   }) : unlockedLocations = _frozenIdSet(unlockedLocations),
-       drivenOff = _frozenIdSet(drivenOff);
+       visitVictories = _frozenIdMap(visitVictories);
 
   final ContentId currentLocation;
   final Set<ContentId> unlockedLocations;
 
-  /// Enemies beaten *at [currentLocation]* since the player last moved
-  /// (`DECISIONS/0020` §3). Cleared by every move — see [movingTo].
+  /// How many times each enemy has been beaten *at [currentLocation]* since
+  /// the player last moved (`DECISIONS/0021` §1). Emptied by every move — see
+  /// [movingTo]. Unmodifiable, and sorted by id so two states built by
+  /// different routes serialize identically.
   ///
-  /// State version 4. Not keyed by location: the set is only ever meaningful
-  /// for where the player stands, because any move empties it.
-  final Set<ContentId> drivenOff;
+  /// State version 5. It replaces the v4 `drivenOff` set, which was this map
+  /// with the count fixed at one: an enemy authored `encountersPerVisit: 1` —
+  /// every boss, and every pack that says nothing — behaves exactly as it did.
+  ///
+  /// **Not keyed by location**, for the same reason the set was not: it is
+  /// only ever meaningful where the player stands, because any move empties
+  /// it. A per-location map would be a second mechanism recording one fact,
+  /// and it would let a player bank victories across a circuit of locations,
+  /// which is the free drop farm the count exists to prevent.
+  final Map<ContentId, int> visitVictories;
 
   bool isUnlocked(ContentId location) => unlockedLocations.contains(location);
 
-  bool isDrivenOff(ContentId enemy) => drivenOff.contains(enemy);
+  /// Victories over [enemy] during this visit. Zero when it has not been
+  /// fought here since the last move.
+  int victoriesThisVisit(ContentId enemy) => visitVictories[enemy] ?? 0;
+
+  /// How many fights with [enemy] this visit still allows, given the enemy's
+  /// authored [perVisit] count. Never negative.
+  ///
+  /// [perVisit] is passed in rather than looked up because `WorldState` holds
+  /// no registry: state is the thin serializable half and content is the fat
+  /// reloadable half, and a state that embedded a content figure would carry a
+  /// stale copy of it into the next content pack.
+  int remaining(ContentId enemy, int perVisit) {
+    final int left = perVisit - victoriesThisVisit(enemy);
+    return left < 0 ? 0 : left;
+  }
+
+  /// Whether [enemy] may still be fought here this visit.
+  bool isAvailable(ContentId enemy, int perVisit) =>
+      remaining(enemy, perVisit) > 0;
 
   WorldState unlocking(ContentId location) => WorldState(
     currentLocation: currentLocation,
     unlockedLocations: <ContentId>{...unlockedLocations, location},
-    drivenOff: drivenOff,
+    visitVictories: visitVictories,
   );
 
-  /// Moves the player, and **empties [drivenOff]**.
+  /// Moves the player, and **empties [visitVictories]**.
   ///
-  /// Every move clears the set — travel, a free `EnterLocation`, a retreat, a
-  /// defeat — because the driven-off rule is *step-clocked through travel*:
-  /// the only limiter on re-fighting an enemy is that the player has to leave
-  /// and come back, and leaving costs the walk (`RULES.md` P-4, `DECISIONS/
-  /// 0020` §3). A move that kept the set would make some enemies unfightable
-  /// after a round trip; a set keyed by location would be a second mechanism
-  /// recording the same fact.
+  /// Every move clears the map — travel, a free `EnterLocation`, a retreat, a
+  /// defeat — because the recurrence rule is *step-clocked through travel*:
+  /// the only limiter on re-fighting an enemy past its per-visit count is that
+  /// the player has to leave and come back, and leaving costs the walk
+  /// (`RULES.md` P-4, `DECISIONS/0021` §1). A move that kept the counts would
+  /// make some enemies unfightable after a round trip.
   WorldState movingTo(ContentId location) => WorldState(
     currentLocation: location,
     unlockedLocations: unlockedLocations,
   );
 
-  /// Marks [enemy] driven off here.
-  WorldState drivingOff(ContentId enemy) => WorldState(
+  /// Records one more victory over [enemy] here.
+  ///
+  /// It counts rather than marks, and it does not clamp against the enemy's
+  /// authored figure: the count is a fact about what happened, and the *rule*
+  /// about how many are allowed is the engine's, applied before the fight
+  /// starts. Clamping here would put the same rule in two places.
+  WorldState recordingVictory(ContentId enemy) => WorldState(
     currentLocation: currentLocation,
     unlockedLocations: unlockedLocations,
-    drivenOff: <ContentId>{...drivenOff, enemy},
+    visitVictories: <ContentId, int>{
+      ...visitVictories,
+      enemy: victoriesThisVisit(enemy) + 1,
+    },
   );
 
   @override
@@ -259,13 +293,16 @@ final class WorldState {
         other.unlockedLocations,
         unlockedLocations,
       ) &&
-      const SetEquality<ContentId>().equals(other.drivenOff, drivenOff);
+      const MapEquality<ContentId, int>().equals(
+        other.visitVictories,
+        visitVictories,
+      );
 
   @override
   int get hashCode => Object.hash(
     currentLocation,
     const SetEquality<ContentId>().hash(unlockedLocations),
-    const SetEquality<ContentId>().hash(drivenOff),
+    const MapEquality<ContentId, int>().hash(visitVictories),
   );
 }
 

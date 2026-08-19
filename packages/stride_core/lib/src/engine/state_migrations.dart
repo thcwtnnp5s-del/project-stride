@@ -128,6 +128,24 @@ final class StateMigrations {
       rebasesEconomy: false,
       decision: 'DECISIONS/0020_COMBAT_SLICE_01.md',
     ),
+    // Repeatable encounters: `WorldState.drivenOff` (a set of enemies beaten
+    // this visit) becomes `WorldState.visitVictories` (how many times each was
+    // beaten this visit). The same case as v3→v4, and the same answer — a
+    // reshape and nothing else. No `EstablishEconomyEpoch` is issued; the
+    // migration commits the version bump with an empty event list.
+    //
+    // A v4 `drivenOff` entry decodes as a count of **1**, which is what it
+    // meant: at v4 one victory was the whole allowance, so an enemy in that
+    // set had been beaten exactly once since the player last moved. Nothing is
+    // inferred and no balance moves — an enemy the player had driven off stays
+    // spent for that visit if its authored count is 1, and becomes fightable
+    // once more if the content pack now says 2.
+    StateMigrationStep(
+      from: 4,
+      to: 5,
+      rebasesEconomy: false,
+      decision: 'DECISIONS/0021_REPEATABLE_ENCOUNTERS_AND_RARITY.md',
+    ),
   ];
 
   /// Whether [path] must wait for the first foreground reconciliation before

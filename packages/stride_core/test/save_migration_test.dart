@@ -50,7 +50,11 @@
 // decode-only in its turn. Neither older fixture was touched. And again for
 // state version 4 (`DECISIONS/0020`, Combat Slice 01): `V4StateDecoder`,
 // `v4_baseline.save` from `tool/generate_v4_baseline.dart`, and the v3 round
-// trip became decode-only. No older fixture was touched. (Rule 4 is about
+// trip became decode-only. No older fixture was touched. And again for state
+// version 5 (`DECISIONS/0021`, repeatable encounters): `V5StateDecoder`,
+// `v5_baseline.save` from `tool/generate_v5_baseline.dart`, and the v4 round
+// trip became decode-only in its turn. No older fixture was touched.
+// (Rule 4 is about
 // *decoders* — the meaning applied after decoding is a table of steps,
 // `StateMigrations`, and that one is deliberately a chain.)
 //
@@ -146,6 +150,17 @@ import 'save_support.dart';
 /// only values a v1 save can decode to, because a v1 save has neither field —
 /// combat did not exist, so no fight was on and nothing was driven off. Every
 /// other value in the literal is byte-identical to what it was.
+///
+/// ## The state version 5 amendment
+///
+/// `"world.drivenOff":[]` became `"world.visitVictories":{}` when
+/// `StateVersion.current` became 5 (`DECISIONS/0021`, repeatable encounters),
+/// on the same reasoning again: the current encoder writes the map and never
+/// the list, and an empty map is the only value a v1 save can decode to,
+/// because a v1 save has neither field — combat did not exist, so nothing had
+/// been beaten this visit. The key sorts after `unlockedLocations` rather than
+/// before it, which is why the line moved as well as changed. Every other
+/// value in the literal is byte-identical to what it was.
 const String expectedV1Signature =
     '{"contentPackVersion":1,'
     '"encounter":null,'
@@ -177,8 +192,8 @@ const String expectedV1Signature =
     '"sourceState":"available","totalGranted":1041,"totalObserved":1041,'
     '"totalSpent":400,"unreachableGapEvents":0},'
     '"world":{"currentLocation":"location.havens_rest",'
-    '"drivenOff":[],'
-    '"unlockedLocations":["location.havens_rest"]}}';
+    '"unlockedLocations":["location.havens_rest"],'
+    '"visitVictories":{}}}';
 
 /// The fixture's byte length, asserted so a line-ending translation on
 /// checkout is caught here rather than as a mysterious CRC failure.
@@ -234,6 +249,16 @@ File get v4FixtureFile =>
 /// Generated **once** by `tool/generate_v4_baseline.dart` from `v3_baseline.save`
 /// through the real v3→v4 step (`DECISIONS/0020`). Same terms as v1–v3.
 Uint8List get v4Baseline => _frozen(v4FixtureFile);
+
+File get v5FixtureFile =>
+    File('${fixtureDirectory.path}/save/v5_baseline.save');
+
+/// The v4 fixture, after the repeatable-encounter format bump, frozen in its
+/// turn.
+///
+/// Generated **once** by `tool/generate_v5_baseline.dart` from `v4_baseline.save`
+/// through the real v4→v5 step (`DECISIONS/0021`). Same terms as v1–v4.
+Uint8List get v5Baseline => _frozen(v5FixtureFile);
 
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
@@ -468,7 +493,7 @@ void main() {
       expect(state.steps.epoch.retiredSteps, 641);
       // Combat did not exist at v3. Absence is what those saves meant.
       expect(state.encounter, isNull);
-      expect(state.world.drivenOff, isEmpty);
+      expect(state.world.visitVictories, isEmpty);
     });
 
     test('a v3 save is flagged as needing migration', () {
@@ -485,37 +510,15 @@ void main() {
     });
   });
 
-  group('B4 — the round trip, carried forward to v4', () {
-    test('encode(decode(fixture)) is byte-identical to the v4 fixture', () {
-      final Uint8List fixture = v4Baseline;
-      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
-
-      final Uint8List reencoded = encodeSnapshot(
-        state: envelope.state,
-        saveId: envelope.saveId,
-        generation: envelope.snapshotGeneration,
-        lastAppliedTransaction: envelope.lastAppliedTransaction,
-        originSaltFingerprint: null,
-      );
-
-      // The trap that fires the day someone adds a field to GameState without
-      // thinking about saves. Without it the change is entirely silent until a
-      // player's save fails to load in the field.
-      //
-      // If this fires: the encoder and the v4 decoder no longer agree. Either
-      // the new field belongs in state version 5 (add a decoder, add a new
-      // fixture, add a `StateMigrations` step that says whether it re-bases —
-      // it should not — and make this test decode-only for v4), or the encoder
-      // has an ordering or type defect. Editing the fixture is never the fix.
-      expect(
-        reencoded,
-        fixture,
-        reason:
-            'the canonical encoder no longer reproduces a v4 save. See the '
-            'regeneration policy at the top of this file.',
-      );
-    });
-
+  // ## Why B4 is decode-only from state version 5 onward
+  //
+  // The same reasoning as B, B2 and B3, one version later. `v4_baseline.save`
+  // is now the artifact a device that took the Combat Slice 01 format bump but
+  // not the repeatable-encounter one actually holds. What must hold is that
+  // decoding it changes no value it carries — and, the part that is new, that
+  // its `drivenOff` list decodes into the current `visitVictories` map at a
+  // count of one each, which is what a v4 save said.
+  group('B4 — decoding a v4 save changes no value it carries', () {
     test('the v4 fixture is the migrated v3 fixture, and says so', () {
       final SaveEnvelope envelope = decodeEnvelope(
         unframe(v4Baseline).payload!,
@@ -538,7 +541,109 @@ void main() {
       );
       expect(state.steps.banked, 0);
       expect(state.encounter, isNull);
-      expect(state.world.drivenOff, isEmpty);
+      expect(state.world.visitVictories, isEmpty);
+    });
+
+    test('a v4 save is flagged as needing migration', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v4Baseline).payload!,
+      );
+      expect(
+        StateVersion.migrationRequired(envelope.state.stateVersion),
+        isTrue,
+        reason:
+            'the v4→v5 step is a format bump only, but the save still has to '
+            'be committed at v5 so the next launch reads it as current',
+      );
+    });
+
+    test('a v4 drivenOff entry decodes as one victory this visit', () {
+      // The baseline's list is empty, so the rule is exercised against a v4
+      // envelope carrying an actual driven-off enemy — the frozen fixture is
+      // the migrated lineage of the older ones and is not edited to carry a
+      // value it never had (`DECISIONS/0021` §3).
+      final Uint8List bytes = remake(v4Baseline, (
+        Map<String, Object?> envelope,
+        Map<String, Object?> state,
+      ) {
+        (state['world']! as Map<String, Object?>)['drivenOff'] = <Object?>[
+          'enemy.forest_wolf',
+        ];
+      });
+
+      final GameState state = decodeEnvelope(unframe(bytes).payload!).state;
+
+      expect(state.world.visitVictories, <ContentId, int>{
+        ContentId.unchecked('enemy.forest_wolf'): 1,
+      });
+      // One is what the v4 rule meant, so the enemy stays spent for an enemy
+      // that still authors a single encounter a visit, and is fightable once
+      // more where content now authors two. Nothing was inferred.
+      expect(
+        state.world.isAvailable(ContentId.unchecked('enemy.forest_wolf'), 1),
+        isFalse,
+      );
+      expect(
+        state.world.isAvailable(ContentId.unchecked('enemy.forest_wolf'), 2),
+        isTrue,
+      );
+    });
+  });
+
+  group('B5 — the round trip, carried forward to v5', () {
+    test('encode(decode(fixture)) is byte-identical to the v5 fixture', () {
+      final Uint8List fixture = v5Baseline;
+      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
+
+      final Uint8List reencoded = encodeSnapshot(
+        state: envelope.state,
+        saveId: envelope.saveId,
+        generation: envelope.snapshotGeneration,
+        lastAppliedTransaction: envelope.lastAppliedTransaction,
+        originSaltFingerprint: null,
+      );
+
+      // The trap that fires the day someone adds a field to GameState without
+      // thinking about saves. Without it the change is entirely silent until a
+      // player's save fails to load in the field.
+      //
+      // If this fires: the encoder and the v5 decoder no longer agree. Either
+      // the new field belongs in state version 6 (add a decoder, add a new
+      // fixture, add a `StateMigrations` step that says whether it re-bases —
+      // it should not — and make this test decode-only for v5), or the encoder
+      // has an ordering or type defect. Editing the fixture is never the fix.
+      expect(
+        reencoded,
+        fixture,
+        reason:
+            'the canonical encoder no longer reproduces a v5 save. See the '
+            'regeneration policy at the top of this file.',
+      );
+    });
+
+    test('the v5 fixture is the migrated v4 fixture, and says so', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v5Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 5);
+      // History intact, four times over — and the epoch untouched, because
+      // the v4→v5 step does not re-base either (`DECISIONS/0021` §3).
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 3,
+        ),
+        reason: 'a format bump must not move the economy mark',
+      );
+      expect(state.steps.banked, 0);
+      expect(state.encounter, isNull);
+      expect(state.world.visitVictories, isEmpty);
       expect(
         StateVersion.migrationRequired(state.stateVersion),
         isFalse,
@@ -546,10 +651,12 @@ void main() {
       );
     });
 
-    test('the v4 fixture grew by exactly the two new keys', () {
-      // `"encounter":null,` (17) + `"drivenOff":[],` (15). A field that had
-      // also perturbed something else would not land on 32.
-      expect(v4Baseline.length - v3Baseline.length, 32);
+    test('the v5 fixture grew by exactly the one reshaped key', () {
+      // `"drivenOff":[],` (15) left; `,"visitVictories":{}` (20) arrived, and
+      // it sorts after `unlockedLocations` rather than before it, so the comma
+      // moved with it. 20 − 15 = 5, and the version digit is one either way. A
+      // change that had also perturbed something else would not land on 5.
+      expect(v5Baseline.length - v4Baseline.length, 5);
     });
   });
 
@@ -564,6 +671,8 @@ void main() {
       expect(StateCodecs.decoderFor(3)!.version, 3);
       expect(StateCodecs.decoderFor(4), isNotNull);
       expect(StateCodecs.decoderFor(4)!.version, 4);
+      expect(StateCodecs.decoderFor(5), isNotNull);
+      expect(StateCodecs.decoderFor(5)!.version, 5);
       expect(
         StateCodecs.decoderFor(StateVersion.current.value + 1),
         isNull,

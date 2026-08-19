@@ -199,8 +199,9 @@ final class GameEngine {
 
   /// Begins a fight.
   ///
-  /// Does this enemy exist → is it here → am I already fighting → has it been
-  /// driven off. Costs no steps (`DECISIONS/0020` §3). The player's figures
+  /// Does this enemy exist → is it here → am I already fighting → has this
+  /// visit's authored encounter count been spent. Costs no steps
+  /// (`DECISIONS/0020` §3, `DECISIONS/0021` §1). The player's figures
   /// are derived once, here, and snapshotted onto the event; the enemy's
   /// health is profile-scaled once, here. The seed is a pure function of the
   /// event sequence and the enemy id.
@@ -233,12 +234,18 @@ final class GameEngine {
         subject: command.enemy.value,
       );
     }
-    if (state.world.isDrivenOff(command.enemy)) {
+    // Spent for this visit: the authored `encountersPerVisit` has been met
+    // (`DECISIONS/0021` §1). The wire code is unchanged — from the player's
+    // side the enemy is still driven off and still returns when they move on;
+    // only how many wins it took to get there is now content.
+    if (!state.world.isAvailable(command.enemy, enemy.encountersPerVisit)) {
       return _Decision.reject(
         RejectionCode.enemyDrivenOff,
         command,
-        '"${enemy.displayName}" has been driven off here; it returns once the '
-        'player moves on',
+        '"${enemy.displayName}" has been driven off here '
+        '(${enemy.encountersPerVisit} '
+        '${enemy.encountersPerVisit == 1 ? 'encounter' : 'encounters'} a '
+        'visit); it returns once the player moves on',
         subject: command.enemy.value,
       );
     }

@@ -5,7 +5,8 @@
     {
       "id": "item.undated_thing",
       "displayName": "Undated Thing",
-      "category": "material"
+      "category": "material",
+      "rarity": "common"
     }
   ]
 }

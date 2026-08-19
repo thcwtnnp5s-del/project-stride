@@ -6,6 +6,75 @@ import 'json_reader.dart';
 /// What an item is for.
 enum ItemCategory { material, equipment, consumable, quest }
 
+/// How hard an item was to come by. **`DECISIONS/0021` §4.**
+///
+/// ## What rarity is, and what it must never become
+///
+/// Rarity is **authored content and presentation metadata**. It says nothing
+/// about what an item does: no random rolls, no affixes, no sockets, no item
+/// level, no gear score, and no stat derived from the rank. A Rare sword hits
+/// for exactly the `power` its definition gives it, and would hit for the same
+/// figure if it were relabelled Common tomorrow. Anything else needs a new
+/// decision (`DECISIONS/0021` §4), because it would turn an inventory label
+/// into a progression system nobody designed.
+///
+/// It lives in `stride_core` rather than in a Flutter colour table for the
+/// reason `SkillStanding` gives about level curves: inventory, crafting,
+/// victory rewards, the encounter card and the atlas all read it, and a
+/// property four surfaces read is a property that has to be testable without a
+/// widget.
+///
+/// ## The order, exactly as the owner wrote it
+///
+/// Ascending by [rank]: **uncommon · common · rare · epic · legendary**.
+///
+/// That puts *Uncommon* **below** *Common*, which is the reverse of the
+/// convention most RPGs use. It is deliberate and it is not a typo on this
+/// side: the owner's rarity list named them in this order with these colours
+/// (grey · green · blue · purple · orange), and an implementation that
+/// "corrected" it would have silently made a design decision
+/// (`RULES.md` G-3). If the names were meant the conventional way round, the
+/// fix is a two-line swap in `items.json` and this doc comment — not a code
+/// change. See `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`.
+enum Rarity {
+  /// Grey. Tier-0 gathered material: picked up in handfuls without a tool.
+  uncommon('Uncommon'),
+
+  /// Green. Processed, cooked, granted, or gathered behind a real requirement.
+  common('Common'),
+
+  /// Blue. Bronze-tier equipment and the materials only combat yields.
+  rare('Rare'),
+
+  /// Purple. The end of a chain: a boss token, the best armour authored.
+  epic('Epic'),
+
+  /// Orange. **Nothing carries it yet** — reserved so the enum, the style
+  /// table and the tests all cover the rank before content needs it.
+  legendary('Legendary');
+
+  const Rarity(this.label);
+
+  /// Shown to the player.
+  final String label;
+
+  /// Position in the ascending order, 0–4. Comparable across ranks; never a
+  /// multiplier, a stat, or an input to any rule.
+  int get rank => index;
+
+  /// The string a content file writes, and the only spelling the loader
+  /// accepts. Equal to the enum's own name so the two cannot drift.
+  String get wireName => name;
+
+  /// The lookup table the loader reads with, keyed by [wireName].
+  ///
+  /// Built from [values] rather than written out, so a new rank is authorable
+  /// the moment it is declared and can never be silently unreadable.
+  static Map<String, Rarity> get byWireName => <String, Rarity>{
+    for (final Rarity r in Rarity.values) r.wireName: r,
+  };
+}
+
 /// Where a piece of equipment goes. Milestone 01 has three slots
 /// (`DECISIONS/0004`); accessories are deferred.
 enum EquipmentSlot { weapon, armor, tool }
@@ -66,6 +135,7 @@ final class ItemDefinition {
     required this.id,
     required this.displayName,
     required this.category,
+    required this.rarity,
     required this.tier,
     required this.stackable,
     this.slot,
@@ -82,6 +152,14 @@ final class ItemDefinition {
   final String displayName;
 
   final ItemCategory category;
+
+  /// How hard this was to come by. **Required in content** (`DECISIONS/0021`).
+  ///
+  /// Required rather than defaulted so that "every item has a valid rarity"
+  /// holds by construction rather than by a test that has to be remembered.
+  /// A default would answer the question for an author who never asked it, and
+  /// the wrong answer would be indistinguishable from a considered one.
+  final Rarity rarity;
 
   /// Progression rank. 0 for starting and raw items, 1 for Bronze.
   final int tier;
@@ -104,6 +182,7 @@ final class ItemDefinition {
     'id',
     'displayName',
     'category',
+    'rarity',
     'tier',
     'stackable',
     'slot',
@@ -126,6 +205,11 @@ final class ItemDefinition {
             'consumable': ItemCategory.consumable,
             'quest': ItemCategory.quest,
           }),
+      // Required, and refused when unknown: `requireEnum` reports a missing
+      // field and an unrecognised value with the allowed list in the
+      // suggestion, which is what makes an authoring slip a load error with a
+      // fix in it rather than a silent grey label.
+      rarity: reader.requireEnum<Rarity>('rarity', Rarity.byWireName),
       tier: reader.optionalInt('tier', min: 0, max: 20),
       stackable: reader.optionalBool('stackable', fallback: true),
       slot: reader.map.containsKey('slot')
@@ -638,6 +722,7 @@ final class EnemyDefinition {
     required this.drops,
     this.behavior = EnemyBehavior.steady,
     this.xp = 0,
+    this.encountersPerVisit = 1,
   });
 
   final ContentId id;
@@ -657,6 +742,24 @@ final class EnemyDefinition {
   /// in content; defaults to 0 (Combat Slice 01).
   final int xp;
 
+  /// How many times this enemy may be beaten during **one visit** to its
+  /// location. **`DECISIONS/0021` §1.**
+  ///
+  /// Optional in content and **1 by default**, which is exactly the
+  /// `DECISIONS/0020` rule this field generalises: one victory and the enemy
+  /// is driven off until the player moves. A content pack that says nothing
+  /// therefore behaves as it always did.
+  ///
+  /// The counter it gates lives in `WorldState.visitVictories` and is emptied
+  /// by every move, so the limiter is *travel* — steps — and never a clock
+  /// (`RULES.md` P-4). A different recurrence policy for a boss needs no
+  /// framework, only a smaller number: the Hollow Guardian authors `1`.
+  ///
+  /// Minimum 1. Zero would make an enemy that ships in a location and can
+  /// never be fought — an unreachable card, which is a content mistake rather
+  /// than a design, so the loader refuses it.
+  final int encountersPerVisit;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -668,6 +771,7 @@ final class EnemyDefinition {
     'drops',
     'behavior',
     'xp',
+    'encountersPerVisit',
   };
 
   static EnemyDefinition? read(JsonReader reader) {
@@ -697,6 +801,12 @@ final class EnemyDefinition {
             )
           : EnemyBehavior.steady,
       xp: reader.optionalInt('xp', min: 0, max: 1000000),
+      encountersPerVisit: reader.optionalInt(
+        'encountersPerVisit',
+        fallback: 1,
+        min: 1,
+        max: 100,
+      ),
     );
     return reader.isComplete ? definition : null;
   }

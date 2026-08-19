@@ -103,6 +103,29 @@ const find = (bundle, id) => bundle.entries.find((e) => e.id === id);
   write('unknown_field.json', b);
 }
 
+// --- items: missing required rarity ------------------------------------------
+{
+  const b = load('items.json');
+  delete find(b, 'item.oak_log').rarity;
+  write('missing_rarity.json', b);
+}
+
+// --- items: unknown rarity value ---------------------------------------------
+{
+  const b = load('items.json');
+  find(b, 'item.bronze_sword').rarity = 'mythic';
+  write('unknown_rarity.json', b);
+}
+
+// --- enemies: encountersPerVisit below the minimum ---------------------------
+{
+  const b = load('enemies.json');
+  // Zero would ship an enemy that appears at a location and can never be
+  // fought there — a card with no fight behind it.
+  find(b, 'enemy.forest_wolf').encountersPerVisit = 0;
+  write('invalid_encounters_per_visit.json', b);
+}
+
 // --- items: production content using a QA-only value -------------------------
 {
   const b = load('items.json');
@@ -133,7 +156,12 @@ write('unsupported_schema_version.json', {
   standalone: true,
   kind: 'items',
   entries: [
-    { id: 'item.future_thing', displayName: 'Future Thing', category: 'material' },
+    {
+      id: 'item.future_thing',
+      displayName: 'Future Thing',
+      category: 'material',
+      rarity: 'common',
+    },
   ],
 });
 
@@ -141,7 +169,12 @@ write('malformed_schema_version.json', {
   standalone: true,
   kind: 'items',
   entries: [
-    { id: 'item.undated_thing', displayName: 'Undated Thing', category: 'material' },
+    {
+      id: 'item.undated_thing',
+      displayName: 'Undated Thing',
+      category: 'material',
+      rarity: 'common',
+    },
   ],
 });
 
@@ -154,6 +187,7 @@ write('invalid_id_syntax.json', {
       id: 'Item.Bad_Thing',
       displayName: 'Bad Thing',
       category: 'material',
+      rarity: 'common',
     },
   ],
 });

@@ -143,11 +143,16 @@ void main() {
     expect(find.text('Forest Wolf'), findsOneWidget);
     expect(find.text('Roams here'), findsOneWidget);
     expect(find.text('TWO LIGHT STRIKES A TURN'), findsOneWidget);
-    expect(find.text('Rewards: 30 XP, Meadow Herb'), findsOneWidget);
+    expect(find.text('Rewards: 30 XP, Meadow Herb, Wolf Pelt'), findsOneWidget);
     final Finder start = find.widgetWithText(StrideButton, 'Start Combat');
     expect(start, findsOneWidget);
     expect((tester.widget(start) as StrideButton).onPressed, isNotNull);
-    expect((tester.widget(start) as StrideButton).subLabel, isNull);
+    // An available enemy now says how much of the visit is left, rather than
+    // nothing (`DECISIONS/0021` §1).
+    expect(
+      (tester.widget(start) as StrideButton).subLabel,
+      '2 of 2 this visit',
+    );
   });
 
   testWidgets('Start Combat opens the fight, Attack follows the commit, and '
@@ -219,8 +224,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.lastCombat, isNull);
 
-    // Back at the location, the wolf is driven off and the card says so.
-    final Finder start = find.widgetWithText(StrideButton, 'Start Combat');
+    // Back at the location, one of the visit's two fights is spent: the card
+    // counts down and stays enabled (`DECISIONS/0021` §1).
+    Finder start = find.widgetWithText(StrideButton, 'Start Combat');
+    expect(start, findsOneWidget);
+    expect((tester.widget(start) as StrideButton).onPressed, isNotNull);
+    expect(find.text('1 of 2 this visit'), findsOneWidget);
+
+    // Take the second one, and the card closes with the unchanged words.
+    await tapAndSettle(tester, start);
+    await tester.runAsync(() async {
+      for (int i = 0; i < 60 && s.encounter != null; i++) {
+        await c.combatAttack();
+      }
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(StrideButton, 'OK'));
+    await tester.pumpAndSettle();
+
+    start = find.widgetWithText(StrideButton, 'Start Combat');
     expect(start, findsOneWidget);
     expect((tester.widget(start) as StrideButton).onPressed, isNull);
     expect(find.text('Driven off — returns after you travel'), findsOneWidget);

@@ -259,14 +259,21 @@ final class EventReducer {
     return encounter;
   }
 
-  /// Rewards, clears, and drives off in one step.
+  /// Rewards, clears, and counts the victory in one step.
   ///
   /// One `copyWith`, so there is no value — not even transiently inside this
   /// method — in which the reward has landed and the encounter is still open,
   /// or vice versa. That, plus the reward being a field of this one event, is
-  /// what makes it exactly-once (`DECISIONS/0020` §2). Level and experience
-  /// come off the event: recomputing the level here from a curve would let a
-  /// retuned curve re-level a replayed save.
+  /// what makes it exactly-once (`DECISIONS/0020` §2, `DECISIONS/0021` §2).
+  /// Level and experience come off the event: recomputing the level here from
+  /// a curve would let a retuned curve re-level a replayed save.
+  ///
+  /// The visit count is incremented here and nowhere else. A second reward
+  /// therefore needs a second `EncounterWon`, which needs a second encounter,
+  /// which the engine only starts while the count is below the enemy's
+  /// authored `encountersPerVisit` — so raising the count from 1 to 2 changed
+  /// how many fights a visit holds and changed nothing about how many times
+  /// one fight pays.
   GameState _won(GameState state, EncounterWon event) {
     Inventory inventory = state.inventory;
     for (final MapEntry<ContentId, int> drop in event.drops.entries) {
@@ -279,7 +286,7 @@ final class EventReducer {
         level: event.levelAfter,
         experience: event.experienceAfter,
       ),
-      world: state.world.drivingOff(event.enemy),
+      world: state.world.recordingVictory(event.enemy),
     );
   }
 

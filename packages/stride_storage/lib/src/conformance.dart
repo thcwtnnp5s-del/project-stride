@@ -403,6 +403,25 @@ Future<String> runPersistenceScript(
 /// no combat record. Both slots grew by **32 bytes**, which is exactly
 /// `"encounter":null,` (17) plus `"drivenOff":[],` (15). The frozen v3→v4
 /// fixture grew by the same 32.
+///
+/// ## Amended a fourth time, for state version 5 — same review
+///
+/// Repeatable encounters (`DECISIONS/0021`) replaced `world.drivenOff` — a
+/// sorted list of enemy ids — with `world.visitVictories`, an object of enemy
+/// id → count, so both slot lengths and both digests moved again. Every
+/// behavioural line above the digests is byte-identical once more, journal
+/// length and digest included: the conformance sequence still fights nothing,
+/// so it writes no combat record and the map is empty either way.
+///
+/// Both slots grew by **5 bytes**, and that figure is arithmetic rather than
+/// an observation. Inside `world` the keys sort, so at v4 the empty list sat
+/// between `currentLocation` and `unlockedLocations` as `"drivenOff":[],` —
+/// 14 characters and the separating comma, 15 in all. At v5 the empty object
+/// sorts *last*, after `unlockedLocations`, so it is `,"visitVictories":{}` —
+/// 19 characters and the comma that now precedes it, 20 in all. 20 − 15 = 5,
+/// and `gameStateVersion` / `stateVersion` moved from `4` to `5`, which is one
+/// digit either way. A change that had perturbed anything else would not land
+/// on 5 in both slots.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -412,8 +431,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1335:2bc298e1
-slot_b:1337:4cedaec4''';
+slot_a:1340:979018da
+slot_b:1342:94562b74''';
 
 // ---------------------------------------------------------------------------
 // The suite

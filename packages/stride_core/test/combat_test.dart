@@ -29,6 +29,7 @@ import 'step_support.dart';
 final ContentId wolf = ContentId.unchecked('enemy.forest_wolf');
 final ContentId goblin = ContentId.unchecked('enemy.cave_goblin');
 final ContentId guardian = ContentId.unchecked('enemy.hollow_guardian');
+final ContentId lynx = ContentId.unchecked('enemy.frost_lynx');
 
 final ContentId haven = ContentId.unchecked('location.havens_rest');
 final ContentId woods = ContentId.unchecked('location.whispering_woods');
@@ -45,6 +46,9 @@ final ContentId herbBroth = ContentId.unchecked('item.herb_broth');
 final ContentId heartyStew = ContentId.unchecked('item.hearty_stew');
 final ContentId oakLog = ContentId.unchecked('item.oak_log');
 final ContentId meadowHerb = ContentId.unchecked('item.meadow_herb');
+final ContentId wolfPelt = ContentId.unchecked('item.wolf_pelt');
+final ContentId lynxPelt = ContentId.unchecked('item.lynx_pelt');
+final ContentId rimeBlossom = ContentId.unchecked('item.rime_blossom');
 
 final ContentId oakStand = ContentId.unchecked('resource_node.oak_stand');
 
@@ -122,6 +126,11 @@ T lastEvent<T extends GameEvent>(Iterable<EngineResult> results) =>
     eventsOf(results).whereType<T>().last;
 
 RejectionCode? codeOf(EngineResult r) => r.rejection?.code;
+
+/// How many fights with [enemy] one visit holds, read from the shipped pack
+/// rather than restated — the figures are provisional balance and the rule
+/// under test is the count, not the number.
+int perVisit(ContentId enemy) => registry.enemies[enemy]!.encountersPerVisit;
 
 /// Everything about a state that a fight must not touch: the ledger, skills,
 /// equipment, unlocked locations. Inventory and location are compared by the
@@ -645,9 +654,9 @@ void main() {
         expect(after.encounter, isNull);
         expect(after.world.currentLocation, haven);
         expect(
-          after.world.drivenOff,
+          after.world.visitVictories,
           isEmpty,
-          reason: 'retreat does not drive off',
+          reason: 'retreat counts no victory',
         );
         expect(after.inventory, before.inventory);
         expect(after.player, before.player);
@@ -669,7 +678,7 @@ void main() {
 
   group('victory', () {
     test(
-      'one EncounterWon carries XP, level and drops; the enemy is driven off',
+      'one EncounterWon carries XP, level and drops; the visit count moves',
       () {
         final GameEngine engine = woodsWithStartingLoadout();
         final GameState before = engine.state;
@@ -694,14 +703,17 @@ void main() {
         expect(won.experienceAfter, 30);
         expect(won.levelBefore, 1);
         expect(won.levelAfter, 1);
-        // Drops are a pure function of the seed: meadow herb ×1 at 60%.
+        // Drops are a pure function of the seed, by declaration order:
+        // meadow herb ×1 at 60% (index 0), wolf pelt ×1 at 45% (index 1).
         final int winningTurn = (last.events.first as CombatPlayerStruck).turn;
         final bool herbDrops =
             CombatRules.percentRoll(seed, 0, winningTurn) < 60;
-        expect(
-          won.drops,
-          herbDrops ? <ContentId, int>{meadowHerb: 1} : <ContentId, int>{},
-        );
+        final bool peltDrops =
+            CombatRules.percentRoll(seed, 1, winningTurn) < 45;
+        expect(won.drops, <ContentId, int>{
+          if (herbDrops) meadowHerb: 1,
+          if (peltDrops) wolfPelt: 1,
+        });
 
         final GameState after = engine.state;
         expect(after.encounter, isNull);
@@ -711,28 +723,184 @@ void main() {
           before.inventory.quantityOf(meadowHerb) + (herbDrops ? 1 : 0),
         );
         expect(
+          after.inventory.quantityOf(wolfPelt),
+          before.inventory.quantityOf(wolfPelt) + (peltDrops ? 1 : 0),
+        );
+        expect(
           after.world.currentLocation,
           woods,
           reason: 'a win does not move you',
         );
-        expect(after.world.isDrivenOff(wolf), isTrue);
+        // One victory of the two this visit allows (`DECISIONS/0021` §1).
+        expect(after.world.victoriesThisVisit(wolf), 1);
+        expect(after.world.remaining(wolf, perVisit(wolf)), 1);
+        expect(after.world.isAvailable(wolf, perVisit(wolf)), isTrue);
         expectUntouchedByCombat(before, after);
-
-        // Driven off: refused here until the player moves.
-        expect(
-          codeOf(engine.execute(StartEncounter(enemy: wolf))),
-          RejectionCode.enemyDrivenOff,
-        );
-        engine.execute(EnterLocation(location: haven));
-        expect(
-          engine.state.world.drivenOff,
-          isEmpty,
-          reason: 'any move clears the set',
-        );
-        engine.execute(EnterLocation(location: woods));
-        expect(engine.execute(StartEncounter(enemy: wolf)).isAccepted, isTrue);
       },
     );
+
+    test('a visit holds exactly the authored number of fights', () {
+      final GameEngine engine = woodsWithStartingLoadout();
+      expect(perVisit(wolf), 2, reason: 'the content this test is about');
+
+      // First fight: allowed, rewards once.
+      engine.execute(StartEncounter(enemy: wolf));
+      fightToTheEnd(engine);
+      expect(engine.state.player.experience, 30);
+      expect(engine.state.world.victoriesThisVisit(wolf), 1);
+
+      // Second fight, same visit, no travel between them: allowed, and it
+      // rewards once more. This is the whole change — the owner's "too
+      // restrictive" was one fight per visit, not one reward per fight.
+      expect(engine.execute(StartEncounter(enemy: wolf)).isAccepted, isTrue);
+      fightToTheEnd(engine);
+      expect(engine.state.player.experience, 60);
+      expect(engine.state.world.victoriesThisVisit(wolf), 2);
+
+      // Third: refused, with the unchanged wire code.
+      expect(
+        codeOf(engine.execute(StartEncounter(enemy: wolf))),
+        RejectionCode.enemyDrivenOff,
+      );
+      expect(engine.state.world.remaining(wolf, perVisit(wolf)), 0);
+      expect(engine.state.world.isAvailable(wolf, perVisit(wolf)), isFalse);
+
+      // Travel away and back: available again, and the count is reset rather
+      // than decremented — leaving costs the walk, which is the limiter
+      // (`RULES.md` P-4).
+      engine.execute(EnterLocation(location: haven));
+      expect(
+        engine.state.world.visitVictories,
+        isEmpty,
+        reason: 'any move empties the map',
+      );
+      engine.execute(EnterLocation(location: woods));
+      expect(engine.state.world.victoriesThisVisit(wolf), 0);
+      expect(engine.execute(StartEncounter(enemy: wolf)).isAccepted, isTrue);
+    });
+
+    test('a boss authors one fight a visit, and is spent after it', () {
+      // The Hollow Guardian keeps `encountersPerVisit: 1`, which is exactly
+      // the `DECISIONS/0020` rule: a different recurrence policy needs no
+      // framework, only a smaller number.
+      expect(perVisit(guardian), 1);
+      final GameEngine engine = playerAt(
+        hollow,
+        weapon: bronzeSword,
+        armor: chestplate,
+        experience: 4500,
+        extraItems: <ContentId, int>{heartyStew: 6},
+      );
+      engine.execute(StartEncounter(enemy: guardian));
+      final List<EngineResult> rounds = fightToTheEnd(engine, maxRounds: 60);
+      expect(
+        rounds.last.events.last,
+        isA<EncounterWon>(),
+        reason: 'a level-10 player in bronze must be able to take the boss',
+      );
+      expect(engine.state.world.victoriesThisVisit(guardian), 1);
+      expect(
+        engine.state.world.isAvailable(guardian, perVisit(guardian)),
+        isFalse,
+      );
+      expect(
+        codeOf(engine.execute(StartEncounter(enemy: guardian))),
+        RejectionCode.enemyDrivenOff,
+      );
+    });
+
+    test('the Frost Lynx gives Frostmere a fight, twice a visit', () {
+      // The one region that had no combat (`DECISIONS/0021` §1). Bronze is the
+      // stated requirement, so that is what it is fought with.
+      expect(perVisit(lynx), 2);
+      final GameEngine engine = playerAt(
+        frostmere,
+        weapon: bronzeSword,
+        armor: chestplate,
+        experience: 600,
+      );
+      expect(engine.execute(StartEncounter(enemy: lynx)).isAccepted, isTrue);
+      final EncounterWon won = lastEvent<EncounterWon>(
+        fightToTheEnd(engine, maxRounds: 60),
+      );
+      expect(won.enemy, lynx);
+      expect(won.location, frostmere);
+      expect(won.characterXp, 80);
+      expect(engine.state.world.victoriesThisVisit(lynx), 1);
+      expect(engine.state.world.isAvailable(lynx, perVisit(lynx)), isTrue);
+
+      // Its drops are the two Frostmere materials, and nothing else can be in
+      // the map — a drop the enemy does not author would be a reducer defect.
+      for (final ContentId item in won.drops.keys) {
+        expect(<ContentId>[rimeBlossom, lynxPelt], contains(item));
+      }
+    });
+
+    test('replaying the log applies each visit\'s rewards once, in order', () {
+      final GameEngine engine = woodsWithStartingLoadout();
+      final GameState pre = engine.state;
+      final List<GameEvent> events = <GameEvent>[];
+
+      // Two fights this visit, a round trip, then a third.
+      for (int i = 0; i < 2; i++) {
+        events
+          ..addAll(engine.execute(StartEncounter(enemy: wolf)).events)
+          ..addAll(eventsOf(fightToTheEnd(engine)));
+      }
+      events
+        ..addAll(engine.execute(EnterLocation(location: haven)).events)
+        ..addAll(engine.execute(EnterLocation(location: woods)).events)
+        ..addAll(engine.execute(StartEncounter(enemy: wolf)).events)
+        ..addAll(eventsOf(fightToTheEnd(engine)));
+
+      expect(events.whereType<EncounterWon>(), hasLength(3));
+      expect(engine.state.player.experience, 90);
+      expect(engine.state.world.victoriesThisVisit(wolf), 1);
+
+      final GameState replayed = const EventReducer().applyAll(pre, events);
+      expect(replayed, engine.state);
+      expect(
+        canonicalDurableGameState(replayed),
+        canonicalDurableGameState(engine.state),
+      );
+      expect(
+        replayed.player.experience,
+        90,
+        reason: 'three victories, three rewards — not three per replay',
+      );
+      expect(
+        replayed.world.visitVictories,
+        engine.state.world.visitVictories,
+        reason: 'the moves in the log clear the map on replay too',
+      );
+    });
+
+    test('an EncounterWon does not duplicate across the journal codec', () {
+      final GameEngine engine = woodsWithStartingLoadout();
+      final GameState pre = engine.state;
+      final List<GameEvent> events = <GameEvent>[
+        ...engine.execute(StartEncounter(enemy: wolf)).events,
+        ...eventsOf(fightToTheEnd(engine)),
+      ];
+
+      // Encode every event, decode it back, and reduce the decoded log onto
+      // the same starting state. A codec that dropped or doubled a drop, or a
+      // reducer that counted the victory twice, lands somewhere else.
+      final List<GameEvent> roundTripped = <GameEvent>[
+        for (final GameEvent e in events)
+          decodeEvent(
+            jsonDecode(canonicalJson(encodeEvent(e))) as Map<String, Object?>,
+          )!,
+      ];
+      final GameState fromDecoded = const EventReducer().applyAll(
+        pre,
+        roundTripped,
+      );
+
+      expect(fromDecoded, engine.state);
+      expect(fromDecoded.world.victoriesThisVisit(wolf), 1);
+      expect(fromDecoded.inventory, engine.state.inventory);
+    });
 
     test('a victory over a level threshold levels the character', () {
       final GameEngine engine = woodsWithStartingLoadout(experience: 90);
@@ -751,18 +919,22 @@ void main() {
       expect(next.playerMaxHp, 44);
     });
 
-    test('a driven-off enemy comes back after paid travel too', () {
+    test('the visit count resets after paid travel too', () {
       final GameEngine engine = playerAt(
         woods,
         weapon: trainingSword,
         armor: tunic,
         banked: 2000,
       );
-      engine.execute(StartEncounter(enemy: wolf));
-      fightToTheEnd(engine);
-      expect(engine.state.world.isDrivenOff(wolf), isTrue);
+      // Spend the whole visit, so the reset is the thing being observed and
+      // not a count that had room left anyway.
+      for (int i = 0; i < perVisit(wolf); i++) {
+        expect(engine.execute(StartEncounter(enemy: wolf)).isAccepted, isTrue);
+        fightToTheEnd(engine);
+      }
+      expect(engine.state.world.isAvailable(wolf, perVisit(wolf)), isFalse);
       expect(engine.execute(TravelTo(destination: haven)).isAccepted, isTrue);
-      expect(engine.state.world.drivenOff, isEmpty);
+      expect(engine.state.world.visitVictories, isEmpty);
       expect(engine.execute(TravelTo(destination: woods)).isAccepted, isTrue);
       expect(engine.execute(StartEncounter(enemy: wolf)).isAccepted, isTrue);
     });
@@ -843,9 +1015,9 @@ void main() {
         expect(after.encounter, isNull);
         expect(after.world.currentLocation, haven);
         expect(
-          after.world.drivenOff,
+          after.world.visitVictories,
           isEmpty,
-          reason: 'defeat does not drive off',
+          reason: 'defeat counts no victory, and the relocation clears the map',
         );
         expect(after.player, before.player, reason: 'no XP on defeat');
         expect(
@@ -975,7 +1147,7 @@ void main() {
           originSaltFingerprint: null,
         );
         final SaveEnvelope envelope = decodeEnvelope(unframe(bytes).payload!);
-        expect(envelope.gameStateVersion, 4);
+        expect(envelope.gameStateVersion, StateVersion.current.value);
         expect(envelope.state, mid);
         expect(envelope.state.encounter, mid.encounter);
         expect(
@@ -1146,7 +1318,14 @@ void main() {
         expect(won.engine.state, engine.state);
         expect(won.engine.state.encounter, isNull);
         expect(won.engine.state.player.experience, 30);
-        expect(won.engine.state.world.isDrivenOff(wolf), isTrue);
+        // The visit count survives the relaunch, because it is state and not
+        // navigation: the player comes back to a wolf they have already beaten
+        // once this visit, with one fight left.
+        expect(won.engine.state.world.victoriesThisVisit(wolf), 1);
+        expect(
+          won.engine.state.world.remaining(wolf, perVisit(wolf)),
+          perVisit(wolf) - 1,
+        );
       },
     );
   });

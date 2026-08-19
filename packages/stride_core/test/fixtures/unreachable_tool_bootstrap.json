@@ -3,6 +3,18 @@
   "kind": "resource_nodes",
   "entries": [
     {
+      "id": "resource_node.meadow_patch",
+      "displayName": "Meadow Patch",
+      "skill": "skill.foraging",
+      "requiredLevel": 1,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.meadow_herb",
+      "yieldsQuantity": 2,
+      "stepCost": 90,
+      "xp": 10
+    },
+    {
       "id": "resource_node.oak_stand",
       "displayName": "Oak Stand",
       "skill": "skill.woodcutting",
@@ -15,18 +27,6 @@
       "xp": 12
     },
     {
-      "id": "resource_node.frostpine_stand",
-      "displayName": "Frostpine Stand",
-      "skill": "skill.woodcutting",
-      "requiredLevel": 8,
-      "requiredToolKind": "axe",
-      "minimumToolTier": 1,
-      "yieldsItem": "item.pine_log",
-      "yieldsQuantity": 1,
-      "stepCost": 260,
-      "xp": 30
-    },
-    {
       "id": "resource_node.duskcap_grove",
       "displayName": "Duskcap Grove",
       "skill": "skill.foraging",
@@ -37,30 +37,6 @@
       "yieldsQuantity": 2,
       "stepCost": 130,
       "xp": 18
-    },
-    {
-      "id": "resource_node.rimefrost_hollow",
-      "displayName": "Rimefrost Hollow",
-      "skill": "skill.foraging",
-      "requiredLevel": 5,
-      "requiredToolKind": "none",
-      "minimumToolTier": 0,
-      "yieldsItem": "item.rime_blossom",
-      "yieldsQuantity": 1,
-      "stepCost": 200,
-      "xp": 26
-    },
-    {
-      "id": "resource_node.meadow_patch",
-      "displayName": "Meadow Patch",
-      "skill": "skill.foraging",
-      "requiredLevel": 1,
-      "requiredToolKind": "none",
-      "minimumToolTier": 0,
-      "yieldsItem": "item.meadow_herb",
-      "yieldsQuantity": 2,
-      "stepCost": 90,
-      "xp": 10
     },
     {
       "id": "resource_node.copper_seam",
@@ -85,6 +61,30 @@
       "yieldsQuantity": 1,
       "stepCost": 160,
       "xp": 16
+    },
+    {
+      "id": "resource_node.rimefrost_hollow",
+      "displayName": "Rimefrost Hollow",
+      "skill": "skill.foraging",
+      "requiredLevel": 5,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.rime_blossom",
+      "yieldsQuantity": 1,
+      "stepCost": 200,
+      "xp": 26
+    },
+    {
+      "id": "resource_node.frostpine_stand",
+      "displayName": "Frostpine Stand",
+      "skill": "skill.woodcutting",
+      "requiredLevel": 8,
+      "requiredToolKind": "axe",
+      "minimumToolTier": 1,
+      "yieldsItem": "item.pine_log",
+      "yieldsQuantity": 1,
+      "stepCost": 260,
+      "xp": 30
     },
     {
       "id": "resource_node.hollow_thicket",

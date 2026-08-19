@@ -113,6 +113,44 @@
       "xp": 140
     },
     {
+      "id": "recipe.wolfhide_jerkin",
+      "displayName": "Wolfhide Jerkin",
+      "skill": "skill.smithing",
+      "requiredLevel": 2,
+      "ingredients": [
+        {
+          "item": "item.wolf_pelt",
+          "quantity": 3
+        },
+        {
+          "item": "item.oak_handle",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.wolfhide_jerkin",
+      "outputQuantity": 1,
+      "xp": 60
+    },
+    {
+      "id": "recipe.frostlined_jerkin",
+      "displayName": "Frost-lined Jerkin",
+      "skill": "skill.smithing",
+      "requiredLevel": 4,
+      "ingredients": [
+        {
+          "item": "item.wolfhide_jerkin",
+          "quantity": 1
+        },
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 2
+        }
+      ],
+      "outputItem": "item.frostlined_jerkin",
+      "outputQuantity": 1,
+      "xp": 120
+    },
+    {
       "id": "recipe.herb_broth",
       "displayName": "Herb Broth",
       "skill": "skill.cooking",

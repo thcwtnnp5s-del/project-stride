@@ -131,6 +131,26 @@ final class ReachabilityValidator {
         }
       }
 
+      // Combat: what the enemies at reachable locations drop.
+      //
+      // Added with the pelts (`DECISIONS/0021` §1): `item.wolf_pelt` and
+      // `item.lynx_pelt` are obtainable only by fighting, and the two jerkins
+      // are crafted from them. Without this the walker would call a pelt
+      // "nothing produces it" and a recipe that plainly works unusable — a
+      // model disagreeing with the game, which is exactly the failure this
+      // validator exists to catch in content.
+      //
+      // Chance is deliberately ignored, like step costs and skill levels
+      // above: a 35% drop is obtainable, and folding probability in would turn
+      // a structural check into a grind estimate. Enemies are not gated on
+      // equipment either — this asks *possible at all*, not *survivable*.
+      for (final EnemyDefinition enemy in registry.enemies.values) {
+        if (!locations.contains(enemy.location)) continue;
+        for (final EnemyDrop drop in enemy.drops) {
+          if (items.add(drop.item)) changed = true;
+        }
+      }
+
       // Crafting: recipes whose every ingredient is held.
       for (final RecipeDefinition recipe in registry.recipes.values) {
         if (!recipe.ingredients.every(
@@ -190,7 +210,19 @@ final class ReachabilityValidator {
         .where((RecipeDefinition r) => r.outputItem == target)
         .toList();
 
-    if (producingNodes.isEmpty && producingRecipes.isEmpty) {
+    // Dropped by an enemy? Anywhere — a target dropped only by an enemy in an
+    // unreachable location is a different diagnosis from one nothing in the
+    // pack produces at all, and saying "nothing produces it" about a wolf pelt
+    // would send an author looking for a missing recipe.
+    final List<EnemyDefinition> producingEnemies = registry.enemies.values
+        .where(
+          (EnemyDefinition e) => e.drops.any((EnemyDrop d) => d.item == target),
+        )
+        .toList();
+
+    if (producingNodes.isEmpty &&
+        producingRecipes.isEmpty &&
+        producingEnemies.isEmpty) {
       return ReachabilityBlock(
         target: target,
         reason: BlockReason.nothingProducesIt,
@@ -313,11 +345,30 @@ final class ReachabilityValidator {
       );
     }
 
+    // Dropped only by enemies the player can never stand in front of. Named
+    // rather than left to the generic message, because "check the chain of
+    // nodes and recipes" would send the author looking in the two files that
+    // do not mention this item.
+    for (final EnemyDefinition enemy in producingEnemies) {
+      if (reachableLocations.contains(enemy.location)) continue;
+      return ReachabilityBlock(
+        target: target,
+        reason: BlockReason.nothingProducesIt,
+        explanation:
+            '"$target" is dropped only by "${enemy.id}", which lives in '
+            '"${enemy.location}" — a location the player cannot reach',
+        suggestion:
+            'make "${enemy.location}" reachable, move the enemy, or add a '
+            'node or recipe that produces "$target"',
+      );
+    }
+
     return ReachabilityBlock(
       target: target,
       reason: BlockReason.nothingProducesIt,
       explanation: '"$target" is unreachable from the starting loadout',
-      suggestion: 'check the chain of nodes and recipes that lead to it',
+      suggestion:
+          'check the chain of nodes, recipes and enemy drops that lead to it',
     );
   }
 

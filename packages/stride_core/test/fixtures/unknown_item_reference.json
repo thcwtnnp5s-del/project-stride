@@ -21,7 +21,7 @@
       "id": "recipe.bronze_ingot",
       "displayName": "Bronze Ingot",
       "skill": "skill.smithing",
-      "requiredLevel": 2,
+      "requiredLevel": 1,
       "ingredients": [
         {
           "item": "item.copper_ore",
@@ -40,7 +40,7 @@
       "id": "recipe.bronze_sword",
       "displayName": "Bronze Sword",
       "skill": "skill.smithing",
-      "requiredLevel": 4,
+      "requiredLevel": 3,
       "ingredients": [
         {
           "item": "item.bronze_ingots",
@@ -59,7 +59,7 @@
       "id": "recipe.bronze_axe",
       "displayName": "Bronze Axe",
       "skill": "skill.smithing",
-      "requiredLevel": 3,
+      "requiredLevel": 2,
       "ingredients": [
         {
           "item": "item.bronze_ingot",
@@ -78,7 +78,7 @@
       "id": "recipe.bronze_pickaxe",
       "displayName": "Bronze Pickaxe",
       "skill": "skill.smithing",
-      "requiredLevel": 3,
+      "requiredLevel": 2,
       "ingredients": [
         {
           "item": "item.bronze_ingot",
@@ -97,7 +97,7 @@
       "id": "recipe.bronze_chestplate",
       "displayName": "Bronze Chestplate",
       "skill": "skill.smithing",
-      "requiredLevel": 6,
+      "requiredLevel": 5,
       "ingredients": [
         {
           "item": "item.bronze_ingot",
@@ -113,6 +113,44 @@
       "xp": 140
     },
     {
+      "id": "recipe.wolfhide_jerkin",
+      "displayName": "Wolfhide Jerkin",
+      "skill": "skill.smithing",
+      "requiredLevel": 2,
+      "ingredients": [
+        {
+          "item": "item.wolf_pelt",
+          "quantity": 3
+        },
+        {
+          "item": "item.oak_handle",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.wolfhide_jerkin",
+      "outputQuantity": 1,
+      "xp": 60
+    },
+    {
+      "id": "recipe.frostlined_jerkin",
+      "displayName": "Frost-lined Jerkin",
+      "skill": "skill.smithing",
+      "requiredLevel": 4,
+      "ingredients": [
+        {
+          "item": "item.wolfhide_jerkin",
+          "quantity": 1
+        },
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 2
+        }
+      ],
+      "outputItem": "item.frostlined_jerkin",
+      "outputQuantity": 1,
+      "xp": 120
+    },
+    {
       "id": "recipe.herb_broth",
       "displayName": "Herb Broth",
       "skill": "skill.cooking",
@@ -126,6 +164,44 @@
       "outputItem": "item.herb_broth",
       "outputQuantity": 1,
       "xp": 12
+    },
+    {
+      "id": "recipe.duskcap_skewer",
+      "displayName": "Duskcap Skewer",
+      "skill": "skill.cooking",
+      "requiredLevel": 3,
+      "ingredients": [
+        {
+          "item": "item.duskcap",
+          "quantity": 2
+        },
+        {
+          "item": "item.meadow_herb",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.duskcap_skewer",
+      "outputQuantity": 1,
+      "xp": 26
+    },
+    {
+      "id": "recipe.frostbloom_tea",
+      "displayName": "Frostbloom Tea",
+      "skill": "skill.cooking",
+      "requiredLevel": 6,
+      "ingredients": [
+        {
+          "item": "item.rime_blossom",
+          "quantity": 2
+        },
+        {
+          "item": "item.duskcap",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.frostbloom_tea",
+      "outputQuantity": 1,
+      "xp": 48
     },
     {
       "id": "recipe.hearty_stew",
@@ -150,7 +226,7 @@
       "id": "recipe.pine_plank",
       "displayName": "Pine Plank",
       "skill": "skill.smithing",
-      "requiredLevel": 9,
+      "requiredLevel": 4,
       "ingredients": [
         {
           "item": "item.pine_log",

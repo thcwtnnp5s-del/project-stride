@@ -33,6 +33,7 @@ export 'src/content/content_id.dart';
 export 'src/content/content_loader.dart';
 export 'src/content/content_registry.dart';
 export 'src/content/definitions.dart';
+export 'src/content/location_kind.dart';
 export 'src/content/reachability.dart';
 export 'src/content/schema_version.dart';
 export 'src/content/validation.dart';
