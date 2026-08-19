@@ -9,7 +9,6 @@ import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/ambient_stage.dart';
 import '../../components/data_display.dart';
-import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../icons/ambient_assets.dart';
@@ -299,40 +298,40 @@ class _ActivityStage extends StatelessWidget {
       // Traveler through a few ambient scenes and settles back on the same
       // rest pose. Presentation only — the scenes grant nothing, read nothing,
       // and the gather still plays exactly on `playToken`, taking priority.
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: <Widget>[
-          // The node itself — an oak stand, a copper seam — behind the figure
-          // and to one side, so the stage reads "this figure, at this place".
-          // Terrain art from PixelLab at ×1; the figure in front of it at ×2 is
-          // the same near/far scale split the location vignettes already use.
-          // Not a scene the player moves through: nothing here is a position.
-          if (PixelIcons.nodeFor(node.id) case final String art)
-            Positioned(
-              right: StrideSpace.s6,
-              bottom: 0,
-              child: PixelAsset(
-                assetPath: art,
-                nativeWidth: 96,
-                nativeHeight: 96,
-                scale: 1,
-              ),
-            ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: AmbientStage(
-              gatherFrames: PixelIcons.gatherFrames,
-              gatherFootprint: SpriteFootprints.gather,
-              playToken: playToken,
-              scenes: AmbientAssets.scenes,
-              restFrame: AmbientAssets.restFrame,
-              restFootprint: AmbientAssets.restFootprint,
-            ),
+      //
+      // The node itself — an oak stand, a copper seam — is the stage's far
+      // scenery: ×1 art behind the ×2 figure, raised off the figure's ground
+      // line, so the stage reads "this figure, at this place" rather than a
+      // figure standing through a shrub. Where it goes, and where the figure
+      // and the cat go, is `AmbientStageLayout`'s — one place, one test. Not a
+      // scene the player moves through: nothing here is a position.
+      //
+      // Clipped at the stage's own rounded edge. A `Stack` only clips
+      // children it knows overflow, and a companion cat drawn by a nested
+      // stack is not one of them: on the phone it painted over the card.
+      child: ClipRRect(
+        borderRadius: StrideRadius.inner,
+        child: SizedBox(
+          height: _innerHeight,
+          child: AmbientStage(
+            gatherFrames: PixelIcons.gatherFrames,
+            gatherFootprint: SpriteFootprints.gather,
+            playToken: playToken,
+            scenes: AmbientAssets.scenes,
+            restFrame: AmbientAssets.restFrame,
+            restFootprint: AmbientAssets.restFootprint,
+            scenery: AmbientAssets.sceneryFor(PixelIcons.nodeFor(node.id)),
           ),
-        ],
+        ),
       ),
     );
   }
+
+  /// The stage's interior: the box less its 1 dp border and its vertical
+  /// padding. Stated so the figures' floor is the stage floor, and so an
+  /// unbounded parent (the stacked layout's column) cannot let it drift.
+  static const double _innerHeight =
+      StrideGeometry.activityStage - 2 * StrideSpace.s6 - 2;
 }
 
 /// `STEPS 90 → YIELD ×2 → EXPERIENCE +10`.
@@ -497,6 +496,7 @@ class _ResultStrip extends StatelessWidget {
 
   static String _refusalText(ActionReport r) => switch (r.rejection) {
     'insufficient_steps' => 'Not enough banked steps yet',
+    'encounter_in_progress' => 'Finish or retreat from your encounter first',
     'session_busy' => 'Still finishing the last action',
     'session_not_ready' => 'Reload before gathering again',
     'commit_refused' => 'That could not be saved — reload before continuing',

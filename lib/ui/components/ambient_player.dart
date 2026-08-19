@@ -285,13 +285,15 @@ class _AmbientPlayerState extends State<AmbientPlayer>
     );
     // A wider-than-64 frame is drawn shifted left by its anchor, so the figure
     // stands exactly where the 64-wide rest frame stands. Layer offsets are
-    // authored in the *scene frame's* coordinates and shift with it.
+    // authored in the *64-box's* coordinates — the same box every scene's
+    // Traveler stands in — so a cat at `dx: -20` is 20 px left of that box
+    // whether the Traveler's frame is 64 or 80 wide.
     final double shift = -(s.anchorX * scale).toDouble();
 
     Widget layerAt(int i) {
       final AmbientLayer l = s.layers[i];
       return Positioned(
-        left: shift + (l.dx * scale),
+        left: (l.dx * scale).toDouble(),
         top: (l.dy * scale).toDouble(),
         child: GroundedSprite(
           assetPath: l.track.frames[_frames[i + 1]],

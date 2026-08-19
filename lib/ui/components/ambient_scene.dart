@@ -99,6 +99,67 @@ final class AmbientTrack {
   }
 }
 
+/// An opaque bounding box in sprite-native pixels, inclusive on all four
+/// edges — the union across every frame of a sequence, measured by
+/// `Scripts/art/measure-ambient-extents.js` and written into the scene table.
+///
+/// This is what the composition rules reason about: not the frame canvas,
+/// which is mostly transparent, and not the footprint, which is only the feet.
+/// It is the box a track can ever paint into, so a layout that keeps it inside
+/// the stage keeps every frame inside the stage.
+final class SpriteBounds {
+  const SpriteBounds({
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+  }) : assert(right >= left && bottom >= top, 'an empty box has no extent');
+
+  /// The whole canvas: the honest default for a track nobody has measured.
+  const SpriteBounds.canvas(int width, int height)
+    : this(left: 0, top: 0, right: width - 1, bottom: height - 1);
+
+  final int left;
+  final int top;
+  final int right;
+  final int bottom;
+
+  int get width => right - left + 1;
+  int get height => bottom - top + 1;
+
+  SpriteBounds shift(int dx, int dy) => SpriteBounds(
+    left: left + dx,
+    top: top + dy,
+    right: right + dx,
+    bottom: bottom + dy,
+  );
+
+  SpriteBounds union(SpriteBounds o) => SpriteBounds(
+    left: left < o.left ? left : o.left,
+    top: top < o.top ? top : o.top,
+    right: right > o.right ? right : o.right,
+    bottom: bottom > o.bottom ? bottom : o.bottom,
+  );
+
+  /// Pixels of horizontal overlap with [o], or 0 when the boxes are apart.
+  int overlapX(SpriteBounds o) {
+    final int l = left > o.left ? left : o.left;
+    final int r = right < o.right ? right : o.right;
+    return r >= l ? r - l + 1 : 0;
+  }
+
+  int overlapY(SpriteBounds o) {
+    final int t = top > o.top ? top : o.top;
+    final int b = bottom < o.bottom ? bottom : o.bottom;
+    return b >= t ? b - t + 1 : 0;
+  }
+
+  bool intersects(SpriteBounds o) => overlapX(o) > 0 && overlapY(o) > 0;
+
+  @override
+  String toString() => 'SpriteBounds($left,$top..$right,$bottom)';
+}
+
 /// A companion drawn with the Traveler — the orange cat, a prop — positioned
 /// relative to the Traveler's own frame box.
 ///
@@ -112,9 +173,21 @@ final class AmbientLayer {
     this.dx = 0,
     this.dy = 0,
     this.behind = false,
-  });
+    SpriteBounds? bounds,
+  }) : measuredBounds = bounds;
 
   final AmbientTrack track;
+
+  /// [bounds] as authored, or `null` when the table has not measured it.
+  final SpriteBounds? measuredBounds;
+
+  /// The union opaque box of every frame, in the layer's own frame
+  /// coordinates. Measured — see [SpriteBounds]. Defaults to the whole canvas.
+  SpriteBounds get bounds =>
+      measuredBounds ?? SpriteBounds.canvas(canvas, canvas);
+
+  /// [bounds] placed in the scene's standard 64-box coordinates.
+  SpriteBounds get placedBounds => bounds.shift(dx, dy);
 
   /// The layer's native frame size (square), in sprite pixels — 32 or 40 for
   /// the cat.
@@ -124,9 +197,10 @@ final class AmbientLayer {
   /// from packaging.
   final SpriteFootprint footprint;
 
-  /// Offset of the layer's top-left from the Traveler frame's top-left, in
-  /// **sprite pixels** (scaled with the sprite, so the composition holds at any
-  /// integer scale).
+  /// Offset of the layer's top-left from the top-left of the **standard
+  /// 64-box** the Traveler stands in (not the scene's own, possibly wider,
+  /// frame), in **sprite pixels** — scaled with the sprite, so the composition
+  /// holds at any integer scale.
   final int dx;
   final int dy;
 
@@ -145,9 +219,13 @@ final class AmbientScene {
     int? anchorX,
     this.layers = const <AmbientLayer>[],
     this.weight = 1,
-  }) : canvasHeight = canvasHeight ?? canvas,
+    SpriteBounds? bounds,
+    this.companionAllowance = 0,
+  }) : canvasHeight = canvasHeight ?? 64,
        anchorX = anchorX ?? (canvas - 64) ~/ 2,
-       assert(weight > 0, 'a scene with no weight can never play');
+       measuredBounds = bounds,
+       assert(weight > 0, 'a scene with no weight can never play'),
+       assert(companionAllowance >= 0, 'an allowance is a size');
 
   /// A stable identifier — the manifest's scene name.
   final String id;
@@ -163,10 +241,14 @@ final class AmbientScene {
   /// whose limbs or tools leave the 64 box is delivered wider.
   final int canvas;
 
-  /// Native frame height. Packaging crops every Traveler scene to 64 rows with
-  /// the feet on the same row as the 64 × 64 sprite (row 62), which is what
-  /// lets a wider scene share the stage without the figure jumping; the field
-  /// exists so a deliberately taller scene is declared rather than guessed.
+  /// Native frame height, **64 unless declared**. Packaging crops every
+  /// Traveler scene to 64 rows with the feet on the same row as the 64 × 64
+  /// sprite (row 62), which is what lets a wider scene share the stage without
+  /// the figure jumping; the field exists so a deliberately taller scene is
+  /// declared rather than guessed. It defaulted to the width once, and every
+  /// 80- and 96-wide scene was drawn stretched to a square — feet 32 dp below
+  /// the floor, the pair sprite's cat off the stage. A wide frame is not a
+  /// tall one.
   final int canvasHeight;
 
   /// The x, in this scene's frame, that lines up with x = 0 of the standard
@@ -179,6 +261,33 @@ final class AmbientScene {
 
   /// Relative likelihood of being chosen. Presentation flavour only.
   final double weight;
+
+  /// [bounds] as authored, or `null` when the table has not measured it.
+  final SpriteBounds? measuredBounds;
+
+  /// The union opaque box of every Traveler frame, in **this scene's frame**
+  /// coordinates (before [anchorX] is applied). Measured — see [SpriteBounds];
+  /// the whole frame when unmeasured.
+  SpriteBounds get bounds =>
+      measuredBounds ?? SpriteBounds.canvas(canvas, canvasHeight);
+
+  /// How far, in sprite pixels, a companion layer's opaque box may reach into
+  /// the Traveler's — the width of the overlap, not its area. Zero for scenes
+  /// where they stand apart; a few pixels where a cat is meant to be touched,
+  /// or lies by a knee. Authored per scene, and what the composition test
+  /// holds each scene to.
+  final int companionAllowance;
+
+  /// The Traveler's opaque box in the standard 64-box coordinates every layer
+  /// offset is authored in.
+  SpriteBounds get travelerBounds => bounds.shift(-anchorX, 0);
+
+  /// The whole composition — Traveler and every layer — in 64-box
+  /// coordinates. This is what a stage has to make room for.
+  SpriteBounds get groupBounds => layers.fold(
+    travelerBounds,
+    (SpriteBounds b, AmbientLayer l) => b.union(l.placedBounds),
+  );
 
   /// The scene lasts as long as its Traveler track. Layers longer than that are
   /// cut; shorter ones hold their last frame.

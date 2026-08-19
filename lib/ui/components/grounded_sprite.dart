@@ -94,7 +94,7 @@ class GroundedSprite extends StatelessWidget {
   final int canvas;
 
   /// Native frame height; defaults to [canvas] (square). Three ambient scenes
-  /// are 80 × 72 and one is 96 × 64 — see `ambient_assets.dart`.
+  /// are 80 × 64 and one is 96 × 64 — see `ambient_assets.dart`.
   final int? canvasHeight;
 
   /// Where this sprite meets the ground, measured at packaging time.
