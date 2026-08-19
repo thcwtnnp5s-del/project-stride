@@ -120,7 +120,10 @@ atlas; 13 goldens regenerated and reviewed by eye). Result recorded in §8a.
 
 ### 8a. Result
 
-See the commit message of the verification commit; filled at close.
+`Scripts/verify.sh --strict` on the committed tree (2026-08-19): **All checks
+passed** — every guard and self-test green, `dart format` clean, `stride_core`
+**592**, `stride_storage` **108**, app **409**, `stride_health` **143**,
+`stride_secure_store` **31**; art packaging `--check` 386 files up to date.
 
 ## 9. Known issues
 
