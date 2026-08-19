@@ -392,6 +392,17 @@ Future<String> runPersistenceScript(
 /// quotes, a colon, one digit and the separating comma; the key sorts first
 /// inside the epoch object so the comma follows it). The frozen v2→v3 fixture
 /// grew by the same 30 with the digit `3` in place of `0`.
+///
+/// ## Amended a third time, for state version 4 — same review
+///
+/// Combat Slice 01 (`DECISIONS/0020`) added `encounter` (null when no fight is
+/// on) at the top of the state and `drivenOff` (a sorted list, empty here)
+/// inside `world`, so both slot lengths and both digests moved again. Every
+/// behavioural line above the digests is again byte-identical, journal length
+/// and digest included — the conformance sequence fights nothing and so writes
+/// no combat record. Both slots grew by **32 bytes**, which is exactly
+/// `"encounter":null,` (17) plus `"drivenOff":[],` (15). The frozen v3→v4
+/// fixture grew by the same 32.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -401,8 +412,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1303:407722d9
-slot_b:1305:e27b86bc''';
+slot_a:1335:2bc298e1
+slot_b:1337:4cedaec4''';
 
 // ---------------------------------------------------------------------------
 // The suite

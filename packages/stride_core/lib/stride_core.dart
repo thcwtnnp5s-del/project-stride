@@ -11,6 +11,8 @@
 library;
 
 export 'src/bootstrap/bootstrap.dart';
+export 'src/engine/combat.dart';
+export 'src/engine/combat_rules.dart';
 export 'src/engine/commands.dart';
 export 'src/engine/event_reducer.dart';
 export 'src/engine/events.dart';

@@ -69,7 +69,7 @@ explicitly reconsiders.
 **P-7 — Defeat costs progress, never possessions.**
 Defeat never removes equipment, inventory, skill XP, character XP, or any
 previous progression. No death, no item loss, no rollback.
-→ `GAME_BIBLE/COMBAT/01_COMBAT_PHILOSOPHY.md`
+→ `GAME_BIBLE/COMBAT/01_COMBAT_PHILOSOPHY.md`, `DECISIONS/0020_COMBAT_SLICE_01.md`
 
 **P-8 — Offline-first.** Core gameplay never requires connectivity.
 → `PROJECT_KERNEL/05_NON_NEGOTIABLES.md`

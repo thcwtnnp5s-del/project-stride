@@ -200,7 +200,10 @@ void main() {
       expect(session.isReady, isTrue);
       expect(session.isStale, isFalse);
       final GameState after = session.engine!.state;
-      expect(after.stateVersion, 3);
+      // The migrating launch lands the save at the current version — 3 when this
+      // test was written, 4 since Combat Slice 01 (DECISIONS/0020, a
+      // non-rebasing step). The 0018 mark below is still established at 3.
+      expect(after.stateVersion, StateVersion.current.value);
       expect(after.steps.epoch.establishedAtStateVersion, 3);
       expect(after.steps.banked, 0);
       expect(session.usableEnergy, 0);
@@ -216,7 +219,12 @@ void main() {
 
       final StateMigrationReport migration = session.migration!;
       expect(migration.fromStateVersion, 2);
-      expect(migration.toStateVersion, 3);
+      expect(migration.toStateVersion, StateVersion.current.value);
+      expect(
+        migration.stepsApplied.map((StateMigrationStep s) => s.to).toList(),
+        <int>[3, StateVersion.current.value],
+        reason: 'the 0018 mark and the 0020 format bump, one commit',
+      );
       expect(migration.bankedAfter, 0);
       expect(migration.previouslyRetiredSteps, 459043);
       expect(migration.newlyRetiredSteps, 5123 + backlogSteps);
@@ -225,7 +233,7 @@ void main() {
       final StrideSession relaunched = await launch(MockStepSource());
       expect(relaunched.migrationPending, isFalse);
       expect(relaunched.migration, isNull);
-      expect(relaunched.engine!.state.stateVersion, 3);
+      expect(relaunched.engine!.state.stateVersion, StateVersion.current.value);
       expect(relaunched.usableEnergy, 0);
       expect(relaunched.totalGranted, 464946 + backlogSteps);
       expect(relaunched.isReady, isTrue);

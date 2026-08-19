@@ -610,6 +610,20 @@ final class RecipeIngredient {
   }
 }
 
+/// How an enemy replies each round (`GAME_BIBLE/COMBAT/02_COMBAT_SLICE_01.md`
+/// §6). Wire strings are `steady` | `flurry` | `guarded`.
+enum EnemyBehavior {
+  /// One strike a turn.
+  steady,
+
+  /// Two light strikes a turn.
+  flurry,
+
+  /// Turns 1 and 2 normal; every third turn a heavy strike, telegraphed at the
+  /// end of the round before.
+  guarded,
+}
+
 /// Something to fight.
 @immutable
 final class EnemyDefinition {
@@ -622,6 +636,8 @@ final class EnemyDefinition {
     required this.defence,
     required this.isBoss,
     required this.drops,
+    this.behavior = EnemyBehavior.steady,
+    this.xp = 0,
   });
 
   final ContentId id;
@@ -633,6 +649,14 @@ final class EnemyDefinition {
   final bool isBoss;
   final List<EnemyDrop> drops;
 
+  /// How the enemy replies each round. Optional in content; defaults to
+  /// [EnemyBehavior.steady] (Combat Slice 01).
+  final EnemyBehavior behavior;
+
+  /// Character XP on victory, before the balance profile is applied. Optional
+  /// in content; defaults to 0 (Combat Slice 01).
+  final int xp;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -642,6 +666,8 @@ final class EnemyDefinition {
     'defence',
     'isBoss',
     'drops',
+    'behavior',
+    'xp',
   };
 
   static EnemyDefinition? read(JsonReader reader) {
@@ -660,6 +686,17 @@ final class EnemyDefinition {
           (JsonReader nested, int index) => EnemyDrop.read(nested, index),
         ),
       ),
+      behavior: reader.map.containsKey('behavior')
+          ? reader.requireEnum<EnemyBehavior>(
+              'behavior',
+              const <String, EnemyBehavior>{
+                'steady': EnemyBehavior.steady,
+                'flurry': EnemyBehavior.flurry,
+                'guarded': EnemyBehavior.guarded,
+              },
+            )
+          : EnemyBehavior.steady,
+      xp: reader.optionalInt('xp', min: 0, max: 1000000),
     );
     return reader.isComplete ? definition : null;
   }

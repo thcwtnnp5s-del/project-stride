@@ -21,6 +21,7 @@ import 'dart:typed_data';
 import '../content/content_id.dart';
 import '../content/definitions.dart';
 import '../content/schema_version.dart';
+import '../engine/combat.dart';
 import '../engine/game_state.dart';
 import '../engine/state_version.dart';
 import '../steps/step_ledger.dart';
@@ -179,9 +180,34 @@ Map<String, Object?> encodeGameState(GameState state) => <String, Object?>{
     'unlockedLocations':
         state.world.unlockedLocations.map((ContentId id) => id.value).toList()
           ..sort(),
+    // State version 4 (`DECISIONS/0020`). Written unconditionally, empty or
+    // not, so a v4 save is never silent about it.
+    'drivenOff': state.world.drivenOff.map((ContentId id) => id.value).toList()
+      ..sort(),
   },
   'steps': encodeStepLedger(state.steps),
+  // State version 4. Written as an explicit null when no fight is on: an
+  // absent key would be indistinguishable from a pre-v4 save's shape, and the
+  // v4 decoder should never have to guess which it is reading.
+  'encounter': _encodeEncounter(state.encounter),
 };
+
+Map<String, Object?>? _encodeEncounter(EncounterState? encounter) =>
+    encounter == null
+    ? null
+    : <String, Object?>{
+        'enemy': encounter.enemy.value,
+        'location': encounter.location.value,
+        'seed': encounter.seed,
+        'turn': encounter.turn,
+        'playerHp': encounter.playerHp,
+        'playerMaxHp': encounter.playerMaxHp,
+        'playerAttack': encounter.playerAttack,
+        'playerDefence': encounter.playerDefence,
+        'enemyHp': encounter.enemyHp,
+        'enemyMaxHp': encounter.enemyMaxHp,
+        'telegraph': encounter.telegraph,
+      };
 
 List<Object?> _encodeIdCounts(Map<ContentId, int> counts) {
   final List<MapEntry<ContentId, int>> entries = counts.entries.toList()
@@ -498,6 +524,7 @@ final class StateCodecs {
     V1StateDecoder(),
     V2StateDecoder(),
     V3StateDecoder(),
+    V4StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -526,8 +553,11 @@ final class V1StateDecoder implements StateDecoder {
   int get version => 1;
 
   @override
-  GameState decode(Map<String, Object?> json) =>
-      _decodeStateShape(json, epochShape: _EpochShape.absent);
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.absent,
+    combatShape: _CombatShape.absent,
+  );
 }
 
 /// Decoder for state version 2.
@@ -552,14 +582,22 @@ final class V2StateDecoder implements StateDecoder {
   int get version => 2;
 
   @override
-  GameState decode(Map<String, Object?> json) =>
-      _decodeStateShape(json, epochShape: _EpochShape.marksOnly);
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.marksOnly,
+    combatShape: _CombatShape.absent,
+  );
 }
 
-/// Decoder for state version 3 — the current shape.
+/// Decoder for state version 3.
+///
+/// **Frozen**, on the same terms as [V1StateDecoder]; `v3_baseline.save` is the
+/// proof it still reads one.
 ///
 /// Differs from v2 in exactly one place: `steps.epoch.establishedAtStateVersion`
-/// is present and is read (`DECISIONS/0018`).
+/// is present and is read (`DECISIONS/0018`). A v3 save has no `encounter` and
+/// no `world.drivenOff`; it decodes with no fight on and nothing driven off,
+/// which is what a v3 save meant — combat did not exist.
 final class V3StateDecoder implements StateDecoder {
   const V3StateDecoder();
 
@@ -567,8 +605,39 @@ final class V3StateDecoder implements StateDecoder {
   int get version => 3;
 
   @override
-  GameState decode(Map<String, Object?> json) =>
-      _decodeStateShape(json, epochShape: _EpochShape.withEstablishedVersion);
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withEstablishedVersion,
+    combatShape: _CombatShape.absent,
+  );
+}
+
+/// Decoder for state version 4 — the current shape.
+///
+/// Differs from v3 in exactly two places: `encounter` (null or an object) and
+/// `world.drivenOff` are present and are read (`DECISIONS/0020`).
+final class V4StateDecoder implements StateDecoder {
+  const V4StateDecoder();
+
+  @override
+  int get version => 4;
+
+  @override
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withEstablishedVersion,
+    combatShape: _CombatShape.present,
+  );
+}
+
+/// Whether the shape carries the Combat Slice 01 fields.
+enum _CombatShape {
+  /// State versions 1–3: no `encounter`, no `world.drivenOff`. Their absence
+  /// means no fight and nothing driven off.
+  absent,
+
+  /// State version 4: both are present and read.
+  present,
 }
 
 /// The one field that differs between the shared shapes.
@@ -587,6 +656,7 @@ enum _EpochShape {
 GameState _decodeStateShape(
   Map<String, Object?> json, {
   required _EpochShape epochShape,
+  required _CombatShape combatShape,
 }) {
   Map<String, Object?> objectAt(Map<String, Object?> from, String key) {
     final Object? v = from[key];
@@ -647,6 +717,50 @@ GameState _decodeStateShape(
   final Map<String, Object?> worldJson = objectAt(json, 'world');
   final Map<String, Object?> equipmentJson = objectAt(json, 'equipment');
 
+  Set<ContentId> idSet(Map<String, Object?> from, String key) => <ContentId>{
+    for (final Object? raw in listAt(from, key))
+      if (raw is String)
+        idOf(raw, key)
+      else
+        throw SaveCodecException('$key entry is not a string'),
+  };
+
+  // State version 4. Absent in v1–v3, where absence means no fight on and
+  // nothing driven off — what those saves meant, not a default for missing
+  // data. In v4 both keys must be present: `encounter` as null or an object.
+  final Set<ContentId> drivenOff;
+  final EncounterState? encounter;
+  switch (combatShape) {
+    case _CombatShape.absent:
+      drivenOff = const <ContentId>{};
+      encounter = null;
+    case _CombatShape.present:
+      drivenOff = idSet(worldJson, 'drivenOff');
+      if (!json.containsKey('encounter')) {
+        throw const SaveCodecException('encounter is missing');
+      }
+      final Object? raw = json['encounter'];
+      if (raw == null) {
+        encounter = null;
+      } else if (raw is Map<String, Object?>) {
+        encounter = EncounterState(
+          enemy: idOf(stringAt(raw, 'enemy'), 'encounter.enemy'),
+          location: idOf(stringAt(raw, 'location'), 'encounter.location'),
+          seed: intAt(raw, 'seed'),
+          turn: intAt(raw, 'turn'),
+          playerHp: intAt(raw, 'playerHp'),
+          playerMaxHp: intAt(raw, 'playerMaxHp'),
+          playerAttack: intAt(raw, 'playerAttack'),
+          playerDefence: intAt(raw, 'playerDefence'),
+          enemyHp: intAt(raw, 'enemyHp'),
+          enemyMaxHp: intAt(raw, 'enemyMaxHp'),
+          telegraph: raw['telegraph'] == true,
+        );
+      } else {
+        throw const SaveCodecException('encounter is not an object or null');
+      }
+  }
+
   final Map<EquipmentSlot, ContentId> equipment = <EquipmentSlot, ContentId>{};
   for (final MapEntry<String, Object?> e in equipmentJson.entries) {
     final EquipmentSlot slot = EquipmentSlot.values.firstWhere(
@@ -686,7 +800,9 @@ GameState _decodeStateShape(
               'world.unlockedLocations entry is not a string',
             ),
       },
+      drivenOff: drivenOff,
     ),
+    encounter: encounter,
     steps: _decodeLedger(
       objectAt(json, 'steps'),
       epochShape: epochShape,

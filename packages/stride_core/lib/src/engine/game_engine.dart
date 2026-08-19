@@ -8,6 +8,8 @@ import '../steps/reconciliation.dart';
 
 import '../steps/step_ledger.dart';
 import '../steps/step_origin_key.dart';
+import 'combat.dart';
+import 'combat_rules.dart';
 import 'commands.dart';
 import 'event_reducer.dart';
 import 'events.dart';
@@ -168,7 +170,356 @@ final class GameEngine {
         ReconcileStepSync() => _reconcile(command, state),
         EstablishEconomyEpoch() => _establishEpoch(command, state),
         EstablishNewGameBaseline() => _establishBaseline(command, state),
+        StartEncounter() => _startEncounter(command, state),
+        CombatAttack() => _combatAttack(command, state),
+        CombatEat() => _combatEat(command, state),
+        CombatRetreat() => _combatRetreat(command, state),
       };
+
+  // -- Combat (Combat Slice 01) ---------------------------------------------
+
+  /// The refusal gathering and travel share while a fight is on. Null when no
+  /// encounter is active. Crafting and equipping are deliberately not gated:
+  /// they cannot change a fight already snapshotted (`GAME_BIBLE/COMBAT/02` §8).
+  CommandRejection? _refuseDuringEncounter(
+    GameCommand command,
+    GameState state,
+  ) {
+    final EncounterState? encounter = state.encounter;
+    if (encounter == null) return null;
+    return CommandRejection(
+      code: RejectionCode.encounterInProgress,
+      command: command.name,
+      explanation:
+          'an encounter with ${encounter.enemy.value} is active; attack, eat '
+          'or retreat first',
+      subject: encounter.enemy.value,
+    );
+  }
+
+  /// Begins a fight.
+  ///
+  /// Does this enemy exist → is it here → am I already fighting → has it been
+  /// driven off. Costs no steps (`DECISIONS/0020` §3). The player's figures
+  /// are derived once, here, and snapshotted onto the event; the enemy's
+  /// health is profile-scaled once, here. The seed is a pure function of the
+  /// event sequence and the enemy id.
+  _Decision _startEncounter(StartEncounter command, GameState state) {
+    final EnemyDefinition? enemy = registry.enemies[command.enemy];
+    if (enemy == null) {
+      return _Decision.reject(
+        RejectionCode.unknownEnemy,
+        command,
+        'no enemy is defined with that ID',
+        subject: command.enemy.value,
+      );
+    }
+    if (enemy.location != state.world.currentLocation) {
+      return _Decision.reject(
+        RejectionCode.enemyNotHere,
+        command,
+        '"${enemy.displayName}" is at '
+        '${registry.locations[enemy.location]?.displayName ?? enemy.location.value}, '
+        'not where the player is standing',
+        subject: command.enemy.value,
+      );
+    }
+    final EncounterState? active = state.encounter;
+    if (active != null) {
+      return _Decision.reject(
+        RejectionCode.encounterInProgress,
+        command,
+        'an encounter with ${active.enemy.value} is already active',
+        subject: command.enemy.value,
+      );
+    }
+    if (state.world.isDrivenOff(command.enemy)) {
+      return _Decision.reject(
+        RejectionCode.enemyDrivenOff,
+        command,
+        '"${enemy.displayName}" has been driven off here; it returns once the '
+        'player moves on',
+        subject: command.enemy.value,
+      );
+    }
+
+    final PlayerCombatLoadout loadout = CombatRules.loadoutFor(state, registry);
+    final int enemyHp = profile.applyEnemyHealth(enemy.health);
+    return _Decision.accept(<GameEvent>[
+      EncounterStarted(
+        sequence: state.eventSequence,
+        enemy: command.enemy,
+        location: state.world.currentLocation,
+        seed: CombatRules.seedFor(state.eventSequence, command.enemy),
+        playerHp: loadout.maxHp,
+        playerMaxHp: loadout.maxHp,
+        playerAttack: loadout.attack,
+        playerDefence: loadout.defence,
+        enemyHp: enemyHp,
+        enemyMaxHp: enemyHp,
+      ),
+    ]);
+  }
+
+  /// One round: the player strikes, then the enemy replies unless it fell.
+  _Decision _combatAttack(CombatAttack command, GameState state) {
+    final EncounterState? encounter = state.encounter;
+    if (encounter == null) {
+      return _Decision.reject(
+        RejectionCode.noEncounter,
+        command,
+        'no encounter is active',
+      );
+    }
+    final EnemyDefinition? enemy = registry.enemies[encounter.enemy];
+    if (enemy == null) {
+      // Unreachable through a validated registry and a save whose references
+      // were checked at load. Answered rather than thrown.
+      return _Decision.reject(
+        RejectionCode.contentNotLoaded,
+        command,
+        'the enemy in the active encounter is not loaded',
+        subject: encounter.enemy.value,
+      );
+    }
+
+    final List<GameEvent> events = <GameEvent>[];
+    int sequence = state.eventSequence;
+    final int turn = encounter.turn;
+
+    final int damage = CombatRules.strike(
+      encounter.playerAttack,
+      enemy.defence,
+      CombatRules.roll(encounter.seed, turn, CombatRules.playerStrikeSalt),
+    );
+    final int enemyHpAfter = encounter.enemyHp - damage < 0
+        ? 0
+        : encounter.enemyHp - damage;
+    events.add(
+      CombatPlayerStruck(
+        sequence: sequence++,
+        damage: damage,
+        enemyHpAfter: enemyHpAfter,
+        turn: turn,
+      ),
+    );
+
+    if (enemyHpAfter == 0) {
+      events.add(_victory(sequence, state, encounter, enemy));
+      return _Decision.accept(events);
+    }
+
+    _enemyReply(events, sequence, state, encounter, enemy, encounter.playerHp);
+    return _Decision.accept(events);
+  }
+
+  /// One round: the player eats, then the enemy replies. A turn spent.
+  ///
+  /// No encounter → item unknown → not owned → not edible → HP full.
+  _Decision _combatEat(CombatEat command, GameState state) {
+    final EncounterState? encounter = state.encounter;
+    if (encounter == null) {
+      return _Decision.reject(
+        RejectionCode.noEncounter,
+        command,
+        'no encounter is active',
+      );
+    }
+    final ItemDefinition? item = registry.items[command.item];
+    if (item == null) {
+      return _Decision.reject(
+        RejectionCode.unknownItem,
+        command,
+        'no item is defined with that ID',
+        subject: command.item.value,
+      );
+    }
+    if (!state.inventory.has(command.item)) {
+      return _Decision.reject(
+        RejectionCode.itemNotOwned,
+        command,
+        'the player does not have "${item.displayName}"',
+        subject: command.item.value,
+      );
+    }
+    if (item.category != ItemCategory.consumable || item.healing <= 0) {
+      return _Decision.reject(
+        RejectionCode.notEdible,
+        command,
+        '"${item.displayName}" is not a consumable that heals',
+        subject: command.item.value,
+      );
+    }
+    final int missing = encounter.playerMaxHp - encounter.playerHp;
+    if (missing <= 0) {
+      return _Decision.reject(
+        RejectionCode.healthFull,
+        command,
+        'the player is already at full health',
+        subject: command.item.value,
+      );
+    }
+    final EnemyDefinition? enemy = registry.enemies[encounter.enemy];
+    if (enemy == null) {
+      return _Decision.reject(
+        RejectionCode.contentNotLoaded,
+        command,
+        'the enemy in the active encounter is not loaded',
+        subject: encounter.enemy.value,
+      );
+    }
+
+    final int healed = item.healing < missing ? item.healing : missing;
+    final int hpAfterEating = encounter.playerHp + healed;
+    final List<GameEvent> events = <GameEvent>[
+      CombatConsumableUsed(
+        sequence: state.eventSequence,
+        item: command.item,
+        healed: healed,
+        playerHpAfter: hpAfterEating,
+        turn: encounter.turn,
+      ),
+    ];
+    _enemyReply(
+      events,
+      state.eventSequence + 1,
+      state,
+      encounter,
+      enemy,
+      hpAfterEating,
+    );
+    return _Decision.accept(events);
+  }
+
+  /// Leaves the fight. Nothing else changes.
+  _Decision _combatRetreat(CombatRetreat command, GameState state) {
+    final EncounterState? encounter = state.encounter;
+    if (encounter == null) {
+      return _Decision.reject(
+        RejectionCode.noEncounter,
+        command,
+        'no encounter is active',
+      );
+    }
+    return _Decision.accept(<GameEvent>[
+      EncounterRetreated(
+        sequence: state.eventSequence,
+        enemy: encounter.enemy,
+        location: encounter.location,
+        retreatTo: CombatRules.retreatDestination(state, registry),
+      ),
+    ]);
+  }
+
+  /// The one `EncounterWon`, with every figure of the reward on it.
+  ///
+  /// XP is profile-scaled here, once; the level after is recomputed from the
+  /// total here, once, and written on the event so the reducer never consults
+  /// the curve. Drops roll from the seed with the drop index and the victory
+  /// turn — one independent draw per drop — and are recorded as literal
+  /// amounts, unscaled: drops are not gather yields.
+  EncounterWon _victory(
+    int sequence,
+    GameState state,
+    EncounterState encounter,
+    EnemyDefinition enemy,
+  ) {
+    final int xp = profile.applyXp(enemy.xp);
+    final int experienceAfter = state.player.experience + xp;
+    final Map<ContentId, int> drops = <ContentId, int>{};
+    for (int i = 0; i < enemy.drops.length; i++) {
+      final EnemyDrop drop = enemy.drops[i];
+      final int rolled = CombatRules.percentRoll(
+        encounter.seed,
+        i,
+        encounter.turn,
+      );
+      if (rolled < drop.chancePercent) {
+        drops[drop.item] = (drops[drop.item] ?? 0) + drop.quantity;
+      }
+    }
+    return EncounterWon(
+      sequence: sequence,
+      enemy: encounter.enemy,
+      location: encounter.location,
+      characterXp: xp,
+      experienceAfter: experienceAfter,
+      levelBefore: state.player.level,
+      levelAfter: CombatRules.levelFor(experienceAfter),
+      drops: drops,
+    );
+  }
+
+  /// The enemy's reply for this round, appended to [events] from [sequence].
+  ///
+  /// Per behaviour (`GAME_BIBLE/COMBAT/02` §6): steady one strike, flurry two,
+  /// guarded one strike that is heavy every third turn. After each strike, if
+  /// the player falls the round ends in `EncounterLost` and nothing further is
+  /// emitted; otherwise the round closes with `CombatRoundEnded` carrying the
+  /// new turn number and, for a guarded enemy, whether the *next* reply will be
+  /// heavy — the telegraph, set at the end of the round before.
+  void _enemyReply(
+    List<GameEvent> events,
+    int sequence,
+    GameState state,
+    EncounterState encounter,
+    EnemyDefinition enemy,
+    int playerHp,
+  ) {
+    final int turn = encounter.turn;
+    final bool heavy =
+        enemy.behavior == EnemyBehavior.guarded &&
+        CombatRules.isHeavyTurn(turn);
+    final int strikes = enemy.behavior == EnemyBehavior.flurry ? 2 : 1;
+
+    int hp = playerHp;
+    for (int i = 0; i < strikes; i++) {
+      final int damage = heavy
+          ? CombatRules.heavyStrike(enemy.attack, encounter.playerDefence)
+          : CombatRules.strike(
+              enemy.attack,
+              encounter.playerDefence,
+              CombatRules.roll(
+                encounter.seed,
+                turn,
+                CombatRules.enemyStrikeSalt + i,
+              ),
+            );
+      hp = hp - damage < 0 ? 0 : hp - damage;
+      events.add(
+        CombatEnemyStruck(
+          sequence: sequence++,
+          damage: damage,
+          playerHpAfter: hp,
+          turn: turn,
+          heavy: heavy,
+          strikeIndex: i,
+        ),
+      );
+      if (hp == 0) {
+        events.add(
+          EncounterLost(
+            sequence: sequence,
+            enemy: encounter.enemy,
+            location: encounter.location,
+            retreatTo: CombatRules.retreatDestination(state, registry),
+          ),
+        );
+        return;
+      }
+    }
+
+    final int nextTurn = turn + 1;
+    events.add(
+      CombatRoundEnded(
+        sequence: sequence,
+        turn: nextTurn,
+        telegraph:
+            enemy.behavior == EnemyBehavior.guarded &&
+            CombatRules.isHeavyTurn(nextTurn),
+      ),
+    );
+  }
 
   /// Retires a new game's first observed history. See
   /// [EstablishNewGameBaseline]; refused by the state once the mark has left
@@ -254,6 +605,12 @@ final class GameEngine {
         subject: command.destination.value,
       );
     }
+
+    // Right after existence, so "no such place" still reads as such, and
+    // before every other question, because none of them matters until the
+    // fight is resolved (`GAME_BIBLE/COMBAT/02` §8).
+    final CommandRejection? fighting = _refuseDuringEncounter(command, state);
+    if (fighting != null) return _Decision.rejectWith(fighting);
 
     if (state.world.currentLocation == command.destination) {
       return _Decision.reject(
@@ -643,6 +1000,10 @@ final class GameEngine {
       );
     }
 
+    // Same placement as in [_travel]: after existence, before everything else.
+    final CommandRejection? fighting = _refuseDuringEncounter(command, state);
+    if (fighting != null) return _Decision.rejectWith(fighting);
+
     final LocationDefinition? here =
         registry.locations[state.world.currentLocation];
     if (here == null || !here.resourceNodes.contains(command.node)) {
@@ -881,6 +1242,9 @@ final class _Decision {
          explanation: explanation,
          subject: subject,
        );
+
+  const _Decision.rejectWith(CommandRejection this.rejection)
+    : events = const <GameEvent>[];
 
   final List<GameEvent> events;
   final CommandRejection? rejection;

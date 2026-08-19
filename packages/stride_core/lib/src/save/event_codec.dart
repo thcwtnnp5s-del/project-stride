@@ -175,6 +175,84 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'sourceState': event.sourceState.name,
     'code': event.code?.name,
   },
+  // Combat (Combat Slice 01). Every figure as dealt and as awarded, never as
+  // defined -- the same rule as ResourceGathered.
+  EncounterStarted() => <String, Object?>{
+    't': 'EncounterStarted',
+    'seq': event.sequence,
+    'enemy': event.enemy.value,
+    'location': event.location.value,
+    'seed': event.seed,
+    'playerHp': event.playerHp,
+    'playerMaxHp': event.playerMaxHp,
+    'playerAttack': event.playerAttack,
+    'playerDefence': event.playerDefence,
+    'enemyHp': event.enemyHp,
+    'enemyMaxHp': event.enemyMaxHp,
+  },
+  CombatPlayerStruck() => <String, Object?>{
+    't': 'CombatPlayerStruck',
+    'seq': event.sequence,
+    'damage': event.damage,
+    'enemyHpAfter': event.enemyHpAfter,
+    'turn': event.turn,
+  },
+  CombatConsumableUsed() => <String, Object?>{
+    't': 'CombatConsumableUsed',
+    'seq': event.sequence,
+    'item': event.item.value,
+    'healed': event.healed,
+    'playerHpAfter': event.playerHpAfter,
+    'turn': event.turn,
+  },
+  CombatEnemyStruck() => <String, Object?>{
+    't': 'CombatEnemyStruck',
+    'seq': event.sequence,
+    'damage': event.damage,
+    'playerHpAfter': event.playerHpAfter,
+    'turn': event.turn,
+    'heavy': event.heavy,
+    'strikeIndex': event.strikeIndex,
+  },
+  CombatRoundEnded() => <String, Object?>{
+    't': 'CombatRoundEnded',
+    'seq': event.sequence,
+    'turn': event.turn,
+    'telegraph': event.telegraph,
+  },
+  EncounterWon() => <String, Object?>{
+    't': 'EncounterWon',
+    'seq': event.sequence,
+    'enemy': event.enemy.value,
+    'location': event.location.value,
+    'characterXp': event.characterXp,
+    'experienceAfter': event.experienceAfter,
+    'levelBefore': event.levelBefore,
+    'levelAfter': event.levelAfter,
+    // Sorted, so two encodings of one event are byte-identical.
+    'drops': <Object?>[
+      for (final MapEntry<ContentId, int> e
+          in (event.drops.entries.toList()..sort(
+            (MapEntry<ContentId, int> a, MapEntry<ContentId, int> b) =>
+                a.key.compareTo(b.key),
+          )))
+        <String, Object?>{'item': e.key.value, 'n': e.value},
+    ],
+  },
+  EncounterLost() => <String, Object?>{
+    't': 'EncounterLost',
+    'seq': event.sequence,
+    'enemy': event.enemy.value,
+    'location': event.location.value,
+    'retreatTo': event.retreatTo.value,
+  },
+  EncounterRetreated() => <String, Object?>{
+    't': 'EncounterRetreated',
+    'seq': event.sequence,
+    'enemy': event.enemy.value,
+    'location': event.location.value,
+    'retreatTo': event.retreatTo.value,
+  },
 };
 
 List<MapEntry<ObservationKey, int>> _sortedSlices(
@@ -482,6 +560,170 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         sourceState: state,
         code: _enumOrNull(ReconciliationCode.values, s('code')),
       );
+
+    // Combat. Ranges are checked here rather than trusted, for the reason
+    // ResourceGathered gives: a journal record is bytes from disk and the
+    // reducer is total. A negative HP or damage from disk would be a corrupt
+    // record rewriting a fight, and refusing the record is recoverable.
+    case 'EncounterStarted':
+      final ContentId? enemy = id('enemy');
+      final ContentId? location = id('location');
+      final int? seed = i('seed');
+      final int? playerHp = i('playerHp');
+      final int? playerMaxHp = i('playerMaxHp');
+      final int? playerAttack = i('playerAttack');
+      final int? playerDefence = i('playerDefence');
+      final int? enemyHp = i('enemyHp');
+      final int? enemyMaxHp = i('enemyMaxHp');
+      if (enemy == null ||
+          location == null ||
+          seed == null ||
+          playerHp == null ||
+          playerMaxHp == null ||
+          playerAttack == null ||
+          playerDefence == null ||
+          enemyHp == null ||
+          enemyMaxHp == null) {
+        return null;
+      }
+      if (playerHp < 0 ||
+          playerMaxHp < 0 ||
+          playerAttack < 0 ||
+          playerDefence < 0 ||
+          enemyHp < 0 ||
+          enemyMaxHp < 0) {
+        return null;
+      }
+      return EncounterStarted(
+        sequence: seq,
+        enemy: enemy,
+        location: location,
+        seed: seed,
+        playerHp: playerHp,
+        playerMaxHp: playerMaxHp,
+        playerAttack: playerAttack,
+        playerDefence: playerDefence,
+        enemyHp: enemyHp,
+        enemyMaxHp: enemyMaxHp,
+      );
+
+    case 'CombatPlayerStruck':
+      final int? damage = i('damage');
+      final int? after = i('enemyHpAfter');
+      final int? turn = i('turn');
+      if (damage == null || after == null || turn == null) return null;
+      if (damage < 0 || after < 0 || turn < 1) return null;
+      return CombatPlayerStruck(
+        sequence: seq,
+        damage: damage,
+        enemyHpAfter: after,
+        turn: turn,
+      );
+
+    case 'CombatConsumableUsed':
+      final ContentId? item = id('item');
+      final int? healed = i('healed');
+      final int? after = i('playerHpAfter');
+      final int? turn = i('turn');
+      if (item == null || healed == null || after == null || turn == null) {
+        return null;
+      }
+      if (healed < 0 || after < 0 || turn < 1) return null;
+      return CombatConsumableUsed(
+        sequence: seq,
+        item: item,
+        healed: healed,
+        playerHpAfter: after,
+        turn: turn,
+      );
+
+    case 'CombatEnemyStruck':
+      final int? damage = i('damage');
+      final int? after = i('playerHpAfter');
+      final int? turn = i('turn');
+      final int? strikeIndex = i('strikeIndex');
+      if (damage == null || after == null || turn == null) return null;
+      if (damage < 0 || after < 0 || turn < 1) return null;
+      if (strikeIndex == null || strikeIndex < 0) return null;
+      return CombatEnemyStruck(
+        sequence: seq,
+        damage: damage,
+        playerHpAfter: after,
+        turn: turn,
+        heavy: b('heavy'),
+        strikeIndex: strikeIndex,
+      );
+
+    case 'CombatRoundEnded':
+      final int? turn = i('turn');
+      if (turn == null || turn < 1) return null;
+      return CombatRoundEnded(
+        sequence: seq,
+        turn: turn,
+        telegraph: b('telegraph'),
+      );
+
+    case 'EncounterWon':
+      final ContentId? enemy = id('enemy');
+      final ContentId? location = id('location');
+      final int? xp = i('characterXp');
+      final int? experienceAfter = i('experienceAfter');
+      final int? levelBefore = i('levelBefore');
+      final int? levelAfter = i('levelAfter');
+      final Object? rawDrops = json['drops'];
+      if (enemy == null ||
+          location == null ||
+          xp == null ||
+          experienceAfter == null ||
+          levelBefore == null ||
+          levelAfter == null ||
+          rawDrops is! List<Object?>) {
+        return null;
+      }
+      if (xp < 0 || experienceAfter < 0 || levelBefore < 1 || levelAfter < 1) {
+        return null;
+      }
+      final Map<ContentId, int> drops = <ContentId, int>{};
+      for (final Object? raw in rawDrops) {
+        if (raw is! Map<String, Object?>) return null;
+        final Object? rawItem = raw['item'];
+        final Object? rawCount = raw['n'];
+        if (rawItem is! String || rawCount is! int) return null;
+        final ContentId? parsed = ContentId.parse(rawItem).id;
+        // A negative drop would *remove* inventory on replay.
+        if (parsed == null || rawCount < 0) return null;
+        drops[parsed] = rawCount;
+      }
+      return EncounterWon(
+        sequence: seq,
+        enemy: enemy,
+        location: location,
+        characterXp: xp,
+        experienceAfter: experienceAfter,
+        levelBefore: levelBefore,
+        levelAfter: levelAfter,
+        drops: drops,
+      );
+
+    case 'EncounterLost':
+    case 'EncounterRetreated':
+      final ContentId? enemy = id('enemy');
+      final ContentId? location = id('location');
+      final ContentId? retreatTo = id('retreatTo');
+      if (enemy == null || location == null || retreatTo == null) return null;
+      return tag == 'EncounterLost'
+          ? EncounterLost(
+              sequence: seq,
+              enemy: enemy,
+              location: location,
+              retreatTo: retreatTo,
+            )
+          : EncounterRetreated(
+              sequence: seq,
+              enemy: enemy,
+              location: location,
+              retreatTo: retreatTo,
+            );
 
     default:
       return null;

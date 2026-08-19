@@ -2,6 +2,7 @@ import '../content/content_id.dart';
 
 import '../steps/step_ledger.dart';
 
+import 'combat.dart';
 import 'events.dart';
 import 'game_state.dart';
 
@@ -100,6 +101,51 @@ final class EventReducer {
       StepSourceStateChanged() => state.copyWith(
         steps: state.steps.copyWith(sourceState: event.sourceState),
       ),
+      EncounterStarted() => state.copyWith(
+        encounter: EncounterState(
+          enemy: event.enemy,
+          location: event.location,
+          seed: event.seed,
+          turn: 1,
+          playerHp: event.playerHp,
+          playerMaxHp: event.playerMaxHp,
+          playerAttack: event.playerAttack,
+          playerDefence: event.playerDefence,
+          enemyHp: event.enemyHp,
+          enemyMaxHp: event.enemyMaxHp,
+          telegraph: false,
+        ),
+      ),
+      CombatPlayerStruck() => state.copyWith(
+        encounter: _encounterOf(state).copyWith(enemyHp: event.enemyHpAfter),
+      ),
+      // Consumes and heals in one step: no value, not even transiently, in
+      // which the food is gone and the HP has not moved.
+      CombatConsumableUsed() => state.copyWith(
+        inventory: state.inventory.removing(event.item, 1),
+        encounter: _encounterOf(state).copyWith(playerHp: event.playerHpAfter),
+      ),
+      CombatEnemyStruck() => state.copyWith(
+        encounter: _encounterOf(state).copyWith(playerHp: event.playerHpAfter),
+      ),
+      CombatRoundEnded() => state.copyWith(
+        encounter: _encounterOf(
+          state,
+        ).copyWith(turn: event.turn, telegraph: event.telegraph),
+      ),
+      EncounterWon() => _won(state, event),
+      // Clears the fight and moves the player, and *nothing else* (`RULES.md`
+      // P-7). `movingTo` also empties the driven-off set, as every move does.
+      // The destination is always a location the player has already unlocked
+      // (a safe location on the graph behind them), so no unlock is recorded.
+      EncounterLost() => state.copyWith(
+        clearEncounter: true,
+        world: state.world.movingTo(event.retreatTo),
+      ),
+      EncounterRetreated() => state.copyWith(
+        clearEncounter: true,
+        world: state.world.movingTo(event.retreatTo),
+      ),
     };
 
     return next.copyWith(eventSequence: state.eventSequence + 1);
@@ -193,6 +239,47 @@ final class EventReducer {
     return state.copyWith(
       inventory: inventory.adding(event.item, event.quantity),
       skills: state.skills.adding(event.skill, event.experience),
+    );
+  }
+
+  /// The encounter a mid-fight event applies to.
+  ///
+  /// A combat event with no encounter is a programming fault, not a gameplay
+  /// outcome: the engine only emits one against an active fight, and a journal
+  /// that replays one without its `EncounterStarted` is out of order. Thrown
+  /// rather than tolerated, like a sequence mismatch.
+  static EncounterState _encounterOf(GameState state) {
+    final EncounterState? encounter = state.encounter;
+    if (encounter == null) {
+      throw StateError(
+        'a combat event was applied with no encounter active; events must be '
+        'applied in order, and a fight begins with EncounterStarted',
+      );
+    }
+    return encounter;
+  }
+
+  /// Rewards, clears, and drives off in one step.
+  ///
+  /// One `copyWith`, so there is no value — not even transiently inside this
+  /// method — in which the reward has landed and the encounter is still open,
+  /// or vice versa. That, plus the reward being a field of this one event, is
+  /// what makes it exactly-once (`DECISIONS/0020` §2). Level and experience
+  /// come off the event: recomputing the level here from a curve would let a
+  /// retuned curve re-level a replayed save.
+  GameState _won(GameState state, EncounterWon event) {
+    Inventory inventory = state.inventory;
+    for (final MapEntry<ContentId, int> drop in event.drops.entries) {
+      inventory = inventory.adding(drop.key, drop.value);
+    }
+    return state.copyWith(
+      clearEncounter: true,
+      inventory: inventory,
+      player: PlayerState(
+        level: event.levelAfter,
+        experience: event.experienceAfter,
+      ),
+      world: state.world.drivingOff(event.enemy),
     );
   }
 

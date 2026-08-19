@@ -12,7 +12,7 @@ Authored game data for Project Stride. Loaded and validated by
 | `resource_nodes.json` | What can be gathered, where, with what tool |
 | `locations.json` | The four locations, the travel graph, entry requirements |
 | `recipes.json` | Crafting |
-| `enemies.json` | The three Milestone 01 enemies |
+| `enemies.json` | The three Milestone 01 enemies — health, attack, defence, drops, plus the optional `behavior` (`steady` by default, `flurry`, or `guarded`) and `xp` (character XP on victory, default 0) added by Combat Slice 01 (`GAME_BIBLE/COMBAT/02_COMBAT_SLICE_01.md`) |
 | `profiles.json` | `production` and `accelerated_qa` balance profiles |
 
 ## Rules

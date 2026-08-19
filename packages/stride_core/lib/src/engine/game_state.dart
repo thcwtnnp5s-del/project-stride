@@ -6,6 +6,7 @@ import 'package:meta/meta.dart';
 import '../content/content_id.dart';
 import '../content/definitions.dart';
 import '../steps/step_ledger.dart';
+import 'combat.dart';
 import 'state_version.dart';
 
 /// Deep-immutability helpers.
@@ -205,21 +206,49 @@ final class WorldState {
   WorldState({
     required this.currentLocation,
     required Set<ContentId> unlockedLocations,
-  }) : unlockedLocations = _frozenIdSet(unlockedLocations);
+    Set<ContentId> drivenOff = const <ContentId>{},
+  }) : unlockedLocations = _frozenIdSet(unlockedLocations),
+       drivenOff = _frozenIdSet(drivenOff);
 
   final ContentId currentLocation;
   final Set<ContentId> unlockedLocations;
 
+  /// Enemies beaten *at [currentLocation]* since the player last moved
+  /// (`DECISIONS/0020` §3). Cleared by every move — see [movingTo].
+  ///
+  /// State version 4. Not keyed by location: the set is only ever meaningful
+  /// for where the player stands, because any move empties it.
+  final Set<ContentId> drivenOff;
+
   bool isUnlocked(ContentId location) => unlockedLocations.contains(location);
+
+  bool isDrivenOff(ContentId enemy) => drivenOff.contains(enemy);
 
   WorldState unlocking(ContentId location) => WorldState(
     currentLocation: currentLocation,
     unlockedLocations: <ContentId>{...unlockedLocations, location},
+    drivenOff: drivenOff,
   );
 
+  /// Moves the player, and **empties [drivenOff]**.
+  ///
+  /// Every move clears the set — travel, a free `EnterLocation`, a retreat, a
+  /// defeat — because the driven-off rule is *step-clocked through travel*:
+  /// the only limiter on re-fighting an enemy is that the player has to leave
+  /// and come back, and leaving costs the walk (`RULES.md` P-4, `DECISIONS/
+  /// 0020` §3). A move that kept the set would make some enemies unfightable
+  /// after a round trip; a set keyed by location would be a second mechanism
+  /// recording the same fact.
   WorldState movingTo(ContentId location) => WorldState(
     currentLocation: location,
     unlockedLocations: unlockedLocations,
+  );
+
+  /// Marks [enemy] driven off here.
+  WorldState drivingOff(ContentId enemy) => WorldState(
+    currentLocation: currentLocation,
+    unlockedLocations: unlockedLocations,
+    drivenOff: <ContentId>{...drivenOff, enemy},
   );
 
   @override
@@ -229,12 +258,14 @@ final class WorldState {
       const SetEquality<ContentId>().equals(
         other.unlockedLocations,
         unlockedLocations,
-      );
+      ) &&
+      const SetEquality<ContentId>().equals(other.drivenOff, drivenOff);
 
   @override
   int get hashCode => Object.hash(
     currentLocation,
     const SetEquality<ContentId>().hash(unlockedLocations),
+    const SetEquality<ContentId>().hash(drivenOff),
   );
 }
 
@@ -256,6 +287,7 @@ final class GameState {
     required this.world,
     required this.steps,
     required this.eventSequence,
+    this.encounter,
   }) {
     if (!StateVersion.supports(stateVersion)) {
       throw UnsupportedStateVersionException(stateVersion);
@@ -277,6 +309,13 @@ final class GameState {
   final WorldState world;
   final StepLedger steps;
 
+  /// The fight in progress, or null. State version 4 (`DECISIONS/0020`).
+  ///
+  /// While non-null, gathering and travel are refused and the Adventure tab
+  /// renders the fight; a cold relaunch lands the player back in it because it
+  /// is state, not navigation.
+  final EncounterState? encounter;
+
   /// How many events have been applied. Monotonic, and the sequence number the
   /// next event will carry.
   ///
@@ -292,6 +331,8 @@ final class GameState {
     WorldState? world,
     StepLedger? steps,
     int? eventSequence,
+    EncounterState? encounter,
+    bool clearEncounter = false,
   }) => GameState(
     stateVersion: stateVersion,
     profileId: profileId,
@@ -303,6 +344,9 @@ final class GameState {
     world: world ?? this.world,
     steps: steps ?? this.steps,
     eventSequence: eventSequence ?? this.eventSequence,
+    // Nullable-aware: `null` means "keep", so ending a fight needs an explicit
+    // flag rather than a null argument that is indistinguishable from absence.
+    encounter: clearEncounter ? null : (encounter ?? this.encounter),
   );
 
   /// Restates this state at [StateVersion.current], changing nothing else.
@@ -329,6 +373,7 @@ final class GameState {
     world: world,
     steps: steps,
     eventSequence: eventSequence,
+    encounter: encounter,
   );
 
   @override
@@ -343,7 +388,8 @@ final class GameState {
       other.skills == skills &&
       other.world == world &&
       other.steps == steps &&
-      other.eventSequence == eventSequence;
+      other.eventSequence == eventSequence &&
+      other.encounter == encounter;
 
   @override
   int get hashCode => Object.hash(
@@ -357,6 +403,7 @@ final class GameState {
     world,
     steps,
     eventSequence,
+    encounter,
   );
 
   // There is deliberately no `signature` getter here.
@@ -382,5 +429,6 @@ final class GameState {
   @override
   String toString() =>
       'GameState(v$stateVersion;profile=$profileId;seq=$eventSequence;'
-      'lvl=${player.level};steps=(${steps.signature}))';
+      'lvl=${player.level};steps=(${steps.signature})'
+      '${encounter == null ? '' : ';encounter=$encounter'})';
 }

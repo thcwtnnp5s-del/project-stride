@@ -118,6 +118,16 @@ final class StateMigrations {
       afterFirstReconcile: true,
       decision: 'DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md',
     ),
+    // Combat Slice 01: `GameState.encounter` and `WorldState.drivenOff` enter
+    // the save. A format bump and nothing else — the case this table exists
+    // for. No `EstablishEconomyEpoch` is issued; the migration commits the
+    // version bump with an empty event list.
+    StateMigrationStep(
+      from: 3,
+      to: 4,
+      rebasesEconomy: false,
+      decision: 'DECISIONS/0020_COMBAT_SLICE_01.md',
+    ),
   ];
 
   /// Whether [path] must wait for the first foreground reconciliation before

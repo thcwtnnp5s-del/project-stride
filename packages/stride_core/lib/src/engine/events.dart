@@ -486,3 +486,203 @@ final class StepSourceStateChanged extends GameEvent {
   @override
   String get name => 'StepSourceStateChanged';
 }
+
+// -- Combat (Combat Slice 01, `DECISIONS/0020`) --------------------------------
+//
+// Every figure a combat event needs is recorded on it: damage as dealt, HP as
+// it stands after, the reward as awarded. The reducer performs no arithmetic
+// against content and no roll, so a replay reproduces the committed fight even
+// after the enemy is retuned or the level curve moves. Same rule as
+// `ResourceGathered`, and for the same reason.
+
+/// A fight began. Carries the player's snapshotted figures and the enemy's
+/// profile-scaled health, so the encounter is a closed system from here.
+@immutable
+final class EncounterStarted extends GameEvent {
+  const EncounterStarted({
+    required super.sequence,
+    required this.enemy,
+    required this.location,
+    required this.seed,
+    required this.playerHp,
+    required this.playerMaxHp,
+    required this.playerAttack,
+    required this.playerDefence,
+    required this.enemyHp,
+    required this.enemyMaxHp,
+  });
+
+  final ContentId enemy;
+  final ContentId location;
+  final int seed;
+  final int playerHp;
+  final int playerMaxHp;
+  final int playerAttack;
+  final int playerDefence;
+
+  /// Profile-scaled, as the fight begins. Never the raw content value.
+  final int enemyHp;
+  final int enemyMaxHp;
+
+  @override
+  String get name => 'EncounterStarted';
+}
+
+/// The player hit the enemy.
+@immutable
+final class CombatPlayerStruck extends GameEvent {
+  const CombatPlayerStruck({
+    required super.sequence,
+    required this.damage,
+    required this.enemyHpAfter,
+    required this.turn,
+  });
+
+  final int damage;
+  final int enemyHpAfter;
+  final int turn;
+
+  @override
+  String get name => 'CombatPlayerStruck';
+}
+
+/// The player ate. Exactly one of [item] left the inventory.
+@immutable
+final class CombatConsumableUsed extends GameEvent {
+  const CombatConsumableUsed({
+    required super.sequence,
+    required this.item,
+    required this.healed,
+    required this.playerHpAfter,
+    required this.turn,
+  });
+
+  final ContentId item;
+
+  /// As healed: `min(healing, missing)`, never the raw content value.
+  final int healed;
+  final int playerHpAfter;
+  final int turn;
+
+  @override
+  String get name => 'CombatConsumableUsed';
+}
+
+/// The enemy hit the player. A flurry emits two per round, [strikeIndex] 0
+/// and 1; a guarded enemy's every-third-turn blow carries [heavy].
+@immutable
+final class CombatEnemyStruck extends GameEvent {
+  const CombatEnemyStruck({
+    required super.sequence,
+    required this.damage,
+    required this.playerHpAfter,
+    required this.turn,
+    required this.heavy,
+    required this.strikeIndex,
+  });
+
+  final int damage;
+  final int playerHpAfter;
+  final int turn;
+  final bool heavy;
+  final int strikeIndex;
+
+  @override
+  String get name => 'CombatEnemyStruck';
+}
+
+/// The round is over and the fight goes on. [turn] is the **new** turn number
+/// — the one the player is about to take. [telegraph] is true when the enemy's
+/// next reply will be heavy.
+@immutable
+final class CombatRoundEnded extends GameEvent {
+  const CombatRoundEnded({
+    required super.sequence,
+    required this.turn,
+    required this.telegraph,
+  });
+
+  final int turn;
+  final bool telegraph;
+
+  @override
+  String get name => 'CombatRoundEnded';
+}
+
+/// The enemy fell. **One event carries the whole reward** — XP, the level it
+/// produces, the drops — and it is the same event that clears the encounter
+/// and drives the enemy off, applied by one reducer branch. That is what makes
+/// the reward exactly-once by construction (`DECISIONS/0020` §2): a replay
+/// applies it once, and a second reward needs a second encounter.
+@immutable
+final class EncounterWon extends GameEvent {
+  EncounterWon({
+    required super.sequence,
+    required this.enemy,
+    required this.location,
+    required this.characterXp,
+    required this.experienceAfter,
+    required this.levelBefore,
+    required this.levelAfter,
+    required Map<ContentId, int> drops,
+  }) : drops = Map<ContentId, int>.unmodifiable(drops);
+
+  final ContentId enemy;
+  final ContentId location;
+
+  /// Profile-scaled, as awarded.
+  final int characterXp;
+
+  /// The character's total after the award; the reducer writes this, not a sum.
+  final int experienceAfter;
+  final int levelBefore;
+
+  /// Recomputed from [experienceAfter] at award time and written here, so a
+  /// later change to the level curve cannot re-level a replayed save.
+  final int levelAfter;
+
+  /// What dropped, by item, as literal amounts.
+  final Map<ContentId, int> drops;
+
+  @override
+  String get name => 'EncounterWon';
+}
+
+/// The player fell. The encounter clears and the player is moved to
+/// [retreatTo], the nearest safe location. **Nothing else changes**
+/// (`RULES.md` P-7): no item, XP, skill or step is lost. Consumables eaten
+/// during the fight stay eaten (`DECISIONS/0003`).
+@immutable
+final class EncounterLost extends GameEvent {
+  const EncounterLost({
+    required super.sequence,
+    required this.enemy,
+    required this.location,
+    required this.retreatTo,
+  });
+
+  final ContentId enemy;
+  final ContentId location;
+  final ContentId retreatTo;
+
+  @override
+  String get name => 'EncounterLost';
+}
+
+/// The player chose to leave. Identical in effect to [EncounterLost].
+@immutable
+final class EncounterRetreated extends GameEvent {
+  const EncounterRetreated({
+    required super.sequence,
+    required this.enemy,
+    required this.location,
+    required this.retreatTo,
+  });
+
+  final ContentId enemy;
+  final ContentId location;
+  final ContentId retreatTo;
+
+  @override
+  String get name => 'EncounterRetreated';
+}

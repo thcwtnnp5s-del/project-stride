@@ -135,22 +135,24 @@ void main() {
             expect(step.decision, startsWith('DECISIONS/'));
             expect(step.to, step.from + 1);
           }
-          // The two that exist both re-base, and each says so by name. A future
-          // v3→v4 that only reshapes must be added with `rebasesEconomy: false`,
-          // and this test will then be extended to pin that — the property is
-          // that the flag exists and is read, not that it is always true.
+          // The first two re-base, and each says so by name. The third — the
+          // v3→v4 Combat Slice 01 reshape (`DECISIONS/0020`) — is the case this
+          // table was built for: a format bump that says `rebasesEconomy:
+          // false` and touches no balance. Pinned per step so that flipping
+          // the flag on either kind is a reviewable edit.
           expect(
             StateMigrations.steps.map((StateMigrationStep s) => s.decision),
             <String>[
               'DECISIONS/0016_ECONOMY_EPOCH_CUTOVER.md',
               'DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md',
+              'DECISIONS/0020_COMBAT_SLICE_01.md',
             ],
           );
           expect(
-            StateMigrations.steps.every(
+            StateMigrations.steps.map(
               (StateMigrationStep s) => s.rebasesEconomy,
             ),
-            isTrue,
+            <bool>[true, true, false],
           );
         },
       );
@@ -159,11 +161,11 @@ void main() {
         expect(StateMigrations.pathFrom(StateVersion.current.value), isEmpty);
         expect(
           StateMigrations.pathFrom(2).map((StateMigrationStep s) => s.to),
-          <int>[3],
+          <int>[3, 4],
         );
         expect(
           StateMigrations.pathFrom(1).map((StateMigrationStep s) => s.to),
-          <int>[2, 3],
+          <int>[2, 3, 4],
         );
         expect(
           () => StateMigrations.pathFrom(0),
@@ -207,7 +209,7 @@ void main() {
 
       expect(after.steps.banked, 0);
       expect(after.steps.epoch.establishedAtStateVersion, 3);
-      expect(after.stateVersion, 3);
+      expect(after.stateVersion, StateVersion.current.value);
     });
 
     test('(h) a v3 save is not migrated again, and the command refuses', () {
@@ -418,7 +420,7 @@ void main() {
         ).payload!,
       );
 
-      expect(reloaded.gameStateVersion, 3);
+      expect(reloaded.gameStateVersion, StateVersion.current.value);
       expect(reloaded.state.steps.epoch, after.steps.epoch);
       expect(reloaded.state.steps.epoch.establishedAtStateVersion, 3);
       expect(reloaded.state.steps.banked, 250);
@@ -515,7 +517,7 @@ void main() {
       expect(ready.pendingMigration!.fromStateVersion, 2);
       expect(
         ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
-        <int>[3],
+        <int>[3, 4],
       );
       // The engine is the save as it is on disk: still v2, still 5,123.
       expect(ready.engine.state.stateVersion, 2);
@@ -554,7 +556,7 @@ void main() {
         expect(run.syncCommit, isA<CommitDurable>());
         expect(run.migrationCommit, isA<CommitDurable>());
         final GameState after = run.engine.state;
-        expect(after.stateVersion, 3);
+        expect(after.stateVersion, StateVersion.current.value);
         expect(after.steps.epoch.establishedAtStateVersion, 3);
         expect(after.steps.banked, 0);
         expect(after.steps.totalGranted, 464946 + backlogSteps);
@@ -574,12 +576,13 @@ void main() {
 
         final StateMigrationReport report = run.report!;
         expect(report.fromStateVersion, 2);
-        expect(report.toStateVersion, 3);
+        expect(report.toStateVersion, StateVersion.current.value);
         expect(report.bankedAfter, 0);
         expect(report.previouslyRetiredSteps, 459043);
         expect(report.newlyRetiredSteps, 5123 + backlogSteps);
         expect(report.stepsApplied.map((StateMigrationStep s) => s.to), <int>[
           3,
+          4,
         ]);
 
         // Two transactions: the sync's, then the migration's — the migration
@@ -595,7 +598,7 @@ void main() {
           3,
           reason: 'was 1 in the fixture',
         );
-        expect(reread.state.stateVersion, 3);
+        expect(reread.state.stateVersion, StateVersion.current.value);
         expect(reread.state.steps.banked, 0);
       },
     );
@@ -720,7 +723,7 @@ void main() {
         saltFingerprint: liveIdentity.saltFingerprint,
       );
       expect(completed.migrationCommit, isA<CommitDurable>());
-      expect(completed.engine.state.stateVersion, 3);
+      expect(completed.engine.state.stateVersion, StateVersion.current.value);
       expect(completed.engine.state.steps.banked, 0);
       expect(
         completed.engine.state.steps.totalGranted,
@@ -851,7 +854,7 @@ void main() {
     });
 
     test(
-      '(i) a v1 save defers the whole path and lands at v3 in one commit',
+      '(i) a v1 save defers the whole path and lands at the current version in one commit',
       () async {
         // The path v1→v2→v3 contains a deferring step, so *all* of it waits:
         // a v1 save is not committed at v2 in between. Same one-transaction
@@ -887,7 +890,7 @@ void main() {
         expect(ready.engine.state.stateVersion, 1);
         expect(
           ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
-          <int>[2, 3],
+          <int>[2, 3, 4],
         );
 
         final DeferredMigrationRun run = await completeAfterFirstSync(
@@ -895,7 +898,7 @@ void main() {
           repo,
           saltFingerprint: liveIdentity.saltFingerprint,
         );
-        expect(run.engine.state.stateVersion, 3);
+        expect(run.engine.state.stateVersion, StateVersion.current.value);
         expect(run.engine.state.steps.banked, 0);
         expect(run.engine.state.steps.epoch.establishedAtStateVersion, 3);
         expect(run.engine.state.steps.totalGranted, 459223);
@@ -906,10 +909,11 @@ void main() {
 
         final StateMigrationReport report = run.report!;
         expect(report.fromStateVersion, 1);
-        expect(report.toStateVersion, 3);
+        expect(report.toStateVersion, StateVersion.current.value);
         expect(report.stepsApplied.map((StateMigrationStep s) => s.to), <int>[
           2,
           3,
+          4,
         ]);
         expect(report.retiredSteps, 459043);
         expect(report.previouslyRetiredSteps, 0);
@@ -922,7 +926,7 @@ void main() {
                 )
                 as SaveLoaded;
         expect(reread.lastAppliedTransaction, 2);
-        expect(reread.state.stateVersion, 3);
+        expect(reread.state.stateVersion, StateVersion.current.value);
         final BootstrapExistingGame again =
             (await boot(device: device.reboot(), identity: identity)).outcome
                 as BootstrapExistingGame;
@@ -933,11 +937,11 @@ void main() {
     );
 
     test(
-      'a new game starts at v3, at the origin, and never migrates',
+      'a new game starts at the current version, at the origin, and never migrates',
       () async {
         final BootstrapNewGame fresh =
             (await boot()).outcome as BootstrapNewGame;
-        expect(fresh.engine.state.stateVersion, 3);
+        expect(fresh.engine.state.stateVersion, StateVersion.current.value);
         expect(fresh.engine.state.steps.epoch, const EconomyEpoch.origin());
         expect(fresh.engine.state.steps.epoch.establishedAtStateVersion, 0);
       },

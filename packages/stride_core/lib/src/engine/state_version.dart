@@ -25,6 +25,7 @@ import 'package:meta/meta.dart';
 /// | 1 | F-03 | The original state shape |
 /// | 2 | Playable Phase 2 | `steps.epoch` — the playable-economy cutover (`DECISIONS/0016`) |
 /// | 3 | Transformation Build 01 | `steps.epoch.establishedAtStateVersion` — the Transformation playtest epoch (`DECISIONS/0018`) |
+/// | 4 | Playable Expansion 01 | `encounter` and `world.drivenOff` — Combat Slice 01 (`DECISIONS/0020`); a format bump only, no economy re-base |
 @immutable
 final class StateVersion implements Comparable<StateVersion> {
   const StateVersion(this.value);
@@ -32,7 +33,7 @@ final class StateVersion implements Comparable<StateVersion> {
   final int value;
 
   /// The version new games are created at.
-  static const StateVersion current = StateVersion(3);
+  static const StateVersion current = StateVersion(4);
 
   /// The oldest version this build can read.
   ///

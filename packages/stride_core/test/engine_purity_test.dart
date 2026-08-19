@@ -45,6 +45,10 @@ void main() {
       r'DateTime\.timestamp': 'reads the wall clock',
       r'Stopwatch\(': 'measures elapsed real time',
       r'\bRandom\(': 'draws ambient randomness',
+      // Any other reach for dart:math's generator — `Random.secure()`, a typed
+      // field, a parameter. Combat Slice 01 resolves every roll from the
+      // encounter seed (`CombatRules.roll`); the core never holds a generator.
+      r'\bRandom\b': 'names dart:math Random',
       r'Zone\.current': 'reads ambient context',
       r'Platform\.': 'reads the platform',
       r'Intl\b': 'reads the locale',

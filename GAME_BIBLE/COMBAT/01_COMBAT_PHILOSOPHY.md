@@ -15,6 +15,9 @@ Combat must reward:
 ## Locked model
 
 Reviewed and approved on 2026-08-01. See `DECISIONS/0003_COMBAT_MODEL.md`.
+The first implemented slice — three enemies, Attack · Eat · Retreat, a seeded
+resolver, character XP — is specified in `02_COMBAT_SLICE_01.md` and recorded
+in `DECISIONS/0020_COMBAT_SLICE_01.md` (2026-08-19).
 
 - Solo PvE
 - Mobile-friendly, one-handed, interruptible

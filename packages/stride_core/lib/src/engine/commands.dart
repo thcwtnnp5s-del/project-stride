@@ -362,3 +362,52 @@ final class ReconcileStepSync extends GameCommand {
   @override
   String get name => 'ReconcileStepSync';
 }
+
+/// Begin a fight with an enemy at the player's location.
+///
+/// **Costs no steps** (`DECISIONS/0020` §3): the walk here was the price. What
+/// stops a free, unlimited drop farm is the driven-off rule — after a victory
+/// the enemy cannot be fought again at this location until the player moves,
+/// and moving costs steps. Refused while an encounter is already active, when
+/// the enemy is elsewhere, or when it has been driven off here.
+@immutable
+final class StartEncounter extends GameCommand {
+  const StartEncounter({required this.enemy});
+
+  final ContentId enemy;
+
+  @override
+  String get name => 'StartEncounter';
+}
+
+/// Strike the enemy. One round: the player's attack and the enemy's reply
+/// resolve together, in one command and one commit (`DECISIONS/0020` §2).
+@immutable
+final class CombatAttack extends GameCommand {
+  const CombatAttack();
+
+  @override
+  String get name => 'CombatAttack';
+}
+
+/// Eat one owned consumable to heal, spending the turn: the enemy still
+/// replies. Refused when the item does not heal or HP is already full.
+@immutable
+final class CombatEat extends GameCommand {
+  const CombatEat({required this.item});
+
+  final ContentId item;
+
+  @override
+  String get name => 'CombatEat';
+}
+
+/// Leave the fight. The player is moved to the nearest safe location and
+/// nothing else changes; the enemy is *not* driven off (`DECISIONS/0020` §4).
+@immutable
+final class CombatRetreat extends GameCommand {
+  const CombatRetreat();
+
+  @override
+  String get name => 'CombatRetreat';
+}

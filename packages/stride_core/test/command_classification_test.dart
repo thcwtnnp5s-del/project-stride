@@ -30,6 +30,10 @@ List<GameCommand> allCommands() => <GameCommand>[
   ReconcileStepSync(response: const NoChangeSync()),
   const EstablishEconomyEpoch(fromStateVersion: 1, toStateVersion: 2),
   const EstablishNewGameBaseline(stateVersion: 3),
+  StartEncounter(enemy: ContentId.unchecked('enemy.forest_wolf')),
+  const CombatAttack(),
+  CombatEat(item: ContentId.unchecked('item.herb_broth')),
+  const CombatRetreat(),
 ];
 
 /// The classification each command must carry.
@@ -68,6 +72,14 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   // Issued from exactly one place: the session, after a new game's first
   // authorised sync (DECISIONS/0019). Same rule, same reason.
   'EstablishNewGameBaseline': false,
+  // Player-facing, all four (Combat Slice 01). Starting a fight costs no
+  // steps by design, and every figure — the loadout, the enemy's health, the
+  // roll — is derived inside the engine, so a surface can offer them without
+  // being able to decide what a hit is worth.
+  'StartEncounter': true,
+  'CombatAttack': true,
+  'CombatEat': true,
+  'CombatRetreat': true,
 };
 
 /// Proves [allCommands] covers the sealed hierarchy.
@@ -88,6 +100,10 @@ String classify(GameCommand command) => switch (command) {
   ReconcileStepSync() => 'ReconcileStepSync',
   EstablishEconomyEpoch() => 'EstablishEconomyEpoch',
   EstablishNewGameBaseline() => 'EstablishNewGameBaseline',
+  StartEncounter() => 'StartEncounter',
+  CombatAttack() => 'CombatAttack',
+  CombatEat() => 'CombatEat',
+  CombatRetreat() => 'CombatRetreat',
 };
 
 void main() {

@@ -87,6 +87,30 @@ enum RejectionCode {
   /// The engine has no content registry to validate against.
   contentNotLoaded('content_not_loaded'),
 
+  /// No such enemy exists in the loaded content.
+  unknownEnemy('unknown_enemy'),
+
+  /// The enemy exists, but not at the location the player is standing in.
+  enemyNotHere('enemy_not_here'),
+
+  /// An encounter is already active. Refuses a second `StartEncounter`, and
+  /// refuses gathering and travel until the fight is resolved
+  /// (`GAME_BIBLE/COMBAT/02_COMBAT_SLICE_01.md` §8).
+  encounterInProgress('encounter_in_progress'),
+
+  /// The enemy was beaten here and stays driven off until the player moves
+  /// (`DECISIONS/0020` §3).
+  enemyDrivenOff('enemy_driven_off'),
+
+  /// A combat action was issued with no encounter active.
+  noEncounter('no_encounter'),
+
+  /// The item is not a consumable that heals.
+  notEdible('not_edible'),
+
+  /// The player's HP is already full; eating would waste the food and the turn.
+  healthFull('health_full'),
+
   /// A normalized sync batch violated an invariant.
   ///
   /// An adapter fault rather than a player action, but returned rather than
