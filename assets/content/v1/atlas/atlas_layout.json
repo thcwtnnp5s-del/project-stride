@@ -1,9 +1,14 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "world": {
     "width": 1536,
     "height": 2752
   },
+  "rumors": [
+    { "id": "rumor.eastern_city", "x": 1468, "y": 1960 },
+    { "id": "rumor.lower_gallery", "x": 1496, "y": 968 },
+    { "id": "rumor.northern_range", "x": 1100, "y": 128 }
+  ],
   "scale": 4,
   "base": {
     "tiles": [

@@ -115,10 +115,109 @@
       "rarity": "rare",
       "tier": 1
     },
+    {
+      "id": "item.boar_hide",
+      "displayName": "Boar Hide",
+      "category": "material",
+      "rarity": "common",
+      "tier": 0
+    },
+    {
+      "id": "item.boar_tusk",
+      "displayName": "Boar Tusk",
+      "category": "material",
+      "rarity": "uncommon",
+      "tier": 0
+    },
+    {
+      "id": "item.scrap_metal",
+      "displayName": "Scrap Metal",
+      "category": "material",
+      "rarity": "common",
+      "tier": 0
+    },
+    {
+      "id": "item.heat_scale",
+      "displayName": "Heat Scale",
+      "category": "material",
+      "rarity": "common",
+      "tier": 1
+    },
+    {
+      "id": "item.ram_wool",
+      "displayName": "Ram Wool",
+      "category": "material",
+      "rarity": "common",
+      "tier": 1
+    },
+    {
+      "id": "item.ram_horn",
+      "displayName": "Ram Horn",
+      "category": "material",
+      "rarity": "uncommon",
+      "tier": 1
+    },
+    {
+      "id": "item.bear_pelt",
+      "displayName": "Bear Pelt",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 1
+    },
+
+    {
+      "id": "item.pristine_wolf_fang",
+      "displayName": "Pristine Wolf Fang",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 0
+    },
+    {
+      "id": "item.great_tusk",
+      "displayName": "Great Tusk",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 0
+    },
+    {
+      "id": "item.goblin_toolhead",
+      "displayName": "Goblin Toolhead",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 0
+    },
+    {
+      "id": "item.ember_core",
+      "displayName": "Ember Core",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 1
+    },
+    {
+      "id": "item.frost_claw",
+      "displayName": "Frost Claw",
+      "category": "material",
+      "rarity": "epic",
+      "tier": 1
+    },
+    {
+      "id": "item.pristine_horn",
+      "displayName": "Pristine Horn",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 1
+    },
 
     {
       "id": "item.oak_handle",
       "displayName": "Oak Handle",
+      "category": "material",
+      "rarity": "common",
+      "tier": 0
+    },
+    {
+      "id": "item.oak_plank",
+      "displayName": "Oak Plank",
       "category": "material",
       "rarity": "common",
       "tier": 0
@@ -171,6 +270,18 @@
       "stackable": false
     },
     {
+      "id": "item.reinforced_pickaxe",
+      "displayName": "Reinforced Pickaxe",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "tool",
+      "toolKind": "pickaxe",
+      "tier": 2,
+      "power": 6,
+      "toolBonusYieldPercent": 15,
+      "stackable": false
+    },
+    {
       "id": "item.bronze_chestplate",
       "displayName": "Bronze Chestplate",
       "category": "equipment",
@@ -188,6 +299,7 @@
       "slot": "armor",
       "tier": 1,
       "power": 4,
+      "wildernessYieldPercent": 10,
       "stackable": false
     },
     {
@@ -198,6 +310,7 @@
       "slot": "armor",
       "tier": 2,
       "power": 6,
+      "frostGuard": 2,
       "stackable": false
     },
 
@@ -207,7 +320,7 @@
       "category": "consumable",
       "rarity": "common",
       "tier": 0,
-      "healing": 12
+      "healing": 8
     },
     {
       "id": "item.duskcap_skewer",
@@ -215,7 +328,7 @@
       "category": "consumable",
       "rarity": "common",
       "tier": 0,
-      "healing": 20
+      "healing": 14
     },
     {
       "id": "item.frostbloom_tea",

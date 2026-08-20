@@ -3,6 +3,38 @@
   "kind": "recipes",
   "entries": [
     {
+      "id": "recipe.oak_plank",
+      "displayName": "Oak Plank",
+      "skill": "skill.smithing",
+      "requiredLevel": 1,
+      "ingredients": [
+        {
+          "item": "item.oak_log",
+          "quantity": 3
+        }
+      ],
+      "outputItem": "item.oak_plank",
+      "outputQuantity": 1,
+      "xp": 12,
+      "retiredByProject": "project.havens_rest_mill"
+    },
+    {
+      "id": "recipe.oak_plank_improved",
+      "displayName": "Oak Plank",
+      "skill": "skill.smithing",
+      "requiredLevel": 1,
+      "ingredients": [
+        {
+          "item": "item.oak_log",
+          "quantity": 2
+        }
+      ],
+      "outputItem": "item.oak_plank",
+      "outputQuantity": 1,
+      "xp": 12,
+      "unlockedByProject": "project.havens_rest_mill"
+    },
+    {
       "id": "recipe.oak_handle",
       "displayName": "Oak Handle",
       "skill": "skill.smithing",
@@ -16,6 +48,22 @@
       "outputItem": "item.oak_handle",
       "outputQuantity": 1,
       "xp": 15
+    },
+    {
+      "id": "recipe.oak_handle_pair",
+      "displayName": "Oak Handles (pair)",
+      "skill": "skill.smithing",
+      "requiredLevel": 1,
+      "ingredients": [
+        {
+          "item": "item.oak_log",
+          "quantity": 3
+        }
+      ],
+      "outputItem": "item.oak_handle",
+      "outputQuantity": 2,
+      "xp": 24,
+      "unlockedByProject": "project.havens_rest_mill"
     },
     {
       "id": "recipe.bronze_ingot",
@@ -94,6 +142,34 @@
       "xp": 70
     },
     {
+      "id": "recipe.reinforced_pickaxe",
+      "displayName": "Reinforced Pickaxe",
+      "skill": "skill.smithing",
+      "requiredLevel": 3,
+      "ingredients": [
+        {
+          "item": "item.training_pickaxe",
+          "quantity": 1
+        },
+        {
+          "item": "item.bronze_ingot",
+          "quantity": 2
+        },
+        {
+          "item": "item.scrap_metal",
+          "quantity": 2
+        },
+        {
+          "item": "item.oak_handle",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.reinforced_pickaxe",
+      "outputQuantity": 1,
+      "xp": 110,
+      "unlockedByContract": "contract.mine_hardware"
+    },
+    {
       "id": "recipe.bronze_chestplate",
       "displayName": "Bronze Chestplate",
       "skill": "skill.smithing",
@@ -123,13 +199,14 @@
           "quantity": 3
         },
         {
-          "item": "item.oak_handle",
-          "quantity": 1
+          "item": "item.oak_plank",
+          "quantity": 2
         }
       ],
       "outputItem": "item.wolfhide_jerkin",
       "outputQuantity": 1,
-      "xp": 60
+      "xp": 60,
+      "unlockedByContract": "contract.woodland_aid"
     },
     {
       "id": "recipe.frostlined_jerkin",
@@ -144,11 +221,20 @@
         {
           "item": "item.lynx_pelt",
           "quantity": 2
+        },
+        {
+          "item": "item.ram_wool",
+          "quantity": 1
+        },
+        {
+          "item": "item.rime_blossom",
+          "quantity": 2
         }
       ],
       "outputItem": "item.frostlined_jerkin",
       "outputQuantity": 1,
-      "xp": 120
+      "xp": 120,
+      "unlockedByContract": "contract.cold_weather_kit"
     },
     {
       "id": "recipe.herb_broth",
@@ -158,7 +244,7 @@
       "ingredients": [
         {
           "item": "item.meadow_herb",
-          "quantity": 3
+          "quantity": 2
         }
       ],
       "outputItem": "item.herb_broth",

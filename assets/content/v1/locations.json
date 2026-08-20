@@ -8,9 +8,12 @@
       "terrain": "grassland",
       "isSafe": true,
       "isStart": true,
+      "developmentState": "Struggling",
+      "boardName": "Notice Board",
+      "boardSlots": 3,
       "connections": [
-        { "to": "location.whispering_woods", "stepCost": 600 },
-        { "to": "location.stonefall_mine", "stepCost": 800 }
+        { "to": "location.whispering_woods", "stepCost": 500 },
+        { "to": "location.stonefall_mine", "stepCost": 1400 }
       ],
       "entryRequirements": [],
       "resourceNodes": ["resource_node.meadow_patch"]
@@ -21,10 +24,12 @@
       "terrain": "forest",
       "isSafe": false,
       "isStart": false,
+      "boardName": "Ranger Requests",
+      "boardSlots": 2,
       "connections": [
-        { "to": "location.havens_rest", "stepCost": 600 },
-        { "to": "location.stonefall_mine", "stepCost": 700 },
-        { "to": "location.forgotten_hollow", "stepCost": 1300 }
+        { "to": "location.havens_rest", "stepCost": 500 },
+        { "to": "location.stonefall_mine", "stepCost": 1000 },
+        { "to": "location.forgotten_hollow", "stepCost": 2400 }
       ],
       "entryRequirements": [],
       "resourceNodes": [
@@ -38,13 +43,20 @@
       "terrain": "foothills",
       "isSafe": false,
       "isStart": false,
+      "developmentState": "Strained",
+      "boardName": "Mine Ledger",
+      "boardSlots": 3,
       "connections": [
-        { "to": "location.havens_rest", "stepCost": 800 },
-        { "to": "location.whispering_woods", "stepCost": 700 },
-        { "to": "location.frostmere", "stepCost": 1500 }
+        { "to": "location.havens_rest", "stepCost": 1400 },
+        { "to": "location.whispering_woods", "stepCost": 1000 },
+        { "to": "location.frostmere", "stepCost": 3000 }
       ],
       "entryRequirements": [],
-      "resourceNodes": ["resource_node.copper_seam", "resource_node.tin_seam"]
+      "resourceNodes": [
+        "resource_node.copper_seam",
+        "resource_node.tin_seam",
+        "resource_node.hardened_copper_seam"
+      ]
     },
     {
       "id": "location.frostmere",
@@ -52,8 +64,12 @@
       "terrain": "alpine",
       "isSafe": false,
       "isStart": false,
+      "safeAfterProject": "project.frostmere_shelter",
+      "developmentState": "Exposed",
+      "boardName": "Expedition Ledger",
+      "boardSlots": 2,
       "connections": [
-        { "to": "location.stonefall_mine", "stepCost": 1500 }
+        { "to": "location.stonefall_mine", "stepCost": 3000 }
       ],
       "entryRequirements": [],
       "resourceNodes": [
@@ -68,7 +84,7 @@
       "isSafe": false,
       "isStart": false,
       "connections": [
-        { "to": "location.whispering_woods", "stepCost": 1300 }
+        { "to": "location.whispering_woods", "stepCost": 2400 }
       ],
       "entryRequirements": ["item.bronze_sword"],
       "resourceNodes": ["resource_node.hollow_thicket"]

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "kind": "projects",
+  "entries": [
+    {
+      "id": "project.havens_rest_mill",
+      "displayName": "Restore the Haven's Rest Mill",
+      "location": "location.havens_rest",
+      "brief": "The mill has stood dark since the wheel cracked. Timber, bronze, and willing hands could turn it again — and with it, the whole settlement's luck.",
+      "stages": [
+        {
+          "name": "Timber Frame",
+          "requires": [{ "item": "item.oak_plank", "quantity": 12 }],
+          "characterXp": 40
+        },
+        {
+          "name": "Mechanism",
+          "requires": [{ "item": "item.bronze_ingot", "quantity": 4 }],
+          "characterXp": 50
+        },
+        {
+          "name": "Open the Workshop",
+          "requires": [
+            { "item": "item.oak_log", "quantity": 6 },
+            { "item": "item.herb_broth", "quantity": 3 }
+          ],
+          "characterXp": 40
+        }
+      ],
+      "completionCharacterXp": 60,
+      "completionHeadline": "HAVEN'S REST MILL RESTORED",
+      "developmentTo": "Recovering",
+      "developmentRank": 1
+    },
+    {
+      "id": "project.stonefall_lift",
+      "displayName": "Reopen the Stonefall Lift",
+      "location": "location.stonefall_mine",
+      "brief": "The great lift once carried crews to seams no ladder reaches. Its platform rotted and its gears seized — but the shaft below is still there, waiting.",
+      "stages": [
+        {
+          "name": "Timber Platform",
+          "requires": [{ "item": "item.oak_plank", "quantity": 10 }],
+          "characterXp": 40
+        },
+        {
+          "name": "Winding Gear",
+          "requires": [{ "item": "item.bronze_ingot", "quantity": 6 }],
+          "characterXp": 50
+        },
+        {
+          "name": "Counterweights",
+          "requires": [
+            { "item": "item.scrap_metal", "quantity": 4 },
+            { "item": "item.heat_scale", "quantity": 2 }
+          ],
+          "characterXp": 50
+        }
+      ],
+      "completionCharacterXp": 70,
+      "completionHeadline": "THE STONEFALL LIFT RUNS AGAIN",
+      "developmentTo": "Working",
+      "developmentRank": 1,
+      "revealRumors": ["rumor.lower_gallery"]
+    },
+    {
+      "id": "project.frostmere_shelter",
+      "displayName": "Establish Frostmere Shelter",
+      "location": "location.frostmere",
+      "brief": "Frostmere has no walls, no hearth, no door to close against the wind. Build them, and the north stops being a place you survive and becomes a place you set out from.",
+      "stages": [
+        {
+          "name": "Windbreak",
+          "requires": [
+            { "item": "item.pine_log", "quantity": 8 },
+            { "item": "item.oak_plank", "quantity": 6 }
+          ],
+          "characterXp": 50
+        },
+        {
+          "name": "Hearth",
+          "requires": [
+            { "item": "item.bronze_ingot", "quantity": 4 },
+            { "item": "item.scrap_metal", "quantity": 2 }
+          ],
+          "characterXp": 60
+        },
+        {
+          "name": "Provisions",
+          "requires": [
+            { "item": "item.ram_wool", "quantity": 2 },
+            { "item": "item.herb_broth", "quantity": 4 },
+            { "item": "item.rime_blossom", "quantity": 2 }
+          ],
+          "characterXp": 60
+        }
+      ],
+      "completionCharacterXp": 90,
+      "completionHeadline": "FROSTMERE SHELTER ESTABLISHED",
+      "developmentTo": "Outpost",
+      "developmentRank": 1,
+      "revealRumors": ["rumor.northern_range"]
+    }
+  ]
+}

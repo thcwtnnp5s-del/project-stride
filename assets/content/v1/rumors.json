@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "rumors",
+  "entries": [
+    {
+      "id": "rumor.eastern_city",
+      "displayName": "Eastern City ?",
+      "hint": "Travelers speak of a walled city beyond the eastern marshes, where the river meets the sea."
+    },
+    {
+      "id": "rumor.lower_gallery",
+      "displayName": "Lower Gallery ?",
+      "hint": "The lift's engineers whisper of galleries below the deepest seam — worked once, sealed, and never mapped."
+    },
+    {
+      "id": "rumor.northern_range",
+      "displayName": "Northern Range ?",
+      "hint": "Beyond Frostmere the ridge climbs into peaks no ledger names, and something glitters on the far side of the ice."
+    }
+  ]
+}

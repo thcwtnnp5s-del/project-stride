@@ -23,12 +23,15 @@ const String contentPackDirectory = 'assets/content/v1';
 
 /// Every file in the pack, in the order they are declared in `pubspec.yaml`.
 const List<String> contentPackFiles = <String>[
+  'contracts.json',
   'enemies.json',
   'items.json',
   'locations.json',
   'profiles.json',
+  'projects.json',
   'recipes.json',
   'resource_nodes.json',
+  'rumors.json',
   'skills.json',
 ];
 

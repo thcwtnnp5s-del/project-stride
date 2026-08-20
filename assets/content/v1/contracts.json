@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "kind": "contracts",
+  "entries": [
+    {
+      "id": "contract.herbal_supplies",
+      "displayName": "Herbal Supplies",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 1,
+      "brief": "The healer's stores run low. Fresh meadow herbs, please — the greener the better.",
+      "requires": [{ "item": "item.meadow_herb", "quantity": 5 }],
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 30 }],
+      "rewardItems": [{ "item": "item.herb_broth", "quantity": 2 }]
+    },
+    {
+      "id": "contract.carpenters_request",
+      "displayName": "Carpenter's Request",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 2,
+      "brief": "Good planks are worth more than good intentions. Bring five and the shop will owe you.",
+      "requires": [{ "item": "item.oak_plank", "quantity": 5 }],
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 40 }],
+      "rewardItems": [{ "item": "item.oak_handle", "quantity": 1 }]
+    },
+    {
+      "id": "contract.kitchen_stores",
+      "displayName": "Kitchen Stores",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 3,
+      "brief": "The inn kitchen wants herbs and one good duskcap for the evening pot.",
+      "requires": [
+        { "item": "item.meadow_herb", "quantity": 4 },
+        { "item": "item.duskcap", "quantity": 1 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 35 }],
+      "rewardItems": [{ "item": "item.duskcap_skewer", "quantity": 1 }]
+    },
+    {
+      "id": "contract.repair_materials",
+      "displayName": "Repair Materials",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 4,
+      "brief": "Half the palisade wants shoring. Raw oak will do — nothing fancy.",
+      "requires": [{ "item": "item.oak_log", "quantity": 8 }],
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 40 }],
+      "rewardCharacterXp": 10
+    },
+    {
+      "id": "contract.workshop_delivery",
+      "displayName": "Workshop Delivery",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 5,
+      "brief": "One bronze ingot, for hinges and nails. The workshop pays in provisions.",
+      "requires": [{ "item": "item.bronze_ingot", "quantity": 1 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 45 }],
+      "rewardItems": [{ "item": "item.herb_broth", "quantity": 2 }]
+    },
+    {
+      "id": "contract.winter_bedding",
+      "displayName": "Winter Bedding",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 6,
+      "brief": "A bear pelt would see the sick house through the cold nights. If you ever best one.",
+      "requires": [{ "item": "item.bear_pelt", "quantity": 1 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 40 }],
+      "rewardItems": [{ "item": "item.duskcap_skewer", "quantity": 2 }],
+      "rewardCharacterXp": 25
+    },
+    {
+      "id": "contract.carpenters_commission",
+      "displayName": "Carpenter's Commission",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 7,
+      "brief": "With the mill turning, the carpenter takes real commissions. Planks, and plenty.",
+      "requires": [{ "item": "item.oak_plank", "quantity": 6 }],
+      "requiresProject": "project.havens_rest_mill",
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 60 }],
+      "rewardCharacterXp": 15
+    },
+    {
+      "id": "contract.supplies_for_the_road",
+      "displayName": "Supplies for the Road",
+      "location": "location.havens_rest",
+      "class": "regional",
+      "brief": "A trader is provisioning a long haul east and pays well for broth and boards. She talks, too — of places worth knowing.",
+      "requires": [
+        { "item": "item.herb_broth", "quantity": 4 },
+        { "item": "item.oak_plank", "quantity": 3 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 60 }],
+      "rewardCharacterXp": 25,
+      "revealRumors": ["rumor.eastern_city"]
+    },
+    {
+      "id": "contract.woodland_aid",
+      "displayName": "Woodland Aid",
+      "location": "location.havens_rest",
+      "class": "regional",
+      "brief": "Help the rangers in the Whispering Woods, and bring back one wolf pelt — the tanner will teach you what a good pelt is worth.",
+      "requires": [{ "item": "item.wolf_pelt", "quantity": 1 }],
+      "requiresCompletedNeedAt": "location.whispering_woods",
+      "rewardCharacterXp": 30
+    },
+
+    {
+      "id": "contract.trail_clearing",
+      "displayName": "Trail Clearing",
+      "location": "location.whispering_woods",
+      "class": "local_need",
+      "deckOrder": 1,
+      "brief": "Deadfall across the north trail. Cut timber and haul it clear.",
+      "requires": [{ "item": "item.oak_log", "quantity": 8 }],
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 45 }],
+      "rewardItems": [{ "item": "item.herb_broth", "quantity": 2 }]
+    },
+    {
+      "id": "contract.herbal_survey",
+      "displayName": "Herbal Survey",
+      "location": "location.whispering_woods",
+      "class": "local_need",
+      "deckOrder": 2,
+      "brief": "The rangers keep a ledger of what grows where. Samples wanted.",
+      "requires": [
+        { "item": "item.meadow_herb", "quantity": 4 },
+        { "item": "item.duskcap", "quantity": 2 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 45 }],
+      "rewardItems": [{ "item": "item.duskcap_skewer", "quantity": 1 }]
+    },
+    {
+      "id": "contract.camp_timber",
+      "displayName": "Camp Timber",
+      "location": "location.whispering_woods",
+      "class": "local_need",
+      "deckOrder": 3,
+      "brief": "The watch camp wants proper planking before the rains.",
+      "requires": [{ "item": "item.oak_plank", "quantity": 5 }],
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 45 }],
+      "rewardItems": [{ "item": "item.meadow_herb", "quantity": 3 }]
+    },
+    {
+      "id": "contract.patch_leather",
+      "displayName": "Patch Leather",
+      "location": "location.whispering_woods",
+      "class": "local_need",
+      "deckOrder": 4,
+      "brief": "Boar hide mends packs, boots and tents alike. The rangers buy all you carry.",
+      "requires": [{ "item": "item.boar_hide", "quantity": 3 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 45 }],
+      "rewardItems": [{ "item": "item.herb_broth", "quantity": 2 }]
+    },
+    {
+      "id": "contract.wolf_problem",
+      "displayName": "Wolf Problem",
+      "location": "location.whispering_woods",
+      "class": "bounty",
+      "brief": "The pack presses too close to the trails. Drive off three, and a pelt from the rangers' own stores is yours.",
+      "bountyEnemy": "enemy.forest_wolf",
+      "bountyCount": 3,
+      "rewardItems": [{ "item": "item.wolf_pelt", "quantity": 1 }],
+      "rewardCharacterXp": 20
+    },
+    {
+      "id": "contract.boar_on_the_trail",
+      "displayName": "Boar on the Trail",
+      "location": "location.whispering_woods",
+      "class": "bounty",
+      "brief": "A sounder is churning up the south path. Turn two of them back.",
+      "bountyEnemy": "enemy.wild_boar",
+      "bountyCount": 2,
+      "rewardItems": [{ "item": "item.boar_tusk", "quantity": 1 }],
+      "rewardCharacterXp": 25
+    },
+    {
+      "id": "contract.the_old_bear",
+      "displayName": "The Old Bear",
+      "location": "location.whispering_woods",
+      "class": "regional",
+      "brief": "Something big has claimed the deep woods, and the rangers will not go in after it. One fight, if you dare it.",
+      "bountyEnemy": "enemy.oakback_bear",
+      "bountyCount": 1,
+      "rewardCharacterXp": 60
+    },
+
+    {
+      "id": "contract.timber_for_the_shafts",
+      "displayName": "Timber for the Shafts",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 1,
+      "brief": "Shaft three wants planking before anyone works it again. The mine pays in ore.",
+      "requires": [{ "item": "item.oak_plank", "quantity": 8 }],
+      "rewardSkillXp": [{ "skill": "skill.mining", "xp": 50 }],
+      "rewardItems": [{ "item": "item.copper_ore", "quantity": 3 }]
+    },
+    {
+      "id": "contract.feed_the_crew",
+      "displayName": "Feed the Crew",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 2,
+      "brief": "Hot broth keeps the crew swinging. Bring four and the storemaster finds you tin.",
+      "requires": [{ "item": "item.herb_broth", "quantity": 4 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 40 }],
+      "rewardItems": [{ "item": "item.tin_ore", "quantity": 1 }]
+    },
+    {
+      "id": "contract.scrap_recovery",
+      "displayName": "Scrap Recovery",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 3,
+      "brief": "The goblins strip every cart they wreck. Recovered scrap buys clean bronze.",
+      "requires": [{ "item": "item.scrap_metal", "quantity": 3 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 50 }],
+      "rewardItems": [{ "item": "item.bronze_ingot", "quantity": 1 }]
+    },
+    {
+      "id": "contract.emergency_supports",
+      "displayName": "Emergency Supports",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 4,
+      "brief": "The west gallery groans. Logs for props, planks for wedges — quickly.",
+      "requires": [
+        { "item": "item.oak_log", "quantity": 6 },
+        { "item": "item.oak_plank", "quantity": 3 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.mining", "xp": 45 }],
+      "rewardCharacterXp": 10
+    },
+    {
+      "id": "contract.goblin_bounty",
+      "displayName": "Goblin Bounty",
+      "location": "location.stonefall_mine",
+      "class": "bounty",
+      "brief": "Two fewer goblins in the galleries is a shift nobody bleeds on. Scrap guaranteed.",
+      "bountyEnemy": "enemy.cave_goblin",
+      "bountyCount": 2,
+      "rewardItems": [{ "item": "item.scrap_metal", "quantity": 1 }],
+      "rewardCharacterXp": 20
+    },
+    {
+      "id": "contract.heat_in_the_deep",
+      "displayName": "Heat in the Deep",
+      "location": "location.stonefall_mine",
+      "class": "bounty",
+      "brief": "Something warm-blooded and scaled has moved into the lower seams. The smith wants what it sheds.",
+      "bountyEnemy": "enemy.salamander",
+      "bountyCount": 2,
+      "rewardItems": [{ "item": "item.heat_scale", "quantity": 1 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 40 }],
+      "rewardCharacterXp": 25
+    },
+    {
+      "id": "contract.mine_hardware",
+      "displayName": "Replace the Mine Hardware",
+      "location": "location.stonefall_mine",
+      "class": "regional",
+      "brief": "Every brace and bracket down there is older than the foreman. Bronze and scrap buys new — and the smith will show you how a real pickaxe is made.",
+      "requires": [
+        { "item": "item.bronze_ingot", "quantity": 3 },
+        { "item": "item.scrap_metal", "quantity": 2 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 120 }],
+      "rewardCharacterXp": 30
+    },
+
+    {
+      "id": "contract.warm_supplies",
+      "displayName": "Warm Supplies",
+      "location": "location.frostmere",
+      "class": "local_need",
+      "deckOrder": 1,
+      "brief": "Nothing up here stays warm on its own. Broth, as much as you can carry.",
+      "requires": [{ "item": "item.herb_broth", "quantity": 5 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 50 }],
+      "rewardItems": [{ "item": "item.rime_blossom", "quantity": 1 }]
+    },
+    {
+      "id": "contract.high_camp_timber",
+      "displayName": "Camp Timber",
+      "location": "location.frostmere",
+      "class": "local_need",
+      "deckOrder": 2,
+      "brief": "Pine burns hot and splits clean. The expedition takes every log.",
+      "requires": [{ "item": "item.pine_log", "quantity": 6 }],
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 55 }],
+      "rewardCharacterXp": 15
+    },
+    {
+      "id": "contract.horn_and_hide",
+      "displayName": "Horn and Hide",
+      "location": "location.frostmere",
+      "class": "local_need",
+      "deckOrder": 3,
+      "brief": "Ram horn makes fittings iron cannot. The quartermaster trades in blossom.",
+      "requires": [{ "item": "item.ram_horn", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 50 }],
+      "rewardItems": [{ "item": "item.rime_blossom", "quantity": 1 }]
+    },
+    {
+      "id": "contract.predator_control",
+      "displayName": "Predator Control",
+      "location": "location.frostmere",
+      "class": "bounty",
+      "brief": "The lynxes have learned where the supply line runs. Turn two back and a pelt is yours, guaranteed.",
+      "bountyEnemy": "enemy.frost_lynx",
+      "bountyCount": 2,
+      "rewardItems": [{ "item": "item.lynx_pelt", "quantity": 1 }],
+      "rewardCharacterXp": 30
+    },
+    {
+      "id": "contract.highland_survey",
+      "displayName": "Highland Survey",
+      "location": "location.frostmere",
+      "class": "bounty",
+      "brief": "The rams own the high ledges the surveyors need. Wool for your trouble.",
+      "bountyEnemy": "enemy.mountain_ram",
+      "bountyCount": 2,
+      "rewardItems": [{ "item": "item.ram_wool", "quantity": 1 }],
+      "rewardCharacterXp": 25
+    },
+    {
+      "id": "contract.cold_weather_kit",
+      "displayName": "Cold-Weather Kit",
+      "location": "location.frostmere",
+      "class": "regional",
+      "brief": "Show the outfitter a proper wolfhide jerkin, hand over blossom and wool, and she will teach you the frost-lined pattern.",
+      "requiresOwned": ["item.wolfhide_jerkin"],
+      "requires": [
+        { "item": "item.rime_blossom", "quantity": 2 },
+        { "item": "item.ram_wool", "quantity": 1 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 80 }],
+      "rewardCharacterXp": 30
+    },
+    {
+      "id": "contract.northern_expedition",
+      "displayName": "Northern Expedition",
+      "location": "location.frostmere",
+      "class": "regional",
+      "brief": "With the shelter standing, the expedition can finally push past the lake. Provisions and wool make it possible.",
+      "requiresProject": "project.frostmere_shelter",
+      "requires": [
+        { "item": "item.herb_broth", "quantity": 6 },
+        { "item": "item.ram_wool", "quantity": 2 }
+      ],
+      "rewardItems": [{ "item": "item.frostbloom_tea", "quantity": 2 }],
+      "rewardCharacterXp": 60
+    }
+  ]
+}
