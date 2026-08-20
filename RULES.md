@@ -82,6 +82,23 @@ previous progression. No death, no item loss, no rollback.
 **P-8 — Offline-first.** Core gameplay never requires connectivity.
 → `PROJECT_KERNEL/05_NON_NEGOTIABLES.md`
 
+**P-9 — Goal tracking never reserves, escrows, or auto-spends steps.**
+A tracked Journey, Pursuit, or Contract is information: every figure it shows
+is a live projection, clearing it changes no economy figure, and nothing
+tracked expires. Spending remains an explicit player command, always.
+→ `DECISIONS/0023_EXPLORATION_PROGRESSION_LOOP.md`,
+`GAME_BIBLE/SYSTEMS/09_EXPLORATION_PROGRESSION_LOOP.md`
+
+**P-10 — Repeatable RNG is never load-bearing, and permanent effects apply
+exactly once.**
+Nothing a contract, recipe, or project *requires* is a low-chance drop;
+signature rares are trophies, not ingredients, and bounties count only
+deterministic post-acceptance victories. A completed community project is
+permanent, and its effects are content-declared predicates over the set of
+completed projects — structurally incapable of double application on replay.
+→ `DECISIONS/0023_EXPLORATION_PROGRESSION_LOOP.md`,
+`GAME_BIBLE/SYSTEMS/09_EXPLORATION_PROGRESSION_LOOP.md`
+
 ---
 
 ## Health and step accounting

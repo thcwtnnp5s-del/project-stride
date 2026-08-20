@@ -1,5 +1,55 @@
 # Project Stride — Project State
 
+**Version:** 2.11
+**Status:** 🚧 **EXPLORATION & PROGRESSION LOOP 01 — implementation complete,
+awaiting the owner's physical-device test.** Branch
+`playable-phase-2-multiregion`, on top of the device-corrected Activity Feel
+& Presentation 01 (`28e6f01`). Records:
+`MILESTONES/EXPLORATION_PROGRESSION_LOOP_01.md` (device script in the final
+report), `DECISIONS/0023_EXPLORATION_PROGRESSION_LOOP.md`,
+`GAME_BIBLE/SYSTEMS/09_EXPLORATION_PROGRESSION_LOOP.md`.
+
+What changed, in one breath: the game now answers **"what will my next
+1,000–3,000 steps accomplish?"** — three tracked goal slots (Journey /
+Pursuit / Contract, live projections, never escrow, nothing expires) and a
+held step-sync banner ("+N STEPS BANKED" plus what it made possible); every
+location keeps a **board in its own fiction** (Notice Board, Ranger
+Requests, Mine Ledger, Expedition Ledger) serving one contract architecture
+— completion-rotated local needs, post-acceptance-only bounties with
+deterministic material guarantees, and one-time regionals that teach recipes
+and reveal rumors; three **community projects** (Mill, Gallery Lift, North
+Shelter) take staged, atomic contributions and permanently change their
+settlement's **named development state** (Struggling→Recovering,
+Strained→Working, Exposed→Outpost) with exactly-once content-declared
+effects (cheaper planks, a deeper seam, Frostmere safe); **HP persists**
+between fights at save v7 (level = +2 Max HP, no auto attack; food heals out
+of combat; safe settlements full-heal on arrival; defeat is still retreat);
+**enemy knowledge** runs Seen → Studied → Known and stops, concealing
+signature drops (`???`) until Known; the three RCP01 enemies (Wild Boar,
+Mountain Ram, Salamander) and the Oakback Bear are **in the world** with
+their accepted PixelLab tracks; travel costs are retuned onto the continent
+scale (500 / 1,000 / 1,400 / 3,000 / 2,400) behind a **confirmation step**
+and an arrival trace; contracts and projects reveal **rumors** as named
+future-tier atlas landmarks; and gathering carries deterministic seeded
+**yield bonuses** (node / wilderness / tool) with per-index queue rolls.
+
+Fifteen new item icons shipped (12 pixen generations + 3 re-rolls + 1
+re-re-roll, three blind Visual QA rounds — every verdict in
+`GAME_BIBLE/ART/exploration/EXPLORATION_PROGRESSION_LOOP_01/items/README.md`)
+plus three RCP01 material icons; a withheld icon would have withheld its item
+(none needed it). Suites: app **555**, `stride_core` **674**,
+`stride_storage` **108**, `stride_health` **143**; analyze clean; goldens
+regenerated and reviewed; migration v6→v7 `rebasesEconomy: false`, v1–v6
+fixtures byte-untouched, `v7_baseline.save` frozen, conformance transcript
+amended (+255 B, reviewed). **No Health/step-accounting change; no economy
+re-basing.** PixelLab: 16 of the cycle's 22 generations spent; world repaint,
+project visual states and ambient vibrancy are recorded seams deferred to the
+2026-09-16 budget reset. Audio: no canonical owner sources recoverable in the
+repo (OD-06 unchanged) — reported, not blocking. Open: Q-06, Q-07 remainder,
+OD-04, OD-06.
+
+---
+
 **Version:** 2.10
 **Status:** 🚧 **ACTIVITY FEEL & PRESENTATION 01 — device-acceptance
 correction pass complete, awaiting the owner's physical-device re-test.**

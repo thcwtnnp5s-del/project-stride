@@ -15,7 +15,7 @@ Branch `s01a-foreground-health-harness`, from `e138f23`. Foreground only.
 | `GameEngine._reconcile` | `ReconcileStepSync` → events in commit order, checkpoint authorized **last**. |
 | `SaveRepository.commit` | CAS, journal-first durability, two-slot ping-pong. |
 | `bootstrapStride` (`lib/runtime/`) | Storage, identity vault, coordinator, `OriginPseudonymizer`. Android identity is the `_FileBackend` path — no native Android secure store is needed. |
-| Content | `location.havens_rest` (start) holds `resource_node.meadow_patch`: foraging, level 1, `ToolKind.none`, 90 steps, yields 2 `item.meadow_herb`, 10 xp. |
+| Content | `location.havens_rest` (start) holds `resource_node.meadow_patch`: foraging, level 1, `ToolKind.none`, 80 steps, yields 1 `item.meadow_herb`, 10 xp (retuned by Exploration & Progression Loop 01; originally 90 / 2 / 10). |
 
 ## The five real gaps
 

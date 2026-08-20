@@ -470,6 +470,13 @@ dependency). Nothing was guessed; the audio foundation stays deferred until the
 owner resends them. Combat now emits the events an audio layer would hook
 (`CombatPlayerStruck`, `CombatEnemyStruck`, `EncounterWon`, …), so the first
 audio pass has concrete cues waiting.
+**Re-checked, 2026-08-20 (Exploration & Progression Loop 01):** searched
+again per that brief's §66 — still no canonical audio sources anywhere in the
+repo, and no URLs were guessed. The owner's GitHub audio references are **not
+recoverable from the repository**; they need to be resent. Not blocking: the
+loop shipped without audio, and the new events (`ContractCompleted`,
+`ProjectContributed`, `FoodEaten`, `GoalTracked`) add more concrete cues for
+the eventual pass.
 **Graduates to:** `GAME_BIBLE/AUDIO/01_AUDIO_IDENTITY.md`, and an audio layer
 
 ### The direction
@@ -671,7 +678,8 @@ build could ship, labelled here so the choice is visibly provisional
   decisions; the withheld east / south-east tiles carry *Old Watch*, *The Nine
   Stones*, *Drowned Harbour* the same way.
 - **The multi-leg total cost.** The inspector quotes "By way of Stonefall Mine ·
-  2,300 steps in all, 800 for the first leg". The total is a figure no button
+  4,400 steps in all, 1,400 for the first leg" (figures as retuned by
+  Exploration & Progression Loop 01). The total is a figure no button
   charges; it helps a player plan a week's walking, and it could read as a sum
   to save up in one go. Whether to quote it at all is the owner's.
 - **Rarity in the inventory grid is colour-only.** The tile carries a rarity

@@ -181,9 +181,9 @@ To run once a build reaches the device. Record only redacted output.
 | 4 | Tap **Sync Steps** | Status `reconciled`. Origins ≥ 1, buckets ≥ 1. Newly granted equals your steps **from hours that have fully completed**. |
 | 5 | Write down the usable energy | — |
 | 6 | Tap **Sync Steps** again | Newly granted `0`. Energy unchanged. |
-| 7 | Tap **Gather Meadow Herb — 90 energy** | — |
-| 8 | Read the energy | Exactly 90 lower. |
-| 9 | Read Held | `2× Meadow Herb`. |
+| 7 | Tap **Gather Meadow Herb — 80 energy** | — |
+| 8 | Read the energy | Exactly 80 lower. |
+| 9 | Read Held | `1× Meadow Herb`. |
 | 10 | — | Foraging experience increased by 10. |
 | 11 | Force-close: swipe up from the app switcher | Process killed. |
 | 12 | Relaunch from the home screen | — |

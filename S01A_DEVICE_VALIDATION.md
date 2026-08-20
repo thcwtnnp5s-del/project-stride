@@ -80,10 +80,10 @@ Record what you see at each step. A discrepancy at any of them is a real finding
 | 4 | Tap **Sync steps**. | Status `reconciled`, delivery kind `incremental`, origins ≥ 1, buckets ≥ 1, newly granted equal to your real step count for the window. Usable energy rises by that amount. Cursor becomes `present`. |
 | 5 | **Write down the usable energy figure.** | — |
 | 6 | Tap **Sync steps** again, immediately. | Newly granted `0`. Usable energy **unchanged**. Delivery kind `noChange` or `incremental` — either is correct; the grant being zero is the property. |
-| 7 | Tap **Gather — 90 energy**. | Energy drops by exactly 90. `2× Meadow Herb` appears under Held. Last event reads `−90 energy → 2× Meadow Herb`. |
+| 7 | Tap **Gather — 80 energy**. | Energy drops by exactly 80. `1× Meadow Herb` appears under Held. Last event reads `−80 energy → 1× Meadow Herb`. |
 | 8 | `adb shell am force-stop com.projectstride.stride` | App dies. Not a backgrounded app — a killed process. |
 | 9 | Reopen from the launcher. | — |
-| 10 | Read the screen. | Usable energy is the figure from step 5 minus 90. Held is still `2× Meadow Herb`. Cursor `present`. Nothing was duplicated and nothing was lost. |
+| 10 | Read the screen. | Usable energy is the figure from step 5 minus 80. Held is still `1× Meadow Herb`. Cursor `present`. Nothing was duplicated and nothing was lost. |
 | 11 | Walk a few hundred more steps, or add non-manual step records. | — |
 | 12 | Tap **Sync steps**. | Newly granted equals **only the new steps**, not the running total. |
 | 13 | Revoke step permission in Health Connect settings, return, tap **Sync steps**. | Status `unavailable`, reason `permissionUnavailable`, newly granted `0`. Usable energy and Held unchanged. Source state reads `permissionUnavailable`. |
