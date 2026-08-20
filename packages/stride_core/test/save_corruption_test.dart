@@ -415,8 +415,8 @@ void main() {
         Map<String, Object?> envelope,
         Map<String, Object?> state,
       ) {
-        envelope['gameStateVersion'] = 7;
-        state['stateVersion'] = 7;
+        envelope['gameStateVersion'] = 8;
+        state['stateVersion'] = 8;
       });
 
       final FaultingDevice device = FaultingDevice()..seed(slotA, bytes);

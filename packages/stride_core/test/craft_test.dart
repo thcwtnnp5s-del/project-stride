@@ -233,7 +233,7 @@ void main() {
     });
 
     test('one short is still short', () {
-      final GameEngine engine = engineHolding(<ContentId, int>{meadowHerb: 2});
+      final GameEngine engine = engineHolding(<ContentId, int>{meadowHerb: 1});
 
       final EngineResult result = engine.execute(
         CraftItem(recipe: recipeHerbBroth),
@@ -244,7 +244,7 @@ void main() {
     });
 
     test('a refused craft consumes nothing', () {
-      final GameEngine engine = engineHolding(<ContentId, int>{meadowHerb: 2});
+      final GameEngine engine = engineHolding(<ContentId, int>{meadowHerb: 1});
       final GameState before = engine.state;
 
       expect(
@@ -257,7 +257,7 @@ void main() {
         isTrue,
         reason: 'the same object — nothing was rebuilt, so nothing was partial',
       );
-      expect(engine.state.inventory.quantityOf(meadowHerb), 2);
+      expect(engine.state.inventory.quantityOf(meadowHerb), 1);
     });
   });
 
@@ -318,7 +318,7 @@ void main() {
 
   group('4 — crafting persists', () {
     test('the inventory and experience survive a save round trip', () {
-      final GameEngine engine = engineHolding(<ContentId, int>{meadowHerb: 3});
+      final GameEngine engine = engineHolding(<ContentId, int>{meadowHerb: 2});
       engine.execute(CraftItem(recipe: recipeHerbBroth));
 
       final GameState reloaded = decodeEnvelope(

@@ -18,6 +18,7 @@ export 'src/engine/event_reducer.dart';
 export 'src/engine/events.dart';
 export 'src/engine/game_engine.dart';
 export 'src/engine/game_state.dart';
+export 'src/engine/progression.dart';
 export 'src/engine/rejection.dart';
 export 'src/engine/state_migrations.dart';
 export 'src/engine/state_version.dart';

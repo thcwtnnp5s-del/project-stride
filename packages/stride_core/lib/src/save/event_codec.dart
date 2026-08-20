@@ -12,10 +12,22 @@ import 'dart:convert';
 import '../content/content_id.dart';
 import '../content/definitions.dart';
 import '../engine/events.dart';
+import '../engine/game_state.dart' show GoalSlot;
 import '../steps/reconciliation.dart';
 import '../steps/step_ledger.dart';
 import '../steps/step_origin_key.dart';
 import '../steps/sync_batch.dart';
+
+/// Sorted `{item, n}` records for an id→count map, so two encodings of one
+/// event are byte-identical regardless of construction order.
+List<Object?> _sortedIdCounts(Map<ContentId, int> counts) => <Object?>[
+  for (final MapEntry<ContentId, int> e
+      in (counts.entries.toList()..sort(
+        (MapEntry<ContentId, int> a, MapEntry<ContentId, int> b) =>
+            a.key.compareTo(b.key),
+      )))
+    <String, Object?>{'item': e.key.value, 'n': e.value},
+];
 
 /// Encodes one event. `t` is the type tag; the rest are its fields.
 Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
@@ -111,6 +123,7 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     // As charged, not as defined -- same rule as ResourceGathered.
     'stepsSpent': event.stepsSpent,
     'firstVisit': event.firstVisit,
+    'restoredHp': event.restoredHp,
   },
   ItemCrafted() => <String, Object?>{
     't': 'ItemCrafted',
@@ -218,6 +231,7 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'playerDefence': event.playerDefence,
     'enemyHp': event.enemyHp,
     'enemyMaxHp': event.enemyMaxHp,
+    'playerFrostGuard': event.playerFrostGuard,
   },
   CombatPlayerStruck() => <String, Object?>{
     't': 'CombatPlayerStruck',
@@ -259,14 +273,11 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'levelBefore': event.levelBefore,
     'levelAfter': event.levelAfter,
     // Sorted, so two encodings of one event are byte-identical.
-    'drops': <Object?>[
-      for (final MapEntry<ContentId, int> e
-          in (event.drops.entries.toList()..sort(
-            (MapEntry<ContentId, int> a, MapEntry<ContentId, int> b) =>
-                a.key.compareTo(b.key),
-          )))
-        <String, Object?>{'item': e.key.value, 'n': e.value},
-    ],
+    'drops': _sortedIdCounts(event.drops),
+    'playerHpAfter': event.playerHpAfter,
+    'victoriesAfter': event.victoriesAfter,
+    'knowledgeXp': event.knowledgeXp,
+    'bountyProgress': _sortedIdCounts(event.bountyProgress),
   },
   EncounterLost() => <String, Object?>{
     't': 'EncounterLost',
@@ -274,6 +285,7 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'enemy': event.enemy.value,
     'location': event.location.value,
     'retreatTo': event.retreatTo.value,
+    'restoredHp': event.restoredHp,
   },
   EncounterRetreated() => <String, Object?>{
     't': 'EncounterRetreated',
@@ -281,6 +293,65 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'enemy': event.enemy.value,
     'location': event.location.value,
     'retreatTo': event.retreatTo.value,
+    'restoredHp': event.restoredHp,
+  },
+  // Exploration & Progression Loop 01 (`DECISIONS/0023`). Every figure as
+  // charged and as awarded, never as defined — the ResourceGathered rule.
+  FoodEaten() => <String, Object?>{
+    't': 'FoodEaten',
+    'seq': event.sequence,
+    'item': event.item.value,
+    'healed': event.healed,
+    'hpAfter': event.hpAfter,
+  },
+  GoalTracked() => <String, Object?>{
+    't': 'GoalTracked',
+    'seq': event.sequence,
+    'slot': event.slot.name,
+    'target': event.target?.value,
+  },
+  ContractAccepted() => <String, Object?>{
+    't': 'ContractAccepted',
+    'seq': event.sequence,
+    'contract': event.contract.value,
+  },
+  ContractCompleted() => <String, Object?>{
+    't': 'ContractCompleted',
+    'seq': event.sequence,
+    'contract': event.contract.value,
+    'location': event.location.value,
+    'consumed': _sortedIdCounts(event.consumed),
+    'rewardItems': _sortedIdCounts(event.rewardItems),
+    'rewardSkillXp': _sortedIdCounts(event.rewardSkillXp),
+    'characterXp': event.characterXp,
+    'experienceAfter': event.experienceAfter,
+    'levelBefore': event.levelBefore,
+    'levelAfter': event.levelAfter,
+    'completionsAfter': event.completionsAfter,
+    'revealedRumors': <Object?>[
+      for (final ContentId id in event.revealedRumors) id.value,
+    ],
+    'rotatedSlots': event.rotatedSlots == null
+        ? null
+        : <Object?>[for (final ContentId id in event.rotatedSlots!) id.value],
+    'rotatedNext': event.rotatedNext,
+  },
+  ProjectContributed() => <String, Object?>{
+    't': 'ProjectContributed',
+    'seq': event.sequence,
+    'project': event.project.value,
+    'stage': event.stage,
+    'contributed': _sortedIdCounts(event.contributed),
+    'stageContributedAfter': _sortedIdCounts(event.stageContributedAfter),
+    'stageCompleted': event.stageCompleted,
+    'projectCompleted': event.projectCompleted,
+    'characterXp': event.characterXp,
+    'experienceAfter': event.experienceAfter,
+    'levelBefore': event.levelBefore,
+    'levelAfter': event.levelAfter,
+    'revealedRumors': <Object?>[
+      for (final ContentId id in event.revealedRumors) id.value,
+    ],
   },
 };
 
@@ -401,12 +472,21 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
       // drive totalSpent above totalGranted and StepLedger throws, turning one
       // corrupt record into a launch that cannot start.
       if (spent < 0) return null;
+      // Absent on pre-v7 records, where no arrival healed. A present value
+      // must be a sane HP.
+      final int? restored = i('restoredHp');
+      if (json.containsKey('restoredHp') &&
+          json['restoredHp'] != null &&
+          (restored == null || restored < 0)) {
+        return null;
+      }
       return LocationTravelled(
         sequence: seq,
         from: from,
         location: to,
         stepsSpent: spent,
         firstVisit: b('firstVisit'),
+        restoredHp: restored,
       );
 
     case 'ItemCrafted':
@@ -694,6 +774,9 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
           enemyMaxHp < 0) {
         return null;
       }
+      // Absent on pre-v7 records, where no armour carried one.
+      final int frostGuard = i('playerFrostGuard') ?? 0;
+      if (frostGuard < 0) return null;
       return EncounterStarted(
         sequence: seq,
         enemy: enemy,
@@ -705,6 +788,7 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         playerDefence: playerDefence,
         enemyHp: enemyHp,
         enemyMaxHp: enemyMaxHp,
+        playerFrostGuard: frostGuard,
       );
 
     case 'CombatPlayerStruck':
@@ -783,16 +867,35 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
       if (xp < 0 || experienceAfter < 0 || levelBefore < 1 || levelAfter < 1) {
         return null;
       }
-      final Map<ContentId, int> drops = <ContentId, int>{};
-      for (final Object? raw in rawDrops) {
-        if (raw is! Map<String, Object?>) return null;
-        final Object? rawItem = raw['item'];
-        final Object? rawCount = raw['n'];
-        if (rawItem is! String || rawCount is! int) return null;
-        final ContentId? parsed = ContentId.parse(rawItem).id;
-        // A negative drop would *remove* inventory on replay.
-        if (parsed == null || rawCount < 0) return null;
-        drops[parsed] = rawCount;
+      // A negative drop would *remove* inventory on replay.
+      final Map<ContentId, int>? drops = _decodeIdCountList(rawDrops);
+      if (drops == null) return null;
+      // The v7 additions, all absent on pre-v7 records: no HP to write, no
+      // victory count carried (the reducer increments to the same number),
+      // no knowledge award, no bounty counting.
+      final int? playerHpAfter = i('playerHpAfter');
+      if (json.containsKey('playerHpAfter') &&
+          json['playerHpAfter'] != null &&
+          (playerHpAfter == null || playerHpAfter < 0)) {
+        return null;
+      }
+      final int? victoriesAfter = i('victoriesAfter');
+      if (json.containsKey('victoriesAfter') &&
+          json['victoriesAfter'] != null &&
+          (victoriesAfter == null || victoriesAfter < 1)) {
+        return null;
+      }
+      final int knowledgeXp = i('knowledgeXp') ?? 0;
+      if (knowledgeXp < 0) return null;
+      final Map<ContentId, int> bountyProgress;
+      if (json.containsKey('bountyProgress')) {
+        final Object? rawBounty = json['bountyProgress'];
+        if (rawBounty is! List<Object?>) return null;
+        final Map<ContentId, int>? parsed = _decodeIdCountList(rawBounty);
+        if (parsed == null) return null;
+        bountyProgress = parsed;
+      } else {
+        bountyProgress = const <ContentId, int>{};
       }
       return EncounterWon(
         sequence: seq,
@@ -803,6 +906,10 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         levelBefore: levelBefore,
         levelAfter: levelAfter,
         drops: drops,
+        playerHpAfter: playerHpAfter,
+        victoriesAfter: victoriesAfter,
+        knowledgeXp: knowledgeXp,
+        bountyProgress: bountyProgress,
       );
 
     case 'EncounterLost':
@@ -811,23 +918,208 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
       final ContentId? location = id('location');
       final ContentId? retreatTo = id('retreatTo');
       if (enemy == null || location == null || retreatTo == null) return null;
+      final int? restored = i('restoredHp');
+      if (json.containsKey('restoredHp') &&
+          json['restoredHp'] != null &&
+          (restored == null || restored < 0)) {
+        return null;
+      }
       return tag == 'EncounterLost'
           ? EncounterLost(
               sequence: seq,
               enemy: enemy,
               location: location,
               retreatTo: retreatTo,
+              restoredHp: restored,
             )
           : EncounterRetreated(
               sequence: seq,
               enemy: enemy,
               location: location,
               retreatTo: retreatTo,
+              restoredHp: restored,
             );
+
+    // Exploration & Progression Loop 01 (`DECISIONS/0023`). Ranges are
+    // checked for the reason ResourceGathered's are: a journal record is
+    // bytes from disk and the reducer is total.
+    case 'FoodEaten':
+      final ContentId? item = id('item');
+      final int? healed = i('healed');
+      final int? hpAfter = i('hpAfter');
+      if (item == null || healed == null || hpAfter == null) return null;
+      if (healed < 0 || hpAfter < 0) return null;
+      return FoodEaten(
+        sequence: seq,
+        item: item,
+        healed: healed,
+        hpAfter: hpAfter,
+      );
+
+    case 'GoalTracked':
+      final GoalSlot? slot = _enumOrNull(GoalSlot.values, s('slot'));
+      if (slot == null) return null;
+      final Object? rawTarget = json['target'];
+      ContentId? target;
+      if (rawTarget != null) {
+        if (rawTarget is! String) return null;
+        target = ContentId.parse(rawTarget).id;
+        if (target == null) return null;
+      }
+      return GoalTracked(sequence: seq, slot: slot, target: target);
+
+    case 'ContractAccepted':
+      final ContentId? contract = id('contract');
+      if (contract == null) return null;
+      return ContractAccepted(sequence: seq, contract: contract);
+
+    case 'ContractCompleted':
+      final ContentId? contract = id('contract');
+      final ContentId? location = id('location');
+      final int? characterXp = i('characterXp');
+      final int? experienceAfter = i('experienceAfter');
+      final int? levelBefore = i('levelBefore');
+      final int? levelAfter = i('levelAfter');
+      final int? completionsAfter = i('completionsAfter');
+      final Map<ContentId, int>? consumed = _decodeIdCountList(
+        json['consumed'],
+      );
+      final Map<ContentId, int>? rewardItems = _decodeIdCountList(
+        json['rewardItems'],
+      );
+      final Map<ContentId, int>? rewardSkillXp = _decodeIdCountList(
+        json['rewardSkillXp'],
+      );
+      final List<ContentId>? revealed = _decodeIdList(json['revealedRumors']);
+      if (contract == null ||
+          location == null ||
+          characterXp == null ||
+          experienceAfter == null ||
+          levelBefore == null ||
+          levelAfter == null ||
+          completionsAfter == null ||
+          consumed == null ||
+          rewardItems == null ||
+          rewardSkillXp == null ||
+          revealed == null) {
+        return null;
+      }
+      if (characterXp < 0 ||
+          experienceAfter < 0 ||
+          levelBefore < 1 ||
+          levelAfter < 1 ||
+          completionsAfter < 1) {
+        return null;
+      }
+      List<ContentId>? rotatedSlots;
+      if (json['rotatedSlots'] != null) {
+        rotatedSlots = _decodeIdList(json['rotatedSlots']);
+        if (rotatedSlots == null) return null;
+      }
+      final int? rotatedNext = i('rotatedNext');
+      if (json.containsKey('rotatedNext') &&
+          json['rotatedNext'] != null &&
+          (rotatedNext == null || rotatedNext < 0)) {
+        return null;
+      }
+      return ContractCompleted(
+        sequence: seq,
+        contract: contract,
+        location: location,
+        consumed: consumed,
+        rewardItems: rewardItems,
+        rewardSkillXp: rewardSkillXp,
+        characterXp: characterXp,
+        experienceAfter: experienceAfter,
+        levelBefore: levelBefore,
+        levelAfter: levelAfter,
+        completionsAfter: completionsAfter,
+        revealedRumors: revealed,
+        rotatedSlots: rotatedSlots,
+        rotatedNext: rotatedNext,
+      );
+
+    case 'ProjectContributed':
+      final ContentId? project = id('project');
+      final int? stage = i('stage');
+      final int? characterXp = i('characterXp');
+      final int? experienceAfter = i('experienceAfter');
+      final int? levelBefore = i('levelBefore');
+      final int? levelAfter = i('levelAfter');
+      final Map<ContentId, int>? contributed = _decodeIdCountList(
+        json['contributed'],
+      );
+      final Map<ContentId, int>? after = _decodeIdCountList(
+        json['stageContributedAfter'],
+      );
+      final List<ContentId>? revealed = _decodeIdList(json['revealedRumors']);
+      if (project == null ||
+          stage == null ||
+          characterXp == null ||
+          experienceAfter == null ||
+          levelBefore == null ||
+          levelAfter == null ||
+          contributed == null ||
+          after == null ||
+          revealed == null) {
+        return null;
+      }
+      if (stage < 0 ||
+          characterXp < 0 ||
+          experienceAfter < 0 ||
+          levelBefore < 1 ||
+          levelAfter < 1) {
+        return null;
+      }
+      return ProjectContributed(
+        sequence: seq,
+        project: project,
+        stage: stage,
+        contributed: contributed,
+        stageContributedAfter: after,
+        stageCompleted: b('stageCompleted'),
+        projectCompleted: b('projectCompleted'),
+        characterXp: characterXp,
+        experienceAfter: experienceAfter,
+        levelBefore: levelBefore,
+        levelAfter: levelAfter,
+        revealedRumors: revealed,
+      );
 
     default:
       return null;
   }
+}
+
+/// Decodes a `{item, n}` record list into an id→count map, refusing negative
+/// counts (a negative count would remove inventory or regress a counter on
+/// replay). Null on any malformed entry.
+Map<ContentId, int>? _decodeIdCountList(Object? raw) {
+  if (raw is! List<Object?>) return null;
+  final Map<ContentId, int> out = <ContentId, int>{};
+  for (final Object? entry in raw) {
+    if (entry is! Map<String, Object?>) return null;
+    final Object? rawItem = entry['item'];
+    final Object? rawCount = entry['n'];
+    if (rawItem is! String || rawCount is! int) return null;
+    final ContentId? parsed = ContentId.parse(rawItem).id;
+    if (parsed == null || rawCount < 0) return null;
+    out[parsed] = rawCount;
+  }
+  return out;
+}
+
+/// Decodes a list of id strings, or null on any malformed entry.
+List<ContentId>? _decodeIdList(Object? raw) {
+  if (raw is! List<Object?>) return null;
+  final List<ContentId> out = <ContentId>[];
+  for (final Object? entry in raw) {
+    if (entry is! String) return null;
+    final ContentId? parsed = ContentId.parse(entry).id;
+    if (parsed == null) return null;
+    out.add(parsed);
+  }
+  return out;
 }
 
 /// Decodes a queue event's completion list, or null if any record is

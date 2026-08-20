@@ -6,6 +6,7 @@ import '../steps/reconciliation.dart';
 import '../steps/step_ledger.dart';
 import '../steps/step_origin_key.dart';
 import '../steps/sync_batch.dart';
+import 'game_state.dart' show GoalSlot;
 
 /// Something that has happened.
 ///
@@ -386,6 +387,7 @@ final class LocationTravelled extends GameEvent {
     required this.location,
     required this.stepsSpent,
     required this.firstVisit,
+    this.restoredHp,
   });
 
   final ContentId from;
@@ -400,6 +402,12 @@ final class LocationTravelled extends GameEvent {
   /// system — can tell arriving somewhere new from walking a familiar road,
   /// without having to consult the world state it is about to be handed.
   final bool firstVisit;
+
+  /// The HP this arrival restored the player to, or null when the
+  /// destination is not safe (`DECISIONS/0023` §4 — safe locations heal
+  /// fully, instantly, freely). Carried on the event, never recomputed by
+  /// the reducer, so replay stays exact after a level-curve retune.
+  final int? restoredHp;
 
   @override
   String get name => 'LocationTravelled';
@@ -656,6 +664,7 @@ final class EncounterStarted extends GameEvent {
     required this.playerDefence,
     required this.enemyHp,
     required this.enemyMaxHp,
+    this.playerFrostGuard = 0,
   });
 
   final ContentId enemy;
@@ -665,6 +674,10 @@ final class EncounterStarted extends GameEvent {
   final int playerMaxHp;
   final int playerAttack;
   final int playerDefence;
+
+  /// The armour's frost guard at start (`DECISIONS/0023` §4). Zero on
+  /// pre-v7 records, where no armour carried one.
+  final int playerFrostGuard;
 
   /// Profile-scaled, as the fight begins. Never the raw content value.
   final int enemyHp;
@@ -771,12 +784,18 @@ final class EncounterWon extends GameEvent {
     required this.levelBefore,
     required this.levelAfter,
     required Map<ContentId, int> drops,
-  }) : drops = Map<ContentId, int>.unmodifiable(drops);
+    this.playerHpAfter,
+    this.victoriesAfter,
+    this.knowledgeXp = 0,
+    Map<ContentId, int> bountyProgress = const <ContentId, int>{},
+  }) : drops = Map<ContentId, int>.unmodifiable(drops),
+       bountyProgress = Map<ContentId, int>.unmodifiable(bountyProgress);
 
   final ContentId enemy;
   final ContentId location;
 
-  /// Profile-scaled, as awarded.
+  /// Profile-scaled, as awarded — including [knowledgeXp] when the crossing
+  /// happened, so [experienceAfter] is always `before + characterXp`.
   final int characterXp;
 
   /// The character's total after the award; the reducer writes this, not a sum.
@@ -789,6 +808,28 @@ final class EncounterWon extends GameEvent {
 
   /// What dropped, by item, as literal amounts.
   final Map<ContentId, int> drops;
+
+  /// The player's HP as the fight ended — persistent since state v7
+  /// (`DECISIONS/0023` §4). Null on records written before persistent HP
+  /// existed, where its absence means what those fights meant: nothing to
+  /// write, every fight began full.
+  final int? playerHpAfter;
+
+  /// Lifetime victories over [enemy] after this one. Null on pre-v7 records;
+  /// the reducer then increments the counter itself, which lands on the same
+  /// number.
+  final int? victoriesAfter;
+
+  /// The one-time Known award, profile-scaled, when this victory crossed the
+  /// enemy's `knownAt` threshold; zero otherwise. Already folded into
+  /// [characterXp] — recorded separately so a listener can announce the
+  /// bestiary milestone distinctly.
+  final int knowledgeXp;
+
+  /// Accepted bounty contracts this victory advanced, with each contract's
+  /// count **after** the advance (`DECISIONS/0023` §2). Written by the
+  /// engine at victory time so replay reproduces the counting exactly.
+  final Map<ContentId, int> bountyProgress;
 
   @override
   String get name => 'EncounterWon';
@@ -805,11 +846,17 @@ final class EncounterLost extends GameEvent {
     required this.enemy,
     required this.location,
     required this.retreatTo,
+    this.restoredHp,
   });
 
   final ContentId enemy;
   final ContentId location;
   final ContentId retreatTo;
+
+  /// The HP the safe retreat restored the player to (`DECISIONS/0023` §4).
+  /// Null on pre-v7 records, whose fights carried no persistent HP to
+  /// restore.
+  final int? restoredHp;
 
   @override
   String get name => 'EncounterLost';
@@ -823,12 +870,193 @@ final class EncounterRetreated extends GameEvent {
     required this.enemy,
     required this.location,
     required this.retreatTo,
+    this.restoredHp,
   });
 
   final ContentId enemy;
   final ContentId location;
   final ContentId retreatTo;
 
+  /// See [EncounterLost.restoredHp].
+  final int? restoredHp;
+
   @override
   String get name => 'EncounterRetreated';
+}
+
+// -- Exploration & Progression Loop 01 (`DECISIONS/0023`) ----------------------
+
+/// The player ate outside combat. Exactly one of [item] left the inventory
+/// and [healed] HP arrived, as one fact.
+@immutable
+final class FoodEaten extends GameEvent {
+  const FoodEaten({
+    required super.sequence,
+    required this.item,
+    required this.healed,
+    required this.hpAfter,
+  });
+
+  final ContentId item;
+
+  /// As healed: `min(healing, missing)`, never the raw content value.
+  final int healed;
+  final int hpAfter;
+
+  @override
+  String get name => 'FoodEaten';
+}
+
+/// A tracked-objective slot changed. No economy figure moves
+/// (`DECISIONS/0023` §1).
+@immutable
+final class GoalTracked extends GameEvent {
+  const GoalTracked({required super.sequence, required this.slot, this.target});
+
+  final GoalSlot slot;
+
+  /// The newly tracked id, or null when the slot was cleared.
+  final ContentId? target;
+
+  @override
+  String get name => 'GoalTracked';
+}
+
+/// A bounty contract was accepted; qualifying victories count from here
+/// (`DECISIONS/0023` §2). Any prior bounty progress for this contract is
+/// reset by applying this event — acceptance starts a fresh count.
+@immutable
+final class ContractAccepted extends GameEvent {
+  const ContractAccepted({required super.sequence, required this.contract});
+
+  final ContentId contract;
+
+  @override
+  String get name => 'ContractAccepted';
+}
+
+/// A contract completed: requirements consumed, rewards granted, completion
+/// recorded, the local-need deck rotated — **one fact, one reducer branch**,
+/// which is what makes the whole exchange exactly-once (`DECISIONS/0023` §2).
+///
+/// Every figure is recorded as charged and as awarded, never as defined, for
+/// the reason `ResourceGathered` gives: replay must reproduce the committed
+/// state after any content retune.
+@immutable
+final class ContractCompleted extends GameEvent {
+  ContractCompleted({
+    required super.sequence,
+    required this.contract,
+    required this.location,
+    required Map<ContentId, int> consumed,
+    required Map<ContentId, int> rewardItems,
+    required Map<ContentId, int> rewardSkillXp,
+    required this.characterXp,
+    required this.experienceAfter,
+    required this.levelBefore,
+    required this.levelAfter,
+    required this.completionsAfter,
+    List<ContentId> revealedRumors = const <ContentId>[],
+    this.rotatedSlots,
+    this.rotatedNext,
+  }) : consumed = Map<ContentId, int>.unmodifiable(consumed),
+       rewardItems = Map<ContentId, int>.unmodifiable(rewardItems),
+       rewardSkillXp = Map<ContentId, int>.unmodifiable(rewardSkillXp),
+       revealedRumors = List<ContentId>.unmodifiable(revealedRumors);
+
+  final ContentId contract;
+  final ContentId location;
+
+  /// Items removed, as literal amounts.
+  final Map<ContentId, int> consumed;
+
+  /// Items granted, as literal amounts.
+  final Map<ContentId, int> rewardItems;
+
+  /// Profession XP granted, profile-scaled, by skill.
+  final Map<ContentId, int> rewardSkillXp;
+
+  /// Character XP granted, profile-scaled. May be zero.
+  final int characterXp;
+
+  /// The character's total after the award; the reducer writes this, not a
+  /// sum — and the level fields follow `EncounterWon`'s discipline.
+  final int experienceAfter;
+  final int levelBefore;
+  final int levelAfter;
+
+  /// This contract's completion count after this event.
+  final int completionsAfter;
+
+  /// Rumors this completion revealed (already-revealed ones are not listed).
+  final List<ContentId> revealedRumors;
+
+  /// For a local need: the location's board slots after rotation, and the
+  /// deck index the next rotation draws from. Null for standing and regional
+  /// contracts, whose boards do not rotate.
+  final List<ContentId>? rotatedSlots;
+  final int? rotatedNext;
+
+  @override
+  String get name => 'ContractCompleted';
+}
+
+/// Materials were contributed to a community project — removed immediately
+/// and permanently — and, when the contribution filled the stage, the stage
+/// (and possibly the whole project) completed in the same fact
+/// (`DECISIONS/0023` §3). One event, one reducer branch: there is no instant
+/// at which the planks are gone and the project has not received them, and
+/// no way for a stage to complete twice.
+@immutable
+final class ProjectContributed extends GameEvent {
+  ProjectContributed({
+    required super.sequence,
+    required this.project,
+    required this.stage,
+    required Map<ContentId, int> contributed,
+    required Map<ContentId, int> stageContributedAfter,
+    required this.stageCompleted,
+    required this.projectCompleted,
+    required this.characterXp,
+    required this.experienceAfter,
+    required this.levelBefore,
+    required this.levelAfter,
+    List<ContentId> revealedRumors = const <ContentId>[],
+  }) : contributed = Map<ContentId, int>.unmodifiable(contributed),
+       stageContributedAfter = Map<ContentId, int>.unmodifiable(
+         stageContributedAfter,
+       ),
+       revealedRumors = List<ContentId>.unmodifiable(revealedRumors);
+
+  final ContentId project;
+
+  /// The 0-based stage this contribution filled into.
+  final int stage;
+
+  /// What this contribution donated, as literal amounts.
+  final Map<ContentId, int> contributed;
+
+  /// The stage's total received materials after this contribution.
+  /// Meaningless once [stageCompleted] — the next stage starts empty.
+  final Map<ContentId, int> stageContributedAfter;
+
+  /// Whether this contribution completed the stage.
+  final bool stageCompleted;
+
+  /// Whether the completed stage was the last — the project is done and its
+  /// permanent effects hold from here, exactly once.
+  final bool projectCompleted;
+
+  /// Character XP granted — the stage award plus, on completion, the
+  /// project's own — profile-scaled. Zero when the stage did not complete.
+  final int characterXp;
+  final int experienceAfter;
+  final int levelBefore;
+  final int levelAfter;
+
+  /// Rumors revealed by project completion.
+  final List<ContentId> revealedRumors;
+
+  @override
+  String get name => 'ProjectContributed';
 }

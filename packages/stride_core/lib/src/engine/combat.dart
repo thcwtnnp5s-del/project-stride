@@ -32,6 +32,7 @@ final class EncounterState {
     required this.enemyHp,
     required this.enemyMaxHp,
     required this.telegraph,
+    this.playerFrostGuard = 0,
   });
 
   final ContentId enemy;
@@ -58,6 +59,12 @@ final class EncounterState {
   /// Set at the end of the round *before* the heavy turn.
   final bool telegraph;
 
+  /// The armour's frost-guard figure at encounter start — incoming-damage
+  /// reduction in alpine-terrain fights, floored at 1 (`DECISIONS/0023` §4).
+  /// Snapshotted like every other player figure: swapping armour mid-fight
+  /// changes nothing until the next one. State version 7.
+  final int playerFrostGuard;
+
   EncounterState copyWith({
     int? turn,
     int? playerHp,
@@ -75,6 +82,7 @@ final class EncounterState {
     enemyHp: enemyHp ?? this.enemyHp,
     enemyMaxHp: enemyMaxHp,
     telegraph: telegraph ?? this.telegraph,
+    playerFrostGuard: playerFrostGuard,
   );
 
   @override
@@ -90,7 +98,8 @@ final class EncounterState {
       other.playerDefence == playerDefence &&
       other.enemyHp == enemyHp &&
       other.enemyMaxHp == enemyMaxHp &&
-      other.telegraph == telegraph;
+      other.telegraph == telegraph &&
+      other.playerFrostGuard == playerFrostGuard;
 
   @override
   int get hashCode => Object.hash(
@@ -105,6 +114,7 @@ final class EncounterState {
     enemyHp,
     enemyMaxHp,
     telegraph,
+    playerFrostGuard,
   );
 
   @override

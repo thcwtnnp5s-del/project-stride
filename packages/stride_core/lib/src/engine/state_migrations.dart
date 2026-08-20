@@ -158,6 +158,20 @@ final class StateMigrations {
       rebasesEconomy: false,
       decision: 'DECISIONS/0022_FINITE_BACKGROUND_ACTIVITY.md',
     ),
+    // Exploration & Progression Loop 01: `player.hp` (persistent, decoded
+    // full at the level's maximum — what a v6 save meant, where every fight
+    // began full), the `progress` block (enemy knowledge, contracts,
+    // projects, rumors, tracked goals — all empty in a v6 save, which is
+    // what a v6 save meant), and `encounter.playerFrostGuard` (zero: no v6
+    // armour carried one). A format bump and nothing else. No
+    // `EstablishEconomyEpoch` is issued; the migration commits the version
+    // bump with an empty event list.
+    StateMigrationStep(
+      from: 6,
+      to: 7,
+      rebasesEconomy: false,
+      decision: 'DECISIONS/0023_EXPLORATION_PROGRESSION_LOOP.md',
+    ),
   ];
 
   /// Whether [path] must wait for the first foreground reconciliation before

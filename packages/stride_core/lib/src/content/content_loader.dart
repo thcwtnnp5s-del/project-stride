@@ -111,6 +111,8 @@ final class ContentLoader {
     _validateCrossReferences(parsed, collector);
     _validateSkills(parsed, collector);
     _validateWorld(parsed, collector);
+    _validateContracts(parsed, collector);
+    _validateProjects(parsed, collector);
     _validateProfiles(parsed, collector);
 
     final List<ContentId> loadout = startingLoadout ?? defaultStartingLoadout;
@@ -129,6 +131,9 @@ final class ContentLoader {
       resourceNodes: parsed.resourceNodes,
       recipes: parsed.recipes,
       enemies: parsed.enemies,
+      contracts: parsed.contracts,
+      projects: parsed.projects,
+      rumors: parsed.rumors,
       profile: profile,
       startingLoadout: List<ContentId>.unmodifiable(loadout),
     );
@@ -434,6 +439,308 @@ final class ContentLoader {
         checkItem(enemy.id, 'drops[$i].item', enemy.drops[i].item);
       }
     }
+
+    void checkRef(
+      ContentId owner,
+      String field,
+      ContentId? reference,
+      ContentNamespace expected,
+      bool Function(ContentId) exists,
+    ) {
+      if (reference == null || exists(reference)) return;
+      collector.unknownReference(
+        sourceFile: parsed.sourceOf[owner] ?? 'unknown',
+        entryId: owner.value,
+        field: field,
+        reference: reference.value,
+        expected: expected,
+        known: known,
+      );
+    }
+
+    for (final RecipeDefinition recipe in parsed.recipes.values) {
+      checkRef(
+        recipe.id,
+        'unlockedByProject',
+        recipe.unlockedByProject,
+        ContentNamespace.project,
+        parsed.projects.containsKey,
+      );
+      checkRef(
+        recipe.id,
+        'retiredByProject',
+        recipe.retiredByProject,
+        ContentNamespace.project,
+        parsed.projects.containsKey,
+      );
+      checkRef(
+        recipe.id,
+        'unlockedByContract',
+        recipe.unlockedByContract,
+        ContentNamespace.contract,
+        parsed.contracts.containsKey,
+      );
+    }
+
+    for (final ResourceNodeDefinition node in parsed.resourceNodes.values) {
+      checkRef(
+        node.id,
+        'unlockedByProject',
+        node.unlockedByProject,
+        ContentNamespace.project,
+        parsed.projects.containsKey,
+      );
+    }
+
+    for (final LocationDefinition location in parsed.locations.values) {
+      checkRef(
+        location.id,
+        'safeAfterProject',
+        location.safeAfterProject,
+        ContentNamespace.project,
+        parsed.projects.containsKey,
+      );
+    }
+
+    for (final ContractDefinition contract in parsed.contracts.values) {
+      checkRef(
+        contract.id,
+        'location',
+        contract.location,
+        ContentNamespace.location,
+        parsed.locations.containsKey,
+      );
+      for (int i = 0; i < contract.requires.length; i++) {
+        checkItem(
+          contract.id,
+          'requires[$i].item',
+          contract.requires[i].item,
+        );
+      }
+      for (int i = 0; i < contract.requiresOwned.length; i++) {
+        checkItem(contract.id, 'requiresOwned[$i]', contract.requiresOwned[i]);
+      }
+      checkRef(
+        contract.id,
+        'bountyEnemy',
+        contract.bountyEnemy,
+        ContentNamespace.enemy,
+        parsed.enemies.containsKey,
+      );
+      checkRef(
+        contract.id,
+        'requiresContract',
+        contract.requiresContract,
+        ContentNamespace.contract,
+        parsed.contracts.containsKey,
+      );
+      checkRef(
+        contract.id,
+        'requiresCompletedNeedAt',
+        contract.requiresCompletedNeedAt,
+        ContentNamespace.location,
+        parsed.locations.containsKey,
+      );
+      checkRef(
+        contract.id,
+        'requiresProject',
+        contract.requiresProject,
+        ContentNamespace.project,
+        parsed.projects.containsKey,
+      );
+      for (int i = 0; i < contract.rewardItems.length; i++) {
+        checkItem(
+          contract.id,
+          'rewardItems[$i].item',
+          contract.rewardItems[i].item,
+        );
+      }
+      for (int i = 0; i < contract.rewardSkillXp.length; i++) {
+        if (parsed.skills.containsKey(contract.rewardSkillXp[i].skill)) {
+          continue;
+        }
+        collector.unknownReference(
+          sourceFile: parsed.sourceOf[contract.id] ?? 'unknown',
+          entryId: contract.id.value,
+          field: 'rewardSkillXp[$i].skill',
+          reference: contract.rewardSkillXp[i].skill.value,
+          expected: ContentNamespace.skill,
+          known: known,
+        );
+      }
+      for (int i = 0; i < contract.revealRumors.length; i++) {
+        checkRef(
+          contract.id,
+          'revealRumors[$i]',
+          contract.revealRumors[i],
+          ContentNamespace.rumor,
+          parsed.rumors.containsKey,
+        );
+      }
+    }
+
+    for (final ProjectDefinition project in parsed.projects.values) {
+      checkRef(
+        project.id,
+        'location',
+        project.location,
+        ContentNamespace.location,
+        parsed.locations.containsKey,
+      );
+      for (int s = 0; s < project.stages.length; s++) {
+        final ProjectStage stage = project.stages[s];
+        for (int i = 0; i < stage.requires.length; i++) {
+          checkItem(
+            project.id,
+            'stages[$s].requires[$i].item',
+            stage.requires[i].item,
+          );
+        }
+      }
+      for (int i = 0; i < project.revealRumors.length; i++) {
+        checkRef(
+          project.id,
+          'revealRumors[$i]',
+          project.revealRumors[i],
+          ContentNamespace.rumor,
+          parsed.rumors.containsKey,
+        );
+      }
+    }
+  }
+
+  /// Contract-class shape rules the type system cannot express.
+  void _validateContracts(_ParsedContent parsed, ErrorCollector collector) {
+    for (final ContractDefinition contract in parsed.contracts.values) {
+      final String file = parsed.sourceOf[contract.id] ?? 'unknown';
+
+      if (contract.contractClass == ContractClass.localNeed &&
+          contract.deckOrder < 1) {
+        collector.add(
+          sourceFile: file,
+          entryId: contract.id.value,
+          field: 'deckOrder',
+          explanation:
+              'a local need lives in its location\'s rotation deck and must '
+              'declare a deckOrder',
+          suggestion: 'add `"deckOrder": 1` (unique per location)',
+        );
+      }
+      if (contract.contractClass != ContractClass.localNeed &&
+          contract.deckOrder != 0) {
+        collector.add(
+          sourceFile: file,
+          entryId: contract.id.value,
+          field: 'deckOrder',
+          explanation:
+              'only local needs rotate through a deck; this contract is '
+              '${contract.contractClass.name}',
+          suggestion: 'remove deckOrder',
+        );
+      }
+      if (contract.contractClass == ContractClass.bounty &&
+          (contract.bountyEnemy == null || contract.bountyCount < 1)) {
+        collector.add(
+          sourceFile: file,
+          entryId: contract.id.value,
+          field: 'bountyEnemy',
+          explanation: 'a bounty contract must name an enemy and a count',
+          suggestion:
+              'add `"bountyEnemy": "enemy.forest_wolf", "bountyCount": 3`',
+        );
+      }
+      if (contract.contractClass == ContractClass.localNeed &&
+          contract.bountyEnemy != null) {
+        collector.add(
+          sourceFile: file,
+          entryId: contract.id.value,
+          field: 'bountyEnemy',
+          explanation:
+              'a rotating local need cannot carry a bounty — bounties must '
+              'stay acceptable while the player hunts, and a deck slot '
+              'rotates away',
+          suggestion: 'use `"class": "bounty"` for combat orders',
+        );
+      }
+      if (contract.bountyEnemy != null && contract.bountyCount < 1) {
+        collector.add(
+          sourceFile: file,
+          entryId: contract.id.value,
+          field: 'bountyCount',
+          explanation: 'a bounty enemy without a count can never be met',
+          suggestion: 'add `"bountyCount": 1` or more',
+        );
+      }
+      if (contract.requires.isEmpty &&
+          contract.requiresOwned.isEmpty &&
+          contract.bountyEnemy == null) {
+        collector.add(
+          sourceFile: file,
+          entryId: contract.id.value,
+          field: 'requires',
+          explanation:
+              'the contract asks for nothing — completing it would be a '
+              'free reward button',
+          suggestion: 'add item requirements or a bounty',
+        );
+      }
+      final ContentId? prerequisite = contract.requiresContract;
+      if (prerequisite != null) {
+        final ContractDefinition? other = parsed.contracts[prerequisite];
+        if (other != null && other.isRepeatable) {
+          collector.add(
+            sourceFile: file,
+            entryId: contract.id.value,
+            field: 'requiresContract',
+            explanation:
+                '"${prerequisite.value}" is repeatable; a prerequisite must '
+                'be a one-time regional contract so "completed" is a fact, '
+                'not a count',
+            suggestion: 'reference a regional contract',
+          );
+        }
+      }
+    }
+
+    // Deck order must be unique within a location, or rotation is ambiguous.
+    final Map<ContentId, Map<int, ContentId>> decks =
+        <ContentId, Map<int, ContentId>>{};
+    for (final ContractDefinition contract in parsed.contracts.values) {
+      if (contract.contractClass != ContractClass.localNeed) continue;
+      final Map<int, ContentId> deck = decks.putIfAbsent(
+        contract.location,
+        () => <int, ContentId>{},
+      );
+      final ContentId? existing = deck[contract.deckOrder];
+      if (existing != null) {
+        collector.add(
+          sourceFile: parsed.sourceOf[contract.id] ?? 'unknown',
+          entryId: contract.id.value,
+          field: 'deckOrder',
+          explanation:
+              'deckOrder ${contract.deckOrder} at ${contract.location.value} '
+              'is already taken by ${existing.value}',
+          suggestion: 'give each local need at a location a distinct order',
+        );
+      } else {
+        deck[contract.deckOrder] = contract.id;
+      }
+    }
+  }
+
+  void _validateProjects(_ParsedContent parsed, ErrorCollector collector) {
+    for (final ProjectDefinition project in parsed.projects.values) {
+      final String file = parsed.sourceOf[project.id] ?? 'unknown';
+      if (project.stages.isEmpty) {
+        collector.add(
+          sourceFile: file,
+          entryId: project.id.value,
+          field: 'stages',
+          explanation: 'a project with no stages can never begin',
+          suggestion: 'author at least one stage with requirements',
+        );
+      }
+    }
   }
 
   void _validateSkills(_ParsedContent parsed, ErrorCollector collector) {
@@ -513,10 +820,17 @@ final class ContentLoader {
     }
 
     // Every gatherable should have a consumer. An item nothing uses is either a
-    // dead end for the player or a recipe someone forgot to write.
+    // dead end for the player or a recipe someone forgot to write. Contracts
+    // and project stages are consumers too — a herb the notice board buys has
+    // a purpose whether or not a recipe wants it.
     final Set<ContentId> consumed = <ContentId>{
       for (final RecipeDefinition r in parsed.recipes.values)
         ...r.ingredients.map((RecipeIngredient i) => i.item),
+      for (final ContractDefinition c in parsed.contracts.values)
+        ...c.requires.map((ItemQuantity q) => q.item),
+      for (final ProjectDefinition p in parsed.projects.values)
+        for (final ProjectStage s in p.stages)
+          ...s.requires.map((ItemQuantity q) => q.item),
     };
     for (final ResourceNodeDefinition node in parsed.resourceNodes.values) {
       final ItemDefinition? item = parsed.items[node.yieldsItem];
@@ -652,6 +966,11 @@ final class _ParsedContent {
       <ContentId, RecipeDefinition>{};
   final Map<ContentId, EnemyDefinition> enemies =
       <ContentId, EnemyDefinition>{};
+  final Map<ContentId, ContractDefinition> contracts =
+      <ContentId, ContractDefinition>{};
+  final Map<ContentId, ProjectDefinition> projects =
+      <ContentId, ProjectDefinition>{};
+  final Map<ContentId, RumorDefinition> rumors = <ContentId, RumorDefinition>{};
   final Map<ContentId, BalanceProfile> profiles = <ContentId, BalanceProfile>{};
 
   /// Which file each ID came from, for error reporting.
@@ -667,6 +986,9 @@ final class _ParsedContent {
     ...resourceNodes.keys,
     ...recipes.keys,
     ...enemies.keys,
+    ...contracts.keys,
+    ...projects.keys,
+    ...rumors.keys,
     ...profiles.keys,
   };
 }
@@ -708,6 +1030,21 @@ final Map<String, _EntryKind> _entryKinds = <String, _EntryKind>{
     final EnemyDefinition? definition = EnemyDefinition.read(r);
     if (definition == null) return null;
     return (into.enemies[definition.id] = definition).id;
+  }),
+  'contracts': _EntryKind((JsonReader r, _ParsedContent into) {
+    final ContractDefinition? definition = ContractDefinition.read(r);
+    if (definition == null) return null;
+    return (into.contracts[definition.id] = definition).id;
+  }),
+  'projects': _EntryKind((JsonReader r, _ParsedContent into) {
+    final ProjectDefinition? definition = ProjectDefinition.read(r);
+    if (definition == null) return null;
+    return (into.projects[definition.id] = definition).id;
+  }),
+  'rumors': _EntryKind((JsonReader r, _ParsedContent into) {
+    final RumorDefinition? definition = RumorDefinition.read(r);
+    if (definition == null) return null;
+    return (into.rumors[definition.id] = definition).id;
   }),
   'profiles': _EntryKind((JsonReader r, _ParsedContent into) {
     final BalanceProfile? definition = BalanceProfile.read(r);

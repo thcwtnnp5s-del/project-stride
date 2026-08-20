@@ -95,7 +95,7 @@ void main() {
         expect(ready.migration, isNull);
         expect(ready.pendingMigration, isNotNull);
         expect(ready.pendingMigration!.fromStateVersion, 1);
-        expect(ready.pendingMigration!.steps, hasLength(5));
+        expect(ready.pendingMigration!.steps, hasLength(6));
         expect(ready.engine.state.stateVersion, 1);
         expect(ready.engine.state.steps.banked, 459043);
 
@@ -113,7 +113,7 @@ void main() {
         final StateMigrationReport report = done.report!;
         expect(report.fromStateVersion, 1);
         expect(report.toStateVersion, StateVersion.current.value);
-        expect(report.stepsApplied, hasLength(5));
+        expect(report.stepsApplied, hasLength(6));
         expect(report.retiredSteps, 459043);
         expect(report.previouslyRetiredSteps, 0);
         expect(report.newlyRetiredSteps, 459043);

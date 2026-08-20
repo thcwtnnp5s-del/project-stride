@@ -15,14 +15,72 @@
       "encountersPerVisit": 0,
       "drops": [
         {
-          "item": "item.meadow_herb",
+          "item": "item.wolf_pelt",
           "quantity": 1,
           "chancePercent": 60
         },
         {
-          "item": "item.wolf_pelt",
+          "item": "item.meadow_herb",
           "quantity": 1,
-          "chancePercent": 45
+          "chancePercent": 40
+        },
+        {
+          "item": "item.pristine_wolf_fang",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ]
+    },
+    {
+      "id": "enemy.wild_boar",
+      "displayName": "Wild Boar",
+      "location": "location.whispering_woods",
+      "health": 30,
+      "attack": 6,
+      "defence": 2,
+      "isBoss": false,
+      "behavior": "steady",
+      "xp": 45,
+      "encountersPerVisit": 2,
+      "drops": [
+        {
+          "item": "item.boar_hide",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.boar_tusk",
+          "quantity": 1,
+          "chancePercent": 35
+        },
+        {
+          "item": "item.great_tusk",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ]
+    },
+    {
+      "id": "enemy.oakback_bear",
+      "displayName": "Oakback Bear",
+      "location": "location.whispering_woods",
+      "health": 55,
+      "attack": 11,
+      "defence": 3,
+      "isBoss": false,
+      "behavior": "guarded",
+      "xp": 120,
+      "encountersPerVisit": 1,
+      "studiedAt": 2,
+      "knownAt": 4,
+      "knownXp": 40,
+      "drops": [
+        {
+          "item": "item.bear_pelt",
+          "quantity": 1,
+          "chancePercent": 70
         }
       ]
     },
@@ -39,14 +97,50 @@
       "encountersPerVisit": 2,
       "drops": [
         {
+          "item": "item.scrap_metal",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
           "item": "item.copper_ore",
-          "quantity": 2,
-          "chancePercent": 55
+          "quantity": 1,
+          "chancePercent": 35
         },
         {
           "item": "item.tin_ore",
           "quantity": 1,
-          "chancePercent": 30
+          "chancePercent": 20
+        },
+        {
+          "item": "item.goblin_toolhead",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ]
+    },
+    {
+      "id": "enemy.salamander",
+      "displayName": "Salamander",
+      "location": "location.stonefall_mine",
+      "health": 34,
+      "attack": 8,
+      "defence": 2,
+      "isBoss": false,
+      "behavior": "guarded",
+      "xp": 70,
+      "encountersPerVisit": 2,
+      "drops": [
+        {
+          "item": "item.heat_scale",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.ember_core",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
         }
       ]
     },
@@ -71,6 +165,42 @@
           "item": "item.lynx_pelt",
           "quantity": 1,
           "chancePercent": 35
+        },
+        {
+          "item": "item.frost_claw",
+          "quantity": 1,
+          "chancePercent": 6,
+          "signature": true
+        }
+      ]
+    },
+    {
+      "id": "enemy.mountain_ram",
+      "displayName": "Mountain Ram",
+      "location": "location.frostmere",
+      "health": 36,
+      "attack": 7,
+      "defence": 4,
+      "isBoss": false,
+      "behavior": "steady",
+      "xp": 70,
+      "encountersPerVisit": 2,
+      "drops": [
+        {
+          "item": "item.ram_wool",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.ram_horn",
+          "quantity": 1,
+          "chancePercent": 35
+        },
+        {
+          "item": "item.pristine_horn",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
         }
       ]
     },
@@ -85,6 +215,9 @@
       "behavior": "guarded",
       "xp": 150,
       "encountersPerVisit": 1,
+      "studiedAt": 2,
+      "knownAt": 4,
+      "knownXp": 40,
       "drops": [
         {
           "item": "item.hollow_sigil",

@@ -3,6 +3,7 @@ import 'package:meta/meta.dart';
 import '../content/content_id.dart';
 import '../content/definitions.dart';
 import '../steps/sync_batch.dart';
+import 'game_state.dart';
 
 /// Something the player (or a system) wants to happen.
 ///
@@ -499,4 +500,84 @@ final class CombatRetreat extends GameCommand {
 
   @override
   String get name => 'CombatRetreat';
+}
+
+// -- Exploration & Progression Loop 01 (`DECISIONS/0023`) ----------------------
+
+/// Eat one owned consumable **outside combat** to heal (`DECISIONS/0023` §4).
+///
+/// Refused during an encounter — [CombatEat] is the in-fight path and spends
+/// the turn; this one spends nothing but the food. Refused at full HP so a
+/// tap cannot waste a meal, and refused for items that do not heal.
+@immutable
+final class EatFood extends GameCommand {
+  const EatFood({required this.item});
+
+  final ContentId item;
+
+  @override
+  String get name => 'EatFood';
+}
+
+/// Set or clear one tracked-objective slot (`DECISIONS/0023` §1).
+///
+/// Informative, never escrow: accepting a Journey reserves nothing, and
+/// switching slots changes no economy figure. [target] null clears the slot.
+@immutable
+final class TrackGoal extends GameCommand {
+  const TrackGoal({required this.slot, this.target});
+
+  final GoalSlot slot;
+  final ContentId? target;
+
+  @override
+  String get name => 'TrackGoal';
+}
+
+/// Accept a bounty contract, so qualifying victories start counting
+/// (`DECISIONS/0023` §2; brief §79 — only victories **after acceptance**
+/// count). Refused for contracts without a bounty: a delivery order needs no
+/// acceptance, it is completed the moment the goods are handed over.
+@immutable
+final class AcceptContract extends GameCommand {
+  const AcceptContract({required this.contract});
+
+  final ContentId contract;
+
+  @override
+  String get name => 'AcceptContract';
+}
+
+/// Complete a contract at its board: exact items removed, exact rewards
+/// granted, completion recorded — one event, one commit, exactly once
+/// (`DECISIONS/0023` §2). A shortfall of any kind refuses with zero mutation.
+@immutable
+final class CompleteContract extends GameCommand {
+  const CompleteContract({required this.contract});
+
+  final ContentId contract;
+
+  @override
+  String get name => 'CompleteContract';
+}
+
+/// Contribute materials to a community project's current stage
+/// (`DECISIONS/0023` §3). Partial contributions are the point: the amounts
+/// are explicit, validated against what is held and what the stage still
+/// needs, removed immediately and permanently, and never withdrawable. Stage
+/// and project completion ride the same event when the contribution fills
+/// the stage.
+@immutable
+final class ContributeToProject extends GameCommand {
+  ContributeToProject({required this.project, required Map<ContentId, int> contributions})
+    : contributions = Map<ContentId, int>.unmodifiable(contributions);
+
+  final ContentId project;
+
+  /// Item → amount to donate. Every entry must be positive, held, and still
+  /// needed by the current stage.
+  final Map<ContentId, int> contributions;
+
+  @override
+  String get name => 'ContributeToProject';
 }

@@ -171,6 +171,17 @@ import 'save_support.dart';
 /// outlive the process before v6, so none was ever stored. The key sorts
 /// before `contentPackVersion`, so it opens the object. Every other value in
 /// the literal is byte-identical to what it was.
+///
+/// ## The state version 7 amendment
+///
+/// `"player.hp":40` and the empty `"progress"` block were added when
+/// `StateVersion.current` became 7 (`DECISIONS/0023`, Exploration &
+/// Progression Loop 01), on the same reasoning again: the current encoder
+/// writes both, and these are the only values a v1 save can decode to — a v1
+/// character is level 1 and every pre-v7 fight began full, so full HP at the
+/// level-1 maximum (40) is what a v1 save meant, and the progress block is
+/// empty because none of its systems existed. Every other value in the
+/// literal is byte-identical to what it was.
 const String expectedV1Signature =
     '{"activityQueue":null,'
     '"contentPackVersion":1,'
@@ -181,8 +192,12 @@ const String expectedV1Signature =
     '{"id":"item.training_pickaxe","n":1},'
     '{"id":"item.training_sword","n":1},'
     '{"id":"item.traveler_tunic","n":1}],'
-    '"player":{"experience":0,"level":1},'
+    '"player":{"experience":0,"hp":40,"level":1},'
     '"profileId":"profile.production",'
+    '"progress":{"acceptedContracts":[],"bountyProgress":[],'
+    '"completedProjects":[],"contractCompletions":[],"enemyVictories":[],'
+    '"localNext":[],"localSlots":[],"projects":[],"revealedRumors":[],'
+    '"tracked":{"contract":null,"journey":null,"pursuit":null}},'
     '"skills":[{"id":"skill.cooking","n":0},{"id":"skill.foraging","n":0},'
     '{"id":"skill.mining","n":0},{"id":"skill.smithing","n":0},'
     '{"id":"skill.woodcutting","n":0}],'
@@ -279,6 +294,16 @@ File get v6FixtureFile =>
 /// Generated **once** by `tool/generate_v6_baseline.dart` from `v5_baseline.save`
 /// through the real v5→v6 step (`DECISIONS/0022`). Same terms as v1–v5.
 Uint8List get v6Baseline => _frozen(v6FixtureFile);
+
+File get v7FixtureFile =>
+    File('${fixtureDirectory.path}/save/v7_baseline.save');
+
+/// The v6 fixture, after the progression-loop format bump, frozen in its
+/// turn.
+///
+/// Generated **once** by `tool/generate_v7_baseline.dart` from `v6_baseline.save`
+/// through the real v6→v7 step (`DECISIONS/0023`). Same terms as v1–v6.
+Uint8List get v7Baseline => _frozen(v7FixtureFile);
 
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
@@ -673,37 +698,16 @@ void main() {
     });
   });
 
-  group('B6 — the round trip, carried forward to v6', () {
-    test('encode(decode(fixture)) is byte-identical to the v6 fixture', () {
-      final Uint8List fixture = v6Baseline;
-      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
-
-      final Uint8List reencoded = encodeSnapshot(
-        state: envelope.state,
-        saveId: envelope.saveId,
-        generation: envelope.snapshotGeneration,
-        lastAppliedTransaction: envelope.lastAppliedTransaction,
-        originSaltFingerprint: null,
-      );
-
-      // The trap that fires the day someone adds a field to GameState without
-      // thinking about saves. Without it the change is entirely silent until a
-      // player's save fails to load in the field.
-      //
-      // If this fires: the encoder and the v6 decoder no longer agree. Either
-      // the new field belongs in state version 7 (add a decoder, add a new
-      // fixture, add a `StateMigrations` step that says whether it re-bases —
-      // it should not — and make this test decode-only for v6), or the encoder
-      // has an ordering or type defect. Editing the fixture is never the fix.
-      expect(
-        reencoded,
-        fixture,
-        reason:
-            'the canonical encoder no longer reproduces a v6 save. See the '
-            'regeneration policy at the top of this file.',
-      );
-    });
-
+  // ## Why B6 is decode-only from state version 7 onward
+  //
+  // The same reasoning as B–B5, one version later. `v6_baseline.save` is now
+  // the artifact the owner's own phone held at the Activity Feel acceptance —
+  // a device that took the activity-queue format bump but not the
+  // progression-loop one. What must hold is that decoding it changes no value
+  // it carries — and that it decodes with full HP at the level's maximum and
+  // an empty progress block, which is what a v6 save meant. The round-trip
+  // property moves to `v7_baseline.save`.
+  group('B6 — decoding a v6 save changes no value it carries', () {
     test('the v6 fixture is the migrated v5 fixture, and says so', () {
       final SaveEnvelope envelope = decodeEnvelope(
         unframe(v6Baseline).payload!,
@@ -729,9 +733,25 @@ void main() {
       expect(state.world.visitVictories, isEmpty);
       expect(state.activityQueue, isNull);
       expect(
-        StateVersion.migrationRequired(state.stateVersion),
-        isFalse,
-        reason: 'a migrated save must never migrate again',
+        state.player.hp,
+        40,
+        reason:
+            'a v6 save has no hp field, and full HP at the level-1 maximum is '
+            'what a v6 save meant — every fight began full',
+      );
+      expect(state.progress, ProgressState.initial());
+    });
+
+    test('a v6 save is flagged as needing migration', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v6Baseline).payload!,
+      );
+      expect(
+        StateVersion.migrationRequired(envelope.state.stateVersion),
+        isTrue,
+        reason:
+            'the v6→v7 step is a format bump only, but the save still has to '
+            'be committed at v7 so the next launch reads it as current',
       );
     });
 
@@ -741,6 +761,79 @@ void main() {
       // nothing else moved. The version digit is one byte either way. A
       // change that had also perturbed something else would not land on 21.
       expect(v6Baseline.length - v5Baseline.length, 21);
+    });
+  });
+
+  group('B7 — the round trip, carried forward to v7', () {
+    test('encode(decode(fixture)) is byte-identical to the v7 fixture', () {
+      final Uint8List fixture = v7Baseline;
+      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
+
+      final Uint8List reencoded = encodeSnapshot(
+        state: envelope.state,
+        saveId: envelope.saveId,
+        generation: envelope.snapshotGeneration,
+        lastAppliedTransaction: envelope.lastAppliedTransaction,
+        originSaltFingerprint: null,
+      );
+
+      // The trap that fires the day someone adds a field to GameState without
+      // thinking about saves. Without it the change is entirely silent until a
+      // player's save fails to load in the field.
+      //
+      // If this fires: the encoder and the v7 decoder no longer agree. Either
+      // the new field belongs in state version 8 (add a decoder, add a new
+      // fixture, add a `StateMigrations` step that says whether it re-bases —
+      // it should not — and make this test decode-only for v7), or the encoder
+      // has an ordering or type defect. Editing the fixture is never the fix.
+      expect(
+        reencoded,
+        fixture,
+        reason:
+            'the canonical encoder no longer reproduces a v7 save. See the '
+            'regeneration policy at the top of this file.',
+      );
+    });
+
+    test('the v7 fixture is the migrated v6 fixture, and says so', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v7Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 7);
+      // History intact, six times over — and the epoch untouched, because
+      // the v6→v7 step does not re-base either (`DECISIONS/0023` §10).
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 3,
+        ),
+        reason: 'a format bump must not move the economy mark',
+      );
+      expect(state.steps.banked, 0);
+      expect(state.encounter, isNull);
+      expect(state.world.visitVictories, isEmpty);
+      expect(state.activityQueue, isNull);
+      expect(state.player.hp, 40);
+      expect(state.progress, ProgressState.initial());
+      expect(
+        StateVersion.migrationRequired(state.stateVersion),
+        isFalse,
+        reason: 'a migrated save must never migrate again',
+      );
+    });
+
+    test('the v7 fixture grew by exactly the two added blocks', () {
+      // `"hp":40,` inside player (8 bytes) and the empty progress block
+      // (247 bytes, keys sorted, every collection empty): 255 in all. The
+      // version digit is one byte either way. A change that had also
+      // perturbed something else would not land on 255.
+      expect(v7Baseline.length - v6Baseline.length, 255);
     });
   });
 
@@ -759,6 +852,8 @@ void main() {
       expect(StateCodecs.decoderFor(5)!.version, 5);
       expect(StateCodecs.decoderFor(6), isNotNull);
       expect(StateCodecs.decoderFor(6)!.version, 6);
+      expect(StateCodecs.decoderFor(7), isNotNull);
+      expect(StateCodecs.decoderFor(7)!.version, 7);
       expect(
         StateCodecs.decoderFor(StateVersion.current.value + 1),
         isNull,

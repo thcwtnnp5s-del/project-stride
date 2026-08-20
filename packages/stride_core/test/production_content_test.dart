@@ -23,18 +23,22 @@ void main() {
         productionSource,
       ).requireRegistry;
 
-      // DECISIONS/0004, as amended by DECISIONS/0017 and DECISIONS/0021:
-      // scope is frozen at five skills, **five** locations, **four** enemies.
-      // A test that counts is how a freeze stays frozen — and every count here
-      // moved by an ADR, which is the only way one may move.
+      // DECISIONS/0004, as amended by DECISIONS/0017, DECISIONS/0021 and
+      // DECISIONS/0023: scope is frozen at five skills, **five** locations,
+      // **eight** enemies. A test that counts is how a freeze stays frozen —
+      // and every count here moved by an ADR, which is the only way one may
+      // move.
       //
       // Five skills are unchanged and re-frozen: fishing was considered for
       // Phase 2 and rejected, and a sixth skill still needs its own decision.
-      // The fourth enemy is the Frost Lynx, added by `DECISIONS/0021` to the
-      // one region that had no combat.
+      // Enemies five through eight are Exploration & Progression Loop 01's
+      // (`DECISIONS/0023`; brief §26–31): the Wild Boar and the optional
+      // high-danger Oakback Bear in the Woods, the Salamander at Stonefall,
+      // and the Mountain Ram at Frostmere — all from REGIONAL_CONTENT_PACK_01
+      // READY art, inside the brief's 6–8 archetype guardrail (§74).
       expect(registry.skills, hasLength(5));
       expect(registry.locations, hasLength(5));
-      expect(registry.enemies, hasLength(4));
+      expect(registry.enemies, hasLength(8));
 
       for (final String id in <String>[
         'skill.woodcutting',
@@ -56,8 +60,12 @@ void main() {
       }
       for (final String id in <String>[
         'enemy.forest_wolf',
+        'enemy.wild_boar',
+        'enemy.oakback_bear',
         'enemy.cave_goblin',
+        'enemy.salamander',
         'enemy.frost_lynx',
+        'enemy.mountain_ram',
         'enemy.hollow_guardian',
       ]) {
         expect(registry.enemies, contains(ContentId.unchecked(id)));
@@ -188,8 +196,13 @@ void main() {
         <(String, int, int)>[
           ('item.rime_blossom', 1, 50),
           ('item.lynx_pelt', 1, 35),
+          // The signature (`DECISIONS/0023` §5–6): Epic, ~5–8%, concealed on
+          // the card until Known, never on the critical path — the
+          // Frost-lined Jerkin wants pelts, not claws.
+          ('item.frost_claw', 1, 6),
         ],
       );
+      expect(lynx.drops.last.signature, isTrue);
     });
 
     test('the pelts are obtainable, and the jerkins are craftable', () {
@@ -262,21 +275,28 @@ void main() {
 
       // DECISIONS/0004. A shop would short-circuit the loop the slice exists to
       // validate, so its absence is asserted rather than assumed.
+      //
+      // Matched on whole underscore-separated words, not substrings: the
+      // Notice Board's `workshop_delivery` order (`DECISIONS/0023`) contains
+      // the letters s-h-o-p and is a smithy errand, not a store. A guard that
+      // cannot tell a workshop from a shop would push content into worse
+      // names to satisfy a regex.
+      const Set<String> forbidden = <String>{
+        'coin',
+        'gold',
+        'currency',
+        'merchant',
+        'shop',
+        'vendor',
+      };
       for (final ContentId id in registry.allIds) {
-        expect(
-          id.slug,
-          isNot(
-            anyOf(
-              contains('coin'),
-              contains('gold'),
-              contains('currency'),
-              contains('merchant'),
-              contains('shop'),
-              contains('vendor'),
-            ),
-          ),
-          reason: '$id looks like currency or merchant content',
-        );
+        for (final String word in id.slug.split('_')) {
+          expect(
+            forbidden,
+            isNot(contains(word)),
+            reason: '$id looks like currency or merchant content',
+          );
+        }
       }
     });
 

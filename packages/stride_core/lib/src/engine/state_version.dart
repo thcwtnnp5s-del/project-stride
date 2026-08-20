@@ -28,6 +28,7 @@ import 'package:meta/meta.dart';
 /// | 4 | Playable Expansion 01 | `encounter` and `world.drivenOff` — Combat Slice 01 (`DECISIONS/0020`); a format bump only, no economy re-base |
 /// | 5 | World & Reward Depth 01 | `world.drivenOff` (a set of enemies) becomes `world.visitVictories` (a count per enemy) — repeatable encounters (`DECISIONS/0021`); a format bump only, no economy re-base |
 /// | 6 | Finite background activity | `activityQueue` — the durable, wall-clock-anchored activity queue (`DECISIONS/0022`); a format bump only, no economy re-base |
+/// | 7 | Exploration & Progression Loop 01 | `player.hp` (persistent HP), `progress` (enemy knowledge, contracts, projects, rumors, tracked goals), `encounter.playerFrostGuard` (`DECISIONS/0023`); a format bump only, no economy re-base |
 @immutable
 final class StateVersion implements Comparable<StateVersion> {
   const StateVersion(this.value);
@@ -35,7 +36,7 @@ final class StateVersion implements Comparable<StateVersion> {
   final int value;
 
   /// The version new games are created at.
-  static const StateVersion current = StateVersion(6);
+  static const StateVersion current = StateVersion(7);
 
   /// The oldest version this build can read.
   ///

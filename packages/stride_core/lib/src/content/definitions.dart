@@ -142,6 +142,9 @@ final class ItemDefinition {
     this.toolKind = ToolKind.none,
     this.power = 0,
     this.healing = 0,
+    this.frostGuard = 0,
+    this.wildernessYieldPercent = 0,
+    this.toolBonusYieldPercent = 0,
     this.qaOnly = false,
   });
 
@@ -174,6 +177,23 @@ final class ItemDefinition {
   /// Health restored, for consumables.
   final int healing;
 
+  /// Incoming-damage reduction in alpine-terrain fights while this armour is
+  /// worn — the Frost-lined Jerkin's Cold Weather effect. Applied by the
+  /// engine after the ordinary strike arithmetic, floored at 1 damage. A
+  /// **narrow tagged modifier**, deliberately not a resistance framework
+  /// (`DECISIONS/0023` — Exploration & Progression Loop 01).
+  final int frostGuard;
+
+  /// Percent chance of +1 yield on Woodcutting/Foraging nodes while this item
+  /// is equipped — the Wolfhide Jerkin's Wilderness Ready passive. Rolled
+  /// deterministically from the event sequence (`DECISIONS/0023` §9).
+  final int wildernessYieldPercent;
+
+  /// Percent chance of +1 yield on nodes whose required tool kind this item
+  /// satisfies — the Reinforced Pickaxe's mining bonus. Same deterministic
+  /// roll discipline as [wildernessYieldPercent].
+  final int toolBonusYieldPercent;
+
   /// Marks content that exists only for the accelerated QA profile. Production
   /// bundles referencing it are rejected.
   final bool qaOnly;
@@ -189,6 +209,9 @@ final class ItemDefinition {
     'toolKind',
     'power',
     'healing',
+    'frostGuard',
+    'wildernessYieldPercent',
+    'toolBonusYieldPercent',
     'qaOnly',
   };
 
@@ -231,6 +254,17 @@ final class ItemDefinition {
           : ToolKind.none,
       power: reader.optionalInt('power', min: 0, max: 10000),
       healing: reader.optionalInt('healing', min: 0, max: 10000),
+      frostGuard: reader.optionalInt('frostGuard', min: 0, max: 100),
+      wildernessYieldPercent: reader.optionalInt(
+        'wildernessYieldPercent',
+        min: 0,
+        max: 100,
+      ),
+      toolBonusYieldPercent: reader.optionalInt(
+        'toolBonusYieldPercent',
+        min: 0,
+        max: 100,
+      ),
       qaOnly: reader.optionalBool('qaOnly'),
     );
     return reader.isComplete ? definition : null;
@@ -435,6 +469,10 @@ final class LocationDefinition {
     required this.connections,
     required this.entryRequirements,
     required this.resourceNodes,
+    this.safeAfterProject,
+    this.developmentState,
+    this.boardName,
+    this.boardSlots = 3,
   });
 
   final ContentId id;
@@ -462,6 +500,27 @@ final class LocationDefinition {
 
   final List<ContentId> resourceNodes;
 
+  /// A project whose completion makes this location safe — the Frostmere
+  /// Shelter (`DECISIONS/0023` §3–4). Null for locations whose safety is
+  /// static. The engine answers "is this place safe *now*" from [isSafe] OR
+  /// this project being in the completed set; content alone cannot say.
+  final ContentId? safeAfterProject;
+
+  /// The settlement's named development state before any project has changed
+  /// it — "Struggling" for Haven's Rest. Null for places with no settlement
+  /// identity. Never an XP bar: the current state is derived from completed
+  /// projects (`DECISIONS/0023` §3).
+  final String? developmentState;
+
+  /// What this location calls its contract board — "Notice Board",
+  /// "Ranger Requests", "Mine Ledger", "Expedition Ledger". Null when the
+  /// place has no board. Fiction, one backend (`DECISIONS/0023` §2).
+  final String? boardName;
+
+  /// How many local needs the board shows at once (the rotation window),
+  /// clamped to the deck. Default 3.
+  final int boardSlots;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -471,6 +530,10 @@ final class LocationDefinition {
     'connections',
     'entryRequirements',
     'resourceNodes',
+    'safeAfterProject',
+    'developmentState',
+    'boardName',
+    'boardSlots',
   };
 
   static LocationDefinition? read(JsonReader reader) {
@@ -499,6 +562,16 @@ final class LocationDefinition {
       resourceNodes: List<ContentId>.unmodifiable(
         reader.idList('resourceNodes', ContentNamespace.resourceNode),
       ),
+      safeAfterProject: reader.map.containsKey('safeAfterProject')
+          ? reader.requireId('safeAfterProject', ContentNamespace.project)
+          : null,
+      developmentState: reader.map.containsKey('developmentState')
+          ? reader.requireString('developmentState')
+          : null,
+      boardName: reader.map.containsKey('boardName')
+          ? reader.requireString('boardName')
+          : null,
+      boardSlots: reader.optionalInt('boardSlots', fallback: 3, min: 1, max: 6),
     );
     return reader.isComplete ? definition : null;
   }
@@ -540,6 +613,9 @@ final class ResourceNodeDefinition {
     required this.yieldsQuantity,
     required this.stepCost,
     required this.xp,
+    this.bonusYieldLevel = 0,
+    this.bonusYieldPercent = 0,
+    this.unlockedByProject,
   });
 
   final ContentId id;
@@ -557,6 +633,19 @@ final class ResourceNodeDefinition {
   final int stepCost;
   final int xp;
 
+  /// The skill level from which [bonusYieldPercent] applies — the small
+  /// profession yield improvements (`DECISIONS/0023` §9, brief §38).
+  /// Zero means the node offers no bonus.
+  final int bonusYieldLevel;
+
+  /// Percent chance of +1 yield once the player's level in [skill] reaches
+  /// [bonusYieldLevel]. Rolled deterministically; recorded on the event.
+  final int bonusYieldPercent;
+
+  /// A project whose completion is required before this node may be worked —
+  /// the Stonefall Lift's hardened seam. Null for always-available nodes.
+  final ContentId? unlockedByProject;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -568,6 +657,9 @@ final class ResourceNodeDefinition {
     'yieldsQuantity',
     'stepCost',
     'xp',
+    'bonusYieldLevel',
+    'bonusYieldPercent',
+    'unlockedByProject',
   };
 
   static ResourceNodeDefinition? read(JsonReader reader) {
@@ -602,6 +694,15 @@ final class ResourceNodeDefinition {
       ),
       stepCost: reader.requireInt('stepCost', min: 1, max: 1000000),
       xp: reader.requireInt('xp', min: 0, max: 1000000),
+      bonusYieldLevel: reader.optionalInt('bonusYieldLevel', min: 0, max: 99),
+      bonusYieldPercent: reader.optionalInt(
+        'bonusYieldPercent',
+        min: 0,
+        max: 100,
+      ),
+      unlockedByProject: reader.map.containsKey('unlockedByProject')
+          ? reader.requireId('unlockedByProject', ContentNamespace.project)
+          : null,
     );
     return reader.isComplete ? definition : null;
   }
@@ -621,6 +722,9 @@ final class RecipeDefinition {
     required this.outputItem,
     required this.outputQuantity,
     required this.xp,
+    this.unlockedByProject,
+    this.retiredByProject,
+    this.unlockedByContract,
   });
 
   final ContentId id;
@@ -632,6 +736,21 @@ final class RecipeDefinition {
   final int outputQuantity;
   final int xp;
 
+  /// A project whose completion makes this recipe available — the Mill's
+  /// improved plank processing is a *new* recipe unlocked by the Mill, beside
+  /// the old one it retires (`DECISIONS/0023` §3). Null: always available.
+  final ContentId? unlockedByProject;
+
+  /// A project whose completion **removes** this recipe — the pre-Mill
+  /// three-log plank recipe. Null: never retired.
+  final ContentId? retiredByProject;
+
+  /// A one-time contract whose completion teaches this recipe — Wolfhide via
+  /// Woodland Aid, the Reinforced Pickaxe via Replace the Mine Hardware,
+  /// the Frost-lined Jerkin via the Cold-Weather Kit. Null: known from the
+  /// start.
+  final ContentId? unlockedByContract;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -641,6 +760,9 @@ final class RecipeDefinition {
     'outputItem',
     'outputQuantity',
     'xp',
+    'unlockedByProject',
+    'retiredByProject',
+    'unlockedByContract',
   };
 
   static RecipeDefinition? read(JsonReader reader) {
@@ -670,6 +792,15 @@ final class RecipeDefinition {
         max: 1000,
       ),
       xp: reader.requireInt('xp', min: 0, max: 1000000),
+      unlockedByProject: reader.map.containsKey('unlockedByProject')
+          ? reader.requireId('unlockedByProject', ContentNamespace.project)
+          : null,
+      retiredByProject: reader.map.containsKey('retiredByProject')
+          ? reader.requireId('retiredByProject', ContentNamespace.project)
+          : null,
+      unlockedByContract: reader.map.containsKey('unlockedByContract')
+          ? reader.requireId('unlockedByContract', ContentNamespace.contract)
+          : null,
     );
     return reader.isComplete ? definition : null;
   }
@@ -723,6 +854,9 @@ final class EnemyDefinition {
     this.behavior = EnemyBehavior.steady,
     this.xp = 0,
     this.encountersPerVisit = 1,
+    this.studiedAt = 3,
+    this.knownAt = 6,
+    this.knownXp = 25,
   });
 
   final ContentId id;
@@ -760,6 +894,21 @@ final class EnemyDefinition {
   /// than a design, so the loader refuses it.
   final int encountersPerVisit;
 
+  /// Lifetime victories at which the enemy becomes **Studied** — fuller loot
+  /// information and a line of ecology (`DECISIONS/0023` §5). Compact by
+  /// design: Studied, then Known, then it stops.
+  final int studiedAt;
+
+  /// Lifetime victories at which the enemy becomes **Known** — bestiary
+  /// complete, signature-drop existence revealed, and [knownXp] awarded once
+  /// on the crossing victory.
+  final int knownAt;
+
+  /// One-time Character XP for reaching Known, before the balance profile is
+  /// applied. Carried on the crossing `EncounterWon` event, so it is
+  /// exactly-once by the same construction as the victory reward.
+  final int knownXp;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -772,6 +921,9 @@ final class EnemyDefinition {
     'behavior',
     'xp',
     'encountersPerVisit',
+    'studiedAt',
+    'knownAt',
+    'knownXp',
   };
 
   static EnemyDefinition? read(JsonReader reader) {
@@ -807,6 +959,14 @@ final class EnemyDefinition {
         min: 1,
         max: 100,
       ),
+      studiedAt: reader.optionalInt('studiedAt', fallback: 3, min: 1, max: 100),
+      knownAt: reader.optionalInt('knownAt', fallback: 6, min: 1, max: 100),
+      knownXp: reader.optionalInt(
+        'knownXp',
+        fallback: 25,
+        min: 0,
+        max: 1000000,
+      ),
     );
     return reader.isComplete ? definition : null;
   }
@@ -818,6 +978,7 @@ final class EnemyDrop {
     required this.item,
     required this.quantity,
     required this.chancePercent,
+    this.signature = false,
   });
 
   final ContentId item;
@@ -827,10 +988,17 @@ final class EnemyDrop {
   /// values that differ between platforms, and the simulation is deterministic.
   final int chancePercent;
 
+  /// A signature rare drop (`DECISIONS/0023` §5–6): optional excitement,
+  /// never on the critical path. Its **existence** is hidden on encounter
+  /// cards until the enemy is Known; the drop itself can land at any time —
+  /// concealment is presentation, never a roll change.
+  final bool signature;
+
   static const Set<String> fields = <String>{
     'item',
     'quantity',
     'chancePercent',
+    'signature',
   };
 
   static EnemyDrop? read(JsonReader reader, int index) {
@@ -839,7 +1007,386 @@ final class EnemyDrop {
       item: reader.requireId('item', ContentNamespace.item),
       quantity: reader.optionalInt('quantity', fallback: 1, min: 1, max: 1000),
       chancePercent: reader.requireInt('chancePercent', min: 1, max: 100),
+      signature: reader.optionalBool('signature'),
     );
     return reader.isComplete ? drop : null;
+  }
+}
+
+/// An item and a count — the shared shape contract requirements, contract
+/// rewards, and project stage requirements are written in.
+///
+/// Structurally identical to [RecipeIngredient], and deliberately a separate
+/// type: an ingredient is consumed by crafting, while these appear as
+/// requirements *and* as rewards, and sharing the recipe type would let a
+/// reward read as something the recipe system owns.
+@immutable
+final class ItemQuantity {
+  const ItemQuantity({required this.item, required this.quantity});
+
+  final ContentId item;
+  final int quantity;
+
+  static const Set<String> fields = <String>{'item', 'quantity'};
+
+  static ItemQuantity? read(JsonReader reader, int index) {
+    reader.rejectUnknownFields(fields);
+    final ItemQuantity value = ItemQuantity(
+      item: reader.requireId('item', ContentNamespace.item),
+      quantity: reader.optionalInt('quantity', fallback: 1, min: 1, max: 10000),
+    );
+    return reader.isComplete ? value : null;
+  }
+}
+
+/// A profession XP award carried by a contract reward.
+@immutable
+final class SkillXpAward {
+  const SkillXpAward({required this.skill, required this.xp});
+
+  final ContentId skill;
+
+  /// Before the balance profile is applied — scaled at completion time, like
+  /// every other base figure.
+  final int xp;
+
+  static const Set<String> fields = <String>{'skill', 'xp'};
+
+  static SkillXpAward? read(JsonReader reader, int index) {
+    reader.rejectUnknownFields(fields);
+    final SkillXpAward value = SkillXpAward(
+      skill: reader.requireId('skill', ContentNamespace.skill),
+      xp: reader.requireInt('xp', min: 1, max: 1000000),
+    );
+    return reader.isComplete ? value : null;
+  }
+}
+
+/// The three contract classes (`DECISIONS/0023` §2).
+///
+/// Wire strings are `local_need` | `bounty` | `regional`.
+enum ContractClass {
+  /// A small repeatable authored delivery order, living in its location's
+  /// rotation deck: 2–3 visible at a time, rotated by completion, never by
+  /// time.
+  localNeed,
+
+  /// A standing repeatable combat order — the deterministic anti-grind
+  /// backstop (`DECISIONS/0023` §6). Must be **accepted** before victories
+  /// count; always visible on its board rather than in the rotation deck.
+  bounty,
+
+  /// A one-time authored objective. May unlock recipes, reveal rumors, and
+  /// tell a small regional story.
+  regional,
+}
+
+/// Something a location's board asks for (`DECISIONS/0023` §2).
+@immutable
+final class ContractDefinition {
+  const ContractDefinition({
+    required this.id,
+    required this.displayName,
+    required this.location,
+    required this.contractClass,
+    required this.brief,
+    this.deckOrder = 0,
+    this.requires = const <ItemQuantity>[],
+    this.requiresOwned = const <ContentId>[],
+    this.bountyEnemy,
+    this.bountyCount = 0,
+    this.requiresContract,
+    this.requiresCompletedNeedAt,
+    this.requiresProject,
+    this.rewardItems = const <ItemQuantity>[],
+    this.rewardSkillXp = const <SkillXpAward>[],
+    this.rewardCharacterXp = 0,
+    this.revealRumors = const <ContentId>[],
+  });
+
+  final ContentId id;
+  final String displayName;
+
+  /// The location whose board offers this. Completion requires standing here.
+  final ContentId location;
+
+  final ContractClass contractClass;
+
+  /// One or two sentences of board fiction. Shown, never parsed.
+  final String brief;
+
+  /// Position in the location's rotation deck, for [ContractClass.localNeed].
+  /// 1-based; the loader requires it on local needs and refuses it elsewhere.
+  final int deckOrder;
+
+  /// Items **consumed** on completion.
+  final List<ItemQuantity> requires;
+
+  /// Items the player must **hold** at completion but keeps — the
+  /// Cold-Weather Kit asks to see a Wolfhide Jerkin, not to take it.
+  final List<ContentId> requiresOwned;
+
+  /// The enemy a bounty counts, with [bountyCount] victories required.
+  /// Only qualifying victories **after acceptance** count (`DECISIONS/0023`
+  /// §2; brief §79).
+  final ContentId? bountyEnemy;
+  final int bountyCount;
+
+  /// A one-time contract that must be complete before this one is offered.
+  final ContentId? requiresContract;
+
+  /// A location at which at least one local need must have been completed
+  /// before this contract is offered — Woodland Aid's "complete a Whispering
+  /// Woods request".
+  final ContentId? requiresCompletedNeedAt;
+
+  /// A project whose completion is required before this contract is offered —
+  /// the Shelter's advanced expedition contracts.
+  final ContentId? requiresProject;
+
+  final List<ItemQuantity> rewardItems;
+  final List<SkillXpAward> rewardSkillXp;
+
+  /// Character XP on completion, before the balance profile is applied.
+  final int rewardCharacterXp;
+
+  /// Rumors revealed on completion.
+  final List<ContentId> revealRumors;
+
+  /// Whether completing this contract again is legal. One-time for
+  /// [ContractClass.regional]; repeatable otherwise.
+  bool get isRepeatable => contractClass != ContractClass.regional;
+
+  static const Set<String> fields = <String>{
+    'id',
+    'displayName',
+    'location',
+    'class',
+    'brief',
+    'deckOrder',
+    'requires',
+    'requiresOwned',
+    'bountyEnemy',
+    'bountyCount',
+    'requiresContract',
+    'requiresCompletedNeedAt',
+    'requiresProject',
+    'rewardItems',
+    'rewardSkillXp',
+    'rewardCharacterXp',
+    'revealRumors',
+  };
+
+  static ContractDefinition? read(JsonReader reader) {
+    reader.rejectUnknownFields(fields);
+    final ContractDefinition definition = ContractDefinition(
+      id: reader.requireId('id', ContentNamespace.contract),
+      displayName: reader.requireString('displayName'),
+      location: reader.requireId('location', ContentNamespace.location),
+      contractClass: reader
+          .requireEnum<ContractClass>('class', const <String, ContractClass>{
+            'local_need': ContractClass.localNeed,
+            'bounty': ContractClass.bounty,
+            'regional': ContractClass.regional,
+          }),
+      brief: reader.requireString('brief'),
+      deckOrder: reader.optionalInt('deckOrder', min: 1, max: 100),
+      requires: List<ItemQuantity>.unmodifiable(
+        reader.objectList<ItemQuantity>('requires', ItemQuantity.read),
+      ),
+      requiresOwned: List<ContentId>.unmodifiable(
+        reader.idList('requiresOwned', ContentNamespace.item),
+      ),
+      bountyEnemy: reader.optionalId('bountyEnemy', ContentNamespace.enemy),
+      bountyCount: reader.optionalInt('bountyCount', min: 1, max: 100),
+      requiresContract: reader.optionalId(
+        'requiresContract',
+        ContentNamespace.contract,
+      ),
+      requiresCompletedNeedAt: reader.optionalId(
+        'requiresCompletedNeedAt',
+        ContentNamespace.location,
+      ),
+      requiresProject: reader.optionalId(
+        'requiresProject',
+        ContentNamespace.project,
+      ),
+      rewardItems: List<ItemQuantity>.unmodifiable(
+        reader.objectList<ItemQuantity>('rewardItems', ItemQuantity.read),
+      ),
+      rewardSkillXp: List<SkillXpAward>.unmodifiable(
+        reader.objectList<SkillXpAward>('rewardSkillXp', SkillXpAward.read),
+      ),
+      rewardCharacterXp: reader.optionalInt(
+        'rewardCharacterXp',
+        min: 0,
+        max: 1000000,
+      ),
+      revealRumors: List<ContentId>.unmodifiable(
+        reader.idList('revealRumors', ContentNamespace.rumor),
+      ),
+    );
+    return reader.isComplete ? definition : null;
+  }
+}
+
+/// One stage of a community project.
+@immutable
+final class ProjectStage {
+  const ProjectStage({
+    required this.name,
+    required this.requires,
+    this.characterXp = 0,
+  });
+
+  final String name;
+
+  /// Materials this stage needs, delivered by partial contribution.
+  final List<ItemQuantity> requires;
+
+  /// Character XP on stage completion, before the profile is applied.
+  final int characterXp;
+
+  static const Set<String> fields = <String>{'name', 'requires', 'characterXp'};
+
+  static ProjectStage? read(JsonReader reader, int index) {
+    reader.rejectUnknownFields(fields);
+    final ProjectStage stage = ProjectStage(
+      name: reader.requireString('name'),
+      requires: List<ItemQuantity>.unmodifiable(
+        reader.objectList<ItemQuantity>('requires', ItemQuantity.read),
+      ),
+      characterXp: reader.optionalInt('characterXp', min: 0, max: 1000000),
+    );
+    if (stage.requires.isEmpty) {
+      // A stage nothing can be contributed to can never complete.
+      return null;
+    }
+    return reader.isComplete ? stage : null;
+  }
+}
+
+/// A large staged permanent investment that visibly changes the world
+/// (`DECISIONS/0023` §3). The reward is world change and capability —
+/// permanent effects are declared on the content they affect
+/// (`unlockedByProject` / `retiredByProject` / `safeAfterProject`) and
+/// answered by the completed-projects set in state.
+@immutable
+final class ProjectDefinition {
+  const ProjectDefinition({
+    required this.id,
+    required this.displayName,
+    required this.location,
+    required this.brief,
+    required this.stages,
+    this.completionCharacterXp = 0,
+    this.completionHeadline,
+    this.developmentTo,
+    this.developmentRank = 0,
+    this.revealRumors = const <ContentId>[],
+  });
+
+  final ContentId id;
+  final String displayName;
+  final ContentId location;
+  final String brief;
+
+  /// In order. At least one; contributions fill the current stage only.
+  final List<ProjectStage> stages;
+
+  /// Character XP on full completion, before the profile is applied — on top
+  /// of the final stage's own award.
+  final int completionCharacterXp;
+
+  /// The completion banner — "HAVEN'S REST MILL RESTORED". Null falls back to
+  /// a generic line.
+  final String? completionHeadline;
+
+  /// The development state this project's completion moves its settlement to
+  /// — "Recovering". Null when completion does not rename the settlement.
+  final String? developmentTo;
+
+  /// Tie-break when several completed projects at one location each name a
+  /// development state: the highest rank wins. Zero is fine while at most one
+  /// project per location carries [developmentTo].
+  final int developmentRank;
+
+  /// Rumors revealed on completion.
+  final List<ContentId> revealRumors;
+
+  static const Set<String> fields = <String>{
+    'id',
+    'displayName',
+    'location',
+    'brief',
+    'stages',
+    'completionCharacterXp',
+    'completionHeadline',
+    'developmentTo',
+    'developmentRank',
+    'revealRumors',
+  };
+
+  static ProjectDefinition? read(JsonReader reader) {
+    reader.rejectUnknownFields(fields);
+    final ProjectDefinition definition = ProjectDefinition(
+      id: reader.requireId('id', ContentNamespace.project),
+      displayName: reader.requireString('displayName'),
+      location: reader.requireId('location', ContentNamespace.location),
+      brief: reader.requireString('brief'),
+      stages: List<ProjectStage>.unmodifiable(
+        reader.objectList<ProjectStage>('stages', ProjectStage.read),
+      ),
+      completionCharacterXp: reader.optionalInt(
+        'completionCharacterXp',
+        min: 0,
+        max: 1000000,
+      ),
+      completionHeadline: reader.map.containsKey('completionHeadline')
+          ? reader.requireString('completionHeadline')
+          : null,
+      developmentTo: reader.map.containsKey('developmentTo')
+          ? reader.requireString('developmentTo')
+          : null,
+      developmentRank: reader.optionalInt('developmentRank', min: 0, max: 100),
+      revealRumors: List<ContentId>.unmodifiable(
+        reader.idList('revealRumors', ContentNamespace.rumor),
+      ),
+    );
+    if (definition.stages.isEmpty) return null;
+    return reader.isComplete ? definition : null;
+  }
+}
+
+/// A lightweight authored rumor — a name and a hint about somewhere that is
+/// not playable yet (`DECISIONS/0023` §8). Revealed by contracts, projects,
+/// or discoveries; carries no timer and no obligation.
+@immutable
+final class RumorDefinition {
+  const RumorDefinition({
+    required this.id,
+    required this.displayName,
+    required this.hint,
+  });
+
+  final ContentId id;
+
+  /// The atlas label — "Eastern City ?".
+  final String displayName;
+
+  /// The sentence the player reads — "Travelers speak of a walled city
+  /// beyond the eastern marshes."
+  final String hint;
+
+  static const Set<String> fields = <String>{'id', 'displayName', 'hint'};
+
+  static RumorDefinition? read(JsonReader reader) {
+    reader.rejectUnknownFields(fields);
+    final RumorDefinition definition = RumorDefinition(
+      id: reader.requireId('id', ContentNamespace.rumor),
+      displayName: reader.requireString('displayName'),
+      hint: reader.requireString('hint'),
+    );
+    return reader.isComplete ? definition : null;
   }
 }

@@ -177,6 +177,11 @@ final class GameEngine {
         CombatAttack() => _combatAttack(command, state),
         CombatEat() => _combatEat(command, state),
         CombatRetreat() => _combatRetreat(command, state),
+        EatFood() => _eatFood(command, state),
+        TrackGoal() => _trackGoal(command, state),
+        AcceptContract() => _acceptContract(command, state),
+        CompleteContract() => _completeContract(command, state),
+        ContributeToProject() => _contributeToProject(command, state),
       };
 
   // -- Combat (Combat Slice 01) ---------------------------------------------
@@ -255,18 +260,25 @@ final class GameEngine {
 
     final PlayerCombatLoadout loadout = CombatRules.loadoutFor(state, registry);
     final int enemyHp = profile.applyEnemyHealth(enemy.health);
+    // Persistent HP (`DECISIONS/0023` §4): the fight begins at the player's
+    // carried HP, clamped to the loadout's maximum in case a level change
+    // moved the ceiling under a stored value.
+    final int startingHp = state.player.hp > loadout.maxHp
+        ? loadout.maxHp
+        : state.player.hp;
     return _Decision.accept(<GameEvent>[
       EncounterStarted(
         sequence: state.eventSequence,
         enemy: command.enemy,
         location: state.world.currentLocation,
         seed: CombatRules.seedFor(state.eventSequence, command.enemy),
-        playerHp: loadout.maxHp,
+        playerHp: startingHp,
         playerMaxHp: loadout.maxHp,
         playerAttack: loadout.attack,
         playerDefence: loadout.defence,
         enemyHp: enemyHp,
         enemyMaxHp: enemyHp,
+        playerFrostGuard: loadout.frostGuard,
       ),
     ]);
   }
@@ -401,7 +413,7 @@ final class GameEngine {
     return _Decision.accept(events);
   }
 
-  /// Leaves the fight. Nothing else changes.
+  /// Leaves the fight. Nothing is lost; the safe destination restores HP.
   _Decision _combatRetreat(CombatRetreat command, GameState state) {
     final EncounterState? encounter = state.encounter;
     if (encounter == null) {
@@ -411,14 +423,26 @@ final class GameEngine {
         'no encounter is active',
       );
     }
+    final ContentId retreatTo = CombatRules.retreatDestination(state, registry);
     return _Decision.accept(<GameEvent>[
       EncounterRetreated(
         sequence: state.eventSequence,
         enemy: encounter.enemy,
         location: encounter.location,
-        retreatTo: CombatRules.retreatDestination(state, registry),
+        retreatTo: retreatTo,
+        restoredHp: _restoredHpAt(retreatTo, state),
       ),
     ]);
+  }
+
+  /// The HP an arrival at [destination] restores, or null when it is not a
+  /// safe place for this state (`DECISIONS/0023` §4). Full, instant, free.
+  int? _restoredHpAt(ContentId destination, GameState state) {
+    final LocationDefinition? location = registry.locations[destination];
+    if (location == null || !CombatRules.isSafeNow(location, state)) {
+      return null;
+    }
+    return CombatRules.maxHpFor(state.player.level);
   }
 
   /// The one `EncounterWon`, with every figure of the reward on it.
@@ -428,14 +452,26 @@ final class GameEngine {
   /// the curve. Drops roll from the seed with the drop index and the victory
   /// turn — one independent draw per drop — and are recorded as literal
   /// amounts, unscaled: drops are not gather yields.
+  ///
+  /// Since state v7 the event also carries: the player's HP as the fight
+  /// ended (persistent HP, `DECISIONS/0023` §4); the lifetime victory count
+  /// after this one, with the one-time Known award when this victory crosses
+  /// the enemy's `knownAt` threshold (§5); and the accepted bounty contracts
+  /// this victory advanced (§2 — only qualifying victories after acceptance
+  /// count, and the counting is recorded here so replay reproduces it).
   EncounterWon _victory(
     int sequence,
     GameState state,
     EncounterState encounter,
     EnemyDefinition enemy,
   ) {
-    final int xp = profile.applyXp(enemy.xp);
+    final int victoriesAfter = state.progress.victoriesOf(encounter.enemy) + 1;
+    final int knowledgeXp = victoriesAfter == enemy.knownAt
+        ? profile.applyXp(enemy.knownXp)
+        : 0;
+    final int xp = profile.applyXp(enemy.xp) + knowledgeXp;
     final int experienceAfter = state.player.experience + xp;
+
     final Map<ContentId, int> drops = <ContentId, int>{};
     for (int i = 0; i < enemy.drops.length; i++) {
       final EnemyDrop drop = enemy.drops[i];
@@ -448,6 +484,20 @@ final class GameEngine {
         drops[drop.item] = (drops[drop.item] ?? 0) + drop.quantity;
       }
     }
+
+    // Accepted, uncompleted bounty contracts naming this enemy advance by
+    // one, capped at their required count — a count past the requirement
+    // would be a figure with no meaning.
+    final Map<ContentId, int> bountyProgress = <ContentId, int>{};
+    for (final ContentId contractId in state.progress.acceptedContracts) {
+      final ContractDefinition? contract = registry.contracts[contractId];
+      if (contract == null) continue;
+      if (contract.bountyEnemy != encounter.enemy) continue;
+      final int current = state.progress.bountyProgress[contractId] ?? 0;
+      if (current >= contract.bountyCount) continue;
+      bountyProgress[contractId] = current + 1;
+    }
+
     return EncounterWon(
       sequence: sequence,
       enemy: encounter.enemy,
@@ -457,6 +507,10 @@ final class GameEngine {
       levelBefore: state.player.level,
       levelAfter: CombatRules.levelFor(experienceAfter),
       drops: drops,
+      playerHpAfter: encounter.playerHp,
+      victoriesAfter: victoriesAfter,
+      knowledgeXp: knowledgeXp,
+      bountyProgress: bountyProgress,
     );
   }
 
@@ -482,9 +536,16 @@ final class GameEngine {
         CombatRules.isHeavyTurn(turn);
     final int strikes = enemy.behavior == EnemyBehavior.flurry ? 2 : 1;
 
+    // Cold Weather (`DECISIONS/0023` §4): frost-guard armour reduces every
+    // incoming strike in an alpine-terrain fight, floored at 1 — the strike
+    // still lands. A narrow tagged modifier, applied here and nowhere else.
+    final bool alpineFight =
+        registry.locations[encounter.location]?.terrain == Terrain.alpine;
+    final int frostGuard = alpineFight ? encounter.playerFrostGuard : 0;
+
     int hp = playerHp;
     for (int i = 0; i < strikes; i++) {
-      final int damage = heavy
+      int damage = heavy
           ? CombatRules.heavyStrike(enemy.attack, encounter.playerDefence)
           : CombatRules.strike(
               enemy.attack,
@@ -495,6 +556,9 @@ final class GameEngine {
                 CombatRules.enemyStrikeSalt + i,
               ),
             );
+      if (frostGuard > 0) {
+        damage = damage - frostGuard < 1 ? 1 : damage - frostGuard;
+      }
       hp = hp - damage < 0 ? 0 : hp - damage;
       events.add(
         CombatEnemyStruck(
@@ -507,12 +571,17 @@ final class GameEngine {
         ),
       );
       if (hp == 0) {
+        final ContentId retreatTo = CombatRules.retreatDestination(
+          state,
+          registry,
+        );
         events.add(
           EncounterLost(
             sequence: sequence,
             enemy: encounter.enemy,
             location: encounter.location,
-            retreatTo: CombatRules.retreatDestination(state, registry),
+            retreatTo: retreatTo,
+            restoredHp: _restoredHpAt(retreatTo, state),
           ),
         );
         return;
@@ -696,6 +765,8 @@ final class GameEngine {
         location: command.destination,
         stepsSpent: cost,
         firstVisit: !state.world.isUnlocked(command.destination),
+        // Safe arrivals heal fully, instantly, freely (`DECISIONS/0023` §4).
+        restoredHp: _restoredHpAt(command.destination, state),
       ),
     ]);
   }
@@ -718,6 +789,20 @@ final class GameEngine {
         RejectionCode.unknownRecipe,
         command,
         'no recipe is defined with that ID',
+        subject: command.recipe.value,
+      );
+    }
+
+    // Project/contract gating (`DECISIONS/0023` §3): a recipe not yet
+    // unlocked, or retired by a completed project, is refused before any
+    // other question — the player's real answer is progression, not
+    // materials.
+    final String? lockReason = recipeLockReason(recipe, state);
+    if (lockReason != null) {
+      return _Decision.reject(
+        RejectionCode.recipeLocked,
+        command,
+        lockReason,
         subject: command.recipe.value,
       );
     }
@@ -1035,6 +1120,7 @@ final class GameEngine {
     ContentId nodeId,
     GameState state, {
     bool checkCost = true,
+    int completionIndex = 0,
   }) {
     final ResourceNodeDefinition? node = registry.resourceNodes[nodeId];
     if (node == null) {
@@ -1062,6 +1148,23 @@ final class GameEngine {
           explanation:
               '"${node.displayName}" is not at '
               '${here?.displayName ?? state.world.currentLocation.value}',
+          subject: nodeId.value,
+        ),
+      );
+    }
+
+    // Project gating (`DECISIONS/0023` §3): the Lift's hardened seam does
+    // not exist as a workable thing until the Lift is complete.
+    final ContentId? gate = node.unlockedByProject;
+    if (gate != null && !state.progress.isProjectComplete(gate)) {
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.nodeLocked,
+          command: command.name,
+          explanation:
+              '"${node.displayName}" is behind '
+              '"${registry.projects[gate]?.displayName ?? gate.value}", '
+              'which has not been completed',
           subject: nodeId.value,
         ),
       );
@@ -1129,11 +1232,118 @@ final class GameEngine {
       _GatherFigures(
         stepsSpent: cost,
         item: node.yieldsItem,
-        quantity: profile.applyYield(node.yieldsQuantity),
+        quantity:
+            profile.applyYield(node.yieldsQuantity) +
+            _bonusYield(node, level, state, completionIndex),
         skill: node.skill,
         experience: profile.applyXp(node.xp),
       ),
     );
+  }
+
+  /// The deterministic bonus yield of one gather (`DECISIONS/0023` §9):
+  /// the node's own skill bonus, equipped wilderness gear on Woodcutting/
+  /// Foraging nodes, and an equipped bonus tool on nodes its kind serves —
+  /// each an independent roll from the event sequence, the completion index
+  /// and its own salt, so replay reproduces it and two completions of one
+  /// reconciliation roll differently.
+  int _bonusYield(
+    ResourceNodeDefinition node,
+    int skillLevel,
+    GameState state,
+    int completionIndex,
+  ) {
+    final int seed = CombatRules.gatherSeed(state.eventSequence, node.id);
+    int bonus = 0;
+
+    if (node.bonusYieldPercent > 0 &&
+        node.bonusYieldLevel > 0 &&
+        skillLevel >= node.bonusYieldLevel) {
+      if (CombatRules.percentRoll(
+            seed,
+            completionIndex,
+            CombatRules.nodeBonusSalt,
+          ) <
+          node.bonusYieldPercent) {
+        bonus += 1;
+      }
+    }
+
+    // Wilderness gear (the Wolfhide Jerkin): qualifying nodes are the
+    // wilderness professions — Woodcutting and Foraging, per the owner brief
+    // (§46) — never Mining. The best equipped figure rolls once.
+    final bool wildernessNode =
+        node.skill.slug == 'woodcutting' || node.skill.slug == 'foraging';
+    if (wildernessNode) {
+      int best = 0;
+      for (final ContentId equipped in state.equipment.bySlot.values) {
+        final ItemDefinition? item = registry.items[equipped];
+        if (item == null) continue;
+        if (item.wildernessYieldPercent > best) {
+          best = item.wildernessYieldPercent;
+        }
+      }
+      if (best > 0 &&
+          CombatRules.percentRoll(
+                seed,
+                completionIndex,
+                CombatRules.wildernessBonusSalt,
+              ) <
+              best) {
+        bonus += 1;
+      }
+    }
+
+    // A bonus tool (the Reinforced Pickaxe): counts only on nodes that ask
+    // for its kind, and only when the equipped tool actually satisfies the
+    // node — the same equipped-not-owned rule as [_hasTool].
+    if (node.requiredToolKind != ToolKind.none) {
+      int best = 0;
+      for (final ContentId equipped in state.equipment.bySlot.values) {
+        final ItemDefinition? item = registry.items[equipped];
+        if (item == null) continue;
+        if (item.toolKind != node.requiredToolKind) continue;
+        if (item.tier < node.minimumToolTier) continue;
+        if (item.toolBonusYieldPercent > best) {
+          best = item.toolBonusYieldPercent;
+        }
+      }
+      if (best > 0 &&
+          CombatRules.percentRoll(
+                seed,
+                completionIndex,
+                CombatRules.toolBonusSalt,
+              ) <
+              best) {
+        bonus += 1;
+      }
+    }
+
+    return bonus;
+  }
+
+  /// Why [recipe] is not currently craftable, or null when it is
+  /// (`DECISIONS/0023` §3). Public so projections disable and explain with
+  /// the engine's own words rather than re-deriving the rule.
+  String? recipeLockReason(RecipeDefinition recipe, GameState state) {
+    final ContentId? projectGate = recipe.unlockedByProject;
+    if (projectGate != null && !state.progress.isProjectComplete(projectGate)) {
+      return '"${recipe.displayName}" is unlocked by completing '
+          '"${registry.projects[projectGate]?.displayName ?? projectGate.value}"';
+    }
+    final ContentId? retiredBy = recipe.retiredByProject;
+    if (retiredBy != null && state.progress.isProjectComplete(retiredBy)) {
+      return '"${recipe.displayName}" was retired by '
+          '"${registry.projects[retiredBy]?.displayName ?? retiredBy.value}" '
+          '— an improved method replaced it';
+    }
+    final ContentId? contractGate = recipe.unlockedByContract;
+    if (contractGate != null &&
+        state.progress.completionsOf(contractGate) == 0) {
+      return '"${recipe.displayName}" is taught by completing '
+          '"${registry.contracts[contractGate]?.displayName ?? contractGate.value}"';
+    }
+    return null;
   }
 
   // -- The activity queue (`DECISIONS/0022`) ---------------------------------
@@ -1296,6 +1506,7 @@ final class GameEngine {
         command,
         queue.node,
         working,
+        completionIndex: j,
       );
       final CommandRejection? rejection = resolved.rejection;
       if (rejection != null) {
@@ -1322,6 +1533,575 @@ final class GameEngine {
       );
     }
     return (completions: completions, stopReason: stopReason);
+  }
+
+  // -- Exploration & Progression Loop 01 (`DECISIONS/0023`) -------------------
+
+  /// Eats outside combat (`DECISIONS/0023` §4).
+  ///
+  /// Item exists → not fighting → owned → edible → HP missing. The in-fight
+  /// path is [CombatEat] and spends the turn; this one spends only the food.
+  _Decision _eatFood(EatFood command, GameState state) {
+    final ItemDefinition? item = registry.items[command.item];
+    if (item == null) {
+      return _Decision.reject(
+        RejectionCode.unknownItem,
+        command,
+        'no item is defined with that ID',
+        subject: command.item.value,
+      );
+    }
+    final CommandRejection? fighting = _refuseDuringEncounter(command, state);
+    if (fighting != null) return _Decision.rejectWith(fighting);
+    if (!state.inventory.has(command.item)) {
+      return _Decision.reject(
+        RejectionCode.itemNotOwned,
+        command,
+        'the player does not have "${item.displayName}"',
+        subject: command.item.value,
+      );
+    }
+    if (item.category != ItemCategory.consumable || item.healing <= 0) {
+      return _Decision.reject(
+        RejectionCode.notEdible,
+        command,
+        '"${item.displayName}" is not a consumable that heals',
+        subject: command.item.value,
+      );
+    }
+    final int maxHp = CombatRules.maxHpFor(state.player.level);
+    final int missing = maxHp - state.player.hp;
+    if (missing <= 0) {
+      return _Decision.reject(
+        RejectionCode.healthFull,
+        command,
+        'the player is already at full health',
+        subject: command.item.value,
+      );
+    }
+    final int healed = item.healing < missing ? item.healing : missing;
+    return _Decision.accept(<GameEvent>[
+      FoodEaten(
+        sequence: state.eventSequence,
+        item: command.item,
+        healed: healed,
+        hpAfter: state.player.hp + healed,
+      ),
+    ]);
+  }
+
+  /// Sets or clears a tracked-objective slot (`DECISIONS/0023` §1). The
+  /// target must fit the slot and exist in content; clearing always works.
+  /// No economy figure moves either way.
+  _Decision _trackGoal(TrackGoal command, GameState state) {
+    final ContentId? target = command.target;
+    if (target != null) {
+      final bool fits = switch (command.slot) {
+        GoalSlot.journey => registry.locations.containsKey(target),
+        GoalSlot.pursuit => registry.items.containsKey(target),
+        GoalSlot.contract =>
+          registry.contracts.containsKey(target) ||
+              registry.projects.containsKey(target),
+      };
+      if (!fits) {
+        return _Decision.reject(
+          RejectionCode.invalidGoal,
+          command,
+          'a ${command.slot.name} slot cannot track "${target.value}"',
+          subject: target.value,
+        );
+      }
+    }
+    if (state.progress.tracked.inSlot(command.slot) == target) {
+      // Tracking what is already tracked: accepted, nothing happened.
+      return const _Decision.accept(<GameEvent>[]);
+    }
+    return _Decision.accept(<GameEvent>[
+      GoalTracked(
+        sequence: state.eventSequence,
+        slot: command.slot,
+        target: target,
+      ),
+    ]);
+  }
+
+  /// The availability questions every contract action shares
+  /// (`DECISIONS/0023` §2): exists → offered at this board right now.
+  /// Returns the refusal, or null when the contract is available where the
+  /// player stands.
+  CommandRejection? _contractUnavailable(
+    GameCommand command,
+    ContractDefinition contract,
+    GameState state,
+  ) {
+    if (contract.location != state.world.currentLocation) {
+      return CommandRejection(
+        code: RejectionCode.contractNotHere,
+        command: command.name,
+        explanation:
+            '"${contract.displayName}" is posted at '
+            '${registry.locations[contract.location]?.displayName ?? contract.location.value}',
+        subject: contract.id.value,
+      );
+    }
+    if (!contract.isRepeatable &&
+        state.progress.completionsOf(contract.id) > 0) {
+      return CommandRejection(
+        code: RejectionCode.contractNotAvailable,
+        command: command.name,
+        explanation: '"${contract.displayName}" has already been completed',
+        subject: contract.id.value,
+      );
+    }
+    if (contract.contractClass == ContractClass.localNeed &&
+        !localNeedSlots(state, contract.location).contains(contract.id)) {
+      return CommandRejection(
+        code: RejectionCode.contractNotAvailable,
+        command: command.name,
+        explanation:
+            '"${contract.displayName}" is not on the board right now; '
+            'complete a posted order and it will rotate back around',
+        subject: contract.id.value,
+      );
+    }
+    final ContentId? prerequisite = contract.requiresContract;
+    if (prerequisite != null && state.progress.completionsOf(prerequisite) == 0) {
+      return CommandRejection(
+        code: RejectionCode.contractNotAvailable,
+        command: command.name,
+        explanation:
+            '"${contract.displayName}" is offered after '
+            '"${registry.contracts[prerequisite]?.displayName ?? prerequisite.value}"',
+        subject: contract.id.value,
+      );
+    }
+    final ContentId? needsNeedAt = contract.requiresCompletedNeedAt;
+    if (needsNeedAt != null && !_hasCompletedNeedAt(state, needsNeedAt)) {
+      return CommandRejection(
+        code: RejectionCode.contractNotAvailable,
+        command: command.name,
+        explanation:
+            '"${contract.displayName}" is offered after helping at '
+            '${registry.locations[needsNeedAt]?.displayName ?? needsNeedAt.value}',
+        subject: contract.id.value,
+      );
+    }
+    final ContentId? projectGate = contract.requiresProject;
+    if (projectGate != null &&
+        !state.progress.isProjectComplete(projectGate)) {
+      return CommandRejection(
+        code: RejectionCode.contractNotAvailable,
+        command: command.name,
+        explanation:
+            '"${contract.displayName}" is offered once '
+            '"${registry.projects[projectGate]?.displayName ?? projectGate.value}" '
+            'is complete',
+        subject: contract.id.value,
+      );
+    }
+    return null;
+  }
+
+  /// Why [contract] is not currently offered where the player stands, in the
+  /// engine's own words, or null when it is available. Public so board
+  /// projections disable and explain without re-deriving the rule
+  /// (`RULES.md` E-2); [CompleteContract] and [AcceptContract] still
+  /// re-check on execute.
+  String? contractUnavailableReason(
+    ContractDefinition contract,
+    GameState state,
+  ) => _contractUnavailable(
+    CompleteContract(contract: contract.id),
+    contract,
+    state,
+  )?.explanation;
+
+  /// Whether any local need at [location] has ever been completed.
+  bool _hasCompletedNeedAt(GameState state, ContentId location) {
+    for (final MapEntry<ContentId, int> e
+        in state.progress.contractCompletions.entries) {
+      if (e.value <= 0) continue;
+      final ContractDefinition? contract = registry.contracts[e.key];
+      if (contract == null) continue;
+      if (contract.location != location) continue;
+      if (contract.contractClass == ContractClass.localNeed ||
+          contract.contractClass == ContractClass.bounty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// The local needs currently visible on [location]'s board: the recorded
+  /// slots once a rotation has happened, else the first window of the
+  /// authored deck. Public so projections read the same window the engine
+  /// validates against.
+  List<ContentId> localNeedSlots(GameState state, ContentId location) {
+    final List<ContentId>? recorded = state.progress.localSlots[location];
+    if (recorded != null) return recorded;
+    final List<ContentId> deck = registry.localNeedDeck(location);
+    final int window = _boardWindow(location, deck.length);
+    return deck.sublist(0, window);
+  }
+
+  /// How many local needs a board shows at once: the location's authored
+  /// `boardSlots`, clamped to the deck.
+  int _boardWindow(ContentId location, int deckLength) {
+    final int authored = registry.locations[location]?.boardSlots ?? 3;
+    return authored < deckLength ? authored : deckLength;
+  }
+
+  /// Accepts a bounty (`DECISIONS/0023` §2): victories count from here.
+  _Decision _acceptContract(AcceptContract command, GameState state) {
+    final ContractDefinition? contract = registry.contracts[command.contract];
+    if (contract == null) {
+      return _Decision.reject(
+        RejectionCode.unknownContract,
+        command,
+        'no contract is defined with that ID',
+        subject: command.contract.value,
+      );
+    }
+    if (contract.bountyEnemy == null) {
+      return _Decision.reject(
+        RejectionCode.contractNotAcceptable,
+        command,
+        '"${contract.displayName}" is a delivery order — hand the goods over '
+        'when you have them; nothing needs accepting',
+        subject: command.contract.value,
+      );
+    }
+    final CommandRejection? unavailable = _contractUnavailable(
+      command,
+      contract,
+      state,
+    );
+    if (unavailable != null) return _Decision.rejectWith(unavailable);
+    if (state.progress.acceptedContracts.contains(command.contract)) {
+      return _Decision.reject(
+        RejectionCode.contractAlreadyAccepted,
+        command,
+        '"${contract.displayName}" is already accepted; victories are '
+        'already counting',
+        subject: command.contract.value,
+      );
+    }
+    return _Decision.accept(<GameEvent>[
+      ContractAccepted(
+        sequence: state.eventSequence,
+        contract: command.contract,
+      ),
+    ]);
+  }
+
+  /// Completes a contract (`DECISIONS/0023` §2): one event, exactly once,
+  /// zero mutation on any shortfall.
+  ///
+  /// Exists → offered here now → bounty met → held-but-kept items present →
+  /// consumed items present. Cost-last ordering for the player's questions,
+  /// exactly as [_gather] orders its own.
+  _Decision _completeContract(CompleteContract command, GameState state) {
+    final ContractDefinition? contract = registry.contracts[command.contract];
+    if (contract == null) {
+      return _Decision.reject(
+        RejectionCode.unknownContract,
+        command,
+        'no contract is defined with that ID',
+        subject: command.contract.value,
+      );
+    }
+    final CommandRejection? unavailable = _contractUnavailable(
+      command,
+      contract,
+      state,
+    );
+    if (unavailable != null) return _Decision.rejectWith(unavailable);
+
+    final ContentId? bountyEnemy = contract.bountyEnemy;
+    if (bountyEnemy != null) {
+      if (!state.progress.acceptedContracts.contains(command.contract)) {
+        return _Decision.reject(
+          RejectionCode.bountyUnmet,
+          command,
+          '"${contract.displayName}" has not been accepted; only victories '
+          'after acceptance count',
+          subject: command.contract.value,
+        );
+      }
+      final int counted =
+          state.progress.bountyProgress[command.contract] ?? 0;
+      if (counted < contract.bountyCount) {
+        return _Decision.reject(
+          RejectionCode.bountyUnmet,
+          command,
+          '"${contract.displayName}" needs ${contract.bountyCount} '
+          '${registry.enemies[bountyEnemy]?.displayName ?? bountyEnemy.value} '
+          'victories; $counted counted since acceptance',
+          subject: command.contract.value,
+        );
+      }
+    }
+
+    final List<String> notOwned = <String>[
+      for (final ContentId item in contract.requiresOwned)
+        if (!state.inventory.has(item))
+          registry.items[item]?.displayName ?? item.value,
+    ];
+    if (notOwned.isNotEmpty) {
+      return _Decision.reject(
+        RejectionCode.requirementNotOwned,
+        command,
+        '"${contract.displayName}" asks to see ${notOwned.join(', ')}',
+        subject: command.contract.value,
+      );
+    }
+
+    // Folded first, exactly as [_craft] folds, and for the same reason.
+    final Map<ContentId, int> required = <ContentId, int>{};
+    for (final ItemQuantity need in contract.requires) {
+      required[need.item] = (required[need.item] ?? 0) + need.quantity;
+    }
+    final List<String> shortfalls = <String>[];
+    for (final MapEntry<ContentId, int> need in required.entries) {
+      final int held = state.inventory.quantityOf(need.key);
+      if (held >= need.value) continue;
+      final String name =
+          registry.items[need.key]?.displayName ?? need.key.value;
+      shortfalls.add('$name ${need.value - held} short');
+    }
+    if (shortfalls.isNotEmpty) {
+      return _Decision.reject(
+        RejectionCode.insufficientIngredients,
+        command,
+        '"${contract.displayName}" cannot be completed: '
+        '${shortfalls.join(', ')}',
+        subject: command.contract.value,
+      );
+    }
+
+    // Rewards, profile-scaled once, here.
+    final Map<ContentId, int> rewardItems = <ContentId, int>{};
+    for (final ItemQuantity given in contract.rewardItems) {
+      rewardItems[given.item] =
+          (rewardItems[given.item] ?? 0) + profile.applyYield(given.quantity);
+    }
+    final Map<ContentId, int> rewardSkillXp = <ContentId, int>{};
+    for (final SkillXpAward award in contract.rewardSkillXp) {
+      rewardSkillXp[award.skill] =
+          (rewardSkillXp[award.skill] ?? 0) + profile.applyXp(award.xp);
+    }
+    final int characterXp = profile.applyXp(contract.rewardCharacterXp);
+    final int experienceAfter = state.player.experience + characterXp;
+
+    // Rotation, for a local need: the completed order leaves the board and
+    // the next authored order not already showing takes its slot. Rotation
+    // is caused by completion, never by time.
+    List<ContentId>? rotatedSlots;
+    int? rotatedNext;
+    if (contract.contractClass == ContractClass.localNeed) {
+      final List<ContentId> deck = registry.localNeedDeck(contract.location);
+      final List<ContentId> slots = List<ContentId>.of(
+        localNeedSlots(state, contract.location),
+      );
+      final int window = _boardWindow(contract.location, deck.length);
+      // The first undealt deck index — `window` on a virgin board, wrapped
+      // when the whole deck is already showing.
+      int next =
+          state.progress.localNext[contract.location] ??
+          (window % deck.length);
+      final Set<ContentId> staying = slots.toSet()..remove(contract.id);
+      ContentId? replacement;
+      for (int i = 0; i < deck.length; i++) {
+        final ContentId candidate = deck[(next + i) % deck.length];
+        if (staying.contains(candidate)) continue;
+        replacement = candidate;
+        next = (next + i + 1) % deck.length;
+        break;
+      }
+      final int completedAt = slots.indexOf(contract.id);
+      if (replacement != null && completedAt >= 0) {
+        slots[completedAt] = replacement;
+      }
+      rotatedSlots = slots;
+      rotatedNext = next;
+    }
+
+    // Rumors not yet revealed. An already-known rumor is not re-announced.
+    final List<ContentId> revealed = <ContentId>[
+      for (final ContentId rumor in contract.revealRumors)
+        if (!state.progress.revealedRumors.contains(rumor)) rumor,
+    ];
+
+    return _Decision.accept(<GameEvent>[
+      ContractCompleted(
+        sequence: state.eventSequence,
+        contract: command.contract,
+        location: contract.location,
+        consumed: required,
+        rewardItems: rewardItems,
+        rewardSkillXp: rewardSkillXp,
+        characterXp: characterXp,
+        experienceAfter: experienceAfter,
+        levelBefore: state.player.level,
+        levelAfter: CombatRules.levelFor(experienceAfter),
+        completionsAfter: state.progress.completionsOf(command.contract) + 1,
+        revealedRumors: revealed,
+        rotatedSlots: rotatedSlots,
+        rotatedNext: rotatedNext,
+      ),
+    ]);
+  }
+
+  /// Contributes to a community project (`DECISIONS/0023` §3): explicit
+  /// amounts, validated against holdings and the stage's remaining need,
+  /// removed permanently, one atomic event. Stage and project completion
+  /// ride the same event when the contribution fills the stage.
+  _Decision _contributeToProject(ContributeToProject command, GameState state) {
+    final ProjectDefinition? project = registry.projects[command.project];
+    if (project == null) {
+      return _Decision.reject(
+        RejectionCode.unknownProject,
+        command,
+        'no community project is defined with that ID',
+        subject: command.project.value,
+      );
+    }
+    if (project.location != state.world.currentLocation) {
+      return _Decision.reject(
+        RejectionCode.projectNotHere,
+        command,
+        '"${project.displayName}" is at '
+        '${registry.locations[project.location]?.displayName ?? project.location.value}; '
+        'contributions are made in person',
+        subject: command.project.value,
+      );
+    }
+    if (state.progress.isProjectComplete(command.project)) {
+      return _Decision.reject(
+        RejectionCode.projectComplete,
+        command,
+        '"${project.displayName}" is already complete',
+        subject: command.project.value,
+      );
+    }
+    if (command.contributions.isEmpty) {
+      return _Decision.reject(
+        RejectionCode.invalidContribution,
+        command,
+        'nothing was offered',
+        subject: command.project.value,
+      );
+    }
+
+    final ProjectProgressState progress =
+        state.progress.projects[command.project] ??
+        ProjectProgressState(stage: 0);
+    final ProjectStage stage = project.stages[progress.stage];
+
+    // The stage's remaining need per item. Requirements are folded first, so
+    // an item listed twice is one total rather than two checks against the
+    // same receipt.
+    final Map<ContentId, int> requiredTotal = <ContentId, int>{};
+    for (final ItemQuantity need in stage.requires) {
+      requiredTotal[need.item] = (requiredTotal[need.item] ?? 0) + need.quantity;
+    }
+    final Map<ContentId, int> remaining = <ContentId, int>{
+      for (final MapEntry<ContentId, int> need in requiredTotal.entries)
+        need.key: (need.value - progress.contributedOf(need.key)) < 0
+            ? 0
+            : need.value - progress.contributedOf(need.key),
+    };
+
+    // Every offered line must be positive, needed, and held — or nothing
+    // moves.
+    for (final MapEntry<ContentId, int> offer
+        in command.contributions.entries) {
+      final String name =
+          registry.items[offer.key]?.displayName ?? offer.key.value;
+      if (offer.value <= 0) {
+        return _Decision.reject(
+          RejectionCode.invalidContribution,
+          command,
+          'an offer of ${offer.value} $name is not a contribution',
+          subject: command.project.value,
+        );
+      }
+      final int needed = remaining[offer.key] ?? 0;
+      if (needed == 0) {
+        return _Decision.reject(
+          RejectionCode.invalidContribution,
+          command,
+          '"${stage.name}" does not need $name'
+          '${stage.requires.any((ItemQuantity q) => q.item == offer.key) ? ' any more' : ''}',
+          subject: command.project.value,
+        );
+      }
+      if (offer.value > needed) {
+        return _Decision.reject(
+          RejectionCode.invalidContribution,
+          command,
+          '"${stage.name}" needs only $needed more $name',
+          subject: command.project.value,
+        );
+      }
+      if (!state.inventory.has(offer.key, offer.value)) {
+        return _Decision.reject(
+          RejectionCode.invalidContribution,
+          command,
+          'the player holds ${state.inventory.quantityOf(offer.key)} $name, '
+          'not ${offer.value}',
+          subject: command.project.value,
+        );
+      }
+    }
+
+    // The stage's receipt after this contribution, and whether it fills.
+    final Map<ContentId, int> after = <ContentId, int>{
+      ...progress.contributed,
+    };
+    for (final MapEntry<ContentId, int> offer
+        in command.contributions.entries) {
+      after[offer.key] = (after[offer.key] ?? 0) + offer.value;
+    }
+    bool stageCompleted = true;
+    for (final MapEntry<ContentId, int> need in requiredTotal.entries) {
+      if ((after[need.key] ?? 0) < need.value) {
+        stageCompleted = false;
+        break;
+      }
+    }
+    final bool projectCompleted =
+        stageCompleted && progress.stage == project.stages.length - 1;
+
+    int characterXp = 0;
+    if (stageCompleted) characterXp += profile.applyXp(stage.characterXp);
+    if (projectCompleted) {
+      characterXp += profile.applyXp(project.completionCharacterXp);
+    }
+    final int experienceAfter = state.player.experience + characterXp;
+
+    final List<ContentId> revealed = <ContentId>[
+      if (projectCompleted)
+        for (final ContentId rumor in project.revealRumors)
+          if (!state.progress.revealedRumors.contains(rumor)) rumor,
+    ];
+
+    return _Decision.accept(<GameEvent>[
+      ProjectContributed(
+        sequence: state.eventSequence,
+        project: command.project,
+        stage: progress.stage,
+        contributed: command.contributions,
+        stageContributedAfter: after,
+        stageCompleted: stageCompleted,
+        projectCompleted: projectCompleted,
+        characterXp: characterXp,
+        experienceAfter: experienceAfter,
+        levelBefore: state.player.level,
+        levelAfter: CombatRules.levelFor(experienceAfter),
+        revealedRumors: revealed,
+      ),
+    ]);
   }
 
   /// Whether an equipped item satisfies the node's tool requirement.

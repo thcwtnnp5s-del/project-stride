@@ -25,6 +25,12 @@ final class ContentRegistry {
     required Map<ContentId, ResourceNodeDefinition> resourceNodes,
     required Map<ContentId, RecipeDefinition> recipes,
     required Map<ContentId, EnemyDefinition> enemies,
+    Map<ContentId, ContractDefinition> contracts =
+        const <ContentId, ContractDefinition>{},
+    Map<ContentId, ProjectDefinition> projects =
+        const <ContentId, ProjectDefinition>{},
+    Map<ContentId, RumorDefinition> rumors =
+        const <ContentId, RumorDefinition>{},
     required this.profile,
     required this.startingLoadout,
   }) : items = UnmodifiableMapView<ContentId, ItemDefinition>(
@@ -44,6 +50,15 @@ final class ContentRegistry {
        ),
        enemies = UnmodifiableMapView<ContentId, EnemyDefinition>(
          SplayTreeMap<ContentId, EnemyDefinition>.of(enemies),
+       ),
+       contracts = UnmodifiableMapView<ContentId, ContractDefinition>(
+         SplayTreeMap<ContentId, ContractDefinition>.of(contracts),
+       ),
+       projects = UnmodifiableMapView<ContentId, ProjectDefinition>(
+         SplayTreeMap<ContentId, ProjectDefinition>.of(projects),
+       ),
+       rumors = UnmodifiableMapView<ContentId, RumorDefinition>(
+         SplayTreeMap<ContentId, RumorDefinition>.of(rumors),
        );
 
   final Map<ContentId, ItemDefinition> items;
@@ -52,6 +67,31 @@ final class ContentRegistry {
   final Map<ContentId, ResourceNodeDefinition> resourceNodes;
   final Map<ContentId, RecipeDefinition> recipes;
   final Map<ContentId, EnemyDefinition> enemies;
+  final Map<ContentId, ContractDefinition> contracts;
+  final Map<ContentId, ProjectDefinition> projects;
+  final Map<ContentId, RumorDefinition> rumors;
+
+  /// A location's local-need rotation deck, in authored [ContractDefinition.
+  /// deckOrder]. Registry maps are sorted by id, which loses authored order —
+  /// this is where deck order survives, derived once here so the engine and
+  /// every projection read the same sequence.
+  List<ContentId> localNeedDeck(ContentId location) {
+    final List<ContractDefinition> deck =
+        contracts.values
+            .where(
+              (ContractDefinition c) =>
+                  c.location == location &&
+                  c.contractClass == ContractClass.localNeed,
+            )
+            .toList()
+          ..sort((ContractDefinition a, ContractDefinition b) {
+            final int byOrder = a.deckOrder.compareTo(b.deckOrder);
+            return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+          });
+    return List<ContentId>.unmodifiable(
+      deck.map((ContractDefinition c) => c.id),
+    );
+  }
 
   /// The selected balance profile. Numbers reported by this registry are base
   /// values; the profile scales them at the point of use.
@@ -69,6 +109,9 @@ final class ContentRegistry {
     ...resourceNodes.keys,
     ...recipes.keys,
     ...enemies.keys,
+    ...contracts.keys,
+    ...projects.keys,
+    ...rumors.keys,
   ]..sort();
 
   LocationDefinition get startLocation =>
@@ -93,5 +136,8 @@ final class ContentRegistry {
       locations.length +
       resourceNodes.length +
       recipes.length +
-      enemies.length;
+      enemies.length +
+      contracts.length +
+      projects.length +
+      rumors.length;
 }

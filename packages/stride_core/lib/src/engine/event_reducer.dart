@@ -139,6 +139,10 @@ final class EventReducer {
       StepSourceStateChanged() => state.copyWith(
         steps: state.steps.copyWith(sourceState: event.sourceState),
       ),
+      // Starting the fight is what makes the enemy **Seen**: its victory
+      // counter is materialised at its current value (zero for a first
+      // meeting), and presence in the map is the knowledge system's "have I
+      // ever faced this" fact (`DECISIONS/0023` §5).
       EncounterStarted() => state.copyWith(
         encounter: EncounterState(
           enemy: event.enemy,
@@ -152,6 +156,13 @@ final class EventReducer {
           enemyHp: event.enemyHp,
           enemyMaxHp: event.enemyMaxHp,
           telegraph: false,
+          playerFrostGuard: event.playerFrostGuard,
+        ),
+        progress: state.progress.copyWith(
+          enemyVictories: <ContentId, int>{
+            ...state.progress.enemyVictories,
+            event.enemy: state.progress.victoriesOf(event.enemy),
+          },
         ),
       ),
       CombatPlayerStruck() => state.copyWith(
@@ -172,18 +183,51 @@ final class EventReducer {
         ).copyWith(turn: event.turn, telegraph: event.telegraph),
       ),
       EncounterWon() => _won(state, event),
-      // Clears the fight and moves the player, and *nothing else* (`RULES.md`
-      // P-7). `movingTo` also empties the driven-off set, as every move does.
-      // The destination is always a location the player has already unlocked
-      // (a safe location on the graph behind them), so no unlock is recorded.
+      // Clears the fight and moves the player, and *nothing else* is lost
+      // (`RULES.md` P-7) — the safe destination restores HP, which is a gain.
+      // `movingTo` also empties the driven-off set, as every move does. The
+      // destination is always a location the player has already unlocked (a
+      // safe location on the graph behind them), so no unlock is recorded.
       EncounterLost() => state.copyWith(
         clearEncounter: true,
         world: state.world.movingTo(event.retreatTo),
+        player: event.restoredHp == null
+            ? null
+            : state.player.copyWith(hp: event.restoredHp),
       ),
       EncounterRetreated() => state.copyWith(
         clearEncounter: true,
         world: state.world.movingTo(event.retreatTo),
+        player: event.restoredHp == null
+            ? null
+            : state.player.copyWith(hp: event.restoredHp),
       ),
+      // Consumes and heals in one step, exactly as the in-combat branch does.
+      FoodEaten() => state.copyWith(
+        inventory: state.inventory.removing(event.item, 1),
+        player: state.player.copyWith(hp: event.hpAfter),
+      ),
+      GoalTracked() => state.copyWith(
+        progress: state.progress.copyWith(
+          tracked: state.progress.tracked.setting(event.slot, event.target),
+        ),
+      ),
+      // Acceptance starts a fresh count: prior progress for this contract is
+      // discarded, so re-accepting a completed bounty begins at zero.
+      ContractAccepted() => state.copyWith(
+        progress: state.progress.copyWith(
+          acceptedContracts: <ContentId>{
+            ...state.progress.acceptedContracts,
+            event.contract,
+          },
+          bountyProgress: <ContentId, int>{
+            ...state.progress.bountyProgress,
+            event.contract: 0,
+          },
+        ),
+      ),
+      ContractCompleted() => _contractCompleted(state, event),
+      ProjectContributed() => _projectContributed(state, event),
     };
 
     return next.copyWith(eventSequence: state.eventSequence + 1);
@@ -301,7 +345,8 @@ final class EventReducer {
     return next;
   }
 
-  /// Spends, moves, and records the arrival in one step.
+  /// Spends, moves, records the arrival — and, at a safe destination, heals —
+  /// in one step.
   ///
   /// Same shape and same reasoning as [_gathered]: one `copyWith`, so there is
   /// no value anywhere — not even transiently inside this method — in which the
@@ -312,12 +357,19 @@ final class EventReducer {
   /// in effect; doing it unconditionally means the *state* depends only on where
   /// the player went, and `firstVisit` stays what it is — a note for listeners,
   /// never an input to the world.
+  ///
+  /// The heal comes off the event (`restoredHp`), never recomputed here: the
+  /// reducer is total and replay must reproduce the committed HP after any
+  /// level-curve retune.
   GameState _travelled(GameState state, LocationTravelled event) =>
       state.copyWith(
         steps: state.steps.copyWith(
           totalSpent: state.steps.totalSpent + event.stepsSpent,
         ),
         world: state.world.unlocking(event.location).movingTo(event.location),
+        player: event.restoredHp == null
+            ? null
+            : state.player.copyWith(hp: event.restoredHp),
       );
 
   /// Consumes, produces, and awards in one step.
@@ -372,14 +424,147 @@ final class EventReducer {
     for (final MapEntry<ContentId, int> drop in event.drops.entries) {
       inventory = inventory.adding(drop.key, drop.value);
     }
+    // HP off the event when it carries one (state v7). A pre-v7 record has
+    // none to write, which is what those fights meant.
+    final int hpAfter = event.playerHpAfter ?? state.player.hp;
+    // Lifetime victories off the event when carried; otherwise the increment
+    // lands on the same number for a pre-v7 record.
+    final int victoriesAfter =
+        event.victoriesAfter ?? (state.progress.victoriesOf(event.enemy) + 1);
+    // Bounty counts as the engine recorded them at victory time.
+    final Map<ContentId, int> bounty = event.bountyProgress.isEmpty
+        ? state.progress.bountyProgress
+        : <ContentId, int>{
+            ...state.progress.bountyProgress,
+            ...event.bountyProgress,
+          };
     return state.copyWith(
       clearEncounter: true,
       inventory: inventory,
       player: PlayerState(
         level: event.levelAfter,
         experience: event.experienceAfter,
+        hp: hpAfter,
       ),
       world: state.world.recordingVictory(event.enemy),
+      progress: state.progress.copyWith(
+        enemyVictories: <ContentId, int>{
+          ...state.progress.enemyVictories,
+          event.enemy: victoriesAfter,
+        },
+        bountyProgress: bounty,
+      ),
+    );
+  }
+
+  /// Consumes, rewards, records, and rotates — one branch, one fact
+  /// (`DECISIONS/0023` §2). Every figure comes off the event.
+  GameState _contractCompleted(GameState state, ContractCompleted event) {
+    Inventory inventory = state.inventory;
+    for (final MapEntry<ContentId, int> taken in event.consumed.entries) {
+      inventory = inventory.removing(taken.key, taken.value);
+    }
+    for (final MapEntry<ContentId, int> given in event.rewardItems.entries) {
+      inventory = inventory.adding(given.key, given.value);
+    }
+    SkillProgress skills = state.skills;
+    for (final MapEntry<ContentId, int> award in event.rewardSkillXp.entries) {
+      skills = skills.adding(award.key, award.value);
+    }
+
+    // A completed bounty leaves the accepted set; its progress record goes
+    // with it, so a later re-acceptance starts clean.
+    final Set<ContentId> accepted = <ContentId>{
+      ...state.progress.acceptedContracts,
+    }..remove(event.contract);
+    final Map<ContentId, int> bounty = <ContentId, int>{
+      ...state.progress.bountyProgress,
+    }..remove(event.contract);
+
+    final List<ContentId>? slots = event.rotatedSlots;
+    final int? next = event.rotatedNext;
+
+    return state.copyWith(
+      inventory: inventory,
+      skills: skills,
+      player: PlayerState(
+        level: event.levelAfter,
+        experience: event.experienceAfter,
+        hp: state.player.hp,
+      ),
+      progress: state.progress.copyWith(
+        acceptedContracts: accepted,
+        bountyProgress: bounty,
+        contractCompletions: <ContentId, int>{
+          ...state.progress.contractCompletions,
+          event.contract: event.completionsAfter,
+        },
+        localSlots: slots == null
+            ? null
+            : <ContentId, List<ContentId>>{
+                ...state.progress.localSlots,
+                event.location: slots,
+              },
+        localNext: next == null
+            ? null
+            : <ContentId, int>{
+                ...state.progress.localNext,
+                event.location: next,
+              },
+        revealedRumors: event.revealedRumors.isEmpty
+            ? null
+            : <ContentId>{
+                ...state.progress.revealedRumors,
+                ...event.revealedRumors,
+              },
+      ),
+    );
+  }
+
+  /// Donates, advances, and — when the stage filled — completes, in one
+  /// branch (`DECISIONS/0023` §3). Progress is monotonic by construction:
+  /// nothing here can lower a count or reopen a completed stage.
+  GameState _projectContributed(GameState state, ProjectContributed event) {
+    Inventory inventory = state.inventory;
+    for (final MapEntry<ContentId, int> taken in event.contributed.entries) {
+      inventory = inventory.removing(taken.key, taken.value);
+    }
+
+    final Map<ContentId, ProjectProgressState> projects =
+        <ContentId, ProjectProgressState>{...state.progress.projects};
+    Set<ContentId>? completed;
+    if (event.projectCompleted) {
+      projects.remove(event.project);
+      completed = <ContentId>{
+        ...state.progress.completedProjects,
+        event.project,
+      };
+    } else if (event.stageCompleted) {
+      projects[event.project] = ProjectProgressState(stage: event.stage + 1);
+    } else {
+      projects[event.project] = ProjectProgressState(
+        stage: event.stage,
+        contributed: event.stageContributedAfter,
+      );
+    }
+
+    return state.copyWith(
+      inventory: inventory,
+      player: PlayerState(
+        level: event.levelAfter,
+        experience: event.experienceAfter,
+        hp: state.player.hp,
+      ),
+      progress: state.progress.copyWith(
+        projects: projects,
+        completedProjects: completed,
+        revealedRumors: event.revealedRumors.isEmpty
+            ? null
+            : <ContentId>{
+                ...state.progress.revealedRumors,
+                ...event.revealedRumors,
+              },
+      ),
     );
   }
 

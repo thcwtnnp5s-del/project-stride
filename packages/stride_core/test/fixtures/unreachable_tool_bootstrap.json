@@ -10,9 +10,11 @@
       "requiredToolKind": "none",
       "minimumToolTier": 0,
       "yieldsItem": "item.meadow_herb",
-      "yieldsQuantity": 2,
-      "stepCost": 90,
-      "xp": 10
+      "yieldsQuantity": 1,
+      "stepCost": 80,
+      "xp": 10,
+      "bonusYieldLevel": 2,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.oak_stand",
@@ -24,7 +26,9 @@
       "yieldsItem": "item.oak_log",
       "yieldsQuantity": 1,
       "stepCost": 120,
-      "xp": 12
+      "xp": 12,
+      "bonusYieldLevel": 3,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.duskcap_grove",
@@ -34,9 +38,9 @@
       "requiredToolKind": "none",
       "minimumToolTier": 0,
       "yieldsItem": "item.duskcap",
-      "yieldsQuantity": 2,
+      "yieldsQuantity": 1,
       "stepCost": 130,
-      "xp": 18
+      "xp": 15
     },
     {
       "id": "resource_node.copper_seam",
@@ -48,7 +52,9 @@
       "yieldsItem": "item.copper_ore",
       "yieldsQuantity": 1,
       "stepCost": 140,
-      "xp": 14
+      "xp": 14,
+      "bonusYieldLevel": 2,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.tin_seam",
@@ -60,31 +66,44 @@
       "yieldsItem": "item.tin_ore",
       "yieldsQuantity": 1,
       "stepCost": 160,
-      "xp": 16
+      "xp": 17
+    },
+    {
+      "id": "resource_node.hardened_copper_seam",
+      "displayName": "Hardened Copper Seam",
+      "skill": "skill.mining",
+      "requiredLevel": 5,
+      "requiredToolKind": "pickaxe",
+      "minimumToolTier": 2,
+      "yieldsItem": "item.copper_ore",
+      "yieldsQuantity": 2,
+      "stepCost": 200,
+      "xp": 26,
+      "unlockedByProject": "project.stonefall_lift"
     },
     {
       "id": "resource_node.rimefrost_hollow",
       "displayName": "Rimefrost Hollow",
       "skill": "skill.foraging",
-      "requiredLevel": 5,
+      "requiredLevel": 4,
       "requiredToolKind": "none",
       "minimumToolTier": 0,
       "yieldsItem": "item.rime_blossom",
       "yieldsQuantity": 1,
-      "stepCost": 200,
-      "xp": 26
+      "stepCost": 240,
+      "xp": 22
     },
     {
       "id": "resource_node.frostpine_stand",
       "displayName": "Frostpine Stand",
       "skill": "skill.woodcutting",
-      "requiredLevel": 8,
+      "requiredLevel": 5,
       "requiredToolKind": "axe",
       "minimumToolTier": 1,
       "yieldsItem": "item.pine_log",
       "yieldsQuantity": 1,
-      "stepCost": 260,
-      "xp": 30
+      "stepCost": 240,
+      "xp": 22
     },
     {
       "id": "resource_node.hollow_thicket",

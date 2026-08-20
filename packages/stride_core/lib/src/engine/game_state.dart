@@ -59,26 +59,43 @@ Map<EquipmentSlot, ContentId> _frozenSlotMap(
 /// The character.
 @immutable
 final class PlayerState {
-  const PlayerState({required this.level, required this.experience});
+  const PlayerState({
+    required this.level,
+    required this.experience,
+    required this.hp,
+  });
 
-  const PlayerState.initial() : level = 1, experience = 0;
+  /// Level 1, no experience, full health. The literal 40 is
+  /// `CombatRules.baseHealth`; the two cannot reference each other without an
+  /// import cycle, and `combat_rules_test` pins their agreement.
+  const PlayerState.initial() : level = 1, experience = 0, hp = 40;
 
   final int level;
   final int experience;
 
-  PlayerState copyWith({int? level, int? experience}) => PlayerState(
+  /// Current health, persistent between encounters (`DECISIONS/0023` §4).
+  ///
+  /// The maximum is derived from [level] (`CombatRules.maxHpFor`), never
+  /// stored — a stored maximum would disagree with the rule after a retune.
+  /// Restored to full by arriving at a safe location, by defeat's retreat,
+  /// and by food; never by the clock.
+  final int hp;
+
+  PlayerState copyWith({int? level, int? experience, int? hp}) => PlayerState(
     level: level ?? this.level,
     experience: experience ?? this.experience,
+    hp: hp ?? this.hp,
   );
 
   @override
   bool operator ==(Object other) =>
       other is PlayerState &&
       other.level == level &&
-      other.experience == experience;
+      other.experience == experience &&
+      other.hp == hp;
 
   @override
-  int get hashCode => Object.hash(level, experience);
+  int get hashCode => Object.hash(level, experience, hp);
 }
 
 /// What the player is carrying, as counts keyed by content ID.
@@ -388,6 +405,274 @@ final class ActivityQueueState {
       'dur=${durationMillis}ms;anchor=$anchorEpochMillis)';
 }
 
+/// The three tracked-objective slots (`DECISIONS/0023` §1).
+enum GoalSlot {
+  /// One destination.
+  journey,
+
+  /// One item or capability.
+  pursuit,
+
+  /// One contract or community project.
+  contract,
+}
+
+/// What the player has chosen to track — at most one id per slot.
+///
+/// Informative, never escrow: nothing here reserves a step, and switching a
+/// slot changes no economy figure. Ids are stored, not definitions, on the
+/// same thin-state reasoning as [Inventory].
+@immutable
+final class TrackedGoals {
+  const TrackedGoals({this.journey, this.pursuit, this.contract});
+
+  const TrackedGoals.none() : journey = null, pursuit = null, contract = null;
+
+  /// A location id, or null.
+  final ContentId? journey;
+
+  /// An item id, or null.
+  final ContentId? pursuit;
+
+  /// A contract or project id, or null.
+  final ContentId? contract;
+
+  ContentId? inSlot(GoalSlot slot) => switch (slot) {
+    GoalSlot.journey => journey,
+    GoalSlot.pursuit => pursuit,
+    GoalSlot.contract => contract,
+  };
+
+  /// Returns a copy with [slot] set to [target] — null clears it.
+  TrackedGoals setting(GoalSlot slot, ContentId? target) => switch (slot) {
+    GoalSlot.journey => TrackedGoals(
+      journey: target,
+      pursuit: pursuit,
+      contract: contract,
+    ),
+    GoalSlot.pursuit => TrackedGoals(
+      journey: journey,
+      pursuit: target,
+      contract: contract,
+    ),
+    GoalSlot.contract => TrackedGoals(
+      journey: journey,
+      pursuit: pursuit,
+      contract: target,
+    ),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is TrackedGoals &&
+      other.journey == journey &&
+      other.pursuit == pursuit &&
+      other.contract == contract;
+
+  @override
+  int get hashCode => Object.hash(journey, pursuit, contract);
+}
+
+/// One project's live progress: which stage, and what has been contributed
+/// toward it. Absent from the map once the project completes — completion is
+/// recorded in `ProgressState.completedProjects`, and carrying both would be
+/// two mechanisms recording one fact.
+@immutable
+final class ProjectProgressState {
+  ProjectProgressState({required this.stage, Map<ContentId, int>? contributed})
+    : contributed = _frozenIdMap(contributed ?? const <ContentId, int>{});
+
+  /// 0-based index of the stage currently being filled.
+  final int stage;
+
+  /// Materials contributed toward the current stage, by item. Donations are
+  /// removed from inventory immediately and permanently; this map is the
+  /// project's receipt, and it never decreases within a stage.
+  final Map<ContentId, int> contributed;
+
+  int contributedOf(ContentId item) => contributed[item] ?? 0;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProjectProgressState &&
+      other.stage == stage &&
+      const MapEquality<ContentId, int>().equals(
+        other.contributed,
+        contributed,
+      );
+
+  @override
+  int get hashCode => Object.hash(
+    stage,
+    const MapEquality<ContentId, int>().hash(contributed),
+  );
+}
+
+/// Everything the progression loop remembers (`DECISIONS/0023`): lifetime
+/// enemy victories, contract and project state, revealed rumors, and the
+/// tracked goals. State version 7.
+///
+/// Deeply frozen like every other state block. Facts, not rules: thresholds,
+/// decks, stage requirements and rewards all live in content, and this block
+/// records only what happened.
+@immutable
+final class ProgressState {
+  ProgressState({
+    Map<ContentId, int> enemyVictories = const <ContentId, int>{},
+    Iterable<ContentId> acceptedContracts = const <ContentId>[],
+    Map<ContentId, int> bountyProgress = const <ContentId, int>{},
+    Map<ContentId, int> contractCompletions = const <ContentId, int>{},
+    Map<ContentId, List<ContentId>> localSlots =
+        const <ContentId, List<ContentId>>{},
+    Map<ContentId, int> localNext = const <ContentId, int>{},
+    Map<ContentId, ProjectProgressState> projects =
+        const <ContentId, ProjectProgressState>{},
+    Iterable<ContentId> completedProjects = const <ContentId>[],
+    Iterable<ContentId> revealedRumors = const <ContentId>[],
+    this.tracked = const TrackedGoals.none(),
+  }) : enemyVictories = _frozenIdMap(enemyVictories),
+       acceptedContracts = _frozenIdSet(acceptedContracts),
+       bountyProgress = _frozenIdMap(bountyProgress),
+       contractCompletions = _frozenIdMap(contractCompletions),
+       localSlots = UnmodifiableMapView<ContentId, List<ContentId>>(
+         SplayTreeMap<ContentId, List<ContentId>>.of(<ContentId,
+             List<ContentId>>{
+           for (final MapEntry<ContentId, List<ContentId>> e
+               in localSlots.entries)
+             e.key: List<ContentId>.unmodifiable(e.value),
+         }),
+       ),
+       localNext = _frozenIdMap(localNext),
+       projects = UnmodifiableMapView<ContentId, ProjectProgressState>(
+         SplayTreeMap<ContentId, ProjectProgressState>.of(projects),
+       ),
+       completedProjects = _frozenIdSet(completedProjects),
+       revealedRumors = _frozenIdSet(revealedRumors);
+
+  ProgressState.initial() : this();
+
+  /// Lifetime victories per enemy — the enemy-knowledge counter. Never
+  /// emptied by travel; `WorldState.visitVictories` is the per-visit limiter
+  /// and this is the bestiary.
+  final Map<ContentId, int> enemyVictories;
+
+  /// Bounty contracts the player has accepted and not yet completed.
+  final Set<ContentId> acceptedContracts;
+
+  /// Qualifying victories per accepted contract since its acceptance.
+  final Map<ContentId, int> bountyProgress;
+
+  /// How many times each contract has been completed. One-time contracts are
+  /// complete when their count is non-zero.
+  final Map<ContentId, int> contractCompletions;
+
+  /// Per location, the local needs currently showing on the board. Absent
+  /// until the first completion at that location: the initial window is
+  /// derived from the authored deck, and deriving it keeps a brand-new save
+  /// from carrying a copy of content.
+  final Map<ContentId, List<ContentId>> localSlots;
+
+  /// Per location, the authored-deck index the next rotation draws from.
+  final Map<ContentId, int> localNext;
+
+  /// Live progress of projects that have received a contribution and are not
+  /// yet complete.
+  final Map<ContentId, ProjectProgressState> projects;
+
+  /// Projects fully completed — the set every permanent effect is answered
+  /// from (`unlockedByProject`, `retiredByProject`, `safeAfterProject`).
+  final Set<ContentId> completedProjects;
+
+  /// Rumors revealed so far.
+  final Set<ContentId> revealedRumors;
+
+  final TrackedGoals tracked;
+
+  int victoriesOf(ContentId enemy) => enemyVictories[enemy] ?? 0;
+
+  int completionsOf(ContentId contract) => contractCompletions[contract] ?? 0;
+
+  bool isProjectComplete(ContentId project) =>
+      completedProjects.contains(project);
+
+  ProgressState copyWith({
+    Map<ContentId, int>? enemyVictories,
+    Set<ContentId>? acceptedContracts,
+    Map<ContentId, int>? bountyProgress,
+    Map<ContentId, int>? contractCompletions,
+    Map<ContentId, List<ContentId>>? localSlots,
+    Map<ContentId, int>? localNext,
+    Map<ContentId, ProjectProgressState>? projects,
+    Set<ContentId>? completedProjects,
+    Set<ContentId>? revealedRumors,
+    TrackedGoals? tracked,
+  }) => ProgressState(
+    enemyVictories: enemyVictories ?? this.enemyVictories,
+    acceptedContracts: acceptedContracts ?? this.acceptedContracts,
+    bountyProgress: bountyProgress ?? this.bountyProgress,
+    contractCompletions: contractCompletions ?? this.contractCompletions,
+    localSlots: localSlots ?? this.localSlots,
+    localNext: localNext ?? this.localNext,
+    projects: projects ?? this.projects,
+    completedProjects: completedProjects ?? this.completedProjects,
+    revealedRumors: revealedRumors ?? this.revealedRumors,
+    tracked: tracked ?? this.tracked,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProgressState &&
+      const MapEquality<ContentId, int>().equals(
+        other.enemyVictories,
+        enemyVictories,
+      ) &&
+      const SetEquality<ContentId>().equals(
+        other.acceptedContracts,
+        acceptedContracts,
+      ) &&
+      const MapEquality<ContentId, int>().equals(
+        other.bountyProgress,
+        bountyProgress,
+      ) &&
+      const MapEquality<ContentId, int>().equals(
+        other.contractCompletions,
+        contractCompletions,
+      ) &&
+      const MapEquality<ContentId, List<ContentId>>(
+        values: ListEquality<ContentId>(),
+      ).equals(other.localSlots, localSlots) &&
+      const MapEquality<ContentId, int>().equals(other.localNext, localNext) &&
+      const MapEquality<ContentId, ProjectProgressState>().equals(
+        other.projects,
+        projects,
+      ) &&
+      const SetEquality<ContentId>().equals(
+        other.completedProjects,
+        completedProjects,
+      ) &&
+      const SetEquality<ContentId>().equals(
+        other.revealedRumors,
+        revealedRumors,
+      ) &&
+      other.tracked == tracked;
+
+  @override
+  int get hashCode => Object.hash(
+    const MapEquality<ContentId, int>().hash(enemyVictories),
+    const SetEquality<ContentId>().hash(acceptedContracts),
+    const MapEquality<ContentId, int>().hash(bountyProgress),
+    const MapEquality<ContentId, int>().hash(contractCompletions),
+    const MapEquality<ContentId, List<ContentId>>(
+      values: ListEquality<ContentId>(),
+    ).hash(localSlots),
+    const MapEquality<ContentId, int>().hash(localNext),
+    const MapEquality<ContentId, ProjectProgressState>().hash(projects),
+    const SetEquality<ContentId>().hash(completedProjects),
+    const SetEquality<ContentId>().hash(revealedRumors),
+    tracked,
+  );
+}
+
 /// The whole game, as one immutable value.
 ///
 /// Every field is either a primitive or a deeply frozen structure. A snapshot
@@ -408,7 +693,8 @@ final class GameState {
     required this.eventSequence,
     this.encounter,
     this.activityQueue,
-  }) {
+    ProgressState? progress,
+  }) : progress = progress ?? ProgressState.initial() {
     if (!StateVersion.supports(stateVersion)) {
       throw UnsupportedStateVersionException(stateVersion);
     }
@@ -441,6 +727,13 @@ final class GameState {
   /// dropping it.
   final ActivityQueueState? activityQueue;
 
+  /// The progression loop's memory — enemy knowledge, contracts, projects,
+  /// rumors, tracked goals. State version 7 (`DECISIONS/0023`). Never null:
+  /// a game that has recorded nothing holds an empty block, and "absent"
+  /// and "empty" meaning different things is a decoder's concern, not a
+  /// caller's.
+  final ProgressState progress;
+
   /// How many events have been applied. Monotonic, and the sequence number the
   /// next event will carry.
   ///
@@ -460,6 +753,7 @@ final class GameState {
     bool clearEncounter = false,
     ActivityQueueState? activityQueue,
     bool clearActivityQueue = false,
+    ProgressState? progress,
   }) => GameState(
     stateVersion: stateVersion,
     profileId: profileId,
@@ -479,6 +773,7 @@ final class GameState {
     activityQueue: clearActivityQueue
         ? null
         : (activityQueue ?? this.activityQueue),
+    progress: progress ?? this.progress,
   );
 
   /// Restates this state at [StateVersion.current], changing nothing else.
@@ -507,6 +802,7 @@ final class GameState {
     eventSequence: eventSequence,
     encounter: encounter,
     activityQueue: activityQueue,
+    progress: progress,
   );
 
   @override
@@ -523,7 +819,8 @@ final class GameState {
       other.steps == steps &&
       other.eventSequence == eventSequence &&
       other.encounter == encounter &&
-      other.activityQueue == activityQueue;
+      other.activityQueue == activityQueue &&
+      other.progress == progress;
 
   @override
   int get hashCode => Object.hash(
@@ -539,6 +836,7 @@ final class GameState {
     eventSequence,
     encounter,
     activityQueue,
+    progress,
   );
 
   // There is deliberately no `signature` getter here.

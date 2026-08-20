@@ -115,6 +115,64 @@ enum RejectionCode {
   /// (`DECISIONS/0022`). Stop it or let it finish before starting another.
   activityQueueActive('activity_queue_active'),
 
+  // -- Exploration & Progression Loop 01 (`DECISIONS/0023`) --------------------
+
+  /// No such contract exists in the loaded content.
+  unknownContract('unknown_contract'),
+
+  /// The contract exists, but its board is at another location. Travel is the
+  /// answer, and travel costs steps.
+  contractNotHere('contract_not_here'),
+
+  /// The contract exists at this board but is not currently offered: a
+  /// one-time contract already completed, a local need not in the visible
+  /// rotation, or an unmet prerequisite (a required contract, local-need
+  /// history, or project).
+  contractNotAvailable('contract_not_available'),
+
+  /// Only bounty-bearing contracts are accepted; a delivery order is simply
+  /// completed when the goods are handed over.
+  contractNotAcceptable('contract_not_acceptable'),
+
+  /// The bounty is already accepted; victories are already counting.
+  contractAlreadyAccepted('contract_already_accepted'),
+
+  /// The bounty's qualifying victories have not been counted yet — either the
+  /// contract was never accepted, or the count since acceptance is short.
+  bountyUnmet('bounty_unmet'),
+
+  /// The contract requires holding an item the player does not have. Distinct
+  /// from [insufficientIngredients]: nothing would be consumed, the board
+  /// only asks to see it.
+  requirementNotOwned('requirement_not_owned'),
+
+  /// No such community project exists in the loaded content.
+  unknownProject('unknown_project'),
+
+  /// The project exists, but at another location. Contributions are made in
+  /// person.
+  projectNotHere('project_not_here'),
+
+  /// The project is already complete; nothing more can be contributed.
+  projectComplete('project_complete'),
+
+  /// A contribution named a non-positive amount, an item the stage does not
+  /// need or has already received in full, or more than the player holds.
+  /// Refused with zero mutation.
+  invalidContribution('invalid_contribution'),
+
+  /// The recipe exists but is not currently craftable: not yet unlocked by
+  /// its project or contract, or retired by a completed project.
+  recipeLocked('recipe_locked'),
+
+  /// The node exists but its project has not been completed.
+  nodeLocked('node_locked'),
+
+  /// A goal-tracker target does not fit its slot: a Journey that is not a
+  /// location, a Pursuit that is not an item, a Contract that is neither a
+  /// contract nor a project — or an id the content pack does not know.
+  invalidGoal('invalid_goal'),
+
   /// A normalized sync batch violated an invariant.
   ///
   /// An adapter fault rather than a player action, but returned rather than

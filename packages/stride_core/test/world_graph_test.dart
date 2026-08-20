@@ -270,26 +270,26 @@ void main() {
     });
 
     test('no travel cost is large enough to strand a returning player', () {
-      // The player can always walk more, so no cost is a permanent trap. What a
-      // cost *can* do is make the return leg absurd relative to the outbound
-      // one. Symmetry is asserted above; this bounds the worst single leg
-      // against the cheapest gathering action, so a route can never cost more
-      // than a long session's worth of what it leads to.
+      // The player can always walk more, so no cost is a permanent trap. What
+      // a cost *can* do is exceed what the owner has authorised a journey to
+      // feel like. The bound used to be twenty of the cheapest gather (1,600);
+      // Exploration & Progression Loop 01 deliberately made distance dear —
+      // the Frostmere leg is an expedition the Journey tracker exists to make
+      // walkable-toward — and its brief caps the worst authored leg at 4,000
+      // steps (§52, owner-approved playtest targets; `DECISIONS/0023`).
+      // The ceiling is the owner's figure, not this test's derivation.
       final int worstLeg = world.locations.values
           .expand((LocationDefinition l) => l.connections)
           .map((LocationConnection c) => c.stepCost)
           .reduce((int a, int b) => a > b ? a : b);
-      final int cheapestGather = world.resourceNodes.values
-          .map((ResourceNodeDefinition n) => n.stepCost)
-          .reduce((int a, int b) => a < b ? a : b);
 
       expect(
         worstLeg,
-        lessThanOrEqualTo(cheapestGather * 20),
+        lessThanOrEqualTo(4000),
         reason:
-            'the longest route ($worstLeg) is more than twenty of the cheapest '
-            'action ($cheapestGather); a player who travels and cannot afford '
-            'to act has been sent somewhere for nothing',
+            'the longest route ($worstLeg) exceeds the 4,000-step ceiling the '
+            'owner authorised for a single leg (brief §52); a dearer road '
+            'needs its own ruling',
       );
     });
   });

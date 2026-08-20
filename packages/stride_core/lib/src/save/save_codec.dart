@@ -22,6 +22,7 @@ import '../content/content_id.dart';
 import '../content/definitions.dart';
 import '../content/schema_version.dart';
 import '../engine/combat.dart';
+import '../engine/combat_rules.dart';
 import '../engine/game_state.dart';
 import '../engine/state_version.dart';
 import '../steps/step_ledger.dart';
@@ -166,6 +167,8 @@ Map<String, Object?> encodeGameState(GameState state) => <String, Object?>{
   'player': <String, Object?>{
     'level': state.player.level,
     'experience': state.player.experience,
+    // State version 7 (`DECISIONS/0023`): persistent HP.
+    'hp': state.player.hp,
   },
   'inventory': _encodeIdCounts(state.inventory.counts),
   'equipment': <String, Object?>{
@@ -200,7 +203,61 @@ Map<String, Object?> encodeGameState(GameState state) => <String, Object?>{
   // exactly the terms `encounter` set at v4: a v6 save is never silent about
   // it, and the v6 decoder never has to guess which shape it is reading.
   'activityQueue': _encodeActivityQueue(state.activityQueue),
+  // State version 7 (`DECISIONS/0023`). Written unconditionally, empty or
+  // not, so a v7 save is never silent about the progression loop's memory.
+  'progress': _encodeProgress(state.progress),
 };
+
+Map<String, Object?> _encodeProgress(ProgressState progress) =>
+    <String, Object?>{
+      'enemyVictories': _encodeIdCounts(progress.enemyVictories),
+      'acceptedContracts':
+          progress.acceptedContracts.map((ContentId id) => id.value).toList()
+            ..sort(),
+      'bountyProgress': _encodeIdCounts(progress.bountyProgress),
+      'contractCompletions': _encodeIdCounts(progress.contractCompletions),
+      // Slot order inside a location is meaningful (it is the board's layout),
+      // so slots are a list per location; locations sort for canonical bytes.
+      'localSlots': <Object?>[
+        for (final MapEntry<ContentId, List<ContentId>> e
+            in (progress.localSlots.entries.toList()..sort(
+              (
+                MapEntry<ContentId, List<ContentId>> a,
+                MapEntry<ContentId, List<ContentId>> b,
+              ) => a.key.compareTo(b.key),
+            )))
+          <String, Object?>{
+            'location': e.key.value,
+            'slots': <Object?>[for (final ContentId id in e.value) id.value],
+          },
+      ],
+      'localNext': _encodeIdCounts(progress.localNext),
+      'projects': <Object?>[
+        for (final MapEntry<ContentId, ProjectProgressState> e
+            in (progress.projects.entries.toList()..sort(
+              (
+                MapEntry<ContentId, ProjectProgressState> a,
+                MapEntry<ContentId, ProjectProgressState> b,
+              ) => a.key.compareTo(b.key),
+            )))
+          <String, Object?>{
+            'id': e.key.value,
+            'stage': e.value.stage,
+            'contributed': _encodeIdCounts(e.value.contributed),
+          },
+      ],
+      'completedProjects':
+          progress.completedProjects.map((ContentId id) => id.value).toList()
+            ..sort(),
+      'revealedRumors':
+          progress.revealedRumors.map((ContentId id) => id.value).toList()
+            ..sort(),
+      'tracked': <String, Object?>{
+        'journey': progress.tracked.journey?.value,
+        'pursuit': progress.tracked.pursuit?.value,
+        'contract': progress.tracked.contract?.value,
+      },
+    };
 
 Map<String, Object?>? _encodeActivityQueue(ActivityQueueState? queue) =>
     queue == null
@@ -228,6 +285,8 @@ Map<String, Object?>? _encodeEncounter(EncounterState? encounter) =>
         'enemyHp': encounter.enemyHp,
         'enemyMaxHp': encounter.enemyMaxHp,
         'telegraph': encounter.telegraph,
+        // State version 7 (`DECISIONS/0023`).
+        'playerFrostGuard': encounter.playerFrostGuard,
       };
 
 List<Object?> _encodeIdCounts(Map<ContentId, int> counts) {
@@ -548,6 +607,7 @@ final class StateCodecs {
     V4StateDecoder(),
     V5StateDecoder(),
     V6StateDecoder(),
+    V7StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -686,10 +746,16 @@ final class V5StateDecoder implements StateDecoder {
   );
 }
 
-/// Decoder for state version 6 — the current shape.
+/// Decoder for state version 6.
+///
+/// **Frozen**, on the same terms as [V1StateDecoder]; `v6_baseline.save` is
+/// the proof it still reads one.
 ///
 /// Differs from v5 in exactly one place: `activityQueue` (null or an object)
-/// is present and is read (`DECISIONS/0022`).
+/// is present and is read (`DECISIONS/0022`). A v6 save has no `player.hp`
+/// and no `progress`; it decodes with full HP at the level's maximum —
+/// what a v6 save meant, where every fight began full — and an empty
+/// progress block.
 final class V6StateDecoder implements StateDecoder {
   const V6StateDecoder();
 
@@ -702,6 +768,26 @@ final class V6StateDecoder implements StateDecoder {
     epochShape: _EpochShape.withEstablishedVersion,
     combatShape: _CombatShape.visitVictories,
     queueShape: _QueueShape.present,
+  );
+}
+
+/// Decoder for state version 7 — the current shape.
+///
+/// Differs from v6 in three places, all `DECISIONS/0023`: `player.hp`,
+/// `progress`, and `encounter.playerFrostGuard` are present and are read.
+final class V7StateDecoder implements StateDecoder {
+  const V7StateDecoder();
+
+  @override
+  int get version => 7;
+
+  @override
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withEstablishedVersion,
+    combatShape: _CombatShape.visitVictories,
+    queueShape: _QueueShape.present,
+    loopShape: _LoopShape.present,
   );
 }
 
@@ -730,6 +816,19 @@ enum _QueueShape {
   present,
 }
 
+/// Whether the shape carries the progression loop's fields
+/// (`DECISIONS/0023`).
+enum _LoopShape {
+  /// State versions 1–6: no `player.hp`, no `progress`, no
+  /// `encounter.playerFrostGuard`. Their absence means full HP at the
+  /// level's maximum, an empty progress block, and no frost guard — what
+  /// those saves meant.
+  absent,
+
+  /// State version 7: all three, required.
+  present,
+}
+
 /// The one field that differs between the shared shapes.
 enum _EpochShape {
   /// State version 1: no `steps.epoch`. Its absence is the origin.
@@ -748,6 +847,7 @@ GameState _decodeStateShape(
   required _EpochShape epochShape,
   required _CombatShape combatShape,
   _QueueShape queueShape = _QueueShape.absent,
+  _LoopShape loopShape = _LoopShape.absent,
 }) {
   Map<String, Object?> objectAt(Map<String, Object?> from, String key) {
     final Object? v = from[key];
@@ -864,6 +964,10 @@ GameState _decodeStateShape(
           enemyHp: intAt(raw, 'enemyHp'),
           enemyMaxHp: intAt(raw, 'enemyMaxHp'),
           telegraph: raw['telegraph'] == true,
+          // Required from v7; zero before, where no armour carried one.
+          playerFrostGuard: loopShape == _LoopShape.present
+              ? intAt(raw, 'playerFrostGuard')
+              : 0,
         );
       } else {
         throw const SaveCodecException('encounter is not an object or null');
@@ -912,14 +1016,37 @@ GameState _decodeStateShape(
     equipment[slot] = idOf(raw, 'equipment.${e.key}');
   }
 
+  // The progression loop (`DECISIONS/0023`). Absent before v7, where absence
+  // means full HP at the level's maximum and an empty progress block — what
+  // those saves meant. From v7 both fields must be present.
+  final int level = intAt(playerJson, 'level');
+  final int hp;
+  final ProgressState progress;
+  switch (loopShape) {
+    case _LoopShape.absent:
+      hp = CombatRules.maxHpFor(level);
+      progress = ProgressState.initial();
+    case _LoopShape.present:
+      hp = intAt(playerJson, 'hp');
+      progress = _decodeProgress(
+        objectAt(json, 'progress'),
+        idOf: idOf,
+        intAt: intAt,
+        stringAt: stringAt,
+        listAt: listAt,
+        objectAt: objectAt,
+      );
+  }
+
   return GameState(
     stateVersion: intAt(json, 'stateVersion'),
     profileId: idOf(stringAt(json, 'profileId'), 'profileId'),
     contentPackVersion: intAt(json, 'contentPackVersion'),
     eventSequence: intAt(json, 'eventSequence'),
     player: PlayerState(
-      level: intAt(playerJson, 'level'),
+      level: level,
       experience: intAt(playerJson, 'experience'),
+      hp: hp,
     ),
     inventory: Inventory(idCounts('inventory')),
     equipment: Equipment(equipment),
@@ -942,6 +1069,7 @@ GameState _decodeStateShape(
     ),
     encounter: encounter,
     activityQueue: activityQueue,
+    progress: progress,
     steps: _decodeLedger(
       objectAt(json, 'steps'),
       epochShape: epochShape,
@@ -950,6 +1078,111 @@ GameState _decodeStateShape(
       stringAt: stringAt,
       listAt: listAt,
       objectAt: objectAt,
+    ),
+  );
+}
+
+/// The progression loop's block, state version 7 (`DECISIONS/0023`).
+ProgressState _decodeProgress(
+  Map<String, Object?> json, {
+  required ContentId Function(String raw, String path) idOf,
+  required int Function(Map<String, Object?>, String) intAt,
+  required String Function(Map<String, Object?>, String) stringAt,
+  required List<Object?> Function(Map<String, Object?>, String) listAt,
+  required Map<String, Object?> Function(Map<String, Object?>, String) objectAt,
+}) {
+  Map<ContentId, int> idCountsIn(String key) {
+    final Map<ContentId, int> out = <ContentId, int>{};
+    for (final Object? entry in listAt(json, key)) {
+      if (entry is! Map<String, Object?>) {
+        throw SaveCodecException('progress.$key entry is not an object');
+      }
+      out[idOf(stringAt(entry, 'id'), 'progress.$key.id')] = intAt(entry, 'n');
+    }
+    return out;
+  }
+
+  Set<ContentId> idSetIn(String key) => <ContentId>{
+    for (final Object? raw in listAt(json, key))
+      if (raw is String)
+        idOf(raw, 'progress.$key')
+      else
+        throw SaveCodecException('progress.$key entry is not a string'),
+  };
+
+  final Map<ContentId, List<ContentId>> localSlots =
+      <ContentId, List<ContentId>>{};
+  for (final Object? entry in listAt(json, 'localSlots')) {
+    if (entry is! Map<String, Object?>) {
+      throw const SaveCodecException(
+        'progress.localSlots entry is not an object',
+      );
+    }
+    localSlots[idOf(
+      stringAt(entry, 'location'),
+      'progress.localSlots.location',
+    )] = <ContentId>[
+      for (final Object? raw in listAt(entry, 'slots'))
+        if (raw is String)
+          idOf(raw, 'progress.localSlots.slots')
+        else
+          throw const SaveCodecException(
+            'progress.localSlots.slots entry is not a string',
+          ),
+    ];
+  }
+
+  final Map<ContentId, ProjectProgressState> projects =
+      <ContentId, ProjectProgressState>{};
+  for (final Object? entry in listAt(json, 'projects')) {
+    if (entry is! Map<String, Object?>) {
+      throw const SaveCodecException(
+        'progress.projects entry is not an object',
+      );
+    }
+    final Map<ContentId, int> contributed = <ContentId, int>{};
+    for (final Object? raw in listAt(entry, 'contributed')) {
+      if (raw is! Map<String, Object?>) {
+        throw const SaveCodecException(
+          'progress.projects.contributed entry is not an object',
+        );
+      }
+      contributed[idOf(
+        stringAt(raw, 'id'),
+        'progress.projects.contributed.id',
+      )] = intAt(raw, 'n');
+    }
+    projects[idOf(stringAt(entry, 'id'), 'progress.projects.id')] =
+        ProjectProgressState(
+          stage: intAt(entry, 'stage'),
+          contributed: contributed,
+        );
+  }
+
+  final Map<String, Object?> trackedJson = objectAt(json, 'tracked');
+  ContentId? trackedAt(String key) {
+    final Object? raw = trackedJson[key];
+    if (raw == null) return null;
+    if (raw is! String) {
+      throw SaveCodecException('progress.tracked.$key is not a string or null');
+    }
+    return idOf(raw, 'progress.tracked.$key');
+  }
+
+  return ProgressState(
+    enemyVictories: idCountsIn('enemyVictories'),
+    acceptedContracts: idSetIn('acceptedContracts'),
+    bountyProgress: idCountsIn('bountyProgress'),
+    contractCompletions: idCountsIn('contractCompletions'),
+    localSlots: localSlots,
+    localNext: idCountsIn('localNext'),
+    projects: projects,
+    completedProjects: idSetIn('completedProjects'),
+    revealedRumors: idSetIn('revealedRumors'),
+    tracked: TrackedGoals(
+      journey: trackedAt('journey'),
+      pursuit: trackedAt('pursuit'),
+      contract: trackedAt('contract'),
     ),
   );
 }

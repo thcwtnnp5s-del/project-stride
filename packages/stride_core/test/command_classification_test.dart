@@ -42,6 +42,16 @@ List<GameCommand> allCommands() => <GameCommand>[
   const CombatAttack(),
   CombatEat(item: ContentId.unchecked('item.herb_broth')),
   const CombatRetreat(),
+  EatFood(item: ContentId.unchecked('item.herb_broth')),
+  const TrackGoal(slot: GoalSlot.journey),
+  AcceptContract(contract: ContentId.unchecked('contract.wolf_problem')),
+  CompleteContract(contract: ContentId.unchecked('contract.herbal_supplies')),
+  ContributeToProject(
+    project: ContentId.unchecked('project.havens_rest_mill'),
+    contributions: <ContentId, int>{
+      ContentId.unchecked('item.oak_plank'): 1,
+    },
+  ),
 ];
 
 /// The classification each command must carry.
@@ -98,6 +108,17 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   'CombatAttack': true,
   'CombatEat': true,
   'CombatRetreat': true,
+  // Player-facing, all five (`DECISIONS/0023`). Eating heals a figure the
+  // engine clamps; tracking a goal moves no economy figure at all; and every
+  // contract and project figure — what is consumed, what is rewarded, what a
+  // stage still needs — is validated and derived inside the engine, so a
+  // surface can offer them without being able to decide what anything is
+  // worth.
+  'EatFood': true,
+  'TrackGoal': true,
+  'AcceptContract': true,
+  'CompleteContract': true,
+  'ContributeToProject': true,
 };
 
 /// Proves [allCommands] covers the sealed hierarchy.
@@ -125,6 +146,11 @@ String classify(GameCommand command) => switch (command) {
   CombatAttack() => 'CombatAttack',
   CombatEat() => 'CombatEat',
   CombatRetreat() => 'CombatRetreat',
+  EatFood() => 'EatFood',
+  TrackGoal() => 'TrackGoal',
+  AcceptContract() => 'AcceptContract',
+  CompleteContract() => 'CompleteContract',
+  ContributeToProject() => 'ContributeToProject',
 };
 
 void main() {

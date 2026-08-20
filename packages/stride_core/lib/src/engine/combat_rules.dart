@@ -15,6 +15,7 @@ final class PlayerCombatLoadout {
     required this.maxHp,
     required this.attack,
     required this.defence,
+    this.frostGuard = 0,
     this.weaponItem,
     this.armorItem,
   });
@@ -22,6 +23,10 @@ final class PlayerCombatLoadout {
   final int maxHp;
   final int attack;
   final int defence;
+
+  /// The armour's frost guard (`ItemDefinition.frostGuard`) — incoming-damage
+  /// reduction in alpine-terrain fights. Zero without qualifying armour.
+  final int frostGuard;
 
   /// The item in the weapon slot that counted, if any. Diagnostic; the figure
   /// is [attack].
@@ -37,17 +42,18 @@ final class PlayerCombatLoadout {
       other.maxHp == maxHp &&
       other.attack == attack &&
       other.defence == defence &&
+      other.frostGuard == frostGuard &&
       other.weaponItem == weaponItem &&
       other.armorItem == armorItem;
 
   @override
   int get hashCode =>
-      Object.hash(maxHp, attack, defence, weaponItem, armorItem);
+      Object.hash(maxHp, attack, defence, frostGuard, weaponItem, armorItem);
 
   @override
   String toString() =>
       'PlayerCombatLoadout(hp $maxHp, atk $attack, def $defence, '
-      'weapon $weaponItem, armor $armorItem)';
+      'frostGuard $frostGuard, weapon $weaponItem, armor $armorItem)';
 }
 
 /// The rules of the one player archetype and of a round of combat
@@ -68,27 +74,37 @@ final class PlayerCombatLoadout {
 /// encounter seed, the turn and a salt, so the same state and the same command
 /// produce the same outcome, and a replay agrees with the original run.
 abstract final class CombatRules {
-  /// Max HP at level 1.
+  /// Max HP at level 1. Pinned equal to `PlayerState.initial().hp` by test —
+  /// the two files cannot reference each other without an import cycle.
   static const int baseHealth = 40;
 
   /// Max HP gained per level above 1.
-  static const int healthPerLevel = 4;
+  ///
+  /// **2 since Exploration & Progression Loop 01** (was 4): the character
+  /// level primarily represents resilience, and equipment stays the combat-
+  /// power source (`DECISIONS/0023` §7).
+  static const int healthPerLevel = 2;
 
   /// Attack with nothing in the weapon slot.
   static const int unarmedAttack = 1;
 
   /// Cumulative character XP required for level 1..10. Level 10 is the cap.
+  ///
+  /// The owner-approved Exploration & Progression Loop 01 curve through
+  /// level 8, extended by its own deltas to the existing cap
+  /// (`DECISIONS/0023` §7). Levels are re-derived from experience on the
+  /// next victory, so a retune never rewrites a save.
   static const List<int> levelThresholds = <int>[
     0,
     100,
-    300,
-    600,
-    1000,
-    1500,
-    2100,
-    2800,
-    3600,
-    4500,
+    250,
+    475,
+    775,
+    1150,
+    1600,
+    2150,
+    2850,
+    3650,
   ];
 
   /// The highest level whose threshold [experience] meets. Capped at 10.
@@ -100,20 +116,20 @@ abstract final class CombatRules {
     return level;
   }
 
-  /// `40 + 4 * (level - 1)`.
+  /// `40 + 2 * (level - 1)`.
   static int maxHpFor(int level) => baseHealth + healthPerLevel * (level - 1);
-
-  /// `(level - 1) ~/ 2`: a small, slow attack contribution from level.
-  static int attackBonusFor(int level) => (level - 1) ~/ 2;
 
   /// The player's combat figures right now, from state and content.
   ///
   /// Weapon = the item in [EquipmentSlot.weapon] (`power`), else
-  /// [unarmedAttack]; plus [attackBonusFor]. Defence = the item in
-  /// [EquipmentSlot.armor] (`power`), else 0. **Tools never count**, whatever
-  /// slot they occupy: an item whose own `slot` is not the slot it sits in, or
-  /// whose `toolKind` is not `none`, contributes nothing, so a content pack
-  /// that puts a hatchet in the weapon slot cannot make it a sword by accident.
+  /// [unarmedAttack]. Defence = the item in [EquipmentSlot.armor] (`power`),
+  /// else 0. **No level bonus contributes to either** since Exploration &
+  /// Progression Loop 01 — the character level is resilience, and equipment
+  /// is the combat-power source (`DECISIONS/0023` §7). **Tools never count**,
+  /// whatever slot they occupy: an item whose own `slot` is not the slot it
+  /// sits in, or whose `toolKind` is not `none`, contributes nothing, so a
+  /// content pack that puts a hatchet in the weapon slot cannot make it a
+  /// sword by accident.
   static PlayerCombatLoadout loadoutFor(
     GameState state,
     ContentRegistry registry,
@@ -140,9 +156,9 @@ abstract final class CombatRules {
 
     return PlayerCombatLoadout(
       maxHp: maxHpFor(level),
-      attack:
-          (weaponCounts ? weapon.power : unarmedAttack) + attackBonusFor(level),
+      attack: weaponCounts ? weapon.power : unarmedAttack,
       defence: armorCounts ? armor.power : 0,
+      frostGuard: armorCounts ? armor.frostGuard : 0,
       weaponItem: weaponCounts ? weaponId : null,
       armorItem: armorCounts ? armorId : null,
     );
@@ -229,10 +245,23 @@ abstract final class CombatRules {
   /// The enemy's strikes use `enemyStrikeSalt + strikeIndex` (0 or 1).
   static const int enemyStrikeSalt = 2;
 
-  // -- Retreat ---------------------------------------------------------------
+  // -- Safety and retreat ----------------------------------------------------
+
+  /// Whether [location] is safe **for this state** — statically safe, or made
+  /// safe by a completed project (`safeAfterProject`, `DECISIONS/0023` §4).
+  ///
+  /// The one place that question is answered. Content alone cannot say:
+  /// Frostmere is perilous until the Shelter completes, and safe forever
+  /// after.
+  static bool isSafeNow(LocationDefinition location, GameState state) {
+    if (location.isSafe) return true;
+    final ContentId? project = location.safeAfterProject;
+    return project != null && state.progress.isProjectComplete(project);
+  }
 
   /// The nearest safe location by BFS over `LocationDefinition.connections`
-  /// from where the player stands (`DECISIONS/0020` §4).
+  /// from where the player stands (`DECISIONS/0020` §4), with safety
+  /// answered by [isSafeNow] so a completed Shelter changes the answer.
   ///
   /// If the current location is safe, it is the answer. Ties at the same
   /// depth break by [ContentId] ordering. If nothing safe is reachable, which
@@ -244,7 +273,7 @@ abstract final class CombatRules {
   ) {
     final ContentId start = state.world.currentLocation;
     final LocationDefinition? here = registry.locations[start];
-    if (here == null || here.isSafe) return start;
+    if (here == null || isSafeNow(here, state)) return start;
 
     final Set<ContentId> seen = <ContentId>{start};
     List<ContentId> frontier = <ContentId>[start];
@@ -259,10 +288,25 @@ abstract final class CombatRules {
         }
       }
       for (final ContentId id in next) {
-        if (registry.locations[id]?.isSafe ?? false) return id;
+        final LocationDefinition? candidate = registry.locations[id];
+        if (candidate != null && isSafeNow(candidate, state)) return id;
       }
       frontier = next.toList();
     }
     return start;
   }
+
+  // -- Gathering bonus rolls (`DECISIONS/0023` §9) ---------------------------
+
+  /// The seed of one gather's bonus-yield rolls: the event sequence mixed
+  /// with the node id — [seedFor]'s discipline applied to gathering. Distinct
+  /// completions of one queue reconciliation differ by completion index,
+  /// which callers pass to [percentRoll] as the roll's index.
+  static int gatherSeed(int eventSequence, ContentId node) =>
+      seedFor(eventSequence, node);
+
+  /// Salts separating one gather's independent bonus sources.
+  static const int nodeBonusSalt = 0x6E0D;
+  static const int wildernessBonusSalt = 0x171D;
+  static const int toolBonusSalt = 0x7001;
 }

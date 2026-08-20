@@ -41,10 +41,10 @@ void main() {
       expect(engine.state.world.currentLocation, woods);
       expect(
         engine.state.steps.banked,
-        1400,
-        reason: '2,000 − 600. Exactly the cost, not approximately.',
+        1500,
+        reason: '2,000 − 500. Exactly the cost, not approximately.',
       );
-      expect(engine.state.steps.totalSpent, 600);
+      expect(engine.state.steps.totalSpent, 500);
     });
 
     test('arriving is what opens a place', () {
@@ -74,7 +74,7 @@ void main() {
       engine.execute(TravelTo(destination: woods));
       engine.execute(TravelTo(destination: havensRest));
 
-      expect(engine.state.steps.banked, 800, reason: '2,000 − 600 − 600');
+      expect(engine.state.steps.banked, 1000, reason: '2,000 − 500 − 500');
       expect(engine.state.world.currentLocation, havensRest);
     });
 
@@ -89,7 +89,7 @@ void main() {
       final LocationTravelled event = result.events.single as LocationTravelled;
       expect(event.from, havensRest);
       expect(event.location, woods);
-      expect(event.stepsSpent, 600);
+      expect(event.stepsSpent, 500);
     });
   });
 
@@ -160,7 +160,7 @@ void main() {
       // wall they will still hit. Same rule as GatherResource.
       final GameEngine engine = engineWith(700);
       engine.execute(TravelTo(destination: woods));
-      expect(engine.state.steps.banked, 100, reason: 'and 1,300 is needed');
+      expect(engine.state.steps.banked, 200, reason: 'and 2,400 is needed');
 
       final EngineResult result = engine.execute(TravelTo(destination: hollow));
 
@@ -195,7 +195,7 @@ void main() {
       ).execute(TravelTo(destination: woods));
 
       expect(result.rejection!.code, RejectionCode.insufficientSteps);
-      expect(result.rejection!.explanation, contains('600'));
+      expect(result.rejection!.explanation, contains('500'));
       expect(result.rejection!.explanation, contains('100'));
     });
   });
@@ -254,7 +254,7 @@ void main() {
 
       expect(reloaded.world.currentLocation, woods);
       expect(reloaded.world.isUnlocked(woods), isTrue);
-      expect(reloaded.steps.banked, 1400);
+      expect(reloaded.steps.banked, 1500);
     });
 
     test('the event survives the journal codec', () {
@@ -271,7 +271,7 @@ void main() {
       final LocationTravelled decoded = round! as LocationTravelled;
       expect(decoded.from, havensRest);
       expect(decoded.location, woods);
-      expect(decoded.stepsSpent, 600);
+      expect(decoded.stepsSpent, 500);
       expect(decoded.firstVisit, isTrue);
     });
 

@@ -88,6 +88,7 @@ GameEngine playerAt(
     player: PlayerState(
       level: CombatRules.levelFor(experience),
       experience: experience,
+      hp: CombatRules.maxHpFor(CombatRules.levelFor(experience)),
     ),
     world: WorldState(
       currentLocation: location,
@@ -116,6 +117,45 @@ List<EngineResult> fightToTheEnd(GameEngine engine, {int maxRounds = 60}) {
   }
   expect(engine.state.encounter, isNull, reason: 'fight did not resolve');
   return results;
+}
+
+/// Fights while eating [food] whenever HP drops to [threshold] — the
+/// provisioned fight persistent HP makes canonical (`DECISIONS/0023` §4):
+/// a hard fight is taken with food, not with a free full heal between rounds.
+List<EngineResult> fightProvisioned(
+  GameEngine engine,
+  ContentId food, {
+  int threshold = 24,
+  int maxRounds = 90,
+}) {
+  final List<EngineResult> results = <EngineResult>[];
+  for (int i = 0; i < maxRounds && engine.state.encounter != null; i++) {
+    final EncounterState e = engine.state.encounter!;
+    final bool eat =
+        e.playerHp <= threshold &&
+        e.playerHp < e.playerMaxHp &&
+        engine.state.inventory.has(food);
+    final EngineResult r = engine.execute(
+      eat ? CombatEat(item: food) : const CombatAttack(),
+    );
+    expect(r.isAccepted, isTrue, reason: '${r.rejection}');
+    results.add(r);
+  }
+  expect(engine.state.encounter, isNull, reason: 'fight did not resolve');
+  return results;
+}
+
+/// Eats [food] outside combat until HP is full or the food runs out —
+/// the between-fights recovery persistent HP asks for.
+List<GameEvent> healUp(GameEngine engine, ContentId food) {
+  final List<GameEvent> events = <GameEvent>[];
+  while (engine.state.player.hp <
+      CombatRules.maxHpFor(engine.state.player.level)) {
+    final EngineResult r = engine.execute(EatFood(item: food));
+    if (r.isRejected) break;
+    events.addAll(r.events);
+  }
+  return events;
 }
 
 List<GameEvent> eventsOf(Iterable<EngineResult> results) => <GameEvent>[
@@ -200,21 +240,28 @@ void main() {
       expect(CombatRules.isHeavyTurn(2), isFalse);
     });
 
-    test('level thresholds, max HP and the attack bonus (provisional)', () {
+    test('level thresholds and max HP (owner targets, DECISIONS/0023 §7)', () {
       expect(CombatRules.levelFor(0), 1);
       expect(CombatRules.levelFor(99), 1);
       expect(CombatRules.levelFor(100), 2);
-      expect(CombatRules.levelFor(299), 2);
-      expect(CombatRules.levelFor(300), 3);
-      expect(CombatRules.levelFor(4500), 10);
+      expect(CombatRules.levelFor(249), 2);
+      expect(CombatRules.levelFor(250), 3);
+      expect(CombatRules.levelFor(475), 4);
+      expect(CombatRules.levelFor(775), 5);
+      expect(CombatRules.levelFor(1150), 6);
+      expect(CombatRules.levelFor(1600), 7);
+      expect(CombatRules.levelFor(2150), 8);
+      expect(CombatRules.levelFor(3650), 10);
       expect(CombatRules.levelFor(999999), 10, reason: 'level 10 is the cap');
+      // +2 max HP per level — the character level is resilience, and no
+      // attack or defence rides it (`DECISIONS/0023` §7).
       expect(CombatRules.maxHpFor(1), 40);
-      expect(CombatRules.maxHpFor(3), 48);
-      expect(CombatRules.maxHpFor(10), 76);
-      expect(CombatRules.attackBonusFor(1), 0);
-      expect(CombatRules.attackBonusFor(2), 0);
-      expect(CombatRules.attackBonusFor(3), 1);
-      expect(CombatRules.attackBonusFor(10), 4);
+      expect(CombatRules.maxHpFor(3), 44);
+      expect(CombatRules.maxHpFor(10), 58);
+      // The base agrees with a fresh character's stored HP — the two files
+      // cannot reference each other without an import cycle, so the pin is
+      // here.
+      expect(const PlayerState.initial().hp, CombatRules.maxHpFor(1));
     });
 
     test('loadoutFor: weapon and armour slots count, tools never do', () {
@@ -251,12 +298,14 @@ void main() {
       // A tool in the weapon slot is not a weapon.
       expect(loadout(weapon: trainingAxe).attack, 1);
       expect(loadout(weapon: trainingAxe).weaponItem, isNull);
-      // Level 3: +8 max HP, +1 attack.
+      // Level 3 (250 XP on the new curve): +4 max HP and NOTHING else —
+      // the level attack bonus is gone; equipment is the combat-power
+      // source (`DECISIONS/0023` §7).
       expect(
-        loadout(weapon: trainingSword, experience: 300),
+        loadout(weapon: trainingSword, experience: 250),
         PlayerCombatLoadout(
-          maxHp: 48,
-          attack: 4,
+          maxHp: 44,
+          attack: 3,
           defence: 0,
           weaponItem: trainingSword,
         ),
@@ -508,14 +557,17 @@ void main() {
       },
     );
 
-    test('a level-3 character has 48 HP and +1 attack in the snapshot', () {
+    test('a level-3 character has 44 HP and no level attack in the snapshot',
+        () {
+      // +2 max HP per level and nothing else (`DECISIONS/0023` §7): the
+      // sword is the whole attack figure at every level.
       final GameEngine engine = woodsWithStartingLoadout(experience: 300);
       final EncounterStarted started =
           engine.execute(StartEncounter(enemy: wolf)).events.single
               as EncounterStarted;
-      expect(started.playerMaxHp, 48);
-      expect(started.playerHp, 48);
-      expect(started.playerAttack, 4);
+      expect(started.playerMaxHp, 44);
+      expect(started.playerHp, 44);
+      expect(started.playerAttack, 3);
     });
   });
 
@@ -704,20 +756,30 @@ void main() {
         expect(won.levelBefore, 1);
         expect(won.levelAfter, 1);
         // Drops are a pure function of the seed, by declaration order:
-        // meadow herb ×1 at 60% (index 0), wolf pelt ×1 at 45% (index 1).
+        // wolf pelt ×1 at 60% (index 0, the dependable material), meadow herb
+        // ×1 at 40% (index 1), pristine wolf fang at 8% (index 2 — the
+        // signature, rolled exactly like any other row).
         final int winningTurn = (last.events.first as CombatPlayerStruck).turn;
-        final bool herbDrops =
-            CombatRules.percentRoll(seed, 0, winningTurn) < 60;
         final bool peltDrops =
-            CombatRules.percentRoll(seed, 1, winningTurn) < 45;
+            CombatRules.percentRoll(seed, 0, winningTurn) < 60;
+        final bool herbDrops =
+            CombatRules.percentRoll(seed, 1, winningTurn) < 40;
+        final bool fangDrops = CombatRules.percentRoll(seed, 2, winningTurn) < 8;
         expect(won.drops, <ContentId, int>{
-          if (herbDrops) meadowHerb: 1,
           if (peltDrops) wolfPelt: 1,
+          if (herbDrops) meadowHerb: 1,
+          if (fangDrops) ContentId.unchecked('item.pristine_wolf_fang'): 1,
         });
 
         final GameState after = engine.state;
         expect(after.encounter, isNull);
-        expect(after.player, const PlayerState(level: 1, experience: 30));
+        expect(after.player.level, 1);
+        expect(after.player.experience, 30);
+        // Persistent HP (`DECISIONS/0023` §4): the fight's ending HP is now
+        // the character's HP — no automatic heal after an ordinary victory.
+        expect(after.player.hp, won.playerHpAfter);
+        expect(won.victoriesAfter, 1);
+        expect(after.progress.victoriesOf(wolf), 1);
         expect(
           after.inventory.quantityOf(meadowHerb),
           before.inventory.quantityOf(meadowHerb) + (herbDrops ? 1 : 0),
@@ -740,7 +802,15 @@ void main() {
     );
 
     test('a visit holds exactly the authored number of fights', () {
-      final GameEngine engine = woodsWithStartingLoadout();
+      final GameEngine engine = playerAt(
+        woods,
+        weapon: trainingSword,
+        armor: tunic,
+        // Persistent HP (`DECISIONS/0023` §4): the second fight starts at
+        // whatever the first one left, so the between-fights recovery is
+        // food — exactly the loop the design intends.
+        extraItems: <ContentId, int>{herbBroth: 12},
+      );
       expect(perVisit(wolf), 2, reason: 'the content this test is about');
 
       // First fight: allowed, rewards once.
@@ -748,6 +818,7 @@ void main() {
       fightToTheEnd(engine);
       expect(engine.state.player.experience, 30);
       expect(engine.state.world.victoriesThisVisit(wolf), 1);
+      healUp(engine, herbBroth);
 
       // Second fight, same visit, no travel between them: allowed, and it
       // rewards once more. This is the whole change — the owner's "too
@@ -792,11 +863,22 @@ void main() {
         extraItems: <ContentId, int>{heartyStew: 6},
       );
       engine.execute(StartEncounter(enemy: guardian));
-      final List<EngineResult> rounds = fightToTheEnd(engine, maxRounds: 60);
+      // Provisioned, not attack-only: with the level attack bonus gone and
+      // max HP at 40 + 2/level (`DECISIONS/0023` §7), the boss is the fight
+      // food exists for — "the Lynx beat me, so now I understand why
+      // gear/food matter" is the intended lesson, and this invariant holds
+      // it at the top end.
+      final List<EngineResult> rounds = fightProvisioned(
+        engine,
+        heartyStew,
+        maxRounds: 90,
+      );
       expect(
         rounds.last.events.last,
         isA<EncounterWon>(),
-        reason: 'a level-10 player in bronze must be able to take the boss',
+        reason:
+            'a level-10 player in bronze, provisioned with food, must be '
+            'able to take the boss',
       );
       expect(engine.state.world.victoriesThisVisit(guardian), 1);
       expect(
@@ -837,7 +919,14 @@ void main() {
     });
 
     test('replaying the log applies each visit\'s rewards once, in order', () {
-      final GameEngine engine = woodsWithStartingLoadout();
+      final GameEngine engine = playerAt(
+        woods,
+        weapon: trainingSword,
+        armor: tunic,
+        // Food between fights, because HP persists — and the FoodEaten
+        // events land in the replayed log like every other fact.
+        extraItems: <ContentId, int>{herbBroth: 20},
+      );
       final GameState pre = engine.state;
       final List<GameEvent> events = <GameEvent>[];
 
@@ -845,7 +934,8 @@ void main() {
       for (int i = 0; i < 2; i++) {
         events
           ..addAll(engine.execute(StartEncounter(enemy: wolf)).events)
-          ..addAll(eventsOf(fightToTheEnd(engine)));
+          ..addAll(eventsOf(fightToTheEnd(engine)))
+          ..addAll(healUp(engine, herbBroth));
       }
       events
         ..addAll(engine.execute(EnterLocation(location: haven)).events)
@@ -909,14 +999,18 @@ void main() {
       expect(won.experienceAfter, 120);
       expect(won.levelBefore, 1);
       expect(won.levelAfter, 2);
-      expect(engine.state.player, const PlayerState(level: 2, experience: 120));
-      // The next fight snapshots the new level's HP.
+      expect(engine.state.player.level, 2);
+      expect(engine.state.player.experience, 120);
+      // The next fight snapshots the new level's ceiling (40 + 2·1), while
+      // the carried HP persists across the moves — no free heal rode the
+      // level (`DECISIONS/0023` §7).
       engine.execute(EnterLocation(location: haven));
       engine.execute(EnterLocation(location: woods));
       final EncounterStarted next =
           engine.execute(StartEncounter(enemy: wolf)).events.single
               as EncounterStarted;
-      expect(next.playerMaxHp, 44);
+      expect(next.playerMaxHp, 42);
+      expect(next.playerHp, won.playerHpAfter);
     });
 
     test('the visit count resets after paid travel too', () {
@@ -925,12 +1019,16 @@ void main() {
         weapon: trainingSword,
         armor: tunic,
         banked: 2000,
+        extraItems: <ContentId, int>{herbBroth: 12},
       );
       // Spend the whole visit, so the reset is the thing being observed and
-      // not a count that had room left anyway.
+      // not a count that had room left anyway. Healed between fights — HP
+      // persists, and a second fight lost from low HP would retreat the
+      // player and empty the very count under test.
       for (int i = 0; i < perVisit(wolf); i++) {
         expect(engine.execute(StartEncounter(enemy: wolf)).isAccepted, isTrue);
         fightToTheEnd(engine);
+        healUp(engine, herbBroth);
       }
       expect(engine.state.world.isAvailable(wolf, perVisit(wolf)), isFalse);
       expect(engine.execute(TravelTo(destination: haven)).isAccepted, isTrue);

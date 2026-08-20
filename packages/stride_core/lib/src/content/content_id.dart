@@ -11,7 +11,10 @@ enum ContentNamespace {
   resourceNode('resource_node'),
   recipe,
   enemy,
-  profile;
+  profile,
+  contract,
+  project,
+  rumor;
 
   const ContentNamespace([String? wireName]) : _wireName = wireName;
 

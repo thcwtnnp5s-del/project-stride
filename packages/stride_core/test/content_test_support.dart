@@ -97,6 +97,9 @@ String? _targetFileFor(String json) {
     'resource_nodes': 'resource_nodes.json',
     'recipes': 'recipes.json',
     'enemies': 'enemies.json',
+    'contracts': 'contracts.json',
+    'projects': 'projects.json',
+    'rumors': 'rumors.json',
     'profiles': 'profiles.json',
   };
   for (final MapEntry<String, String> entry in kindToFile.entries) {
