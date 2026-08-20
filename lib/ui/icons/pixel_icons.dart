@@ -206,6 +206,16 @@ abstract final class PixelIcons {
     'item.herb_broth': '$_art/item/herb_broth.png',
     'item.hearty_stew': '$_art/item/hearty_stew.png',
     'item.hollow_sigil': '$_art/item/hollow_sigil.png',
+
+    // World & Reward Depth 01. The four icons were packaged (blind QA PASS)
+    // and these entries were forgotten, so every surface — victory rewards,
+    // Inventory, Craft — rendered the deliberately blank `unknown` slab on a
+    // physical phone. `phase2_content_test`'s every-item-resolves assertion
+    // now makes that omission a failing test rather than a device finding.
+    'item.wolf_pelt': '$_art/item/wolf_pelt.png',
+    'item.lynx_pelt': '$_art/item/lynx_pelt.png',
+    'item.wolfhide_jerkin': '$_art/item/wolfhide_jerkin.png',
+    'item.frostlined_jerkin': '$_art/item/frostlined_jerkin.png',
   };
 
   // ------------------------------------------------------------------ nodes

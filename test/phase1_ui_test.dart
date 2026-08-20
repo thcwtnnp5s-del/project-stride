@@ -258,11 +258,12 @@ void main() {
   /// Taps the gather control, advances [fake] through one repetition, and
   /// waits for the queue to finish its dispatch.
   ///
-  /// One tap is one *queued* repetition now (`ACTIVITY_FEEL_PRESENTATION_01`
-  /// §4a): the spend/grant happens when the presentation timer completes, so
-  /// the test advances that timer by hand — same figures, same single
-  /// dispatch, no real wait. The app under test must have been pumped with
-  /// `activityTiming: fake.timing`.
+  /// One tap is one *queued* repetition (`DECISIONS/0022`): the start commits
+  /// a durable queue, and the spend/grant commits when the wall clock crosses
+  /// the repetition boundary — advanced by hand here, so no real wait. The
+  /// app under test must have been pumped with `activityTiming: fake.timing`
+  /// AND its session's `activityWallClock` pointed at the same fake, or the
+  /// anchor and the fake boundary arithmetic would read two different clocks.
   Future<void> gatherOnce(
     WidgetTester tester,
     FakeTiming fake, {
@@ -277,15 +278,42 @@ void main() {
     ActivityController activityInTree() =>
         (find.byType(ActivityScope).evaluate().first.widget as ActivityScope)
             .notifier!;
+    SessionController? sessionsInTree() {
+      final Iterable<Element> scopes = find.byType(SessionScope).evaluate();
+      if (scopes.isEmpty) return null;
+      return (scopes.first.widget as SessionScope).notifier;
+    }
 
+    // Phase 1: the tap's StartActivityQueue dispatch settles. The tap ran in
+    // the harness's fake-async zone, so its await continuations flush on
+    // pumps between real-I/O waits — a bare runAsync loop would watch
+    // forever. Exits on the durable queue, or on the attempt finishing any
+    // other way (a refusal must fall through to the caller's assertion).
+    bool settled() {
+      final SessionController? c = sessionsInTree();
+      if (c == null) return false;
+      if (c.busy || c.session.isBusy) return false;
+      return c.session.activityQueue != null || !activityInTree().active;
+    }
+
+    final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (!settled() && DateTime.now().isBefore(deadline)) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+
+    // Phase 2: one repetition boundary. The boundary timer fires inside
+    // runAsync (real zone), so the reconcile's file I/O completes in place.
     await tester.runAsync(() async {
       fake.advance(const Duration(seconds: 10));
-      final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
+      final DateTime d2 = DateTime.now().add(const Duration(seconds: 10));
       // Wait on the queue itself, not only the session: the figures move
       // inside the command, a beat before the controller counts the
       // completion and finishes the ×1 queue.
       while ((!until() || activityInTree().active) &&
-          DateTime.now().isBefore(deadline)) {
+          DateTime.now().isBefore(d2)) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
     });
@@ -425,6 +453,9 @@ void main() {
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
+      // One wall clock: the session's activity commands read the same fake
+      // the controller's timing does (`DECISIONS/0022` §8).
+      session.activityWallClock = fake.wallClock;
       await tester.pumpWidget(
         StrideApp(
           session: session,
@@ -469,6 +500,9 @@ void main() {
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
+      // One wall clock: the session's activity commands read the same fake
+      // the controller's timing does (`DECISIONS/0022` §8).
+      session.activityWallClock = fake.wallClock;
       await tester.pumpWidget(
         StrideApp(
           session: session,
@@ -575,6 +609,9 @@ void main() {
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
+      // One wall clock: the session's activity commands read the same fake
+      // the controller's timing does (`DECISIONS/0022` §8).
+      session.activityWallClock = fake.wallClock;
       await tester.pumpWidget(
         StrideApp(
           session: session,
@@ -634,6 +671,7 @@ void main() {
         page(1000),
       ]);
       await tester.runAsync(() => session.syncSteps());
+      session.activityWallClock = fake.wallClock;
       await tester.pumpWidget(
         StrideApp(
           session: session,
@@ -709,6 +747,7 @@ void main() {
       await tester.runAsync(() => a.gather(kNode));
 
       final FakeTiming fake = FakeTiming();
+      b.activityWallClock = fake.wallClock;
       await tester.pumpWidget(
         StrideApp(session: b, syncOnStart: false, activityTiming: fake.timing),
       );

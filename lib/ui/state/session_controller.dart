@@ -290,6 +290,74 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  // -- The activity queue (`DECISIONS/0022`) --------------------------------
+  //
+  // Passthroughs, so queue commands ride the same busy flag and the same
+  // notification the other commands do — the header's banked figure rebuilds
+  // when a completion spends, because this controller notified, exactly as it
+  // does for a manual gather. Reports go back to `ActivityController`, which
+  // owns the queue's presentation; none of these rides the result timer.
+  //
+  // Each returns null when another command holds the busy flag — the
+  // activity controller retries on its injectable timer rather than dropping
+  // or double-dispatching.
+
+  /// Starts a finite queue at [node]. Null when busy — retry.
+  Future<ActivityQueueReport?> startActivityQueue(
+    ContentId node,
+    int repetitions, {
+    required Duration repetitionDuration,
+  }) async {
+    if (_busy) return null;
+    _busy = true;
+    _clearResults(notify: false);
+    notifyListeners();
+    try {
+      return await _session.startActivityQueue(
+        node,
+        repetitions,
+        repetitionDuration: repetitionDuration,
+      );
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Reconciles the queue's elapsed time. Null when busy — retry.
+  ///
+  /// Deliberately does **not** clear the result lines: a repetition boundary
+  /// or a resume must not wipe an unrelated report off the screen. Listeners
+  /// are notified only when something actually committed.
+  Future<ActivityQueueReport?> reconcileActivityQueue() async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      final ActivityQueueReport report = await _session
+          .reconcileActivityQueue();
+      if (report.completions.isNotEmpty ||
+          report.stopReason != null ||
+          !report.succeeded) {
+        notifyListeners();
+      }
+      return report;
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// Stops the queue. Null when busy — retry.
+  Future<ActivityQueueReport?> stopActivityQueue() async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      return await _session.stopActivityQueue();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
   /// The recovery from a stale session: reread the save and rebuild from disk.
   ///
   /// If the disk still holds a save that owes the first-sync migration — the

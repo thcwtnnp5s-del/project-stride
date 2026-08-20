@@ -51,6 +51,35 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'skill': event.skill.value,
     'xp': event.experience,
   },
+  // The activity queue (`DECISIONS/0022`). Completions carry the same five
+  // figures a ResourceGathered carries, as charged and as awarded, never as
+  // defined — replay must reproduce the committed state after any retune.
+  ActivityQueueStarted() => <String, Object?>{
+    't': 'ActivityQueueStarted',
+    'seq': event.sequence,
+    'node': event.node.value,
+    'requested': event.requested,
+    'durationMillis': event.durationMillis,
+    'anchorEpochMillis': event.anchorEpochMillis,
+  },
+  ActivityQueueReconciled() => <String, Object?>{
+    't': 'ActivityQueueReconciled',
+    'seq': event.sequence,
+    'node': event.node.value,
+    'completions': _encodeCompletions(event.completions),
+    'completedAfter': event.completedAfter,
+    'anchorAfter': event.anchorAfter,
+    'cleared': event.cleared,
+    'stopReason': event.stopReason,
+  },
+  ActivityQueueStopped() => <String, Object?>{
+    't': 'ActivityQueueStopped',
+    'seq': event.sequence,
+    'node': event.node.value,
+    'completions': _encodeCompletions(event.completions),
+    'completedAfter': event.completedAfter,
+    'stopReason': event.stopReason,
+  },
   ItemEquipped() => <String, Object?>{
     't': 'ItemEquipped',
     'seq': event.sequence,
@@ -255,6 +284,22 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
   },
 };
 
+/// A queue event's committed repetitions, **in commit order** — the list is a
+/// sequence of facts, and reordering it would change which repetition a
+/// mid-list refusal preceded on replay diagnostics. Same field names as a
+/// ResourceGathered record, deliberately.
+List<Object?> _encodeCompletions(List<ActivityCompletion> completions) =>
+    <Object?>[
+      for (final ActivityCompletion c in completions)
+        <String, Object?>{
+          'stepsSpent': c.stepsSpent,
+          'item': c.item.value,
+          'quantity': c.quantity,
+          'skill': c.skill.value,
+          'xp': c.experience,
+        },
+    ];
+
 List<MapEntry<ObservationKey, int>> _sortedSlices(
   Map<ObservationKey, int> slices,
 ) => slices.entries.toList()
@@ -428,6 +473,61 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         toStateVersion: to,
         previousGrantedAtStart: previousGranted,
         previousSpentAtStart: previousSpent,
+      );
+
+    case 'ActivityQueueStarted':
+      final ContentId? node = id('node');
+      final int? requested = i('requested');
+      final int? durationMillis = i('durationMillis');
+      final int? anchor = i('anchorEpochMillis');
+      if (node == null ||
+          requested == null ||
+          durationMillis == null ||
+          anchor == null) {
+        return null;
+      }
+      // A queue of zero repetitions or zero duration cannot have been
+      // committed; a corrupt record must not construct one on replay.
+      if (requested < 1 || durationMillis < 1) return null;
+      return ActivityQueueStarted(
+        sequence: seq,
+        node: node,
+        requested: requested,
+        durationMillis: durationMillis,
+        anchorEpochMillis: anchor,
+      );
+
+    case 'ActivityQueueReconciled':
+    case 'ActivityQueueStopped':
+      final ContentId? node = id('node');
+      final int? completedAfter = i('completedAfter');
+      final List<ActivityCompletion>? completions = _decodeCompletions(
+        json['completions'],
+      );
+      if (node == null || completedAfter == null || completions == null) {
+        return null;
+      }
+      if (completedAfter < 0) return null;
+      final String? stopReason = s('stopReason');
+      if (tag == 'ActivityQueueStopped') {
+        return ActivityQueueStopped(
+          sequence: seq,
+          node: node,
+          completions: completions,
+          completedAfter: completedAfter,
+          stopReason: stopReason,
+        );
+      }
+      final int? anchorAfter = i('anchorAfter');
+      if (anchorAfter == null) return null;
+      return ActivityQueueReconciled(
+        sequence: seq,
+        node: node,
+        completions: completions,
+        completedAfter: completedAfter,
+        anchorAfter: anchorAfter,
+        cleared: b('cleared'),
+        stopReason: stopReason,
       );
 
     case 'ItemEquipped':
@@ -728,6 +828,44 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
     default:
       return null;
   }
+}
+
+/// Decodes a queue event's completion list, or null if any record is
+/// malformed. Ranges are checked for the reason ResourceGathered's are: a
+/// negative spend or yield from disk would corrupt the ledger or mint items
+/// on replay, and refusing the record is recoverable.
+List<ActivityCompletion>? _decodeCompletions(Object? raw) {
+  if (raw is! List<Object?>) return null;
+  final List<ActivityCompletion> completions = <ActivityCompletion>[];
+  for (final Object? entry in raw) {
+    if (entry is! Map<String, Object?>) return null;
+    final Object? rawItem = entry['item'];
+    final Object? rawSkill = entry['skill'];
+    final Object? spent = entry['stepsSpent'];
+    final Object? quantity = entry['quantity'];
+    final Object? xp = entry['xp'];
+    if (rawItem is! String ||
+        rawSkill is! String ||
+        spent is! int ||
+        quantity is! int ||
+        xp is! int) {
+      return null;
+    }
+    final ContentId? item = ContentId.parse(rawItem).id;
+    final ContentId? skill = ContentId.parse(rawSkill).id;
+    if (item == null || skill == null) return null;
+    if (spent < 0 || quantity < 0 || xp < 0) return null;
+    completions.add(
+      ActivityCompletion(
+        stepsSpent: spent,
+        item: item,
+        quantity: quantity,
+        skill: skill,
+        experience: xp,
+      ),
+    );
+  }
+  return completions;
 }
 
 T? _enumOrNull<T extends Enum>(List<T> values, String? name) {

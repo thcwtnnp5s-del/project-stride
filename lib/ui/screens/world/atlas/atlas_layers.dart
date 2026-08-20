@@ -36,6 +36,7 @@ import '../../../../runtime/stride_session.dart';
 import '../../../components/pixel_asset.dart';
 import '../../../icons/atlas_assets.dart';
 import '../../../theme/stride_colors.dart';
+import '../../../theme/stride_metrics.dart';
 import '../../../theme/stride_typography.dart';
 import 'atlas_layout.dart';
 import 'atlas_place_info.dart';
@@ -663,15 +664,16 @@ abstract final class AtlasMarkerSpec {
   /// The label sits this far below the marker's centre.
   static const double labelOffset = 14;
 
-  /// Wide enough for the longest place name at a 1.4× text scale. Names are
-  /// centred, and the plate fades at its sides, so the unused width is
-  /// invisible rather than a box.
-  static const double labelWidth = 184;
+  /// A label's plate hugs its name: the laid-out text width, ceiled to a
+  /// whole dp, plus this much padding a side. Screen dp, like everything
+  /// about a label. There is no fixed plate width — a fixed 184 dp plate,
+  /// counter-scaled at the survey floor, painted a bar half the world wide
+  /// over the geography it was meant to caption (device review).
+  static const double labelPadX = 7;
 
-  /// A landmark's label is narrower, because a landmark's name is a caption
-  /// rather than a destination and a wide plate under a small name reads as an
-  /// empty control.
-  static const double landmarkLabelWidth = 150;
+  /// Above and below the line box. Tight, so the plate is a tag on the
+  /// ground rather than a chip-height control.
+  static const double labelPadY = 2;
 
   /// A landmark hangs closer to its coordinate than a place does: it has no
   /// ring to clear.
@@ -849,9 +851,9 @@ class _PulsePainter extends CustomPainter {
   bool shouldRepaint(_PulsePainter old) => old.progress != progress;
 }
 
-/// The place's name under its marker, on a plate that fades at the sides —
-/// the same device as the map caption, so type stays readable over lit
-/// canopy and over snow without a hard-edged box on the ground.
+/// The place's name under its marker, on a compact plate that takes exactly
+/// the width the name needs — a tag standing on the ground, so type stays
+/// readable over lit canopy and over snow without boxing the geography in.
 class _MarkerLabel extends StatelessWidget {
   const _MarkerLabel({
     required this.node,
@@ -867,11 +869,13 @@ class _MarkerLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool current = node.id == scene.current.id;
     return _WorldLabel(
+      key: ValueKey<String>('atlas-label:${node.id.value}'),
       x: node.x,
       y: node.y + AtlasMarkerSpec.labelOffset,
-      width: AtlasMarkerSpec.labelWidth,
       zoom: zoom,
-      plateAlpha: 0xD9,
+      // Dark enough that the name reads over anything, light enough that the
+      // geography ghosts through rather than being cut out by the plate.
+      plateAlpha: 0xC0,
       text: node.place.displayName,
       style: StrideType.microLabel.copyWith(
         // Weight marks the current place, never a hue (Q-04, L-16).
@@ -893,8 +897,8 @@ class _MarkerLabel extends StatelessWidget {
 /// sentence that does not finish, which is exactly what a road pointing off the
 /// known map is.
 ///
-/// It has no hit target, no ring, and no plate edge. Nothing about it repays a
-/// tap, and the whole layer is inside an `IgnorePointer`.
+/// It has no hit target and no ring. Nothing about it repays a tap, and the
+/// whole layer is inside an `IgnorePointer`.
 class _LandmarkLabel extends StatelessWidget {
   const _LandmarkLabel({required this.landmark, required this.zoom});
 
@@ -905,9 +909,9 @@ class _LandmarkLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool far = landmark.tier == AtlasLandmarkTier.future;
     return _WorldLabel(
+      key: ValueKey<String>('atlas-caption:${landmark.id}'),
       x: landmark.x,
       y: landmark.y + AtlasMarkerSpec.landmarkLabelOffset,
-      width: AtlasMarkerSpec.landmarkLabelWidth,
       zoom: zoom,
       plateAlpha: far ? 0x66 : 0x8C,
       text: far ? '${landmark.name} —' : landmark.name,
@@ -937,11 +941,24 @@ class _LandmarkLabel extends StatelessWidget {
 /// device pixels at **every** zoom, which is both legible and crisp — the same
 /// reason the camera is pixel-snapped. Its *anchor* stays a world coordinate,
 /// so the name still travels with the place.
+///
+/// ## The plate hugs the name
+///
+/// The plate's width is **measured, never a constant**: the name's laid-out
+/// width, ceiled to a whole dp, plus [AtlasMarkerSpec.labelPadX] a side. The
+/// measurement uses the ambient style merged under this label's own and the
+/// ambient text scale — exactly the layout the `Text` below will do, which is
+/// what `AdaptiveText` established a `TextPainter` must be handed to be
+/// trusted (M-06). A long name therefore takes the width it needs and is
+/// never wrapped or truncated; a short one sits in a tag barely wider than
+/// itself. The old fixed 184 dp plate, counter-scaled at the survey floor,
+/// read as a full-width black bar over the geography — and its side-fade
+/// gradient, which existed only to soften that fixed width, dies with it.
 class _WorldLabel extends StatelessWidget {
   const _WorldLabel({
+    super.key,
     required this.x,
     required this.y,
-    required this.width,
     required this.zoom,
     required this.plateAlpha,
     required this.text,
@@ -952,13 +969,9 @@ class _WorldLabel extends StatelessWidget {
   final double x;
   final double y;
 
-  /// The label's width in **screen** dp; its world footprint is this over
-  /// [zoom].
-  final double width;
-
   final double zoom;
 
-  /// The plate's peak opacity, 0–255. A landmark's is fainter than a place's.
+  /// The plate's opacity, 0–255. A landmark's is fainter than a place's.
   final int plateAlpha;
 
   final String text;
@@ -966,38 +979,58 @@ class _WorldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double worldWidth = width / zoom;
+    // Measure what will actually be painted: the ambient style with this
+    // label's style merged over it, at the ambient text scale. A bare role
+    // has no font family, and a `TextPainter` handed one measures a fallback
+    // font instead of the theme's (see `AdaptiveText`).
+    final TextStyle merged = DefaultTextStyle.of(context).style.merge(style);
+    final TextPainter painter = TextPainter(
+      text: TextSpan(text: text, style: merged),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final double textWidth = painter.width;
+    painter.dispose();
+
+    // Screen dp: the plate, like the type on it, holds this size at every
+    // zoom. Ceiled so the box is never a fraction short of its own name, and
+    // so the plate's edges land on whole pixels once its left edge does.
+    final double plateWidth =
+        textWidth.ceilToDouble() + AtlasMarkerSpec.labelPadX * 2;
     final Color plate = const Color(0xFF14120F).withAlpha(plateAlpha);
-    // Snapped to a whole logical pixel *after* the zoom, so the plate's fade
-    // and the type's baseline land where the camera's own snapping puts the
-    // rest of the surface. `v * zoom` rounded, back over `zoom`, is the world
-    // coordinate nearest a whole screen pixel.
-    double snap(double v) => (v * zoom).roundToDouble() / zoom;
+    // The paint transform below scales about the layout box's top centre, so
+    // the painted left edge sits at `centre·zoom − plateWidth/2` screen dp.
+    // Choose the centre that puts that figure on a whole logical pixel —
+    // where the camera's own snapping puts the rest of the surface — and the
+    // whole-dp width lands the right edge there too. The top snaps directly:
+    // scaling about the top centre leaves it where the layout put it.
+    final double snappedLeft = (x * zoom - plateWidth / 2).roundToDouble();
     return Positioned(
-      left: snap(x - worldWidth / 2),
-      top: snap(y),
-      width: worldWidth,
+      left: (snappedLeft + plateWidth / 2) / zoom - plateWidth / 2,
+      top: (y * zoom).roundToDouble() / zoom,
+      width: plateWidth,
       child: IgnorePointer(
         child: Transform.scale(
           scale: 1 / zoom,
           alignment: Alignment.topCenter,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 2),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AtlasMarkerSpec.labelPadX,
+              vertical: AtlasMarkerSpec.labelPadY,
+            ),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: <Color>[
-                  plate.withAlpha(0),
-                  plate,
-                  plate,
-                  plate.withAlpha(0),
-                ],
-                stops: const <double>[0, 0.2, 0.8, 1],
-              ),
+              color: plate,
+              borderRadius: StrideRadius.chip,
             ),
             child: Text(
               text,
               textAlign: TextAlign.center,
               maxLines: 1,
+              softWrap: false,
+              // Unreachable: the box is the measurement plus padding. Left as
+              // `clip` so a regression is visible rather than an ellipsis's
+              // claim that the name was too long.
               overflow: TextOverflow.clip,
               style: style,
             ),

@@ -392,4 +392,11 @@ abstract final class SpriteFootprints {
     right: 44,
     bottom: 39,
   );
+
+  /// `combat_traveler_stagger` — 12 px of contact, 22..33.
+  static const SpriteFootprint combatTravelerStagger = SpriteFootprint(
+    left: 22,
+    right: 33,
+    bottom: 62,
+  );
 }

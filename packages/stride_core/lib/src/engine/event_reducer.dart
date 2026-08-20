@@ -6,6 +6,33 @@ import 'combat.dart';
 import 'events.dart';
 import 'game_state.dart';
 
+/// Applies one gather's effects — spend, yield, experience — in one step.
+///
+/// **The single application of a gather's figures**, shared by the
+/// `ResourceGathered` branch, both activity-queue branches, and the engine's
+/// per-completion validation walk (`DECISIONS/0022` §6). Extracted so the
+/// manual gather and a queue completion cannot diverge: there is exactly one
+/// place that turns the five figures into a state change.
+///
+/// One `copyWith`, so there is no value — not even transiently — in which the
+/// ledger has been debited and the inventory has not. The figures come off an
+/// event (or the engine's freshly-scaled decision), never out of the registry.
+///
+/// Not for general callers: this exists for the engine and the reducer, and
+/// state mutations still flow only through committed events.
+GameState applyGatherEffects(
+  GameState state, {
+  required int stepsSpent,
+  required ContentId item,
+  required int quantity,
+  required ContentId skill,
+  required int experience,
+}) => state.copyWith(
+  steps: state.steps.copyWith(totalSpent: state.steps.totalSpent + stepsSpent),
+  inventory: state.inventory.adding(item, quantity),
+  skills: state.skills.adding(skill, experience),
+);
+
 /// The one place state changes.
 ///
 /// ## Canonical
@@ -47,6 +74,17 @@ final class EventReducer {
       SyntheticStepsGranted() => _grantSteps(state, event.steps),
       StepsAllocated() => _spendSteps(state, event.steps),
       ResourceGathered() => _gathered(state, event),
+      ActivityQueueStarted() => state.copyWith(
+        activityQueue: ActivityQueueState(
+          node: event.node,
+          requested: event.requested,
+          completed: 0,
+          durationMillis: event.durationMillis,
+          anchorEpochMillis: event.anchorEpochMillis,
+        ),
+      ),
+      ActivityQueueReconciled() => _queueReconciled(state, event),
+      ActivityQueueStopped() => _queueStopped(state, event),
       ItemEquipped() => state.copyWith(
         equipment: state.equipment.equipping(event.slot, event.item),
       ),
@@ -200,13 +238,68 @@ final class EventReducer {
   /// gather must reproduce the state that was committed, and a content pack
   /// that retuned the node since would otherwise reproduce a different one.
   GameState _gathered(GameState state, ResourceGathered event) =>
-      state.copyWith(
-        steps: state.steps.copyWith(
-          totalSpent: state.steps.totalSpent + event.stepsSpent,
-        ),
-        inventory: state.inventory.adding(event.item, event.quantity),
-        skills: state.skills.adding(event.skill, event.experience),
+      applyGatherEffects(
+        state,
+        stepsSpent: event.stepsSpent,
+        item: event.item,
+        quantity: event.quantity,
+        skill: event.skill,
+        experience: event.experience,
       );
+
+  /// Applies the k committed completions and moves — or clears — the queue,
+  /// in one branch.
+  ///
+  /// Every completion goes through [applyGatherEffects], the same application
+  /// a `ResourceGathered` gets, so a queue repetition and a manual gather
+  /// cannot drift apart (`DECISIONS/0022` §6). The anchor and the completed
+  /// count come off the event, never re-derived from a clock: the reducer is
+  /// total and replay must reproduce the committed state.
+  GameState _queueReconciled(GameState state, ActivityQueueReconciled event) {
+    final GameState next = _applyCompletions(state, event.completions);
+    final ActivityQueueState? queue = next.activityQueue;
+    if (queue == null) {
+      throw StateError(
+        'an activity-queue event was applied with no queue active; events '
+        'must be applied in order, and a queue begins with '
+        'ActivityQueueStarted',
+      );
+    }
+    return event.cleared
+        ? next.copyWith(clearActivityQueue: true)
+        : next.copyWith(
+            activityQueue: queue.copyWith(
+              completed: event.completedAfter,
+              anchorEpochMillis: event.anchorAfter,
+            ),
+          );
+  }
+
+  /// The stop: the closing reconciliation's completions, then the clear —
+  /// unconditionally (`DECISIONS/0022` §7).
+  GameState _queueStopped(GameState state, ActivityQueueStopped event) =>
+      _applyCompletions(
+        state,
+        event.completions,
+      ).copyWith(clearActivityQueue: true);
+
+  static GameState _applyCompletions(
+    GameState state,
+    List<ActivityCompletion> completions,
+  ) {
+    GameState next = state;
+    for (final ActivityCompletion completion in completions) {
+      next = applyGatherEffects(
+        next,
+        stepsSpent: completion.stepsSpent,
+        item: completion.item,
+        quantity: completion.quantity,
+        skill: completion.skill,
+        experience: completion.experience,
+      );
+    }
+    return next;
+  }
 
   /// Spends, moves, and records the arrival in one step.
   ///

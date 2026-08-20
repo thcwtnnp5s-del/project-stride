@@ -91,6 +91,10 @@ void main() {
         ),
       ),
     ))!;
+    // The session's activity commands must read the same fake clock the
+    // controller's timing does — one wall clock, exactly as production
+    // (`DECISIONS/0022` §8).
+    session.activityWallClock = fake.wallClock;
     // First sync is the new game's baseline (`DECISIONS/0019`); the second
     // banks the funding page.
     await tester.runAsync(() => session.syncSteps());
@@ -121,6 +125,22 @@ void main() {
     final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
     while (!condition() && DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    expect(condition(), isTrue);
+  }
+
+  /// Waits for a dispatch that was STARTED BY A TAP — i.e. inside the test
+  /// harness's fake-async zone. Its awaits resume as fake-zone microtasks, so
+  /// the real-I/O wait (`runAsync`) must be interleaved with pumps that flush
+  /// them; a bare `runAsync` loop would watch the condition forever while the
+  /// continuation sits queued. Same shape `inventory_equip_test` uses.
+  Future<void> pumpUntil(WidgetTester tester, bool Function() condition) async {
+    final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (!condition() && DateTime.now().isBefore(deadline)) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
     }
     expect(condition(), isTrue);
   }
@@ -161,13 +181,26 @@ void main() {
     await tapVisible(tester, find.text('×5'));
     await tapVisible(tester, find.text('Gather ×5 — 450 steps'));
 
-    // The active panel replaces the gather control.
+    // The active panel replaces the gather control immediately; the durable
+    // queue commits under real async (`DECISIONS/0022` §5).
     expect(find.text('Gathering 0 / 5'), findsOneWidget);
     expect(find.text('Stop gathering'), findsOneWidget);
     expect(find.text('10s'), findsOneWidget);
     expect(find.textContaining('Gather ×'), findsNothing);
+    await pumpUntil(
+      tester,
+      () => session.activityQueue != null && !session.isBusy,
+    );
 
+    final ActivityController activity = tester
+        .widget<ActivityScope>(find.byType(ActivityScope))
+        .notifier!;
     await tapVisible(tester, find.text('Stop gathering'));
+    // The stop's commit is real I/O too; wait for the presentation to settle.
+    await pumpUntil(
+      tester,
+      () => session.activityQueue == null && !activity.active,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Gathering 0 / 5'), findsNothing);
@@ -186,6 +219,12 @@ void main() {
     await tapVisible(tester, find.text('×10'));
     await tapVisible(tester, find.text('Gather ×10 — 900 steps'));
     expect(find.text('Gathering 0 / 10'), findsOneWidget);
+    // The durable queue's commit is real file I/O; let it land before the
+    // clock moves, so the anchor is the moment the player saw the bar start.
+    await pumpUntil(
+      tester,
+      () => session.activityQueue != null && !session.isBusy,
+    );
 
     // The app's own controller, read back through its scope so the wait
     // condition is the completion itself — the inventory moves inside the
@@ -227,6 +266,10 @@ void main() {
     // Stop mid-third: the two completed repetitions stay committed, and the
     // summary strip reports them on the idle card.
     await tapVisible(tester, find.text('Stop gathering'));
+    await pumpUntil(
+      tester,
+      () => session.activityQueue == null && !activity.active,
+    );
     await tester.pumpAndSettle();
 
     expect(session.totalSpent, 180, reason: 'exactly the two completions');

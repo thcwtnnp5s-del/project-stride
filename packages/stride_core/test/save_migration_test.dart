@@ -161,8 +161,19 @@ import 'save_support.dart';
 /// been beaten this visit. The key sorts after `unlockedLocations` rather than
 /// before it, which is why the line moved as well as changed. Every other
 /// value in the literal is byte-identical to what it was.
+///
+/// ## The state version 6 amendment
+///
+/// `"activityQueue":null` was added when `StateVersion.current` became 6
+/// (`DECISIONS/0022`, finite background activity), on the same reasoning
+/// again: the current encoder writes it, and null is the only value a v1 save
+/// can decode to, because a v1 save has no such field — no queue could
+/// outlive the process before v6, so none was ever stored. The key sorts
+/// before `contentPackVersion`, so it opens the object. Every other value in
+/// the literal is byte-identical to what it was.
 const String expectedV1Signature =
-    '{"contentPackVersion":1,'
+    '{"activityQueue":null,'
+    '"contentPackVersion":1,'
     '"encounter":null,'
     '"equipment":{"weapon":"item.training_sword"},'
     '"eventSequence":10,'
@@ -259,6 +270,15 @@ File get v5FixtureFile =>
 /// Generated **once** by `tool/generate_v5_baseline.dart` from `v4_baseline.save`
 /// through the real v4→v5 step (`DECISIONS/0021`). Same terms as v1–v4.
 Uint8List get v5Baseline => _frozen(v5FixtureFile);
+
+File get v6FixtureFile =>
+    File('${fixtureDirectory.path}/save/v6_baseline.save');
+
+/// The v5 fixture, after the activity-queue format bump, frozen in its turn.
+///
+/// Generated **once** by `tool/generate_v6_baseline.dart` from `v5_baseline.save`
+/// through the real v5→v6 step (`DECISIONS/0022`). Same terms as v1–v5.
+Uint8List get v6Baseline => _frozen(v6FixtureFile);
 
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
@@ -590,37 +610,15 @@ void main() {
     });
   });
 
-  group('B5 — the round trip, carried forward to v5', () {
-    test('encode(decode(fixture)) is byte-identical to the v5 fixture', () {
-      final Uint8List fixture = v5Baseline;
-      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
-
-      final Uint8List reencoded = encodeSnapshot(
-        state: envelope.state,
-        saveId: envelope.saveId,
-        generation: envelope.snapshotGeneration,
-        lastAppliedTransaction: envelope.lastAppliedTransaction,
-        originSaltFingerprint: null,
-      );
-
-      // The trap that fires the day someone adds a field to GameState without
-      // thinking about saves. Without it the change is entirely silent until a
-      // player's save fails to load in the field.
-      //
-      // If this fires: the encoder and the v5 decoder no longer agree. Either
-      // the new field belongs in state version 6 (add a decoder, add a new
-      // fixture, add a `StateMigrations` step that says whether it re-bases —
-      // it should not — and make this test decode-only for v5), or the encoder
-      // has an ordering or type defect. Editing the fixture is never the fix.
-      expect(
-        reencoded,
-        fixture,
-        reason:
-            'the canonical encoder no longer reproduces a v5 save. See the '
-            'regeneration policy at the top of this file.',
-      );
-    });
-
+  // ## Why B5 is decode-only from state version 6 onward
+  //
+  // The same reasoning as B–B4, one version later. `v5_baseline.save` is now
+  // the artifact a device that took the repeatable-encounter format bump but
+  // not the activity-queue one actually holds. What must hold is that
+  // decoding it changes no value it carries — and that it decodes with no
+  // activity queue, which is what a v5 save meant: no queue could outlive the
+  // process before v6. The round-trip property moves to `v6_baseline.save`.
+  group('B5 — decoding a v5 save changes no value it carries', () {
     test('the v5 fixture is the migrated v4 fixture, and says so', () {
       final SaveEnvelope envelope = decodeEnvelope(
         unframe(v5Baseline).payload!,
@@ -645,9 +643,24 @@ void main() {
       expect(state.encounter, isNull);
       expect(state.world.visitVictories, isEmpty);
       expect(
-        StateVersion.migrationRequired(state.stateVersion),
-        isFalse,
-        reason: 'a migrated save must never migrate again',
+        state.activityQueue,
+        isNull,
+        reason:
+            'a v5 save has no activityQueue field, and its absence means no '
+            'queue was running — not a default standing in for missing data',
+      );
+    });
+
+    test('a v5 save is flagged as needing migration', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v5Baseline).payload!,
+      );
+      expect(
+        StateVersion.migrationRequired(envelope.state.stateVersion),
+        isTrue,
+        reason:
+            'the v5→v6 step is a format bump only, but the save still has to '
+            'be committed at v6 so the next launch reads it as current',
       );
     });
 
@@ -657,6 +670,77 @@ void main() {
       // moved with it. 20 − 15 = 5, and the version digit is one either way. A
       // change that had also perturbed something else would not land on 5.
       expect(v5Baseline.length - v4Baseline.length, 5);
+    });
+  });
+
+  group('B6 — the round trip, carried forward to v6', () {
+    test('encode(decode(fixture)) is byte-identical to the v6 fixture', () {
+      final Uint8List fixture = v6Baseline;
+      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
+
+      final Uint8List reencoded = encodeSnapshot(
+        state: envelope.state,
+        saveId: envelope.saveId,
+        generation: envelope.snapshotGeneration,
+        lastAppliedTransaction: envelope.lastAppliedTransaction,
+        originSaltFingerprint: null,
+      );
+
+      // The trap that fires the day someone adds a field to GameState without
+      // thinking about saves. Without it the change is entirely silent until a
+      // player's save fails to load in the field.
+      //
+      // If this fires: the encoder and the v6 decoder no longer agree. Either
+      // the new field belongs in state version 7 (add a decoder, add a new
+      // fixture, add a `StateMigrations` step that says whether it re-bases —
+      // it should not — and make this test decode-only for v6), or the encoder
+      // has an ordering or type defect. Editing the fixture is never the fix.
+      expect(
+        reencoded,
+        fixture,
+        reason:
+            'the canonical encoder no longer reproduces a v6 save. See the '
+            'regeneration policy at the top of this file.',
+      );
+    });
+
+    test('the v6 fixture is the migrated v5 fixture, and says so', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v6Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 6);
+      // History intact, five times over — and the epoch untouched, because
+      // the v5→v6 step does not re-base either (`DECISIONS/0022` §5).
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 3,
+        ),
+        reason: 'a format bump must not move the economy mark',
+      );
+      expect(state.steps.banked, 0);
+      expect(state.encounter, isNull);
+      expect(state.world.visitVictories, isEmpty);
+      expect(state.activityQueue, isNull);
+      expect(
+        StateVersion.migrationRequired(state.stateVersion),
+        isFalse,
+        reason: 'a migrated save must never migrate again',
+      );
+    });
+
+    test('the v6 fixture grew by exactly the one added key', () {
+      // `"activityQueue":null,` arrived — 15 bytes of key, a colon, `null`,
+      // and the comma: 21 — and it sorts first in the state object, so
+      // nothing else moved. The version digit is one byte either way. A
+      // change that had also perturbed something else would not land on 21.
+      expect(v6Baseline.length - v5Baseline.length, 21);
     });
   });
 
@@ -673,6 +757,8 @@ void main() {
       expect(StateCodecs.decoderFor(4)!.version, 4);
       expect(StateCodecs.decoderFor(5), isNotNull);
       expect(StateCodecs.decoderFor(5)!.version, 5);
+      expect(StateCodecs.decoderFor(6), isNotNull);
+      expect(StateCodecs.decoderFor(6)!.version, 6);
       expect(
         StateCodecs.decoderFor(StateVersion.current.value + 1),
         isNull,

@@ -384,9 +384,110 @@ Then stop — no dungeons, no REGIONAL_CONTENT_PACK_01.
 
 ## 12. Verification
 
-`Scripts/verify.sh --strict` result recorded in §13.
+`Scripts/verify.sh --strict` result recorded in §13a (first pass) and §13b
+(correction pass).
 
-## 13. Result
+## 13. Device Acceptance Correction Pass (2026-08-20)
+
+The owner's physical-iPhone acceptance passed the milestone's core —
+in-place install/save, exact per-completion step accounting, timed queueable
+gathering with working animation and feedback, the combat choreography fix,
+enemy preview, per-visit encounters, loot RNG (zero and multi-drop), the
+Frost Lynx, rarity, and the new step boot (explicitly liked) — and returned
+these corrections, worked inside this milestone:
+
+1. **Finite queues progress across background/lock/relaunch** — owner
+   ruling, canonical in `DECISIONS/0022_FINITE_BACKGROUND_ACTIVITY.md`
+   (state v6, durable queue + wall-anchor reconciliation; the one named
+   P-4 exception). The pause-on-background behavior shipped at `d6c4675`
+   was wrong.
+2. **Prerequisite gating** — an activity the player cannot legally complete
+   (skill/tool) must not be startable; the 14-second guaranteed-failure
+   animation the owner saw is the defect. Domain validation stays as
+   defense in depth (it correctly spent nothing).
+3. **Blank item art** — root cause found: WRD01 packaged `wolf_pelt`,
+   `lynx_pelt`, `wolfhide_jerkin`, `frostlined_jerkin` icons but forgot
+   BOTH the `pubspec.yaml` declarations and the `PixelIcons._itemIcons`
+   entries, so every surface drew the deliberately blank `unknown` slab.
+   Fixed; `test/item_icon_resolution_test.dart` now walks the real content
+   pack and holds all three lists in agreement (every item resolves to a
+   48×48 asset with real visible pixels).
+4. **Defeat/retreat presentation** — a readable driven-back sequence
+   (stagger → kneel → enemy holds ground → DRIVEN BACK), no death imagery;
+   enemy defeat beat strengthened before Victory settles.
+5. **World scale, again** — the master painting is re-authored so the
+   playable region compresses into the middle of a larger continent
+   (canvas and scale unchanged: the win is authored relative scale, per
+   the correction brief §20/§24); full-width black label bars replaced by
+   compact text-hugging capsules; more vibrancy and ambient life.
+
+Frozen by acceptance (do not churn): rarity order/colours, the step boot,
+combat HP timeline, enemy preview, activity durations, health, install.
+
+### 13b. Correction pass — what shipped
+
+- **Background-progressing queues (`DECISIONS/0022`, state v6).**
+  `GameState.activityQueue` (node, requested, completed, durationMillis,
+  anchorEpochMillis); `StartActivityQueue` / `ReconcileActivityQueue` /
+  `StopActivityQueue`, each one event and one atomic commit; every queue
+  completion resolves through the same `_resolveGather` validation and
+  `applyGatherEffects` reducer path as a manual gather (a core test proves
+  a 3-completion queue byte-identical to 3 gathers). Exactly-once: the
+  event carries both the k completions and the anchor advanced by exactly
+  k×duration, so a duplicate reconcile finds nothing owed and commits
+  nothing. Backward clocks clamp to zero and never move the anchor. Stop
+  reconciles first, keeps whole repetitions, discards the partial. The
+  wall clock lives in one injectable seam (`StrideSession.activityWallClock`);
+  `check-ui-boundary.sh` rule 5 carries a named 0022 exemption without any
+  forbidden pattern weakening. Migration v5→v6 `rebasesEconomy: false`;
+  `v6_baseline.save` frozen (v5 + the 21-byte null queue field); v1–v5
+  fixtures byte-untouched. The card shows a compact "+N × item · +XP while
+  away" line on return; no per-repetition popups.
+- **Prerequisite gating.** `GatherEligibility` projection mirrors the
+  engine's skill/tool checks; ineligible nodes disable presets, stepper
+  and button with the concrete reason ("Requires Foraging 3 — you are 1")
+  and an unmet `RequirementGate` state. Domain validation untouched
+  (defense in depth; a forced dispatch still spends and grants zero).
+- **Blank item art root cause.** WRD01 packaged the wolf_pelt / lynx_pelt /
+  wolfhide_jerkin / frostlined_jerkin icons but forgot BOTH the pubspec
+  declarations AND the `PixelIcons._itemIcons` entries — every surface
+  drew the blank `unknown` slab. Fixed; `item_icon_resolution_test.dart`
+  walks the real content pack and requires every item to resolve to a
+  48×48 asset with real visible pixels.
+- **Defeat/retreat presentation.** LostBeat now plays a PixelLab stagger
+  (stumble → held one-knee kneel, east-facing, never a corpse), a 500 ms
+  enemy-settle beat, and only then DRIVEN BACK; victory holds the enemy's
+  defeat pose 700 ms before the panel. Skip-tap still lands on committed
+  figures. No-loss retreat semantics untouched.
+- **The continent master.** The world is re-authored again as one 384×688
+  painting (scale 4 unchanged): the playable region is now a ~15% slice
+  of a continent — west cordillera, forest and lakes, tundra, arid
+  southern plains, island sea — with the hamlet, mine, tower, arched
+  Millbridge, cave and tarn individually resolvable at max zoom (blind
+  PASS-WITH-NOTE, decisive on §44's bar; round-2 candidate FAILED and is
+  kept as evidence). Landmarks are now four (Broken Tower retired with
+  the old moor). Chimney smoke (wisp-only crop) and a second bird flock
+  join the overlays; coastal waves were generated, read as side-view
+  surf, and are withheld.
+- **Labels.** The fixed 184/150 dp black bars are gone: plates hug their
+  text (measured width + 7 dp padding, chip corners, 0xC0 ink), the
+  overlap test now asserts plate rects, and a short name's world
+  footprint at the survey floor drops from ~736 to ~37 world px.
+
+### 13c. Correction-pass verification
+
+App suite **553** green on the merged tree (12 activity-queue controller
+tests rewritten to the 0022 semantics, 5 prerequisite tests, 6 defeat
+tests, icon resolution, label and landmark expectations); `stride_core`
+**640** (+24 queue/codec/replay), `stride_storage` **108** (v6 fixture
+and conformance transcript amended under their documented review
+pattern); analyze clean. `Scripts/verify.sh --strict` on the settled
+correction tree (2026-08-20): **All checks passed** — core 640, storage
+108, app 553, health 143, secure_store 31; art packaging 472 files
+`--check` clean; every guard and self-test green including the
+0022-exempted UI-boundary rule.
+
+## 13a. Result
 
 `Scripts/verify.sh --strict` on the integrated tree (2026-08-20): **All
 checks passed** — every guard and self-test green, `dart format` clean,

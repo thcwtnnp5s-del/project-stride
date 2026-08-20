@@ -146,6 +146,18 @@ final class StateMigrations {
       rebasesEconomy: false,
       decision: 'DECISIONS/0021_REPEATABLE_ENCOUNTERS_AND_RARITY.md',
     ),
+    // Finite background activity: `GameState.activityQueue` enters the save —
+    // the durable, wall-clock-anchored queue whose reconciliation is P-4's one
+    // named exception. A format bump and nothing else: a v5 save decodes with
+    // no queue, which is what a v5 save meant — no queue could outlive the
+    // process. No `EstablishEconomyEpoch` is issued; the migration commits the
+    // version bump with an empty event list.
+    StateMigrationStep(
+      from: 5,
+      to: 6,
+      rebasesEconomy: false,
+      decision: 'DECISIONS/0022_FINITE_BACKGROUND_ACTIVITY.md',
+    ),
   ];
 
   /// Whether [path] must wait for the first foreground reconciliation before

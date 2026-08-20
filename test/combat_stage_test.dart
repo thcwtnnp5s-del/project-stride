@@ -636,6 +636,199 @@ void main() {
     }
   });
 
+  test('a lost round choreographs the final strike, the stagger to a held '
+      'kneel, and a settle beat with the enemy back in idle', () {
+    const CombatReport lost = CombatReport(
+      succeeded: true,
+      enemyName: 'Forest Wolf',
+      events: <CombatBeat>[
+        EnemyStruckBeat(
+          damage: 4,
+          playerHpAfter: 0,
+          heavy: false,
+          strikeIndex: 0,
+        ),
+        LostBeat(retreatToName: "Haven's Rest"),
+      ],
+    );
+    final List<StageSegment> s = choreograph(
+      lost.events,
+      traveler: CombatAssets.traveler,
+      enemy: CombatAssets.wolf,
+      strikeEffect: CombatAssets.fxBite,
+    );
+    expect(s, hasLength(3), reason: 'strike, stagger, settle');
+
+    // The enemy's final strike is unchanged: the wolf lunges, the blow lands,
+    // the player's bar tweens to 0 inside this segment.
+    expect(s[0].enemyTrack?.id, 'wolf_attack');
+    expect(s[0].playerHpTo, 0);
+    expect(s[0].duration, const Duration(milliseconds: 900));
+
+    // The stagger: nine frames at 8 fps, through to the kneel, held.
+    expect(s[1].travelerTrack?.id, 'traveler_stagger');
+    expect(s[1].travelerHoldsPose, isTrue);
+    expect(s[1].duration, const Duration(milliseconds: 1125));
+    expect(s[1].enemyTrack, isNull, reason: 'the wolf returns to idle');
+    expect(s[1].telegraph, isFalse);
+    expect(s[1].playerHpTo, isNull, reason: 'the strike already settled it');
+
+    // The settle beat: the enemy holds its ground over the kneeling
+    // Traveler; only after this does the sequence end and the panel appear.
+    expect(s[2].duration, const Duration(milliseconds: 500));
+    expect(s[2].travelerTrack, isNull, reason: 'the held kneel carries it');
+    expect(s[2].enemyTrack, isNull);
+
+    // Budget: the defeat beat replaced a 750 ms flinch with 1625 ms of
+    // stagger and settle — 875 ms added, under the ~1.5 s allowance.
+    expect(
+      s[1].duration + s[2].duration,
+      lessThan(const Duration(milliseconds: 750 + 1500)),
+    );
+  });
+
+  test('a won beat holds the defeat pose 700 ms past the track, so the fall '
+      'lands before the panel', () {
+    final List<StageSegment> s = choreograph(
+      const <CombatBeat>[
+        PlayerStruckBeat(damage: 7, enemyHpAfter: 0),
+        WonBeat(xp: 30, levelBefore: 1, levelAfter: 1, drops: <RewardLine>[]),
+      ],
+      traveler: CombatAssets.traveler,
+      enemy: CombatAssets.wolf,
+      strikeEffect: CombatAssets.fxBite,
+    );
+    expect(s.last.enemyTrack?.id, 'wolf_defeat');
+    expect(s.last.enemyHoldsPose, isTrue);
+    // wolf_defeat is 875 ms (7 frames at 8 fps); the tail was 300 ms and the
+    // device correction found the panel settled before the fall read.
+    expect(s.last.duration, const Duration(milliseconds: 875 + 700));
+  });
+
+  testWidgets('a lost round staggers the Traveler to a held kneel while the '
+      'wolf holds its ground in idle, and only then ends', (
+    WidgetTester tester,
+  ) async {
+    final List<bool> playing = <bool>[];
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(playerHp: 4),
+          report: null,
+          onPlayingChanged: playing.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const CombatReport lost = CombatReport(
+      succeeded: true,
+      enemyName: 'Forest Wolf',
+      events: <CombatBeat>[
+        EnemyStruckBeat(
+          damage: 4,
+          playerHpAfter: 0,
+          heavy: false,
+          strikeIndex: 0,
+        ),
+        LostBeat(retreatToName: "Haven's Rest"),
+      ],
+    );
+    // The encounter has cleared: the parent passes the remembered view.
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(playerHp: 4),
+          report: lost,
+          ended: true,
+          onPlayingChanged: playing.add,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(playing, <bool>[true]);
+
+    // The final strike: the wolf lunges (f5 = the bite at 500 ms).
+    await tester.pump(const Duration(milliseconds: 520));
+    expect(enemySprite(tester), contains('wolf_attack_f5'));
+
+    // Across the segment boundary (900 ms) into the stagger: the Traveler
+    // stumbles while the wolf is back in idle, holding its ground.
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(travelerSprite(tester), contains('traveler_stagger'));
+    expect(enemySprite(tester), contains('wolf_idle'));
+    expect(find.text('0 / 40'), findsOneWidget, reason: 'the blow settled it');
+
+    // Past the stagger's end (1125 ms) into the settle beat: the kneel is
+    // held, the wolf still idles, and the sequence has not ended — the panel
+    // is still held back.
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(travelerSprite(tester), endsWith('traveler_stagger_f8.png'));
+    expect(enemySprite(tester), contains('wolf_idle'));
+    expect(playing, <bool>[true], reason: 'the settle beat holds the panel');
+
+    // The settle beat (500 ms) ends: only now is the parent told.
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(playing, <bool>[true, false]);
+
+    // The kneel is held through whatever follows — the outcome panel's whole
+    // lifetime, here the bounded idle.
+    await tester.pumpAndSettle();
+    expect(travelerSprite(tester), endsWith('traveler_stagger_f8.png'));
+    expect(enemySprite(tester), endsWith('wolf_idle_f0.png'));
+    expect(find.text('0 / 40'), findsOneWidget);
+  });
+
+  testWidgets('a tap mid-defeat skips to the exact end: HP 0, kneel held, '
+      'wolf idle', (WidgetTester tester) async {
+    final List<bool> playing = <bool>[];
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(playerHp: 4),
+          report: null,
+          onPlayingChanged: playing.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    const CombatReport lost = CombatReport(
+      succeeded: true,
+      enemyName: 'Forest Wolf',
+      events: <CombatBeat>[
+        EnemyStruckBeat(
+          damage: 4,
+          playerHpAfter: 0,
+          heavy: false,
+          strikeIndex: 0,
+        ),
+        LostBeat(retreatToName: "Haven's Rest"),
+      ],
+    );
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(playerHp: 4),
+          report: lost,
+          ended: true,
+          onPlayingChanged: playing.add,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.tap(find.byType(CombatStage));
+    await tester.pump();
+    expect(playing, <bool>[true, false]);
+    expect(find.text('0 / 40'), findsOneWidget);
+    expect(travelerSprite(tester), endsWith('traveler_stagger_f8.png'));
+    expect(enemySprite(tester), contains('wolf_idle'));
+    await tester.pumpAndSettle();
+  });
+
   test('withheld art is never referenced', () {
     for (final ContentId e in <String>[
       'enemy.forest_wolf',

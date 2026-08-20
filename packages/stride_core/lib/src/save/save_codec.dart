@@ -196,7 +196,22 @@ Map<String, Object?> encodeGameState(GameState state) => <String, Object?>{
   // absent key would be indistinguishable from a pre-v4 save's shape, and the
   // v4 decoder should never have to guess which it is reading.
   'encounter': _encodeEncounter(state.encounter),
+  // State version 6 (`DECISIONS/0022`). Explicit null when no queue runs, on
+  // exactly the terms `encounter` set at v4: a v6 save is never silent about
+  // it, and the v6 decoder never has to guess which shape it is reading.
+  'activityQueue': _encodeActivityQueue(state.activityQueue),
 };
+
+Map<String, Object?>? _encodeActivityQueue(ActivityQueueState? queue) =>
+    queue == null
+    ? null
+    : <String, Object?>{
+        'node': queue.node.value,
+        'requested': queue.requested,
+        'completed': queue.completed,
+        'durationMillis': queue.durationMillis,
+        'anchorEpochMillis': queue.anchorEpochMillis,
+      };
 
 Map<String, Object?>? _encodeEncounter(EncounterState? encounter) =>
     encounter == null
@@ -532,6 +547,7 @@ final class StateCodecs {
     V3StateDecoder(),
     V4StateDecoder(),
     V5StateDecoder(),
+    V6StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -646,11 +662,16 @@ final class V4StateDecoder implements StateDecoder {
   );
 }
 
-/// Decoder for state version 5 — the current shape.
+/// Decoder for state version 5.
+///
+/// **Frozen**, on the same terms as [V1StateDecoder]; `v5_baseline.save` is
+/// the proof it still reads one.
 ///
 /// Differs from v4 in exactly one place: `world.drivenOff` (a sorted list of
 /// enemy ids) is gone and `world.visitVictories` (an object of enemy id →
-/// count) is present and is read (`DECISIONS/0021`).
+/// count) is present and is read (`DECISIONS/0021`). A v5 save has no
+/// `activityQueue`; it decodes with none, which is what a v5 save meant — no
+/// queue could outlive the process.
 final class V5StateDecoder implements StateDecoder {
   const V5StateDecoder();
 
@@ -662,6 +683,25 @@ final class V5StateDecoder implements StateDecoder {
     json,
     epochShape: _EpochShape.withEstablishedVersion,
     combatShape: _CombatShape.visitVictories,
+  );
+}
+
+/// Decoder for state version 6 — the current shape.
+///
+/// Differs from v5 in exactly one place: `activityQueue` (null or an object)
+/// is present and is read (`DECISIONS/0022`).
+final class V6StateDecoder implements StateDecoder {
+  const V6StateDecoder();
+
+  @override
+  int get version => 6;
+
+  @override
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withEstablishedVersion,
+    combatShape: _CombatShape.visitVictories,
+    queueShape: _QueueShape.present,
   );
 }
 
@@ -678,6 +718,16 @@ enum _CombatShape {
   /// State version 5: `encounter`, and `world.visitVictories` as an object of
   /// enemy id → count.
   visitVictories,
+}
+
+/// Whether the shape carries the activity queue (`DECISIONS/0022`).
+enum _QueueShape {
+  /// State versions 1–5: no `activityQueue` at all. Its absence means no
+  /// queue was running — what those saves meant, not a default.
+  absent,
+
+  /// State version 6: `activityQueue`, as null or an object.
+  present,
 }
 
 /// The one field that differs between the shared shapes.
@@ -697,6 +747,7 @@ GameState _decodeStateShape(
   Map<String, Object?> json, {
   required _EpochShape epochShape,
   required _CombatShape combatShape,
+  _QueueShape queueShape = _QueueShape.absent,
 }) {
   Map<String, Object?> objectAt(Map<String, Object?> from, String key) {
     final Object? v = from[key];
@@ -819,6 +870,35 @@ GameState _decodeStateShape(
       }
   }
 
+  // The activity queue (`DECISIONS/0022`). Absent in v1–v5, where absence
+  // means no queue was running. From v6 the key must be present, as null or an
+  // object — the same discipline `encounter` established at v4.
+  final ActivityQueueState? activityQueue;
+  switch (queueShape) {
+    case _QueueShape.absent:
+      activityQueue = null;
+    case _QueueShape.present:
+      if (!json.containsKey('activityQueue')) {
+        throw const SaveCodecException('activityQueue is missing');
+      }
+      final Object? raw = json['activityQueue'];
+      if (raw == null) {
+        activityQueue = null;
+      } else if (raw is Map<String, Object?>) {
+        activityQueue = ActivityQueueState(
+          node: idOf(stringAt(raw, 'node'), 'activityQueue.node'),
+          requested: intAt(raw, 'requested'),
+          completed: intAt(raw, 'completed'),
+          durationMillis: intAt(raw, 'durationMillis'),
+          anchorEpochMillis: intAt(raw, 'anchorEpochMillis'),
+        );
+      } else {
+        throw const SaveCodecException(
+          'activityQueue is not an object or null',
+        );
+      }
+  }
+
   final Map<EquipmentSlot, ContentId> equipment = <EquipmentSlot, ContentId>{};
   for (final MapEntry<String, Object?> e in equipmentJson.entries) {
     final EquipmentSlot slot = EquipmentSlot.values.firstWhere(
@@ -861,6 +941,7 @@ GameState _decodeStateShape(
       visitVictories: visitVictories,
     ),
     encounter: encounter,
+    activityQueue: activityQueue,
     steps: _decodeLedger(
       objectAt(json, 'steps'),
       epochShape: epochShape,

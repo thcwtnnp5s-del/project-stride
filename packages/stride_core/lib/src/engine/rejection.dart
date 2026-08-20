@@ -111,6 +111,10 @@ enum RejectionCode {
   /// The player's HP is already full; eating would waste the food and the turn.
   healthFull('health_full'),
 
+  /// A finite activity queue is already running; one at a time
+  /// (`DECISIONS/0022`). Stop it or let it finish before starting another.
+  activityQueueActive('activity_queue_active'),
+
   /// A normalized sync batch violated an invariant.
   ///
   /// An adapter fault rather than a player action, but returned rather than

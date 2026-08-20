@@ -51,6 +51,14 @@ class _GatherNodeCardState extends State<GatherNodeCard> {
     final bool activeHere = activity.active && activity.activeNode == node.id;
     final bool activeElsewhere = activity.active && !activeHere;
 
+    // The KNOWN static prerequisites — skill level and equipped tool —
+    // projected by the session from the same rules the engine enforces. A
+    // hint used to DISABLE (`RULES.md` E-2): an activity that cannot legally
+    // complete must not be startable or queueable, because the player would
+    // watch a long animation guaranteed to be refused at completion. The
+    // engine still re-validates every dispatch and stays authoritative.
+    final GatherEligibility eligibility = s.gatherEligibilityOf(node.id);
+
     // What banked steps afford, hard-capped at the queue maximum. The button
     // never offers a count the balance cannot fund (cost × n ≤ usableEnergy):
     // a preset above the affordable count clamps down and the honest number is
@@ -81,6 +89,9 @@ class _GatherNodeCardState extends State<GatherNodeCard> {
           _QuantitySelector(
             count: count,
             maxCount: maxCount,
+            // A node the player cannot legally work offers no queue at all:
+            // presets and stepper disable together with the button below.
+            enabled: eligibility.eligible,
             onChanged: (int value) => setState(() => _requested = value),
           ),
           const SizedBox(height: StrideSpace.s6),
@@ -120,13 +131,26 @@ class _GatherNodeCardState extends State<GatherNodeCard> {
             spacing: StrideSpace.s6,
             runSpacing: StrideSpace.s6,
             children: <Widget>[
+              // A failing gate states the concrete failure — the level the
+              // player actually has — and carries the unmet emphasis. A met
+              // gate reads exactly as before.
               RequirementGate(
-                label: 'Requires $skillName ${node.requiredLevel}',
+                label: eligibility.skillMet
+                    ? 'Requires $skillName ${node.requiredLevel}'
+                    : 'Requires $skillName ${node.requiredLevel} — '
+                          'you are ${eligibility.currentLevel}',
+                unmet: !eligibility.skillMet,
               ),
               RequirementGate(
                 label: node.requiredToolKind == ToolKind.none
                     ? 'No tool needed'
-                    : 'Needs a ${node.requiredToolKind.name}',
+                    : eligibility.toolMet
+                    ? 'Needs a ${node.requiredToolKind.name}'
+                    // "Not equipped" rather than "not owned": the engine's
+                    // check is equipped-in-a-slot at sufficient tier, and a
+                    // pickaxe in the bag is a pickaxe not equipped.
+                    : 'Needs a ${node.requiredToolKind.name} — not equipped',
+                unmet: !eligibility.toolMet,
               ),
             ],
           ),
@@ -165,6 +189,7 @@ class _GatherNodeCardState extends State<GatherNodeCard> {
               cost: cost,
               count: count,
               activeElsewhere: activeElsewhere,
+              eligibility: eligibility,
             ),
         ],
       ),
@@ -183,6 +208,7 @@ class _QuantitySelector extends StatelessWidget {
   const _QuantitySelector({
     required this.count,
     required this.maxCount,
+    required this.enabled,
     required this.onChanged,
   });
 
@@ -192,6 +218,12 @@ class _QuantitySelector extends StatelessWidget {
   /// The largest affordable count, possibly zero. Zero disables the stepper;
   /// the button below is already disabled with the shortfall.
   final int maxCount;
+
+  /// False when the node's static prerequisites — skill level or tool — are
+  /// unmet. Every control disables at once: sizing a queue that could never
+  /// start is not the honest-but-clamped preset case, it is a dead end, and
+  /// the reason lives on the gates above and the button below.
+  final bool enabled;
 
   final ValueChanged<int> onChanged;
 
@@ -206,29 +238,30 @@ class _QuantitySelector extends StatelessWidget {
       for (final int preset in _presets)
         _QuantityChip(
           label: '×$preset',
-          selected: count == preset,
+          selected: enabled && count == preset,
           // A preset above the affordable count is still tappable: the
           // selection clamps and the honest number appears on the stepper and
           // the button, which is more truthful than a dead control that does
-          // not say why.
-          onTap: () => onChanged(preset),
+          // not say why. An *ineligible* node is different — no count could
+          // ever start, so the whole selector is dead and says so.
+          onTap: enabled ? () => onChanged(preset) : null,
         ),
       _QuantityChip(
         label: '−',
         selected: false,
-        onTap: count > 1 ? () => onChanged(count - 1) : null,
+        onTap: enabled && count > 1 ? () => onChanged(count - 1) : null,
       ),
       Text(
         '$count',
         style: StrideType.sub.copyWith(
-          color: StrideColors.textPrimary,
+          color: enabled ? StrideColors.textPrimary : StrideColors.textMuted,
           fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
         ),
       ),
       _QuantityChip(
         label: '+',
         selected: false,
-        onTap: count < maxCount ? () => onChanged(count + 1) : null,
+        onTap: enabled && count < maxCount ? () => onChanged(count + 1) : null,
       ),
     ],
   );
@@ -605,6 +638,7 @@ class _GatherControl extends StatelessWidget {
     required this.cost,
     required this.count,
     required this.activeElsewhere,
+    required this.eligibility,
   });
 
   final ResourceNodeDefinition node;
@@ -617,6 +651,11 @@ class _GatherControl extends StatelessWidget {
   /// disabled with the one-line reason rather than starting a second queue.
   final bool activeElsewhere;
 
+  /// The node's static prerequisites, projected by the session from the same
+  /// rules the engine enforces. Unmet disables the button with the concrete
+  /// reason on its sub-label — no modal, no animation that cannot succeed.
+  final GatherEligibility eligibility;
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
@@ -624,11 +663,23 @@ class _GatherControl extends StatelessWidget {
     final StrideSession s = c.session;
 
     // `canGather` is a hint used to DISABLE, never to decide. It checks
-    // affordability and readiness only — not location, skill level, or tool. The
+    // affordability and readiness only; the static prerequisites — skill
+    // level and equipped tool — arrive on [eligibility], projected from the
+    // same rules the engine enforces. Location stays unchecked here. The
     // engine re-validates all five on execute and its answer is authoritative,
     // so a refusal that arrives anyway is rendered rather than pre-empted.
     final bool affordable = s.canGather(node.id);
     final int shortfall = cost - s.usableEnergy;
+
+    // One concise reason, in the engine's own checking order: skill before
+    // tool, prerequisites before the shortfall. The skill line restates the
+    // failing gate above so the sentence sits where the player is looking.
+    final String? blockedReason = !eligibility.skillMet
+        ? 'Requires ${s.displayNameOf(node.skill)} ${eligibility.requiredLevel}'
+              ' — you are ${eligibility.currentLevel}'
+        : !eligibility.toolMet
+        ? 'Equip a ${node.requiredToolKind.name} first'
+        : null;
 
     final ActionReport? report = c.lastActionNode == node.id
         ? c.lastAction
@@ -644,10 +695,12 @@ class _GatherControl extends StatelessWidget {
               : 'Gather ×$count — ${formatSteps(cost * count)} steps',
           subLabel: activeElsewhere
               ? 'Finish or stop your current activity'
-              : !c.busy && !affordable && shortfall > 0
-              ? 'Walk ${formatSteps(shortfall)} more steps'
-              : null,
-          onPressed: c.busy || !affordable || activeElsewhere
+              : blockedReason ??
+                    (!c.busy && !affordable && shortfall > 0
+                        ? 'Walk ${formatSteps(shortfall)} more steps'
+                        : null),
+          onPressed:
+              c.busy || !affordable || activeElsewhere || blockedReason != null
               ? null
               : () => ActivityScope.read(context).start(node, count),
         ),
@@ -669,9 +722,11 @@ class _GatherControl extends StatelessWidget {
 /// The running queue's panel: progress, cumulative gains, and Stop.
 ///
 /// Replaces the gather button while the queue works this node. Everything here
-/// is presentation over committed facts: the completed count and the gains are
-/// accumulated from returned `ActionReport`s, and the bar depicts the
-/// *presentation* timer — the spend happens at each repetition's dispatch,
+/// is presentation over committed facts: the completed count and the gains
+/// come from the committed queue's reconciliation reports, and the bar depicts
+/// the **committed anchor against the wall clock** (`DECISIONS/0022`,
+/// Consequences) — the queue advances across background and lock, so there is
+/// no paused state to render. The spend happens at each completion's commit,
 /// never partially.
 class _ActiveQueuePanel extends StatelessWidget {
   const _ActiveQueuePanel({required this.node, required this.skillName});
@@ -699,14 +754,23 @@ class _ActiveQueuePanel extends StatelessWidget {
                 style: StrideType.sub.copyWith(color: StrideColors.textPrimary),
               ),
             ),
-            if (activity.paused)
-              Text('Paused', style: StrideType.micro)
-            else
-              _SecondsRemaining(activity: activity),
+            _SecondsRemaining(activity: activity),
           ],
         ),
         const SizedBox(height: StrideSpace.s6),
         _RepetitionBar(activity: activity, skill: node.skill),
+        // What the queue finished while the player was away — surfaced once,
+        // compactly, and never as per-repetition popups (`DECISIONS/0022`).
+        if (activity.awaySummary case final AwaySummary away
+            when away.quantity > 0) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          Text(
+            '+${away.quantity} ${away.itemName ?? itemName} · '
+            '+${away.experience} '
+            '${away.skillName ?? skillName} XP while away',
+            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
+          ),
+        ],
         if (activity.completed > 0) ...<Widget>[
           const SizedBox(height: StrideSpace.s8),
           Row(
@@ -808,13 +872,17 @@ class _RepetitionBarState extends State<_RepetitionBar>
       _fill.stop();
       return;
     }
+    // The authoritative fraction is the committed anchor against the wall
+    // clock, so a resume after any amount of background time snaps the bar to
+    // where the durable queue actually is — there is no paused state any more
+    // (`DECISIONS/0022`).
     final Duration total = a.repetitionDuration;
     final Duration elapsed = a.elapsedOfCurrent;
     final double fraction = total.inMicroseconds == 0
         ? 1
         : (elapsed.inMicroseconds / total.inMicroseconds).clamp(0.0, 1.0);
     _fill.value = fraction;
-    if (!a.paused && fraction < 1) {
+    if (fraction < 1) {
       _fill.animateTo(1, duration: total - elapsed);
     }
   }
@@ -864,6 +932,18 @@ class _QueueSummaryStrip extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        // The whole queue finished while the player was away: the compact
+        // completion summary leads, once, and the normal controls are already
+        // back (`DECISIONS/0022`).
+        if (activity.awaySummary case final AwaySummary away
+            when away.quantity > 0) ...<Widget>[
+          Text(
+            '+${away.quantity} ${away.itemName ?? 'items'} · '
+            '+${away.experience} ${away.skillName ?? ''} XP while away',
+            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
+          ),
+          const SizedBox(height: StrideSpace.s4),
+        ],
         if (activity.gainedQuantity > 0)
           Row(
             children: <Widget>[

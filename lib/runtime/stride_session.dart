@@ -408,6 +408,45 @@ final class GatherSiteLine {
   final String? toolWord;
 }
 
+/// Whether a gather at one node could legally complete, on its KNOWN static
+/// prerequisites — the skill level and the equipped tool.
+///
+/// Built for exactly one job: **disabling controls that would start an
+/// activity guaranteed to be refused.** On a physical device a player at
+/// Mining 1 could start a 14-second mining queue that required Mining 3 —
+/// the completion refused it correctly and spent nothing, but the player
+/// watched an animation that could not succeed. The card asks this ahead of
+/// time so that queue is never startable.
+///
+/// It is a *hint*, like [StrideSession.canGather]: the engine re-validates
+/// both checks on every execute and its answer is the authoritative one.
+/// Nothing here weakens or replaces the domain validation — it mirrors it.
+final class GatherEligibility {
+  const GatherEligibility({
+    required this.skillMet,
+    required this.requiredLevel,
+    required this.currentLevel,
+    required this.toolMet,
+  });
+
+  /// The player's level in the node's skill clears [requiredLevel].
+  final bool skillMet;
+
+  /// The node's required level, restated so the card can say the whole
+  /// sentence — "Requires Mining 3 — you are 1" — without a second lookup.
+  final int requiredLevel;
+
+  /// The player's current level in the node's skill, from the same
+  /// `SkillDefinition.levelAt` curve the engine gates on.
+  final int currentLevel;
+
+  /// A tool of the required kind and tier is equipped, or none is required.
+  final bool toolMet;
+
+  /// Every known static prerequisite is met.
+  bool get eligible => skillMet && toolMet;
+}
+
 /// One enemy at a place, with how much of this visit it has left.
 final class PlaceEncounterLine {
   const PlaceEncounterLine({
@@ -723,6 +762,95 @@ final class ActionReport {
   final int? experience;
 
   /// The stable [RejectionCode.wire] value, or null on success.
+  final String? rejection;
+  final String? detail;
+}
+
+// -- The activity queue (`DECISIONS/0022`) -------------------------------------
+
+/// The durable queue in progress, as the gather card needs it. Null when none.
+///
+/// Every figure is read from `ActivityQueueState` — the committed save state —
+/// so what the progress bar derives and what reconciliation computes cannot
+/// disagree (`DECISIONS/0022`, Consequences).
+final class ActivityQueueView {
+  const ActivityQueueView({
+    required this.node,
+    required this.requested,
+    required this.completed,
+    required this.durationMillis,
+    required this.anchorEpochMillis,
+  });
+
+  final ContentId node;
+  final int requested;
+  final int completed;
+
+  /// One repetition's authored duration, frozen at start.
+  final int durationMillis;
+
+  /// Wall-clock epoch millis at which the current repetition began.
+  final int anchorEpochMillis;
+}
+
+/// One committed queue repetition, ready to render.
+///
+/// Copied from the `ActivityCompletion` payload on the committed event — the
+/// same rule [ActionReport] states: a caller must never recompute these from
+/// content, whose figures are unscaled base values.
+final class ActivityCompletionLine {
+  const ActivityCompletionLine({
+    required this.stepsSpent,
+    required this.itemName,
+    required this.quantity,
+    required this.skillName,
+    required this.experience,
+  });
+
+  final int stepsSpent;
+  final String itemName;
+  final int quantity;
+  final String skillName;
+  final int experience;
+}
+
+/// What one activity-queue command did.
+final class ActivityQueueReport {
+  const ActivityQueueReport({
+    required this.succeeded,
+    required this.nodeName,
+    this.completions = const <ActivityCompletionLine>[],
+    this.active = false,
+    this.completedAfter = 0,
+    this.requested = 0,
+    this.stopReason,
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String nodeName;
+
+  /// The repetitions this command committed, in order. Empty on a no-op
+  /// reconcile — which is a success, not a failure.
+  final List<ActivityCompletionLine> completions;
+
+  /// Whether a queue is still active after this command.
+  final bool active;
+
+  /// The queue's completed count after this command (meaningful while a queue
+  /// existed when it ran).
+  final int completedAfter;
+
+  /// The queue's requested count, for "n / m" displays.
+  final int requested;
+
+  /// The stable `RejectionCode.wire` value of the refusal that stopped the
+  /// queue mid-reconciliation, or null. Distinct from [rejection]: the
+  /// command *succeeded* — the queue stopped honestly.
+  final String? stopReason;
+
+  /// Why the command itself was refused, or null on success.
   final String? rejection;
   final String? detail;
 }
@@ -1743,6 +1871,41 @@ final class StrideSession {
 
   // -- Gameplay -------------------------------------------------------------
 
+  /// **The activity subsystem's one wall clock** (`DECISIONS/0022` §8).
+  ///
+  /// Epoch milliseconds, read here and nowhere else in the product: the
+  /// activity commands carry the reading *into* `stride_core` as data, exactly
+  /// as the health path's buckets arrive, and `lib/ui` derives its progress
+  /// bars from differences of this seam against the committed anchor — never
+  /// from `DateTime.now`, which `Scripts/check-ui-boundary.sh` (rule 5,
+  /// Q-UI-9) continues to forbid there unchanged.
+  ///
+  /// This is deliberately wall-clock, not monotonic: the queue's whole point
+  /// is to advance across background, lock, and process death, and only a
+  /// wall clock survives those. A backward jump is harmless by construction —
+  /// reconciliation clamps elapsed time at zero and never moves the anchor on
+  /// a clock reading alone.
+  ///
+  /// Mutable so tests substitute a fake; the app never reassigns it.
+  int Function() activityWallClock = _defaultActivityWallClock;
+
+  static int _defaultActivityWallClock() =>
+      DateTime.now().millisecondsSinceEpoch;
+
+  /// The durable activity queue, or null when none runs. Read live from the
+  /// committed state; a relaunch that finds a queue shows it here.
+  ActivityQueueView? get activityQueue {
+    final ActivityQueueState? queue = engine?.state.activityQueue;
+    if (queue == null) return null;
+    return ActivityQueueView(
+      node: queue.node,
+      requested: queue.requested,
+      completed: queue.completed,
+      durationMillis: queue.durationMillis,
+      anchorEpochMillis: queue.anchorEpochMillis,
+    );
+  }
+
   /// The profile-scaled cost of working [node], or null when it is not content.
   ///
   /// Read from the registry through the same profile the engine charges with,
@@ -1753,6 +1916,31 @@ final class StrideSession {
     return registry!.profile.applyStepCost(definition.stepCost);
   }
 
+  /// The profile-scaled yield of one working of [node], or null when it is
+  /// not content — [costOf]'s counterpart, and the same rule: the same profile
+  /// the engine grants with, so a reconstructed display cannot disagree with
+  /// what the events actually granted.
+  int? yieldOf(ContentId node) {
+    final ResourceNodeDefinition? definition = registry?.resourceNodes[node];
+    if (definition == null || registry == null) return null;
+    return registry!.profile.applyYield(definition.yieldsQuantity);
+  }
+
+  /// The profile-scaled experience of one working of [node], or null when it
+  /// is not content. Same terms as [yieldOf].
+  int? xpOf(ContentId node) {
+    final ResourceNodeDefinition? definition = registry?.resourceNodes[node];
+    if (definition == null || registry == null) return null;
+    return registry!.profile.applyXp(definition.xp);
+  }
+
+  /// The content definition of [node], or null. For the activity controller
+  /// restoring a relaunched queue's card — the same object [nodesHere] hands
+  /// out, found by id rather than by the player's location, because a queue
+  /// can outlive a move and its summary must still name what it was.
+  ResourceNodeDefinition? nodeDefinitionOf(ContentId node) =>
+      registry?.resourceNodes[node];
+
   /// Whether [node] can be worked right now, without attempting it.
   ///
   /// Used to disable a button. It is a *hint*: the engine re-validates
@@ -1762,6 +1950,59 @@ final class StrideSession {
   bool canGather(ContentId node) {
     final int? cost = costOf(node);
     return isReady && cost != null && cost <= usableEnergy;
+  }
+
+  /// The static prerequisites of gathering at [node], asked ahead of time.
+  ///
+  /// **Mirrors `GameEngine._gather` exactly** — the skill check is the same
+  /// `SkillDefinition.levelAt` over the same banked experience, and the tool
+  /// check is the same scan of *every* equipment slot for an item whose
+  /// `toolKind` matches and whose `tier` clears `minimumToolTier` (equipped,
+  /// not merely owned). If the engine's rules change, this projection must
+  /// change with them; it exists so a widget never re-derives them itself.
+  ///
+  /// A hint used to DISABLE, never to decide (`RULES.md` E-2): the engine
+  /// re-validates on execute and a refusal that arrives anyway is rendered.
+  /// When the session is not ready to answer — no engine, no registry, or an
+  /// unknown node — it reports *eligible*, because the button must then be
+  /// governed by the readiness checks that already exist, not by a guess.
+  GatherEligibility gatherEligibilityOf(ContentId node) {
+    const GatherEligibility open = GatherEligibility(
+      skillMet: true,
+      requiredLevel: 0,
+      currentLevel: 0,
+      toolMet: true,
+    );
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final ResourceNodeDefinition? definition = content?.resourceNodes[node];
+    if (active == null || content == null || definition == null) return open;
+    final SkillDefinition? skill = content.skills[definition.skill];
+    if (skill == null) return open;
+
+    final int level = skill.levelAt(
+      active.state.skills.experienceIn(definition.skill),
+    );
+
+    bool toolMet = definition.requiredToolKind == ToolKind.none;
+    if (!toolMet) {
+      for (final ContentId equipped in active.state.equipment.bySlot.values) {
+        final ItemDefinition? item = content.items[equipped];
+        if (item == null) continue;
+        if (item.toolKind != definition.requiredToolKind) continue;
+        if (item.tier >= definition.minimumToolTier) {
+          toolMet = true;
+          break;
+        }
+      }
+    }
+
+    return GatherEligibility(
+      skillMet: level >= definition.requiredLevel,
+      requiredLevel: definition.requiredLevel,
+      currentLevel: level,
+      toolMet: toolMet,
+    );
   }
 
   /// Works a resource node once and commits the result atomically with it.
@@ -1857,6 +2098,221 @@ final class StrideSession {
       experience: gathered.experience,
     );
   }
+
+  // -- The activity queue (`DECISIONS/0022`) ---------------------------------
+  //
+  // Three commands, each one event and one commit, single-flighted through
+  // `_inFlight` exactly as `gather` is. The wall clock is read here — the one
+  // seam — and carried into the command as data; nothing below reads it twice
+  // for one command, so the figure the engine reasons about is the figure
+  // this method observed. None of these touches `syncSteps`: reconciling a
+  // queue is step *spending*, and health sync stays foreground-only (H-5).
+
+  /// Begins a finite queue of [repetitions] at [node]. Spends nothing;
+  /// every completion pays at its own reconciliation.
+  Future<ActivityQueueReport> startActivityQueue(
+    ContentId node,
+    int repetitions, {
+    required Duration repetitionDuration,
+  }) async {
+    final String name =
+        registry?.resourceNodes[node]?.displayName ?? node.value;
+    if (_inFlight) return _activityBusy(name);
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return _activityNotReady(name);
+      }
+      final EngineResult result = active.execute(
+        StartActivityQueue(
+          node: node,
+          requested: repetitions,
+          durationMillis: repetitionDuration.inMilliseconds,
+          nowEpochMillis: activityWallClock(),
+        ),
+      );
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return ActivityQueueReport(
+          succeeded: false,
+          nodeName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return _activityCommitRefused(name, commit);
+      }
+      final ActivityQueueState queue = active.state.activityQueue!;
+      return ActivityQueueReport(
+        succeeded: true,
+        nodeName: name,
+        active: true,
+        completedAfter: 0,
+        requested: queue.requested,
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// Resolves every repetition the elapsed wall-clock time completed.
+  ///
+  /// Safe to call at any moment: with no queue, nothing elapsed, or a
+  /// backward clock the engine accepts with no events and **nothing is
+  /// committed** — a second reconcile straight after a first is a no-op.
+  Future<ActivityQueueReport> reconcileActivityQueue() async {
+    final ActivityQueueView? before = activityQueue;
+    final String name = before == null
+        ? '—'
+        : registry?.resourceNodes[before.node]?.displayName ??
+              before.node.value;
+    if (_inFlight) return _activityBusy(name);
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return _activityNotReady(name);
+      }
+      final EngineResult result = active.execute(
+        ReconcileActivityQueue(nowEpochMillis: activityWallClock()),
+      );
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        // Unreachable today — the command refuses nothing — kept for the
+        // honesty of the shape.
+        return ActivityQueueReport(
+          succeeded: false,
+          nodeName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      if (result.events.isEmpty) {
+        // The no-op success: nothing changed, nothing committed.
+        return ActivityQueueReport(
+          succeeded: true,
+          nodeName: name,
+          active: before != null,
+          completedAfter: before?.completed ?? 0,
+          requested: before?.requested ?? 0,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return _activityCommitRefused(name, commit);
+      }
+      final ActivityQueueReconciled event = result.events
+          .whereType<ActivityQueueReconciled>()
+          .first;
+      return ActivityQueueReport(
+        succeeded: true,
+        nodeName: name,
+        completions: _completionLines(event.completions),
+        active: !event.cleared,
+        completedAfter: event.completedAfter,
+        requested: before?.requested ?? event.completedAfter,
+        stopReason: event.stopReason,
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// Stops the queue: the closing reconciliation's whole repetitions commit,
+  /// the partial one does not, and the queue clears (`DECISIONS/0022` §7).
+  /// With no queue it is a trivial success — the exclusive-command seam
+  /// issues it unconditionally.
+  Future<ActivityQueueReport> stopActivityQueue() async {
+    final ActivityQueueView? before = activityQueue;
+    final String name = before == null
+        ? '—'
+        : registry?.resourceNodes[before.node]?.displayName ??
+              before.node.value;
+    if (_inFlight) return _activityBusy(name);
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return _activityNotReady(name);
+      }
+      final EngineResult result = active.execute(
+        StopActivityQueue(nowEpochMillis: activityWallClock()),
+      );
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return ActivityQueueReport(
+          succeeded: false,
+          nodeName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      if (result.events.isEmpty) {
+        // No queue: nothing to stop, nothing committed.
+        return ActivityQueueReport(succeeded: true, nodeName: name);
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return _activityCommitRefused(name, commit);
+      }
+      final ActivityQueueStopped event = result.events
+          .whereType<ActivityQueueStopped>()
+          .first;
+      return ActivityQueueReport(
+        succeeded: true,
+        nodeName: name,
+        completions: _completionLines(event.completions),
+        active: false,
+        completedAfter: event.completedAfter,
+        requested: before?.requested ?? event.completedAfter,
+        stopReason: event.stopReason,
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  ActivityQueueReport _activityBusy(String name) => ActivityQueueReport(
+    succeeded: false,
+    nodeName: name,
+    rejection: 'session_busy',
+    detail: 'another action is still running',
+  );
+
+  ActivityQueueReport _activityNotReady(String name) => ActivityQueueReport(
+    succeeded: false,
+    nodeName: name,
+    rejection: 'session_not_ready',
+    detail: _notReadyDetail,
+  );
+
+  ActivityQueueReport _activityCommitRefused(
+    String name,
+    CommitRefused commit,
+  ) => ActivityQueueReport(
+    succeeded: false,
+    nodeName: name,
+    rejection: 'commit_refused',
+    detail: commit.reason.name,
+  );
+
+  /// Per-completion payloads, names resolved from content, figures copied
+  /// from the committed event — never recomputed.
+  List<ActivityCompletionLine> _completionLines(
+    List<ActivityCompletion> completions,
+  ) => <ActivityCompletionLine>[
+    for (final ActivityCompletion c in completions)
+      ActivityCompletionLine(
+        stepsSpent: c.stepsSpent,
+        itemName: registry?.items[c.item]?.displayName ?? c.item.value,
+        quantity: c.quantity,
+        skillName: registry?.skills[c.skill]?.displayName ?? c.skill.value,
+        experience: c.experience,
+      ),
+  ];
 
   /// Walks a route, spending banked steps and arriving atomically.
   ///

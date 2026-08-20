@@ -43,7 +43,15 @@ Walking is the engine, not a bonus.
 
 **P-4 — No wall-clock progression masquerading as walking.**
 Time passing is never a substitute for movement. Progression is step-clocked.
-→ `DECISIONS/0001_PROGRESSION_CLOCK.md`
+
+One named exception, owner-ruled on hardware: a **finite, player-initiated
+activity queue** advances by elapsed real time across background and
+relaunch — every completion still spends banked steps through the unchanged
+gather semantics, so time paces the conversion of walking, never replaces
+it. Nothing else may cite this exception; a second one needs its own
+decision.
+→ `DECISIONS/0001_PROGRESSION_CLOCK.md`,
+`DECISIONS/0022_FINITE_BACKGROUND_ACTIVITY.md`
 
 **P-5 — Absence is never punished.**
 No FOMO, login streaks, expiring rewards, decay, spoilage, or upkeep. Nothing

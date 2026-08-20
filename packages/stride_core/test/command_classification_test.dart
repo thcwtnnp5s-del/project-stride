@@ -27,6 +27,14 @@ List<GameCommand> allCommands() => <GameCommand>[
   TravelTo(destination: ContentId.unchecked('location.whispering_woods')),
   CraftItem(recipe: ContentId.unchecked('recipe.oak_handle')),
   GatherResource(node: ContentId.unchecked('resource_node.meadow_patch')),
+  StartActivityQueue(
+    node: ContentId.unchecked('resource_node.meadow_patch'),
+    requested: 5,
+    durationMillis: 10000,
+    nowEpochMillis: 1750000000000,
+  ),
+  const ReconcileActivityQueue(nowEpochMillis: 1750000000000),
+  const StopActivityQueue(nowEpochMillis: 1750000000000),
   ReconcileStepSync(response: const NoChangeSync()),
   const EstablishEconomyEpoch(fromStateVersion: 1, toStateVersion: 2),
   const EstablishNewGameBaseline(stateVersion: 3),
@@ -62,6 +70,16 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   // the engine, never supplied by the caller, so exposing it to a UI does not
   // expose a way to decide what walking is worth.
   'GatherResource': true,
+  // Player-facing: the queue is player-initiated by definition
+  // (`DECISIONS/0022` §1), starting pre-spends nothing, and every figure a
+  // completion pays or yields is derived inside the engine.
+  'StartActivityQueue': true,
+  // Internal. Reconciliation is the app's plumbing — a repetition boundary,
+  // a resume, a relaunch — never a control a player is offered. It carries a
+  // timestamp, and a surface that offered it would be offering a clock.
+  'ReconcileActivityQueue': false,
+  // Player-facing: Stop is the card's own button (`DECISIONS/0022` §7).
+  'StopActivityQueue': true,
   'GrantSyntheticSteps': false,
   'UnlockLocation': false,
   'ReconcileStepSync': false,
@@ -97,6 +115,9 @@ String classify(GameCommand command) => switch (command) {
   TravelTo() => 'TravelTo',
   CraftItem() => 'CraftItem',
   GatherResource() => 'GatherResource',
+  StartActivityQueue() => 'StartActivityQueue',
+  ReconcileActivityQueue() => 'ReconcileActivityQueue',
+  StopActivityQueue() => 'StopActivityQueue',
   ReconcileStepSync() => 'ReconcileStepSync',
   EstablishEconomyEpoch() => 'EstablishEconomyEpoch',
   EstablishNewGameBaseline() => 'EstablishNewGameBaseline',
@@ -189,6 +210,7 @@ void main() {
         'EstablishEconomyEpoch',
         'EstablishNewGameBaseline',
         'GrantSyntheticSteps',
+        'ReconcileActivityQueue',
         'ReconcileStepSync',
         'UnlockLocation',
       ]);

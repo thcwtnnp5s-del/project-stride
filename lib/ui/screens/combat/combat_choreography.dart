@@ -50,6 +50,7 @@ final class StageSegment {
     this.enemyTrack,
     this.enemyStart = Duration.zero,
     this.enemyHoldsPose = false,
+    this.travelerHoldsPose = false,
     this.effects = const <StageEffect>[],
     this.recoil,
     this.recoilStart = Duration.zero,
@@ -77,6 +78,11 @@ final class StageSegment {
   /// True when the enemy keeps [enemyTrack]'s last frame after this segment —
   /// the defeat, or the held hit pose that stands in for a withheld defeat.
   final bool enemyHoldsPose;
+
+  /// True when the Traveler keeps [travelerTrack]'s last frame after this
+  /// segment — the stagger's kneel, held while the enemy stands over him and
+  /// on through the outcome panel. The Traveler's mirror of [enemyHoldsPose].
+  final bool travelerHoldsPose;
 
   final List<StageEffect> effects;
 
@@ -112,6 +118,18 @@ const Duration _hpTween = Duration(milliseconds: 250);
 /// The least a strike segment runs on after the blow lands.
 const Duration _afterBlow = Duration(milliseconds: 400);
 
+/// How long the fallen enemy's pose stands before the sequence ends and the
+/// Victory panel may appear — the beat in which the defeat lands emotionally.
+/// The device correction found the shipped 300 ms tail let the panel settle
+/// before the fall had read.
+const Duration _wonHold = Duration(milliseconds: 700);
+
+/// The beat after the Traveler's stagger has reached its kneel: the enemy
+/// stays in idle, holding its ground over the kneeling Traveler, before the
+/// "Driven back" panel appears. Defeat is retreat, never death, and the
+/// picture must say "overwhelmed", not "dead".
+const Duration _lostSettle = Duration(milliseconds: 500);
+
 Duration _frameTime(CombatTrack t, int frame) =>
     Duration(microseconds: (frame / t.track.fps * 1000000).round());
 
@@ -119,7 +137,8 @@ Duration _max(Duration a, Duration b) => a > b ? a : b;
 
 /// Whether [beats] produce any segment — the exact condition under which the
 /// stage replays a report rather than absorbing it silently ([choreograph]
-/// emits one segment per beat except [EncounterStartedBeat]).
+/// emits at least one segment per beat except [EncounterStartedBeat], which
+/// emits none; [LostBeat] emits two — the stagger and the settle).
 ///
 /// The screen asks this on the frame a report arrives, so it can lock its
 /// controls and hold the outcome panel back **that frame**: the stage's own
@@ -233,9 +252,7 @@ List<StageSegment> choreograph(
         final CombatTrack? held = defeat ?? enemy?.hit;
         out.add(
           StageSegment(
-            duration: held == null
-                ? _afterBlow
-                : held.duration + const Duration(milliseconds: 300),
+            duration: held == null ? _afterBlow : held.duration + _wonHold,
             enemyTrack: held,
             enemyHoldsPose: held != null,
             enemyHpTo: 0,
@@ -245,13 +262,34 @@ List<StageSegment> choreograph(
         );
 
       case LostBeat():
-        out.add(
-          StageSegment(
-            duration: traveler.hit?.duration ?? _afterBlow,
-            travelerTrack: traveler.hit,
-            telegraph: false,
-          ),
-        );
+        // The enemy's final strike is the preceding EnemyStruckBeat segment.
+        // Then the Traveler staggers back and drops to one knee, holds it,
+        // and the enemy — back in idle — stands its ground over him for a
+        // settle beat before the "Driven back" panel is let through. Two
+        // segments, so the kneel is already held while the enemy idles.
+        final CombatTrack? stagger = traveler.stagger;
+        if (stagger != null) {
+          out.add(
+            StageSegment(
+              duration: stagger.duration,
+              travelerTrack: stagger,
+              travelerHoldsPose: true,
+              telegraph: false,
+            ),
+          );
+          // Not `const`: the constructor's `duration > Duration.zero` assert
+          // cannot be const-evaluated.
+          out.add(StageSegment(duration: _lostSettle));
+        } else {
+          // No stagger track packaged: the old flinch stands in.
+          out.add(
+            StageSegment(
+              duration: traveler.hit?.duration ?? _afterBlow,
+              travelerTrack: traveler.hit,
+              telegraph: false,
+            ),
+          );
+        }
 
       case RetreatedBeat():
         out.add(StageSegment(duration: _afterBlow, telegraph: false));

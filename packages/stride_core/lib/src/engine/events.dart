@@ -124,6 +124,152 @@ final class ResourceGathered extends GameEvent {
   String get name => 'ResourceGathered';
 }
 
+// -- The activity queue (`DECISIONS/0022`) -------------------------------------
+//
+// Three events, one per command, each applied by one reducer branch — so the
+// queue's whole lifecycle is exactly-once by commit, never by clock. Every
+// completion's figures are recorded on the event exactly as `ResourceGathered`
+// records a manual gather's, and for the same reason: replay must reproduce
+// the committed state after any content retune.
+
+/// One repetition's committed figures, carried on a queue event.
+///
+/// The same five figures a `ResourceGathered` event carries, profile-scaled as
+/// charged and as awarded — because a queue completion IS a gather, resolved
+/// through the same validation and applied through the same effects
+/// (`DECISIONS/0022` §6). Not itself an event: the k completions of one
+/// reconciliation are one fact and land in one commit.
+@immutable
+final class ActivityCompletion {
+  const ActivityCompletion({
+    required this.stepsSpent,
+    required this.item,
+    required this.quantity,
+    required this.skill,
+    required this.experience,
+  });
+
+  /// Profile-scaled, as charged. Never the raw content value.
+  final int stepsSpent;
+
+  final ContentId item;
+  final int quantity;
+  final ContentId skill;
+
+  /// Profile-scaled, as awarded. May be zero; a node with no xp is legal.
+  final int experience;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActivityCompletion &&
+      other.stepsSpent == stepsSpent &&
+      other.item == item &&
+      other.quantity == quantity &&
+      other.skill == skill &&
+      other.experience == experience;
+
+  @override
+  int get hashCode =>
+      Object.hash(stepsSpent, item, quantity, skill, experience);
+}
+
+/// A finite activity queue began. Nothing is spent; the anchor starts the
+/// first repetition's clock (`DECISIONS/0022` §5).
+@immutable
+final class ActivityQueueStarted extends GameEvent {
+  const ActivityQueueStarted({
+    required super.sequence,
+    required this.node,
+    required this.requested,
+    required this.durationMillis,
+    required this.anchorEpochMillis,
+  });
+
+  final ContentId node;
+  final int requested;
+  final int durationMillis;
+  final int anchorEpochMillis;
+
+  @override
+  String get name => 'ActivityQueueStarted';
+}
+
+/// Elapsed wall-clock time completed one or more repetitions, and they
+/// committed — spend, yield, and experience — in one fact.
+///
+/// **One event for k completions, not k events.** The anchor advances by
+/// exactly `k × durationMillis` in the same commit that applies the k
+/// completions, which is what makes a second reconciliation after the commit
+/// find nothing left to complete (`DECISIONS/0022` §6). Emitted only when
+/// something changed: a reconcile that completes nothing is accepted with no
+/// events and commits nothing.
+@immutable
+final class ActivityQueueReconciled extends GameEvent {
+  ActivityQueueReconciled({
+    required super.sequence,
+    required this.node,
+    required List<ActivityCompletion> completions,
+    required this.completedAfter,
+    required this.anchorAfter,
+    required this.cleared,
+    this.stopReason,
+  }) : completions = List<ActivityCompletion>.unmodifiable(completions);
+
+  final ContentId node;
+
+  /// The repetitions that committed, in order. May be empty when the very
+  /// first elapsed repetition was refused — the event then records only the
+  /// clearing, with [stopReason].
+  final List<ActivityCompletion> completions;
+
+  /// The queue's completed count after this event.
+  final int completedAfter;
+
+  /// The anchor after this event: the old anchor plus exactly the committed
+  /// completions' worth of duration. Meaningless once [cleared].
+  final int anchorAfter;
+
+  /// Whether this event clears the queue — either every requested repetition
+  /// is complete, or a repetition was refused and the queue stopped there.
+  final bool cleared;
+
+  /// The stable `RejectionCode.wire` value of the refusal that stopped the
+  /// queue, or null when nothing was refused (`DECISIONS/0022` §6).
+  final String? stopReason;
+
+  @override
+  String get name => 'ActivityQueueReconciled';
+}
+
+/// The queue was stopped: the closing reconciliation's fully-elapsed
+/// repetitions committed, the partial one discarded, and the queue cleared —
+/// one fact, one commit (`DECISIONS/0022` §7).
+@immutable
+final class ActivityQueueStopped extends GameEvent {
+  ActivityQueueStopped({
+    required super.sequence,
+    required this.node,
+    required List<ActivityCompletion> completions,
+    required this.completedAfter,
+    this.stopReason,
+  }) : completions = List<ActivityCompletion>.unmodifiable(completions);
+
+  final ContentId node;
+
+  /// The closing reconciliation's committed repetitions, possibly empty.
+  final List<ActivityCompletion> completions;
+
+  /// The queue's completed count as it clears.
+  final int completedAfter;
+
+  /// The refusal that ended the closing reconciliation early, if one did —
+  /// the stop clears the queue either way.
+  final String? stopReason;
+
+  @override
+  String get name => 'ActivityQueueStopped';
+}
+
 /// An item was placed in a slot.
 @immutable
 final class ItemEquipped extends GameEvent {

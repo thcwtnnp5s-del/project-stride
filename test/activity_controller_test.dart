@@ -1,15 +1,29 @@
-// The timed gathering queue over the real session
-// (`MILESTONES/ACTIVITY_FEEL_PRESENTATION_01.md` §4a, §7).
+// The durable activity queue over the real session (`DECISIONS/0022`,
+// `MILESTONES/ACTIVITY_FEEL_PRESENTATION_01.md` correction brief §38).
 //
 // `s01a_vertical_slice_test.dart` proves one gather spends, grants and
-// persists exactly once. This file proves the queue on top of it dispatches
-// that command exactly N times for N completed repetitions — and never for an
-// abandoned one: stop, refusal, lifecycle pause and exclusive commands all
-// leave the ledger holding only what completed.
+// persists exactly once. `packages/stride_core/test/activity_queue_test.dart`
+// proves the queue's commit arithmetic at engine level. This file proves the
+// controller drives that arithmetic correctly through the app: repetition
+// boundaries in the foreground, reconciliation on resume and relaunch,
+// stop-with-partial-discard, and every stop reason surfaced truthfully.
 //
-// Timing is entirely fake — the injected clock and one-shot timers advance by
-// hand, so a ten-second repetition costs no test time and a "300 s in the
-// background" case is exact rather than slept.
+// ## The owner's ruling, and what happened to the pause tests
+//
+// The earlier suite asserted that backgrounding PAUSED the queue ("lifecycle
+// pause banks the elapsed foreground time; background time is never
+// counted"). That behaviour is now WRONG by owner ruling on hardware
+// (`DECISIONS/0022`): a finite, player-initiated queue advances by elapsed
+// wall-clock time across background, lock, and relaunch — every completion
+// still spending banked steps through the unchanged gather semantics. Those
+// tests are replaced here by progress-across-background tests asserting the
+// opposite, deliberately and with this paragraph as the record.
+//
+// Timing is entirely fake — the injected wall clock and one-shot timers
+// advance by hand, so a "five minutes in the pocket" case is exact rather
+// than slept. The same fake clock feeds `StrideSession.activityWallClock`,
+// so the controller's bar and the engine's commands read one clock, exactly
+// as production does.
 
 import 'dart:io';
 
@@ -74,16 +88,17 @@ void main() {
     }
   });
 
-  /// A cold launch over [root], funded with [steps] spendable steps: the
-  /// first sync is the new game's baseline over an empty store
-  /// (`DECISIONS/0019`), the second banks the page.
-  Future<StrideSession> funded(int steps) async {
+  /// A cold launch over [root], funded with [steps] spendable steps and
+  /// reading [fake]'s wall clock: the first sync is the new game's baseline
+  /// over an empty store (`DECISIONS/0019`), the second banks the page.
+  Future<StrideSession> funded(int steps, FakeTiming fake) async {
     final StrideSession session = await StrideSession.start(
       overrideRoot: root,
       source: MockStepSource(
         script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(steps)],
       ),
     );
+    session.activityWallClock = fake.wallClock;
     await session.syncSteps();
     await session.syncSteps();
     expect(session.usableEnergy, steps);
@@ -121,29 +136,58 @@ void main() {
     expect(condition(), isTrue, reason: reason);
   }
 
+  /// Gives any in-flight no-op dispatch its turn without asserting anything.
+  Future<void> settle() =>
+      Future<void>.delayed(const Duration(milliseconds: 60));
+
   ResourceNodeDefinition nodeOf(StrideSession s) =>
       s.nodesHere.singleWhere((ResourceNodeDefinition n) => n.id == kNode);
 
   int xpOf(StrideSession s) => s.engine!.state.skills.experienceIn(kForaging);
 
+  /// Starts a queue and waits until the start's whole dispatch has settled —
+  /// the durable queue committed and the session's single flight released.
+  /// The anchor is the wall clock at the command's execute, so tests advance
+  /// time only from a known, settled anchor.
+  Future<void> startAndCommit(
+    SessionController sessions,
+    ActivityController a,
+    StrideSession s,
+    int repetitions,
+  ) async {
+    a.start(nodeOf(s), repetitions);
+    await until(
+      () => s.activityQueue != null && !s.isBusy && !sessions.busy,
+      reason: 'the start commits the durable queue',
+    );
+  }
+
+  void background(ActivityController a) {
+    // inactive → hidden → paused is one background, not three.
+    a.didChangeAppLifecycleState(AppLifecycleState.inactive);
+    a.didChangeAppLifecycleState(AppLifecycleState.hidden);
+    a.didChangeAppLifecycleState(AppLifecycleState.paused);
+  }
+
   test('queue ×1: one completion is exactly one spend, one grant, one XP '
-      'award — and only after the full presentation time', () async {
-    final StrideSession s = await funded(1000);
+      'award — and only after the full repetition time', () async {
     final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
     final (SessionController sessions, ActivityController a) = controllers(
       s,
       fake,
     );
 
-    a.start(nodeOf(s), 1);
+    await startAndCommit(sessions, a, s, 1);
     expect(a.active, isTrue);
     expect(a.queued, 1);
     expect(a.repetitionDuration, kRep);
     expect(a.elapsedOfCurrent, Duration.zero);
 
-    // One second short of the repetition: nothing has been dispatched. The
-    // command not existing yet is the cancel-safety property.
+    // One second short of the repetition: nothing has been committed, and
+    // the bar reads exactly the wall-clock elapsed against the anchor.
     fake.advance(const Duration(seconds: 9));
+    await settle();
     expect(s.totalSpent, 0);
     expect(s.inventoryCount(kHerb), 0);
     expect(a.elapsedOfCurrent, const Duration(seconds: 9));
@@ -155,8 +199,9 @@ void main() {
     expect(s.inventoryCount(kHerb), 2, reason: 'exactly one yield');
     expect(xpOf(s), 10, reason: 'exactly one XP award');
     expect(a.active, isFalse, reason: 'the queue of one is finished');
+    expect(s.activityQueue, isNull, reason: 'and durably cleared');
 
-    // The finished queue's summary, accumulated from the returned report.
+    // The finished queue's summary, accumulated from the committed report.
     expect(a.summaryNode, kNode);
     expect(a.gainedItemName, 'Meadow Herb');
     expect(a.gainedQuantity, 2);
@@ -170,12 +215,16 @@ void main() {
     expect(a.summaryNode, isNull);
   });
 
-  test('queue ×10: ten completions are exactly ten commits', () async {
-    final StrideSession s = await funded(1000);
+  test('queue ×10 in the foreground: ten boundary reconciles are exactly '
+      'ten commits, and an eleventh never happens', () async {
     final FakeTiming fake = FakeTiming();
-    final (_, ActivityController a) = controllers(s, fake);
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
 
-    a.start(nodeOf(s), 10);
+    await startAndCommit(sessions, a, s, 10);
     for (int k = 1; k <= 10; k++) {
       fake.advance(kRep);
       await until(() => a.completed == k, reason: 'repetition $k completes');
@@ -189,45 +238,284 @@ void main() {
     expect(a.gainedQuantity, 20);
     expect(a.gainedXp, 100);
 
-    // No eleventh: time passing after the queue finished dispatches nothing.
+    // No eleventh: time passing after the queue finished commits nothing.
     fake.advance(const Duration(minutes: 5));
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await settle();
     expect(s.totalSpent, 900);
   });
 
-  test('insufficient banked steps mid-queue stops it with the truthful '
-      'reason and no negative balance', () async {
-    // Funds two gathers (180) with 70 left over — the third dispatch is the
-    // engine's refusal, not a UI prediction.
-    final StrideSession s = await funded(250);
+  test('background under one repetition: resuming completes nothing — and '
+      'the elapsed time is NOT lost, because the anchor never moved', () async {
     final FakeTiming fake = FakeTiming();
-    final (_, ActivityController a) = controllers(s, fake);
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
 
-    a.start(nodeOf(s), 5);
-    fake.advance(kRep);
-    await until(() => a.completed == 1, reason: 'first completes');
-    fake.advance(kRep);
-    await until(() => a.completed == 2, reason: 'second completes');
-    fake.advance(kRep);
-    await until(() => !a.active, reason: 'the refused third stops the queue');
+    await startAndCommit(sessions, a, s, 3);
+    fake.advance(const Duration(seconds: 4));
+    background(a);
 
-    expect(a.completed, 2, reason: 'the refused repetition is not counted');
-    expect(a.stopReason, 'insufficient_steps');
-    expect(s.usableEnergy, 70, reason: 'no negative, no third spend');
+    // Five more seconds in the pocket: nine of ten elapsed, no boundary.
+    fake.elapseInBackground(const Duration(seconds: 5));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await settle();
+
+    expect(a.completed, 0);
+    expect(s.totalSpent, 0);
+    // The pocketed time counts — the bar resumes at nine seconds, not four.
+    // This is the exact inversion of the pre-0022 pause semantics, by owner
+    // ruling.
+    expect(a.elapsedOfCurrent, const Duration(seconds: 9));
+
+    // One more second and the boundary timer, re-armed on resume for the
+    // remainder, completes the repetition.
+    fake.advance(const Duration(seconds: 1));
+    await until(() => a.completed == 1, reason: 'completes on the boundary');
+    expect(s.totalSpent, 90);
+  });
+
+  test('background across one boundary: resuming commits exactly one, '
+      'surfaced as the while-away summary — and no health sync ran', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+    final int syncsBefore = s.syncCount;
+
+    await startAndCommit(sessions, a, s, 3);
+    background(a);
+    fake.elapseInBackground(const Duration(seconds: 12));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => a.completed == 1, reason: 'the away repetition commits');
+
+    expect(s.totalSpent, 90);
+    expect(s.inventoryCount(kHerb), 2);
+    expect(a.active, isTrue);
+    final AwaySummary away = a.awaySummary!;
+    expect(away.quantity, 2);
+    expect(away.experience, 10);
+    expect(away.itemName, 'Meadow Herb');
+    expect(away.finishedQueue, isFalse);
+
+    // The reconcile path must never touch health sync (`DECISIONS/0022` §2):
+    // no background delivery, no sync — the cursor and count are untouched.
+    expect(s.syncCount, syncsBefore);
+  });
+
+  test('background across N boundaries: resuming commits exactly N', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 5);
+    background(a);
+    // Three and a half repetitions in the pocket.
+    fake.elapseInBackground(const Duration(seconds: 35));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => a.completed == 3, reason: 'three away repetitions');
+
+    expect(s.totalSpent, 270);
+    expect(s.inventoryCount(kHerb), 6);
+    expect(xpOf(s), 30);
+    expect(a.active, isTrue);
+    expect(a.awaySummary!.quantity, 6);
+    // And the durable anchor sits mid-repetition, five seconds in.
+    expect(a.elapsedOfCurrent, const Duration(seconds: 5));
+  });
+
+  test('background beyond the whole queue: capped at the requested count, '
+      'finished, compact completion summary, normal controls', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 3);
+    background(a);
+    fake.elapseInBackground(const Duration(hours: 2));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => !a.active, reason: 'the whole queue finished away');
+
+    expect(a.completed, 3, reason: 'capped at requested — finite by design');
+    expect(s.totalSpent, 270);
+    expect(s.inventoryCount(kHerb), 6);
+    expect(s.activityQueue, isNull);
+    expect(a.summaryNode, kNode, reason: 'normal controls with a summary');
+    expect(a.stopReason, isNull);
+    final AwaySummary away = a.awaySummary!;
+    expect(away.quantity, 6);
+    expect(away.finishedQueue, isTrue);
+  });
+
+  test('resuming twice commits nothing twice', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 5);
+    background(a);
+    fake.elapseInBackground(const Duration(seconds: 12));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => a.completed == 1, reason: 'the away repetition commits');
+    expect(s.totalSpent, 90);
+
+    // A second background/resume cycle with no elapsed time: the reconcile
+    // finds nothing left — exactly-once is the commit, not the trigger.
+    background(a);
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await settle();
+    expect(a.completed, 1);
+    expect(s.totalSpent, 90);
+
+    // And an explicit extra reconcile is equally harmless.
+    a.reconcileNow();
+    await settle();
+    expect(s.totalSpent, 90);
+  });
+
+  test('kill and relaunch: a save carrying an active queue reconciles on '
+      'construction — correct completions, cumulative display reconstructed, '
+      'no duplicates', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    // Built by hand rather than through `controllers()`: this test disposes
+    // the first pair itself � that IS the scenario � and a teardown disposing
+    // them again would throw.
+    final SessionController sessions = SessionController(s);
+    final ActivityController a = ActivityController(
+      sessions,
+      timing: fake.timing,
+    );
+    sessions.onExclusiveCommand = a.cancelForExclusiveCommand;
+
+    await startAndCommit(sessions, a, s, 5);
+    fake.advance(kRep);
+    await until(() => a.completed == 1, reason: 'one watched completion');
+    expect(s.totalSpent, 90);
+
+    // The process dies mid-second-repetition. Nothing is flushed, nothing is
+    // stopped: the queue is already durable.
+    a.dispose();
+    sessions.dispose();
+
+    // Relaunch 25 seconds of wall-clock later: two more repetitions elapsed
+    // (at 20 s and 30 s from the anchor... the second and third boundaries),
+    // and the fourth is half way.
+    final FakeTiming relaunchClock = FakeTiming()
+      ..elapseInBackground(
+        Duration(milliseconds: fake.nowEpochMillis - FakeTiming.epochStart),
+      )
+      ..elapseInBackground(const Duration(seconds: 25));
+    final StrideSession relaunched = await StrideSession.start(
+      overrideRoot: root,
+      source: MockStepSource(script: const <SyncFetch>[]),
+    );
+    relaunched.activityWallClock = relaunchClock.wallClock;
+    expect(relaunched.activityQueue, isNotNull, reason: 'the queue survived');
+    expect(relaunched.activityQueue!.completed, 1);
+
+    final SessionController sessions2 = SessionController(relaunched);
+    final ActivityController a2 = ActivityController(
+      sessions2,
+      timing: relaunchClock.timing,
+    );
+    addTearDown(() {
+      a2.dispose();
+      sessions2.dispose();
+    });
+
+    // The card is restored before any dispatch: the cumulative display is
+    // reconstructed deterministically from completed × the profile-scaled
+    // yield/xp — the same figures the committed events carried.
+    expect(a2.active, isTrue);
+    expect(a2.queued, 5);
+    expect(a2.completed, 1);
+    expect(a2.gainedQuantity, 2);
+    expect(a2.gainedXp, 10);
+
+    // Construction scheduled the reconcile; the fake clock delivers it.
+    relaunchClock.advance(Duration.zero);
+    await until(() => a2.completed == 3, reason: 'two away repetitions');
+
+    expect(relaunched.totalSpent, 270, reason: 'no duplicates across death');
+    expect(relaunched.inventoryCount(kHerb), 6);
+    expect(a2.awaySummary!.quantity, 4, reason: 'the two committed while away');
+    expect(a2.active, isTrue);
+    expect(a2.gainedQuantity, 6);
+
+    // A second reconcile finds nothing.
+    a2.reconcileNow();
+    await settle();
+    expect(relaunched.totalSpent, 270);
+  });
+
+  test('stop at 27 s of a 10 s × 5 queue: exactly 2 committed, the partial '
+      'discarded, the queue cleared — and a relaunch agrees', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 5);
+    // Locked for 27 seconds — no foreground boundary ever fired, so the
+    // stop's own closing reconciliation does the committing.
+    background(a);
+    fake.elapseInBackground(const Duration(seconds: 27));
+    a.stop();
+    await until(
+      () => s.activityQueue == null && !a.active,
+      reason: 'the stop commits and the panel settles',
+    );
+
+    expect(a.active, isFalse);
+    expect(a.completed, 2);
+    expect(s.totalSpent, 180);
     expect(s.inventoryCount(kHerb), 4);
     expect(xpOf(s), 20);
+    expect(a.stopReason, isNull, reason: 'a player stop is not a refusal');
+
+    // Relaunch: exactly two are durable, the partial third does not exist.
+    final StrideSession relaunched = await StrideSession.start(
+      overrideRoot: root,
+      source: MockStepSource(script: const <SyncFetch>[]),
+    );
+    expect(relaunched.totalSpent, 180);
+    expect(relaunched.inventoryCount(kHerb), 4);
+    expect(relaunched.activityQueue, isNull);
+    expect(relaunched.usableEnergy, 1000 - 180);
   });
 
   test(
     'stop before the first completion spends nothing and grants nothing',
     () async {
-      final StrideSession s = await funded(1000);
       final FakeTiming fake = FakeTiming();
-      final (_, ActivityController a) = controllers(s, fake);
+      final StrideSession s = await funded(1000, fake);
+      final (SessionController sessions, ActivityController a) = controllers(
+        s,
+        fake,
+      );
 
-      a.start(nodeOf(s), 3);
+      await startAndCommit(sessions, a, s, 3);
       fake.advance(const Duration(seconds: 5));
       a.stop();
+      await until(
+        () => s.activityQueue == null && !a.active,
+        reason: 'the stop commits and the panel settles',
+      );
 
       expect(a.active, isFalse);
       expect(a.summaryNode, isNull, reason: 'nothing happened to summarise');
@@ -235,156 +523,204 @@ void main() {
       expect(s.inventoryCount(kHerb), 0);
       expect(xpOf(s), 0);
 
-      // The cancelled repetition's timer is dead: more time changes nothing.
+      // Dead queue: more time changes nothing.
       fake.advance(const Duration(minutes: 1));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await settle();
       expect(s.totalSpent, 0);
     },
   );
 
-  test('stop after k completions keeps exactly k, and a relaunch finds '
-      'exactly k durable', () async {
-    final StrideSession s = await funded(1000);
+  test('a backward clock produces no phantom progress and never moves the '
+      'anchor', () async {
     final FakeTiming fake = FakeTiming();
-    final (_, ActivityController a) = controllers(s, fake);
-
-    a.start(nodeOf(s), 5);
-    fake.advance(kRep);
-    await until(() => a.completed == 1, reason: 'first completes');
-    fake.advance(kRep);
-    await until(() => a.completed == 2, reason: 'second completes');
-    fake.advance(const Duration(seconds: 3)); // mid third repetition
-    a.stop();
-
-    expect(a.active, isFalse);
-    expect(a.completed, 2);
-    expect(s.totalSpent, 180);
-    expect(s.inventoryCount(kHerb), 4);
-    expect(xpOf(s), 20);
-
-    // Relaunch: no queue exists (nothing was persisted) and nothing is lost —
-    // the two completed repetitions are on disk, the abandoned third is not.
-    final StrideSession relaunched = await StrideSession.start(
-      overrideRoot: root,
-      source: MockStepSource(script: const <SyncFetch>[]),
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
     );
-    expect(relaunched.totalSpent, 180);
-    expect(relaunched.inventoryCount(kHerb), 4);
-    expect(relaunched.usableEnergy, 1000 - 180);
-  });
 
-  test('lifecycle pause banks the elapsed foreground time; background time '
-      'is never counted; resume finishes only the remainder', () async {
-    final StrideSession s = await funded(1000);
-    final FakeTiming fake = FakeTiming();
-    final (_, ActivityController a) = controllers(s, fake);
+    await startAndCommit(sessions, a, s, 3);
+    final int anchor = s.activityQueue!.anchorEpochMillis;
 
-    a.start(nodeOf(s), 1);
-    fake.advance(const Duration(seconds: 4));
-    expect(a.elapsedOfCurrent, const Duration(seconds: 4));
+    fake.rewind(const Duration(hours: 1));
+    a.reconcileNow();
+    await settle();
 
-    // inactive → hidden → paused is one background, not three.
-    a.didChangeAppLifecycleState(AppLifecycleState.inactive);
-    a.didChangeAppLifecycleState(AppLifecycleState.hidden);
-    a.didChangeAppLifecycleState(AppLifecycleState.paused);
-    expect(a.paused, isTrue);
-
-    // Five minutes in the pocket: the presentation clock does not move and
-    // nothing completes.
-    fake.advance(const Duration(minutes: 5));
-    await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(a.completed, 0);
     expect(s.totalSpent, 0);
     expect(
-      a.elapsedOfCurrent,
-      const Duration(seconds: 4),
-      reason: 'background time is never counted',
+      s.activityQueue!.anchorEpochMillis,
+      anchor,
+      reason: 'never move the anchor on a backward clock — that eats progress',
     );
+    expect(a.elapsedOfCurrent, Duration.zero, reason: 'clamped, not negative');
 
-    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
-    expect(a.paused, isFalse);
-
-    // Five of the six remaining seconds: still not done.
-    fake.advance(const Duration(seconds: 5));
-    expect(a.completed, 0);
-    expect(s.totalSpent, 0);
-
-    fake.advance(const Duration(seconds: 1));
-    await until(
-      () => a.completed == 1,
-      reason: 'completes after exactly the foreground remainder',
-    );
+    // The clock recovering resumes exactly where the queue left off: the
+    // original boundary timer is still armed for anchor + 10 s.
+    fake.advance(const Duration(hours: 1));
+    await settle();
+    expect(a.completed, 0, reason: 'back to the anchor instant, no boundary');
+    fake.advance(kRep);
+    await until(() => a.completed == 1, reason: 'the honest first completion');
     expect(s.totalSpent, 90);
-    expect(s.inventoryCount(kHerb), 2);
   });
 
-  test(
-    'travel during a queue cancels the in-progress repetition safely',
-    () async {
-      final StrideSession s = await funded(5000);
-      final FakeTiming fake = FakeTiming();
-      final (SessionController sessions, ActivityController a) = controllers(
-        s,
-        fake,
-      );
-
-      a.start(nodeOf(s), 3);
-      fake.advance(const Duration(seconds: 5));
-
-      await sessions.travel(kWoods);
-      final TravelReport travel = sessions.lastTravel!;
-      expect(
-        travel.succeeded,
-        isTrue,
-        reason: '${travel.rejection}: ${travel.detail}',
-      );
-
-      expect(a.active, isFalse, reason: 'the exclusive command cancelled it');
-      expect(
-        s.inventoryCount(kHerb),
-        0,
-        reason: 'the abandoned repetition granted nothing',
-      );
-      expect(s.totalSpent, travel.cost, reason: 'only the journey was charged');
-
-      // The cancelled repetition's timer must be dead — no gather can land at
-      // a place the player has left.
-      fake.advance(const Duration(minutes: 1));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(s.totalSpent, travel.cost);
-      expect(s.inventoryCount(kHerb), 0);
-    },
-  );
-
-  test('a busy session defers the dispatch to a retry — one repetition still '
-      'commits exactly once', () async {
-    final StrideSession s = await funded(1000);
+  test('insufficient banked steps mid-queue stops it at the right count, '
+      'with the truthful reason and no negative balance', () async {
     final FakeTiming fake = FakeTiming();
-    final (_, ActivityController a) = controllers(s, fake);
+    // Funds two gathers (180) with 70 left over — the third completion is
+    // the engine's refusal, not a UI prediction.
+    final StrideSession s = await funded(250, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
 
-    a.start(nodeOf(s), 1);
+    await startAndCommit(sessions, a, s, 5);
+    background(a);
+    fake.elapseInBackground(const Duration(seconds: 60));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => !a.active, reason: 'the refused third stops the queue');
+
+    expect(a.completed, 2, reason: 'the refused repetition is not counted');
+    expect(a.stopReason, 'insufficient_steps');
+    expect(s.usableEnergy, 70, reason: 'no negative, no third spend');
+    expect(s.inventoryCount(kHerb), 4);
+    expect(xpOf(s), 20);
+    expect(s.activityQueue, isNull, reason: 'stopped queues do not linger');
+  });
+
+  test('prerequisites invalid at reconcile: the queue stops before the '
+      'invalid completion and keeps every prior one', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(5000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 5);
+    fake.advance(kRep);
+    await until(() => a.completed == 1, reason: 'one honest completion');
+
+    // The state changes under the queue: the player travels away, through
+    // the session directly — deliberately bypassing the controller's
+    // exclusive seam, which is exactly the kind of path (or crash timing)
+    // the reconcile-time validation exists to survive.
+    background(a);
+    final TravelReport travel = await s.travel(kWoods);
+    expect(travel.succeeded, isTrue, reason: '${travel.rejection}');
+    fake.elapseInBackground(const Duration(seconds: 30));
+    a.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => !a.active, reason: 'the impossible completion refuses');
+
+    expect(a.completed, 1, reason: 'the prior completion is kept');
+    expect(a.stopReason, 'resource_node_not_here');
+    expect(s.totalSpent, 90 + travel.cost, reason: 'nothing else was charged');
+    expect(s.inventoryCount(kHerb), 2);
+    expect(s.activityQueue, isNull);
+  });
+
+  test('travel through the controller cancels the queue via the exclusive '
+      'seam: the partial repetition is discarded safely', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(5000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 3);
+    fake.advance(const Duration(seconds: 5));
+
+    await sessions.travel(kWoods);
+    final TravelReport travel = sessions.lastTravel!;
+    expect(
+      travel.succeeded,
+      isTrue,
+      reason: '${travel.rejection}: ${travel.detail}',
+    );
+    expect(a.active, isFalse, reason: 'the exclusive command cancelled it');
+
+    // The deferred StopActivityQueue lands on a timer tick after the journey
+    // � ordering the two commits rather than racing them. Under load it may
+    // take a busy-retry hop or two; drive the retry cadence until it lands.
+    for (int i = 0; i < 20 && s.activityQueue != null; i++) {
+      fake.advance(const Duration(milliseconds: 250));
+      await settle();
+    }
+    await until(
+      () => s.activityQueue == null && !a.active,
+      reason: 'the stop commits and the panel settles',
+    );
+
+    expect(
+      s.inventoryCount(kHerb),
+      0,
+      reason: 'the abandoned repetition granted nothing',
+    );
+    expect(s.totalSpent, travel.cost, reason: 'only the journey was charged');
+
+    // Dead queue: no gather can land at a place the player has left.
+    fake.advance(const Duration(minutes: 1));
+    await settle();
+    expect(s.totalSpent, travel.cost);
+    expect(s.inventoryCount(kHerb), 0);
+  });
+
+  test('a busy session defers the boundary reconcile to a retry — one '
+      'repetition still commits exactly once', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    await startAndCommit(sessions, a, s, 1);
 
     // A manual command holds the session's single-flight at the exact moment
-    // the repetition completes. `gather` marks the session busy synchronously,
-    // and nothing awaits between here and the advance, so the collision is
+    // the boundary fires. `gather` marks the session busy synchronously, and
+    // nothing awaits between here and the advance, so the collision is
     // deterministic.
     final Future<ActionReport> manual = s.gather(kNode);
     expect(s.isBusy, isTrue);
     fake.advance(kRep);
 
-    // The completion found the session busy: nothing dispatched yet.
+    // The boundary found the session busy: nothing committed yet.
     expect(a.completed, 0);
 
     final ActionReport manualReport = await manual;
     expect(manualReport.succeeded, isTrue);
     expect(s.totalSpent, 90, reason: 'only the manual gather so far');
 
-    // The retry timer fires and the deferred repetition commits — once.
+    // The retry timer fires and the deferred reconcile commits — once.
     fake.advance(const Duration(milliseconds: 250));
-    await until(() => a.completed == 1, reason: 'the deferred dispatch lands');
+    await until(() => a.completed == 1, reason: 'the deferred reconcile lands');
     expect(s.totalSpent, 180, reason: 'manual + exactly one queue commit');
     expect(s.inventoryCount(kHerb), 4);
     expect(xpOf(s), 20);
     expect(a.active, isFalse);
+  });
+
+  test('a double start is one queue', () async {
+    final FakeTiming fake = FakeTiming();
+    final StrideSession s = await funded(1000, fake);
+    final (SessionController sessions, ActivityController a) = controllers(
+      s,
+      fake,
+    );
+
+    // Two calls with no await between them: the second must be ignored by
+    // the synchronous guard, and the engine would refuse it anyway
+    // (`activity_queue_active` — defence in depth).
+    a.start(nodeOf(s), 2);
+    a.start(nodeOf(s), 10);
+    await until(() => s.activityQueue != null, reason: 'one start commits');
+
+    expect(s.activityQueue!.requested, 2, reason: 'the first tap won');
+    fake.advance(const Duration(minutes: 1));
+    await until(() => !a.active, reason: 'the queue of two finishes');
+    expect(s.totalSpent, 180, reason: 'two commits, never twelve');
   });
 }

@@ -306,6 +306,88 @@ final class WorldState {
   );
 }
 
+/// The finite, player-initiated activity queue in progress, or absent.
+///
+/// State version 6 (`DECISIONS/0022`). The queue is **durable**: it survives
+/// backgrounding, lock, and relaunch, and advances by elapsed wall-clock time
+/// through `ReconcileActivityQueue` — the one named exception to `RULES.md`
+/// P-4. Every completed repetition still spends banked steps through the
+/// unchanged gather semantics; time paces the conversion of walking, it never
+/// substitutes for it.
+///
+/// No timestamp is ever read here. [anchorEpochMillis] is data a command
+/// carried in, exactly as the health path's buckets are — `stride_core` stays
+/// clockless (`RULES.md` E-1).
+@immutable
+final class ActivityQueueState {
+  const ActivityQueueState({
+    required this.node,
+    required this.requested,
+    required this.completed,
+    required this.durationMillis,
+    required this.anchorEpochMillis,
+  }) : assert(requested >= 1, 'a queue holds at least one repetition'),
+       assert(completed >= 0, 'completed counts up from zero'),
+       assert(
+         completed < requested,
+         'a queue whose repetitions are all complete is cleared, not stored',
+       ),
+       assert(durationMillis >= 1, 'a repetition takes time');
+
+  /// The resource node the queue works.
+  final ContentId node;
+
+  /// How many repetitions the player asked for. Fixed at start — the cap on
+  /// what can ever accrue, which is what keeps this finite (`DECISIONS/0022`
+  /// §1, Q-01).
+  final int requested;
+
+  /// How many repetitions have been committed so far.
+  final int completed;
+
+  /// The authored duration of one repetition, in milliseconds, frozen at
+  /// start so a later pacing retune cannot re-time a queue already running.
+  final int durationMillis;
+
+  /// Wall-clock epoch milliseconds at which the CURRENT repetition began.
+  /// Advanced by exactly `k × durationMillis` when k repetitions commit —
+  /// never moved by a clock reading alone, which is what makes reconciliation
+  /// idempotent (`DECISIONS/0022` §6).
+  final int anchorEpochMillis;
+
+  ActivityQueueState copyWith({int? completed, int? anchorEpochMillis}) =>
+      ActivityQueueState(
+        node: node,
+        requested: requested,
+        completed: completed ?? this.completed,
+        durationMillis: durationMillis,
+        anchorEpochMillis: anchorEpochMillis ?? this.anchorEpochMillis,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is ActivityQueueState &&
+      other.node == node &&
+      other.requested == requested &&
+      other.completed == completed &&
+      other.durationMillis == durationMillis &&
+      other.anchorEpochMillis == anchorEpochMillis;
+
+  @override
+  int get hashCode => Object.hash(
+    node,
+    requested,
+    completed,
+    durationMillis,
+    anchorEpochMillis,
+  );
+
+  @override
+  String toString() =>
+      'ActivityQueueState($node $completed/$requested;'
+      'dur=${durationMillis}ms;anchor=$anchorEpochMillis)';
+}
+
 /// The whole game, as one immutable value.
 ///
 /// Every field is either a primitive or a deeply frozen structure. A snapshot
@@ -325,6 +407,7 @@ final class GameState {
     required this.steps,
     required this.eventSequence,
     this.encounter,
+    this.activityQueue,
   }) {
     if (!StateVersion.supports(stateVersion)) {
       throw UnsupportedStateVersionException(stateVersion);
@@ -353,6 +436,11 @@ final class GameState {
   /// is state, not navigation.
   final EncounterState? encounter;
 
+  /// The finite activity queue in progress, or null. State version 6
+  /// (`DECISIONS/0022`). Durable: a relaunch reconciles it rather than
+  /// dropping it.
+  final ActivityQueueState? activityQueue;
+
   /// How many events have been applied. Monotonic, and the sequence number the
   /// next event will carry.
   ///
@@ -370,6 +458,8 @@ final class GameState {
     int? eventSequence,
     EncounterState? encounter,
     bool clearEncounter = false,
+    ActivityQueueState? activityQueue,
+    bool clearActivityQueue = false,
   }) => GameState(
     stateVersion: stateVersion,
     profileId: profileId,
@@ -384,6 +474,11 @@ final class GameState {
     // Nullable-aware: `null` means "keep", so ending a fight needs an explicit
     // flag rather than a null argument that is indistinguishable from absence.
     encounter: clearEncounter ? null : (encounter ?? this.encounter),
+    // The same nullable-aware shape, for the same reason: clearing a finished
+    // queue is an explicit act, not an omitted argument.
+    activityQueue: clearActivityQueue
+        ? null
+        : (activityQueue ?? this.activityQueue),
   );
 
   /// Restates this state at [StateVersion.current], changing nothing else.
@@ -411,6 +506,7 @@ final class GameState {
     steps: steps,
     eventSequence: eventSequence,
     encounter: encounter,
+    activityQueue: activityQueue,
   );
 
   @override
@@ -426,7 +522,8 @@ final class GameState {
       other.world == world &&
       other.steps == steps &&
       other.eventSequence == eventSequence &&
-      other.encounter == encounter;
+      other.encounter == encounter &&
+      other.activityQueue == activityQueue;
 
   @override
   int get hashCode => Object.hash(
@@ -441,6 +538,7 @@ final class GameState {
     steps,
     eventSequence,
     encounter,
+    activityQueue,
   );
 
   // There is deliberately no `signature` getter here.
@@ -467,5 +565,6 @@ final class GameState {
   String toString() =>
       'GameState(v$stateVersion;profile=$profileId;seq=$eventSequence;'
       'lvl=${player.level};steps=(${steps.signature})'
-      '${encounter == null ? '' : ';encounter=$encounter'})';
+      '${encounter == null ? '' : ';encounter=$encounter'}'
+      '${activityQueue == null ? '' : ';activityQueue=$activityQueue'})';
 }

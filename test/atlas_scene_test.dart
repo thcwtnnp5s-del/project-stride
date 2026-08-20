@@ -25,6 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/atlas_layout.dart';
 import 'package:stride/runtime/stride_session.dart'
     show RegionPlace, RegionRoute, TravelOption;
+import 'package:stride/ui/components/adaptive_text.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layers.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
@@ -126,41 +127,46 @@ List<RegionRoute> _routes() => <RegionRoute>[
   RegionRoute(from: id('d'), to: id('a'), stepCost: 300),
 ];
 
-RegionPlace _place(String slug, {bool current = false, bool safe = false}) =>
-    RegionPlace(
-      id: id(slug),
-      displayName: slug.toUpperCase(),
-      isCurrent: current,
-      isSafe: safe,
-      isUnlocked: true,
-      stepCostFromHere: null,
-      resourceCount: 0,
-      terrain: Terrain.grassland,
-      kind: LocationKind.wilds,
-    );
+RegionPlace _place(
+  String slug, {
+  bool current = false,
+  bool safe = false,
+  String? name,
+}) => RegionPlace(
+  id: id(slug),
+  displayName: name ?? slug.toUpperCase(),
+  isCurrent: current,
+  isSafe: safe,
+  isUnlocked: true,
+  stepCostFromHere: null,
+  resourceCount: 0,
+  terrain: Terrain.grassland,
+  kind: LocationKind.wilds,
+);
 
-AtlasScene _scene({String layout = _bigWorld}) => AtlasScene.join(
-  layout: AtlasLayout.parse(layout),
-  places: <RegionPlace>[
-    _place('a', current: true, safe: true),
-    _place('b'),
-    _place('c'),
-    _place('d'),
-  ],
-  routes: _routes(),
-  options: <TravelOption>[
-    TravelOption(
-      id: id('b'),
-      displayName: 'B',
-      terrain: Terrain.forest,
-      stepCost: 800,
-      isReached: true,
-      affordable: true,
-      missingRequirements: const <String>[],
-      resourceCount: 0,
-    ),
-  ],
-)!;
+AtlasScene _scene({String layout = _bigWorld, String? bName}) =>
+    AtlasScene.join(
+      layout: AtlasLayout.parse(layout),
+      places: <RegionPlace>[
+        _place('a', current: true, safe: true),
+        _place('b', name: bName),
+        _place('c'),
+        _place('d'),
+      ],
+      routes: _routes(),
+      options: <TravelOption>[
+        TravelOption(
+          id: id('b'),
+          displayName: 'B',
+          terrain: Terrain.forest,
+          stepCost: 800,
+          isReached: true,
+          affordable: true,
+          missingRequirements: const <String>[],
+          resourceCount: 0,
+        ),
+      ],
+    )!;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -399,17 +405,29 @@ void main() {
       // at both ends of the range rather than once at 1×. At the floor the
       // overview LOD hides the landmark captions entirely (that is its job),
       // so out there only the place names are on the surface to collide.
+      //
+      // What collides is the **plate**, not the bare text: the plate is the
+      // painted rect a viewer sees, and it is strictly larger than the name
+      // on it, so measuring it is the tighter assertion.
       final AtlasViewportState state = await pump(tester, scene: _scene());
-      const List<String> places = <String>['A', 'B', 'C', 'D'];
-      const List<String> captions = <String>['Ruined Watchtower', 'Far Town —'];
-      void check(String at, List<String> names) {
-        for (int i = 0; i < names.length; i++) {
-          final Rect a = tester.getRect(find.text(names[i]));
-          for (int j = i + 1; j < names.length; j++) {
+      const List<String> places = <String>[
+        'atlas-label:location.a',
+        'atlas-label:location.b',
+        'atlas-label:location.c',
+        'atlas-label:location.d',
+      ];
+      const List<String> captions = <String>[
+        'atlas-caption:landmark.watchtower',
+        'atlas-caption:landmark.far_town',
+      ];
+      void check(String at, List<String> keys) {
+        for (int i = 0; i < keys.length; i++) {
+          final Rect a = tester.getRect(_plate(keys[i]));
+          for (int j = i + 1; j < keys.length; j++) {
             expect(
-              a.overlaps(tester.getRect(find.text(names[j]))),
+              a.overlaps(tester.getRect(_plate(keys[j]))),
               isFalse,
-              reason: '"${names[i]}" and "${names[j]}" collide at $at',
+              reason: '"${keys[i]}" and "${keys[j]}" collide at $at',
             );
           }
         }
@@ -421,7 +439,7 @@ void main() {
       check('the zoom floor', places);
       for (final String caption in captions) {
         expect(
-          find.text(caption),
+          find.byKey(ValueKey<String>(caption)),
           findsNothing,
           reason: 'the overview carries no landmark captions',
         );
@@ -446,6 +464,83 @@ void main() {
       await _pinch(tester, 100, 400);
       expect(state.zoom, zooms2.max);
       expect(tester.getSize(find.text('A')).height, closeTo(atOne, 0.5));
+    });
+
+    testWidgets('a label plate hugs its name, never a fixed width', (
+      WidgetTester tester,
+    ) async {
+      // The regression this pins: a fixed 184 dp plate, counter-scaled at the
+      // survey floor, painted a bar half the world wide (device review). The
+      // plate must take the width its own name needs — no more.
+      const String longName = 'Stonefall Crossing';
+      final AtlasViewportState state = await pump(
+        tester,
+        scene: _scene(bName: longName),
+      );
+      const String shortKey = 'atlas-label:location.a';
+      const String longKey = 'atlas-label:location.b';
+
+      final Rect shortPlate = tester.getRect(_plate(shortKey));
+      final Rect longPlate = tester.getRect(_plate(longKey));
+      // Two names of very different length take very different plates…
+      expect(longPlate.width, greaterThan(shortPlate.width + 60));
+      // …and a one-letter name sits in a tag, nowhere near the old 184 dp bar.
+      expect(shortPlate.width, lessThan(40));
+
+      // Neither name lost a glyph: the box each `Text` was given is at least
+      // the width its string needs at full size — `AdaptiveText.fitsWithin`
+      // is the same measurement the label itself makes, and the property that
+      // actually fails when a fixed box clips (M-06).
+      for (final (String key, String name) in <(String, String)>[
+        (shortKey, 'A'),
+        (longKey, longName),
+      ]) {
+        final Element element = tester.element(_labelText(key));
+        final TextStyle painted = DefaultTextStyle.of(
+          element,
+        ).style.merge(tester.widget<Text>(_labelText(key)).style);
+        expect(
+          AdaptiveText.fitsWithin(
+            name,
+            painted,
+            MediaQuery.textScalerOf(element),
+            tester.getSize(_labelText(key)).width,
+          ),
+          isTrue,
+          reason: '"$name" does not fit the box its plate gave it',
+        );
+      }
+
+      // The plate counter-scales with its type: at the survey floor it holds
+      // its on-screen size instead of swallowing half the world.
+      await _pinch(tester, 300, 60);
+      expect(state.zoom, zooms2.absoluteFloor);
+      expect(
+        tester.getRect(_plate(shortKey)).width,
+        closeTo(shortPlate.width, 0.5),
+      );
+    });
+
+    testWidgets('a landmark caption is narrower and fainter than a place '
+        'label with the same name', (WidgetTester tester) async {
+      // The two-tier hierarchy, asserted on the painted plate: for one and
+      // the same string, the caption's lighter weight and tighter tracking
+      // must yield a narrower plate, and its ink must be fainter.
+      await pump(tester, scene: _scene(bName: 'Ruined Watchtower'));
+      const String placeKey = 'atlas-label:location.b';
+      const String captionKey = 'atlas-caption:landmark.watchtower';
+
+      expect(
+        tester.getRect(_plate(captionKey)).width,
+        lessThan(tester.getRect(_plate(placeKey)).width),
+      );
+
+      double plateAlpha(String key) {
+        final Container plate = tester.widget<Container>(_plate(key));
+        return (plate.decoration! as BoxDecoration).color!.a;
+      }
+
+      expect(plateAlpha(captionKey), lessThan(plateAlpha(placeKey)));
     });
   });
 
@@ -734,6 +829,20 @@ void main() {
 }
 
 Finder _hit(String value) => find.byKey(ValueKey<String>('atlas-hit:$value'));
+
+/// The painted plate behind one label — the `Container` inside the keyed
+/// label widget. Its rect is what a viewer sees covering geography, so the
+/// collision and geometry tests below measure it rather than the bare text.
+Finder _plate(String key) => find.descendant(
+  of: find.byKey(ValueKey<String>(key)),
+  matching: find.byType(Container),
+);
+
+/// The label's `Text`, for measuring the box the name was actually given.
+Finder _labelText(String key) => find.descendant(
+  of: find.byKey(ValueKey<String>(key)),
+  matching: find.byType(Text),
+);
 
 /// A two-finger pinch about the viewport's centre, from [from] to [to] pixels
 /// apart, in ten steps.

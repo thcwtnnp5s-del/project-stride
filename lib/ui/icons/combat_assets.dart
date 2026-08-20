@@ -122,6 +122,7 @@ final class CombatantArt {
     this.heavyStrikeFrame,
     this.hit,
     this.defeat,
+    this.stagger,
   });
 
   final CombatTrack idle;
@@ -145,6 +146,13 @@ final class CombatantArt {
   /// The defeat. `null` for the guardian (withheld): the stage holds the hit
   /// pose.
   final CombatTrack? defeat;
+
+  /// The overwhelmed collapse — the Traveler's defeat-as-retreat: stumble
+  /// backward, drop, end on one knee. Only the Traveler carries one; the
+  /// enemies have [defeat]. Defeat is retreat, never death (`RULES.md` P-7),
+  /// so the last frame is a figure down but alive, held while the enemy
+  /// stands its ground.
+  final CombatTrack? stagger;
 
   /// Rows above the anchor row at which an impact effect on this figure is
   /// centred — its chest, from the measured opaque box.
@@ -254,6 +262,19 @@ abstract final class CombatAssets {
       canvasHeight: 64,
       anchorRow: 62,
       footprint: SpriteFootprints.combatTravelerHit,
+    ),
+    // f0 standing, f1–f3 stumbling backward, f4 dropping, f5–f8 down on one
+    // knee; the stage holds f8. 8 fps so the fall reads — nine frames come to
+    // 1125 ms (Activity Feel & Presentation 01 correction, defeat beat).
+    stagger: _track(
+      'traveler_stagger',
+      9,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerStagger,
     ),
     // Opaque rows 4..62: the chest is about row 28, 34 above the feet.
     impactRise: 34,
@@ -492,6 +513,7 @@ abstract final class CombatAssets {
       ...traveler.idle.track.frames,
       ...traveler.attack.track.frames,
       ...?traveler.hit?.track.frames,
+      ...?traveler.stagger?.track.frames,
       if (e != null) ...<String>[
         ...e.idle.track.frames,
         ...e.attack.track.frames,

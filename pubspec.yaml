@@ -128,6 +128,13 @@ flutter:
     - assets/art/v1/item/herb_broth.png
     - assets/art/v1/item/hearty_stew.png
     - assets/art/v1/item/hollow_sigil.png
+    # World & Reward Depth 01 — packaged then forgotten here AND in
+    # PixelIcons._itemIcons, so the phone showed the blank slab
+    # (item_icon_resolution_test now guards all three lists agreeing).
+    - assets/art/v1/item/wolf_pelt.png
+    - assets/art/v1/item/lynx_pelt.png
+    - assets/art/v1/item/wolfhide_jerkin.png
+    - assets/art/v1/item/frostlined_jerkin.png
     # Transformation Build 01 — whole-directory families. These four are
     # generated in bulk by the packaging script (185 ambient frames, the atlas
     # base + landmarks, 29 env sprites, 8 node vignettes), and the script's

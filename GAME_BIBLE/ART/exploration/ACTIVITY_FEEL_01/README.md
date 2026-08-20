@@ -104,6 +104,42 @@ packaged as `env/overlay_birds`. Water shimmer stays dropped (five prior
 failures, `MISTAKES.md`/memory); the forge-smoke overlay is retired at
 scale 4 (a 32×48 plume draws 128×192 world px — taller than the hamlet).
 
+## 4a. Device correction pass (2026-08-20) — the continent master
+
+The owner's device pass judged the first master still too small
+(milestone §13). Three rounds, blind-judged each time:
+
+- **Round 1** (`world/master2_r1.png`, pro 40 gens, job `d1dbb69a`; a first
+  attempt `8dceea04` stalled server-side and was not billed): the known
+  region compressed to ~10% of a continent. One mine inpaint
+  (`bbb03eb0`, 20 gens, mask-region-only paste — the posterized transit
+  workaround is recorded in `world/` sources). **Blind FAIL**: the region
+  read as a pasted rectangle (straight tint seams, two drawing hands) and
+  at half feature scale the hamlet/bridge/towers stopped resolving —
+  5 of 7 landmarks unfindable. Kept as evidence.
+- **Round 3** (`world/master3_r1.png`, pro 40 gens, job `e7f5e099`,
+  style_copy narrowed to outline/detail/shading): one hand everywhere,
+  region at two-thirds scale in the upper-right quarter. Two inpaints:
+  the Forgotten Hollow cave mouth (`03ead0e4`, 20) and the arched
+  Millbridge span with separated cottages (`8ae1b23b`, 20 — fixing the
+  round's one MAJOR: "a crossing, not an arched bridge"). **Blind
+  PASS-WITH-NOTE, decisive on the §44 scale bar**: settled features ~15%
+  of the survey, six of seven landmarks FOUND cleanly, "no pasted-patch
+  read anywhere". Notes accepted as cosmetics: play-zoom tonality flatter
+  than the survey's, mine rails tangent to the palisade, cave blossom
+  smudge at standard zoom. Shipped as **`world/master3_r3.png`** →
+  `world/atlas_master.png`.
+- **Smoke** (`09b4b595` + loop `c1e17921`, 2 gens): wisp-only crop at
+  packaging (the pixen chimney stack would be building-sized at ×4).
+  **Waves** (`02d18f8c` + loop `a93025a5`, 2 gens): side-view surf on a
+  top-down sea — **withheld**.
+- **Traveler defeat stagger** (`combat_defeat_stagger`, v3 east, 1 gen,
+  group `415b7af8`): stumble → one knee, alive; packaged 56×64 as
+  `combat/traveler_stagger_f0..8`.
+- Blind staging this pass used neutral scratchpad paths and non-ordinal
+  names (map_oak/map_elm) per the M-13 lesson; reviewers confirmed the
+  labels carried no revision pull.
+
 ## 5. Ledger
 
 | Item | Gens |
@@ -117,3 +153,10 @@ scale 4 (a 32×48 plume draws 128×192 world px — taller than the hamlet).
 
 Balance 266 → **167** remaining (measured by `get_balance` at close; 99
 spent, the table's ≈98 plus rounding in per-call billing).
+
+Correction pass (2026-08-20): continent rolls 40 + 40 (a third roll
+stalled server-side and was not billed) · inpaints 20 × 3 (mine, cave,
+bridge) · smoke/wave sprites + loops 4 · defeat stagger 1 ≈ **145** →
+balance ≈ **18** remaining this cycle. Art iteration stops here by
+budget; the next art round waits for the monthly reset unless the owner
+adds credits.

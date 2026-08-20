@@ -253,9 +253,22 @@ class SkillChip extends StatelessWidget {
 /// **Outlined, never filled.** It states a fact; it is not a control, and a
 /// filled capsule beside a real button would read as a second one.
 class RequirementGate extends StatelessWidget {
-  const RequirementGate({super.key, required this.label});
+  const RequirementGate({super.key, required this.label, this.unmet = false});
 
   final String label;
+
+  /// True when the stated condition is currently FAILING — the skill level the
+  /// player does not have, the tool that is not equipped.
+  ///
+  /// The treatment is primary-ink type in the same outlined capsule, and that
+  /// is deliberate restraint, not timidity. The palette has **no** warning or
+  /// error colour, by written decision (`StrideColors` — a warning hue is how
+  /// an unrequested pressure system acquires a colour), and this capsule may
+  /// not fill (a filled capsule beside a real button reads as a second one, per
+  /// the class doc above). Within those two rules the available emphasis is
+  /// ink: a failing gate is the brightest text in its row while its met peers
+  /// stay quiet, and the label itself states the concrete failure.
+  final bool unmet;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -279,7 +292,9 @@ class RequirementGate extends StatelessWidget {
       ),
       child: Text(
         label.toUpperCase(),
-        style: StrideType.gateLabel,
+        style: unmet
+            ? StrideType.gateLabel.copyWith(color: StrideColors.textPrimary)
+            : StrideType.gateLabel,
         maxLines: 1,
         overflow: TextOverflow.clip,
       ),

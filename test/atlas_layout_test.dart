@@ -316,20 +316,23 @@ void main() {
       expect(layout.markerForKind('hamlet'), isNull);
     });
 
-    test('ships the five glyphs, five landmarks and the one master world', () {
+    test('ships the five glyphs, four landmarks and the one master world', () {
       // Activity Feel & Presentation 01: the base + south tile column is
       // retired for ONE master painting at scale 4 — 1536 × 2752 world px,
-      // no tile joins to fail a blind read (`MISTAKES.md` M-12). Two new
-      // named landmarks (Old Watch, Broken Tower) come with the moor and
-      // coast. Asserted so removing a glyph, the tile or a landmark is a
-      // deliberate edit here too.
+      // no tile joins to fail a blind read (`MISTAKES.md` M-12). The device
+      // correction pass re-authored the painting as a continent whose
+      // inhabited region is a modest north-eastern slice; the Broken Tower
+      // landmark retired with the old moor (the continent paints one tower,
+      // Old Watch), leaving four: Millbridge, Old Watch, Ferry Crossing and
+      // the future-tier Far Town. Asserted so removing a glyph, the tile or
+      // a landmark is a deliberate edit here too.
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
       expect(layout.kindMarkers.keys, unorderedEquals(atlasMarkerKinds));
       expect(layout.tiles, hasLength(1));
       expect(layout.scale, 4);
       expect(layout.worldWidth, 1536);
       expect(layout.worldHeight, 2752);
-      expect(layout.landmarks, hasLength(5));
+      expect(layout.landmarks, hasLength(4));
       expect(
         layout.landmarks.where(
           (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,

@@ -183,21 +183,21 @@ void main() {
 
     // Every place carries its kind glyph under the ring, from the shipped
     // table — one hut, two trees, one pick, one dead tree (DECISIONS/0021 §5)
-    // — and each of the five landmarks (Millbridge, Ferry Crossing, Far Town,
-    // Old Watch, Broken Tower) its cairn.
+    // — and each of the four landmarks (Millbridge, Old Watch, Ferry
+    // Crossing, Far Town) its cairn.
     final List<String> glyphs = tester
         .widgetList<PixelAsset>(find.byType(PixelAsset))
         .map((PixelAsset a) => a.assetPath)
         .where((String path) => path.contains('/world/marker_'))
         .toList();
-    expect(glyphs, hasLength(10));
+    expect(glyphs, hasLength(9));
     int count(String tail) =>
         glyphs.where((String p) => p.endsWith(tail)).length;
     expect(count('marker_haven.png'), 1);
     expect(count('marker_wilds.png'), 2);
     expect(count('marker_worksite.png'), 1);
     expect(count('marker_perilous.png'), 1);
-    expect(count('marker_landmark.png'), 5);
+    expect(count('marker_landmark.png'), 4);
   });
 
   testWidgets('tapping a place opens its panel with what the rows carried', (

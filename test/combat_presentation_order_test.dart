@@ -26,6 +26,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/screens/combat/combat_screen.dart';
 import 'package:stride/ui/screens/combat/combat_stage.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -84,8 +85,10 @@ void main() {
   });
 
   /// Boots inside `runAsync` (real file I/O never completes under
-  /// `FakeAsync`), standing in the Whispering Woods, armed and armoured.
-  Future<StrideSession> boot(WidgetTester tester) async {
+  /// `FakeAsync`), standing in the Whispering Woods — armed and armoured
+  /// unless [armed] is false (an unarmed Traveler loses to the wolf's
+  /// flurry, which is how the defeat presentation is reached).
+  Future<StrideSession> boot(WidgetTester tester, {bool armed = true}) async {
     tester.view.physicalSize = const Size(393 * 3, 852 * 3);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -101,8 +104,10 @@ void main() {
       );
       await s.syncSteps();
       await s.syncSteps();
-      await s.equip(trainingSword);
-      await s.equip(tunic);
+      if (armed) {
+        await s.equip(trainingSword);
+        await s.equip(tunic);
+      }
       final TravelReport t = await s.travel(woods);
       expect(t.succeeded, isTrue, reason: '${t.rejection}');
       return s;
@@ -300,5 +305,127 @@ void main() {
       return;
     }
     fail('the wolf never fell');
+  });
+
+  testWidgets('DRIVEN BACK waits for the stagger and the settle — never the '
+      'frame the shown HP reaches 0', (WidgetTester tester) async {
+    final StrideSession s = await boot(tester, armed: false);
+    final SessionController c = SessionController(s);
+    addTearDown(c.dispose);
+
+    await tester.runAsync(() => c.startEncounter(wolf));
+    await tester.pumpWidget(shell(c));
+    await tester.pumpAndSettle();
+
+    for (int round = 0; round < 60 && s.encounter != null; round++) {
+      await tester.tap(find.widgetWithText(StrideButton, 'Attack'));
+      await tester.pump();
+      expect(find.text('DRIVEN BACK'), findsNothing);
+      expect(find.byType(CombatStage), findsOneWidget);
+
+      await landCommit(tester, c);
+      await tester.pump();
+      if (c.lastCombat?.outcome is! LostBeat) {
+        await tester.pumpAndSettle();
+        continue;
+      }
+
+      // The losing report arrived this frame: the replay owns the screen and
+      // the panel is not up.
+      expect(find.text('DRIVEN BACK'), findsNothing);
+
+      // Sample the whole defeat. The device defect was the panel appearing
+      // with the 0 HP frame; now the killing blow settles the bar, the
+      // Traveler staggers to a knee (1125 ms), the wolf holds its ground
+      // over him (500 ms), and only then does the panel arrive.
+      int zeroAt = -1;
+      int panelAt = -1;
+      bool sawStagger = false;
+      for (int i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        if (find.text('DRIVEN BACK').evaluate().isNotEmpty) {
+          panelAt = i;
+          break;
+        }
+        if (zeroAt < 0 && shown(tester, 40) == 0) zeroAt = i;
+        sawStagger =
+            sawStagger ||
+            tester
+                .widgetList<GroundedSprite>(find.byType(GroundedSprite))
+                .any(
+                  (GroundedSprite g) =>
+                      g.assetPath.contains('traveler_stagger'),
+                );
+      }
+      expect(zeroAt, isNonNegative, reason: 'the killing blow must present');
+      expect(panelAt, isNonNegative, reason: 'the panel must arrive unaided');
+      expect(
+        panelAt - zeroAt,
+        greaterThanOrEqualTo(10),
+        reason:
+            'DRIVEN BACK must wait out the stagger and the settle '
+            '(zero at sample $zeroAt, panel at sample $panelAt)',
+      );
+      expect(sawStagger, isTrue, reason: 'the Traveler must visibly go down');
+      // The kneel outlasts the panel's arrival: overwhelmed, not dead.
+      expect(
+        tester
+            .widgetList<GroundedSprite>(find.byType(GroundedSprite))
+            .any(
+              (GroundedSprite g) =>
+                  g.assetPath.endsWith('traveler_stagger_f8.png'),
+            ),
+        isTrue,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('DRIVEN BACK'), findsOneWidget);
+      return;
+    }
+    fail('the wolf never won');
+  });
+
+  testWidgets('a tap on the stage mid-defeat lands on the committed figures '
+      'with DRIVEN BACK shown', (WidgetTester tester) async {
+    final StrideSession s = await boot(tester, armed: false);
+    final SessionController c = SessionController(s);
+    addTearDown(c.dispose);
+
+    await tester.runAsync(() => c.startEncounter(wolf));
+    await tester.pumpWidget(shell(c));
+    await tester.pumpAndSettle();
+
+    for (int round = 0; round < 60 && s.encounter != null; round++) {
+      await tester.tap(find.widgetWithText(StrideButton, 'Attack'));
+      await tester.pump();
+      await landCommit(tester, c);
+      await tester.pump();
+      if (c.lastCombat?.outcome is! LostBeat) {
+        await tester.pumpAndSettle();
+        continue;
+      }
+
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('DRIVEN BACK'), findsNothing);
+
+      // Skip: the stage jumps to the exact committed end state — HP 0, the
+      // kneel held — and the panel follows at once.
+      await tester.tap(find.byType(CombatStage));
+      await tester.pump();
+      expect(shown(tester, 40), 0, reason: 'skip lands on committed figures');
+      expect(find.text('DRIVEN BACK'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<GroundedSprite>(find.byType(GroundedSprite))
+            .any(
+              (GroundedSprite g) =>
+                  g.assetPath.endsWith('traveler_stagger_f8.png'),
+            ),
+        isTrue,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('DRIVEN BACK'), findsOneWidget);
+      return;
+    }
+    fail('the wolf never won');
   });
 }

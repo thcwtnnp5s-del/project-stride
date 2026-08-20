@@ -422,6 +422,18 @@ Future<String> runPersistenceScript(
 /// and `gameStateVersion` / `stateVersion` moved from `4` to `5`, which is one
 /// digit either way. A change that had perturbed anything else would not land
 /// on 5 in both slots.
+///
+/// ## Amended a fifth time, for state version 6 — same review
+///
+/// Finite background activity (`DECISIONS/0022`) added `activityQueue` (null
+/// when no queue runs) at the top of the state, so both slot lengths and both
+/// digests moved again. Every behavioural line above the digests is
+/// byte-identical once more, journal length and digest included — the
+/// conformance sequence starts no queue, so it writes no queue record. Both
+/// slots grew by **21 bytes**, which is exactly `"activityQueue":null,` (a
+/// 13-character key in quotes, a colon, `null`, and the separating comma; the
+/// key sorts first in the state object so the comma follows it). The frozen
+/// v5→v6 save fixture grew by the same 21.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -431,8 +443,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1340:979018da
-slot_b:1342:94562b74''';
+slot_a:1361:c3005189
+slot_b:1363:65602f0c''';
 
 // ---------------------------------------------------------------------------
 // The suite

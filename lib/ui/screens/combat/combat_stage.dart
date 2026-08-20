@@ -209,6 +209,13 @@ class _CombatStageState extends State<CombatStage>
   /// while it idles.
   (CombatTrack, int)? _heldEnemy;
 
+  /// The pose the Traveler holds after his stagger — down on one knee, kept
+  /// through the settle beat and the outcome panel — or `null` while he
+  /// idles. The Traveler's mirror of [_heldEnemy], same shape, same life:
+  /// set at a `travelerHoldsPose` segment's end, cleared by the next
+  /// sequence.
+  (CombatTrack, int)? _heldTraveler;
+
   late _Shot _shot;
   bool _precached = false;
   bool _heldByLifecycle = false;
@@ -311,6 +318,7 @@ class _CombatStageState extends State<CombatStage>
     _sequenceBase = Duration.zero;
     _phase = _Phase.playing;
     _heldEnemy = null;
+    _heldTraveler = null;
     _notifyPlaying(true);
     _startSegment();
   }
@@ -347,6 +355,11 @@ class _CombatStageState extends State<CombatStage>
     if (s.enemyHoldsPose) {
       if (s.enemyTrack case final CombatTrack t) {
         _heldEnemy = (t, t.frameCount - 1);
+      }
+    }
+    if (s.travelerHoldsPose) {
+      if (s.travelerTrack case final CombatTrack t) {
+        _heldTraveler = (t, t.frameCount - 1);
       }
     }
   }
@@ -463,6 +476,10 @@ class _CombatStageState extends State<CombatStage>
 
     CombatTrack travelerTrack = _traveler.idle;
     int travelerFrame = moving ? _idleFrame(_traveler.idle, clock) : 0;
+    if (_heldTraveler case (final CombatTrack t, final int f)) {
+      travelerTrack = t;
+      travelerFrame = f;
+    }
     CombatTrack? enemyTrack = enemy?.idle;
     int enemyFrame = enemy != null && moving
         ? _idleFrame(enemy.idle, clock)

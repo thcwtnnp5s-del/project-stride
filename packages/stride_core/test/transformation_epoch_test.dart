@@ -135,12 +135,14 @@ void main() {
             expect(step.decision, startsWith('DECISIONS/'));
             expect(step.to, step.from + 1);
           }
-          // The first two re-base, and each says so by name. The third and
-          // fourth — the v3→v4 Combat Slice 01 reshape (`DECISIONS/0020`) and
-          // the v4→v5 repeatable-encounter reshape (`DECISIONS/0021`) — are
-          // the case this table was built for: a format bump that says
-          // `rebasesEconomy: false` and touches no balance. Pinned per step so
-          // that flipping the flag on either kind is a reviewable edit.
+          // The first two re-base, and each says so by name. The third,
+          // fourth and fifth — the v3→v4 Combat Slice 01 reshape
+          // (`DECISIONS/0020`), the v4→v5 repeatable-encounter reshape
+          // (`DECISIONS/0021`), and the v5→v6 activity-queue reshape
+          // (`DECISIONS/0022`) — are the case this table was built for: a
+          // format bump that says `rebasesEconomy: false` and touches no
+          // balance. Pinned per step so that flipping the flag on any kind is
+          // a reviewable edit.
           expect(
             StateMigrations.steps.map((StateMigrationStep s) => s.decision),
             <String>[
@@ -148,13 +150,14 @@ void main() {
               'DECISIONS/0018_TRANSFORMATION_PLAYTEST_EPOCH.md',
               'DECISIONS/0020_COMBAT_SLICE_01.md',
               'DECISIONS/0021_REPEATABLE_ENCOUNTERS_AND_RARITY.md',
+              'DECISIONS/0022_FINITE_BACKGROUND_ACTIVITY.md',
             ],
           );
           expect(
             StateMigrations.steps.map(
               (StateMigrationStep s) => s.rebasesEconomy,
             ),
-            <bool>[true, true, false, false],
+            <bool>[true, true, false, false, false],
           );
         },
       );
@@ -163,11 +166,11 @@ void main() {
         expect(StateMigrations.pathFrom(StateVersion.current.value), isEmpty);
         expect(
           StateMigrations.pathFrom(2).map((StateMigrationStep s) => s.to),
-          <int>[3, 4, 5],
+          <int>[3, 4, 5, 6],
         );
         expect(
           StateMigrations.pathFrom(1).map((StateMigrationStep s) => s.to),
-          <int>[2, 3, 4, 5],
+          <int>[2, 3, 4, 5, 6],
         );
         expect(
           () => StateMigrations.pathFrom(0),
@@ -519,7 +522,7 @@ void main() {
       expect(ready.pendingMigration!.fromStateVersion, 2);
       expect(
         ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
-        <int>[3, 4, 5],
+        <int>[3, 4, 5, 6],
       );
       // The engine is the save as it is on disk: still v2, still 5,123.
       expect(ready.engine.state.stateVersion, 2);
@@ -586,6 +589,7 @@ void main() {
           3,
           4,
           5,
+          6,
         ]);
 
         // Two transactions: the sync's, then the migration's — the migration
@@ -893,7 +897,7 @@ void main() {
         expect(ready.engine.state.stateVersion, 1);
         expect(
           ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
-          <int>[2, 3, 4, 5],
+          <int>[2, 3, 4, 5, 6],
         );
 
         final DeferredMigrationRun run = await completeAfterFirstSync(
@@ -918,6 +922,7 @@ void main() {
           3,
           4,
           5,
+          6,
         ]);
         expect(report.retiredSteps, 459043);
         expect(report.previouslyRetiredSteps, 0);

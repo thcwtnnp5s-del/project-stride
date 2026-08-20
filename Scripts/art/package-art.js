@@ -745,12 +745,44 @@ for (const [id, spec] of Object.entries(ACTIVITY_LOOPS)) {
 }
 
 /**
+ * DEFEAT STAGGER — the Traveler driven to one knee, east-facing (the combat
+ * stage's orientation), for the driven-back sequence the device pass asked
+ * for (correction §15: "I lost the fight and had to retreat", never a
+ * corpse). Nine v3 frames on an 88² canvas, cropped like the activity loops
+ * to one fixed box with the STANDING frame's ground on row 62 — the fall is
+ * what moves, the ground must not. Footprint measured on frame 0 (standing),
+ * the rest-frame convention.
+ */
+const AF_COMBAT_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'combat');
+{
+  const crop = { x: 16, y: 12, width: 56, height: 64 };
+  for (let i = 0; i <= 8; i++) {
+    const frame = png.load(path.join(AF_COMBAT_SRC, `stagger_f${i}.png`));
+    if (frame.width !== 88 || frame.height !== 88) {
+      throw new Error(`stagger_f${i}: expected 88x88, got ${frame.width}x${frame.height}`);
+    }
+    const cut = png.crop(frame, crop.x, crop.y, crop.width, crop.height);
+    if (i === 0) combatFootprints['combat_traveler_stagger'] = png.footprint(cut);
+    emit(`combat/traveler_stagger_f${i}.png`, encode(cut));
+  }
+}
+
+/**
  * WORLD MASTER — the whole landmass as ONE 384 × 688 painting, displayed at
  * atlas scale 4 (1536 × 2752 world px). Replaces the retired base + south
  * tile column: a single generation cannot have a seam, which is `MISTAKES.md`
- * M-12 applied rather than survived. r2 carries one targeted inpaint (the
- * Forgotten Hollow cave region, blind-QA MAJOR in r1). Straight copy;
- * provenance and both blind verdicts in `ACTIVITY_FEEL_01/README.md` §1.
+ * M-12 applied rather than survived.
+ *
+ * Correction pass, 2026-08-20: the source is now the CONTINENT master
+ * (master3_r3) — the device pass judged the first master's world still too
+ * small, so the inhabited region is re-authored as a modest north-eastern
+ * slice of a continent (west cordillera, forest and lakes, tundra, southern
+ * arid plains, island sea). Three targeted inpaints ride in it: the mine
+ * portal, the Forgotten Hollow cave mouth, and the arched Millbridge span.
+ * Blind verdicts: r2-continent FAIL (region read as pasted, landmarks
+ * illegible at half scale); r3 PASS-WITH-NOTE, six of seven landmarks clean,
+ * bridge fixed by the third inpaint. Straight copy; full provenance in
+ * `ACTIVITY_FEEL_01/README.md`.
  */
 const AF_WORLD_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'world');
 {
@@ -773,6 +805,20 @@ for (let i = 0; i < 6; i++) {
     throw new Error(`overlay_birds_f${i}: expected 24x24, got ${frame.width}x${frame.height}`);
   }
   emit(`env/overlay_birds_f${i}.png`, encode(frame));
+}
+
+// Chimney smoke for the hamlet (correction pass §26). The pixen source draws
+// a chimney stack under the wisp; at atlas scale 4 that stack would be a
+// building-sized grey column, so packaging crops to the WISP alone (rows
+// 0..13 hold it in all six frames, measured 2026-08-20) and the overlay is
+// anchored over a hut roof by the layout. The rejected coastal-wave loop
+// (side-view surf on a top-down sea) stays in `world_life/`, withheld.
+for (let i = 0; i < 6; i++) {
+  const frame = png.load(path.join(AF_ENV_SRC, `overlay_smoke_20x20_f${i}.png`));
+  if (frame.width !== 20 || frame.height !== 20) {
+    throw new Error(`overlay_smoke_f${i}: expected 20x20, got ${frame.width}x${frame.height}`);
+  }
+  emit(`env/overlay_smoke_f${i}.png`, encode(png.crop(frame, 2, 0, 16, 14)));
 }
 
 // -------------------------------------------------------- footprint metrics

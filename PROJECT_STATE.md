@@ -1,5 +1,56 @@
 # Project Stride — Project State
 
+**Version:** 2.10
+**Status:** 🚧 **ACTIVITY FEEL & PRESENTATION 01 — device-acceptance
+correction pass complete, awaiting the owner's physical-device re-test.**
+Branch `playable-phase-2-multiregion`, on top of the milestone's accepted
+core (`d6c4675`). Record: `MILESTONES/ACTIVITY_FEEL_PRESENTATION_01.md`
+§13–§13c (updated device script in the final report).
+
+The owner's phone accepted the milestone's core — install/save, exact
+step accounting, timed queueable gathering, the combat timeline fix, enemy
+preview, per-visit encounters, loot RNG, the Frost Lynx, rarity, the new
+boot mark — and returned corrections, all now implemented:
+
+1. **Finite queues progress across background/lock/relaunch**
+   (`DECISIONS/0022`, the one named P-4 exception): the queue is durable
+   state at **v6** (`GameState.activityQueue`), reconciled exactly-once by
+   wall-clock arithmetic through the same validation/effects path as a
+   manual gather — one atomic event carries both the completions and the
+   advanced anchor, so no crash, duplicate resume or backward clock can
+   split, double or phantom a repetition. No background execution, no
+   health sync, no notifications; Stop reconciles then discards the
+   partial. Migration v5→v6 `rebasesEconomy: false`; v1–v5 fixtures
+   byte-untouched; `v6_baseline.save` frozen.
+2. **Prerequisite gating**: an activity the player cannot legally complete
+   (skill/tool) is no longer startable — controls disable with the
+   concrete reason; the engine's own validation stays as defense in depth.
+3. **Blank item art root cause**: the four WRD01 icons were packaged but
+   missing from BOTH pubspec and the icon table — every surface drew the
+   blank slab. Fixed, and `item_icon_resolution_test` now holds all three
+   lists in agreement for every item in the pack.
+4. **Defeat reads as retreat**: a PixelLab stagger to a held kneel, an
+   enemy settle beat, then DRIVEN BACK; victory holds the enemy's fall
+   before the panel. No death imagery, no-loss semantics untouched.
+5. **The world is a continent**: the master painting re-authored so the
+   playable region is a ~15% north-eastern slice of a landmass (west
+   cordillera, forests and lakes, tundra, arid southern plains, island
+   sea), every location feature individually resolvable at max zoom
+   (blind PASS-WITH-NOTE, decisive on the scale bar; the round-2
+   candidate failed blind QA and is kept as evidence). Four landmarks;
+   chimney smoke and a second bird flock; the full-width black label
+   bars are replaced by text-hugging capsules (~37 world px at the
+   survey floor where a bar spanned ~736).
+
+Suites: app **553**, `stride_core` **640**, `stride_storage` **108**,
+`stride_health` 143, `stride_secure_store` 31; analyze clean; goldens
+regenerated and reviewed; strict verify per the milestone record. Health
+untouched; in-place `devicectl` install unchanged. PixelLab balance
+167 → **≈18** (art iteration stops until the monthly reset). Open: Q-06,
+Q-07 remainder, OD-04.
+
+---
+
 **Version:** 2.9
 **Status:** 🚧 **ACTIVITY FEEL & PRESENTATION 01 — implementation complete,
 awaiting the owner's physical-device test.** Branch

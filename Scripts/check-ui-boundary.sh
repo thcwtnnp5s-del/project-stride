@@ -122,6 +122,15 @@ scan "(^|[^A-Za-z0-9_])(Directory|File|RandomAccessFile)\(" \
 # local-day boundary and a fold over grantedSlices -- a timezone policy AND a
 # game rule, invented in a widget, producing a figure that looks plausible and
 # disagrees with itself across a DST boundary. See Q-UI-9.
+#
+# NAMED EXEMPTION, by the rule's owner (DECISIONS/0022, finite background
+# activity): the activity subsystem is allowed exactly ONE wall-clock read,
+# and it lives in lib/runtime/stride_session.dart as the injectable
+# `activityWallClock` seam -- OUTSIDE this guard's lib/ui scope, so nothing
+# below is weakened to admit it. lib/ui derives activity progress only from
+# differences of that seam against the committed queue anchor, reached through
+# the session; `DateTime.now` remains forbidden in lib/ui in full, and a
+# second wall-clock read anywhere needs its own decision.
 scan "(grantedSlices|DateTime\.now|\.toLocal\()" \
   "lib/ui must not derive a local-day figure (Q-UI-9)"
 

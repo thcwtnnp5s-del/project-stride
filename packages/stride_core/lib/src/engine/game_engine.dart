@@ -167,6 +167,9 @@ final class GameEngine {
         TravelTo() => _travel(command, state),
         CraftItem() => _craft(command, state),
         GatherResource() => _gather(command, state),
+        StartActivityQueue() => _startActivityQueue(command, state),
+        ReconcileActivityQueue() => _reconcileActivityQueue(command, state),
+        StopActivityQueue() => _stopActivityQueue(command, state),
         ReconcileStepSync() => _reconcile(command, state),
         EstablishEconomyEpoch() => _establishEpoch(command, state),
         EstablishNewGameBaseline() => _establishBaseline(command, state),
@@ -997,29 +1000,70 @@ final class GameEngine {
   /// figures go onto the event, so the reducer performs no arithmetic against
   /// content and a replay under a retuned pack reproduces the original result.
   _Decision _gather(GatherResource command, GameState state) {
-    final ResourceNodeDefinition? node = registry.resourceNodes[command.node];
+    final _GatherResolution resolved = _resolveGather(
+      command,
+      command.node,
+      state,
+    );
+    final CommandRejection? rejection = resolved.rejection;
+    if (rejection != null) return _Decision.rejectWith(rejection);
+    final _GatherFigures figures = resolved.figures!;
+
+    return _Decision.accept(<GameEvent>[
+      ResourceGathered(
+        sequence: state.eventSequence,
+        node: command.node,
+        stepsSpent: figures.stepsSpent,
+        item: figures.item,
+        quantity: figures.quantity,
+        skill: figures.skill,
+        experience: figures.experience,
+      ),
+    ]);
+  }
+
+  /// **The one validation of working a node once**, shared by [GatherResource]
+  /// and every activity-queue completion, so the two cannot diverge
+  /// (`DECISIONS/0022` §6). Returns the freshly profile-scaled figures, or the
+  /// refusal.
+  ///
+  /// [checkCost] false skips only the banked-steps check — the one question
+  /// [StartActivityQueue] does not ask, because starting spends nothing and
+  /// every completion re-asks it against the balance of its own moment.
+  _GatherResolution _resolveGather(
+    GameCommand command,
+    ContentId nodeId,
+    GameState state, {
+    bool checkCost = true,
+  }) {
+    final ResourceNodeDefinition? node = registry.resourceNodes[nodeId];
     if (node == null) {
-      return _Decision.reject(
-        RejectionCode.unknownResourceNode,
-        command,
-        'no resource node is defined with that ID',
-        subject: command.node.value,
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.unknownResourceNode,
+          command: command.name,
+          explanation: 'no resource node is defined with that ID',
+          subject: nodeId.value,
+        ),
       );
     }
 
     // Same placement as in [_travel]: after existence, before everything else.
     final CommandRejection? fighting = _refuseDuringEncounter(command, state);
-    if (fighting != null) return _Decision.rejectWith(fighting);
+    if (fighting != null) return _GatherResolution.refused(fighting);
 
     final LocationDefinition? here =
         registry.locations[state.world.currentLocation];
-    if (here == null || !here.resourceNodes.contains(command.node)) {
-      return _Decision.reject(
-        RejectionCode.resourceNodeNotHere,
-        command,
-        '"${node.displayName}" is not at '
-        '${here?.displayName ?? state.world.currentLocation.value}',
-        subject: command.node.value,
+    if (here == null || !here.resourceNodes.contains(nodeId)) {
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.resourceNodeNotHere,
+          command: command.name,
+          explanation:
+              '"${node.displayName}" is not at '
+              '${here?.displayName ?? state.world.currentLocation.value}',
+          subject: nodeId.value,
+        ),
       );
     }
 
@@ -1029,57 +1073,255 @@ final class GameEngine {
       // reference check rejects a node naming a skill that does not exist.
       // Answered rather than thrown anyway: an engine that crashes on a content
       // defect takes the game down over a file someone edited.
-      return _Decision.reject(
-        RejectionCode.contentNotLoaded,
-        command,
-        'the skill "${node.skill.value}" this node trains is not loaded',
-        subject: node.skill.value,
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.contentNotLoaded,
+          command: command.name,
+          explanation:
+              'the skill "${node.skill.value}" this node trains is not loaded',
+          subject: node.skill.value,
+        ),
       );
     }
 
     final int level = skill.levelAt(state.skills.experienceIn(node.skill));
     if (level < node.requiredLevel) {
-      return _Decision.reject(
-        RejectionCode.skillLevelTooLow,
-        command,
-        '"${node.displayName}" needs ${skill.displayName} '
-        '${node.requiredLevel}; the player is level $level',
-        subject: command.node.value,
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.skillLevelTooLow,
+          command: command.name,
+          explanation:
+              '"${node.displayName}" needs ${skill.displayName} '
+              '${node.requiredLevel}; the player is level $level',
+          subject: nodeId.value,
+        ),
       );
     }
 
     if (node.requiredToolKind != ToolKind.none && !_hasTool(node, state)) {
-      return _Decision.reject(
-        RejectionCode.toolRequired,
-        command,
-        '"${node.displayName}" needs a ${node.requiredToolKind.name} of tier '
-        '${node.minimumToolTier} or better equipped',
-        subject: command.node.value,
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.toolRequired,
+          command: command.name,
+          explanation:
+              '"${node.displayName}" needs a ${node.requiredToolKind.name} of '
+              'tier ${node.minimumToolTier} or better equipped',
+          subject: nodeId.value,
+        ),
       );
     }
 
     final int cost = profile.applyStepCost(node.stepCost);
-    if (cost > state.steps.banked) {
-      return _Decision.reject(
-        RejectionCode.insufficientSteps,
-        command,
-        '"${node.displayName}" costs $cost steps but only '
-        '${state.steps.banked} are banked',
-        subject: command.node.value,
+    if (checkCost && cost > state.steps.banked) {
+      return _GatherResolution.refused(
+        CommandRejection(
+          code: RejectionCode.insufficientSteps,
+          command: command.name,
+          explanation:
+              '"${node.displayName}" costs $cost steps but only '
+              '${state.steps.banked} are banked',
+          subject: nodeId.value,
+        ),
       );
     }
 
-    return _Decision.accept(<GameEvent>[
-      ResourceGathered(
-        sequence: state.eventSequence,
-        node: command.node,
+    return _GatherResolution.resolved(
+      _GatherFigures(
         stepsSpent: cost,
         item: node.yieldsItem,
         quantity: profile.applyYield(node.yieldsQuantity),
         skill: node.skill,
         experience: profile.applyXp(node.xp),
       ),
+    );
+  }
+
+  // -- The activity queue (`DECISIONS/0022`) ---------------------------------
+
+  /// Begins a finite queue. Spends nothing; every completion pays at its own
+  /// reconciliation through [_resolveGather].
+  ///
+  /// The refusal order is the player's question order, exactly as [_gather]'s
+  /// is — with the queue-already-active check taking the place cost holds
+  /// there, because cost is not asked at start.
+  _Decision _startActivityQueue(StartActivityQueue command, GameState state) {
+    if (command.requested < 1) {
+      return _Decision.reject(
+        RejectionCode.invalidAmount,
+        command,
+        'a queue of ${command.requested} repetitions is not a queue; '
+        'at least one is required',
+        subject: command.node.value,
+      );
+    }
+    if (command.durationMillis < 1) {
+      return _Decision.reject(
+        RejectionCode.invalidAmount,
+        command,
+        'a repetition duration of ${command.durationMillis} ms is not a '
+        'duration',
+        subject: command.node.value,
+      );
+    }
+    if (state.activityQueue != null) {
+      return _Decision.reject(
+        RejectionCode.activityQueueActive,
+        command,
+        'an activity queue is already running at '
+        '${state.activityQueue!.node.value}; stop it or let it finish first',
+        subject: command.node.value,
+      );
+    }
+
+    // The same existence / encounter / location / skill / tool validation a
+    // gather gets — without the cost check, because nothing is pre-spent.
+    final _GatherResolution resolved = _resolveGather(
+      command,
+      command.node,
+      state,
+      checkCost: false,
+    );
+    final CommandRejection? rejection = resolved.rejection;
+    if (rejection != null) return _Decision.rejectWith(rejection);
+
+    return _Decision.accept(<GameEvent>[
+      ActivityQueueStarted(
+        sequence: state.eventSequence,
+        node: command.node,
+        requested: command.requested,
+        durationMillis: command.durationMillis,
+        anchorEpochMillis: command.nowEpochMillis,
+      ),
     ]);
+  }
+
+  /// Resolves every repetition the elapsed time completed
+  /// (`DECISIONS/0022` §6).
+  ///
+  /// Accepted with **no events** — and therefore no commit — when there is no
+  /// queue, no whole repetition has elapsed, or the clock ran backwards
+  /// (elapsed clamps at zero and the anchor never moves on a clock reading
+  /// alone). That is what makes a reconcile safe to dispatch at any moment,
+  /// and a second reconcile after a commit a no-op.
+  _Decision _reconcileActivityQueue(
+    ReconcileActivityQueue command,
+    GameState state,
+  ) {
+    final ActivityQueueState? queue = state.activityQueue;
+    if (queue == null) return const _Decision.accept(<GameEvent>[]);
+
+    final _ElapsedCompletions run = _elapsedCompletions(
+      command,
+      queue,
+      state,
+      command.nowEpochMillis,
+    );
+    if (run.completions.isEmpty && run.stopReason == null) {
+      // Nothing elapsed, or the clock went backwards: nothing changed, so
+      // nothing is committed and the anchor stays exactly where it was.
+      return const _Decision.accept(<GameEvent>[]);
+    }
+
+    final int completedAfter = queue.completed + run.completions.length;
+    final bool cleared =
+        run.stopReason != null || completedAfter >= queue.requested;
+    return _Decision.accept(<GameEvent>[
+      ActivityQueueReconciled(
+        sequence: state.eventSequence,
+        node: queue.node,
+        completions: run.completions,
+        completedAfter: completedAfter,
+        anchorAfter:
+            queue.anchorEpochMillis +
+            run.completions.length * queue.durationMillis,
+        cleared: cleared,
+        stopReason: run.stopReason,
+      ),
+    ]);
+  }
+
+  /// Stops the queue: the closing reconciliation commits, the partial
+  /// repetition does not, and the queue clears regardless
+  /// (`DECISIONS/0022` §7). With no queue, accepted with no events, so the
+  /// app's exclusive-command seam may issue it unconditionally.
+  _Decision _stopActivityQueue(StopActivityQueue command, GameState state) {
+    final ActivityQueueState? queue = state.activityQueue;
+    if (queue == null) return const _Decision.accept(<GameEvent>[]);
+
+    final _ElapsedCompletions run = _elapsedCompletions(
+      command,
+      queue,
+      state,
+      command.nowEpochMillis,
+    );
+    return _Decision.accept(<GameEvent>[
+      ActivityQueueStopped(
+        sequence: state.eventSequence,
+        node: queue.node,
+        completions: run.completions,
+        completedAfter: queue.completed + run.completions.length,
+        stopReason: run.stopReason,
+      ),
+    ]);
+  }
+
+  /// The closing arithmetic both queue commands share: how many whole
+  /// repetitions elapsed, and which of them can legally complete.
+  ///
+  /// `k = floor(max(0, now − anchor) / duration)`, clamped to the repetitions
+  /// the queue still owes. Each of the k candidates is validated by
+  /// [_resolveGather] against the state **as the previous completions left
+  /// it** — advanced through the reducer's own [applyGatherEffects], so the
+  /// walk and the eventual commit apply identical arithmetic. The first
+  /// refusal stops the walk with its wire code; every prior completion is
+  /// kept (`DECISIONS/0022` §6).
+  _ElapsedCompletions _elapsedCompletions(
+    GameCommand command,
+    ActivityQueueState queue,
+    GameState state,
+    int nowEpochMillis,
+  ) {
+    final int elapsed = nowEpochMillis - queue.anchorEpochMillis;
+    final int wholeRepetitions = elapsed <= 0
+        ? 0
+        : elapsed ~/ queue.durationMillis;
+    final int owed = queue.requested - queue.completed;
+    final int k = wholeRepetitions > owed ? owed : wholeRepetitions;
+
+    final List<ActivityCompletion> completions = <ActivityCompletion>[];
+    String? stopReason;
+    GameState working = state;
+    for (int j = 0; j < k; j++) {
+      final _GatherResolution resolved = _resolveGather(
+        command,
+        queue.node,
+        working,
+      );
+      final CommandRejection? rejection = resolved.rejection;
+      if (rejection != null) {
+        stopReason = rejection.code.wire;
+        break;
+      }
+      final _GatherFigures figures = resolved.figures!;
+      completions.add(
+        ActivityCompletion(
+          stepsSpent: figures.stepsSpent,
+          item: figures.item,
+          quantity: figures.quantity,
+          skill: figures.skill,
+          experience: figures.experience,
+        ),
+      );
+      working = applyGatherEffects(
+        working,
+        stepsSpent: figures.stepsSpent,
+        item: figures.item,
+        quantity: figures.quantity,
+        skill: figures.skill,
+        experience: figures.experience,
+      );
+    }
+    return (completions: completions, stopReason: stopReason);
   }
 
   /// Whether an equipped item satisfies the node's tool requirement.
@@ -1231,6 +1473,44 @@ final class GameEngine {
       ),
     ]);
   }
+}
+
+/// The engine's walk of one reconciliation: the completions that can legally
+/// commit, and the wire code of the refusal that stopped the walk, if one did.
+typedef _ElapsedCompletions = ({
+  List<ActivityCompletion> completions,
+  String? stopReason,
+});
+
+/// One gather's freshly profile-scaled figures, as [GameEngine._resolveGather]
+/// produced them — the same five figures `ResourceGathered` and
+/// [ActivityCompletion] carry.
+final class _GatherFigures {
+  const _GatherFigures({
+    required this.stepsSpent,
+    required this.item,
+    required this.quantity,
+    required this.skill,
+    required this.experience,
+  });
+
+  final int stepsSpent;
+  final ContentId item;
+  final int quantity;
+  final ContentId skill;
+  final int experience;
+}
+
+/// Either the figures of a legal gather, or the refusal.
+final class _GatherResolution {
+  const _GatherResolution.resolved(_GatherFigures this.figures)
+    : rejection = null;
+
+  const _GatherResolution.refused(CommandRejection this.rejection)
+    : figures = null;
+
+  final _GatherFigures? figures;
+  final CommandRejection? rejection;
 }
 
 /// A validation outcome: events to apply, or a reason not to.

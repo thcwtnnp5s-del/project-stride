@@ -342,6 +342,95 @@ final class GatherResource extends GameCommand {
   String get name => 'GatherResource';
 }
 
+/// Begin a finite, player-initiated activity queue at a resource node
+/// (`DECISIONS/0022`).
+///
+/// The **only** wall-clock progression in Project Stride, and the queue is the
+/// named exception `RULES.md` P-4 carries. [nowEpochMillis] arrives **in** the
+/// command — the core reads no clock, exactly as the health path's buckets
+/// arrive as data.
+///
+/// Starting **spends nothing**. Every completed repetition is resolved later,
+/// by [ReconcileActivityQueue], through the same validation and effects as
+/// [GatherResource] — so walking remains the engine and a queue that runs out
+/// of banked steps stops.
+///
+/// Refused when the node is unknown or not at the player's location, when the
+/// gather prerequisites (skill level, equipped tool) are unmet, when
+/// [requested] is below one, when a queue is already active, or during an
+/// encounter.
+@immutable
+final class StartActivityQueue extends GameCommand {
+  const StartActivityQueue({
+    required this.node,
+    required this.requested,
+    required this.durationMillis,
+    required this.nowEpochMillis,
+  });
+
+  final ContentId node;
+
+  /// How many repetitions the player asked for. The queue's hard cap.
+  final int requested;
+
+  /// The authored duration of one repetition, in milliseconds. Presentation
+  /// pacing carried in as data and frozen on the queue, so a later retune
+  /// cannot re-time a queue already running.
+  final int durationMillis;
+
+  /// The wall-clock time the queue starts — the first repetition's anchor.
+  final int nowEpochMillis;
+
+  @override
+  String get name => 'StartActivityQueue';
+}
+
+/// Resolve every repetition the elapsed wall-clock time has completed
+/// (`DECISIONS/0022` §6).
+///
+/// **Internal.** Dispatched by the app's activity plumbing — on a repetition
+/// boundary, on resume, on relaunch — never offered as a control. Safe to
+/// issue at any time: with no queue, no elapsed repetition, or a backward
+/// clock it is accepted with no events and commits nothing, so a second
+/// reconcile immediately after a first is a no-op by construction.
+///
+/// Each completed repetition is validated and applied through the same path as
+/// [GatherResource]. The first repetition that cannot legally complete stops
+/// the queue there with the reason, keeping every prior completion.
+@immutable
+final class ReconcileActivityQueue extends GameCommand {
+  @override
+  bool get isPlayerFacing => false;
+
+  const ReconcileActivityQueue({required this.nowEpochMillis});
+
+  /// The wall-clock time of this reconciliation. Elapsed time is measured
+  /// against the queue's anchor and clamped at zero — a clock that moved
+  /// backwards completes nothing and moves nothing (`DECISIONS/0022` §6).
+  final int nowEpochMillis;
+
+  @override
+  String get name => 'ReconcileActivityQueue';
+}
+
+/// Stop the activity queue (`DECISIONS/0022` §7).
+///
+/// Reconciles elapsed time first — fully-elapsed repetitions commit exactly as
+/// [ReconcileActivityQueue] would commit them — then clears the queue
+/// regardless. The partial current repetition commits nothing. With no queue
+/// active it is accepted with no events, so the app's exclusive-command seam
+/// can issue it unconditionally.
+@immutable
+final class StopActivityQueue extends GameCommand {
+  const StopActivityQueue({required this.nowEpochMillis});
+
+  /// The wall-clock time of the stop, for the closing reconciliation.
+  final int nowEpochMillis;
+
+  @override
+  String get name => 'StopActivityQueue';
+}
+
 /// Reconcile a normalized provider response against the ledger.
 ///
 /// **Internal.** Real syncs are driven by the app's platform adapter, not by

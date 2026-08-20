@@ -56,36 +56,36 @@
   "locations": [
     {
       "id": "location.havens_rest",
-      "x": 248,
-      "y": 1784,
+      "x": 1360,
+      "y": 1048,
       "hitRadius": 48,
       "landmark": null
     },
     {
       "id": "location.whispering_woods",
-      "x": 568,
-      "y": 1660,
+      "x": 1020,
+      "y": 1100,
       "hitRadius": 48,
       "landmark": null
     },
     {
       "id": "location.forgotten_hollow",
-      "x": 400,
-      "y": 1204,
+      "x": 840,
+      "y": 1228,
       "hitRadius": 48,
       "landmark": null
     },
     {
       "id": "location.stonefall_mine",
-      "x": 1228,
-      "y": 1432,
+      "x": 1448,
+      "y": 924,
       "hitRadius": 48,
       "landmark": null
     },
     {
       "id": "location.frostmere",
-      "x": 1192,
-      "y": 460,
+      "x": 1260,
+      "y": 380,
       "hitRadius": 48,
       "landmark": null
     }
@@ -94,8 +94,22 @@
     {
       "id": "landmark.stone_bridge",
       "name": "Millbridge",
-      "x": 672,
-      "y": 2120,
+      "x": 1204,
+      "y": 1344,
+      "tier": "minor",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.old_watch",
+      "name": "Old Watch",
+      "x": 1388,
+      "y": 1220,
       "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
@@ -108,8 +122,8 @@
     {
       "id": "landmark.ferry_crossing",
       "name": "Ferry Crossing",
-      "x": 776,
-      "y": 2504,
+      "x": 480,
+      "y": 2092,
       "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
@@ -122,37 +136,9 @@
     {
       "id": "landmark.far_town",
       "name": "Far Town",
-      "x": 1340,
-      "y": 2620,
+      "x": 632,
+      "y": 2200,
       "tier": "future",
-      "marker": {
-        "asset": "world/marker_landmark",
-        "width": 20,
-        "height": 20,
-        "anchorX": 10,
-        "anchorY": 10
-      }
-    },
-    {
-      "id": "landmark.old_watch",
-      "name": "Old Watch",
-      "x": 1380,
-      "y": 1200,
-      "tier": "minor",
-      "marker": {
-        "asset": "world/marker_landmark",
-        "width": 20,
-        "height": 20,
-        "anchorX": 10,
-        "anchorY": 10
-      }
-    },
-    {
-      "id": "landmark.broken_tower",
-      "name": "Broken Tower",
-      "x": 1320,
-      "y": 2048,
-      "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
         "width": 20,
@@ -168,12 +154,12 @@
       "to": "location.whispering_woods",
       "points": [
         [
-          440,
-          1826
+          1280,
+          1092
         ],
         [
-          548,
-          1842
+          1140,
+          1112
         ]
       ]
     },
@@ -182,16 +168,12 @@
       "to": "location.forgotten_hollow",
       "points": [
         [
-          512,
-          1600
+          952,
+          1148
         ],
         [
-          488,
-          1400
-        ],
-        [
-          472,
-          1280
+          888,
+          1196
         ]
       ]
     },
@@ -200,36 +182,8 @@
       "to": "location.stonefall_mine",
       "points": [
         [
-          440,
-          1826
-        ],
-        [
-          560,
-          1848
-        ],
-        [
-          800,
-          1912
-        ],
-        [
-          860,
-          1880
-        ],
-        [
-          900,
-          1720
-        ],
-        [
-          928,
-          1580
-        ],
-        [
-          960,
-          1488
-        ],
-        [
-          1080,
-          1448
+          1408,
+          996
         ]
       ]
     },
@@ -238,32 +192,12 @@
       "to": "location.stonefall_mine",
       "points": [
         [
-          560,
-          1780
+          1160,
+          1064
         ],
         [
-          800,
-          1912
-        ],
-        [
-          860,
-          1880
-        ],
-        [
-          900,
-          1720
-        ],
-        [
-          928,
-          1580
-        ],
-        [
-          960,
-          1488
-        ],
-        [
-          1080,
-          1448
+          1304,
+          988
         ]
       ]
     },
@@ -272,32 +206,16 @@
       "to": "location.frostmere",
       "points": [
         [
-          1004,
-          1404
+          1460,
+          800
         ],
         [
-          960,
-          1200
+          1400,
+          600
         ],
         [
-          948,
-          980
-        ],
-        [
-          1080,
-          860
-        ],
-        [
-          1200,
-          760
-        ],
-        [
-          1280,
-          640
-        ],
-        [
-          1284,
-          520
+          1330,
+          470
         ]
       ]
     }
@@ -305,9 +223,37 @@
   "props": [],
   "overlays": [
     {
+      "asset": "env/overlay_snow_flurry",
+      "x": 360,
+      "y": 280,
+      "width": 64,
+      "height": 64,
+      "frames": 8,
+      "frameMillis": 167,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_snow_flurry",
+      "x": 1150,
+      "y": 220,
+      "width": 64,
+      "height": 64,
+      "frames": 8,
+      "frameMillis": 167,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
       "asset": "env/overlay_forest_mist",
-      "x": 280,
-      "y": 1120,
+      "x": 780,
+      "y": 1180,
       "width": 96,
       "height": 48,
       "frames": 6,
@@ -316,12 +262,12 @@
         "x": 0,
         "y": 0
       },
-      "opacity": 0.45
+      "opacity": 0.4
     },
     {
       "asset": "env/overlay_forest_mist",
       "x": 480,
-      "y": 1380,
+      "y": 900,
       "width": 96,
       "height": 48,
       "frames": 6,
@@ -333,65 +279,37 @@
       "opacity": 0.35
     },
     {
-      "asset": "env/overlay_snow_flurry",
-      "x": 240,
-      "y": 240,
-      "width": 64,
-      "height": 64,
-      "frames": 8,
-      "frameMillis": 167,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1
-    },
-    {
-      "asset": "env/overlay_snow_flurry",
-      "x": 1080,
-      "y": 200,
-      "width": 64,
-      "height": 64,
-      "frames": 8,
-      "frameMillis": 167,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1
-    },
-    {
       "asset": "env/overlay_cloud_shadow",
-      "x": 400,
-      "y": 1900,
+      "x": 420,
+      "y": 1500,
       "width": 96,
       "height": 48,
       "frames": 1,
       "frameMillis": 1000,
       "drift": {
-        "x": 14,
+        "x": 12,
         "y": 0
       },
-      "opacity": 0.18
+      "opacity": 0.16
     },
     {
       "asset": "env/overlay_cloud_wisp",
-      "x": 1000,
-      "y": 1700,
+      "x": 700,
+      "y": 2200,
       "width": 96,
       "height": 48,
       "frames": 1,
       "frameMillis": 1000,
       "drift": {
-        "x": 10,
+        "x": 9,
         "y": 0
       },
-      "opacity": 0.35
+      "opacity": 0.3
     },
     {
       "asset": "env/overlay_cloud_wisp",
-      "x": 200,
-      "y": 800,
+      "x": 1200,
+      "y": 1800,
       "width": 96,
       "height": 48,
       "frames": 1,
@@ -400,21 +318,49 @@
         "x": 8,
         "y": 0
       },
-      "opacity": 0.3
+      "opacity": 0.32
     },
     {
       "asset": "env/overlay_birds",
-      "x": 600,
-      "y": 2200,
+      "x": 1150,
+      "y": 1300,
       "width": 24,
       "height": 24,
       "frames": 6,
       "frameMillis": 180,
       "drift": {
-        "x": 18,
-        "y": -4
+        "x": 16,
+        "y": -3
       },
       "opacity": 0.9
+    },
+    {
+      "asset": "env/overlay_birds",
+      "x": 600,
+      "y": 2350,
+      "width": 24,
+      "height": 24,
+      "frames": 6,
+      "frameMillis": 200,
+      "drift": {
+        "x": 14,
+        "y": 2
+      },
+      "opacity": 0.85
+    },
+    {
+      "asset": "env/overlay_smoke",
+      "x": 1352,
+      "y": 990,
+      "width": 16,
+      "height": 14,
+      "frames": 6,
+      "frameMillis": 220,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 0.8
     }
   ]
 }

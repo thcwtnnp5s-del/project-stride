@@ -1,0 +1,309 @@
+// Prerequisite gating for gathering (physical-device defect): a player at
+// Foraging 1 could START a queue at a node requiring Foraging 3 — the
+// authoritative completion refused it and spent nothing, but the player
+// watched a long animation guaranteed to fail. An activity that cannot
+// legally complete on KNOWN static prerequisites — skill level, equipped
+// tool — must not be startable or queueable.
+//
+// Three surfaces are proven here:
+//   1. UI — ineligible nodes disable the Gather button AND the quantity
+//      presets/stepper, with the concrete reason on the button and the
+//      failing RequirementGate carrying the unmet state.
+//   2. UI — an eligible node's controls behave exactly as before.
+//   3. Domain defense in depth — dispatching the gather anyway, at session
+//      level, is still refused with zero steps spent, zero XP, zero items.
+//      The UI check is a hint that mirrors the engine; the engine decides.
+//
+// The Whispering Woods provides both failing cases from the shipped content
+// pack: Duskcap Grove requires Foraging 3 (a fresh player is 1), and Oak
+// Stand requires an axe (a fresh player has none equipped).
+
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/screens/adventure/gather_node_card.dart';
+import 'package:stride/ui/stride_app.dart';
+import 'package:stride_core/stride_core.dart';
+import 'package:stride_health/stride_health.dart';
+
+import 'support/fake_activity_timing.dart';
+
+final ContentId woods = ContentId.unchecked('location.whispering_woods');
+final ContentId meadowPatch = ContentId.unchecked('resource_node.meadow_patch');
+final ContentId oakStand = ContentId.unchecked('resource_node.oak_stand');
+final ContentId duskcapGrove = ContentId.unchecked(
+  'resource_node.duskcap_grove',
+);
+final ContentId duskcap = ContentId.unchecked('item.duskcap');
+final ContentId oakLog = ContentId.unchecked('item.oak_log');
+final ContentId foraging = ContentId.unchecked('skill.foraging');
+
+final StepOriginKey phone = StepOriginKey('a1b2c3d4e5f60718');
+const int hour = 60 * 60 * 1000;
+const int t0 = 1750000000000;
+
+SyncFetch page(int steps) => SyncFetch(
+  IncrementalSync(
+    observations: <StepObservation>[
+      StepObservation(
+        key: ObservationKey(
+          origin: phone,
+          bucket: TimeBucket(startMillis: t0, endMillis: t0 + hour),
+        ),
+        steps: steps,
+      ),
+    ],
+    nextCursor: SyncCursor.ofString('c1'),
+    completeness: CompleteThrough(
+      throughMillis: t0 + hour,
+      scope: CompletenessScope(
+        dataType: HealthDataType.steps,
+        origins: SomeOrigins(<StepOriginKey>{phone}),
+        intervalStartMillis: t0,
+        intervalEndMillis: t0 + hour,
+        queryGeneration: 1,
+      ),
+    ),
+  ),
+);
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory root;
+  setUp(() => root = Directory.systemTemp.createTempSync('stride_prereq'));
+  tearDown(() {
+    if (!root.existsSync()) return;
+    try {
+      root.deleteSync(recursive: true);
+    } on FileSystemException {
+      // Windows holds a handle a moment past close.
+    }
+  });
+
+  /// A cold launch over [root], funded with [steps] after the baseline sync
+  /// (`DECISIONS/0019`).
+  Future<StrideSession> fundedSession(int steps) async {
+    final StrideSession session = await StrideSession.start(
+      overrideRoot: root,
+      source: MockStepSource(
+        script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(steps)],
+      ),
+    );
+    await session.syncSteps();
+    await session.syncSteps();
+    expect(session.usableEnergy, steps);
+    return session;
+  }
+
+  /// Boots a funded session, optionally travels it to the Whispering Woods,
+  /// and pumps the app.
+  Future<StrideSession> pumpApp(
+    WidgetTester tester, {
+    required int steps,
+    bool atWoods = false,
+  }) async {
+    tester.view.physicalSize = const Size(393 * 3, 852 * 3);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession session = (await tester.runAsync(
+      () => fundedSession(steps),
+    ))!;
+    if (atWoods) {
+      final TravelReport t = (await tester.runAsync(
+        () => session.travel(woods),
+      ))!;
+      expect(t.succeeded, isTrue, reason: '${t.rejection}: ${t.detail}');
+    }
+
+    await tester.pumpWidget(
+      StrideApp(
+        session: session,
+        syncOnStart: false,
+        activityTiming: FakeTiming().timing,
+      ),
+    );
+    await tester.pumpAndSettle();
+    return session;
+  }
+
+  /// The [GatherNodeCard] whose title is [nodeName].
+  Finder cardOf(String nodeName) => find.ancestor(
+    of: find.text(nodeName),
+    matching: find.byType(GatherNodeCard),
+  );
+
+  /// The primary gather button inside [card].
+  StrideButton buttonIn(WidgetTester tester, Finder card) => tester
+      .widgetList<StrideButton>(
+        find.descendant(of: card, matching: find.byType(StrideButton)),
+      )
+      .first;
+
+  /// The requirement gates inside [card], in declaration order.
+  List<RequirementGate> gatesIn(WidgetTester tester, Finder card) => tester
+      .widgetList<RequirementGate>(
+        find.descendant(of: card, matching: find.byType(RequirementGate)),
+      )
+      .toList();
+
+  testWidgets('skill too low: controls disabled, concrete reason on the '
+      'button, unmet badge on the failing gate', (WidgetTester tester) async {
+    await pumpApp(tester, steps: 2000, atWoods: true);
+
+    final Finder card = cardOf('Duskcap Grove');
+    expect(card, findsOneWidget);
+
+    // The button is disabled and says exactly why — no modal.
+    final StrideButton button = buttonIn(tester, card);
+    expect(button.onPressed, isNull);
+    expect(button.subLabel, 'Requires Foraging 3 — you are 1');
+
+    // The skill gate reads as UNMET and states the concrete failure; the tool
+    // gate (no tool needed) stays met.
+    final List<RequirementGate> gates = gatesIn(tester, card);
+    expect(gates, hasLength(2));
+    expect(gates[0].unmet, isTrue);
+    expect(gates[0].label, 'Requires Foraging 3 — you are 1');
+    expect(gates[1].unmet, isFalse);
+    expect(gates[1].label, 'No tool needed');
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text('REQUIRES FORAGING 3 — YOU ARE 1'),
+      ),
+      findsOneWidget,
+    );
+
+    // The quantity presets are dead: tapping ×5 must not change the offer.
+    final Finder preset = find.descendant(of: card, matching: find.text('×5'));
+    await tester.ensureVisible(preset);
+    await tester.pump();
+    await tester.tap(preset);
+    await tester.pump();
+    expect(buttonIn(tester, card).label, 'Gather ×1 — 130 steps');
+    expect(
+      find.descendant(of: card, matching: find.text('1 × 130 = 130 steps')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('missing required tool: controls disabled, equip reason, '
+      'unmet tool gate', (WidgetTester tester) async {
+    await pumpApp(tester, steps: 2000, atWoods: true);
+
+    final Finder card = cardOf('Oak Stand');
+    expect(card, findsOneWidget);
+
+    final StrideButton button = buttonIn(tester, card);
+    expect(button.onPressed, isNull);
+    expect(button.subLabel, 'Equip a axe first');
+
+    // Skill is met (Oak Stand asks Woodcutting 1); the tool gate fails.
+    final List<RequirementGate> gates = gatesIn(tester, card);
+    expect(gates, hasLength(2));
+    expect(gates[0].unmet, isFalse);
+    expect(gates[1].unmet, isTrue);
+    expect(gates[1].label, 'Needs a axe — not equipped');
+
+    // The stepper is dead too.
+    final Finder plus = find.descendant(of: card, matching: find.text('+'));
+    await tester.ensureVisible(plus);
+    await tester.pump();
+    await tester.tap(plus);
+    await tester.pump();
+    expect(buttonIn(tester, card).label, 'Gather ×1 — 120 steps');
+  });
+
+  testWidgets('eligible: controls enabled exactly as today', (
+    WidgetTester tester,
+  ) async {
+    await pumpApp(tester, steps: 500);
+
+    final Finder card = cardOf('Meadow Patch');
+    expect(card, findsOneWidget);
+
+    final StrideButton button = buttonIn(tester, card);
+    expect(button.onPressed, isNotNull);
+    expect(button.subLabel, isNull);
+
+    final List<RequirementGate> gates = gatesIn(tester, card);
+    expect(gates, hasLength(2));
+    expect(gates[0].unmet, isFalse);
+    expect(gates[0].label, 'Requires Foraging 1');
+    expect(gates[1].unmet, isFalse);
+    expect(gates[1].label, 'No tool needed');
+
+    // The presets still work: ×5 re-quotes the button.
+    final Finder preset = find.descendant(of: card, matching: find.text('×5'));
+    await tester.ensureVisible(preset);
+    await tester.pump();
+    await tester.tap(preset);
+    await tester.pump();
+    expect(buttonIn(tester, card).label, 'Gather ×5 — 450 steps');
+  });
+
+  test('the session projection mirrors the engine: unmet skill, unmet tool, '
+      'and a met node', () async {
+    final StrideSession s = await fundedSession(2000);
+    final TravelReport t = await s.travel(woods);
+    expect(t.succeeded, isTrue, reason: '${t.rejection}: ${t.detail}');
+
+    final GatherEligibility grove = s.gatherEligibilityOf(duskcapGrove);
+    expect(grove.skillMet, isFalse);
+    expect(grove.requiredLevel, 3);
+    expect(grove.currentLevel, 1);
+    expect(grove.toolMet, isTrue);
+    expect(grove.eligible, isFalse);
+
+    final GatherEligibility oak = s.gatherEligibilityOf(oakStand);
+    expect(oak.skillMet, isTrue);
+    expect(oak.toolMet, isFalse, reason: 'no axe is equipped');
+    expect(oak.eligible, isFalse);
+
+    final GatherEligibility meadow = s.gatherEligibilityOf(meadowPatch);
+    expect(meadow.skillMet, isTrue);
+    expect(meadow.toolMet, isTrue);
+    expect(meadow.eligible, isTrue);
+  });
+
+  test('domain defense: dispatching the gather anyway is refused with zero '
+      'steps spent, zero XP, zero resources', () async {
+    final StrideSession s = await fundedSession(2000);
+    final TravelReport t = await s.travel(woods);
+    expect(t.succeeded, isTrue, reason: '${t.rejection}: ${t.detail}');
+
+    // Exact figures before: the travel spent 600 and nothing else moved.
+    expect(s.totalSpent, 600);
+    expect(s.usableEnergy, 1400);
+    expect(s.inventoryCount(duskcap), 0);
+    expect(s.inventoryCount(oakLog), 0);
+    int foragingXp() => s.skillSummaries
+        .singleWhere((SkillSummary k) => k.id == foraging)
+        .experience;
+    expect(foragingXp(), 0);
+
+    // Skill too low: the engine refuses, whatever the UI would have allowed.
+    final ActionReport grove = await s.gather(duskcapGrove);
+    expect(grove.succeeded, isFalse);
+    expect(grove.rejection, 'skill_level_too_low');
+
+    // Tool missing: same authority, different rule.
+    final ActionReport oak = await s.gather(oakStand);
+    expect(oak.succeeded, isFalse);
+    expect(oak.rejection, 'tool_required');
+
+    // Exact figures after: identical. Nothing spent, granted, or gathered.
+    expect(s.totalSpent, 600);
+    expect(s.usableEnergy, 1400);
+    expect(s.inventoryCount(duskcap), 0);
+    expect(s.inventoryCount(oakLog), 0);
+    expect(foragingXp(), 0);
+  });
+}
