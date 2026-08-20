@@ -43,8 +43,10 @@ import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../combat/combat_screen.dart';
 import '../system/stale_banner.dart';
+import 'board_card.dart';
 import 'encounter_card.dart';
 import 'gather_node_card.dart';
+import 'goal_tracker_card.dart';
 
 class AdventureScreen extends StatelessWidget {
   const AdventureScreen({super.key});
@@ -126,7 +128,19 @@ class AdventureScreen extends StatelessWidget {
                 const SizedBox(height: StrideSpace.cardGap),
               ],
 
+              // WHAT MY WALKING JUST MADE POSSIBLE — after a granting sync,
+              // held until dismissed (`DECISIONS/0023` §1; brief §5). Above
+              // everything else because it is the moment the sync exists for.
+              if (c.lastOpportunities.isNotEmpty) ...<Widget>[
+                _OpportunityBanner(controller: c),
+                const SizedBox(height: StrideSpace.cardGap),
+              ],
+
               // WHAT I CAN DO HERE — immediately, not after a second card.
+              // The gather control is the screen's primary action and must
+              // stay above the fold on ≥390 dp phones
+              // (`test/fold_clearance_test.dart`); the goal tracker and the
+              // board are planning surfaces and sit below the action.
               if (nodes.isEmpty)
                 const SectionCard(
                   child: Text(
@@ -148,10 +162,65 @@ class AdventureScreen extends StatelessWidget {
                 EncounterCard(option: option),
                 const SizedBox(height: StrideSpace.cardGap),
               ],
+
+              // WHAT I AM WORKING TOWARDS — the three tracked slots.
+              const GoalTrackerCard(),
+              const SizedBox(height: StrideSpace.cardGap),
+
+              // WHAT THIS PLACE ASKS FOR — the contract board, in this
+              // location's own fiction (`DECISIONS/0023` §2). Absent where
+              // the place keeps no board (the Hollow).
+              const LocationBoardCard(),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The step-sync motivation moment: what was banked, and the few true
+/// sentences about what it makes possible (brief §5). Dismissed by the
+/// player, displaced by the next command — never swept away by a timer.
+class _OpportunityBanner extends StatelessWidget {
+  const _OpportunityBanner({required this.controller});
+
+  final SessionController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final int banked = controller.lastSync?.newlyGranted ?? 0;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const WalkingGlyph(role: WalkingRole.stock),
+              const SizedBox(width: StrideSpace.iconLabelGap),
+              Expanded(
+                child: Text(
+                  '+${formatSteps(banked)} STEPS BANKED',
+                  style: StrideType.sectionHeading.copyWith(
+                    color: StrideColors.accentSteps,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          for (final SyncOpportunity o in controller.lastOpportunities) ...<
+              Widget>[
+            const SizedBox(height: StrideSpace.s6),
+            Text(o.headline, style: StrideType.itemName),
+            Text(o.detail, style: StrideType.micro),
+          ],
+          const SizedBox(height: StrideSpace.s8),
+          StrideButton.secondary(
+            label: 'OK',
+            onPressed: controller.acknowledgeOpportunities,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -278,6 +347,14 @@ class _WalkingStrip extends StatelessWidget {
         valueColor: StrideColors.accentSteps,
       ),
       _WalkingFact(label: 'Spent', value: formatSteps(s.totalSpent)),
+      // Persistent HP (`DECISIONS/0023` §4): carried between fights, restored
+      // by food and by safe arrivals — a fact a player checks before choosing
+      // to fight. Shown only while it is information: at full health it is
+      // noise, and the extra wrap row it costs is what pushes the gather
+      // control below the fold on a fresh save
+      // (`test/fold_clearance_test.dart`).
+      if (s.playerHp < s.playerMaxHp)
+        _WalkingFact(label: 'HP', value: '${s.playerHp} / ${s.playerMaxHp}'),
     ];
 
     // Demoted to a utility control beside the facts it refreshes, rather than a

@@ -213,11 +213,19 @@ class AtlasViewportState extends State<AtlasViewport>
     // the window.
     if (oldWidget.scene.current.id != widget.scene.current.id) {
       _arrivals++;
+      // Where the journey set out from, for the travel trace: the marker
+      // layer animates a spark along the walked road for a couple of seconds
+      // (brief §53). Presentation only, cleared by the next arrival.
+      _travelFrom = oldWidget.scene.current;
       if (_camera != null) {
         _camera = _clamp(_centredOn(widget.scene.current), _zoom);
       }
     }
   }
+
+  /// The previous location at the moment of the last arrival, or null before
+  /// any journey this session.
+  AtlasNode? _travelFrom;
 
   @override
   void dispose() {
@@ -391,6 +399,7 @@ class AtlasViewportState extends State<AtlasViewport>
                         zoom: _zoom,
                         overview: overview,
                         arrivalToken: _arrivals,
+                        travelFrom: _travelFrom,
                         onSelect: widget.onSelect,
                       ),
                     ],

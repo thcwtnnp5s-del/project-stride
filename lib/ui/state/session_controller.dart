@@ -15,7 +15,8 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:stride_core/stride_core.dart' show ContentId, EquipmentSlot;
+import 'package:stride_core/stride_core.dart'
+    show ContentId, EquipmentSlot, GoalSlot;
 
 import '../../runtime/stride_session.dart';
 
@@ -117,7 +118,9 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Runs a foreground step sync and keeps its report for display.
+  /// Runs a foreground step sync and keeps its report for display — and,
+  /// when the sync banked something, the step-sync motivation highlights
+  /// derived from the tracked goals (`DECISIONS/0023` §1; brief §5).
   Future<void> syncSteps() async {
     if (_busy) return;
     _busy = true;
@@ -125,7 +128,91 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
     try {
       _lastSync = await _session.syncSteps();
+      // Derived from the actual post-sync state, only when walking actually
+      // banked, and held until acknowledged — a moment, not a wall of noise.
+      _lastOpportunities = (_lastSync?.newlyGranted ?? 0) > 0
+          ? _session.syncOpportunities()
+          : const <SyncOpportunity>[];
       _armResultTimer();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// The motivation highlights from the last granting sync, until the banner
+  /// is dismissed. Empty when the last sync banked nothing.
+  List<SyncOpportunity> get lastOpportunities => _lastOpportunities;
+  List<SyncOpportunity> _lastOpportunities = const <SyncOpportunity>[];
+
+  /// Dismisses the step-sync highlights banner.
+  void acknowledgeOpportunities() {
+    if (_lastOpportunities.isEmpty) return;
+    _lastOpportunities = const <SyncOpportunity>[];
+    notifyListeners();
+  }
+
+  // -- Exploration & Progression Loop 01 (`DECISIONS/0023`) -------------------
+  //
+  // Passthroughs on the shared busy flag, like everything above. Each returns
+  // its report so the calling screen can stage the right presentation tier —
+  // an inline line for a delivery, a dialog for a taught recipe or a project
+  // completion — without the controller holding a growing report museum.
+
+  /// The report from the last out-of-combat meal, while it is on screen.
+  FoodReport? get lastFood => _lastFood;
+  FoodReport? _lastFood;
+
+  /// Eats one owned consumable outside combat.
+  Future<FoodReport?> eatFood(ContentId item) async {
+    final FoodReport? report = await _run(() => _session.eatFood(item));
+    if (report != null) {
+      _lastFood = report;
+      _armResultTimer();
+      notifyListeners();
+    }
+    return report;
+  }
+
+  /// Sets or clears one tracked-objective slot.
+  Future<GoalReport?> trackGoal(GoalSlot slot, ContentId? target) =>
+      _run(() => _session.trackGoal(slot, target));
+
+  /// Tracks [contract] (a contract or a project) in the Contract slot.
+  Future<GoalReport?> trackGoalContract(ContentId contract) =>
+      trackGoal(GoalSlot.contract, contract);
+
+  /// Tracks [item] in the Pursuit slot.
+  Future<GoalReport?> trackGoalPursuit(ContentId item) =>
+      trackGoal(GoalSlot.pursuit, item);
+
+  /// Tracks [destination] in the Journey slot.
+  Future<GoalReport?> trackGoalJourney(ContentId destination) =>
+      trackGoal(GoalSlot.journey, destination);
+
+  /// Accepts a bounty contract; victories count from here.
+  Future<ContractReport?> acceptContract(ContentId contract) =>
+      _run(() => _session.acceptContract(contract));
+
+  /// Completes a contract at its board.
+  Future<ContractReport?> completeContract(ContentId contract) =>
+      _run(() => _session.completeContract(contract));
+
+  /// Donates materials to a community project's current stage.
+  Future<ProjectReport?> contributeToProject(
+    ContentId project,
+    Map<ContentId, int> contributions,
+  ) => _run(() => _session.contributeToProject(project, contributions));
+
+  /// One progression-loop command: busy-gated, results cleared, listeners
+  /// notified, report returned to the caller. Null when busy.
+  Future<T?> _run<T>(Future<T> Function() command) async {
+    if (_busy) return null;
+    _busy = true;
+    _clearResults(notify: false);
+    notifyListeners();
+    try {
+      return await command();
     } finally {
       _busy = false;
       notifyListeners();
@@ -387,14 +474,20 @@ class SessionController extends ChangeNotifier {
     _resultTimer?.cancel();
     _resultTimer = Timer(
       _resultLifetime,
-      () => _clearResults(notify: true, combat: false),
+      () => _clearResults(notify: true, combat: false, opportunities: false),
     );
   }
 
   /// Clears the result lines. [combat] is false only from the timer: the
   /// combat report is cleared by the next command or by [acknowledgeCombat],
-  /// never by the clock.
-  void _clearResults({required bool notify, bool combat = true}) {
+  /// never by the clock. [opportunities] likewise — the step-sync highlights
+  /// banner is dismissed by the player or displaced by the next command,
+  /// never swept away mid-read by a five-second timer.
+  void _clearResults({
+    required bool notify,
+    bool combat = true,
+    bool opportunities = true,
+  }) {
     _resultTimer?.cancel();
     _resultTimer = null;
     _lastAction = null;
@@ -405,7 +498,9 @@ class SessionController extends ChangeNotifier {
     _lastCraftRecipe = null;
     _lastEquip = null;
     _lastEquipRemoved = false;
+    _lastFood = null;
     if (combat) _lastCombat = null;
+    if (opportunities) _lastOpportunities = const <SyncOpportunity>[];
     if (notify) notifyListeners();
   }
 

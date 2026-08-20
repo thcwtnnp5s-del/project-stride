@@ -512,7 +512,7 @@ void main() {
     });
 
     test(
-      'the figures the device checklist names: 90 energy, 2 herbs, 10 xp',
+      'the figures the device checklist names: 80 energy, 1 herb, 10 xp',
       () async {
         // The literal numbers, executed rather than derived. Every other
         // assertion here reads the cost from the registry, which is right for a
@@ -530,12 +530,12 @@ void main() {
         final ActionReport report = await session.gather(kHarnessNode);
 
         expect(report.succeeded, isTrue);
-        expect(report.cost, 90);
-        expect(session.usableEnergy, 910);
-        expect(session.totalSpent, 90);
+        expect(report.cost, 80);
+        expect(session.usableEnergy, 920);
+        expect(session.totalSpent, 80);
         expect(
           session.inventoryCount(ContentId.unchecked('item.meadow_herb')),
-          2,
+          1,
         );
         expect(
           session.engine!.state.skills.experienceIn(
@@ -546,10 +546,10 @@ void main() {
 
         // And all three survive the relaunch the checklist performs next.
         final StrideSession reopened = await relaunch();
-        expect(reopened.usableEnergy, 910);
+        expect(reopened.usableEnergy, 920);
         expect(
           reopened.inventoryCount(ContentId.unchecked('item.meadow_herb')),
-          2,
+          1,
         );
         expect(
           reopened.engine!.state.skills.experienceIn(

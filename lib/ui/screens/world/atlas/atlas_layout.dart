@@ -17,6 +17,11 @@ import 'dart:collection' show Queue;
 
 import 'package:stride_core/stride_core.dart' show ContentId;
 
+// Landmark types are packaging data the session does not re-export; the rumor
+// spots ride the same file. Same library the session re-exports the rest
+// from, so no symbol is defined twice.
+import '../../../../runtime/atlas_layout.dart'
+    show AtlasLandmarkTier, AtlasNamedLandmark;
 import '../../../../runtime/stride_session.dart';
 
 /// One place, positioned.
@@ -97,6 +102,7 @@ final class AtlasScene {
     required this._neighbours,
     required this._legCost,
     required this._byId,
+    this.rumorLandmarks = const <AtlasNamedLandmark>[],
   });
 
   /// Joins [layout] to what [session] projects. Returns null when the layout is
@@ -109,6 +115,7 @@ final class AtlasScene {
       places: session.regionPlaces,
       routes: session.regionRoutes,
       options: session.destinations,
+      revealedRumors: session.revealedRumors,
     );
   }
 
@@ -123,6 +130,7 @@ final class AtlasScene {
     required List<RegionPlace> places,
     required List<RegionRoute> routes,
     required List<TravelOption> options,
+    List<RumorView> revealedRumors = const <RumorView>[],
   }) {
     final Map<ContentId, AtlasNode> byId = <ContentId, AtlasNode>{};
     AtlasNode? current;
@@ -158,6 +166,24 @@ final class AtlasScene {
       }
     }
 
+    // Heard rumors become quiet future-tier captions at their authored spot
+    // (`DECISIONS/0023` §8): the RUMORED discovery tier, drawn with the same
+    // vocabulary as a far-off landmark and exactly as non-interactive. An
+    // unheard rumor contributes nothing — mystery is incomplete knowledge,
+    // not fog.
+    final List<AtlasNamedLandmark> rumorLandmarks = <AtlasNamedLandmark>[
+      for (final RumorView rumor in revealedRumors)
+        if (layout.rumorFor(rumor.id) case final AtlasRumorSpot spot)
+          AtlasNamedLandmark(
+            id: rumor.id.value,
+            name: rumor.name,
+            x: spot.x,
+            y: spot.y,
+            tier: AtlasLandmarkTier.future,
+            marker: null,
+          ),
+    ];
+
     return AtlasScene._(
       layout: layout,
       nodes: List<AtlasNode>.unmodifiable(byId.values),
@@ -169,6 +195,7 @@ final class AtlasScene {
       neighbours: neighbours,
       legCost: legCost,
       byId: byId,
+      rumorLandmarks: List<AtlasNamedLandmark>.unmodifiable(rumorLandmarks),
     );
   }
 
@@ -189,6 +216,16 @@ final class AtlasScene {
   final Map<String, int> _legCost;
 
   final Map<ContentId, AtlasNode> _byId;
+
+  /// Heard rumors as future-tier captions. Empty until something is heard.
+  final List<AtlasNamedLandmark> rumorLandmarks;
+
+  /// Everything the caption layer labels: the layout's named geography, then
+  /// the heard rumors.
+  List<AtlasNamedLandmark> get namedLandmarks => <AtlasNamedLandmark>[
+    ...layout.landmarks,
+    ...rumorLandmarks,
+  ];
 
   double get worldWidth => layout.worldWidth.toDouble();
   double get worldHeight => layout.worldHeight.toDouble();

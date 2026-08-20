@@ -482,6 +482,7 @@ class AtlasMarkerLayer extends StatelessWidget {
     required this.overview,
     required this.arrivalToken,
     required this.onSelect,
+    this.travelFrom,
   });
 
   final AtlasScene scene;
@@ -508,6 +509,10 @@ class AtlasMarkerLayer extends StatelessWidget {
   /// and no burst is built at all — opening the screen is not an arrival.
   final int arrivalToken;
 
+  /// Where the last journey set out from, for the travel trace. Null before
+  /// any journey this session.
+  final AtlasNode? travelFrom;
+
   final ValueChanged<ContentId> onSelect;
 
   @override
@@ -519,24 +524,28 @@ class AtlasMarkerLayer extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           // Named geography's labels first: a place's name always paints over
-          // a landmark's, never the other way round. In the overview they are
-          // not built at all — a caption tier the survey does without.
-          if (!overview)
-            RepaintBoundary(
-              child: IgnorePointer(
-                child: SizedBox(
-                  width: scene.worldWidth,
-                  height: scene.worldHeight,
-                  child: Stack(
-                    children: <Widget>[
-                      for (final AtlasNamedLandmark named
-                          in scene.layout.landmarks)
-                        _LandmarkLabel(landmark: named, zoom: zoom),
-                    ],
-                  ),
+          // a landmark's, never the other way round. In the overview only the
+          // heard rumors survive — a rumor is exactly the caption a survey of
+          // the wider world exists to show (brief §62), while minor landmarks
+          // are the caption tier the survey does without.
+          RepaintBoundary(
+            child: IgnorePointer(
+              child: SizedBox(
+                width: scene.worldWidth,
+                height: scene.worldHeight,
+                child: Stack(
+                  children: <Widget>[
+                    // The layout's named geography, plus every rumor the
+                    // player has heard (`DECISIONS/0023` §8) — the scene
+                    // joins the two so this layer needs no opinion.
+                    for (final AtlasNamedLandmark named
+                        in (overview ? scene.rumorLandmarks : scene.namedLandmarks))
+                      _LandmarkLabel(landmark: named, zoom: zoom),
+                  ],
                 ),
               ),
             ),
+          ),
           // The kind glyph under the ring. Absent until the art lands, and its
           // absence is the shipped state: the ring is the fallback, not a
           // placeholder drawn in code (RULES.md A-1).
@@ -598,6 +607,22 @@ class AtlasMarkerLayer extends StatelessWidget {
               ),
             ),
           ),
+          // The travel trace: a spark running the walked road, played once
+          // per arrival and then gone (brief §53's marker movement, 2–4 s).
+          // Chrome, not art: a bright square on the road the route layer
+          // already draws. Keyed on the token exactly as the burst is.
+          if (arrivalToken > 0 && travelFrom != null)
+            RepaintBoundary(
+              child: IgnorePointer(
+                child: AtlasTravelTrace(
+                  key: ValueKey<int>(arrivalToken),
+                  scene: scene,
+                  from: travelFrom!,
+                  to: scene.current,
+                  chrome: chrome,
+                ),
+              ),
+            ),
           if (arrivalToken > 0)
             Positioned(
               left: scene.current.x - AtlasMarkerSpec.burstRadius,
@@ -1185,6 +1210,147 @@ class _HitTarget extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: () => onSelect(node.id),
         ),
+      ),
+    );
+  }
+}
+
+// -------------------------------------------------------------- travel trace
+
+/// A spark running the road just walked, once, over about two and a half
+/// seconds — the journey made visible on the map (brief §53), then gone.
+///
+/// Chrome, not art (`RULES.md` A-2): a bright square with the route dots'
+/// own contour, riding the same polyline course the route layer draws — the
+/// drawn track where the layout gives one, the straight line otherwise.
+/// One bounded `AnimationController`, no clock read, holds at nothing when
+/// complete, and reduced motion skips it entirely.
+class AtlasTravelTrace extends StatefulWidget {
+  const AtlasTravelTrace({
+    super.key,
+    required this.scene,
+    required this.from,
+    required this.to,
+    required this.chrome,
+  });
+
+  final AtlasScene scene;
+  final AtlasNode from;
+  final AtlasNode to;
+
+  /// The marker chrome counter-scale at the current zoom.
+  final double chrome;
+
+  @override
+  State<AtlasTravelTrace> createState() => _AtlasTravelTraceState();
+}
+
+class _AtlasTravelTraceState extends State<AtlasTravelTrace>
+    with SingleTickerProviderStateMixin {
+  static const Duration _run = Duration(milliseconds: 2400);
+
+  late final AnimationController _controller;
+  bool _started = false;
+  bool _skipped = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: _run)
+      ..addListener(() => setState(() {}));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Reduced motion: the arrival burst and the recentred camera already say
+    // what happened; a moving spark is exactly the motion being declined.
+    _skipped = MediaQuery.disableAnimationsOf(context);
+    if (!_skipped) _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// The walked course: the drawn track where the layout has one, else the
+  /// straight line — the route painter's own rule.
+  List<Offset> _course() {
+    final List<Offset> points = <Offset>[
+      Offset(widget.from.x, widget.from.y),
+    ];
+    final AtlasRoute? drawn = widget.scene.layout.routeBetween(
+      widget.from.id,
+      widget.to.id,
+    );
+    if (drawn != null) {
+      final bool forward = drawn.from == widget.from.id;
+      final Iterable<({double x, double y})> mids = forward
+          ? drawn.points
+          : drawn.points.reversed;
+      for (final ({double x, double y}) p in mids) {
+        points.add(Offset(p.x, p.y));
+      }
+    }
+    points.add(Offset(widget.to.x, widget.to.y));
+    return points;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_skipped || _controller.isCompleted) return const SizedBox.shrink();
+    final List<Offset> course = _course();
+    double total = 0;
+    for (int i = 1; i < course.length; i++) {
+      total += (course[i] - course[i - 1]).distance;
+    }
+    if (total == 0) return const SizedBox.shrink();
+
+    // Ease-in-out along the course, so the spark leaves and arrives rather
+    // than teleporting at both ends.
+    final double t = Curves.easeInOut.transform(_controller.value);
+    double remaining = total * t;
+    Offset at = course.first;
+    for (int i = 1; i < course.length; i++) {
+      final Offset a = course[i - 1];
+      final Offset b = course[i];
+      final double length = (b - a).distance;
+      if (length == 0) continue;
+      if (remaining <= length) {
+        at = a + (b - a) * (remaining / length);
+        break;
+      }
+      remaining -= length;
+      at = b;
+    }
+
+    final double side = 7 * widget.chrome;
+    final double contour = side + 2 * widget.chrome;
+    return SizedBox(
+      width: widget.scene.worldWidth,
+      height: widget.scene.worldHeight,
+      child: Stack(
+        children: <Widget>[
+          Positioned(
+            left: at.dx - contour / 2,
+            top: at.dy - contour / 2,
+            child: Container(
+              width: contour,
+              height: contour,
+              color: const Color(0xE614120F),
+              alignment: Alignment.center,
+              child: Container(
+                width: side,
+                height: side,
+                color: const Color(0xFFF0E7D8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

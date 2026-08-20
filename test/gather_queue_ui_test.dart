@@ -148,29 +148,29 @@ void main() {
   testWidgets('the quantity selector renders, quotes the total, and clamps '
       'to what banked steps afford', (WidgetTester tester) async {
     final FakeTiming fake = FakeTiming();
-    // 500 banked at 90 a gather affords exactly five.
-    await pumpFunded(tester, fake, 500);
+    // 400 banked at 80 a gather affords exactly five.
+    await pumpFunded(tester, fake, 400);
 
-    expect(find.text('Gather ×1 — 90 steps'), findsOneWidget);
-    expect(find.text('1 × 90 = 90 steps'), findsOneWidget);
+    expect(find.text('Gather ×1 — 80 steps'), findsOneWidget);
+    expect(find.text('1 × 80 = 80 steps'), findsOneWidget);
 
     await tapVisible(tester, find.text('×5'));
-    expect(find.text('Gather ×5 — 450 steps'), findsOneWidget);
-    expect(find.text('5 × 90 = 450 steps'), findsOneWidget);
+    expect(find.text('Gather ×5 — 400 steps'), findsOneWidget);
+    expect(find.text('5 × 80 = 400 steps'), findsOneWidget);
 
     // ×10 is not affordable: the selection clamps and the honest number stays
     // visible — the UI never implies a queue the balance cannot complete.
     await tapVisible(tester, find.text('×10'));
-    expect(find.text('Gather ×5 — 450 steps'), findsOneWidget);
-    expect(find.text('Gather ×10 — 900 steps'), findsNothing);
+    expect(find.text('Gather ×5 — 400 steps'), findsOneWidget);
+    expect(find.text('Gather ×10 — 800 steps'), findsNothing);
 
     // The stepper cannot climb past the affordable count either.
     await tapVisible(tester, find.text('+'));
-    expect(find.text('Gather ×5 — 450 steps'), findsOneWidget);
+    expect(find.text('Gather ×5 — 400 steps'), findsOneWidget);
 
     await tapVisible(tester, find.text('−'));
-    expect(find.text('Gather ×4 — 360 steps'), findsOneWidget);
-    expect(find.text('4 × 90 = 360 steps'), findsOneWidget);
+    expect(find.text('Gather ×4 — 320 steps'), findsOneWidget);
+    expect(find.text('4 × 80 = 320 steps'), findsOneWidget);
   });
 
   testWidgets('stop before any completion returns the card to idle with '
@@ -179,7 +179,7 @@ void main() {
     final StrideSession session = await pumpFunded(tester, fake, 1000);
 
     await tapVisible(tester, find.text('×5'));
-    await tapVisible(tester, find.text('Gather ×5 — 450 steps'));
+    await tapVisible(tester, find.text('Gather ×5 — 400 steps'));
 
     // The active panel replaces the gather control immediately; the durable
     // queue commits under real async (`DECISIONS/0022` §5).
@@ -204,7 +204,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Gathering 0 / 5'), findsNothing);
-    expect(find.text('Gather ×5 — 450 steps'), findsOneWidget);
+    expect(find.text('Gather ×5 — 400 steps'), findsOneWidget);
     expect(session.totalSpent, 0, reason: 'nothing completed, nothing spent');
     expect(session.inventoryCount(kHerb), 0);
   });
@@ -217,7 +217,7 @@ void main() {
     final StrideSession session = await pumpFunded(tester, fake, 1000);
 
     await tapVisible(tester, find.text('×10'));
-    await tapVisible(tester, find.text('Gather ×10 — 900 steps'));
+    await tapVisible(tester, find.text('Gather ×10 — 800 steps'));
     expect(find.text('Gathering 0 / 10'), findsOneWidget);
     // The durable queue's commit is real file I/O; let it land before the
     // clock moves, so the anchor is the moment the player saw the bar start.
@@ -241,9 +241,9 @@ void main() {
     });
     await tester.pump();
 
-    expect(session.inventoryCount(kHerb), 2);
+    expect(session.inventoryCount(kHerb), 1);
     expect(find.text('Gathering 1 / 10'), findsOneWidget);
-    expect(find.text('Meadow Herb gained: 2'), findsOneWidget);
+    expect(find.text('Meadow Herb gained: 1'), findsOneWidget);
     expect(find.text('+10 Foraging XP'), findsOneWidget);
     expect(
       find.text('Stop gathering'),
@@ -257,10 +257,10 @@ void main() {
       await until(() => activity.completed == 2);
     });
     await tester.pump();
-    expect(session.inventoryCount(kHerb), 4);
+    expect(session.inventoryCount(kHerb), 2);
 
     expect(find.text('Gathering 2 / 10'), findsOneWidget);
-    expect(find.text('Meadow Herb gained: 4'), findsOneWidget);
+    expect(find.text('Meadow Herb gained: 2'), findsOneWidget);
     expect(find.text('+20 Foraging XP'), findsOneWidget);
 
     // Stop mid-third: the two completed repetitions stay committed, and the
@@ -272,9 +272,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(session.totalSpent, 180, reason: 'exactly the two completions');
-    expect(session.inventoryCount(kHerb), 4);
+    expect(session.totalSpent, 160, reason: 'exactly the two completions');
+    expect(session.inventoryCount(kHerb), 2);
     expect(find.textContaining('Gather ×'), findsOneWidget);
-    expect(find.text('Meadow Herb ×4'), findsOneWidget);
+    expect(find.text('Meadow Herb ×2'), findsOneWidget);
   });
 }

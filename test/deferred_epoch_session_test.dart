@@ -222,7 +222,7 @@ void main() {
       expect(migration.toStateVersion, StateVersion.current.value);
       expect(
         migration.stepsApplied.map((StateMigrationStep s) => s.to).toList(),
-        <int>[3, 4, 5, StateVersion.current.value],
+        <int>[3, 4, 5, 6, StateVersion.current.value],
         reason:
             'the 0018 mark, and the 0020 / 0021 / 0022 format bumps — still '
             'one commit, however many reshapes ride along',

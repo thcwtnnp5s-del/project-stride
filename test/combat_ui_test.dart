@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
+import 'package:stride/ui/screens/adventure/encounter_card.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -24,6 +25,9 @@ final ContentId woods = ContentId.unchecked('location.whispering_woods');
 final ContentId wolf = ContentId.unchecked('enemy.forest_wolf');
 final ContentId trainingSword = ContentId.unchecked('item.training_sword');
 final ContentId tunic = ContentId.unchecked('item.traveler_tunic');
+final ContentId meadowPatch = ContentId.unchecked('resource_node.meadow_patch');
+final ContentId herbBrothRecipe = ContentId.unchecked('recipe.herb_broth');
+final ContentId herbBroth = ContentId.unchecked('item.herb_broth');
 
 final StepOriginKey phone = StepOriginKey('a1b2c3d4e5f60718');
 const int hour = 60 * 60 * 1000;
@@ -75,6 +79,7 @@ void main() {
     WidgetTester tester, {
     int steps = 5000,
     bool atWoods = false,
+    bool provisioned = false,
   }) async {
     tester.view.physicalSize = const Size(393 * 3, 852 * 3);
     tester.view.devicePixelRatio = 3.0;
@@ -93,6 +98,16 @@ void main() {
       );
       await s.syncSteps();
       await s.syncSteps();
+      if (provisioned) {
+        // HP persists between fights (`DECISIONS/0023` §6): broths cooked at
+        // Haven's meadow are what make a second fight winnable.
+        for (int i = 0; i < 6; i++) {
+          expect((await s.gather(meadowPatch)).succeeded, isTrue);
+        }
+        for (int i = 0; i < 3; i++) {
+          expect((await s.craft(herbBrothRecipe)).succeeded, isTrue);
+        }
+      }
       if (atWoods) {
         await s.equip(trainingSword);
         await s.equip(tunic);
@@ -150,10 +165,24 @@ void main() {
           .where((GroundedSprite g) => g.assetPath.contains('wolf_idle')),
       hasLength(1),
     );
-    expect(find.text('Roams here'), findsOneWidget);
+    // Three enemies roam the woods now (Exploration & Progression Loop 01):
+    // the wolf, the boar and the bear each get a card.
+    expect(find.text('Roams here'), findsNWidgets(3));
+    expect(find.text('Wild Boar'), findsOneWidget);
+    expect(find.text('Oakback Bear'), findsOneWidget);
     expect(find.text('TWO LIGHT STRIKES A TURN'), findsOneWidget);
-    expect(find.text('Rewards: 30 XP, Meadow Herb, Wolf Pelt'), findsOneWidget);
-    final Finder start = find.widgetWithText(StrideButton, 'Start Combat');
+    // The signature fang exists but is concealed until the wolf is Known.
+    expect(
+      find.text('Rewards: 30 XP, Wolf Pelt, Meadow Herb, ???'),
+      findsOneWidget,
+    );
+    final Finder start = find.descendant(
+      of: find.ancestor(
+        of: find.text('Forest Wolf'),
+        matching: find.byType(EncounterCard),
+      ),
+      matching: find.widgetWithText(StrideButton, 'Start Combat'),
+    );
     expect(start, findsOneWidget);
     expect((tester.widget(start) as StrideButton).onPressed, isNotNull);
     // An available enemy now says how much of the visit is left, rather than
@@ -166,12 +195,18 @@ void main() {
 
   testWidgets('Start Combat opens the fight, Attack follows the commit, and '
       'the outcome waits to be acknowledged', (WidgetTester tester) async {
-    final StrideSession s = await boot(tester, atWoods: true);
+    final StrideSession s = await boot(tester, atWoods: true, provisioned: true);
     await show(tester, s);
 
     await tapAndSettle(
       tester,
-      find.widgetWithText(StrideButton, 'Start Combat'),
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Forest Wolf'),
+          matching: find.byType(EncounterCard),
+        ),
+        matching: find.widgetWithText(StrideButton, 'Start Combat'),
+      ),
     );
     expect(s.encounter, isNotNull);
     // The stage replaced the cards: the enemy and the Traveler at full HP,
@@ -186,13 +221,16 @@ void main() {
       find.widgetWithText(StrideButton, 'Retreat — nothing is lost'),
       findsOneWidget,
     );
-    // Nothing to eat: the button is disabled and says so.
+    // Provisioned with broths, but at full health on turn 1: the button is
+    // disabled with the truthful reason — the same fact the engine would
+    // refuse as `health_full` (`combat_session_test.dart`).
     expect(
       (tester.widget(find.widgetWithText(StrideButton, 'Eat')) as StrideButton)
           .onPressed,
       isNull,
     );
-    expect(find.text('Nothing to eat'), findsOneWidget);
+    expect(find.text('Health is full'), findsOneWidget);
+    expect(find.text('Nothing to eat'), findsNothing);
 
     await tapAndSettle(tester, find.widgetWithText(StrideButton, 'Attack'));
     final EncounterView v = s.encounter!;
@@ -225,8 +263,15 @@ void main() {
     expect(find.text('Forest Wolf falls.'), findsOneWidget);
     expect(find.text('EXPERIENCE'), findsOneWidget);
     expect(find.text('+30 XP'), findsOneWidget);
-    expect(find.text('REWARDS'), findsOneWidget);
-    expect(find.text('Meadow Herb'), findsOneWidget);
+    // Drops are chance-rolled now (Exploration & Progression Loop 01), so the
+    // panel is checked against what the committed outcome actually awarded.
+    final WonBeat wonOutcome = c.lastCombat!.outcome as WonBeat;
+    if (wonOutcome.drops.isNotEmpty) {
+      expect(find.text('REWARDS'), findsOneWidget);
+      for (final RewardLine drop in wonOutcome.drops) {
+        expect(find.text(drop.name), findsWidgets, reason: drop.name);
+      }
+    }
     // The drops are rows now, not a `Drops: …` sentence.
     expect(find.textContaining('Drops:'), findsNothing);
     // The stage stays up behind the panel with the wolf felled and the
@@ -240,10 +285,26 @@ void main() {
 
     // Back at the location, one of the visit's two fights is spent: the card
     // counts down and stays enabled (`DECISIONS/0021` §1).
-    Finder start = find.widgetWithText(StrideButton, 'Start Combat');
+    Finder start = find.descendant(
+      of: find.ancestor(
+        of: find.text('Forest Wolf'),
+        matching: find.byType(EncounterCard),
+      ),
+      matching: find.widgetWithText(StrideButton, 'Start Combat'),
+    );
     expect(start, findsOneWidget);
     expect((tester.widget(start) as StrideButton).onPressed, isNotNull);
     expect(find.text('1 of 2 this visit'), findsOneWidget);
+
+    // HP persisted through the first fight; eat the provisioned broths back
+    // to full before the rematch (`DECISIONS/0023` §6).
+    await tester.runAsync(() async {
+      while (s.playerHp < s.playerMaxHp && s.inventoryCount(herbBroth) > 0) {
+        final FoodReport bite = await s.eatFood(herbBroth);
+        expect(bite.succeeded, isTrue, reason: '${bite.rejection}');
+      }
+    });
+    await tester.pumpAndSettle();
 
     // Take the second one, and the card closes with the unchanged words.
     await tapAndSettle(tester, start);
@@ -256,7 +317,13 @@ void main() {
     await tester.tap(find.widgetWithText(StrideButton, 'Continue'));
     await tester.pumpAndSettle();
 
-    start = find.widgetWithText(StrideButton, 'Start Combat');
+    start = find.descendant(
+      of: find.ancestor(
+        of: find.text('Forest Wolf'),
+        matching: find.byType(EncounterCard),
+      ),
+      matching: find.widgetWithText(StrideButton, 'Start Combat'),
+    );
     expect(start, findsOneWidget);
     expect((tester.widget(start) as StrideButton).onPressed, isNull);
     expect(find.text('Driven off — returns after you travel'), findsOneWidget);

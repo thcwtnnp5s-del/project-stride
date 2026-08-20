@@ -347,8 +347,34 @@ void main() {
       final Finder button = find.widgetWithText(StrideButton, 'Travel');
       expect(button, findsOneWidget);
       expect((tester.widget(button) as StrideButton).onPressed, isNotNull);
+
+      // The tap opens the confirmation step (brief §53) — nothing dispatches
+      // until the player confirms.
       await tester.tap(button);
+      await tester.pumpAndSettle();
+      expect(taps, 0, reason: 'the first tap only asks');
+      expect(find.text('Set out for Stonefall Mine?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(StrideButton, 'Set out'));
       expect(taps, 1);
+    });
+
+    testWidgets('the confirmation can be declined, and nothing dispatches', (
+      WidgetTester tester,
+    ) async {
+      int taps = 0;
+      await pumpInspector(
+        tester,
+        info: _info(),
+        option: _option(),
+        onTravel: () => taps++,
+      );
+      await tester.tap(find.widgetWithText(StrideButton, 'Travel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(StrideButton, 'Stay'));
+      await tester.pumpAndSettle();
+      expect(taps, 0);
+      expect(find.text('Set out for Stonefall Mine?'), findsNothing);
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsOneWidget);
     });
 
     testWidgets('states the requirement before the price, and disables', (

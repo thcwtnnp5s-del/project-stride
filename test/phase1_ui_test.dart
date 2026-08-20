@@ -471,6 +471,14 @@ void main() {
         until: () => session.usableEnergy == 1000,
       );
 
+      // Two gathers, then a third: `×1` is no longer distinguishing (the
+      // starting kit's tiles read `×1` too), so the herb count is asserted at
+      // the unique figures 2 and 3.
+      await gatherOnce(
+        tester,
+        fake,
+        until: () => session.inventoryCount(kHerb) == 1,
+      );
       await gatherOnce(
         tester,
         fake,
@@ -485,11 +493,11 @@ void main() {
       await gatherOnce(
         tester,
         fake,
-        until: () => session.inventoryCount(kHerb) == 4,
+        until: () => session.inventoryCount(kHerb) == 3,
       );
       await tester.tap(find.text('Inventory'));
       await tester.pumpAndSettle();
-      expect(find.text('×4'), findsOneWidget);
+      expect(find.text('×3'), findsOneWidget);
       expect(find.text('×2'), findsNothing);
     });
 
@@ -520,7 +528,7 @@ void main() {
       await gatherOnce(
         tester,
         fake,
-        until: () => session.inventoryCount(kHerb) == 2,
+        until: () => session.inventoryCount(kHerb) == 1,
       );
 
       await tester.tap(find.text('Character'));
@@ -532,7 +540,7 @@ void main() {
       await gatherOnce(
         tester,
         fake,
-        until: () => session.inventoryCount(kHerb) == 4,
+        until: () => session.inventoryCount(kHerb) == 2,
       );
       await tester.tap(find.text('Character'));
       await tester.pumpAndSettle();
@@ -551,12 +559,12 @@ void main() {
     /// invisible except to a player who walked to exactly the cost.
     test('affordability is inclusive at exactly the cost', () async {
       final StrideSession at = await launch(
-        source: funded(<SyncFetch>[page(90)]),
+        source: funded(<SyncFetch>[page(80)]),
       );
       await baseline(at);
       await at.syncSteps();
-      expect(at.usableEnergy, 90);
-      expect(at.costOf(kNode), 90);
+      expect(at.usableEnergy, 80);
+      expect(at.costOf(kNode), 80);
       expect(
         at.canGather(kNode),
         isTrue,
@@ -573,11 +581,11 @@ void main() {
       });
       final StrideSession below = await StrideSession.start(
         overrideRoot: other,
-        source: funded(<SyncFetch>[page(89)]),
+        source: funded(<SyncFetch>[page(79)]),
       );
       await baseline(below);
       await below.syncSteps();
-      expect(below.usableEnergy, 89);
+      expect(below.usableEnergy, 79);
       expect(below.canGather(kNode), isFalse, reason: 'one short refuses');
     });
 
@@ -591,7 +599,7 @@ void main() {
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Walk 40 more steps'), findsOneWidget);
+      expect(find.textContaining('Walk 30 more steps'), findsOneWidget);
 
       // Tapping a disabled control must not fabricate a success — and must
       // not start a queue either.
@@ -629,22 +637,22 @@ void main() {
       // Banked and total-walked both read 1,000 before the spend.
       expect(find.text('1,000'), findsWidgets);
 
-      await gatherOnce(tester, fake, until: () => session.totalSpent == 90);
+      await gatherOnce(tester, fake, until: () => session.totalSpent == 80);
 
-      // Exactly one cost. A double dispatch lands on 180 / 4 / 20 and cannot
+      // Exactly one cost. A double dispatch lands on 160 / 2 / 20 and cannot
       // pass — which is the honest form of "invokes the session method once".
-      expect(session.totalSpent, 90);
-      expect(session.inventoryCount(kHerb), 2);
+      expect(session.totalSpent, 80);
+      expect(session.inventoryCount(kHerb), 1);
       expect(session.engine!.state.skills.experienceIn(kForaging), 10);
 
       // Asserted against RENDERED TEXT, not the session. Asserting the session
       // here could not fail for a missing-refresh defect.
-      expect(find.text('910'), findsWidgets);
+      expect(find.text('920'), findsWidgets);
 
       // The ephemeral summary strip, accumulated from the returned
       // ActionReports — asserted while the card is still in view, because the
       // strip is a lazily built list child.
-      expect(find.textContaining('Meadow Herb ×2'), findsOneWidget);
+      expect(find.textContaining('Meadow Herb ×1'), findsOneWidget);
       expect(find.textContaining('+10 Foraging XP'), findsOneWidget);
 
       // `1,000` is still on screen, and correctly so: TOTAL WALKED reads
@@ -658,7 +666,9 @@ void main() {
       // (inset-free) viewport, so reaching it scrolled the walking band — a
       // lazily built list child — out of the element tree. Scroll back before
       // asserting it, exactly as a player would.
-      await tester.drag(find.byType(ListView).first, const Offset(0, 800));
+      // (The scroll-back distance grew with the screen: the step-sync
+      // opportunity banner and the goal tracker now sit above the band.)
+      await tester.drag(find.byType(ListView).first, const Offset(0, 2400));
       await tester.pumpAndSettle();
       expect(find.text('1,000'), findsWidgets);
     });
@@ -708,8 +718,8 @@ void main() {
       });
       await tester.pumpAndSettle();
 
-      expect(session.totalSpent, 90, reason: 'charged once, not twice');
-      expect(session.inventoryCount(kHerb), 2);
+      expect(session.totalSpent, 80, reason: 'charged once, not twice');
+      expect(session.inventoryCount(kHerb), 1);
       // And the double tap must not have manufactured a compare-and-swap fault.
       expect(session.isStale, isFalse);
 
@@ -719,7 +729,7 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pumpAndSettle();
-      expect(session.totalSpent, 90);
+      expect(session.totalSpent, 80);
     });
   });
 
@@ -741,7 +751,7 @@ void main() {
       await tester.runAsync(() => a.gather(kNode));
 
       final StrideSession b = (await tester.runAsync(() => launch()))!;
-      expect(b.usableEnergy, greaterThanOrEqualTo(90));
+      expect(b.usableEnergy, greaterThanOrEqualTo(80));
 
       // A moves the durable head under B.
       await tester.runAsync(() => a.gather(kNode));
@@ -1009,7 +1019,7 @@ void main() {
       // from a broken one.
       expect(find.textContaining('Nothing can be made yet'), findsOneWidget);
       expect(
-        find.textContaining('Needs 3 more Meadow Herb'),
+        find.textContaining('Needs 2 more Meadow Herb'),
         findsOneWidget,
         reason: 'the shortfall must name the item and the amount',
       );
@@ -1129,17 +1139,19 @@ void main() {
       }
 
       // Frostmere is in the content pack and is reached through Stonefall — so
-      // it is on the atlas, selectable, and *not* offered as a journey.
+      // it is on the atlas, selectable, and *not* offered as a single travel
+      // (the "Set as Journey" secondary control may stand: multi-leg journeys
+      // are what the Journey slot is for).
       await selectPlace(tester, 'location.frostmere');
-      expect(find.byType(StrideButton), findsNothing);
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
       expect(find.textContaining('By way of Stonefall Mine'), findsOneWidget);
     });
 
     testWidgets('an unaffordable journey is disabled and states the gap', (
       WidgetTester tester,
     ) async {
-      // 100 banked against a 600 route: the control must refuse and say how far
-      // short, rather than failing on tap.
+      // 100 banked against a 500 route: the control must refuse and say how
+      // far short, rather than failing on tap.
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(100),
       ]);
@@ -1147,10 +1159,12 @@ void main() {
       await openWorld(tester, session);
       await selectPlace(tester, 'location.whispering_woods');
 
-      expect(find.textContaining('Walk 500 more steps'), findsOneWidget);
-      for (final Element element in find.byType(StrideButton).evaluate()) {
-        expect((element.widget as StrideButton).onPressed, isNull);
-      }
+      expect(find.textContaining('Walk 400 more steps'), findsOneWidget);
+      // The Travel control refuses; "Set as Journey" stays live on purpose —
+      // tracking a goal never needs (or reserves) steps (`DECISIONS/0023` §3).
+      final Finder travel = find.widgetWithText(StrideButton, 'Travel');
+      expect(travel, findsOneWidget);
+      expect((tester.widget(travel) as StrideButton).onPressed, isNull);
     });
 
     testWidgets('travelling spends exactly the cost and moves the player', (
@@ -1163,16 +1177,22 @@ void main() {
       await openWorld(tester, session);
       await selectPlace(tester, 'location.whispering_woods');
 
+      // The tap opens the confirmation step (brief §53); the journey
+      // dispatches on "Set out".
+      await tester.ensureVisible(find.widgetWithText(StrideButton, 'Travel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(StrideButton, 'Travel'));
+      await tester.pumpAndSettle();
       await tapAndAwait(
         tester,
-        find.widgetWithText(StrideButton, 'Travel'),
+        find.widgetWithText(StrideButton, 'Set out'),
         until: () => session.currentLocation?.value != 'location.havens_rest',
       );
 
       expect(
         session.usableEnergy,
-        1400,
-        reason: '2,000 − 600, the Whispering Woods route from content',
+        1500,
+        reason: '2,000 − 500, the Whispering Woods route from content',
       );
       expect(session.currentLocation?.value, 'location.whispering_woods');
 
@@ -1198,7 +1218,7 @@ void main() {
 
       final Finder cost = find.descendant(
         of: find.byType(WorldScreen),
-        matching: find.text('600'),
+        matching: find.text('500'),
       );
       expect(
         cost,
@@ -1228,10 +1248,10 @@ void main() {
     testWidgets('a refused gather leaves the figure at its rest frame', (
       WidgetTester tester,
     ) async {
-      // 89 banked against a 90 cost: the control is disabled, so no gather can
-      // even be dispatched, and the stage must still be showing frame 0.
+      // 79 banked against an 80 cost: the control is disabled, so no gather
+      // can even be dispatched, and the stage must still be showing frame 0.
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
-        page(89),
+        page(79),
       ]);
       await tester.runAsync(() => session.syncSteps());
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));

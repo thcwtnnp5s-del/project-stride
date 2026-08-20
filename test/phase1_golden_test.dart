@@ -240,7 +240,11 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final StrideSession session = await bootBaselined(tester, 455371);
+    // 455,361 − one 80-step gather = the historical 455,281. The device run
+    // banked 455,371 and gathered at the old 90-step cost; the figure the
+    // defect was found at is the part that must survive the retune
+    // (Exploration & Progression Loop 01 took the meadow to 80).
+    final StrideSession session = await bootBaselined(tester, 455361);
     await tester.runAsync(() => session.gather(kNode));
     expect(
       session.usableEnergy,

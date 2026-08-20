@@ -91,6 +91,12 @@ class AtlasSelectionPanel extends StatelessWidget {
               controller.travel(option.id);
               onTravelled();
             },
+      // The Journey slot (`DECISIONS/0023` §1): any place but *here* can be
+      // tracked. Reserves nothing; the tracker restates this panel's own
+      // figures on the Adventure screen.
+      onTrackJourney: place.isCurrent
+          ? null
+          : () => controller.trackGoalJourney(place.id),
     );
   }
 
@@ -131,6 +137,7 @@ class AtlasInspector extends StatelessWidget {
     required this.ready,
     required this.lastTravel,
     required this.onTravel,
+    this.onTrackJourney,
   });
 
   final String name;
@@ -150,6 +157,9 @@ class AtlasInspector extends StatelessWidget {
 
   /// Dispatches the journey. Null when there is nothing to dispatch.
   final VoidCallback? onTravel;
+
+  /// Tracks this place in the Journey slot. Null for *here*.
+  final VoidCallback? onTrackJourney;
 
   @override
   Widget build(BuildContext context) {
@@ -271,9 +281,21 @@ class AtlasInspector extends StatelessWidget {
               ),
             ],
             const SizedBox(height: StrideSpace.s10),
-            StrideButton(
-              label: busy ? 'Travelling…' : 'Travel',
-              onPressed: open ? onTravel : null,
+            _TravelControls(
+              destinationName: name,
+              option: option!,
+              banked: banked,
+              busy: busy,
+              open: open,
+              onTravel: onTravel,
+            ),
+          ],
+
+          if (onTrackJourney != null) ...<Widget>[
+            const SizedBox(height: StrideSpace.s8),
+            StrideButton.secondary(
+              label: 'Set as Journey',
+              onPressed: busy ? null : onTrackJourney,
             ),
           ],
 
@@ -345,6 +367,100 @@ class AtlasInspector extends StatelessWidget {
         .join(', then ');
     return 'By way of $via · ${formatSteps(way.totalCost)} steps in all, '
         '${formatSteps(way.firstLegCost)} for the first leg';
+  }
+}
+
+/// The travel control, with its confirmation step (brief §53).
+///
+/// Tap Travel and the button becomes a small confirmation block: the
+/// destination, the first leg's cost, and the balance the journey leaves —
+/// stated before the spend, so setting out is a decision rather than a
+/// reflex. Cancel costs nothing. The flag is presentation state: it survives
+/// nothing, decides nothing, and the engine re-validates the journey on
+/// confirm exactly as it always did.
+class _TravelControls extends StatefulWidget {
+  const _TravelControls({
+    required this.destinationName,
+    required this.option,
+    required this.banked,
+    required this.busy,
+    required this.open,
+    required this.onTravel,
+  });
+
+  final String destinationName;
+  final TravelOption option;
+  final int banked;
+  final bool busy;
+  final bool open;
+  final VoidCallback? onTravel;
+
+  @override
+  State<_TravelControls> createState() => _TravelControlsState();
+}
+
+class _TravelControlsState extends State<_TravelControls> {
+  bool _confirming = false;
+
+  @override
+  void didUpdateWidget(_TravelControls oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new selection or a changed price is a new question.
+    if (oldWidget.option.id != widget.option.id) _confirming = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_confirming) {
+      return StrideButton(
+        label: widget.busy ? 'Travelling…' : 'Travel',
+        onPressed: widget.open
+            ? () => setState(() => _confirming = true)
+            : null,
+      );
+    }
+    final int after = widget.banked - widget.option.stepCost;
+    return SurfaceBlock(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          AdaptiveText(
+            'Set out for ${widget.destinationName}?',
+            style: StrideType.itemName,
+          ),
+          const SizedBox(height: StrideSpace.s4),
+          Text(
+            '${formatSteps(widget.option.stepCost)} steps · leaves '
+            '${formatSteps(after < 0 ? 0 : after)} banked',
+            style: StrideType.micro.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: StrideSpace.s8),
+          Wrap(
+            spacing: StrideSpace.s8,
+            runSpacing: StrideSpace.s4,
+            children: <Widget>[
+              StrideButton.secondary(
+                label: widget.busy ? 'Travelling…' : 'Set out',
+                onPressed: widget.busy || !widget.open
+                    ? null
+                    : () {
+                        setState(() => _confirming = false);
+                        widget.onTravel?.call();
+                      },
+              ),
+              StrideButton.secondary(
+                label: 'Stay',
+                onPressed: widget.busy
+                    ? null
+                    : () => setState(() => _confirming = false),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

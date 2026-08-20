@@ -12,9 +12,11 @@
 /// - **A structural fault reported as a partial layout.** `parse` throws and
 ///   names the field; it never returns a layout missing a list.
 /// - **A schema bump that silently drops data.** v2 adds `landmarks` and
-///   `kindMarkers`; a v1 document must still parse (there is one in the field —
-///   the shipped file until this milestone), and a v1 document *carrying* the
-///   v2 blocks must be refused rather than read with them thrown away.
+///   `kindMarkers`; v3 adds `rumors` (Exploration & Progression Loop 01). A
+///   v1 document must still parse (there was one in the field — the shipped
+///   file two milestones ago), and a document *carrying* a later version's
+///   blocks under an earlier version must be refused rather than read with
+///   them thrown away.
 /// - **A landmark that is really a place.** A landmark has no hit target and no
 ///   panel, so one that duplicates a location id, or a second landmark's id, is
 ///   a place drawn twice with only one way in.
@@ -59,7 +61,8 @@ void main() {
     final Map<String, Object?> bare =
         (jsonDecode(shippedLayout) as Map<String, Object?>)
           ..['landmarks'] = <Object?>[]
-          ..remove('kindMarkers');
+          ..remove('kindMarkers')
+          ..remove('rumors');
     bareLayout = const JsonEncoder.withIndent('  ').convert(bare);
   });
 
@@ -156,32 +159,33 @@ void main() {
   });
 
   group('the schema', () {
-    /// The shipped document with its version reset and the v2 blocks removed —
-    /// which is exactly what the file was before this milestone.
+    /// The shipped document with its version reset and the v2/v3 blocks
+    /// removed — which is exactly what the file was two milestones ago.
     String asV1() => bareLayout
-        .replaceFirst('"schemaVersion": 2', '"schemaVersion": 1')
+        .replaceFirst('"schemaVersion": 3', '"schemaVersion": 1')
         .replaceFirst('"landmarks": [],\n', '');
 
     test('ships at the current version', () {
-      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 2);
-      expect(atlasLayoutSchemaVersion, 2);
+      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 3);
+      expect(atlasLayoutSchemaVersion, 3);
     });
 
-    test('still reads a v1 document, with no landmarks', () {
+    test('still reads a v1 document, with no landmarks and no rumors', () {
       final AtlasLayout v1 = AtlasLayout.parse(asV1());
       expect(v1.schemaVersion, 1);
       expect(v1.landmarks, isEmpty);
       expect(v1.kindMarkers, isEmpty);
+      expect(v1.rumors, isEmpty);
       // Everything else is unchanged: the two versions describe one world.
-      final AtlasLayout v2 = AtlasLayout.parse(shippedLayout);
-      expect(v1.locations.length, v2.locations.length);
-      expect(v1.worldWidth, v2.worldWidth);
-      expect(v1.routes.length, v2.routes.length);
+      final AtlasLayout v3 = AtlasLayout.parse(shippedLayout);
+      expect(v1.locations.length, v3.locations.length);
+      expect(v1.worldWidth, v3.worldWidth);
+      expect(v1.routes.length, v3.routes.length);
     });
 
     test('refuses v1 carrying v2 blocks rather than dropping them', () {
       final String lying = bareLayout.replaceFirst(
-        '"schemaVersion": 2',
+        '"schemaVersion": 3',
         '"schemaVersion": 1',
       );
       expect(
@@ -196,8 +200,26 @@ void main() {
       );
     });
 
+    test('refuses v2 carrying the rumors block rather than dropping it', () {
+      // The shipped document has real rumors; only its version lies.
+      final String lying = shippedLayout.replaceFirst(
+        '"schemaVersion": 3',
+        '"schemaVersion": 2',
+      );
+      expect(
+        () => AtlasLayout.parse(lying),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('schemaVersion 3'),
+          ),
+        ),
+      );
+    });
+
     test('refuses a version it has never heard of', () {
-      for (final String version in <String>['0', '3', '99']) {
+      for (final String version in <String>['0', '4', '99']) {
         expect(
           () => AtlasLayout.parse('{"schemaVersion": $version}'),
           throwsA(isA<AtlasLayoutException>()),

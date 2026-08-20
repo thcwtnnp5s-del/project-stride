@@ -281,20 +281,38 @@ class _CraftControl extends StatelessWidget {
     final bool enabled =
         recipe.canCraft && !watched.busy && watched.session.isReady;
 
-    return StrideButton(
-      label: watched.busy ? 'Crafting…' : 'Craft',
-      subLabel: _reason(recipe),
-      onPressed: enabled ? () => controller.craft(recipe.id) : null,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        StrideButton(
+          label: watched.busy ? 'Crafting…' : 'Craft',
+          subLabel: _reason(recipe),
+          onPressed: enabled ? () => controller.craft(recipe.id) : null,
+        ),
+        SizedBox(height: StrideSpace.s6),
+        // The Pursuit hook (`DECISIONS/0023` §1): any recipe's output can be
+        // tracked, and a locked or distant one is exactly the kind worth
+        // tracking. Reserves nothing; the tracker restates this card's own
+        // facts on the Adventure screen.
+        StrideButton.secondary(
+          label: 'Track as Pursuit',
+          onPressed: watched.busy
+              ? null
+              : () => controller.trackGoalPursuit(recipe.outputItem),
+        ),
+      ],
     );
   }
 
   /// The one sentence that explains a disabled button.
   ///
-  /// The skill gate is named **before** the ingredients, matching the engine's
-  /// own refusal order and for the same reason: telling a player they are two
-  /// ingots short, when the real answer is that they need four more levels,
-  /// sends them mining for a wall they will still hit.
+  /// The lock is named before the skill gate, and the skill gate before the
+  /// ingredients — the engine's own refusal order, and for the same reason:
+  /// telling a player they are two ingots short, when the real answer is that
+  /// the smith has not taught them the pattern, sends them mining for a wall
+  /// they will still hit.
   static String? _reason(RecipeOption recipe) {
+    if (recipe.lockReason case final String locked) return locked;
     if (!recipe.skillMet) {
       return 'Needs ${recipe.skillName} ${recipe.requiredLevel}';
     }
@@ -337,21 +355,63 @@ class _CraftResult extends StatelessWidget {
         ),
       );
     }
+    // Finished equipment gets the stronger treatment (brief §69): the name,
+    // the stat story against what is worn, and the level-up when one landed.
+    // Intermediate outputs keep the single quiet line.
+    final EquipDelta? delta = report.equipDelta;
     return RarityFrame(
       rarity: rarity,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(
-            child: AdaptiveText(
-              'Made ${report.quantity} × ${report.outputName}  ·  '
-              '+${report.experience} ${report.skillName}',
-              style: StrideType.sub,
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: AdaptiveText(
+                  delta == null
+                      ? 'Made ${report.quantity} × ${report.outputName}  ·  '
+                            '+${report.experience} ${report.skillName}'
+                      : '${report.outputName?.toUpperCase()} CRAFTED',
+                  style: delta == null
+                      ? StrideType.sub
+                      : StrideType.sectionHeading,
+                  color: StrideColors.textPrimary,
+                ),
+              ),
+              if (rarity != null) ...<Widget>[
+                SizedBox(width: StrideSpace.s8),
+                RarityBadge(rarity: rarity),
+              ],
+            ],
+          ),
+          if (delta != null) ...<Widget>[
+            SizedBox(height: StrideSpace.s4),
+            AdaptiveText(
+              '${delta.statName}  ${delta.before} → ${delta.after}',
+              style: StrideType.body,
               color: StrideColors.textPrimary,
             ),
-          ),
-          if (rarity != null) ...<Widget>[
-            SizedBox(width: StrideSpace.s8),
-            RarityBadge(rarity: rarity),
+            AdaptiveText(
+              '+${report.experience} ${report.skillName} XP · equip it from '
+              'Inventory',
+              style: StrideType.micro,
+              color: StrideColors.textSecondary,
+            ),
+          ],
+          if (report.levelledUp) ...<Widget>[
+            SizedBox(height: StrideSpace.s6),
+            AdaptiveText(
+              '${report.skillName?.toUpperCase()} LEVEL '
+              '${report.skillLevelAfter}',
+              style: StrideType.sectionHeading,
+              color: StrideColors.textPrimary,
+            ),
+            if (report.unlockedNames.isNotEmpty)
+              AdaptiveText(
+                '${report.unlockedNames.join(' · ')} unlocked.',
+                style: StrideType.sub,
+                color: StrideColors.textSecondary,
+              ),
           ],
         ],
       ),
@@ -363,6 +423,7 @@ class _CraftResult extends StatelessWidget {
   static String _refusalText(CraftReport report) => switch (report.rejection) {
     'insufficient_ingredients' => 'Not enough materials.',
     'skill_level_too_low' => 'Your skill is not high enough yet.',
+    'recipe_locked' => 'This recipe has not been learned yet.',
     'unknown_recipe' => 'That recipe is not in this content pack.',
     'session_busy' => 'Something else is still running.',
     'session_not_ready' => 'The game is not ready. Reload and try again.',

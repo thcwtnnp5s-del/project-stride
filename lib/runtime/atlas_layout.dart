@@ -52,7 +52,14 @@ const String atlasLayoutAsset = 'assets/content/v1/atlas/atlas_layout.json';
 /// - `kindMarkers` — the glyph art for each kind of place (`world/marker_haven`
 ///   and its four siblings). Absent until the art lands, and absent is not a
 ///   fault: the marker layer draws its ring chrome instead.
-const int atlasLayoutSchemaVersion = 2;
+///
+/// **v3 adds one optional block:** `rumors` — where each authored rumor
+/// (`rumors.json`, `DECISIONS/0023` §8) stands on the map *if the player has
+/// heard it*. A spot, not a place: no hit target, no travel, no art — the
+/// label is the rumor's own name ("Eastern City ?"), drawn only once the
+/// state says the rumor is revealed. An unheard rumor draws nothing, which is
+/// the discovery model's RUMORED tier made literal.
+const int atlasLayoutSchemaVersion = 3;
 
 /// The oldest schema this reader still accepts.
 const int atlasLayoutMinimumSchemaVersion = 1;
@@ -289,6 +296,20 @@ final class AtlasProp {
   final int anchorY;
 }
 
+/// Where one authored rumor stands on the map, in world pixels.
+///
+/// [id] is a real `ContentId` in the `rumor` namespace — unlike a landmark,
+/// a rumor *is* content (`rumors.json` carries its name and hint), and the
+/// coordinate here is only where the atlas hangs that name once the player
+/// has heard it.
+final class AtlasRumorSpot {
+  const AtlasRumorSpot({required this.id, required this.x, required this.y});
+
+  final ContentId id;
+  final double x;
+  final double y;
+}
+
 /// The drawn course of one road between two places, in world pixels.
 ///
 /// A polyline the route layer dots along instead of a straight line, so the
@@ -326,6 +347,7 @@ final class AtlasLayout {
     this.routes = const <AtlasRoute>[],
     this.landmarks = const <AtlasNamedLandmark>[],
     this.kindMarkers = const <String, AtlasLandmark>{},
+    this.rumors = const <AtlasRumorSpot>[],
     this.schemaVersion = atlasLayoutSchemaVersion,
   });
 
@@ -355,6 +377,18 @@ final class AtlasLayout {
   /// ([atlasMarkerKinds]). Empty until the art lands; the marker layer draws
   /// ring chrome for a kind with no entry, which is the state this ships in.
   final Map<String, AtlasLandmark> kindMarkers;
+
+  /// Where each authored rumor stands, once heard. Empty for a pre-v3
+  /// document, and empty is not a fault — rumors then simply have no marker.
+  final List<AtlasRumorSpot> rumors;
+
+  /// The rumor spot for [id], or null when the layout places none.
+  AtlasRumorSpot? rumorFor(ContentId id) {
+    for (final AtlasRumorSpot rumor in rumors) {
+      if (rumor.id == id) return rumor;
+    }
+    return null;
+  }
 
   /// The version the document declared. Kept so a screen can say what it read
   /// rather than what it hoped for.
@@ -464,6 +498,10 @@ final class AtlasLayout {
         'landmarks and kindMarkers need schemaVersion 2',
       );
     }
+    // The v3 block, on the same terms.
+    if (version < 3 && decoded['rumors'] != null) {
+      throw const AtlasLayoutException('rumors need schemaVersion 3');
+    }
     final List<AtlasNamedLandmark> landmarks = <AtlasNamedLandmark>[
       if (decoded['landmarks'] != null)
         for (final (int i, Object? raw) in _list(decoded, 'landmarks').indexed)
@@ -486,6 +524,20 @@ final class AtlasLayout {
       }
     }
 
+    final List<AtlasRumorSpot> rumors = <AtlasRumorSpot>[
+      if (decoded['rumors'] != null)
+        for (final (int i, Object? raw) in _list(decoded, 'rumors').indexed)
+          _rumor(raw, i),
+    ];
+    final Set<String> rumorIds = <String>{};
+    for (final AtlasRumorSpot rumor in rumors) {
+      if (!rumorIds.add(rumor.id.value)) {
+        throw AtlasLayoutException(
+          'rumors lists ${rumor.id.value} more than once',
+        );
+      }
+    }
+
     return AtlasLayout(
       worldWidth: worldWidth,
       worldHeight: worldHeight,
@@ -497,7 +549,26 @@ final class AtlasLayout {
       routes: List<AtlasRoute>.unmodifiable(routes),
       landmarks: List<AtlasNamedLandmark>.unmodifiable(landmarks),
       kindMarkers: Map<String, AtlasLandmark>.unmodifiable(kindMarkers),
+      rumors: List<AtlasRumorSpot>.unmodifiable(rumors),
       schemaVersion: version,
+    );
+  }
+
+  static AtlasRumorSpot _rumor(Object? raw, int index) {
+    if (raw is! Map<String, Object?>) {
+      throw AtlasLayoutException('rumors[$index] must be an object');
+    }
+    final String at = 'rumors[$index]';
+    final String rawId = _string(raw, 'id', within: at);
+    final ContentIdParse parsed = ContentId.parse(rawId);
+    final ContentId? id = parsed.id;
+    if (id == null) {
+      throw AtlasLayoutException('$at.id: ${parsed.explanation}');
+    }
+    return AtlasRumorSpot(
+      id: id,
+      x: _number(raw, 'x', within: at),
+      y: _number(raw, 'y', within: at),
     );
   }
 
@@ -611,6 +682,17 @@ final class AtlasLayout {
         problems.add(
           'landmark ${landmark.id} lies outside the $worldWidth×$worldHeight '
           'world at (${landmark.x}, ${landmark.y})',
+        );
+      }
+    }
+    for (final AtlasRumorSpot rumor in rumors) {
+      if (rumor.x < 0 ||
+          rumor.y < 0 ||
+          rumor.x > worldWidth ||
+          rumor.y > worldHeight) {
+        problems.add(
+          'rumor ${rumor.id.value} lies outside the world at '
+          '(${rumor.x}, ${rumor.y})',
         );
       }
     }

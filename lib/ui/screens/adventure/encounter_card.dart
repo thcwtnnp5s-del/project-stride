@@ -21,7 +21,8 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show EnemyBehavior;
+import 'package:stride_core/stride_core.dart'
+    show EnemyBehavior, KnowledgeTier;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
@@ -67,6 +68,9 @@ class EncounterCard extends StatelessWidget {
             children: <Widget>[
               if (o.isBoss) const RequirementGate(label: 'Boss'),
               RequirementGate(label: _behaviorLabel(o.behavior)),
+              // The compact knowledge tier (`DECISIONS/0023` §5): Seen,
+              // Studied, Known — and then it stops. Presentation only.
+              RequirementGate(label: _knowledgeLabel(o)),
             ],
           ),
           const SizedBox(height: StrideSpace.s10),
@@ -102,10 +106,23 @@ class EncounterCard extends StatelessWidget {
     EnemyBehavior.guarded => 'Heavy strike every third turn',
   };
 
+  /// The tier, with the distance to the next one while one exists.
+  static String _knowledgeLabel(EncounterOption o) => switch (o.knowledge) {
+    KnowledgeTier.unseen => 'Unseen',
+    KnowledgeTier.seen => 'Seen · ${o.victories}/${o.studiedAt} to Studied',
+    KnowledgeTier.studied => 'Studied · ${o.victories}/${o.knownAt} to Known',
+    KnowledgeTier.known => 'Known',
+  };
+
+  /// The reward preview. A signature drop's existence stays concealed until
+  /// the enemy is Known — an unrevealed one renders as `???`
+  /// (`DECISIONS/0023` §5). The roll is the same either way.
   static String _rewards(EncounterOption o) {
     final String xp = '${o.xp} XP';
     if (o.drops.isEmpty) return 'Rewards: $xp';
-    final String names = o.drops.map((DropPreview d) => d.name).join(', ');
+    final String names = o.drops
+        .map((DropPreview d) => d.revealed ? d.name : '???')
+        .join(', ');
     return 'Rewards: $xp, $names';
   }
 

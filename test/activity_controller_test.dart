@@ -195,8 +195,8 @@ void main() {
     fake.advance(const Duration(seconds: 1));
     await until(() => a.completed == 1, reason: 'the repetition completes');
 
-    expect(s.totalSpent, 90, reason: 'exactly one cost');
-    expect(s.inventoryCount(kHerb), 2, reason: 'exactly one yield');
+    expect(s.totalSpent, 80, reason: 'exactly one cost');
+    expect(s.inventoryCount(kHerb), 1, reason: 'exactly one yield');
     expect(xpOf(s), 10, reason: 'exactly one XP award');
     expect(a.active, isFalse, reason: 'the queue of one is finished');
     expect(s.activityQueue, isNull, reason: 'and durably cleared');
@@ -204,7 +204,7 @@ void main() {
     // The finished queue's summary, accumulated from the committed report.
     expect(a.summaryNode, kNode);
     expect(a.gainedItemName, 'Meadow Herb');
-    expect(a.gainedQuantity, 2);
+    expect(a.gainedQuantity, 1);
     expect(a.gainedSkillName, 'Foraging');
     expect(a.gainedXp, 10);
     expect(a.stopReason, isNull);
@@ -228,20 +228,20 @@ void main() {
     for (int k = 1; k <= 10; k++) {
       fake.advance(kRep);
       await until(() => a.completed == k, reason: 'repetition $k completes');
-      expect(s.totalSpent, 90 * k, reason: 'exactly $k costs after $k');
+      expect(s.totalSpent, 80 * k, reason: 'exactly $k costs after $k');
     }
 
-    expect(s.totalSpent, 900);
-    expect(s.inventoryCount(kHerb), 20);
+    expect(s.totalSpent, 800);
+    expect(s.inventoryCount(kHerb), 10);
     expect(xpOf(s), 100);
     expect(a.active, isFalse);
-    expect(a.gainedQuantity, 20);
+    expect(a.gainedQuantity, 10);
     expect(a.gainedXp, 100);
 
     // No eleventh: time passing after the queue finished commits nothing.
     fake.advance(const Duration(minutes: 5));
     await settle();
-    expect(s.totalSpent, 900);
+    expect(s.totalSpent, 800);
   });
 
   test('background under one repetition: resuming completes nothing — and '
@@ -273,7 +273,7 @@ void main() {
     // remainder, completes the repetition.
     fake.advance(const Duration(seconds: 1));
     await until(() => a.completed == 1, reason: 'completes on the boundary');
-    expect(s.totalSpent, 90);
+    expect(s.totalSpent, 80);
   });
 
   test('background across one boundary: resuming commits exactly one, '
@@ -292,11 +292,11 @@ void main() {
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => a.completed == 1, reason: 'the away repetition commits');
 
-    expect(s.totalSpent, 90);
-    expect(s.inventoryCount(kHerb), 2);
+    expect(s.totalSpent, 80);
+    expect(s.inventoryCount(kHerb), 1);
     expect(a.active, isTrue);
     final AwaySummary away = a.awaySummary!;
-    expect(away.quantity, 2);
+    expect(away.quantity, 1);
     expect(away.experience, 10);
     expect(away.itemName, 'Meadow Herb');
     expect(away.finishedQueue, isFalse);
@@ -321,11 +321,11 @@ void main() {
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => a.completed == 3, reason: 'three away repetitions');
 
-    expect(s.totalSpent, 270);
-    expect(s.inventoryCount(kHerb), 6);
+    expect(s.totalSpent, 240);
+    expect(s.inventoryCount(kHerb), 3);
     expect(xpOf(s), 30);
     expect(a.active, isTrue);
-    expect(a.awaySummary!.quantity, 6);
+    expect(a.awaySummary!.quantity, 3);
     // And the durable anchor sits mid-repetition, five seconds in.
     expect(a.elapsedOfCurrent, const Duration(seconds: 5));
   });
@@ -346,13 +346,13 @@ void main() {
     await until(() => !a.active, reason: 'the whole queue finished away');
 
     expect(a.completed, 3, reason: 'capped at requested — finite by design');
-    expect(s.totalSpent, 270);
-    expect(s.inventoryCount(kHerb), 6);
+    expect(s.totalSpent, 240);
+    expect(s.inventoryCount(kHerb), 3);
     expect(s.activityQueue, isNull);
     expect(a.summaryNode, kNode, reason: 'normal controls with a summary');
     expect(a.stopReason, isNull);
     final AwaySummary away = a.awaySummary!;
-    expect(away.quantity, 6);
+    expect(away.quantity, 3);
     expect(away.finishedQueue, isTrue);
   });
 
@@ -369,7 +369,7 @@ void main() {
     fake.elapseInBackground(const Duration(seconds: 12));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => a.completed == 1, reason: 'the away repetition commits');
-    expect(s.totalSpent, 90);
+    expect(s.totalSpent, 80);
 
     // A second background/resume cycle with no elapsed time: the reconcile
     // finds nothing left — exactly-once is the commit, not the trigger.
@@ -377,12 +377,12 @@ void main() {
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await settle();
     expect(a.completed, 1);
-    expect(s.totalSpent, 90);
+    expect(s.totalSpent, 80);
 
     // And an explicit extra reconcile is equally harmless.
     a.reconcileNow();
     await settle();
-    expect(s.totalSpent, 90);
+    expect(s.totalSpent, 80);
   });
 
   test('kill and relaunch: a save carrying an active queue reconciles on '
@@ -403,7 +403,7 @@ void main() {
     await startAndCommit(sessions, a, s, 5);
     fake.advance(kRep);
     await until(() => a.completed == 1, reason: 'one watched completion');
-    expect(s.totalSpent, 90);
+    expect(s.totalSpent, 80);
 
     // The process dies mid-second-repetition. Nothing is flushed, nothing is
     // stopped: the queue is already durable.
@@ -442,23 +442,23 @@ void main() {
     expect(a2.active, isTrue);
     expect(a2.queued, 5);
     expect(a2.completed, 1);
-    expect(a2.gainedQuantity, 2);
+    expect(a2.gainedQuantity, 1);
     expect(a2.gainedXp, 10);
 
     // Construction scheduled the reconcile; the fake clock delivers it.
     relaunchClock.advance(Duration.zero);
     await until(() => a2.completed == 3, reason: 'two away repetitions');
 
-    expect(relaunched.totalSpent, 270, reason: 'no duplicates across death');
-    expect(relaunched.inventoryCount(kHerb), 6);
-    expect(a2.awaySummary!.quantity, 4, reason: 'the two committed while away');
+    expect(relaunched.totalSpent, 240, reason: 'no duplicates across death');
+    expect(relaunched.inventoryCount(kHerb), 3);
+    expect(a2.awaySummary!.quantity, 2, reason: 'the two committed while away');
     expect(a2.active, isTrue);
-    expect(a2.gainedQuantity, 6);
+    expect(a2.gainedQuantity, 3);
 
     // A second reconcile finds nothing.
     a2.reconcileNow();
     await settle();
-    expect(relaunched.totalSpent, 270);
+    expect(relaunched.totalSpent, 240);
   });
 
   test('stop at 27 s of a 10 s × 5 queue: exactly 2 committed, the partial '
@@ -483,8 +483,8 @@ void main() {
 
     expect(a.active, isFalse);
     expect(a.completed, 2);
-    expect(s.totalSpent, 180);
-    expect(s.inventoryCount(kHerb), 4);
+    expect(s.totalSpent, 160);
+    expect(s.inventoryCount(kHerb), 2);
     expect(xpOf(s), 20);
     expect(a.stopReason, isNull, reason: 'a player stop is not a refusal');
 
@@ -493,10 +493,10 @@ void main() {
       overrideRoot: root,
       source: MockStepSource(script: const <SyncFetch>[]),
     );
-    expect(relaunched.totalSpent, 180);
-    expect(relaunched.inventoryCount(kHerb), 4);
+    expect(relaunched.totalSpent, 160);
+    expect(relaunched.inventoryCount(kHerb), 2);
     expect(relaunched.activityQueue, isNull);
-    expect(relaunched.usableEnergy, 1000 - 180);
+    expect(relaunched.usableEnergy, 1000 - 160);
   });
 
   test(
@@ -562,15 +562,15 @@ void main() {
     expect(a.completed, 0, reason: 'back to the anchor instant, no boundary');
     fake.advance(kRep);
     await until(() => a.completed == 1, reason: 'the honest first completion');
-    expect(s.totalSpent, 90);
+    expect(s.totalSpent, 80);
   });
 
   test('insufficient banked steps mid-queue stops it at the right count, '
       'with the truthful reason and no negative balance', () async {
     final FakeTiming fake = FakeTiming();
-    // Funds two gathers (180) with 70 left over — the third completion is
+    // Funds two gathers (160) with 40 left over — the third completion is
     // the engine's refusal, not a UI prediction.
-    final StrideSession s = await funded(250, fake);
+    final StrideSession s = await funded(200, fake);
     final (SessionController sessions, ActivityController a) = controllers(
       s,
       fake,
@@ -584,8 +584,8 @@ void main() {
 
     expect(a.completed, 2, reason: 'the refused repetition is not counted');
     expect(a.stopReason, 'insufficient_steps');
-    expect(s.usableEnergy, 70, reason: 'no negative, no third spend');
-    expect(s.inventoryCount(kHerb), 4);
+    expect(s.usableEnergy, 40, reason: 'no negative, no third spend');
+    expect(s.inventoryCount(kHerb), 2);
     expect(xpOf(s), 20);
     expect(s.activityQueue, isNull, reason: 'stopped queues do not linger');
   });
@@ -616,8 +616,8 @@ void main() {
 
     expect(a.completed, 1, reason: 'the prior completion is kept');
     expect(a.stopReason, 'resource_node_not_here');
-    expect(s.totalSpent, 90 + travel.cost, reason: 'nothing else was charged');
-    expect(s.inventoryCount(kHerb), 2);
+    expect(s.totalSpent, 80 + travel.cost, reason: 'nothing else was charged');
+    expect(s.inventoryCount(kHerb), 1);
     expect(s.activityQueue, isNull);
   });
 
@@ -692,13 +692,13 @@ void main() {
 
     final ActionReport manualReport = await manual;
     expect(manualReport.succeeded, isTrue);
-    expect(s.totalSpent, 90, reason: 'only the manual gather so far');
+    expect(s.totalSpent, 80, reason: 'only the manual gather so far');
 
     // The retry timer fires and the deferred reconcile commits — once.
     fake.advance(const Duration(milliseconds: 250));
     await until(() => a.completed == 1, reason: 'the deferred reconcile lands');
-    expect(s.totalSpent, 180, reason: 'manual + exactly one queue commit');
-    expect(s.inventoryCount(kHerb), 4);
+    expect(s.totalSpent, 160, reason: 'manual + exactly one queue commit');
+    expect(s.inventoryCount(kHerb), 2);
     expect(xpOf(s), 20);
     expect(a.active, isFalse);
   });
@@ -721,6 +721,6 @@ void main() {
     expect(s.activityQueue!.requested, 2, reason: 'the first tap won');
     fake.advance(const Duration(minutes: 1));
     await until(() => !a.active, reason: 'the queue of two finishes');
-    expect(s.totalSpent, 180, reason: 'two commits, never twelve');
+    expect(s.totalSpent, 160, reason: 'two commits, never twelve');
   });
 }

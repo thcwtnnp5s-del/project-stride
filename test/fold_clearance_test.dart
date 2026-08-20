@@ -197,7 +197,7 @@ void main() {
       // `gather_node_card.dart` still holds.
       final Finder button = find.widgetWithText(
         StrideButton,
-        'Gather ×1 — 90 steps',
+        'Gather ×1 — 80 steps',
       );
       expect(button, findsOneWidget, reason: 'the game action must exist');
 

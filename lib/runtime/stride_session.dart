@@ -55,6 +55,7 @@ export 'atlas_layout.dart'
         AtlasOverlay,
         AtlasProp,
         AtlasRoute,
+        AtlasRumorSpot,
         AtlasTile;
 
 /// How far a sync got, in terms nothing outside this file has to interpret.
@@ -228,6 +229,8 @@ final class DropPreview {
     required this.id,
     required this.name,
     required this.rarity,
+    this.signature = false,
+    this.revealed = true,
   });
 
   final ContentId id;
@@ -235,6 +238,14 @@ final class DropPreview {
 
   /// Null only when the content pack has no definition for [id].
   final Rarity? rarity;
+
+  /// A signature rare drop (`DECISIONS/0023` §5).
+  final bool signature;
+
+  /// False while a signature drop's existence is still concealed — the enemy
+  /// is not yet Known. The card renders an unnamed "???" row; the roll is
+  /// unchanged either way.
+  final bool revealed;
 }
 
 /// One line of a victory reward: what dropped, how much, and its rarity.
@@ -563,6 +574,7 @@ final class RecipeOption {
     required this.outputRarity,
     required this.outputQuantity,
     required this.experience,
+    this.lockReason,
   });
 
   final ContentId id;
@@ -590,12 +602,19 @@ final class RecipeOption {
   /// Profile-scaled, as it would be awarded.
   final int experience;
 
+  /// Why this recipe is not currently craftable regardless of skill and
+  /// materials — the engine's own sentence for a contract-taught recipe the
+  /// player has not earned yet (`DECISIONS/0023` §3). Null when unlocked.
+  final String? lockReason;
+
+  bool get isLocked => lockReason != null;
+
   bool get skillMet => currentLevel >= requiredLevel;
 
   bool get ingredientsMet =>
       ingredients.every((RecipeIngredientLine i) => i.satisfied);
 
-  bool get canCraft => skillMet && ingredientsMet;
+  bool get canCraft => !isLocked && skillMet && ingredientsMet;
 }
 
 /// One line of a recipe's requirements, with what the player actually holds.
@@ -672,24 +691,75 @@ final class CraftReport {
   const CraftReport({
     required this.succeeded,
     required this.recipeName,
+    this.outputItemId,
     this.outputName,
+    this.outputRarity,
     this.quantity,
     this.skillName,
     this.experience,
+    this.skillLevelBefore,
+    this.skillLevelAfter,
+    this.unlockedNames = const <String>[],
+    this.equipDelta,
     this.rejection,
     this.detail,
   });
 
   final bool succeeded;
   final String recipeName;
+  final ContentId? outputItemId;
   final String? outputName;
+
+  /// The output's authored rarity, for the craft celebration's colouring.
+  final Rarity? outputRarity;
   final int? quantity;
   final String? skillName;
   final int? experience;
 
+  /// The skill's level before/after and what the new level opens — the same
+  /// shape [ActionReport] carries, for the same E-2 reason.
+  final int? skillLevelBefore;
+  final int? skillLevelAfter;
+  final List<String> unlockedNames;
+
+  /// For finished equipment: the stat story against what is worn now —
+  /// "Attack 3 → 9". Null for materials and consumables.
+  final EquipDelta? equipDelta;
+
+  bool get levelledUp =>
+      skillLevelBefore != null &&
+      skillLevelAfter != null &&
+      skillLevelAfter! > skillLevelBefore!;
+
   /// The stable [RejectionCode.wire] value, or null on success.
   final String? rejection;
   final String? detail;
+}
+
+/// The stat change a newly crafted piece of equipment offers over what is
+/// currently in its slot — the equipment-craft presentation's one line
+/// (brief §69). Figures come from content `power`, the same figure combat
+/// reads.
+final class EquipDelta {
+  const EquipDelta({
+    required this.slot,
+    required this.statName,
+    required this.before,
+    required this.after,
+  });
+
+  final EquipmentSlot slot;
+
+  /// "Attack" for weapons, "Defence" for armour, "Tool power" for tools.
+  final String statName;
+
+  /// What the currently equipped item in the slot provides (0 when empty).
+  final int before;
+
+  /// What the crafted item provides.
+  final int after;
+
+  bool get isUpgrade => after > before;
 }
 
 final class SkillSummary {
@@ -734,6 +804,9 @@ final class ActionReport {
     this.quantity,
     this.skillName,
     this.experience,
+    this.skillLevelBefore,
+    this.skillLevelAfter,
+    this.unlockedNames = const <String>[],
     this.rejection,
     this.detail,
   });
@@ -760,6 +833,21 @@ final class ActionReport {
   /// [experience] may legitimately be zero: a node with no xp is legal.
   final String? skillName;
   final int? experience;
+
+  /// The skill's level before and after this action, from the content curve
+  /// — so a level-up presentation can say WHAT CHANGED without a widget
+  /// diffing durable state (`RULES.md` E-2). Null unless [succeeded].
+  final int? skillLevelBefore;
+  final int? skillLevelAfter;
+
+  /// The nodes and recipes the new level opens, by display name, when this
+  /// action levelled the skill. Empty otherwise.
+  final List<String> unlockedNames;
+
+  bool get levelledUp =>
+      skillLevelBefore != null &&
+      skillLevelAfter != null &&
+      skillLevelAfter! > skillLevelBefore!;
 
   /// The stable [RejectionCode.wire] value, or null on success.
   final String? rejection;
@@ -824,6 +912,9 @@ final class ActivityQueueReport {
     this.completedAfter = 0,
     this.requested = 0,
     this.stopReason,
+    this.skillLevelBefore,
+    this.skillLevelAfter,
+    this.unlockedNames = const <String>[],
     this.rejection,
     this.detail,
   });
@@ -849,6 +940,18 @@ final class ActivityQueueReport {
   /// queue mid-reconciliation, or null. Distinct from [rejection]: the
   /// command *succeeded* — the queue stopped honestly.
   final String? stopReason;
+
+  /// The worked skill's level before/after this batch, and what a new level
+  /// opens — [ActionReport]'s shape, so the return-from-background summary
+  /// can announce the level-up (brief §71).
+  final int? skillLevelBefore;
+  final int? skillLevelAfter;
+  final List<String> unlockedNames;
+
+  bool get levelledUp =>
+      skillLevelBefore != null &&
+      skillLevelAfter != null &&
+      skillLevelAfter! > skillLevelBefore!;
 
   /// Why the command itself was refused, or null on success.
   final String? rejection;
@@ -924,6 +1027,10 @@ final class EncounterOption {
     required this.remainingThisVisit,
     required this.available,
     this.reason,
+    this.knowledge = KnowledgeTier.unseen,
+    this.victories = 0,
+    this.studiedAt = 3,
+    this.knownAt = 6,
   });
 
   final ContentId enemyId;
@@ -957,6 +1064,14 @@ final class EncounterOption {
   /// `encounter_in_progress` · `enemy_driven_off` · `session_not_ready`, or
   /// null when [available].
   final String? reason;
+
+  /// The compact enemy-knowledge tier (`DECISIONS/0023` §5), with the
+  /// victory counts the card can narrate progress from. Presentation only:
+  /// nothing rolls differently at any tier.
+  final KnowledgeTier knowledge;
+  final int victories;
+  final int studiedAt;
+  final int knownAt;
 }
 
 /// The player's combat figures right now, for the Character screen.
@@ -2055,6 +2170,10 @@ final class StrideSession {
       );
     }
 
+    final int? levelBefore = definition == null
+        ? null
+        : _skillLevelOf(definition.skill);
+
     final EngineResult result = active.execute(GatherResource(node: node));
     if (result case RejectedResult(:final CommandRejection rejection)) {
       return ActionReport(
@@ -2084,6 +2203,7 @@ final class StrideSession {
     final ResourceGathered gathered = result.events
         .whereType<ResourceGathered>()
         .first;
+    final int? levelAfter = _skillLevelOf(gathered.skill);
     return ActionReport(
       succeeded: true,
       nodeName: name,
@@ -2096,7 +2216,41 @@ final class StrideSession {
       skillName:
           content.skills[gathered.skill]?.displayName ?? gathered.skill.value,
       experience: gathered.experience,
+      skillLevelBefore: levelBefore,
+      skillLevelAfter: levelAfter,
+      unlockedNames: _unlocksOpened(gathered.skill, levelBefore, levelAfter),
     );
+  }
+
+  /// The player's current level in [skill], from the same curve the engine
+  /// gates on. Null when the session cannot answer.
+  int? _skillLevelOf(ContentId skill) {
+    final GameEngine? active = engine;
+    final SkillDefinition? definition = registry?.skills[skill];
+    if (active == null || definition == null) return null;
+    return definition.levelAt(active.state.skills.experienceIn(skill));
+  }
+
+  /// The nodes and recipes [skill] opens strictly between [before] and
+  /// [after], by display name — the "MINING LEVEL 3 · Tin Seam unlocked"
+  /// sentence's content (brief §68). Empty when no level was gained.
+  List<String> _unlocksOpened(ContentId skill, int? before, int? after) {
+    final ContentRegistry? content = registry;
+    if (content == null || before == null || after == null || after <= before) {
+      return const <String>[];
+    }
+    return <String>[
+      for (final ResourceNodeDefinition node in content.resourceNodes.values)
+        if (node.skill == skill &&
+            node.requiredLevel > before &&
+            node.requiredLevel <= after)
+          node.displayName,
+      for (final RecipeDefinition recipe in content.recipes.values)
+        if (recipe.skill == skill &&
+            recipe.requiredLevel > before &&
+            recipe.requiredLevel <= after)
+          recipe.displayName,
+    ];
   }
 
   // -- The activity queue (`DECISIONS/0022`) ---------------------------------
@@ -2176,6 +2330,12 @@ final class StrideSession {
       if (active == null || registry == null || _stale || migrationPending) {
         return _activityNotReady(name);
       }
+      final ContentId? queueSkill = before == null
+          ? null
+          : registry?.resourceNodes[before.node]?.skill;
+      final int? levelBefore = queueSkill == null
+          ? null
+          : _skillLevelOf(queueSkill);
       final EngineResult result = active.execute(
         ReconcileActivityQueue(nowEpochMillis: activityWallClock()),
       );
@@ -2207,6 +2367,9 @@ final class StrideSession {
       final ActivityQueueReconciled event = result.events
           .whereType<ActivityQueueReconciled>()
           .first;
+      final int? levelAfter = queueSkill == null
+          ? null
+          : _skillLevelOf(queueSkill);
       return ActivityQueueReport(
         succeeded: true,
         nodeName: name,
@@ -2215,6 +2378,11 @@ final class StrideSession {
         completedAfter: event.completedAfter,
         requested: before?.requested ?? event.completedAfter,
         stopReason: event.stopReason,
+        skillLevelBefore: levelBefore,
+        skillLevelAfter: levelAfter,
+        unlockedNames: queueSkill == null
+            ? const <String>[]
+            : _unlocksOpened(queueSkill, levelBefore, levelAfter),
       );
     } finally {
       _inFlight = false;
@@ -2438,6 +2606,16 @@ final class StrideSession {
       );
     }
 
+    final RecipeDefinition? definition = content.recipes[recipe];
+    final int? levelBefore = definition == null
+        ? null
+        : _skillLevelOf(definition.skill);
+    // The stat story against what is worn NOW, captured before the craft so
+    // "what you have" cannot already be the crafted item.
+    final EquipDelta? delta = definition == null
+        ? null
+        : _equipDeltaFor(content.items[definition.outputItem], active.state);
+
     final EngineResult result = active.execute(CraftItem(recipe: recipe));
     if (result case RejectedResult(:final CommandRejection rejection)) {
       return CraftReport(
@@ -2464,15 +2642,44 @@ final class StrideSession {
     }
 
     final ItemCrafted crafted = result.events.whereType<ItemCrafted>().first;
+    final int? levelAfter = _skillLevelOf(crafted.skill);
     return CraftReport(
       succeeded: true,
       recipeName: name,
+      outputItemId: crafted.item,
       outputName:
           content.items[crafted.item]?.displayName ?? crafted.item.value,
+      outputRarity: content.items[crafted.item]?.rarity,
       quantity: crafted.quantity,
       skillName:
           content.skills[crafted.skill]?.displayName ?? crafted.skill.value,
       experience: crafted.experience,
+      skillLevelBefore: levelBefore,
+      skillLevelAfter: levelAfter,
+      unlockedNames: _unlocksOpened(crafted.skill, levelBefore, levelAfter),
+      equipDelta: delta,
+    );
+  }
+
+  /// The stat story of crafting [item] against what currently occupies its
+  /// slot, or null for anything that is not equipment.
+  EquipDelta? _equipDeltaFor(ItemDefinition? item, GameState state) {
+    final EquipmentSlot? slot = item?.slot;
+    if (item == null || slot == null) return null;
+    final ContentId? wornId = state.equipment.inSlot(slot);
+    final ItemDefinition? worn = wornId == null
+        ? null
+        : registry?.items[wornId];
+    final String statName = switch (slot) {
+      EquipmentSlot.weapon => 'Attack',
+      EquipmentSlot.armor => 'Defence',
+      EquipmentSlot.tool => 'Tool power',
+    };
+    return EquipDelta(
+      slot: slot,
+      statName: statName,
+      before: worn?.power ?? 0,
+      after: item.power,
     );
   }
 
@@ -2875,6 +3082,7 @@ final class StrideSession {
                 : !ready
                 ? 'session_not_ready'
                 : null;
+            final KnowledgeTier tier = knowledgeTierFor(active.state, enemy);
             return EncounterOption(
               enemyId: enemy.id,
               name: enemy.displayName,
@@ -2892,12 +3100,22 @@ final class StrideSession {
                         content.items[drop.item]?.displayName ??
                         drop.item.value,
                     rarity: content.items[drop.item]?.rarity,
+                    signature: drop.signature,
+                    // A signature drop's existence is concealed until the
+                    // enemy is Known (`DECISIONS/0023` §5). Presentation
+                    // only: the roll is unchanged.
+                    revealed:
+                        !drop.signature || tier == KnowledgeTier.known,
                   ),
               ],
               encountersPerVisit: enemy.encountersPerVisit,
               remainingThisVisit: remaining,
               available: reason == null,
               reason: reason,
+              knowledge: tier,
+              victories: active.state.progress.victoriesOf(enemy.id),
+              studiedAt: enemy.studiedAt,
+              knownAt: enemy.knownAt,
             );
           }(),
     ];
@@ -3199,42 +3417,66 @@ final class StrideSession {
     final ContentRegistry? content = registry;
     if (active == null || content == null) return const <RecipeOption>[];
 
-    final List<RecipeOption> options = <RecipeOption>[
-      for (final RecipeDefinition recipe in content.recipes.values)
-        if (content.skills[recipe.skill] case final SkillDefinition skill)
-          RecipeOption(
-            id: recipe.id,
-            displayName: recipe.displayName,
-            skillName: skill.displayName,
-            requiredLevel: recipe.requiredLevel,
-            currentLevel: skill.levelAt(
-              active.state.skills.experienceIn(recipe.skill),
-            ),
-            ingredients: <RecipeIngredientLine>[
-              for (final RecipeIngredient i in recipe.ingredients)
-                RecipeIngredientLine(
-                  item: i.item,
-                  displayName:
-                      content.items[i.item]?.displayName ?? i.item.value,
-                  required: i.quantity,
-                  held: active.state.inventory.quantityOf(i.item),
-                ),
-            ],
-            outputItem: recipe.outputItem,
-            outputName:
-                content.items[recipe.outputItem]?.displayName ??
-                recipe.outputItem.value,
-            outputRarity: content.items[recipe.outputItem]?.rarity,
-            outputQuantity: active.profile.applyYield(recipe.outputQuantity),
-            experience: active.profile.applyXp(recipe.xp),
+    final List<RecipeOption> options = <RecipeOption>[];
+    for (final RecipeDefinition recipe in content.recipes.values) {
+      final SkillDefinition? skill = content.skills[recipe.skill];
+      if (skill == null) continue;
+
+      // Project-gated recipes are hidden rather than shown locked: the Mill's
+      // improved plank recipe would otherwise sit beside the one it replaces
+      // as a second card with the same name, and the project card already
+      // advertises the capability. Contract-taught recipes stay visible with
+      // the engine's own lock sentence — they are destinations
+      // (`DECISIONS/0023` §3).
+      final ContentId? projectGate = recipe.unlockedByProject;
+      if (projectGate != null &&
+          !active.state.progress.isProjectComplete(projectGate)) {
+        continue;
+      }
+      final ContentId? retiredBy = recipe.retiredByProject;
+      if (retiredBy != null &&
+          active.state.progress.isProjectComplete(retiredBy)) {
+        continue;
+      }
+
+      options.add(
+        RecipeOption(
+          id: recipe.id,
+          displayName: recipe.displayName,
+          skillName: skill.displayName,
+          requiredLevel: recipe.requiredLevel,
+          currentLevel: skill.levelAt(
+            active.state.skills.experienceIn(recipe.skill),
           ),
-    ];
+          ingredients: <RecipeIngredientLine>[
+            for (final RecipeIngredient i in recipe.ingredients)
+              RecipeIngredientLine(
+                item: i.item,
+                displayName:
+                    content.items[i.item]?.displayName ?? i.item.value,
+                required: i.quantity,
+                held: active.state.inventory.quantityOf(i.item),
+              ),
+          ],
+          outputItem: recipe.outputItem,
+          outputName:
+              content.items[recipe.outputItem]?.displayName ??
+              recipe.outputItem.value,
+          outputRarity: content.items[recipe.outputItem]?.rarity,
+          outputQuantity: active.profile.applyYield(recipe.outputQuantity),
+          experience: active.profile.applyXp(recipe.xp),
+          lockReason: active.recipeLockReason(recipe, active.state),
+        ),
+      );
+    }
 
     // Craftable first, then by the skill level they ask for. The player's own
     // progression is the order they think in, and "what can I make now" should
-    // not be at the bottom of a list sorted alphabetically.
+    // not be at the bottom of a list sorted alphabetically. Locked recipes
+    // sink below unlocked ones of the same level — they are the furthest away.
     options.sort((RecipeOption a, RecipeOption b) {
       if (a.canCraft != b.canCraft) return a.canCraft ? -1 : 1;
+      if (a.isLocked != b.isLocked) return a.isLocked ? 1 : -1;
       final int byLevel = a.requiredLevel.compareTo(b.requiredLevel);
       if (byLevel != 0) return byLevel;
       return a.displayName.compareTo(b.displayName);
@@ -3335,6 +3577,805 @@ final class StrideSession {
   BootstrapBlocked? get blocked {
     final BootstrapOutcome o = outcome;
     return o is BootstrapBlocked ? o : null;
+  }
+
+  // -- Exploration & Progression Loop 01 (`DECISIONS/0023`) -------------------
+
+  /// The player's persistent HP, and the maximum the level provides.
+  int get playerHp => engine?.state.player.hp ?? 0;
+  int get playerMaxHp =>
+      engine == null ? 0 : CombatRules.maxHpFor(engine!.state.player.level);
+
+  /// A settlement's named development state, or null.
+  String? developmentStateOf(ContentId location) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return null;
+    return developmentStateFor(content, active.state, location);
+  }
+
+  /// Every rumor the player has heard, for the atlas and the journal-ish
+  /// corners of the UI.
+  List<RumorView> get revealedRumors {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <RumorView>[];
+    return <RumorView>[
+      for (final ContentId id in active.state.progress.revealedRumors)
+        if (content.rumors[id] case final RumorDefinition rumor)
+          RumorView(id: id, name: rumor.displayName, hint: rumor.hint),
+    ];
+  }
+
+  /// Whether [rumor] has been revealed.
+  bool isRumorRevealed(ContentId rumor) =>
+      engine?.state.progress.revealedRumors.contains(rumor) ?? false;
+
+  /// Eats one owned consumable outside combat (`DECISIONS/0023` §4).
+  Future<FoodReport> eatFood(ContentId item) async {
+    final String name = registry?.items[item]?.displayName ?? item.value;
+    if (_inFlight) {
+      return FoodReport(
+        succeeded: false,
+        itemName: name,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return FoodReport(
+          succeeded: false,
+          itemName: name,
+          rejection: 'session_not_ready',
+          detail: _notReadyDetail,
+        );
+      }
+      final EngineResult result = active.execute(EatFood(item: item));
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return FoodReport(
+          succeeded: false,
+          itemName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return FoodReport(
+          succeeded: false,
+          itemName: name,
+          rejection: 'commit_refused',
+          detail: commit.reason.name,
+        );
+      }
+      final FoodEaten eaten = result.events.whereType<FoodEaten>().first;
+      return FoodReport(
+        succeeded: true,
+        itemName: name,
+        healed: eaten.healed,
+        hpAfter: eaten.hpAfter,
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// Sets or clears one tracked-objective slot (`DECISIONS/0023` §1).
+  Future<GoalReport> trackGoal(GoalSlot slot, ContentId? target) async {
+    if (_inFlight) {
+      return const GoalReport(
+        succeeded: false,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return GoalReport(
+          succeeded: false,
+          rejection: 'session_not_ready',
+          detail: _notReadyDetail,
+        );
+      }
+      final EngineResult result = active.execute(
+        TrackGoal(slot: slot, target: target),
+      );
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return GoalReport(
+          succeeded: false,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      if (result.events.isEmpty) {
+        // Tracking what is already tracked: a success with nothing to write.
+        return const GoalReport(succeeded: true);
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return GoalReport(
+          succeeded: false,
+          rejection: 'commit_refused',
+          detail: commit.reason.name,
+        );
+      }
+      return const GoalReport(succeeded: true);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// The three tracked slots, fully projected for the tracker panel.
+  TrackedGoalsView get trackedGoals {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const TrackedGoalsView();
+    final TrackedGoals tracked = active.state.progress.tracked;
+
+    JourneyGoalView? journey;
+    final ContentId? journeyTo = tracked.journey;
+    if (journeyTo != null) {
+      final JourneyStatus status = journeyStatusFor(
+        content,
+        active.state,
+        journeyTo,
+      );
+      journey = JourneyGoalView(
+        destination: journeyTo,
+        destinationName:
+            content.locations[journeyTo]?.displayName ?? journeyTo.value,
+        legNames: <String>[
+          for (final JourneyLeg leg in status.legs)
+            content.locations[leg.to]?.displayName ?? leg.to.value,
+        ],
+        totalCost: status.totalCost,
+        banked: usableEnergy,
+        shortfall: status.totalCost == null
+            ? null
+            : (status.totalCost! - usableEnergy).clamp(0, 1 << 62),
+        ready: status.totalCost != null && usableEnergy >= status.totalCost!,
+        arrived: active.state.world.currentLocation == journeyTo,
+      );
+    }
+
+    PursuitGoalView? pursuit;
+    final ContentId? pursuitItem = tracked.pursuit;
+    if (pursuitItem != null) {
+      final PursuitPlan plan = pursuitPlanFor(content, active.state, pursuitItem);
+      pursuit = PursuitGoalView(
+        item: pursuitItem,
+        itemName:
+            content.items[pursuitItem]?.displayName ?? pursuitItem.value,
+        rarity: content.items[pursuitItem]?.rarity,
+        recipeName: plan.recipe == null
+            ? null
+            : content.recipes[plan.recipe!]?.displayName,
+        lines: <PursuitLineView>[
+          for (final PursuitLine line in plan.lines)
+            PursuitLineView(
+              name: content.items[line.item]?.displayName ?? line.item.value,
+              held: line.held,
+              required: line.required,
+            ),
+        ],
+        needs: <PursuitNeedView>[
+          for (final PursuitNeed need in plan.needs)
+            PursuitNeedView(
+              name: content.items[need.item]?.displayName ?? need.item.value,
+              quantity: need.quantity,
+              sourceName: need.sourceLocation == null
+                  ? null
+                  : content.locations[need.sourceLocation!]?.displayName,
+              viaEnemy: need.sourceEnemy != null,
+            ),
+        ],
+        owned: plan.owned,
+        complete: plan.complete,
+      );
+    }
+
+    ContractGoalView? contractGoal;
+    final ContentId? trackedContract = tracked.contract;
+    if (trackedContract != null) {
+      contractGoal = _contractGoalViewOf(trackedContract, active, content);
+    }
+
+    return TrackedGoalsView(
+      journey: journey,
+      pursuit: pursuit,
+      contract: contractGoal,
+    );
+  }
+
+  ContractGoalView? _contractGoalViewOf(
+    ContentId id,
+    GameEngine active,
+    ContentRegistry content,
+  ) {
+    final ProjectDefinition? project = content.projects[id];
+    if (project != null) {
+      final ProjectView? view = projectViewOf(id);
+      if (view == null) return null;
+      final ProjectStageView? current = view.isComplete
+          ? null
+          : view.stages[view.currentStage];
+      return ContractGoalView(
+        id: id,
+        name: project.displayName,
+        isProject: true,
+        locationName:
+            content.locations[project.location]?.displayName ??
+            project.location.value,
+        stageLabel: view.isComplete
+            ? 'Complete'
+            : 'Stage ${view.currentStage + 1} / ${view.stages.length}',
+        lines: current == null
+            ? const <PursuitLineView>[]
+            : <PursuitLineView>[
+                for (final RequirementLine line in current.lines)
+                  PursuitLineView(
+                    name: line.name,
+                    held: line.progress,
+                    required: line.required,
+                  ),
+              ],
+        readyToAdvance: view.canAdvanceNow,
+        complete: view.isComplete,
+      );
+    }
+    final ContractDefinition? contract = content.contracts[id];
+    if (contract == null) return null;
+    final ContractView view = _contractViewOf(contract, active, content);
+    return ContractGoalView(
+      id: id,
+      name: contract.displayName,
+      isProject: false,
+      locationName:
+          content.locations[contract.location]?.displayName ??
+          contract.location.value,
+      stageLabel: view.completions > 0 && !contract.isRepeatable
+          ? 'Complete'
+          : null,
+      lines: <PursuitLineView>[
+        for (final RequirementLine line in view.requires)
+          PursuitLineView(
+            name: line.name,
+            held: line.progress,
+            required: line.required,
+          ),
+        if (view.bounty != null)
+          PursuitLineView(
+            name: '${view.bounty!.enemyName} defeated',
+            held: view.bounty!.progress,
+            required: view.bounty!.required,
+          ),
+      ],
+      readyToAdvance: view.canComplete,
+      complete: view.completions > 0 && !contract.isRepeatable,
+    );
+  }
+
+  /// The board where the player stands, or null when this place has none.
+  BoardView? get boardHere {
+    final ContentId? here = currentLocation;
+    return here == null ? null : boardFor(here);
+  }
+
+  /// One location's contract board, fully projected (`DECISIONS/0023` §2).
+  BoardView? boardFor(ContentId location) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return null;
+    final LocationDefinition? place = content.locations[location];
+    final String? boardName = place?.boardName;
+    if (place == null || boardName == null) return null;
+
+    final List<ContentId> slots = active.localNeedSlots(active.state, location);
+    final List<ContractView> localNeeds = <ContractView>[
+      for (final ContentId id in slots)
+        if (content.contracts[id] case final ContractDefinition c)
+          _contractViewOf(c, active, content),
+    ];
+    final List<ContractView> bounties = <ContractView>[];
+    final List<ContractView> regionals = <ContractView>[];
+    for (final ContractDefinition c in content.contracts.values) {
+      if (c.location != location) continue;
+      switch (c.contractClass) {
+        case ContractClass.bounty:
+          bounties.add(_contractViewOf(c, active, content));
+        case ContractClass.regional:
+          regionals.add(_contractViewOf(c, active, content));
+        case ContractClass.localNeed:
+          break;
+      }
+    }
+
+    return BoardView(
+      location: location,
+      boardName: boardName,
+      developmentState: developmentStateOf(location),
+      localNeeds: localNeeds,
+      bounties: bounties,
+      regionals: regionals,
+      projects: projectsAt(location),
+    );
+  }
+
+  ContractView _contractViewOf(
+    ContractDefinition contract,
+    GameEngine active,
+    ContentRegistry content,
+  ) {
+    final GameState state = active.state;
+    final String? unavailableReason = active.contractUnavailableReason(
+      contract,
+      state,
+    );
+
+    final List<RequirementLine> requires = <RequirementLine>[
+      for (final ItemQuantity need in contract.requires)
+        RequirementLine(
+          item: need.item,
+          name: content.items[need.item]?.displayName ?? need.item.value,
+          rarity: content.items[need.item]?.rarity,
+          required: need.quantity,
+          progress: state.inventory.quantityOf(need.item) > need.quantity
+              ? need.quantity
+              : state.inventory.quantityOf(need.item),
+        ),
+    ];
+    final List<RequirementLine> requiresOwned = <RequirementLine>[
+      for (final ContentId item in contract.requiresOwned)
+        RequirementLine(
+          item: item,
+          name: content.items[item]?.displayName ?? item.value,
+          rarity: content.items[item]?.rarity,
+          required: 1,
+          progress: state.inventory.has(item) ? 1 : 0,
+          keptNotConsumed: true,
+        ),
+    ];
+
+    BountyView? bounty;
+    final ContentId? bountyEnemy = contract.bountyEnemy;
+    if (bountyEnemy != null) {
+      final bool accepted = state.progress.acceptedContracts.contains(
+        contract.id,
+      );
+      bounty = BountyView(
+        enemy: bountyEnemy,
+        enemyName:
+            content.enemies[bountyEnemy]?.displayName ?? bountyEnemy.value,
+        required: contract.bountyCount,
+        progress: accepted
+            ? (state.progress.bountyProgress[contract.id] ?? 0)
+            : 0,
+        accepted: accepted,
+      );
+    }
+
+    final bool itemsMet =
+        requires.every((RequirementLine l) => l.satisfied) &&
+        requiresOwned.every((RequirementLine l) => l.satisfied);
+    final bool bountyMet =
+        bounty == null || (bounty.accepted && bounty.progress >= bounty.required);
+
+    return ContractView(
+      id: contract.id,
+      name: contract.displayName,
+      brief: contract.brief,
+      contractClass: contract.contractClass,
+      location: contract.location,
+      requires: requires,
+      requiresOwned: requiresOwned,
+      bounty: bounty,
+      rewardItems: <RequirementLine>[
+        for (final ItemQuantity given in contract.rewardItems)
+          RequirementLine(
+            item: given.item,
+            name: content.items[given.item]?.displayName ?? given.item.value,
+            rarity: content.items[given.item]?.rarity,
+            required: active.profile.applyYield(given.quantity),
+            progress: 0,
+          ),
+      ],
+      rewardSkillXp: <SkillXpLine>[
+        for (final SkillXpAward award in contract.rewardSkillXp)
+          SkillXpLine(
+            skillName:
+                content.skills[award.skill]?.displayName ?? award.skill.value,
+            xp: active.profile.applyXp(award.xp),
+          ),
+      ],
+      rewardCharacterXp: active.profile.applyXp(contract.rewardCharacterXp),
+      teachesRecipeName: _recipeTaughtBy(contract.id, content),
+      completions: state.progress.completionsOf(contract.id),
+      available: unavailableReason == null,
+      unavailableReason: unavailableReason,
+      canComplete:
+          unavailableReason == null && itemsMet && bountyMet && isReady,
+    );
+  }
+
+  String? _recipeTaughtBy(ContentId contract, ContentRegistry content) {
+    for (final RecipeDefinition recipe in content.recipes.values) {
+      if (recipe.unlockedByContract == contract) return recipe.displayName;
+    }
+    return null;
+  }
+
+  /// Accepts a bounty so victories start counting (`DECISIONS/0023` §2).
+  Future<ContractReport> acceptContract(ContentId contract) =>
+      _contractCommand(AcceptContract(contract: contract), contract);
+
+  /// Completes a contract at its board: one command, one commit, exactly
+  /// once.
+  Future<ContractReport> completeContract(ContentId contract) =>
+      _contractCommand(CompleteContract(contract: contract), contract);
+
+  Future<ContractReport> _contractCommand(
+    GameCommand command,
+    ContentId contract,
+  ) async {
+    final String name =
+        registry?.contracts[contract]?.displayName ?? contract.value;
+    if (_inFlight) {
+      return ContractReport(
+        succeeded: false,
+        contractName: name,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      final ContentRegistry? content = registry;
+      if (active == null || content == null || _stale || migrationPending) {
+        return ContractReport(
+          succeeded: false,
+          contractName: name,
+          rejection: 'session_not_ready',
+          detail: _notReadyDetail,
+        );
+      }
+      final EngineResult result = active.execute(command);
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return ContractReport(
+          succeeded: false,
+          contractName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return ContractReport(
+          succeeded: false,
+          contractName: name,
+          rejection: 'commit_refused',
+          detail: commit.reason.name,
+        );
+      }
+      final ContractCompleted? completed = result.events
+          .whereType<ContractCompleted>()
+          .firstOrNull;
+      if (completed == null) {
+        // An acceptance: nothing consumed, nothing rewarded yet.
+        return ContractReport(
+          succeeded: true,
+          contractName: name,
+          accepted: true,
+        );
+      }
+      String itemName(ContentId id) =>
+          content.items[id]?.displayName ?? id.value;
+      return ContractReport(
+        succeeded: true,
+        contractName: name,
+        consumed: <RewardLine>[
+          for (final MapEntry<ContentId, int> e in completed.consumed.entries)
+            RewardLine(
+              id: e.key,
+              name: itemName(e.key),
+              quantity: e.value,
+              rarity: content.items[e.key]?.rarity,
+            ),
+        ],
+        rewardItems: <RewardLine>[
+          for (final MapEntry<ContentId, int> e
+              in completed.rewardItems.entries)
+            RewardLine(
+              id: e.key,
+              name: itemName(e.key),
+              quantity: e.value,
+              rarity: content.items[e.key]?.rarity,
+            ),
+        ],
+        rewardSkillXp: <SkillXpLine>[
+          for (final MapEntry<ContentId, int> e
+              in completed.rewardSkillXp.entries)
+            SkillXpLine(
+              skillName: content.skills[e.key]?.displayName ?? e.key.value,
+              xp: e.value,
+            ),
+        ],
+        characterXp: completed.characterXp,
+        levelBefore: completed.levelBefore,
+        levelAfter: completed.levelAfter,
+        taughtRecipeName: _recipeTaughtBy(completed.contract, content),
+        revealedRumorNames: <String>[
+          for (final ContentId id in completed.revealedRumors)
+            content.rumors[id]?.displayName ?? id.value,
+        ],
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// The community projects hosted at [location], fully projected.
+  List<ProjectView> projectsAt(ContentId location) {
+    final ContentRegistry? content = registry;
+    if (content == null) return const <ProjectView>[];
+    return <ProjectView>[
+      for (final ProjectDefinition project in content.projects.values)
+        if (project.location == location)
+          if (projectViewOf(project.id) case final ProjectView view) view,
+    ];
+  }
+
+  /// One project's live view, or null when the id is not content.
+  ProjectView? projectViewOf(ContentId id) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return null;
+    final ProjectDefinition? project = content.projects[id];
+    if (project == null) return null;
+    final GameState state = active.state;
+
+    final bool complete = state.progress.isProjectComplete(id);
+    final ProjectProgressState? live = state.progress.projects[id];
+    final int currentStage = complete
+        ? project.stages.length - 1
+        : (live?.stage ?? 0);
+
+    final List<ProjectStageView> stages = <ProjectStageView>[];
+    for (int s = 0; s < project.stages.length; s++) {
+      final ProjectStage stage = project.stages[s];
+      final bool stageDone = complete || s < currentStage;
+      final Map<ContentId, int> contributed = (!stageDone && s == currentStage)
+          ? (live?.contributed ?? const <ContentId, int>{})
+          : const <ContentId, int>{};
+      stages.add(
+        ProjectStageView(
+          name: stage.name,
+          complete: stageDone,
+          lines: <RequirementLine>[
+            for (final ItemQuantity need in stage.requires)
+              RequirementLine(
+                item: need.item,
+                name:
+                    content.items[need.item]?.displayName ?? need.item.value,
+                rarity: content.items[need.item]?.rarity,
+                required: need.quantity,
+                progress: stageDone
+                    ? need.quantity
+                    : (contributed[need.item] ?? 0),
+              ),
+          ],
+        ),
+      );
+    }
+
+    // What the player could donate right now: per current-stage item,
+    // min(held, remaining). Empty when nothing useful is in the bag.
+    final Map<ContentId, int> contributable = <ContentId, int>{};
+    if (!complete) {
+      final ProjectStage stage = project.stages[currentStage];
+      final Map<ContentId, int> contributed =
+          live?.contributed ?? const <ContentId, int>{};
+      for (final ItemQuantity need in stage.requires) {
+        final int remaining = need.quantity - (contributed[need.item] ?? 0);
+        if (remaining <= 0) continue;
+        final int held = state.inventory.quantityOf(need.item);
+        if (held <= 0) continue;
+        contributable[need.item] = held < remaining ? held : remaining;
+      }
+    }
+
+    return ProjectView(
+      id: id,
+      name: project.displayName,
+      brief: project.brief,
+      location: project.location,
+      stages: stages,
+      currentStage: currentStage,
+      isComplete: complete,
+      completionHeadline: project.completionHeadline,
+      developmentTo: project.developmentTo,
+      contributable: contributable,
+      canAdvanceNow:
+          !complete &&
+          stages[currentStage].lines.every(
+            (RequirementLine l) =>
+                (contributable[l.item] ?? 0) + l.progress >= l.required,
+          ),
+    );
+  }
+
+  /// Donates materials to a project's current stage (`DECISIONS/0023` §3).
+  Future<ProjectReport> contributeToProject(
+    ContentId project,
+    Map<ContentId, int> contributions,
+  ) async {
+    final String name =
+        registry?.projects[project]?.displayName ?? project.value;
+    if (_inFlight) {
+      return ProjectReport(
+        succeeded: false,
+        projectName: name,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      final ContentRegistry? content = registry;
+      if (active == null || content == null || _stale || migrationPending) {
+        return ProjectReport(
+          succeeded: false,
+          projectName: name,
+          rejection: 'session_not_ready',
+          detail: _notReadyDetail,
+        );
+      }
+      final String? developmentBefore = developmentStateOf(
+        content.projects[project]?.location ?? project,
+      );
+      final EngineResult result = active.execute(
+        ContributeToProject(project: project, contributions: contributions),
+      );
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return ProjectReport(
+          succeeded: false,
+          projectName: name,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return ProjectReport(
+          succeeded: false,
+          projectName: name,
+          rejection: 'commit_refused',
+          detail: commit.reason.name,
+        );
+      }
+      final ProjectContributed event = result.events
+          .whereType<ProjectContributed>()
+          .first;
+      final ProjectDefinition? definition = content.projects[project];
+      final String? developmentAfter = developmentStateOf(
+        definition?.location ?? project,
+      );
+      return ProjectReport(
+        succeeded: true,
+        projectName: name,
+        stageName: definition == null
+            ? ''
+            : definition.stages[event.stage].name,
+        contributed: <RewardLine>[
+          for (final MapEntry<ContentId, int> e in event.contributed.entries)
+            RewardLine(
+              id: e.key,
+              name: content.items[e.key]?.displayName ?? e.key.value,
+              quantity: e.value,
+              rarity: content.items[e.key]?.rarity,
+            ),
+        ],
+        stageCompleted: event.stageCompleted,
+        projectCompleted: event.projectCompleted,
+        completionHeadline: event.projectCompleted
+            ? definition?.completionHeadline
+            : null,
+        characterXp: event.characterXp,
+        levelBefore: event.levelBefore,
+        levelAfter: event.levelAfter,
+        developmentBefore: developmentBefore,
+        developmentAfter: developmentAfter,
+        revealedRumorNames: <String>[
+          for (final ContentId id in event.revealedRumors)
+            content.rumors[id]?.displayName ?? id.value,
+        ],
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  /// The step-sync motivation highlights (`DECISIONS/0023` §1; brief §5):
+  /// a few high-value, true-right-now sentences derived from the tracked
+  /// goals and the freshly banked balance. Never auto-spends, never fakes
+  /// progress, never notifies — the caller renders them once, after a
+  /// granting sync.
+  List<SyncOpportunity> syncOpportunities() {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <SyncOpportunity>[];
+    final List<SyncOpportunity> highlights = <SyncOpportunity>[];
+    final TrackedGoalsView goals = trackedGoals;
+
+    final JourneyGoalView? journey = goals.journey;
+    if (journey != null && journey.ready && !journey.arrived) {
+      highlights.add(
+        SyncOpportunity(
+          kind: SyncOpportunityKind.journeyReady,
+          headline: 'Journey Ready',
+          detail: '${journey.destinationName} can now be reached.',
+        ),
+      );
+    }
+
+    final PursuitGoalView? pursuit = goals.pursuit;
+    if (pursuit != null && !pursuit.complete && pursuit.needs.isNotEmpty) {
+      final int? gatherCost = _pursuitGatherCost(active, content);
+      if (gatherCost != null && gatherCost > 0 && gatherCost <= usableEnergy) {
+        highlights.add(
+          SyncOpportunity(
+            kind: SyncOpportunityKind.pursuit,
+            headline: 'Pursuit Opportunity',
+            detail:
+                'Enough steps are available for the remaining '
+                '${pursuit.itemName} gathers.',
+          ),
+        );
+      }
+    }
+
+    final ContractGoalView? contract = goals.contract;
+    if (contract != null && !contract.complete && contract.readyToAdvance) {
+      highlights.add(
+        SyncOpportunity(
+          kind: SyncOpportunityKind.contract,
+          headline: 'Contract Opportunity',
+          detail: contract.isProject
+              ? 'Enough materials are on hand to advance ${contract.name}.'
+              : '${contract.name} can be completed now.',
+        ),
+      );
+    }
+    return highlights;
+  }
+
+  /// The step cost of gathering everything the tracked pursuit still needs,
+  /// or null when a need has no gatherable source.
+  int? _pursuitGatherCost(GameEngine active, ContentRegistry content) {
+    final ContentId? item = active.state.progress.tracked.pursuit;
+    if (item == null) return null;
+    final PursuitPlan plan = pursuitPlanFor(content, active.state, item);
+    int total = 0;
+    for (final PursuitNeed need in plan.needs) {
+      final ContentId? nodeId = need.sourceNode;
+      if (nodeId == null) return null;
+      final ResourceNodeDefinition? node = content.resourceNodes[nodeId];
+      if (node == null) return null;
+      final int perGather = active.profile.applyYield(node.yieldsQuantity);
+      final int gathers = (need.quantity + perGather - 1) ~/ perGather;
+      total += gathers * active.profile.applyStepCost(node.stepCost);
+    }
+    return total;
   }
 
   // -- Persistence ----------------------------------------------------------
@@ -3453,4 +4494,483 @@ final class StrideSession {
     if (scope == null) return;
     sink(scope.intervalStartMillis, scope.intervalEndMillis);
   }
+}
+
+// -- Exploration & Progression Loop 01 view types (`DECISIONS/0023`) -----------
+
+/// One revealed rumor, as the atlas and journal render it.
+final class RumorView {
+  const RumorView({required this.id, required this.name, required this.hint});
+
+  final ContentId id;
+  final String name;
+  final String hint;
+}
+
+/// What eating outside combat did.
+final class FoodReport {
+  const FoodReport({
+    required this.succeeded,
+    required this.itemName,
+    this.healed,
+    this.hpAfter,
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String itemName;
+
+  /// As healed: `min(healing, missing)`, never the raw content value.
+  final int? healed;
+  final int? hpAfter;
+  final String? rejection;
+  final String? detail;
+}
+
+/// What a goal-tracker change did.
+final class GoalReport {
+  const GoalReport({required this.succeeded, this.rejection, this.detail});
+
+  final bool succeeded;
+  final String? rejection;
+  final String? detail;
+}
+
+/// One requirement or reward line: an item, a target amount, and how far
+/// along the player is. Progress is clamped to the requirement, so the row
+/// reads "1 / 3" and never "7 / 3".
+final class RequirementLine {
+  const RequirementLine({
+    required this.item,
+    required this.name,
+    required this.rarity,
+    required this.required,
+    required this.progress,
+    this.keptNotConsumed = false,
+  });
+
+  final ContentId item;
+  final String name;
+  final Rarity? rarity;
+  final int required;
+  final int progress;
+
+  /// True for a requirement the board only asks to see — the item is kept.
+  final bool keptNotConsumed;
+
+  bool get satisfied => progress >= required;
+}
+
+/// One profession-XP reward line, profile-scaled.
+final class SkillXpLine {
+  const SkillXpLine({required this.skillName, required this.xp});
+
+  final String skillName;
+  final int xp;
+}
+
+/// A bounty's live standing.
+final class BountyView {
+  const BountyView({
+    required this.enemy,
+    required this.enemyName,
+    required this.required,
+    required this.progress,
+    required this.accepted,
+  });
+
+  final ContentId enemy;
+  final String enemyName;
+  final int required;
+
+  /// Qualifying victories since acceptance; zero while not accepted.
+  final int progress;
+  final bool accepted;
+
+  bool get met => accepted && progress >= required;
+}
+
+/// One contract, fully projected for a board card.
+///
+/// Every flag is a **hint**: `CompleteContract` and `AcceptContract`
+/// re-validate on execute (`RULES.md` E-2).
+final class ContractView {
+  const ContractView({
+    required this.id,
+    required this.name,
+    required this.brief,
+    required this.contractClass,
+    required this.location,
+    required this.requires,
+    required this.requiresOwned,
+    required this.bounty,
+    required this.rewardItems,
+    required this.rewardSkillXp,
+    required this.rewardCharacterXp,
+    required this.teachesRecipeName,
+    required this.completions,
+    required this.available,
+    required this.unavailableReason,
+    required this.canComplete,
+  });
+
+  final ContentId id;
+  final String name;
+  final String brief;
+  final ContractClass contractClass;
+  final ContentId location;
+
+  /// Consumed on completion; progress is what is held now.
+  final List<RequirementLine> requires;
+
+  /// Shown-and-kept requirements.
+  final List<RequirementLine> requiresOwned;
+
+  final BountyView? bounty;
+
+  /// Reward preview: `required` carries the granted amount.
+  final List<RequirementLine> rewardItems;
+  final List<SkillXpLine> rewardSkillXp;
+  final int rewardCharacterXp;
+
+  /// The recipe this contract teaches on completion, or null.
+  final String? teachesRecipeName;
+
+  /// How many times this contract has been completed.
+  final int completions;
+
+  /// Whether the board offers it right now; [unavailableReason] is the
+  /// engine's own sentence when not.
+  final bool available;
+  final String? unavailableReason;
+
+  /// Whether a Complete control should be enabled.
+  final bool canComplete;
+
+  bool get isCompletedOneTime =>
+      contractClass == ContractClass.regional && completions > 0;
+}
+
+/// One location's whole board.
+final class BoardView {
+  const BoardView({
+    required this.location,
+    required this.boardName,
+    required this.developmentState,
+    required this.localNeeds,
+    required this.bounties,
+    required this.regionals,
+    required this.projects,
+  });
+
+  final ContentId location;
+
+  /// The board's fiction — "Notice Board", "Mine Ledger", …
+  final String boardName;
+
+  /// The settlement's named development state, or null.
+  final String? developmentState;
+
+  /// The rotation window, in board order.
+  final List<ContractView> localNeeds;
+
+  /// Standing repeatable combat orders.
+  final List<ContractView> bounties;
+
+  /// One-time regional contracts (completed ones included, flagged).
+  final List<ContractView> regionals;
+
+  /// Community projects hosted here.
+  final List<ProjectView> projects;
+}
+
+/// One project stage, with its requirement lines.
+final class ProjectStageView {
+  const ProjectStageView({
+    required this.name,
+    required this.complete,
+    required this.lines,
+  });
+
+  final String name;
+  final bool complete;
+  final List<RequirementLine> lines;
+}
+
+/// One community project, fully projected.
+final class ProjectView {
+  const ProjectView({
+    required this.id,
+    required this.name,
+    required this.brief,
+    required this.location,
+    required this.stages,
+    required this.currentStage,
+    required this.isComplete,
+    required this.completionHeadline,
+    required this.developmentTo,
+    required this.contributable,
+    required this.canAdvanceNow,
+  });
+
+  final ContentId id;
+  final String name;
+  final String brief;
+  final ContentId location;
+  final List<ProjectStageView> stages;
+
+  /// 0-based; the last stage when complete.
+  final int currentStage;
+  final bool isComplete;
+  final String? completionHeadline;
+  final String? developmentTo;
+
+  /// What the player could donate right now: item → min(held, remaining).
+  /// Empty when nothing in the bag helps.
+  final Map<ContentId, int> contributable;
+
+  /// Whether donating everything in [contributable] would complete the
+  /// current stage.
+  final bool canAdvanceNow;
+
+  bool get hasSomethingToGive => contributable.isNotEmpty;
+}
+
+/// What a contract command did.
+final class ContractReport {
+  const ContractReport({
+    required this.succeeded,
+    required this.contractName,
+    this.accepted = false,
+    this.consumed = const <RewardLine>[],
+    this.rewardItems = const <RewardLine>[],
+    this.rewardSkillXp = const <SkillXpLine>[],
+    this.characterXp = 0,
+    this.levelBefore,
+    this.levelAfter,
+    this.taughtRecipeName,
+    this.revealedRumorNames = const <String>[],
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String contractName;
+
+  /// True when the command was an acceptance rather than a completion.
+  final bool accepted;
+
+  final List<RewardLine> consumed;
+  final List<RewardLine> rewardItems;
+  final List<SkillXpLine> rewardSkillXp;
+  final int characterXp;
+  final int? levelBefore;
+  final int? levelAfter;
+
+  /// The recipe this completion taught, or null.
+  final String? taughtRecipeName;
+  final List<String> revealedRumorNames;
+
+  final String? rejection;
+  final String? detail;
+
+  bool get levelledUp =>
+      levelBefore != null && levelAfter != null && levelAfter! > levelBefore!;
+}
+
+/// What a project contribution did.
+final class ProjectReport {
+  const ProjectReport({
+    required this.succeeded,
+    required this.projectName,
+    this.stageName = '',
+    this.contributed = const <RewardLine>[],
+    this.stageCompleted = false,
+    this.projectCompleted = false,
+    this.completionHeadline,
+    this.characterXp = 0,
+    this.levelBefore,
+    this.levelAfter,
+    this.developmentBefore,
+    this.developmentAfter,
+    this.revealedRumorNames = const <String>[],
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final String projectName;
+  final String stageName;
+  final List<RewardLine> contributed;
+  final bool stageCompleted;
+  final bool projectCompleted;
+
+  /// The authored completion banner, on full completion only.
+  final String? completionHeadline;
+  final int characterXp;
+  final int? levelBefore;
+  final int? levelAfter;
+
+  /// The settlement's development state around this contribution — the
+  /// "Struggling → Recovering" line when they differ.
+  final String? developmentBefore;
+  final String? developmentAfter;
+  final List<String> revealedRumorNames;
+
+  final String? rejection;
+  final String? detail;
+
+  bool get developmentChanged =>
+      developmentBefore != null &&
+      developmentAfter != null &&
+      developmentBefore != developmentAfter;
+
+  bool get levelledUp =>
+      levelBefore != null && levelAfter != null && levelAfter! > levelBefore!;
+}
+
+/// The three tracked slots, projected.
+final class TrackedGoalsView {
+  const TrackedGoalsView({this.journey, this.pursuit, this.contract});
+
+  final JourneyGoalView? journey;
+  final PursuitGoalView? pursuit;
+  final ContractGoalView? contract;
+
+  bool get isEmpty => journey == null && pursuit == null && contract == null;
+}
+
+/// The Journey slot: a destination and what reaching it costs, against the
+/// live balance. Informative, never escrow.
+final class JourneyGoalView {
+  const JourneyGoalView({
+    required this.destination,
+    required this.destinationName,
+    required this.legNames,
+    required this.totalCost,
+    required this.banked,
+    required this.shortfall,
+    required this.ready,
+    required this.arrived,
+  });
+
+  final ContentId destination;
+  final String destinationName;
+
+  /// The cheapest route's stop names, in travel order.
+  final List<String> legNames;
+
+  /// Null when no route connects from here.
+  final int? totalCost;
+  final int banked;
+
+  /// Steps still missing (zero when affordable); null with no route.
+  final int? shortfall;
+
+  final bool ready;
+  final bool arrived;
+}
+
+/// One Pursuit requirement row.
+final class PursuitLineView {
+  const PursuitLineView({
+    required this.name,
+    required this.held,
+    required this.required,
+  });
+
+  final String name;
+  final int held;
+  final int required;
+
+  bool get satisfied => held >= required;
+}
+
+/// One missing base material, with its suggested source.
+final class PursuitNeedView {
+  const PursuitNeedView({
+    required this.name,
+    required this.quantity,
+    required this.sourceName,
+    required this.viaEnemy,
+  });
+
+  final String name;
+  final int quantity;
+
+  /// "Stonefall Mine" — the place to go, or null when nothing sources it.
+  final String? sourceName;
+
+  /// True when the source is an enemy rather than a gathering node.
+  final bool viaEnemy;
+}
+
+/// The Pursuit slot, fully projected.
+final class PursuitGoalView {
+  const PursuitGoalView({
+    required this.item,
+    required this.itemName,
+    required this.rarity,
+    required this.recipeName,
+    required this.lines,
+    required this.needs,
+    required this.owned,
+    required this.complete,
+  });
+
+  final ContentId item;
+  final String itemName;
+  final Rarity? rarity;
+
+  /// The recipe the plan runs against, or null for a drop-only pursuit.
+  final String? recipeName;
+  final List<PursuitLineView> lines;
+  final List<PursuitNeedView> needs;
+  final bool owned;
+  final bool complete;
+}
+
+/// The Contract slot: one contract or one project stage, compactly.
+final class ContractGoalView {
+  const ContractGoalView({
+    required this.id,
+    required this.name,
+    required this.isProject,
+    required this.locationName,
+    required this.stageLabel,
+    required this.lines,
+    required this.readyToAdvance,
+    required this.complete,
+  });
+
+  final ContentId id;
+  final String name;
+  final bool isProject;
+  final String locationName;
+
+  /// "Stage 2 / 3" for a project; null or "Complete" otherwise.
+  final String? stageLabel;
+  final List<PursuitLineView> lines;
+
+  /// Whether the tracked thing could be advanced or completed right now.
+  final bool readyToAdvance;
+  final bool complete;
+}
+
+/// The kind of a step-sync highlight.
+enum SyncOpportunityKind { journeyReady, pursuit, contract }
+
+/// One step-sync motivation highlight (brief §5): true right now, derived
+/// from state, never a reservation and never a notification.
+final class SyncOpportunity {
+  const SyncOpportunity({
+    required this.kind,
+    required this.headline,
+    required this.detail,
+  });
+
+  final SyncOpportunityKind kind;
+  final String headline;
+  final String detail;
 }

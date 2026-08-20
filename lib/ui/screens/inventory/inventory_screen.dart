@@ -124,7 +124,26 @@ class InventoryScreen extends StatelessWidget {
                     ],
                     const SizedBox(height: StrideSpace.s8),
                   ],
-                  _ItemGrid(entries: group.entries, equipment: group.equipment),
+                  if (group.consumable) ...<Widget>[
+                    // Where food matters now: persistent HP, restored between
+                    // encounters by eating (`DECISIONS/0023` §4).
+                    Text(
+                      'HP ${c.session.playerHp} / ${c.session.playerMaxHp}',
+                      style: StrideType.sub.copyWith(
+                        color: StrideColors.textSecondary,
+                      ),
+                    ),
+                    if (c.lastFood case final FoodReport report) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s6),
+                      _FoodResult(report: report),
+                    ],
+                    const SizedBox(height: StrideSpace.s6),
+                  ],
+                  _ItemGrid(
+                    entries: group.entries,
+                    equipment: group.equipment,
+                    consumable: group.consumable,
+                  ),
                 ],
               ],
             ),
@@ -160,6 +179,7 @@ class InventoryScreen extends StatelessWidget {
           _Group(
             label: names[category]!,
             equipment: category == ItemCategory.equipment,
+            consumable: category == ItemCategory.consumable,
             entries: entries
                 .where((InventoryEntry e) => e.category == category)
                 .toList(growable: false),
@@ -168,6 +188,7 @@ class InventoryScreen extends StatelessWidget {
         _Group(
           label: 'Other',
           equipment: false,
+          consumable: false,
           entries: entries
               .where((InventoryEntry e) => e.category == null)
               .toList(growable: false),
@@ -180,6 +201,7 @@ class _Group {
   const _Group({
     required this.label,
     required this.equipment,
+    required this.consumable,
     required this.entries,
   });
 
@@ -188,7 +210,42 @@ class _Group {
   /// Whether these tiles carry the equip control. Only the equipment group
   /// does — materials and consumables occupy no slot.
   final bool equipment;
+
+  /// Whether these tiles carry the eat control (`DECISIONS/0023` §4).
+  final bool consumable;
   final List<InventoryEntry> entries;
+}
+
+/// What the last out-of-combat meal did.
+class _FoodResult extends StatelessWidget {
+  const _FoodResult({required this.report});
+
+  final FoodReport report;
+
+  @override
+  Widget build(BuildContext context) => SurfaceBlock(
+    child: AdaptiveText(
+      report.succeeded
+          ? 'Ate ${report.itemName} — +${report.healed} HP '
+                '(${report.hpAfter} now).'
+          : _refusalText(report),
+      style: StrideType.sub,
+      color: report.succeeded
+          ? StrideColors.textPrimary
+          : StrideColors.textSecondary,
+    ),
+  );
+
+  static String _refusalText(FoodReport report) => switch (report.rejection) {
+    'health_full' => 'You are already at full health.',
+    'encounter_in_progress' => 'Finish the fight first — eat from there.',
+    'not_edible' => 'That is not something you can eat.',
+    'item_not_owned' => 'You no longer have that.',
+    'session_busy' => 'Something else is still running.',
+    'session_not_ready' => 'The game is not ready. Reload and try again.',
+    'commit_refused' => 'That did not save. Reload before trying again.',
+    _ => 'That could not be eaten.',
+  };
 }
 
 /// The three slots and what is in each — `—` when empty.
@@ -290,10 +347,15 @@ class _EquipResult extends StatelessWidget {
 }
 
 class _ItemGrid extends StatelessWidget {
-  const _ItemGrid({required this.entries, required this.equipment});
+  const _ItemGrid({
+    required this.entries,
+    required this.equipment,
+    this.consumable = false,
+  });
 
   final List<InventoryEntry> entries;
   final bool equipment;
+  final bool consumable;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -358,11 +420,14 @@ class _ItemGrid extends StatelessWidget {
           // approved proportion.
           mainAxisExtent: _tileExtent(
             MediaQuery.textScalerOf(context),
-            equipment: equipment,
+            withControl: equipment || consumable,
           ),
         ),
-        itemBuilder: (BuildContext context, int i) =>
-            _ItemTile(entry: entries[i], equipment: equipment),
+        itemBuilder: (BuildContext context, int i) => _ItemTile(
+          entry: entries[i],
+          equipment: equipment,
+          consumable: consumable,
+        ),
       );
     },
   );
@@ -383,7 +448,7 @@ class _ItemGrid extends StatelessWidget {
   /// that item a definition — an unreserved rule is the same defect the two
   /// name lines exist to avoid, since a grid has one height for all its cells.
   /// It does not scale: a 2 dp mark is a mark, not type.
-  static double _tileExtent(TextScaler scaler, {required bool equipment}) {
+  static double _tileExtent(TextScaler scaler, {required bool withControl}) {
     double lineOf(TextStyle style) =>
         scaler.scale(style.fontSize!) * (style.height ?? 1);
 
@@ -403,7 +468,7 @@ class _ItemGrid extends StatelessWidget {
         ? needed
         : StrideGeometry.itemTileMinHeight;
 
-    if (!equipment) return base;
+    if (!withControl) return base;
 
     // The marker line, the control at its minimum, and the gaps around them.
     // The control's own label grows with the scaler inside its minimum, so
@@ -421,12 +486,19 @@ const double _tilePadTop = 12;
 const double _tilePadBottom = 8;
 
 class _ItemTile extends StatelessWidget {
-  const _ItemTile({required this.entry, required this.equipment});
+  const _ItemTile({
+    required this.entry,
+    required this.equipment,
+    this.consumable = false,
+  });
 
   final InventoryEntry entry;
 
   /// Whether this tile carries the equip control and marker.
   final bool equipment;
+
+  /// Whether this tile carries the eat control (`DECISIONS/0023` §4).
+  final bool consumable;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -463,9 +535,48 @@ class _ItemTile extends StatelessWidget {
         // with a hierarchy inside it instead of three flat runs.
         Text('×${entry.count}', style: StrideType.itemCount),
         if (equipment) _EquipControl(item: entry.id),
+        if (consumable) _EatControl(item: entry.id),
       ],
     ),
   );
+}
+
+/// The `Eat` control on a consumable tile — the out-of-combat heal
+/// (`DECISIONS/0023` §4). The reserved line above the button carries nothing
+/// (consumables have no EQUIPPED state); it keeps every controlled tile's
+/// button at one height, exactly as the equip group reserves it.
+class _EatControl extends StatelessWidget {
+  const _EatControl({required this.item});
+
+  final ContentId item;
+
+  @override
+  Widget build(BuildContext context) {
+    final SessionController controller = SessionScope.read(context);
+    final SessionController watched = SessionScope.of(context);
+    final StrideSession session = watched.session;
+    // A hint, not the rule: `EatFood` re-validates fullness, ownership and
+    // the no-mid-combat rule on execute (`RULES.md` E-2).
+    final bool enabled =
+        !watched.busy &&
+        session.isReady &&
+        session.encounter == null &&
+        session.playerHp < session.playerMaxHp;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Text('', style: StrideType.compactLabel, maxLines: 1),
+        const SizedBox(height: StrideSpace.s6),
+        Center(
+          child: StrideButton.secondary(
+            label: 'Eat',
+            onPressed: enabled ? () => controller.eatFood(item) : null,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// The `EQUIPPED` marker and the `Equip` / `Unequip` control on one tile.

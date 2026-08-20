@@ -254,7 +254,15 @@ class _CombatBlock extends StatelessWidget {
                 // more honest than a bar that cannot move.
                 unit: next == null ? 'at the cap' : '/ ${formatSteps(next)}',
               ),
-              LabeledValueTile(label: 'Max HP', value: '${f.maxHp}'),
+              // Persistent HP (`DECISIONS/0023` §4): the current figure over
+              // the level's maximum, read live — food and safe arrivals move
+              // it, and a screen showing only the ceiling would hide the one
+              // number expedition planning turns on.
+              LabeledValueTile(
+                label: 'HP',
+                value:
+                    '${SessionScope.of(context).session.playerHp} / ${f.maxHp}',
+              ),
             ],
           ),
           const SizedBox(height: StrideSpace.s8),

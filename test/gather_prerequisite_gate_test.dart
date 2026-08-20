@@ -246,7 +246,7 @@ void main() {
     await tester.pump();
     await tester.tap(preset);
     await tester.pump();
-    expect(buttonIn(tester, card).label, 'Gather ×5 — 450 steps');
+    expect(buttonIn(tester, card).label, 'Gather ×5 — 400 steps');
   });
 
   test('the session projection mirrors the engine: unmet skill, unmet tool, '
@@ -279,9 +279,9 @@ void main() {
     final TravelReport t = await s.travel(woods);
     expect(t.succeeded, isTrue, reason: '${t.rejection}: ${t.detail}');
 
-    // Exact figures before: the travel spent 600 and nothing else moved.
-    expect(s.totalSpent, 600);
-    expect(s.usableEnergy, 1400);
+    // Exact figures before: the travel spent 500 and nothing else moved.
+    expect(s.totalSpent, 500);
+    expect(s.usableEnergy, 1500);
     expect(s.inventoryCount(duskcap), 0);
     expect(s.inventoryCount(oakLog), 0);
     int foragingXp() => s.skillSummaries
@@ -300,8 +300,8 @@ void main() {
     expect(oak.rejection, 'tool_required');
 
     // Exact figures after: identical. Nothing spent, granted, or gathered.
-    expect(s.totalSpent, 600);
-    expect(s.usableEnergy, 1400);
+    expect(s.totalSpent, 500);
+    expect(s.usableEnergy, 1500);
     expect(s.inventoryCount(duskcap), 0);
     expect(s.inventoryCount(oakLog), 0);
     expect(foragingXp(), 0);

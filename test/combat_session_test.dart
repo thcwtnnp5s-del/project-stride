@@ -109,28 +109,55 @@ void main() {
     fail('the fight did not resolve');
   }
 
+  /// The wolf's card among the woods' three (Exploration & Progression
+  /// Loop 01 added the boar and the bear beside it).
+  EncounterOption wolfCard(StrideSession s) =>
+      s.encountersHere.singleWhere((EncounterOption o) => o.enemyId == wolf);
+
   test('projections read the encounter from state, and a win drives the enemy '
       'off until the player moves', () async {
-    final StrideSession s = await atWoods();
+    // Provisioned before setting out: HP persists between fights now
+    // (`DECISIONS/0023` §6), so the second fight of the visit is fought on
+    // whatever the first left — three broths cooked at Haven's meadow are
+    // what make it a fair rematch rather than a scripted defeat.
+    final StrideSession s = await launch(steps: 5000);
+    await s.syncSteps();
+    await s.syncSteps();
+    for (int i = 0; i < 6; i++) {
+      expect((await s.gather(meadowPatch)).succeeded, isTrue);
+    }
+    for (int i = 0; i < 3; i++) {
+      expect((await s.craft(herbBrothRecipe)).succeeded, isTrue);
+    }
+    expect((await s.equip(trainingSword)).succeeded, isTrue);
+    expect((await s.equip(tunic)).succeeded, isTrue);
+    expect((await s.travel(woods)).succeeded, isTrue);
 
-    // Before: the card is offered, and nothing is being fought.
+    // Before: the card is offered, and nothing is being fought. The woods
+    // now field three enemies; the wolf is the one this test drives.
     expect(s.encounter, isNull);
     final List<EncounterOption> here = s.encountersHere;
-    expect(here.map((EncounterOption o) => o.enemyId), <ContentId>[wolf]);
-    expect(here.single.available, isTrue);
-    expect(here.single.reason, isNull);
-    expect(here.single.maxHealth, 20);
-    expect(here.single.xp, 30);
+    expect(here, hasLength(3));
+    expect(here.map((EncounterOption o) => o.enemyId), contains(wolf));
+    final EncounterOption wolfHere = wolfCard(s);
+    expect(wolfHere.available, isTrue);
+    expect(wolfHere.reason, isNull);
+    expect(wolfHere.maxHealth, 20);
+    expect(wolfHere.xp, 30);
     expect(
-      here.single.drops.map((DropPreview d) => (d.name, d.rarity)),
+      wolfHere.drops.map((DropPreview d) => (d.name, d.rarity)),
       <(String, Rarity?)>[
-        ('Meadow Herb', Rarity.uncommon),
         ('Wolf Pelt', Rarity.common),
+        ('Meadow Herb', Rarity.uncommon),
+        ('Pristine Wolf Fang', Rarity.rare),
       ],
     );
+    // The signature fang is concealed until the wolf is Known.
+    expect(wolfHere.drops.last.signature, isTrue);
+    expect(wolfHere.drops.last.revealed, isFalse);
     // Two fights a visit, both of them still ahead (`DECISIONS/0021` §1).
-    expect(here.single.encountersPerVisit, 2);
-    expect(here.single.remainingThisVisit, 2);
+    expect(wolfHere.encountersPerVisit, 2);
+    expect(wolfHere.remainingThisVisit, 2);
 
     final CombatFigures before = s.combatFigures;
     expect(before.level, 1);
@@ -155,7 +182,7 @@ void main() {
     expect(v.behavior, EnemyBehavior.flurry);
     expect(v.isBoss, isFalse);
     expect(
-      s.encountersHere.single.reason,
+      wolfCard(s).reason,
       'encounter_in_progress',
       reason: 'the card must say why it is disabled while a fight is on',
     );
@@ -191,9 +218,9 @@ void main() {
 
     // One of the two fights this visit is spent; the card counts down rather
     // than closing (`DECISIONS/0021` §1).
-    expect(s.encountersHere.single.available, isTrue);
-    expect(s.encountersHere.single.remainingThisVisit, 1);
-    expect(s.encountersHere.single.reason, isNull);
+    expect(wolfCard(s).available, isTrue);
+    expect(wolfCard(s).remainingThisVisit, 1);
+    expect(wolfCard(s).reason, isNull);
 
     // A cold reload — the save read back off disk — finds no encounter, the
     // drops exactly once, and the *same* count still standing. The reward is
@@ -210,27 +237,35 @@ void main() {
       again.inventoryCount(ContentId.unchecked('item.meadow_herb')),
       herbsBefore + herbsDropped,
     );
-    expect(again.encountersHere.single.remainingThisVisit, 1);
+    expect(wolfCard(again).remainingThisVisit, 1);
 
     // Second fight, same visit, no travel between them: allowed, and it pays
-    // once more.
+    // once more. HP persists between fights (`DECISIONS/0023` §6), so first
+    // restore it the way a player would — the provisioned broths, out of
+    // combat.
+    while (again.playerHp < again.playerMaxHp &&
+        again.inventoryCount(herbBroth) > 0) {
+      final FoodReport bite = await again.eatFood(herbBroth);
+      expect(bite.succeeded, isTrue, reason: '${bite.rejection}');
+    }
+    expect(again.playerHp, again.playerMaxHp, reason: 'a fair rematch');
     expect((await again.startEncounter(wolf)).succeeded, isTrue);
     expect(await fightToTheEnd(again), isA<WonBeat>());
     expect(again.combatFigures.experience, 60);
 
     // Now spent — the card says so, in the words it always used, and the
     // engine agrees.
-    expect(again.encountersHere.single.available, isFalse);
-    expect(again.encountersHere.single.remainingThisVisit, 0);
-    expect(again.encountersHere.single.reason, 'enemy_driven_off');
+    expect(wolfCard(again).available, isFalse);
+    expect(wolfCard(again).remainingThisVisit, 0);
+    expect(wolfCard(again).reason, 'enemy_driven_off');
     expect((await again.startEncounter(wolf)).rejection, 'enemy_driven_off');
 
     // Moving empties the visit map.
     expect((await again.travel(haven)).succeeded, isTrue);
     expect(again.encountersHere, isEmpty, reason: "Haven's Rest is safe");
     expect((await again.travel(woods)).succeeded, isTrue);
-    expect(again.encountersHere.single.available, isTrue);
-    expect(again.encountersHere.single.remainingThisVisit, 2);
+    expect(wolfCard(again).available, isTrue);
+    expect(wolfCard(again).remainingThisVisit, 2);
   });
 
   test(
@@ -261,7 +296,7 @@ void main() {
           );
         }
         expect(
-          cold.encountersHere.single.remainingThisVisit,
+          wolfCard(cold).remainingThisVisit,
           1,
           reason: 'the visit count is in the save, not in the session',
         );
@@ -335,14 +370,25 @@ void main() {
           (PlaceEncounterLine e) =>
               (e.name, e.isBoss, e.encountersPerVisit, e.remainingThisVisit),
         ),
-        <(String, bool, int, int)>[('Forest Wolf', false, 2, 2)],
+        <(String, bool, int, int)>[
+          ('Forest Wolf', false, 2, 2),
+          ('Oakback Bear', false, 1, 1),
+          ('Wild Boar', false, 2, 2),
+        ],
       );
 
       // Somewhere else: the full allowance is waiting, because a move empties
       // the visit map — that is the truth, not a placeholder.
       expect((await s.startEncounter(wolf)).succeeded, isTrue);
       expect(await fightToTheEnd(s), isA<WonBeat>());
-      expect(s.placeDetailsFor(woods)!.encounters.single.remainingThisVisit, 1);
+      expect(
+        s
+            .placeDetailsFor(woods)!
+            .encounters
+            .singleWhere((PlaceEncounterLine e) => e.name == 'Forest Wolf')
+            .remainingThisVisit,
+        1,
+      );
 
       final PlaceDetails mine = s.placeDetailsFor(
         ContentId.unchecked('location.stonefall_mine'),
@@ -356,7 +402,16 @@ void main() {
         mine.gatherSites.every((GatherSiteLine g) => g.toolWord == 'Pickaxe'),
         isTrue,
       );
-      expect(mine.encounters.single.remainingThisVisit, 2);
+      expect(
+        mine.encounters.map((PlaceEncounterLine e) => e.name),
+        <String>['Cave Goblin', 'Salamander'],
+      );
+      expect(
+        mine.encounters
+            .singleWhere((PlaceEncounterLine e) => e.name == 'Cave Goblin')
+            .remainingThisVisit,
+        2,
+      );
 
       // The derived kinds the atlas draws with (`DECISIONS/0021` §5).
       expect(s.placeDetailsFor(haven)!.kind, LocationKind.haven);
@@ -371,7 +426,7 @@ void main() {
             .placeDetailsFor(ContentId.unchecked('location.frostmere'))!
             .encounters
             .map((PlaceEncounterLine e) => e.name),
-        <String>['Frost Lynx'],
+        <String>['Frost Lynx', 'Mountain Ram'],
       );
 
       // A location the pack does not define answers null rather than inventing
@@ -450,7 +505,7 @@ void main() {
 
       // Not driven off: back at the woods the wolf is offered again.
       expect((await s.travel(woods)).succeeded, isTrue);
-      expect(s.encountersHere.single.available, isTrue);
+      expect(wolfCard(s).available, isTrue);
 
       // And a cold reload agrees about where the player is.
       final StrideSession again = await launch();
@@ -530,7 +585,7 @@ void main() {
     expect(refused.rejection, 'commit_refused');
     expect(s.isStale, isTrue);
     expect((await s.combatAttack()).rejection, 'session_not_ready');
-    expect(s.encountersHere.single.reason, 'encounter_in_progress');
+    expect(wolfCard(s).reason, 'encounter_in_progress');
     await s.reload();
     expect(s.isStale, isFalse);
     expect(s.encounter!.turn, other.encounter!.turn);

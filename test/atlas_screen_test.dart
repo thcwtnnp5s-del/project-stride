@@ -230,16 +230,16 @@ void main() {
     expect(
       find.descendant(
         of: panel,
-        matching: find.text('Road from here · 800 steps'),
+        matching: find.text('Road from here · 1,400 steps'),
       ),
       findsOneWidget,
     );
     // The price, from content, profile-scaled.
     expect(
-      find.descendant(of: panel, matching: find.text('800')),
+      find.descendant(of: panel, matching: find.text('1,400')),
       findsOneWidget,
     );
-    // And exactly one Travel control, enabled: 5,000 affords 800.
+    // And exactly one Travel control, enabled: 5,000 affords 1,400.
     final Finder button = find.widgetWithText(StrideButton, 'Travel');
     expect(button, findsOneWidget);
     expect((tester.widget(button) as StrideButton).onPressed, isNotNull);
@@ -255,7 +255,7 @@ void main() {
     Finder button = find.widgetWithText(StrideButton, 'Travel');
     expect(button, findsOneWidget);
     expect((tester.widget(button) as StrideButton).onPressed, isNull);
-    expect(find.textContaining('Walk 700 more steps'), findsOneWidget);
+    expect(find.textContaining('Walk 1,300 more steps'), findsOneWidget);
 
     // A fresh save, 50,000 banked: the same road is open.
     await tester.pumpWidget(const SizedBox.shrink());
@@ -276,19 +276,22 @@ void main() {
     await pumpWorld(tester, session);
 
     await select(tester, 'location.frostmere');
-    expect(find.byType(StrideButton), findsNothing);
+    // No Travel control — the "Set as Journey" secondary control may stand,
+    // because a multi-leg journey is exactly what the Journey slot is for.
+    expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
     // The whole journey and the leg the button would charge, from the content
-    // pack's own costs: Haven → Stonefall Mine 800, Mine → Frostmere 1,500.
+    // pack's own costs: Haven → Stonefall Mine 1,400, Mine → Frostmere 3,000.
     expect(
       find.text(
-        'By way of Stonefall Mine · 2,300 steps in all, 800 for the first leg',
+        'By way of Stonefall Mine · 4,400 steps in all, 1,400 for the '
+        'first leg',
       ),
       findsOneWidget,
     );
 
     // Two roads away the other direction: the way names the place between.
     await select(tester, 'location.forgotten_hollow');
-    expect(find.byType(StrideButton), findsNothing);
+    expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
     expect(find.textContaining('By way of Whispering Woods'), findsOneWidget);
   });
 
@@ -308,8 +311,8 @@ void main() {
 
     await select(tester, 'location.frostmere');
     final AtlasWay way = layer().way!;
-    expect(way.totalCost, 2300);
-    expect(way.firstLegCost, 800);
+    expect(way.totalCost, 4400);
+    expect(way.firstLegCost, 1400);
     expect(way.edges.map((AtlasEdge e) => e.key).toSet(), <String>{
       AtlasEdge.keyOf(
         ContentId.unchecked('location.havens_rest'),

@@ -309,18 +309,19 @@ void main() {
       registry = result.registry!;
     });
 
-    test('8, 9 — Meadow Patch is 90 energy for 2 herbs and 10 Foraging XP', () {
+    test('8, 9 — Meadow Patch is 80 energy for 1 herb and 10 Foraging XP', () {
       // The literal numbers, deliberately. Every other test in the project
       // reads the cost from the registry, which is right for a test of the
       // arithmetic and wrong here: the device checklist tells the owner to
-      // expect 90 and 2 and 10, and if the content is retuned this must fail
-      // so the checklist is corrected in the same change.
+      // expect 80 and 1 and 10, and if the content is retuned this must fail
+      // so the checklist is corrected in the same change (retuned to 80/1/10
+      // by Exploration & Progression Loop 01).
       final ResourceNodeDefinition node = registry
           .resourceNodes[ContentId.unchecked('resource_node.meadow_patch')]!;
       final BalanceProfile profile = registry.profile;
 
-      expect(profile.applyStepCost(node.stepCost), 90);
-      expect(profile.applyYield(node.yieldsQuantity), 2);
+      expect(profile.applyStepCost(node.stepCost), 80);
+      expect(profile.applyYield(node.yieldsQuantity), 1);
       expect(profile.applyXp(node.xp), 10);
       expect(node.yieldsItem, ContentId.unchecked('item.meadow_herb'));
       expect(node.skill, ContentId.unchecked('skill.foraging'));
