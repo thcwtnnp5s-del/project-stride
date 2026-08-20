@@ -49,12 +49,15 @@ flutter:
   # reviewed. The version prefix is in the path so a v2 pack can ship beside
   # v1 rather than replacing it.
   assets:
+    - assets/content/v1/contracts.json
     - assets/content/v1/enemies.json
     - assets/content/v1/items.json
     - assets/content/v1/locations.json
     - assets/content/v1/profiles.json
+    - assets/content/v1/projects.json
     - assets/content/v1/recipes.json
     - assets/content/v1/resource_nodes.json
+    - assets/content/v1/rumors.json
     - assets/content/v1/skills.json
     - assets/content/v1/atlas/atlas_layout.json
 
@@ -135,6 +138,23 @@ flutter:
     - assets/art/v1/item/lynx_pelt.png
     - assets/art/v1/item/wolfhide_jerkin.png
     - assets/art/v1/item/frostlined_jerkin.png
+    # Exploration & Progression Loop 01 — three RCP01 material icons and the
+    # milestone's twelve-icon round (EXPLORATION_PROGRESSION_LOOP_01/items/).
+    - assets/art/v1/item/boar_tusk.png
+    - assets/art/v1/item/bear_pelt.png
+    - assets/art/v1/item/ram_horn.png
+    - assets/art/v1/item/oak_plank.png
+    - assets/art/v1/item/scrap_metal.png
+    - assets/art/v1/item/heat_scale.png
+    - assets/art/v1/item/ram_wool.png
+    - assets/art/v1/item/boar_hide.png
+    - assets/art/v1/item/reinforced_pickaxe.png
+    - assets/art/v1/item/pristine_wolf_fang.png
+    - assets/art/v1/item/great_tusk.png
+    - assets/art/v1/item/goblin_toolhead.png
+    - assets/art/v1/item/ember_core.png
+    - assets/art/v1/item/frost_claw.png
+    - assets/art/v1/item/pristine_horn.png
     # Transformation Build 01 — whole-directory families. These four are
     # generated in bulk by the packaging script (185 ambient frames, the atlas
     # base + landmarks, 29 env sprites, 8 node vignettes), and the script's

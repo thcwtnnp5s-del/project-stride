@@ -216,6 +216,28 @@ abstract final class PixelIcons {
     'item.lynx_pelt': '$_art/item/lynx_pelt.png',
     'item.wolfhide_jerkin': '$_art/item/wolfhide_jerkin.png',
     'item.frostlined_jerkin': '$_art/item/frostlined_jerkin.png',
+
+    // Exploration & Progression Loop 01. Three material icons integrated from
+    // Regional Content Pack 01's accepted set, and the milestone's own
+    // twelve-icon pixen round — every verdict, prompt and re-roll in
+    // `EXPLORATION_PROGRESSION_LOOP_01/items/README.md`. All twelve accepted
+    // across three blind rounds (heat scale, ram wool and the toolhead each
+    // re-rolled after failed first reads).
+    'item.boar_tusk': '$_art/item/boar_tusk.png',
+    'item.bear_pelt': '$_art/item/bear_pelt.png',
+    'item.ram_horn': '$_art/item/ram_horn.png',
+    'item.oak_plank': '$_art/item/oak_plank.png',
+    'item.scrap_metal': '$_art/item/scrap_metal.png',
+    'item.heat_scale': '$_art/item/heat_scale.png',
+    'item.ram_wool': '$_art/item/ram_wool.png',
+    'item.boar_hide': '$_art/item/boar_hide.png',
+    'item.reinforced_pickaxe': '$_art/item/reinforced_pickaxe.png',
+    'item.pristine_wolf_fang': '$_art/item/pristine_wolf_fang.png',
+    'item.great_tusk': '$_art/item/great_tusk.png',
+    'item.goblin_toolhead': '$_art/item/goblin_toolhead.png',
+    'item.ember_core': '$_art/item/ember_core.png',
+    'item.frost_claw': '$_art/item/frost_claw.png',
+    'item.pristine_horn': '$_art/item/pristine_horn.png',
   };
 
   // ------------------------------------------------------------------ nodes

@@ -411,6 +411,173 @@ abstract final class CombatAssets {
     impactRise: 18,
   );
 
+  /// The Whispering Woods boar (Regional Content Pack 01, integrated by
+  /// Exploration & Progression Loop 01). Pack blind QA accepted idle, attack
+  /// ("goring lunge f3–f6") and defeat ("sinks and lies from f4"); the pack
+  /// authored no hit track, so the stage recoils the figure, as for the wolf.
+  /// 56² canvas, anchor row 43.
+  static final CombatantArt boar = CombatantArt(
+    idle: _track(
+      'boar_idle',
+      7,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 43,
+      footprint: SpriteFootprints.combatBoarIdle,
+    ),
+    attack: _track(
+      'boar_attack',
+      9,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 43,
+      footprint: SpriteFootprints.combatBoarAttack,
+    ),
+    // The goring lunge is f3–f6; the tusks connect on f4.
+    strikeFrame: 4,
+    defeat: _track(
+      'boar_defeat',
+      7,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 43,
+      footprint: SpriteFootprints.combatBoarDefeat,
+    ),
+    // Opaque rows 8..43: the body's centre is about row 26.
+    impactRise: 17,
+  );
+
+  /// The Frostmere mountain ram (Regional Content Pack 01). `ram_hit` is
+  /// withheld — the template flinch is a head turn only, the known
+  /// quadruped-flinch failure — so the stage recoils the figure. 56² canvas,
+  /// anchor row 42.
+  static final CombatantArt ram = CombatantArt(
+    idle: _track(
+      'ram_idle',
+      7,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 42,
+      footprint: SpriteFootprints.combatRamIdle,
+    ),
+    attack: _track(
+      'ram_attack',
+      9,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 42,
+      footprint: SpriteFootprints.combatRamAttack,
+    ),
+    // The head rears f2–f3, then the horns drive forward f4–f6; the butt
+    // lands on f5.
+    strikeFrame: 5,
+    defeat: _track(
+      'ram_defeat',
+      7,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 42,
+      footprint: SpriteFootprints.combatRamDefeat,
+    ),
+    // Opaque rows 9..42: the body's centre is about row 26.
+    impactRise: 16,
+  );
+
+  /// The Stonefall deep-gallery salamander (Regional Content Pack 01). The
+  /// pack authored no hit track; the stage recoils the figure. 56² canvas,
+  /// anchor row 50 — a low-slung creature whose raised head carries the
+  /// opaque top.
+  static final CombatantArt salamander = CombatantArt(
+    idle: _track(
+      'salamander_idle',
+      7,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 50,
+      footprint: SpriteFootprints.combatSalamanderIdle,
+    ),
+    attack: _track(
+      'salamander_attack',
+      9,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 50,
+      footprint: SpriteFootprints.combatSalamanderAttack,
+    ),
+    // The mouth gapes with teeth f3–f6; the bite closes on f4.
+    strikeFrame: 4,
+    defeat: _track(
+      'salamander_defeat',
+      7,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 50,
+      footprint: SpriteFootprints.combatSalamanderDefeat,
+    ),
+    // Opaque rows 5..50: the body's centre is about row 27.
+    impactRise: 22,
+  );
+
+  /// The Oakback Bear (Regional Content Pack 01, the optional high-danger
+  /// mark). The attack is the file called `bear_attack2` — the pack's round-2
+  /// rear-up/roar/swipe, its QA_PASS_D ACCEPT; round 1 (`bear_attack`) is
+  /// withheld (blind QA read it as a walk). No hit track was authored; the
+  /// stage recoils the figure. 76² canvas, anchor row 61.
+  static final CombatantArt bear = CombatantArt(
+    idle: _track(
+      'bear_idle',
+      7,
+      5,
+      AmbientLoop.pingpong,
+      canvasWidth: 76,
+      canvasHeight: 76,
+      anchorRow: 61,
+      footprint: SpriteFootprints.combatBearIdle,
+    ),
+    attack: _track(
+      'bear_attack2',
+      9,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 76,
+      canvasHeight: 76,
+      anchorRow: 61,
+      footprint: SpriteFootprints.combatBearAttack2,
+    ),
+    // Rear-up and roar f2–f4, the swipe comes down f5–f6.
+    strikeFrame: 5,
+    defeat: _track(
+      'bear_defeat',
+      7,
+      6,
+      AmbientLoop.once,
+      canvasWidth: 76,
+      canvasHeight: 76,
+      anchorRow: 61,
+      footprint: SpriteFootprints.combatBearDefeat,
+    ),
+    // Opaque rows 12..61: the trunk's centre is about row 36.
+    impactRise: 24,
+  );
+
   static final CombatantArt guardian = CombatantArt(
     idle: _track(
       'guardian_idle',
@@ -472,6 +639,10 @@ abstract final class CombatAssets {
     'enemy.cave_goblin' => goblin,
     'enemy.hollow_guardian' => guardian,
     'enemy.frost_lynx' => lynx,
+    'enemy.wild_boar' => boar,
+    'enemy.mountain_ram' => ram,
+    'enemy.salamander' => salamander,
+    'enemy.oakback_bear' => bear,
     _ => null,
   };
 
@@ -497,12 +668,13 @@ abstract final class CombatAssets {
     canvas: 32,
   );
 
-  /// The effect drawn on the Traveler when [enemy] lands a blow: the wolf and
-  /// the lynx bite, everything else strikes.
-  static EffectArt strikeEffectOf(ContentId enemy) =>
-      enemy.value == 'enemy.forest_wolf' || enemy.value == 'enemy.frost_lynx'
-      ? fxBite
-      : fxImpact;
+  /// The effect drawn on the Traveler when [enemy] lands a blow: the
+  /// creatures whose attack is a mouth — wolf, lynx, salamander — bite,
+  /// everything else strikes.
+  static EffectArt strikeEffectOf(ContentId enemy) => switch (enemy.value) {
+    'enemy.forest_wolf' || 'enemy.frost_lynx' || 'enemy.salamander' => fxBite,
+    _ => fxImpact,
+  };
 
   /// Every frame the stage may draw for a fight against [enemy] — what it
   /// precaches on mount. The other enemies' tracks are not decoded.

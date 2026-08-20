@@ -821,6 +821,97 @@ for (let i = 0; i < 6; i++) {
   emit(`env/overlay_smoke_f${i}.png`, encode(png.crop(frame, 2, 0, 16, 14)));
 }
 
+// ---------------------------------- Exploration & Progression Loop 01
+
+/**
+ * REGIONAL CONTENT PACK 01 — the three new regional enemies and the optional
+ * high-danger bear, integrated from the pack's READY stage sets
+ * (`REGIONAL_CONTENT_PACK_01_HANDOFF.md` §4/§6; `DECISIONS/0023`).
+ *
+ * Only the selected, blind-QA-accepted tracks are packaged: boar and ram and
+ * salamander idle/attack/defeat, and the bear's idle, round-2 attack
+ * (`bear_attack2`, the QA_PASS_D ACCEPT) and defeat. Everything the pack
+ * withheld — the bat, the weaver, the crawler's defeat, `bear_attack`
+ * round 1, `ram_hit` — stays withheld and is not emitted. The ram has no hit
+ * track for the same reason the wolf has none: the stage recoils the figure.
+ *
+ * The pack's proposed content ids (`enemy.bristleback_boar` etc.) are the
+ * pack's; the shipped content pack names them `enemy.wild_boar`,
+ * `enemy.mountain_ram`, `enemy.salamander`, `enemy.oakback_bear` — the
+ * mapping is the file id, which both sides share.
+ */
+const RCP_ENEMIES_SRC = path.join(
+  EXPLORE, 'REGIONAL_CONTENT_PACK_01', 'out', 'enemies',
+);
+const RCP_SELECTED = [
+  'boar_idle', 'boar_attack', 'boar_defeat',
+  'ram_idle', 'ram_attack', 'ram_defeat',
+  'salamander_idle', 'salamander_attack', 'salamander_defeat',
+  'bear_idle', 'bear_attack2', 'bear_defeat',
+];
+const rcpManifest = JSON.parse(
+  fs.readFileSync(path.join(RCP_ENEMIES_SRC, 'manifest.json'), 'utf8'),
+).filter((entry) => RCP_SELECTED.includes(entry.id));
+for (const id of RCP_SELECTED) {
+  const entry = rcpManifest.find((e) => e.id === id);
+  if (!entry) throw new Error(`${id}: not in the pack manifest`);
+  if (entry.status !== 'accepted') {
+    throw new Error(`${id}: pack status is "${entry.status}", not accepted`);
+  }
+}
+for (const entry of rcpManifest) {
+  const [w, h] = entry.canvas;
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(path.join(RCP_ENEMIES_SRC, `${entry.id}_f${i}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(`${entry.id}_f${i}: expected ${w}x${h}, got ${frame.width}x${frame.height}`);
+    }
+    if (i === 0) combatFootprints[`combat_${entry.id}`] = png.footprint(frame);
+    emit(`combat/${entry.id}_f${i}.png`, encode(frame));
+  }
+}
+
+/**
+ * The pack's accepted material icons for the three new materials the shipped
+ * items.json names (`INTEGRATION_MANIFEST.md`; boar tusk ACCEPT, bear pelt
+ * ACCEPT, ram horn PASS-WITH-NOTE — the owner call the pack recorded is
+ * resolved by shipping it: the "coiled horn" read is the object).
+ */
+const RCP_MATERIALS_SRC = path.join(
+  EXPLORE, 'REGIONAL_CONTENT_PACK_01', 'out', 'materials',
+);
+for (const [id, file] of Object.entries({
+  boar_tusk: 'icon_boar_tusk_48.png',
+  bear_pelt: 'icon_bear_pelt_48.png',
+  ram_horn: 'icon_ram_horn_48.png',
+})) {
+  const raster = png.load(path.join(RCP_MATERIALS_SRC, file));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(`${file}: expected 48x48, got ${raster.width}x${raster.height}`);
+  }
+  emit(`item/${id}.png`, encode(raster));
+}
+
+/**
+ * The milestone's own icon round — the new materials, the signature drops and
+ * the Reinforced Pickaxe (`EXPLORATION_PROGRESSION_LOOP_01/items/README.md`).
+ * Only entries the round record marks accepted are emitted; a withheld icon
+ * withholds its item with it, never ships a blank slab.
+ */
+const EPL_ITEMS_SRC = path.join(
+  EXPLORE, 'EXPLORATION_PROGRESSION_LOOP_01', 'out', 'items',
+);
+const eplManifest = JSON.parse(
+  fs.readFileSync(path.join(EPL_ITEMS_SRC, 'manifest.json'), 'utf8'),
+).filter((entry) => entry.status === 'accepted');
+for (const entry of eplManifest) {
+  const raster = png.load(path.join(EPL_ITEMS_SRC, entry.file));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(`${entry.file}: expected 48x48, got ${raster.width}x${raster.height}`);
+  }
+  emit(`item/${entry.id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

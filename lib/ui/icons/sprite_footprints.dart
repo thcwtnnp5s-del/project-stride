@@ -399,4 +399,88 @@ abstract final class SpriteFootprints {
     right: 33,
     bottom: 62,
   );
+
+  /// `combat_boar_idle` — 23 px of contact, 23..45.
+  static const SpriteFootprint combatBoarIdle = SpriteFootprint(
+    left: 23,
+    right: 45,
+    bottom: 43,
+  );
+
+  /// `combat_boar_attack` — 23 px of contact, 23..45.
+  static const SpriteFootprint combatBoarAttack = SpriteFootprint(
+    left: 23,
+    right: 45,
+    bottom: 43,
+  );
+
+  /// `combat_boar_defeat` — 23 px of contact, 23..45.
+  static const SpriteFootprint combatBoarDefeat = SpriteFootprint(
+    left: 23,
+    right: 45,
+    bottom: 43,
+  );
+
+  /// `combat_bear_idle` — 42 px of contact, 22..63.
+  static const SpriteFootprint combatBearIdle = SpriteFootprint(
+    left: 22,
+    right: 63,
+    bottom: 61,
+  );
+
+  /// `combat_bear_attack2` — 42 px of contact, 22..63.
+  static const SpriteFootprint combatBearAttack2 = SpriteFootprint(
+    left: 22,
+    right: 63,
+    bottom: 61,
+  );
+
+  /// `combat_bear_defeat` — 42 px of contact, 22..63.
+  static const SpriteFootprint combatBearDefeat = SpriteFootprint(
+    left: 22,
+    right: 63,
+    bottom: 61,
+  );
+
+  /// `combat_ram_idle` — 24 px of contact, 22..45.
+  static const SpriteFootprint combatRamIdle = SpriteFootprint(
+    left: 22,
+    right: 45,
+    bottom: 42,
+  );
+
+  /// `combat_ram_attack` — 24 px of contact, 22..45.
+  static const SpriteFootprint combatRamAttack = SpriteFootprint(
+    left: 22,
+    right: 45,
+    bottom: 42,
+  );
+
+  /// `combat_ram_defeat` — 24 px of contact, 22..45.
+  static const SpriteFootprint combatRamDefeat = SpriteFootprint(
+    left: 22,
+    right: 45,
+    bottom: 42,
+  );
+
+  /// `combat_salamander_idle` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderIdle = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
+  );
+
+  /// `combat_salamander_attack` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderAttack = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
+  );
+
+  /// `combat_salamander_defeat` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderDefeat = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
+  );
 }
