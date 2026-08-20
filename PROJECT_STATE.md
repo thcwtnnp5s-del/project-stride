@@ -1,5 +1,46 @@
 # Project Stride — Project State
 
+**Version:** 2.9
+**Status:** 🚧 **ACTIVITY FEEL & PRESENTATION 01 — implementation complete,
+awaiting the owner's physical-device test.** Branch
+`playable-phase-2-multiregion`, on top of the device-accepted World & Reward
+Depth 01 (`f917a91`). Record: `MILESTONES/ACTIVITY_FEEL_PRESENTATION_01.md`
+(device script §11).
+
+What changed, in one breath: **gathering is a timed, queueable activity** —
+choose Oak Stand, queue ×10, a PixelLab woodcutting loop plays while a
+progress bar fills (~12 s per repetition, authored per profession), each
+completion spends and grants **exactly once through the untouched
+`GatherResource` command**, cancel loses nothing committed, backgrounding
+pauses the presentation clock and grants nothing, and cumulative gains
+accumulate on the card; the **world is one master painting** — the old
+two-tile atlas is retired for a single seamless 384 × 688 PixelLab landmass
+at atlas scale 4 (1536 × 2752 world px: alpine north, old-growth hollow,
+purple moor, east coast, farmland south, walled Far Town, five landmarks),
+so the five playable places read as a small part of a continent slice, the
+zoom floor drops to 0.25 (**the whole world frames on a phone**, blind QA:
+"CLEAR IMPROVEMENT"), seams and the black dead-wood cluster are gone by
+construction, and a threshold LOD keeps the survey view clean; the **combat
+heal-back is fixed at its root** (a mid-commit frame leaked post-round HP
+into the stage before its replay; the view is now frozen while a command is
+in flight) and the wolf's two hits land as two distinct, monotonic HP beats;
+the **enemy stands on the encounter card** (grounded combat idle, bounded
+visit) before Start Combat; and the **turquoise boot chrome is replaced** by
+a PixelLab cuffed traveler's boot in the canonical teal/muted pair (OD-03
+closed after three blind rounds and two geometry findings).
+
+Suites: app **531** (incl. 12 activity queue/UI, combat presentation-order,
+encounter preview, atlas scale-4 derivation/LOD), `stride_core` 613,
+`stride_storage` 108, `stride_health` 143, `stride_secure_store` 31; strict
+verify green; goldens regenerated and reviewed. **Nothing in the health /
+step-accounting / save path changed — no schema change at all** (the queue
+is ephemeral foreground presentation; each repetition is one ordinary
+committed gather). The in-place `devicectl` install remains the default.
+PixelLab balance 266 → 167. Open: Q-06, Q-07 (rarity order stays closed);
+OD-04 skill icons still open; OD-03 (the step mark) **closed**.
+
+---
+
 **Version:** 2.8
 **Status:** 🚧 **WORLD & REWARD DEPTH 01 — implementation complete, awaiting
 the owner's physical-device test.** Branch `playable-phase-2-multiregion`, on

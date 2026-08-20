@@ -20,8 +20,8 @@ unrepresentable in that pipeline), except where noted.
 |---|---|---|---|
 | `nav_*.png` (6) | 14 × 14 | 28 | inactive tab glyphs |
 | `nav_*_hi.png` (4) | 14 × 14 | 28 | active variant; only for the four tabs that can be active |
-| `glyph_steps.png` | 12 × 12 | 24 | **teal** — steps the player has walked and owns |
-| `glyph_steps_muted.png` | 12 × 12 | 24 | **muted** — steps as a unit of measure: a price, a distance |
+| `glyph_steps.png` | 12 × 12 | 24 | **teal** — steps the player has walked and owns. **PixelLab, Activity Feel 01** (OD-03 closed): a cuffed traveler's boot, palette-conformed (A-2 luminance remap, three inks around `#58D6C0`) from `ACTIVITY_FEEL_01/step_icon/boot_bold_a_16.png`; blind round-3 verdict PASS-WITH-NOTE against the retired chrome glyph, which misread as "the letter L". Sources tracked in `ACTIVITY_FEEL_01/out/ui/` |
+| `glyph_steps_muted.png` | 12 × 12 | 24 | **muted** — steps as a unit of measure: a price, a distance. The same mark re-inked around `#B3A794` (the `walking_glyph.dart` pairing preserved) |
 | `glyph_arrow.png` | 12 × 12 | 24 | the cost → outcome link |
 | `skill_*.png` (5) | 24 × 24 | 24 (×1) | all five skills — **PixelLab, OD-04 round 2** (Transformation Build 01, `GAME_BIBLE/ART/exploration/TRANSFORMATION_01/items/`): leaf sprig, log round, ore lump, anvil, two-handled pot — five silhouette *families*, no two hafted tools. `skill_foraging.png` was re-generated in Playable Expansion 01 (`PLAYABLE_EXPANSION_01/out/items/skill_foraging_24.png`) for contrast — same sprig, brighter values, Visual QA PASS at ×1/×2. Drawn ×1 rather than ×2 because PixelLab cannot author below 16 px; the same 24 logical px footprint as before |
 

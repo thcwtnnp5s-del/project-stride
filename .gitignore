@@ -185,6 +185,7 @@ GAME_BIBLE/ART/exploration/**
 !GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/combat/out/**
 !GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/items/out/**
 !GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/world/out/**
+!GAME_BIBLE/ART/exploration/ACTIVITY_FEEL_01/out/**
 
 # Never, under any exception: third-party reference imagery.
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg

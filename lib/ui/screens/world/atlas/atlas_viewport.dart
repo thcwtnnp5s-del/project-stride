@@ -34,47 +34,67 @@ import 'atlas_layers.dart';
 import 'atlas_layout.dart';
 import 'atlas_place_info.dart';
 
-/// The zoom range. 1 is the art at its integer display scale; 2 is close
-/// enough to read a landmark; the floor is far enough out to survey a world
-/// that no longer fits a phone.
+/// The zoom range, derived from the layout's `scale`. Nothing here — and
+/// nothing anywhere on the atlas — may assume the world's size or its
+/// display scale.
+///
+/// ## The semantics the three stops are authored in
+///
+/// Zoom multiplies **world pixels into logical dp**, and a world pixel is a
+/// native art pixel times the layout's scale — so one native art pixel spans
+/// `scale × zoom` dp on screen. The stops are therefore native-art facts
+/// divided by the scale, and they land on the same three views whatever the
+/// layout declares:
+///
+/// - [absoluteFloor] is native ×1 (`1 / scale`) — every source pixel exactly
+///   one logical pixel, sampled nearest-neighbour, the crispest a reduction
+///   can be. Below it the sampler would start dropping columns, so the range
+///   never goes there.
+/// - [initial] is native ×2 (`2 / scale`) — exactly the opening view the
+///   owner accepted on the shipped layout.
+/// - [max] is native ×4 (`4 / scale`) — the close-reading zoom.
+///
+/// On the shipped `scale: 2` layout those are 0.5 / 1 / 2, unchanged; on a
+/// `scale: 4` master painting they become 0.25 / 0.5 / 1, and the floor
+/// frames a 1536-wide world on a phone.
 ///
 /// ## Why the floor is computed rather than declared
 ///
-/// The atlas used to be one 768-wide tile and 1 was a sensible bottom: the
-/// world was already about twice a phone's width, and zooming out past its
-/// native scale would have shown blur for no gain. A 1536-wide world changes
-/// the question — at 1× a player sees a quarter of it and has to pan blind to
-/// find anywhere.
-///
-/// So the floor is the **larger** of two numbers, and the pair is the whole
+/// The floor is the **larger** of two numbers, and the pair is the whole
 /// rule: `viewportWidth / worldWidth` is the zoom at which the world's full
 /// width fits the window, and [absoluteFloor] is as far out as the art stays
 /// worth looking at. For a small world the first wins and the player can see
-/// all of it and no further; for a large one the second wins and they survey
-/// half the width at a time.
-///
-/// 0.5 is not an arbitrary bottom: the art is authored at native size and shown
-/// at `scale` 2, so **0.5 of ×2 art is ×1 native** — every source pixel is
-/// exactly one logical pixel, sampled nearest-neighbour, which is the crispest
-/// a reduction can be. Below it the sampler would start dropping columns.
-abstract final class AtlasZoom {
-  const AtlasZoom._();
+/// all of it and no further; for a large one the second wins and the whole
+/// world frames inside the window.
+final class AtlasZoom {
+  const AtlasZoom.forScale(int scale)
+    : assert(scale >= 1, 'a layout scale is at least 1'),
+      absoluteFloor = 1 / scale,
+      initial = 2 / scale,
+      max = 4 / scale;
 
-  /// As far out as the art is worth showing, whatever the world's size.
-  static const double absoluteFloor = 0.5;
+  /// As far out as the art is worth showing, whatever the world's size:
+  /// native ×1.
+  final double absoluteFloor;
 
-  /// The zoom the screen opens at: the art at its authored display scale.
-  static const double initial = 1;
+  /// The zoom the screen opens at: native ×2, the art's accepted reading.
+  final double initial;
 
-  static const double max = 2;
+  /// Native ×4: close enough to read a landmark.
+  final double max;
 
-  /// The floor for a [worldWidth]-wide world seen through a [viewportWidth]
-  /// window. Never above [max] — a world narrower than the window would
-  /// otherwise pin the range shut.
-  static double minFor({
-    required double viewportWidth,
-    required double worldWidth,
-  }) {
+  /// The one overview threshold (`ACTIVITY_FEEL_PRESENTATION_01.md` §4c):
+  /// zoomed out past the opening view is the **overview**. Place names, kind
+  /// glyphs, rings, the current marker and the routes stay; landmark captions,
+  /// their marker art and scatter props hide until the player zooms back in —
+  /// geography carries them at survey distance. No LOD engine: one boundary,
+  /// per layer, and this is it.
+  double get overviewBelow => initial;
+
+  /// The continuous floor for a [worldWidth]-wide world seen through a
+  /// [viewportWidth] window. Never above [max] — a world narrower than the
+  /// window would otherwise pin the range shut.
+  double minFor({required double viewportWidth, required double worldWidth}) {
     if (viewportWidth <= 0 || worldWidth <= 0) return absoluteFloor;
     final double whole = viewportWidth / worldWidth;
     if (whole <= absoluteFloor) return absoluteFloor;
@@ -114,12 +134,12 @@ class AtlasViewportState extends State<AtlasViewport>
   /// The world coordinate at the viewport's top-left. Null until the first
   /// layout, when it is centred on the current location.
   Offset? _camera;
-  double _zoom = AtlasZoom.initial;
+  late double _zoom = zooms.initial;
 
   Size _viewport = Size.zero;
 
   Offset _gestureCamera = Offset.zero;
-  double _gestureZoom = AtlasZoom.initial;
+  double _gestureZoom = 1;
   Offset _gestureFocal = Offset.zero;
 
   /// Bumped once each time the player arrives somewhere new, so the marker
@@ -135,11 +155,41 @@ class AtlasViewportState extends State<AtlasViewport>
   /// The current zoom. For tests.
   double get zoom => _zoom;
 
-  /// The zoom floor for this window and this world. For tests.
-  double get minZoom => AtlasZoom.minFor(
-    viewportWidth: _viewport.width,
-    worldWidth: widget.scene.worldWidth,
-  );
+  /// The range for this scene's layout scale. Derived, never declared: the
+  /// scale-4 master painting and the shipped scale-2 layout both read their
+  /// three stops from here.
+  AtlasZoom get zooms => AtlasZoom.forScale(widget.scene.layout.scale);
+
+  /// The zoom floor for this window and this world, landed on the pixel grid.
+  ///
+  /// The continuous floor — `max(whole-width-fits, absoluteFloor)` — is
+  /// snapped **down** onto the grid of zooms at which one native art pixel is
+  /// a whole number of device pixels, unless the value below would sink under
+  /// the absolute floor, in which case it snaps up instead. Down, not up: the
+  /// zoom a player reaches by pinching all the way out is the world-framing
+  /// survey the owner asked for, and the grid value just under the exact fit
+  /// shows the whole width (the clamp centres a world narrower than the
+  /// window) while staying crisp. Rounding the floor up — the old rule — left
+  /// the full frame unreachable at rest.
+  double get minZoom {
+    final double unit = _zoomUnit(MediaQuery.devicePixelRatioOf(context));
+    final double whole = zooms.minFor(
+      viewportWidth: _viewport.width,
+      worldWidth: widget.scene.worldWidth,
+    );
+    final double down = (whole / unit).floorToDouble() * unit;
+    final double snapped = down >= zooms.absoluteFloor
+        ? down
+        : (whole / unit).ceilToDouble() * unit;
+    return snapped > zooms.max ? zooms.max : snapped;
+  }
+
+  /// The spacing of zooms at which one native art pixel is a whole number of
+  /// device pixels: `scale × zoom × dpr` integral. At dpr 3 and scale 2 that
+  /// is every sixth; at dpr 3 and scale 4, every twelfth. A non-integer dpr
+  /// falls back to quarters, which is as good as such a screen gets.
+  double _zoomUnit(double dpr) =>
+      dpr == dpr.roundToDouble() ? 1 / (widget.scene.layout.scale * dpr) : 0.25;
 
   @override
   void initState() {
@@ -214,7 +264,7 @@ class AtlasViewportState extends State<AtlasViewport>
   void _onScaleUpdate(ScaleUpdateDetails details) {
     final double zoom = (_gestureZoom * details.scale).clamp(
       minZoom,
-      AtlasZoom.max,
+      zooms.max,
     );
     // The world point that was under the fingers when the gesture began stays
     // under them: pan and zoom fall out of the same equation.
@@ -234,25 +284,12 @@ class AtlasViewportState extends State<AtlasViewport>
     });
   }
 
-  /// The nearest zoom at which one native art pixel is a whole number of
-  /// device pixels: `scale × zoom × dpr` integral. At dpr 3 and scale 2 that
-  /// is every sixth; at dpr 2, every quarter. A non-integer dpr falls back to
-  /// quarters, which is as good as such a screen gets.
-  ///
-  /// The floor is rounded **up** onto the same grid rather than clamped onto
-  /// it. A floor derived from a window width — `393 / 768` — is not a grid
-  /// value, and clamping to it would make the one zoom a player reaches by
-  /// pinching all the way out the one zoom at which the art is resampled.
+  /// The nearest zoom on the whole-device-pixel grid, kept inside the range.
+  /// [minZoom] is already a grid value, so the rest state is always one at
+  /// which the pixel art is not resampled.
   double _snapZoom(double zoom, double dpr) {
-    final double unit = dpr == dpr.roundToDouble()
-        ? 1 / (widget.scene.layout.scale * dpr)
-        : 0.25;
-    final double floor = minZoom;
-    final double snappedFloor = (floor / unit).ceil() * unit;
-    final double low = snappedFloor > AtlasZoom.max
-        ? AtlasZoom.max
-        : snappedFloor;
-    return ((zoom / unit).round() * unit).clamp(low, AtlasZoom.max);
+    final double unit = _zoomUnit(dpr);
+    return ((zoom / unit).round() * unit).clamp(minZoom, zooms.max);
   }
 
   // Double tap to zoom: considered, and not taken.
@@ -286,7 +323,7 @@ class AtlasViewportState extends State<AtlasViewport>
         // The floor moves with the window, so a zoom that was legal in the
         // old one may not be in this one. Bring it inside the range before
         // the camera is derived from it.
-        _zoom = _zoom.clamp(minZoom, AtlasZoom.max);
+        _zoom = _zoom.clamp(minZoom, zooms.max);
         // First layout, or a resize: land on the current location, or keep
         // the camera legal for the new window.
         _camera = _clamp(
@@ -296,6 +333,9 @@ class AtlasViewportState extends State<AtlasViewport>
       }
       final Offset camera = _camera!;
       final double dpr = MediaQuery.devicePixelRatioOf(context);
+      // Past the opening view the surface is a survey: geography, places,
+      // roads, and *here*. One boundary, read by the two layers that thin out.
+      final bool overview = _zoom < zooms.overviewBelow;
 
       // Snapped at draw as well as at gesture end, so a mid-drag frame is also
       // crisp. Panning is then a translation of already-rasterised layers.
@@ -334,14 +374,22 @@ class AtlasViewportState extends State<AtlasViewport>
                   child: Stack(
                     children: <Widget>[
                       AtlasBaseLayer(scene: widget.scene),
-                      AtlasRouteLayer(scene: widget.scene, way: widget.way),
-                      AtlasLandmarkLayer(scene: widget.scene),
+                      AtlasRouteLayer(
+                        scene: widget.scene,
+                        way: widget.way,
+                        zoom: _zoom,
+                      ),
+                      AtlasLandmarkLayer(
+                        scene: widget.scene,
+                        overview: overview,
+                      ),
                       AtlasOverlayLayer(scene: widget.scene),
                       AtlasMarkerLayer(
                         scene: widget.scene,
                         selected: widget.selected,
                         kinds: widget.kinds,
                         zoom: _zoom,
+                        overview: overview,
                         arrivalToken: _arrivals,
                         onSelect: widget.onSelect,
                       ),

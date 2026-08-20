@@ -519,19 +519,12 @@ for (const entry of ambientWrdManifest) {
  * Every world coordinate lives in `assets/content/v1/atlas/atlas_layout.json`,
  * not here. This step only moves and renames.
  */
-const WORLD_SRC = path.join(TRANSFORM, 'world');
+// The Transformation base tile and the five landmark cutouts are retired by
+// Activity Feel & Presentation 01: the atlas base is now ONE master painting
+// (`world/atlas_master`, below) with every settlement and landmark painted in,
+// so the layout references neither the old tiles nor any cutout. The sources
+// stay in `TRANSFORMATION_01/out/world/`; only the emission is removed.
 const ENV_SRC = path.join(TRANSFORM, 'env');
-const WORLD_FILES = {
-  'atlas_base_384x688.png': 'world/atlas_base.png',
-  'landmark_havens_rest_96x96.png': 'world/landmark_havens_rest.png',
-  'landmark_whispering_woods_96x80.png': 'world/landmark_whispering_woods.png',
-  'landmark_forgotten_hollow_96x80.png': 'world/landmark_forgotten_hollow.png',
-  'landmark_stonefall_mine_96x80.png': 'world/landmark_stonefall_mine.png',
-  'landmark_frostmere_96x72.png': 'world/landmark_frostmere.png',
-};
-for (const [src, dest] of Object.entries(WORLD_FILES)) {
-  emit(dest, encode(png.load(path.join(WORLD_SRC, src))));
-}
 for (const file of fs.readdirSync(ENV_SRC).filter((f) => f.endsWith('.png'))) {
   // `prop_lone_oak_48x48.png` → `env/prop_lone_oak.png`;
   // `overlay_forest_mist_96x48_f3.png` → `env/overlay_forest_mist_f3.png`.
@@ -555,9 +548,10 @@ for (const file of fs.readdirSync(ENV_SRC).filter((f) => f.endsWith('.png'))) {
  * transparent (A-2, keying). Every world coordinate lives in
  * `atlas_layout.json`, not here.
  */
+// `atlas_south` is retired with the base tile (see above); the kind-marker
+// glyphs stay — the new layout's `kindMarkers` block still names them.
 const WRD = path.join(EXPLORE, 'WORLD_REWARD_DEPTH_01', 'world', 'out');
 const WORLD_WRD_FILES = {
-  'atlas_south_384x688.png': 'world/atlas_south.png',
   'marker_haven_20x20.png': 'world/marker_haven.png',
   'marker_wilds_20x20.png': 'world/marker_wilds.png',
   'marker_worksite_20x20.png': 'world/marker_worksite.png',
@@ -701,6 +695,84 @@ for (const id of ['wolf_pelt', 'lynx_pelt', 'wolfhide_jerkin', 'frostlined_jerki
     throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
   }
   emit(`item/${id}.png`, encode(raster));
+}
+
+// --------------------------------------- Activity Feel & Presentation 01
+
+/**
+ * GATHERING ACTIVITY LOOPS — the Traveler working, west-facing, one loop per
+ * profession (`ACTIVITY_FEEL_01/README.md` §2). PixelLab `animate_character`
+ * v3 output on large canvases (108/96/88 wide); each loop is cropped here to
+ * one fixed box per loop — 64 rows tall with the feet on row 62, the ambient
+ * convention — wide enough for the tool's whole swing (the union opaque box
+ * of the shipped frames, measured 2026-08-20, plus margin).
+ *
+ * The frame lists are the blind-QA frame selection, not the raw output:
+ * woodcut drops source frame 4 (the axe reads detached from the hands for
+ * that one frame), mine drops 3/6/7 (stray debris flecks hover at head
+ * height). Renumbered contiguously on emit. Forage ships all nine; its
+ * ping-pong playback order is authored in `ambient_assets.dart`, not by
+ * duplicating frames here.
+ */
+const ACTIVITY_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'ambient');
+const ACTIVITY_LOOPS = {
+  activity_woodcut: {
+    src: 'woodcut2', frames: [0, 1, 2, 3, 5, 6, 7, 8],
+    canvas: [108, 92], crop: { x: 14, y: 14, width: 76, height: 64 },
+  },
+  activity_mine: {
+    src: 'mine2', frames: [0, 1, 2, 4, 5, 8],
+    canvas: [96, 92], crop: { x: 13, y: 14, width: 66, height: 64 },
+  },
+  activity_forage: {
+    src: 'forage', frames: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    canvas: [88, 88], crop: { x: 16, y: 12, width: 44, height: 64 },
+  },
+};
+for (const [id, spec] of Object.entries(ACTIVITY_LOOPS)) {
+  spec.frames.forEach((srcIndex, outIndex) => {
+    const frame = png.load(path.join(ACTIVITY_SRC, `${spec.src}_f${srcIndex}.png`));
+    if (frame.width !== spec.canvas[0] || frame.height !== spec.canvas[1]) {
+      throw new Error(
+        `${spec.src}_f${srcIndex}: expected ${spec.canvas[0]}x${spec.canvas[1]}, ` +
+        `got ${frame.width}x${frame.height}`,
+      );
+    }
+    const cut = png.crop(frame, spec.crop.x, spec.crop.y, spec.crop.width, spec.crop.height);
+    if (outIndex === 0) ambientFootprints[`ambient_${id}`] = png.footprint(cut);
+    emit(`ambient/${id}_f${outIndex}.png`, encode(cut));
+  });
+}
+
+/**
+ * WORLD MASTER — the whole landmass as ONE 384 × 688 painting, displayed at
+ * atlas scale 4 (1536 × 2752 world px). Replaces the retired base + south
+ * tile column: a single generation cannot have a seam, which is `MISTAKES.md`
+ * M-12 applied rather than survived. r2 carries one targeted inpaint (the
+ * Forgotten Hollow cave region, blind-QA MAJOR in r1). Straight copy;
+ * provenance and both blind verdicts in `ACTIVITY_FEEL_01/README.md` §1.
+ */
+const AF_WORLD_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'world');
+{
+  const master = png.load(path.join(AF_WORLD_SRC, 'atlas_master_384x688.png'));
+  if (master.width !== 384 || master.height !== 688) {
+    throw new Error(`atlas_master: expected 384x688, got ${master.width}x${master.height}`);
+  }
+  emit('world/atlas_master.png', encode(master));
+}
+
+/**
+ * WORLD LIFE — a drifting bird-flock overlay (three dark silhouettes, six
+ * frames, seamless: the last generated frame was pinned to the first).
+ * Straight copies; placed by `atlas_layout.json` like every overlay.
+ */
+const AF_ENV_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'env');
+for (let i = 0; i < 6; i++) {
+  const frame = png.load(path.join(AF_ENV_SRC, `overlay_birds_24x24_f${i}.png`));
+  if (frame.width !== 24 || frame.height !== 24) {
+    throw new Error(`overlay_birds_f${i}: expected 24x24, got ${frame.width}x${frame.height}`);
+  }
+  emit(`env/overlay_birds_f${i}.png`, encode(frame));
 }
 
 // -------------------------------------------------------- footprint metrics

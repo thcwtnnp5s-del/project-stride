@@ -1,4 +1,4 @@
-/// One gatherable node, its cost, and the action.
+/// One gatherable node, its cost, the queue selector, and the action.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -14,25 +14,53 @@ import '../../components/surfaces.dart';
 import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
+import '../../state/activity_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 
-class GatherNodeCard extends StatelessWidget {
+class GatherNodeCard extends StatefulWidget {
   const GatherNodeCard({super.key, required this.node});
 
   final ResourceNodeDefinition node;
 
   @override
+  State<GatherNodeCard> createState() => _GatherNodeCardState();
+}
+
+class _GatherNodeCardState extends State<GatherNodeCard> {
+  /// The requested queue length. Ephemeral UI selection, never a game figure
+  /// (`RULES.md` E-2): the count actually offered is re-clamped against live
+  /// affordability on every build, so a spent balance shrinks the offer on the
+  /// next frame and the stored preference merely remembers what was asked for.
+  int _requested = 1;
+
+  @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
+    final ActivityController activity = ActivityScope.of(context);
     final StrideSession s = c.session;
+    final ResourceNodeDefinition node = widget.node;
 
     final int cost = s.costOf(node.id) ?? node.stepCost;
     final String skillName = s.displayNameOf(node.skill);
     final String yieldName = s.displayNameOf(node.yieldsItem);
+
+    final bool activeHere = activity.active && activity.activeNode == node.id;
+    final bool activeElsewhere = activity.active && !activeHere;
+
+    // What banked steps afford, hard-capped at the queue maximum. The button
+    // never offers a count the balance cannot fund (cost × n ≤ usableEnergy):
+    // a preset above the affordable count clamps down and the honest number is
+    // what the stepper and the button show. A hint, as ever — the engine
+    // re-validates every dispatch.
+    final int affordable = cost > 0
+        ? s.usableEnergy ~/ cost
+        : ActivityController.maxQueue;
+    final int maxCount = affordable.clamp(0, ActivityController.maxQueue);
+    final int count = _requested.clamp(1, maxCount > 0 ? maxCount : 1);
 
     final Widget identity = Column(
       mainAxisSize: MainAxisSize.min,
@@ -42,6 +70,26 @@ class GatherNodeCard extends StatelessWidget {
         const SizedBox(height: StrideSpace.s6),
         Text(node.displayName, style: StrideType.cardTitle, maxLines: 2),
         Text('Gathering $yieldName', style: StrideType.sub, maxLines: 2),
+        // The queue selector lives in the identity column, beside the stage,
+        // because the fold does not have a row to spare: the gather control
+        // clears the fold by 4 dp on a 393 dp phone (`fold_clearance_test`),
+        // so any new row above the button would push the screen's only action
+        // out of sight. The stage is 180 dp against ~72 dp of identity — the
+        // selector spends slack that already exists.
+        if (!activeHere) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          _QuantitySelector(
+            count: count,
+            maxCount: maxCount,
+            onChanged: (int value) => setState(() => _requested = value),
+          ),
+          const SizedBox(height: StrideSpace.s6),
+          // The projected total, as arithmetic the player can check.
+          Text(
+            '$count × ${formatSteps(cost)} = ${formatSteps(cost * count)} steps',
+            style: StrideType.micro,
+          ),
+        ],
       ],
     );
 
@@ -59,9 +107,13 @@ class GatherNodeCard extends StatelessWidget {
           //
           // Beside each other they are one object about 145 dp tall, and the
           // card now says "this figure, gathering this thing, here" in a single
-          // read. The gathering presentation itself is unchanged — same sprite,
-          // same contact shadow, same play-on-success token.
-          _StageAndIdentity(node: node, identity: identity),
+          // read. While a queue runs the stage loops the profession's working
+          // animation instead of resting between one-shots.
+          _StageAndIdentity(
+            node: node,
+            identity: identity,
+            activityActive: activeHere,
+          ),
 
           const SizedBox(height: StrideSpace.s10),
           Wrap(
@@ -81,9 +133,10 @@ class GatherNodeCard extends StatelessWidget {
 
           // The `THIS ACTION` heading is gone. Three tiles labelled STEPS,
           // YIELD and EXPERIENCE, directly above a button that says
-          // `Gather — 90 steps`, do not need a caption telling the player they
-          // describe an action; it cost 28 dp between the player and the
-          // control.
+          // `Gather ×1 — 90 steps`, do not need a caption telling the player
+          // they describe an action; it cost 28 dp between the player and the
+          // control. During a queue the same tiles state what each completion
+          // yields.
           const SizedBox(height: StrideSpace.s10),
           _CostTriple(
             node: node,
@@ -104,8 +157,133 @@ class GatherNodeCard extends StatelessWidget {
           // Nothing is lost: the shortfall case still names the exact number of
           // steps to walk, on the button itself, where the player is looking.
           const SizedBox(height: StrideSpace.s12),
-          _GatherControl(node: node, cost: cost),
+          if (activeHere)
+            _ActiveQueuePanel(node: node, skillName: skillName)
+          else
+            _GatherControl(
+              node: node,
+              cost: cost,
+              count: count,
+              activeElsewhere: activeElsewhere,
+            ),
         ],
+      ),
+    );
+  }
+}
+
+/// The ×1 / ×5 / ×10 presets and the −/+ stepper, wrapping onto two short rows
+/// in the identity column's width.
+///
+/// **Not a monetization surface and shaped never to read as one**: no timer to
+/// pay down, no "speed up", no capacity bar. It sets how many times the one
+/// honest command will run, and the total it quotes is multiplication the
+/// player can verify.
+class _QuantitySelector extends StatelessWidget {
+  const _QuantitySelector({
+    required this.count,
+    required this.maxCount,
+    required this.onChanged,
+  });
+
+  /// The effective count — already clamped to what banked steps afford.
+  final int count;
+
+  /// The largest affordable count, possibly zero. Zero disables the stepper;
+  /// the button below is already disabled with the shortfall.
+  final int maxCount;
+
+  final ValueChanged<int> onChanged;
+
+  static const List<int> _presets = <int>[1, 5, 10];
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: StrideSpace.s6,
+    runSpacing: StrideSpace.s4,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: <Widget>[
+      for (final int preset in _presets)
+        _QuantityChip(
+          label: '×$preset',
+          selected: count == preset,
+          // A preset above the affordable count is still tappable: the
+          // selection clamps and the honest number appears on the stepper and
+          // the button, which is more truthful than a dead control that does
+          // not say why.
+          onTap: () => onChanged(preset),
+        ),
+      _QuantityChip(
+        label: '−',
+        selected: false,
+        onTap: count > 1 ? () => onChanged(count - 1) : null,
+      ),
+      Text(
+        '$count',
+        style: StrideType.sub.copyWith(
+          color: StrideColors.textPrimary,
+          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        ),
+      ),
+      _QuantityChip(
+        label: '+',
+        selected: false,
+        onTap: count < maxCount ? () => onChanged(count + 1) : null,
+      ),
+    ],
+  );
+}
+
+/// One selector chip: gate-sized, filled when selected, muted when disabled.
+class _QuantityChip extends StatelessWidget {
+  const _QuantityChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = onTap != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        // Padding, NOT a fixed box with `alignment:` — `Container`'s alignment
+        // expands to the incoming constraints, and inside a `Wrap` those are
+        // the full line width, so an aligned chip is silently a full-width
+        // capsule and the selector stacks one chip per run. The exact defect
+        // `RequirementGate`'s own comment records; it was reproduced here once
+        // and cost the fold 100 dp.
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? StrideColors.surfaceRaised
+                : StrideColors.surfaceBlock,
+            border: Border.all(color: StrideColors.borderDefault),
+            borderRadius: StrideRadius.chip,
+          ),
+          child: Text(
+            label,
+            style: StrideType.compactLabel.copyWith(
+              color: enabled
+                  ? StrideColors.textPrimary
+                  : StrideColors.textMuted,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -148,19 +326,26 @@ class GatherNodeCard extends StatelessWidget {
 /// ```
 ///
 /// So the stage can be 180 **only because the identity sits beside it rather
-/// than under it**. Stacking them adds the identity's ~94 dp and puts the button
-/// 90 dp below the fold. That is what happens at 320 dp, where there is no room
-/// for both — and it is the right trade there, because a crushed node title is
-/// worse than a scroll.
+/// than under it** — and it is also why the queue selector lives *inside* the
+/// identity column: those 4 dp are the whole budget, and any new row above the
+/// button spends ~40. Stacking them adds the identity's ~94 dp and puts the
+/// button 90 dp below the fold. That is what happens at 320 dp, where there is
+/// no room for both — and it is the right trade there, because a crushed node
+/// title is worse than a scroll.
 ///
 /// The goldens flatter this by about 93 dp: `flutter test` supplies no insets,
 /// so the button looks comfortably clear in an image and is 4 dp clear on a
 /// phone. Judge it on the phone (`MISTAKES.md` M-06).
 class _StageAndIdentity extends StatelessWidget {
-  const _StageAndIdentity({required this.node, required this.identity});
+  const _StageAndIdentity({
+    required this.node,
+    required this.identity,
+    required this.activityActive,
+  });
 
   final ResourceNodeDefinition node;
   final Widget identity;
+  final bool activityActive;
 
   @override
   Widget build(BuildContext context) {
@@ -180,11 +365,16 @@ class _StageAndIdentity extends StatelessWidget {
               beside,
             );
 
+        final Widget stage = _ActivityStage(
+          node: node,
+          activityActive: activityActive,
+        );
+
         if (!sideBySide) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _ActivityStage(node: node),
+              stage,
               const SizedBox(height: StrideSpace.s10),
               identity,
             ],
@@ -194,10 +384,7 @@ class _StageAndIdentity extends StatelessWidget {
         return Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            SizedBox(
-              width: StrideGeometry.activityStage,
-              child: _ActivityStage(node: node),
-            ),
+            SizedBox(width: StrideGeometry.activityStage, child: stage),
             const SizedBox(width: StrideSpace.s12),
             Expanded(child: identity),
           ],
@@ -215,7 +402,8 @@ class _StageAndIdentity extends StatelessWidget {
 }
 
 /// The activity's contextual art: the Traveler, standing on ground, who gathers
-/// once when a gather succeeds.
+/// once when a single gather succeeds — and works continuously while a queue
+/// runs at this node.
 ///
 /// This is the ACTIVITY presentation scale — "UI-driven action plus contextual
 /// art". It is deliberately **not** a scene the player moves through. There is
@@ -241,9 +429,10 @@ class _StageAndIdentity extends StatelessWidget {
 /// the height back, the number and its cost are in
 /// `StrideGeometry.activityStage` and in `_StageAndIdentity`'s own doc.
 class _ActivityStage extends StatelessWidget {
-  const _ActivityStage({required this.node});
+  const _ActivityStage({required this.node, required this.activityActive});
 
   final ResourceNodeDefinition node;
+  final bool activityActive;
 
   @override
   Widget build(BuildContext context) {
@@ -251,13 +440,14 @@ class _ActivityStage extends StatelessWidget {
 
     // The identity of a *successful* gather at this node, and nothing else. A
     // refusal leaves this null, so the figure does not mime picking a herb the
-    // player did not receive.
+    // player did not receive. While a queue runs the token is suppressed
+    // outright: completion feedback is UI-level, and the working loop already
+    // has the stage (`ACTIVITY_FEEL_PRESENTATION_01` §4a).
     final ActionReport? report = c.lastActionNode == node.id
         ? c.lastAction
         : null;
-    final Object? playToken = report != null && report.succeeded
-        ? report
-        : null;
+    final Object? playToken =
+        !activityActive && report != null && report.succeeded ? report : null;
 
     return Container(
       width: double.infinity,
@@ -298,6 +488,8 @@ class _ActivityStage extends StatelessWidget {
       // Traveler through a few ambient scenes and settles back on the same
       // rest pose. Presentation only — the scenes grant nothing, read nothing,
       // and the gather still plays exactly on `playToken`, taking priority.
+      // While a queue runs the same stage loops the profession's working
+      // frames instead, and the ambient cadence does not run.
       //
       // The node itself — an oak stand, a copper seam — is the stage's far
       // scenery: ×1 art behind the ×2 figure, raised off the figure's ground
@@ -321,6 +513,14 @@ class _ActivityStage extends StatelessWidget {
             restFrame: AmbientAssets.restFrame,
             restFootprint: AmbientAssets.restFootprint,
             scenery: AmbientAssets.sceneryFor(PixelIcons.nodeFor(node.id)),
+            // By the skill's id string: the ambient boundary guard keeps
+            // `ContentId` out of the asset table — see `activityLoopFor`.
+            activityFrames: AmbientAssets.activityLoopFor(node.skill.value),
+            activityFootprint: AmbientAssets.activityFootprintFor(
+              node.skill.value,
+            ),
+            activityCanvas: AmbientAssets.activityCanvasFor(node.skill.value),
+            activityActive: activityActive,
           ),
         ),
       ),
@@ -400,14 +600,27 @@ class _CostTriple extends StatelessWidget {
 
 /// The button, and the ephemeral line beneath it.
 class _GatherControl extends StatelessWidget {
-  const _GatherControl({required this.node, required this.cost});
+  const _GatherControl({
+    required this.node,
+    required this.cost,
+    required this.count,
+    required this.activeElsewhere,
+  });
 
   final ResourceNodeDefinition node;
   final int cost;
 
+  /// The queue length the button will start — already clamped to affordable.
+  final int count;
+
+  /// True while a queue runs at some other node; this card's controls are
+  /// disabled with the one-line reason rather than starting a second queue.
+  final bool activeElsewhere;
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
+    final ActivityController activity = ActivityScope.of(context);
     final StrideSession s = c.session;
 
     // `canGather` is a hint used to DISABLE, never to decide. It checks
@@ -420,20 +633,265 @@ class _GatherControl extends StatelessWidget {
     final ActionReport? report = c.lastActionNode == node.id
         ? c.lastAction
         : null;
+    final bool summaryHere = activity.summaryNode == node.id;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         StrideButton(
-          label: c.busy ? 'Gathering…' : 'Gather — ${formatSteps(cost)} steps',
-          subLabel: !c.busy && !affordable && shortfall > 0
+          label: c.busy
+              ? 'Gathering…'
+              : 'Gather ×$count — ${formatSteps(cost * count)} steps',
+          subLabel: activeElsewhere
+              ? 'Finish or stop your current activity'
+              : !c.busy && !affordable && shortfall > 0
               ? 'Walk ${formatSteps(shortfall)} more steps'
               : null,
-          onPressed: c.busy || !affordable ? null : () => c.gather(node.id),
+          onPressed: c.busy || !affordable || activeElsewhere
+              ? null
+              : () => ActivityScope.read(context).start(node, count),
         ),
-        if (report != null) ...<Widget>[
+        // The finished queue's summary takes the strip while it lives; a lone
+        // report (the last repetition's) only shows when no summary does, so
+        // the same fact is never printed twice.
+        if (summaryHere) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          _QueueSummaryStrip(activity: activity, skill: node.skill),
+        ] else if (report != null) ...<Widget>[
           const SizedBox(height: StrideSpace.s8),
           _ResultStrip(report: report, skill: node.skill),
+        ],
+      ],
+    );
+  }
+}
+
+/// The running queue's panel: progress, cumulative gains, and Stop.
+///
+/// Replaces the gather button while the queue works this node. Everything here
+/// is presentation over committed facts: the completed count and the gains are
+/// accumulated from returned `ActionReport`s, and the bar depicts the
+/// *presentation* timer — the spend happens at each repetition's dispatch,
+/// never partially.
+class _ActiveQueuePanel extends StatelessWidget {
+  const _ActiveQueuePanel({required this.node, required this.skillName});
+
+  final ResourceNodeDefinition node;
+  final String skillName;
+
+  @override
+  Widget build(BuildContext context) {
+    final ActivityController activity = ActivityScope.of(context);
+    final SessionController c = SessionScope.of(context);
+    final StrideSession s = c.session;
+
+    final String itemName =
+        activity.gainedItemName ?? s.displayNameOf(node.yieldsItem);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                'Gathering ${activity.completed} / ${activity.queued}',
+                style: StrideType.sub.copyWith(color: StrideColors.textPrimary),
+              ),
+            ),
+            if (activity.paused)
+              Text('Paused', style: StrideType.micro)
+            else
+              _SecondsRemaining(activity: activity),
+          ],
+        ),
+        const SizedBox(height: StrideSpace.s6),
+        _RepetitionBar(activity: activity, skill: node.skill),
+        if (activity.completed > 0) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '$itemName gained: ${activity.gainedQuantity}',
+                  style: StrideType.micro.copyWith(
+                    color: StrideColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '+${activity.gainedXp} '
+                '${activity.gainedSkillName ?? skillName} XP',
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.forSkill(node.skill),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: StrideSpace.s8),
+        StrideButton(
+          label: 'Stop gathering',
+          onPressed: () => ActivityScope.read(context).stop(),
+        ),
+      ],
+    );
+  }
+}
+
+/// Seconds left in the current repetition, ticking with the bar's clock.
+class _SecondsRemaining extends StatelessWidget {
+  const _SecondsRemaining({required this.activity});
+
+  final ActivityController activity;
+
+  @override
+  Widget build(BuildContext context) {
+    final int seconds =
+        (activity.repetitionDuration - activity.elapsedOfCurrent).inSeconds;
+    return Text(
+      '${seconds < 0 ? 0 : seconds}s',
+      style: StrideType.micro.copyWith(
+        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      ),
+    );
+  }
+}
+
+/// The smooth per-repetition progress bar.
+///
+/// **A widget-side `AnimationController`, synced from the controller's segment
+/// data** — the `ActivityController` notifies on segment boundaries only and
+/// never per frame (`ACTIVITY_FEEL_PRESENTATION_01` §4a: domain completion and
+/// UI progress are separate clocks). On every controller notification the bar
+/// snaps to the authoritative elapsed fraction and animates to full over the
+/// remainder; paused queues hold still. The ticker is vsync-driven, so
+/// `TickerMode` and backgrounding stop it like every other stage animation.
+class _RepetitionBar extends StatefulWidget {
+  const _RepetitionBar({required this.activity, required this.skill});
+
+  final ActivityController activity;
+  final ContentId skill;
+
+  @override
+  State<_RepetitionBar> createState() => _RepetitionBarState();
+}
+
+class _RepetitionBarState extends State<_RepetitionBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fill = AnimationController(
+    vsync: this,
+    duration: widget.activity.repetitionDuration,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    widget.activity.addListener(_sync);
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_RepetitionBar old) {
+    super.didUpdateWidget(old);
+    if (!identical(widget.activity, old.activity)) {
+      old.activity.removeListener(_sync);
+      widget.activity.addListener(_sync);
+      _sync();
+    }
+  }
+
+  void _sync() {
+    if (!mounted) return;
+    final ActivityController a = widget.activity;
+    if (!a.active) {
+      _fill.stop();
+      return;
+    }
+    final Duration total = a.repetitionDuration;
+    final Duration elapsed = a.elapsedOfCurrent;
+    final double fraction = total.inMicroseconds == 0
+        ? 1
+        : (elapsed.inMicroseconds / total.inMicroseconds).clamp(0.0, 1.0);
+    _fill.value = fraction;
+    if (!a.paused && fraction < 1) {
+      _fill.animateTo(1, duration: total - elapsed);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.activity.removeListener(_sync);
+    _fill.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 10,
+    decoration: BoxDecoration(
+      color: StrideColors.surfaceGround,
+      border: Border.all(color: StrideColors.borderDefault),
+      borderRadius: StrideRadius.gate,
+    ),
+    child: ClipRRect(
+      borderRadius: StrideRadius.gate,
+      child: AnimatedBuilder(
+        animation: _fill,
+        builder: (BuildContext context, Widget? child) => FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: _fill.value,
+          child: child,
+        ),
+        child: ColoredBox(color: StrideColors.forSkill(widget.skill)),
+      ),
+    ),
+  );
+}
+
+/// What the finished queue did: gains, and the refusal that stopped it, if one
+/// did. Same lifetime and same construction as [_ResultStrip] — accumulated
+/// from returned reports, cleared on a timer, never persisted.
+class _QueueSummaryStrip extends StatelessWidget {
+  const _QueueSummaryStrip({required this.activity, required this.skill});
+
+  final ActivityController activity;
+  final ContentId skill;
+
+  @override
+  Widget build(BuildContext context) {
+    final ActionReport? refusal = activity.stopReport;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        if (activity.gainedQuantity > 0)
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '${activity.gainedItemName ?? 'Items'} '
+                  '×${activity.gainedQuantity}',
+                  style: StrideType.micro.copyWith(
+                    color: StrideColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (activity.gainedSkillName case final String skillName)
+                Text(
+                  '+${activity.gainedXp} $skillName XP',
+                  style: StrideType.micro.copyWith(
+                    color: StrideColors.forSkill(skill),
+                  ),
+                ),
+            ],
+          ),
+        if (refusal != null) ...<Widget>[
+          if (activity.gainedQuantity > 0)
+            const SizedBox(height: StrideSpace.s4),
+          Text(
+            gatherRefusalText(refusal),
+            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
+          ),
         ],
       ],
     );
@@ -462,7 +920,7 @@ class _ResultStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!report.succeeded) {
       return Text(
-        _refusalText(report),
+        gatherRefusalText(report),
         style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
       );
     }
@@ -493,16 +951,19 @@ class _ResultStrip extends StatelessWidget {
       ],
     );
   }
-
-  static String _refusalText(ActionReport r) => switch (r.rejection) {
-    'insufficient_steps' => 'Not enough banked steps yet',
-    'encounter_in_progress' => 'Finish or retreat from your encounter first',
-    'session_busy' => 'Still finishing the last action',
-    'session_not_ready' => 'Reload before gathering again',
-    'commit_refused' => 'That could not be saved — reload before continuing',
-    'skill_level_too_low' => 'Your skill level is too low here',
-    'tool_required' => 'You need the right tool for this',
-    'resource_node_not_here' => 'That is not available at this location',
-    _ => r.detail ?? 'That action was refused',
-  };
 }
+
+/// The player-facing sentence for a gather refusal — one mapping, shared by the
+/// single-gather result strip and the queue's stop reason, so the same
+/// rejection never reads two ways.
+String gatherRefusalText(ActionReport r) => switch (r.rejection) {
+  'insufficient_steps' => 'Not enough banked steps yet',
+  'encounter_in_progress' => 'Finish or retreat from your encounter first',
+  'session_busy' => 'Still finishing the last action',
+  'session_not_ready' => 'Reload before gathering again',
+  'commit_refused' => 'That could not be saved — reload before continuing',
+  'skill_level_too_low' => 'Your skill level is too low here',
+  'tool_required' => 'You need the right tool for this',
+  'resource_node_not_here' => 'That is not available at this location',
+  _ => r.detail ?? 'That action was refused',
+};

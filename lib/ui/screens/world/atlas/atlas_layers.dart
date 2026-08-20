@@ -97,9 +97,19 @@ class AtlasBaseLayer extends StatelessWidget {
 /// Still not teal (L-16): a road is not walking, and a highlighted road is not
 /// a quantity of steps. The emphasis is weight and brightness only.
 class AtlasRouteLayer extends StatelessWidget {
-  const AtlasRouteLayer({super.key, required this.scene, this.way});
+  const AtlasRouteLayer({
+    super.key,
+    required this.scene,
+    required this.zoom,
+    this.way,
+  });
 
   final AtlasScene scene;
+
+  /// The camera's zoom. The dots and their pitch counter-scale below 1 dp per
+  /// world pixel ([AtlasMarkerSpec.chromeScale]) so the previewed walk stays a
+  /// followable line at the survey floor instead of degenerating into dust.
+  final double zoom;
 
   /// The walk to the selected place, or null when the selection is *here* or
   /// unreachable. Nothing highlights in that case.
@@ -113,19 +123,23 @@ class AtlasRouteLayer extends StatelessWidget {
         painter: _RoutePainter(scene, <String>{
           for (final AtlasEdge edge in way?.edges ?? const <AtlasEdge>[])
             edge.key,
-        }),
+        }, AtlasMarkerSpec.chromeScale(zoom)),
       ),
     ),
   );
 }
 
 class _RoutePainter extends CustomPainter {
-  const _RoutePainter(this.scene, this.highlighted);
+  const _RoutePainter(this.scene, this.highlighted, this.chrome);
 
   final AtlasScene scene;
 
   /// [AtlasEdge.key] for every edge on the previewed walk.
   final Set<String> highlighted;
+
+  /// The counter-scale every dot and the pitch are multiplied by, 1 at and
+  /// above the authored reading ([AtlasMarkerSpec.chromeScale]).
+  final double chrome;
 
   /// World pixels between dot centres, and the dot's side. Squares rather than
   /// round dots so the line sits in the same pixel language as the art under
@@ -152,10 +166,11 @@ class _RoutePainter extends CustomPainter {
     final Paint ink = Paint()..color = const Color(0xD9F0E7D8);
     final Paint contourOnWay = Paint()..color = const Color(0xE614120F);
     final Paint inkOnWay = Paint()..color = const Color(0xFFF0E7D8);
+    final double pitch = _pitch * chrome;
     for (final AtlasEdge edge in scene.edges) {
       final bool onWay = highlighted.contains(edge.key);
-      final double dotSide = onWay ? _dotOnWay : _dot;
-      final double contourSide = onWay ? _contourOnWay : _contour;
+      final double dotSide = (onWay ? _dotOnWay : _dot) * chrome;
+      final double contourSide = (onWay ? _contourOnWay : _contour) * chrome;
       final Paint dotPaint = onWay ? inkOnWay : ink;
       final Paint contourPaint = onWay ? contourOnWay : contour;
       // Follow the drawn course where the layout gives one — the dots then
@@ -178,7 +193,7 @@ class _RoutePainter extends CustomPainter {
 
       // One dot cadence along the whole polyline, so a corner does not bunch
       // or gap the dots. Start a pitch in so no dot sits under either marker.
-      double carry = _pitch;
+      double carry = pitch;
       double total = 0;
       for (int i = 1; i < points.length; i++) {
         total += (points[i] - points[i - 1]).distance;
@@ -192,7 +207,7 @@ class _RoutePainter extends CustomPainter {
         final Offset unit = (b - a) / length;
         double d = carry;
         while (d < length) {
-          if (walked + d > total - _pitch / 2) break;
+          if (walked + d > total - pitch / 2) break;
           final Offset c = a + unit * d;
           final Rect dot = Rect.fromCenter(
             center: Offset(c.dx.roundToDouble(), c.dy.roundToDouble()),
@@ -208,7 +223,7 @@ class _RoutePainter extends CustomPainter {
             contourPaint,
           );
           canvas.drawRect(dot, dotPaint);
-          d += _pitch;
+          d += pitch;
         }
         carry = d - length;
         walked += length;
@@ -219,6 +234,7 @@ class _RoutePainter extends CustomPainter {
   @override
   bool shouldRepaint(_RoutePainter old) =>
       old.scene != scene ||
+      old.chrome != chrome ||
       old.highlighted.length != highlighted.length ||
       !old.highlighted.containsAll(highlighted);
 }
@@ -232,10 +248,26 @@ class _RoutePainter extends CustomPainter {
 /// Wholly static: no ticker, no state, one repaint boundary. It does not
 /// hit-test, which is what makes a named landmark scenery rather than a place
 /// (`WORLD_REWARD_DEPTH_01.md` §7).
+///
+/// In the [overview] — zoomed out past the opening view — the scatter props
+/// and the named landmarks' marker art are not built at all: at survey
+/// distance the painted geography carries them, and a 20 px cairn drawn at a
+/// quarter of its reading size is noise rather than information. A location's
+/// own landmark building stays at every zoom — it is the visual identity of a
+/// place the player can actually walk to, and the place's label and ring stay
+/// with it.
 class AtlasLandmarkLayer extends StatelessWidget {
-  const AtlasLandmarkLayer({super.key, required this.scene});
+  const AtlasLandmarkLayer({
+    super.key,
+    required this.scene,
+    required this.overview,
+  });
 
   final AtlasScene scene;
+
+  /// Whether the camera is out past `AtlasZoom.overviewBelow` — the viewport
+  /// owns the threshold; the layers only obey it.
+  final bool overview;
 
   @override
   Widget build(BuildContext context) {
@@ -248,31 +280,33 @@ class AtlasLandmarkLayer extends StatelessWidget {
           child: Stack(
             children: <Widget>[
               // Scatter props first, so a landmark always paints over one.
-              for (final AtlasProp prop in scene.layout.props)
-                Positioned(
-                  left: prop.x - prop.anchorX * scale,
-                  top: prop.y - prop.anchorY * scale,
-                  child: PixelAsset(
-                    assetPath: AtlasAssets.pathFor(prop.asset),
-                    nativeWidth: prop.width,
-                    nativeHeight: prop.height,
-                    scale: scale,
-                  ),
-                ),
-              // Named geography, under the places: a ruin never paints over a
-              // settlement the player can walk to.
-              for (final AtlasNamedLandmark named in scene.layout.landmarks)
-                if (named.marker case final AtlasLandmark art)
+              if (!overview)
+                for (final AtlasProp prop in scene.layout.props)
                   Positioned(
-                    left: named.x - art.anchorX * scale,
-                    top: named.y - art.anchorY * scale,
+                    left: prop.x - prop.anchorX * scale,
+                    top: prop.y - prop.anchorY * scale,
                     child: PixelAsset(
-                      assetPath: AtlasAssets.pathFor(art.asset),
-                      nativeWidth: art.width,
-                      nativeHeight: art.height,
+                      assetPath: AtlasAssets.pathFor(prop.asset),
+                      nativeWidth: prop.width,
+                      nativeHeight: prop.height,
                       scale: scale,
                     ),
                   ),
+              // Named geography, under the places: a ruin never paints over a
+              // settlement the player can walk to.
+              if (!overview)
+                for (final AtlasNamedLandmark named in scene.layout.landmarks)
+                  if (named.marker case final AtlasLandmark art)
+                    Positioned(
+                      left: named.x - art.anchorX * scale,
+                      top: named.y - art.anchorY * scale,
+                      child: PixelAsset(
+                        assetPath: AtlasAssets.pathFor(art.asset),
+                        nativeWidth: art.width,
+                        nativeHeight: art.height,
+                        scale: scale,
+                      ),
+                    ),
               for (final AtlasNode node in scene.nodes)
                 if (scene.layout.locationFor(node.id)?.landmark
                     case final AtlasLandmark landmark)
@@ -444,6 +478,7 @@ class AtlasMarkerLayer extends StatelessWidget {
     required this.selected,
     required this.kinds,
     required this.zoom,
+    required this.overview,
     required this.arrivalToken,
     required this.onSelect,
   });
@@ -457,8 +492,16 @@ class AtlasMarkerLayer extends StatelessWidget {
   final Map<ContentId, AtlasPlaceKind> kinds;
 
   /// The camera's zoom. Labels counter-scale by it so type stays the size it
-  /// was designed at, whatever the world is doing.
+  /// was designed at, whatever the world is doing; the ring, pulse and burst
+  /// chrome counter-scales below 1 dp per world pixel
+  /// ([AtlasMarkerSpec.chromeScale]) so *here* still reads at the survey
+  /// floor.
   final double zoom;
+
+  /// Whether the camera is out past the overview threshold. Landmark captions
+  /// hide out here — the place labels, glyphs, rings and the current marker
+  /// are the survey's whole vocabulary.
+  final bool overview;
 
   /// Bumped once per arrival. Zero means *nothing has arrived this session*,
   /// and no burst is built at all — opening the screen is not an arrival.
@@ -467,96 +510,123 @@ class AtlasMarkerLayer extends StatelessWidget {
   final ValueChanged<ContentId> onSelect;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: scene.worldWidth,
-    height: scene.worldHeight,
-    child: Stack(
-      children: <Widget>[
-        // Named geography's labels first: a place's name always paints over a
-        // landmark's, never the other way round.
-        RepaintBoundary(
-          child: IgnorePointer(
-            child: SizedBox(
-              width: scene.worldWidth,
-              height: scene.worldHeight,
-              child: Stack(
-                children: <Widget>[
-                  for (final AtlasNamedLandmark named in scene.layout.landmarks)
-                    _LandmarkLabel(landmark: named, zoom: zoom),
-                ],
+  Widget build(BuildContext context) {
+    final double chrome = AtlasMarkerSpec.chromeScale(zoom);
+    return SizedBox(
+      width: scene.worldWidth,
+      height: scene.worldHeight,
+      child: Stack(
+        children: <Widget>[
+          // Named geography's labels first: a place's name always paints over
+          // a landmark's, never the other way round. In the overview they are
+          // not built at all — a caption tier the survey does without.
+          if (!overview)
+            RepaintBoundary(
+              child: IgnorePointer(
+                child: SizedBox(
+                  width: scene.worldWidth,
+                  height: scene.worldHeight,
+                  child: Stack(
+                    children: <Widget>[
+                      for (final AtlasNamedLandmark named
+                          in scene.layout.landmarks)
+                        _LandmarkLabel(landmark: named, zoom: zoom),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        // The kind glyph under the ring. Absent until the art lands, and its
-        // absence is the shipped state: the ring is the fallback, not a
-        // placeholder drawn in code (RULES.md A-1).
-        if (scene.layout.kindMarkers.isNotEmpty)
-          RepaintBoundary(
-            child: IgnorePointer(
-              child: SizedBox(
-                width: scene.worldWidth,
-                height: scene.worldHeight,
-                child: Stack(
-                  children: <Widget>[
-                    for (final AtlasNode node in scene.nodes)
-                      if (scene.layout.markerForKind(
-                            (kinds[node.id] ?? AtlasPlaceKind.wilds).markerKind,
-                          )
-                          case final AtlasLandmark glyph)
-                        Positioned(
-                          left: node.x - glyph.anchorX * scene.layout.scale,
-                          top: node.y - glyph.anchorY * scene.layout.scale,
-                          child: PixelAsset(
-                            assetPath: AtlasAssets.pathFor(glyph.asset),
-                            nativeWidth: glyph.width,
-                            nativeHeight: glyph.height,
-                            scale: scene.layout.scale,
+          // The kind glyph under the ring. Absent until the art lands, and its
+          // absence is the shipped state: the ring is the fallback, not a
+          // placeholder drawn in code (RULES.md A-1).
+          if (scene.layout.kindMarkers.isNotEmpty)
+            RepaintBoundary(
+              child: IgnorePointer(
+                child: SizedBox(
+                  width: scene.worldWidth,
+                  height: scene.worldHeight,
+                  child: Stack(
+                    children: <Widget>[
+                      for (final AtlasNode node in scene.nodes)
+                        if (scene.layout.markerForKind(
+                              (kinds[node.id] ?? AtlasPlaceKind.wilds)
+                                  .markerKind,
+                            )
+                            case final AtlasLandmark glyph)
+                          Positioned(
+                            left: node.x - glyph.anchorX * scene.layout.scale,
+                            top: node.y - glyph.anchorY * scene.layout.scale,
+                            child: PixelAsset(
+                              assetPath: AtlasAssets.pathFor(glyph.asset),
+                              nativeWidth: glyph.width,
+                              nativeHeight: glyph.height,
+                              scale: scene.layout.scale,
+                            ),
                           ),
-                        ),
-                  ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          // The rings, then the pulse, so every marker and label paints over it.
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _StaticRingPainter(
+                    scene: scene,
+                    selected: selected,
+                    chrome: chrome,
+                  ),
                 ),
               ),
             ),
           ),
-        // The rings, then the pulse, so every marker and label paints over it.
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: IgnorePointer(
-              child: CustomPaint(
-                painter: _StaticRingPainter(scene: scene, selected: selected),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: scene.current.x - AtlasMarkerSpec.pulseRadius,
-          top: scene.current.y - AtlasMarkerSpec.pulseRadius,
-          child: const RepaintBoundary(
-            child: IgnorePointer(child: AtlasPulse()),
-          ),
-        ),
-        if (arrivalToken > 0)
+          // The pulse and burst keep their layout box and are visually scaled
+          // about its centre, so the marker's world coordinate stays their
+          // centre at every zoom while *here* reads at the survey floor.
           Positioned(
-            left: scene.current.x - AtlasMarkerSpec.burstRadius,
-            top: scene.current.y - AtlasMarkerSpec.burstRadius,
+            left: scene.current.x - AtlasMarkerSpec.pulseRadius,
+            top: scene.current.y - AtlasMarkerSpec.pulseRadius,
             child: RepaintBoundary(
               child: IgnorePointer(
-                // Keyed on the token, so each arrival builds a fresh widget
-                // that plays once and then holds at nothing. A rebuild for any
-                // other reason — a pan, a selection — reuses it and replays
-                // nothing.
-                child: AtlasArrivalBurst(key: ValueKey<int>(arrivalToken)),
+                child: Transform.scale(
+                  scale: chrome,
+                  child: const AtlasPulse(),
+                ),
               ),
             ),
           ),
-        for (final AtlasNode node in scene.nodes) ...<Widget>[
-          _MarkerLabel(node: node, scene: scene, zoom: zoom),
-          _HitTarget(node: node, scene: scene, zoom: zoom, onSelect: onSelect),
+          if (arrivalToken > 0)
+            Positioned(
+              left: scene.current.x - AtlasMarkerSpec.burstRadius,
+              top: scene.current.y - AtlasMarkerSpec.burstRadius,
+              child: RepaintBoundary(
+                child: IgnorePointer(
+                  child: Transform.scale(
+                    scale: chrome,
+                    // Keyed on the token, so each arrival builds a fresh widget
+                    // that plays once and then holds at nothing. A rebuild for
+                    // any other reason — a pan, a selection — reuses it and
+                    // replays nothing.
+                    child: AtlasArrivalBurst(key: ValueKey<int>(arrivalToken)),
+                  ),
+                ),
+              ),
+            ),
+          for (final AtlasNode node in scene.nodes) ...<Widget>[
+            _MarkerLabel(node: node, scene: scene, zoom: zoom),
+            _HitTarget(
+              node: node,
+              scene: scene,
+              zoom: zoom,
+              onSelect: onSelect,
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// The geometry of a marker, in world pixels. One place, so every marker on
@@ -606,15 +676,42 @@ abstract final class AtlasMarkerSpec {
   /// A landmark hangs closer to its coordinate than a place does: it has no
   /// ring to clear.
   static const double landmarkLabelOffset = 9;
+
+  /// How much the interface chrome — rings, pulse, burst, route dots —
+  /// counter-scales at [zoom].
+  ///
+  /// The world-pixel constants above were designed when a world pixel was a
+  /// logical pixel, so they are really **dp figures**: a 9 dp ring reads, a
+  /// 2.25 dp one does not. Below 1 dp per world pixel the chrome therefore
+  /// grows by `1 / zoom` in world terms and displays at its authored dp size
+  /// — which is what keeps the current-place bullseye and the previewed walk
+  /// legible at the survey floor, on any layout scale. At and above 1 the
+  /// factor is 1 and the chrome scales with the world, exactly as it always
+  /// has on the shipped layout.
+  ///
+  /// Labels are not chrome for this purpose: they already counter-scale fully
+  /// (`_WorldLabel`), and the art — glyphs, landmarks, props — is never
+  /// resampled to solve a legibility problem (`RULES.md` A-2); the overview
+  /// LOD hides the small art instead.
+  static double chromeScale(double zoom) => zoom < 1 ? 1 / zoom : 1;
 }
 
 /// The rings that do not move: one per place, a heavier one under the current
 /// place, and the selection ring. Redrawn only when the selection changes.
 class _StaticRingPainter extends CustomPainter {
-  const _StaticRingPainter({required this.scene, required this.selected});
+  const _StaticRingPainter({
+    required this.scene,
+    required this.selected,
+    required this.chrome,
+  });
 
   final AtlasScene scene;
   final ContentId? selected;
+
+  /// [AtlasMarkerSpec.chromeScale] for the current zoom: every radius and
+  /// stroke is multiplied by it so the rings hold their authored dp size when
+  /// the world shrinks under them.
+  final double chrome;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -631,32 +728,40 @@ class _StaticRingPainter extends CustomPainter {
     for (final AtlasNode node in scene.nodes) {
       final Offset c = Offset(node.x, node.y);
       final bool current = node.id == scene.current.id;
-      final double r = current
-          ? AtlasMarkerSpec.currentRingRadius
-          : AtlasMarkerSpec.ringRadius;
-      final double stroke = current
-          ? AtlasMarkerSpec.currentRingStroke
-          : AtlasMarkerSpec.ringStroke;
+      final double r =
+          (current
+              ? AtlasMarkerSpec.currentRingRadius
+              : AtlasMarkerSpec.ringRadius) *
+          chrome;
+      final double stroke =
+          (current
+              ? AtlasMarkerSpec.currentRingStroke
+              : AtlasMarkerSpec.ringStroke) *
+          chrome;
       canvas.drawCircle(c, r, fill);
       // A dark outline either side of the light ring, so it reads on snow and
       // on forest alike — the same reason every sprite carries a dark contour.
-      canvas.drawCircle(c, r, outline..strokeWidth = stroke + 2);
+      canvas.drawCircle(c, r, outline..strokeWidth = stroke + 2 * chrome);
       canvas.drawCircle(c, r, ink..strokeWidth = stroke);
       if (current) {
-        canvas.drawCircle(c, AtlasMarkerSpec.currentDotRadius + 1, dark);
-        canvas.drawCircle(c, AtlasMarkerSpec.currentDotRadius, light);
+        canvas.drawCircle(
+          c,
+          (AtlasMarkerSpec.currentDotRadius + 1) * chrome,
+          dark,
+        );
+        canvas.drawCircle(c, AtlasMarkerSpec.currentDotRadius * chrome, light);
       }
 
       if (node.id == selected) {
         canvas.drawCircle(
           c,
-          AtlasMarkerSpec.selectedRadius,
-          outline..strokeWidth = AtlasMarkerSpec.selectedStroke + 2,
+          AtlasMarkerSpec.selectedRadius * chrome,
+          outline..strokeWidth = (AtlasMarkerSpec.selectedStroke + 2) * chrome,
         );
         canvas.drawCircle(
           c,
-          AtlasMarkerSpec.selectedRadius,
-          ink..strokeWidth = AtlasMarkerSpec.selectedStroke,
+          AtlasMarkerSpec.selectedRadius * chrome,
+          ink..strokeWidth = AtlasMarkerSpec.selectedStroke * chrome,
         );
       }
     }
@@ -664,7 +769,7 @@ class _StaticRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StaticRingPainter old) =>
-      old.selected != selected || old.scene != scene;
+      old.selected != selected || old.scene != scene || old.chrome != chrome;
 }
 
 /// The expanding, fading ring under the player's location.

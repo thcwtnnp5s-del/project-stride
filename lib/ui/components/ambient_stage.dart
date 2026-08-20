@@ -49,6 +49,11 @@ import 'grounded_sprite.dart';
 import 'pixel_asset.dart';
 import 'sprite_animation.dart';
 
+/// One frame of the activity loop. 110 ms — the same hold `SpriteAnimation`
+/// gives the one-shot gather, so the working loop and the one-shot it replaces
+/// read at the same tempo.
+const Duration _activityFrameDuration = Duration(milliseconds: 110);
+
 /// The far scenery of a stage: one ×1 vignette with its measured opaque box.
 final class StageScenery {
   const StageScenery({
@@ -174,12 +179,34 @@ class AmbientStage extends StatefulWidget {
     this.scenesPerVisit = 4,
     this.cadence = AmbientCadence.standard,
     this.seed,
+    this.activityFrames,
+    this.activityFootprint,
+    this.activityActive = false,
+    this.activityCanvas = 64,
   });
 
   /// See [SpriteAnimation].
   final List<String> gatherFrames;
   final SpriteFootprint gatherFootprint;
   final Object? playToken;
+
+  /// The activity mode: while [activityActive] and [activityFrames] are both
+  /// supplied, the stage loops those frames continuously — replacing the
+  /// ambient cadence, the companion scenes, the rest frame **and** the
+  /// one-shot [playToken] animation, whose completion feedback is UI-level
+  /// during a queue. The scenery composition is unchanged; when inactive the
+  /// stage behaves exactly as before these parameters existed.
+  final List<String>? activityFrames;
+  final SpriteFootprint? activityFootprint;
+  final bool activityActive;
+
+  /// The activity frames' native width. The work loops are wider than the
+  /// 64-box — a swung axe needs the room on both sides of the figure — and
+  /// the loop is drawn with its **feet centre on the rest pose's feet
+  /// centre**, so starting a queue never makes the Traveler sidestep. The
+  /// overhang is headroom the stage's own clip owns; height stays the 64-row
+  /// convention (feet on row 62).
+  final int activityCanvas;
 
   /// See [AmbientPlayer].
   final AmbientSceneSet scenes;
@@ -204,6 +231,19 @@ class AmbientStage extends StatefulWidget {
 class _AmbientStageState extends State<AmbientStage> {
   bool _gatherPlaying = false;
   bool _sceneShowing = false;
+
+  @override
+  void didUpdateWidget(AmbientStage old) {
+    super.didUpdateWidget(old);
+    // Crossing into or out of activity mode unmounts the performers, so the
+    // callbacks that would have cleared these flags never arrive. Reset them
+    // here; the freshly mounted players report their real state on the next
+    // change, and both rests are the same picture in the meantime.
+    if (widget.activityActive != old.activityActive) {
+      _gatherPlaying = false;
+      _sceneShowing = false;
+    }
+  }
 
   void _onGatherPlaying(bool playing) {
     if (playing == _gatherPlaying) return;
@@ -235,52 +275,80 @@ class _AmbientStageState extends State<AmbientStage> {
 
   @override
   Widget build(BuildContext context) {
+    final List<String>? activityFrames = widget.activityFrames;
+    final SpriteFootprint? activityFootprint = widget.activityFootprint;
+    final bool activityRunning =
+        widget.activityActive &&
+        activityFrames != null &&
+        activityFootprint != null;
+
     final bool ambientVisible = _sceneShowing && !_gatherPlaying;
 
-    // The two performers, in the 64-box. Sized by the gather widget.
-    final Widget figures = Stack(
-      alignment: Alignment.bottomCenter,
-      clipBehavior: Clip.none,
-      children: <Widget>[
-        // Sizes the stack. Hidden — not removed — while a scene shows, so its
-        // controller and its precached frames survive and the next play
-        // token lands on a live widget.
-        Visibility(
-          visible: !ambientVisible,
-          maintainState: true,
-          maintainAnimation: true,
-          maintainSize: true,
-          child: SpriteAnimation(
-            frames: widget.gatherFrames,
-            footprint: widget.gatherFootprint,
-            playToken: widget.playToken,
-            scale: widget.scale,
-            onPlayingChanged: _onGatherPlaying,
-          ),
-        ),
-        // Offstage while resting, never unmounted: unmounting would restart
-        // the visit on every rest. Offstage still ticks, and it is skipped by
-        // hit-testing and by default finders — the rest frame the player
-        // would draw here is the one SpriteAnimation is already showing.
-        Positioned(
-          bottom: 0,
-          child: Offstage(
-            offstage: !ambientVisible,
-            child: AmbientPlayer(
-              scenes: widget.scenes,
-              restFrame: widget.restFrame,
-              restFootprint: widget.restFootprint,
-              scale: widget.scale,
-              suspended: _gatherPlaying,
-              scenesPerVisit: widget.scenesPerVisit,
-              cadence: widget.cadence,
-              seed: widget.seed,
-              onSceneChanged: _onScene,
+    // The two performers, in the 64-box — or, in activity mode, the working
+    // loop alone. The ambient player and the one-shot gather are not mounted
+    // while a queue works: the cadence must not run behind the loop, and a
+    // remount afterwards starting a fresh visit is the documented behaviour of
+    // both players.
+    final Widget figures = activityRunning
+        // Feet-centre alignment: the loop's canvas is its own width, but the
+        // figure must stand exactly where the rest pose stands, so the loop
+        // is shifted by the difference between the two footprints' centres.
+        ? Transform.translate(
+            offset: Offset(
+              (widget.gatherFootprint.centerX - activityFootprint.centerX) *
+                  widget.scale,
+              0,
             ),
-          ),
-        ),
-      ],
-    );
+            child: _ActivityLoop(
+              frames: activityFrames,
+              footprint: activityFootprint,
+              canvas: widget.activityCanvas,
+              scale: widget.scale,
+            ),
+          )
+        : Stack(
+            alignment: Alignment.bottomCenter,
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              // Sizes the stack. Hidden — not removed — while a scene shows, so its
+              // controller and its precached frames survive and the next play
+              // token lands on a live widget.
+              Visibility(
+                visible: !ambientVisible,
+                maintainState: true,
+                maintainAnimation: true,
+                maintainSize: true,
+                child: SpriteAnimation(
+                  frames: widget.gatherFrames,
+                  footprint: widget.gatherFootprint,
+                  playToken: widget.playToken,
+                  scale: widget.scale,
+                  onPlayingChanged: _onGatherPlaying,
+                ),
+              ),
+              // Offstage while resting, never unmounted: unmounting would restart
+              // the visit on every rest. Offstage still ticks, and it is skipped by
+              // hit-testing and by default finders — the rest frame the player
+              // would draw here is the one SpriteAnimation is already showing.
+              Positioned(
+                bottom: 0,
+                child: Offstage(
+                  offstage: !ambientVisible,
+                  child: AmbientPlayer(
+                    scenes: widget.scenes,
+                    restFrame: widget.restFrame,
+                    restFootprint: widget.restFootprint,
+                    scale: widget.scale,
+                    suspended: _gatherPlaying,
+                    scenesPerVisit: widget.scenesPerVisit,
+                    cadence: widget.cadence,
+                    seed: widget.seed,
+                    onSceneChanged: _onScene,
+                  ),
+                ),
+              ),
+            ],
+          );
 
     return RepaintBoundary(
       child: LayoutBuilder(
@@ -329,4 +397,82 @@ class _AmbientStageState extends State<AmbientStage> {
       ),
     );
   }
+}
+
+/// The continuous working loop a running activity queue shows.
+///
+/// Deliberately **not** [SpriteAnimation] with a repeating token: that widget's
+/// whole contract is "a discrete command happened once", and the queue's
+/// contract is the opposite — visible ongoing work whose each completion is
+/// reported at UI level. Looping only while mounted means it costs nothing
+/// offscreen, and the vsync-driven controller stops under `TickerMode` like
+/// every other stage animation. Reduced motion holds frame 0, the shared
+/// standing pose.
+class _ActivityLoop extends StatefulWidget {
+  const _ActivityLoop({
+    required this.frames,
+    required this.footprint,
+    required this.canvas,
+    required this.scale,
+  });
+
+  final List<String> frames;
+  final SpriteFootprint footprint;
+  final int canvas;
+  final int scale;
+
+  @override
+  State<_ActivityLoop> createState() => _ActivityLoopState();
+}
+
+class _ActivityLoopState extends State<_ActivityLoop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: _activityFrameDuration * widget.frames.length,
+  )..addListener(_onTick);
+
+  int _frame = 0;
+  bool _precached = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_precached) {
+      _precached = true;
+      for (final String frame in widget.frames) {
+        precacheImage(AssetImage(frame), context);
+      }
+    }
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      if (_frame != 0) setState(() => _frame = 0);
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  void _onTick() {
+    final int next = (_controller.value * widget.frames.length).floor().clamp(
+      0,
+      widget.frames.length - 1,
+    );
+    if (next == _frame) return;
+    setState(() => _frame = next);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => GroundedSprite(
+    assetPath: widget.frames[_frame],
+    footprint: widget.footprint,
+    canvas: widget.canvas,
+    canvasHeight: 64,
+    scale: widget.scale,
+  );
 }

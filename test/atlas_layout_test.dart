@@ -22,7 +22,6 @@ library;
 
 import 'dart:convert' show JsonEncoder, jsonDecode;
 import 'dart:io';
-import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:flutter/services.dart' show AssetBundle, ByteData;
@@ -111,50 +110,27 @@ void main() {
       },
     );
 
-    test('no overlay sits on, or sweeps across, a landmark', () {
+    test('the painted master carries no landmark cutouts to obscure', () {
       // OD-05: animation must never obscure a destination. Overlays paint
-      // *above* the landmark layer (markers and labels sit above overlays, so
-      // they are safe by z-order), which makes this the one thing the layout
-      // itself has to keep true. Device review found the forest mist parked
-      // on the Forgotten Hollow's ruin and a cloud sweeping the mine's base.
+      // above the landmark-art layer, and the old base+south world placed
+      // per-location cutouts there, so this test used to sweep every
+      // drifting overlay against every cutout's box. The master painting
+      // (Activity Feel 01) draws every settlement and ruin into the base
+      // itself, below the overlays and below nothing that can be obscured;
+      // markers and labels sit above overlays by z-order as before. Asserted
+      // so that if a cutout ever returns to the shipped layout, this test
+      // fails and the overlay-sweep rule it replaced is revived with it
+      // (see git history).
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
-      final int scale = layout.scale;
-      final List<(String, Rect)> landmarks = <(String, Rect)>[
-        for (final AtlasLocation location in layout.locations)
-          if (location.landmark case final AtlasLandmark landmark)
-            (
-              location.id.value,
-              Rect.fromLTWH(
-                location.x - landmark.anchorX * scale,
-                location.y - landmark.anchorY * scale,
-                (landmark.width * scale).toDouble(),
-                (landmark.height * scale).toDouble(),
-              ),
-            ),
-      ];
-      expect(landmarks, isNotEmpty);
-      for (final AtlasOverlay overlay in layout.overlays) {
-        // A drifting overlay wraps across the whole axis it drifts on, so it
-        // passes over everything in its band.
-        final Rect swept = Rect.fromLTWH(
-          overlay.driftX != 0 ? 0 : overlay.x,
-          overlay.driftY != 0 ? 0 : overlay.y,
-          overlay.driftX != 0
-              ? layout.worldWidth.toDouble()
-              : (overlay.width * scale).toDouble(),
-          overlay.driftY != 0
-              ? layout.worldHeight.toDouble()
-              : (overlay.height * scale).toDouble(),
+      expect(layout.overlays, isNotEmpty);
+      for (final AtlasLocation location in layout.locations) {
+        expect(
+          location.landmark,
+          isNull,
+          reason:
+              '${location.id.value} carries landmark art: restore the '
+              'overlay-sweep assertion this test replaced',
         );
-        for (final (String id, Rect landmark) in landmarks) {
-          expect(
-            swept.overlaps(landmark),
-            isFalse,
-            reason:
-                '${overlay.asset} at (${overlay.x}, ${overlay.y}) would '
-                'obscure the landmark of $id',
-          );
-        }
       }
     });
 
@@ -340,18 +316,20 @@ void main() {
       expect(layout.markerForKind('hamlet'), isNull);
     });
 
-    test('ships the five glyphs, three landmarks and the base + south world', () {
-      // World & Reward Depth 01: the PixelLab glyphs and the south tile landed
-      // (the east / south-east tiles are withheld — two blind QA passes failed
-      // the 2 × 2 composite on seam continuity), so the ring chrome is no
-      // longer the fallback in the shipped layout. Asserted so removing a
-      // glyph, a tile or a landmark is a deliberate edit here too.
+    test('ships the five glyphs, five landmarks and the one master world', () {
+      // Activity Feel & Presentation 01: the base + south tile column is
+      // retired for ONE master painting at scale 4 — 1536 × 2752 world px,
+      // no tile joins to fail a blind read (`MISTAKES.md` M-12). Two new
+      // named landmarks (Old Watch, Broken Tower) come with the moor and
+      // coast. Asserted so removing a glyph, the tile or a landmark is a
+      // deliberate edit here too.
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
       expect(layout.kindMarkers.keys, unorderedEquals(atlasMarkerKinds));
-      expect(layout.tiles, hasLength(2));
-      expect(layout.worldWidth, 768);
+      expect(layout.tiles, hasLength(1));
+      expect(layout.scale, 4);
+      expect(layout.worldWidth, 1536);
       expect(layout.worldHeight, 2752);
-      expect(layout.landmarks, hasLength(3));
+      expect(layout.landmarks, hasLength(5));
       expect(
         layout.landmarks.where(
           (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,
@@ -403,7 +381,7 @@ void main() {
 
     test('reports a target under the accessibility floor', () {
       final String small = shippedLayout.replaceFirst(
-        '"hitRadius": 40',
+        '"hitRadius": 48',
         '"hitRadius": 10',
       );
       final AtlasLayout layout = AtlasLayout.parse(small);

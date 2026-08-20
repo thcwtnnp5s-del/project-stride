@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -141,6 +142,14 @@ void main() {
     final StrideSession woodsSession = await boot(tester, atWoods: true);
     await show(tester, woodsSession);
     expect(find.text('Forest Wolf'), findsOneWidget);
+    // The creature is present before the fight: its combat idle art on the
+    // card, beside the gather stage's own figures.
+    expect(
+      tester
+          .widgetList<GroundedSprite>(find.byType(GroundedSprite))
+          .where((GroundedSprite g) => g.assetPath.contains('wolf_idle')),
+      hasLength(1),
+    );
     expect(find.text('Roams here'), findsOneWidget);
     expect(find.text('TWO LIGHT STRIKES A TURN'), findsOneWidget);
     expect(find.text('Rewards: 30 XP, Meadow Herb, Wolf Pelt'), findsOneWidget);

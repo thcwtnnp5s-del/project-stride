@@ -56,6 +56,35 @@ const CombatReport round = CombatReport(
   ],
 );
 
+/// A whole wolf round: the strike, then the flurry's two replies, turn 2.
+const CombatReport flurryRound = CombatReport(
+  succeeded: true,
+  enemyName: 'Forest Wolf',
+  events: <CombatBeat>[
+    PlayerStruckBeat(damage: 7, enemyHpAfter: 13),
+    EnemyStruckBeat(damage: 4, playerHpAfter: 36, heavy: false, strikeIndex: 0),
+    EnemyStruckBeat(damage: 3, playerHpAfter: 33, heavy: false, strikeIndex: 1),
+    RoundEndedBeat(turn: 2, telegraph: false),
+  ],
+);
+
+/// The HUD's one exact `hp / max` figure for the combatant with [max]; the
+/// log's prose never matches the whole-string pattern.
+int shownHp(WidgetTester tester, int max) {
+  final RegExp re = RegExp(
+    r'^(\d+) / '
+    '$max'
+    r'$',
+  );
+  final List<int> hits = <int>[
+    for (final Text t in tester.widgetList<Text>(find.byType(Text)))
+      if (t.data != null && re.hasMatch(t.data!))
+        int.parse(re.firstMatch(t.data!)!.group(1)!),
+  ];
+  expect(hits, hasLength(1), reason: 'one HUD figure per combatant');
+  return hits.single;
+}
+
 Widget host(Widget child, {bool tickers = true}) => MediaQuery(
   data: const MediaQueryData(size: Size(393, 852)),
   child: Directionality(
@@ -401,6 +430,210 @@ void main() {
       const Duration(milliseconds: 500),
     );
     expect(heavy.single.heavyFlash, isTrue);
+  });
+
+  testWidgets('a flurry round shows two distinct player decreases and never '
+      'an increase', (WidgetTester tester) async {
+    await tester.pumpWidget(host(CombatStage(view: view(), report: null)));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(turn: 2, playerHp: 33, enemyHp: 13),
+          report: flurryRound,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(shownHp(tester, 40), 40, reason: 'nothing has landed yet');
+    expect(shownHp(tester, 20), 20);
+
+    final List<int> player = <int>[40];
+    final List<int> enemy = <int>[20];
+    for (int i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      player.add(shownHp(tester, 40));
+      enemy.add(shownHp(tester, 20));
+    }
+    for (int i = 1; i < player.length; i++) {
+      expect(
+        player[i] <= player[i - 1],
+        isTrue,
+        reason: 'shown player HP rose mid-round (the heal-back): $player',
+      );
+      expect(
+        enemy[i] <= enemy[i - 1],
+        isTrue,
+        reason: 'shown enemy HP rose mid-round: $enemy',
+      );
+    }
+    expect(
+      player,
+      contains(36),
+      reason: 'the first wolf hit must show its own value',
+    );
+    expect(player.last, 33);
+    expect(enemy.last, 13);
+    await tester.pumpAndSettle();
+    expect(find.text('TURN 2'), findsOneWidget);
+  });
+
+  testWidgets('a tap mid-flurry skips to the exact committed figures', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(host(CombatStage(view: view(), report: null)));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(turn: 2, playerHp: 33, enemyHp: 13),
+          report: flurryRound,
+        ),
+      ),
+    );
+    await tester.pump();
+    // Mid first wolf strike: one hit has landed, the other has not.
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.tap(find.byType(CombatStage));
+    await tester.pump();
+    expect(shownHp(tester, 40), 33);
+    expect(shownHp(tester, 20), 13);
+    expect(find.text('TURN 2'), findsOneWidget);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a report arriving while a replay runs applies the old round '
+      'whole and replays the new one to its committed end', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(host(CombatStage(view: view(), report: null)));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(turn: 2, playerHp: 36, enemyHp: 13),
+          report: round,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Mid-replay, the next round's report lands (not reachable from the
+    // controls, which lock — but the stage must stay exact regardless).
+    const CombatReport next = CombatReport(
+      succeeded: true,
+      enemyName: 'Forest Wolf',
+      events: <CombatBeat>[
+        PlayerStruckBeat(damage: 7, enemyHpAfter: 6),
+        EnemyStruckBeat(
+          damage: 4,
+          playerHpAfter: 32,
+          heavy: false,
+          strikeIndex: 0,
+        ),
+        EnemyStruckBeat(
+          damage: 3,
+          playerHpAfter: 29,
+          heavy: false,
+          strikeIndex: 1,
+        ),
+        RoundEndedBeat(turn: 3, telegraph: false),
+      ],
+    );
+    await tester.pumpWidget(
+      host(
+        CombatStage(
+          view: view(turn: 3, playerHp: 29, enemyHp: 6),
+          report: next,
+        ),
+      ),
+    );
+    await tester.pump();
+    // The interrupted round's end state applied at once, never lost.
+    expect(shownHp(tester, 40), 36);
+    expect(shownHp(tester, 20), 13);
+
+    final List<int> player = <int>[36];
+    for (int i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      player.add(shownHp(tester, 40));
+    }
+    for (int i = 1; i < player.length; i++) {
+      expect(
+        player[i] <= player[i - 1],
+        isTrue,
+        reason: 'shown player HP rose across the hand-over: $player',
+      );
+    }
+    expect(shownHp(tester, 40), 29);
+    expect(shownHp(tester, 20), 6);
+    expect(find.text('TURN 3'), findsOneWidget);
+    await tester.pumpAndSettle();
+  });
+
+  test('a flurry round choreographs one segment per beat, each HP change '
+      'tweening inside its own segment', () {
+    final List<StageSegment> s = choreograph(
+      flurryRound.events,
+      traveler: CombatAssets.traveler,
+      enemy: CombatAssets.wolf,
+      strikeEffect: CombatAssets.fxBite,
+    );
+    expect(s, hasLength(4));
+    // The strike: only the enemy's figure moves, at the blow, not at zero.
+    expect(s[0].enemyHpTo, 13);
+    expect(s[0].playerHpTo, isNull);
+    expect(s[0].hpTweenStart, const Duration(milliseconds: 200));
+    // Each wolf hit carries its own committed figure — two distinct
+    // decreases, never one jump and never a correction.
+    expect(s[1].playerHpTo, 36);
+    expect(s[1].enemyHpTo, isNull);
+    expect(s[1].hpTweenStart, const Duration(milliseconds: 500));
+    expect(s[2].playerHpTo, 33);
+    expect(s[2].enemyHpTo, isNull);
+    expect(s[3].turn, 2);
+    // Every tween completes inside its segment, so no figure can bleed into
+    // the next beat's span.
+    for (final StageSegment seg in s) {
+      expect(seg.hpTweenEnd, lessThanOrEqualTo(seg.duration));
+      expect(seg.hpTweenStart, lessThanOrEqualTo(seg.hpTweenEnd));
+    }
+  });
+
+  test('replays() agrees exactly with choreograph() emitting segments', () {
+    final List<List<CombatBeat>> cases = <List<CombatBeat>>[
+      const <CombatBeat>[],
+      const <CombatBeat>[
+        EncounterStartedBeat(
+          enemyName: 'Forest Wolf',
+          playerHp: 40,
+          playerMaxHp: 40,
+          enemyHp: 20,
+          enemyMaxHp: 20,
+        ),
+      ],
+      round.events,
+      flurryRound.events,
+      const <CombatBeat>[RetreatedBeat(retreatToName: "Haven's Rest")],
+      const <CombatBeat>[
+        PlayerStruckBeat(damage: 7, enemyHpAfter: 0),
+        WonBeat(xp: 30, levelBefore: 1, levelAfter: 1, drops: <RewardLine>[]),
+      ],
+    ];
+    for (final List<CombatBeat> beats in cases) {
+      expect(
+        replays(beats),
+        choreograph(
+          beats,
+          traveler: CombatAssets.traveler,
+          enemy: CombatAssets.wolf,
+          strikeEffect: CombatAssets.fxBite,
+        ).isNotEmpty,
+        reason: 'replays() must mirror the stage for $beats',
+      );
+    }
   });
 
   test('withheld art is never referenced', () {

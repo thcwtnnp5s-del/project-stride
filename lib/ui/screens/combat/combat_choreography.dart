@@ -117,6 +117,18 @@ Duration _frameTime(CombatTrack t, int frame) =>
 
 Duration _max(Duration a, Duration b) => a > b ? a : b;
 
+/// Whether [beats] produce any segment — the exact condition under which the
+/// stage replays a report rather than absorbing it silently ([choreograph]
+/// emits one segment per beat except [EncounterStartedBeat]).
+///
+/// The screen asks this on the frame a report arrives, so it can lock its
+/// controls and hold the outcome panel back **that frame**: the stage's own
+/// `onPlayingChanged` is deferred to a post-frame callback (it fires from
+/// `didUpdateWidget`, inside the build), which is one frame too late for the
+/// panel not to flash.
+bool replays(List<CombatBeat> beats) =>
+    beats.any((CombatBeat b) => b is! EncounterStartedBeat);
+
 /// The segments that replay [beats], in order.
 ///
 /// [enemy] is `null` for an enemy the art table does not know: the round

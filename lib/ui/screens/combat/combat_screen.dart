@@ -30,6 +30,17 @@
 /// It is presentation memory of a fact the engine committed, held for one
 /// panel's lifetime, cleared with the report; it decides nothing and outlives
 /// nothing (`RULES.md` E-2).
+///
+/// ## When it reads the live view, and when it deliberately does not
+///
+/// While a combat command is in flight (`controller.busy`) the remembered
+/// view is **frozen**: the engine applies a round to in-memory state
+/// synchronously and only the commit awaits, so a frame rendered mid-command
+/// already carries the next round's committed figures with no report to
+/// choreograph them. Presenting them then is how the device showed damage
+/// before the animation and an apparent mid-round heal-back
+/// (`MILESTONES/ACTIVITY_FEEL_PRESENTATION_01.md` §4d); new committed figures
+/// reach the stage only together with the beats that present them.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -47,6 +58,7 @@ import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
+import 'combat_choreography.dart' show replays;
 import 'combat_stage.dart';
 
 class CombatScreen extends StatefulWidget {
@@ -64,6 +76,10 @@ class _CombatScreenState extends State<CombatScreen> {
   /// outcome panel waits.
   bool _playing = false;
 
+  /// The report the last build saw, by identity — how a new one is spotted
+  /// on the frame it arrives.
+  CombatReport? _seenReport;
+
   void _onPlayingChanged(bool playing) {
     if (playing == _playing) return;
     setState(() => _playing = playing);
@@ -77,13 +93,52 @@ class _CombatScreenState extends State<CombatScreen> {
     final CombatReport? report = c.lastCombat;
     final CombatBeat? outcome = report?.outcome;
 
-    if (live != null) {
+    // Whether the stage was already in the tree when this build began — only
+    // then can a report arriving now reach its `didUpdateWidget` and replay.
+    final bool stageWasUp = _lastView != null;
+
+    // The view is adopted only while no command is in flight. The engine
+    // applies a round to in-memory state synchronously and only the commit
+    // awaits, so a frame rendered mid-command already reads next round's
+    // committed figures — with the report that would choreograph them still
+    // null. Adopting `live` on that frame snapped every HP bar to its final
+    // value; the replay then tweened *from* those values, which showed the
+    // wolf's damage before its animation and healed the player back up to
+    // "after hit 1" mid-round (the device-observed defect). Freezing the view
+    // until the report arrives means new committed figures only ever reach
+    // the stage together with the beats that present them. On a killing blow
+    // the same mid-command frame has `live == null` with no outcome yet;
+    // freezing also keeps the remembered view — and the stage — up through it.
+    if (!c.busy) {
+      if (live != null) {
+        _lastView = live;
+      } else if (outcome == null) {
+        // Nothing to stage and nothing to acknowledge.
+        _lastView = null;
+      }
+    } else if (live != null && _lastView == null) {
+      // First sight of an encounter (a remount mid-command): nothing is
+      // shown yet, so nothing can snap.
       _lastView = live;
-    } else if (outcome == null) {
-      // Nothing to stage and nothing to acknowledge.
-      _lastView = null;
     }
     final EncounterView? view = _lastView;
+
+    // A report that will be replayed locks the controls and holds the outcome
+    // panel back on the frame it arrives. The stage confirms through
+    // [_onPlayingChanged] — but only post-frame, which is one frame too late
+    // for the panel not to flash and the controls not to open. Mirrors the
+    // stage's own condition exactly: a fresh mount does not replay a report
+    // it mounted with, hence [stageWasUp].
+    if (!identical(report, _seenReport)) {
+      _seenReport = report;
+      if (stageWasUp &&
+          view != null &&
+          report != null &&
+          report.succeeded &&
+          replays(report.events)) {
+        _playing = true;
+      }
+    }
 
     // The fight has ended and its result has not been acknowledged. With no
     // remembered view — a relaunch cannot have one, and a report cannot

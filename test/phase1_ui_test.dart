@@ -39,12 +39,15 @@ import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/icons/sprite_footprints.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
+import 'package:stride/ui/state/activity_controller.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
+
+import 'support/fake_activity_timing.dart';
 
 final ContentId kNode = ContentId.unchecked('resource_node.meadow_patch');
 final ContentId kHerb = ContentId.unchecked('item.meadow_herb');
@@ -252,6 +255,49 @@ void main() {
     expect(busy(), isFalse, reason: 'the control never returned to idle');
   }
 
+  /// Taps the gather control, advances [fake] through one repetition, and
+  /// waits for the queue to finish its dispatch.
+  ///
+  /// One tap is one *queued* repetition now (`ACTIVITY_FEEL_PRESENTATION_01`
+  /// §4a): the spend/grant happens when the presentation timer completes, so
+  /// the test advances that timer by hand — same figures, same single
+  /// dispatch, no real wait. The app under test must have been pumped with
+  /// `activityTiming: fake.timing`.
+  Future<void> gatherOnce(
+    WidgetTester tester,
+    FakeTiming fake, {
+    required bool Function() until,
+  }) async {
+    final Finder button = find.textContaining('Gather ×');
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pump();
+
+    ActivityController activityInTree() =>
+        (find.byType(ActivityScope).evaluate().first.widget as ActivityScope)
+            .notifier!;
+
+    await tester.runAsync(() async {
+      fake.advance(const Duration(seconds: 10));
+      final DateTime deadline = DateTime.now().add(const Duration(seconds: 10));
+      // Wait on the queue itself, not only the session: the figures move
+      // inside the command, a beat before the controller counts the
+      // completion and finishes the ×1 queue.
+      while ((!until() || activityInTree().active) &&
+          DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    });
+    expect(until(), isTrue, reason: 'the queued gather did not complete');
+    expect(
+      activityInTree().active,
+      isFalse,
+      reason: 'the ×1 queue should have finished',
+    );
+    await tester.pumpAndSettle();
+  }
+
   // =========================================================================
   // Startup
   // =========================================================================
@@ -375,10 +421,17 @@ void main() {
     testWidgets('the inventory count tracks two different states', (
       WidgetTester tester,
     ) async {
+      final FakeTiming fake = FakeTiming();
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
-      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+      await tester.pumpWidget(
+        StrideApp(
+          session: session,
+          syncOnStart: false,
+          activityTiming: fake.timing,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tapAndAwait(
@@ -387,9 +440,9 @@ void main() {
         until: () => session.usableEnergy == 1000,
       );
 
-      await tapAndAwait(
+      await gatherOnce(
         tester,
-        find.textContaining('Gather —'),
+        fake,
         until: () => session.inventoryCount(kHerb) == 2,
       );
       await tester.tap(find.text('Inventory'));
@@ -398,9 +451,9 @@ void main() {
 
       await tester.tap(find.text('Adventure'));
       await tester.pumpAndSettle();
-      await tapAndAwait(
+      await gatherOnce(
         tester,
-        find.textContaining('Gather —'),
+        fake,
         until: () => session.inventoryCount(kHerb) == 4,
       );
       await tester.tap(find.text('Inventory'));
@@ -412,10 +465,17 @@ void main() {
     testWidgets('Foraging XP tracks two different states', (
       WidgetTester tester,
     ) async {
+      final FakeTiming fake = FakeTiming();
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
-      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+      await tester.pumpWidget(
+        StrideApp(
+          session: session,
+          syncOnStart: false,
+          activityTiming: fake.timing,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tapAndAwait(
@@ -423,9 +483,9 @@ void main() {
         find.text('Sync steps'),
         until: () => session.usableEnergy == 1000,
       );
-      await tapAndAwait(
+      await gatherOnce(
         tester,
-        find.textContaining('Gather —'),
+        fake,
         until: () => session.inventoryCount(kHerb) == 2,
       );
 
@@ -435,9 +495,9 @@ void main() {
 
       await tester.tap(find.text('Adventure'));
       await tester.pumpAndSettle();
-      await tapAndAwait(
+      await gatherOnce(
         tester,
-        find.textContaining('Gather —'),
+        fake,
         until: () => session.inventoryCount(kHerb) == 4,
       );
       await tester.tap(find.text('Character'));
@@ -499,20 +559,29 @@ void main() {
 
       expect(find.textContaining('Walk 40 more steps'), findsOneWidget);
 
-      // Tapping a disabled control must not fabricate a success.
-      await tester.tap(find.textContaining('Gather —'));
+      // Tapping a disabled control must not fabricate a success — and must
+      // not start a queue either.
+      await tester.tap(find.textContaining('Gather ×'));
       await tester.pumpAndSettle();
       expect(session.totalSpent, 0);
       expect(session.inventoryCount(kHerb), 0);
+      expect(find.text('Stop gathering'), findsNothing);
     });
 
     testWidgets('one tap spends exactly one cost, and the screen refreshes', (
       WidgetTester tester,
     ) async {
+      final FakeTiming fake = FakeTiming();
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
-      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+      await tester.pumpWidget(
+        StrideApp(
+          session: session,
+          syncOnStart: false,
+          activityTiming: fake.timing,
+        ),
+      );
       await tester.pumpAndSettle();
       await tapAndAwait(
         tester,
@@ -523,11 +592,7 @@ void main() {
       // Banked and total-walked both read 1,000 before the spend.
       expect(find.text('1,000'), findsWidgets);
 
-      await tapAndAwait(
-        tester,
-        find.textContaining('Gather —'),
-        until: () => session.totalSpent == 90,
-      );
+      await gatherOnce(tester, fake, until: () => session.totalSpent == 90);
 
       // Exactly one cost. A double dispatch lands on 180 / 4 / 20 and cannot
       // pass — which is the honest form of "invokes the session method once".
@@ -539,29 +604,46 @@ void main() {
       // here could not fail for a missing-refresh defect.
       expect(find.text('910'), findsWidgets);
 
+      // The ephemeral summary strip, accumulated from the returned
+      // ActionReports — asserted while the card is still in view, because the
+      // strip is a lazily built list child.
+      expect(find.textContaining('Meadow Herb ×2'), findsOneWidget);
+      expect(find.textContaining('+10 Foraging XP'), findsOneWidget);
+
       // `1,000` is still on screen, and correctly so: TOTAL WALKED reads
       // `totalGranted`, which never falls when steps are spent (`RULES.md`
       // H-2 — granted is monotonic, there is no clawback). Only the banked
       // figure moves. Asserting `findsNothing` here would have been asserting
       // a clawback.
+      //
+      // Under the harness's fat fallback font the card takes the stacked
+      // branch and the queue selector puts the gather control below the
+      // (inset-free) viewport, so reaching it scrolled the walking band — a
+      // lazily built list child — out of the element tree. Scroll back before
+      // asserting it, exactly as a player would.
+      await tester.drag(find.byType(ListView).first, const Offset(0, 800));
+      await tester.pumpAndSettle();
       expect(find.text('1,000'), findsWidgets);
-
-      // The ephemeral result strip, built from the ActionReport.
-      expect(find.textContaining('Meadow Herb ×2'), findsOneWidget);
-      expect(find.textContaining('+10 Foraging XP'), findsOneWidget);
     });
 
     testWidgets('a second tap while the first is in flight spends nothing more', (
       WidgetTester tester,
     ) async {
+      final FakeTiming fake = FakeTiming();
       final StrideSession session = await bootFunded(tester, <SyncFetch>[
         page(1000),
       ]);
       await tester.runAsync(() => session.syncSteps());
-      await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+      await tester.pumpWidget(
+        StrideApp(
+          session: session,
+          syncOnStart: false,
+          activityTiming: fake.timing,
+        ),
+      );
       await tester.pumpAndSettle();
 
-      final Finder button = find.textContaining('Gather —');
+      final Finder button = find.textContaining('Gather ×');
       // Scroll to it before the double tap, not during: the button is below the
       // fold, and `warnIfMissed: false` means a missed tap would pass silently
       // as "spent nothing" — the test would report success for the wrong
@@ -570,10 +652,14 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.runAsync(() async {
-        // Two taps with no pump between them: both dispatch before any rebuild
-        // could disable the control.
+        // Two taps with no pump between them: both reach the controller before
+        // any rebuild could replace the button with the active panel. The
+        // second start() must be refused by the running queue.
         await tester.tap(button, warnIfMissed: false);
         await tester.tap(button, warnIfMissed: false);
+        // One repetition's worth of presentation time: if the double tap had
+        // started two queues, two dispatches would land here.
+        fake.advance(const Duration(seconds: 10));
         final DateTime deadline = DateTime.now().add(
           const Duration(seconds: 10),
         );
@@ -588,6 +674,14 @@ void main() {
       expect(session.inventoryCount(kHerb), 2);
       // And the double tap must not have manufactured a compare-and-swap fault.
       expect(session.isStale, isFalse);
+
+      // Nor a second queued repetition: more time dispatches nothing further.
+      await tester.runAsync(() async {
+        fake.advance(const Duration(minutes: 1));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(session.totalSpent, 90);
     });
   });
 
@@ -614,14 +708,13 @@ void main() {
       // A moves the durable head under B.
       await tester.runAsync(() => a.gather(kNode));
 
-      await tester.pumpWidget(StrideApp(session: b, syncOnStart: false));
+      final FakeTiming fake = FakeTiming();
+      await tester.pumpWidget(
+        StrideApp(session: b, syncOnStart: false, activityTiming: fake.timing),
+      );
       await tester.pumpAndSettle();
 
-      await tapAndAwait(
-        tester,
-        find.textContaining('Gather —'),
-        until: () => b.isStale,
-      );
+      await gatherOnce(tester, fake, until: () => b.isStale);
 
       expect(b.isStale, isTrue);
 

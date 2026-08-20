@@ -66,6 +66,10 @@ SyncFetch page(int steps) => SyncFetch(
 
 Finder hit(String id) => find.byKey(ValueKey<String>('atlas-hit:$id'));
 
+/// The range for the shipped `scale: 4` master-painting layout — derived
+/// exactly as the viewport derives it: floor 0.25, opening 0.5, max 1.
+const AtlasZoom zooms = AtlasZoom.forScale(4);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(loadRealFont);
@@ -179,20 +183,21 @@ void main() {
 
     // Every place carries its kind glyph under the ring, from the shipped
     // table — one hut, two trees, one pick, one dead tree (DECISIONS/0021 §5)
-    // — and each of the three landmarks its cairn.
+    // — and each of the five landmarks (Millbridge, Ferry Crossing, Far Town,
+    // Old Watch, Broken Tower) its cairn.
     final List<String> glyphs = tester
         .widgetList<PixelAsset>(find.byType(PixelAsset))
         .map((PixelAsset a) => a.assetPath)
         .where((String path) => path.contains('/world/marker_'))
         .toList();
-    expect(glyphs, hasLength(8));
+    expect(glyphs, hasLength(10));
     int count(String tail) =>
         glyphs.where((String p) => p.endsWith(tail)).length;
     expect(count('marker_haven.png'), 1);
     expect(count('marker_wilds.png'), 2);
     expect(count('marker_worksite.png'), 1);
     expect(count('marker_perilous.png'), 1);
-    expect(count('marker_landmark.png'), 3);
+    expect(count('marker_landmark.png'), 5);
   });
 
   testWidgets('tapping a place opens its panel with what the rows carried', (
@@ -366,7 +371,7 @@ void main() {
     expect(state.camera, isNot(before), reason: 'the drag moved the window');
     expect(state.camera.dx, greaterThanOrEqualTo(0));
     expect(state.camera.dy, greaterThanOrEqualTo(0));
-    expect(state.zoom, AtlasZoom.initial);
+    expect(state.zoom, zooms.initial);
 
     expect(session.usableEnergy, bankedBefore);
     expect(session.currentLocation?.value, 'location.havens_rest');
@@ -409,10 +414,10 @@ void main() {
       'location.frostmere',
       'location.forgotten_hollow',
     ];
-    void check(double zoom) {
+    void check(double minWidth) {
       for (int i = 0; i < ids.length; i++) {
         final Rect a = tester.getRect(hit(ids[i]));
-        expect(a.width, greaterThanOrEqualTo(44 * zoom), reason: ids[i]);
+        expect(a.width, greaterThanOrEqualTo(minWidth), reason: ids[i]);
         for (int j = i + 1; j < ids.length; j++) {
           expect(
             a.overlaps(tester.getRect(hit(ids[j]))),
@@ -423,40 +428,50 @@ void main() {
       }
     }
 
-    check(1);
+    // At the opening zoom (0.5) a 48-world-px radius is a 48 dp target,
+    // above the 44 dp floor; at the 1.0 ceiling it is simply twice that.
+    check(44);
     await pinch(tester, 100, 300);
-    expect(viewportState(tester).zoom, AtlasZoom.max);
-    check(2);
+    expect(viewportState(tester).zoom, zooms.max);
+    check(88);
   });
 
   testWidgets('pinch zoom is clamped and settles on whole device pixels', (
     WidgetTester tester,
   ) async {
-    // Checklist item 5. Beyond 2× the map stops growing; below 1× it stops
-    // shrinking; and a pinch that lets go in between lands on a zoom at
-    // which one art pixel is a whole number of device pixels — at dpr 3 and
-    // art scale 2, a multiple of one sixth — so pixel art never blurs at rest.
+    // Checklist item 5. Beyond the ceiling the map stops growing; below the
+    // floor it stops shrinking; and a pinch that lets go in between lands on
+    // a zoom at which one art pixel is a whole number of device pixels — at
+    // dpr 3 and art scale 4, a multiple of one twelfth — so pixel art never
+    // blurs at rest.
     final StrideSession session = await boot(tester);
     await pumpWorld(tester, session);
     final AtlasViewportState state = viewportState(tester);
 
     await pinch(tester, 100, 133);
     final double settled = state.zoom;
-    expect(settled, inExclusiveRange(state.minZoom, AtlasZoom.max));
+    expect(settled, inExclusiveRange(state.minZoom, zooms.max));
     expect(
-      (settled * 6).roundToDouble(),
-      settled * 6,
-      reason: 'a sixth: 2 (art) × zoom × 3 (dpr) is integral',
+      (settled * 12).roundToDouble(),
+      settled * 12,
+      reason: 'a twelfth: 4 (art) × zoom × 3 (dpr) is integral',
     );
     await pinch(tester, 100, 400);
-    expect(state.zoom, AtlasZoom.max);
+    expect(state.zoom, zooms.max);
     await pinch(tester, 300, 40);
-    // The floor for a 768-wide world in a 393 dp window is the zoom at which
-    // its whole width fits, rounded up onto the pixel grid — not 1, and not
-    // the absolute 0.5 a wider world would get.
-    expect(state.zoom, lessThan(AtlasZoom.initial));
-    expect(state.zoom, greaterThanOrEqualTo(state.minZoom));
-    expect(state.zoom - state.minZoom, lessThan(1 / 6));
+    // The floor for a 1536-wide world in a 393 dp window is the fit zoom
+    // (393 / 1536 ≈ 0.256) snapped **down** onto the pixel grid — 0.25,
+    // which is also native ×1 — so pinching all the way out frames the whole
+    // landmass at rest, centred, with nothing resampled.
+    expect(state.zoom, state.minZoom);
+    expect(state.zoom, zooms.absoluteFloor);
+    final double worldWidth = AtlasScene.build(session)!.worldWidth;
+    expect(state.camera.dx, lessThanOrEqualTo(0));
+    expect(
+      state.camera.dx + 393 / state.zoom,
+      greaterThanOrEqualTo(worldWidth),
+      reason: 'the whole width is inside the window at the floor',
+    );
   });
 
   testWidgets('the camera cannot leave the world', (WidgetTester tester) async {
@@ -492,7 +507,7 @@ void main() {
 
     await dragAndCheck();
     await pinch(tester, 100, 300);
-    expect(state.zoom, AtlasZoom.max);
+    expect(state.zoom, zooms.max);
     await dragAndCheck();
   });
 

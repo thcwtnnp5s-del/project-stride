@@ -1,23 +1,16 @@
 {
   "schemaVersion": 2,
   "world": {
-    "width": 768,
+    "width": 1536,
     "height": 2752
   },
-  "scale": 2,
+  "scale": 4,
   "base": {
     "tiles": [
       {
-        "asset": "world/atlas_base",
+        "asset": "world/atlas_master",
         "x": 0,
         "y": 0,
-        "width": 384,
-        "height": 688
-      },
-      {
-        "asset": "world/atlas_south",
-        "x": 0,
-        "y": 688,
         "width": 384,
         "height": 688
       }
@@ -63,55 +56,37 @@
   "locations": [
     {
       "id": "location.havens_rest",
-      "x": 240,
-      "y": 1142,
-      "hitRadius": 44,
+      "x": 248,
+      "y": 1784,
+      "hitRadius": 48,
       "landmark": null
     },
     {
       "id": "location.whispering_woods",
-      "x": 200,
-      "y": 592,
-      "hitRadius": 40,
-      "landmark": {
-        "asset": "world/landmark_whispering_woods",
-        "width": 96,
-        "height": 80,
-        "anchorX": 48,
-        "anchorY": 44
-      }
+      "x": 568,
+      "y": 1660,
+      "hitRadius": 48,
+      "landmark": null
     },
     {
       "id": "location.forgotten_hollow",
-      "x": 160,
-      "y": 270,
-      "hitRadius": 40,
-      "landmark": {
-        "asset": "world/landmark_forgotten_hollow",
-        "width": 96,
-        "height": 80,
-        "anchorX": 48,
-        "anchorY": 48
-      }
+      "x": 400,
+      "y": 1204,
+      "hitRadius": 48,
+      "landmark": null
     },
     {
       "id": "location.stonefall_mine",
-      "x": 614,
-      "y": 724,
-      "hitRadius": 40,
-      "landmark": {
-        "asset": "world/landmark_stonefall_mine",
-        "width": 96,
-        "height": 80,
-        "anchorX": 48,
-        "anchorY": 40
-      }
+      "x": 1228,
+      "y": 1432,
+      "hitRadius": 48,
+      "landmark": null
     },
     {
       "id": "location.frostmere",
-      "x": 590,
-      "y": 170,
-      "hitRadius": 44,
+      "x": 1192,
+      "y": 460,
+      "hitRadius": 48,
       "landmark": null
     }
   ],
@@ -119,8 +94,8 @@
     {
       "id": "landmark.stone_bridge",
       "name": "Millbridge",
-      "x": 380,
-      "y": 2056,
+      "x": 672,
+      "y": 2120,
       "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
@@ -133,8 +108,8 @@
     {
       "id": "landmark.ferry_crossing",
       "name": "Ferry Crossing",
-      "x": 340,
-      "y": 2256,
+      "x": 776,
+      "y": 2504,
       "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
@@ -147,9 +122,37 @@
     {
       "id": "landmark.far_town",
       "name": "Far Town",
-      "x": 340,
-      "y": 2656,
+      "x": 1340,
+      "y": 2620,
       "tier": "future",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.old_watch",
+      "name": "Old Watch",
+      "x": 1380,
+      "y": 1200,
+      "tier": "minor",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.broken_tower",
+      "name": "Broken Tower",
+      "x": 1320,
+      "y": 2048,
+      "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
         "width": 20,
@@ -165,60 +168,12 @@
       "to": "location.whispering_woods",
       "points": [
         [
-          214,
-          988
+          440,
+          1826
         ],
         [
-          200,
-          708
-        ],
-        [
-          200,
-          620
-        ]
-      ]
-    },
-    {
-      "from": "location.havens_rest",
-      "to": "location.stonefall_mine",
-      "points": [
-        [
-          300,
-          1078
-        ],
-        [
-          350,
-          1058
-        ],
-        [
-          470,
-          824
-        ],
-        [
-          500,
-          838
-        ],
-        [
-          600,
-          750
-        ]
-      ]
-    },
-    {
-      "from": "location.whispering_woods",
-      "to": "location.stonefall_mine",
-      "points": [
-        [
-          200,
-          708
-        ],
-        [
-          470,
-          824
-        ],
-        [
-          600,
-          750
+          548,
+          1842
         ]
       ]
     },
@@ -227,8 +182,88 @@
       "to": "location.forgotten_hollow",
       "points": [
         [
-          200,
-          430
+          512,
+          1600
+        ],
+        [
+          488,
+          1400
+        ],
+        [
+          472,
+          1280
+        ]
+      ]
+    },
+    {
+      "from": "location.havens_rest",
+      "to": "location.stonefall_mine",
+      "points": [
+        [
+          440,
+          1826
+        ],
+        [
+          560,
+          1848
+        ],
+        [
+          800,
+          1912
+        ],
+        [
+          860,
+          1880
+        ],
+        [
+          900,
+          1720
+        ],
+        [
+          928,
+          1580
+        ],
+        [
+          960,
+          1488
+        ],
+        [
+          1080,
+          1448
+        ]
+      ]
+    },
+    {
+      "from": "location.whispering_woods",
+      "to": "location.stonefall_mine",
+      "points": [
+        [
+          560,
+          1780
+        ],
+        [
+          800,
+          1912
+        ],
+        [
+          860,
+          1880
+        ],
+        [
+          900,
+          1720
+        ],
+        [
+          928,
+          1580
+        ],
+        [
+          960,
+          1488
+        ],
+        [
+          1080,
+          1448
         ]
       ]
     },
@@ -237,232 +272,70 @@
       "to": "location.frostmere",
       "points": [
         [
-          600,
-          680
+          1004,
+          1404
         ],
         [
-          610,
-          430
+          960,
+          1200
         ],
         [
-          600,
-          240
+          948,
+          980
+        ],
+        [
+          1080,
+          860
+        ],
+        [
+          1200,
+          760
+        ],
+        [
+          1280,
+          640
+        ],
+        [
+          1284,
+          520
         ]
       ]
     }
   ],
-  "props": [
-    {
-      "asset": "env/prop_lone_oak",
-      "x": 120,
-      "y": 940,
-      "width": 48,
-      "height": 48,
-      "anchorX": 24,
-      "anchorY": 46
-    },
-    {
-      "asset": "env/prop_hedgerow",
-      "x": 420,
-      "y": 940,
-      "width": 48,
-      "height": 32,
-      "anchorX": 24,
-      "anchorY": 30
-    },
-    {
-      "asset": "env/prop_boulders",
-      "x": 600,
-      "y": 940,
-      "width": 48,
-      "height": 40,
-      "anchorX": 24,
-      "anchorY": 38
-    },
-    {
-      "asset": "env/prop_pine_clump",
-      "x": 520,
-      "y": 600,
-      "width": 48,
-      "height": 56,
-      "anchorX": 24,
-      "anchorY": 54
-    },
-    {
-      "asset": "env/prop_cairn",
-      "x": 624,
-      "y": 500,
-      "width": 32,
-      "height": 40,
-      "anchorX": 16,
-      "anchorY": 38
-    },
-    {
-      "asset": "env/prop_dead_tree",
-      "x": 80,
-      "y": 160,
-      "width": 40,
-      "height": 48,
-      "anchorX": 20,
-      "anchorY": 46
-    },
-    {
-      "asset": "env/prop_snowdrift",
-      "x": 680,
-      "y": 280,
-      "width": 48,
-      "height": 32,
-      "anchorX": 24,
-      "anchorY": 30
-    },
-    {
-      "asset": "env/prop_lone_oak",
-      "x": 56,
-      "y": 1428,
-      "width": 48,
-      "height": 48,
-      "anchorX": 24,
-      "anchorY": 46
-    },
-    {
-      "asset": "env/prop_pine_clump",
-      "x": 116,
-      "y": 1408,
-      "width": 48,
-      "height": 56,
-      "anchorX": 24,
-      "anchorY": 54
-    },
-    {
-      "asset": "env/prop_lone_oak",
-      "x": 152,
-      "y": 1444,
-      "width": 48,
-      "height": 48,
-      "anchorX": 24,
-      "anchorY": 46
-    },
-    {
-      "asset": "env/prop_dead_tree",
-      "x": 60,
-      "y": 1580,
-      "width": 40,
-      "height": 48,
-      "anchorX": 20,
-      "anchorY": 46
-    },
-    {
-      "asset": "env/prop_hedgerow",
-      "x": 160,
-      "y": 1672,
-      "width": 48,
-      "height": 32,
-      "anchorX": 24,
-      "anchorY": 30
-    },
-    {
-      "asset": "env/prop_lone_oak",
-      "x": 60,
-      "y": 1796,
-      "width": 48,
-      "height": 48,
-      "anchorX": 24,
-      "anchorY": 46
-    },
-    {
-      "asset": "env/prop_hedgerow",
-      "x": 164,
-      "y": 1884,
-      "width": 48,
-      "height": 32,
-      "anchorX": 24,
-      "anchorY": 30
-    },
-    {
-      "asset": "env/prop_lone_oak",
-      "x": 476,
-      "y": 1472,
-      "width": 48,
-      "height": 48,
-      "anchorX": 24,
-      "anchorY": 46
-    }
-  ],
+  "props": [],
   "overlays": [
     {
-      "asset": "env/overlay_cloud_shadow",
-      "x": 100,
-      "y": 900,
+      "asset": "env/overlay_forest_mist",
+      "x": 280,
+      "y": 1120,
       "width": 96,
       "height": 48,
-      "frames": 1,
-      "frameMillis": 1000,
+      "frames": 6,
+      "frameMillis": 250,
       "drift": {
-        "x": 9,
+        "x": 0,
         "y": 0
       },
-      "opacity": 0.22
+      "opacity": 0.45
     },
     {
-      "asset": "env/overlay_cloud_wisp",
-      "x": 500,
-      "y": 1000,
+      "asset": "env/overlay_forest_mist",
+      "x": 480,
+      "y": 1380,
       "width": 96,
       "height": 48,
-      "frames": 1,
-      "frameMillis": 1000,
+      "frames": 6,
+      "frameMillis": 250,
       "drift": {
-        "x": 7,
-        "y": 0
-      },
-      "opacity": 0.4
-    },
-    {
-      "asset": "env/overlay_cloud_wisp",
-      "x": 40,
-      "y": 810,
-      "width": 96,
-      "height": 48,
-      "frames": 1,
-      "frameMillis": 1000,
-      "drift": {
-        "x": 5,
+        "x": 0,
         "y": 0
       },
       "opacity": 0.35
     },
     {
-      "asset": "env/overlay_forest_mist",
-      "x": 0,
-      "y": 60,
-      "width": 96,
-      "height": 48,
-      "frames": 6,
-      "frameMillis": 250,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 0.5
-    },
-    {
-      "asset": "env/overlay_forest_mist",
-      "x": 20,
-      "y": 336,
-      "width": 96,
-      "height": 48,
-      "frames": 6,
-      "frameMillis": 250,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 0.4
-    },
-    {
       "asset": "env/overlay_snow_flurry",
-      "x": 470,
-      "y": 40,
+      "x": 240,
+      "y": 240,
       "width": 64,
       "height": 64,
       "frames": 8,
@@ -475,8 +348,8 @@
     },
     {
       "asset": "env/overlay_snow_flurry",
-      "x": 630,
-      "y": 220,
+      "x": 1080,
+      "y": 200,
       "width": 64,
       "height": 64,
       "frames": 8,
@@ -488,18 +361,60 @@
       "opacity": 1
     },
     {
-      "asset": "env/overlay_forge_smoke",
-      "x": 204,
-      "y": 1000,
-      "width": 32,
+      "asset": "env/overlay_cloud_shadow",
+      "x": 400,
+      "y": 1900,
+      "width": 96,
       "height": 48,
-      "frames": 6,
-      "frameMillis": 200,
+      "frames": 1,
+      "frameMillis": 1000,
       "drift": {
-        "x": 0,
+        "x": 14,
         "y": 0
       },
-      "opacity": 0.7
+      "opacity": 0.18
+    },
+    {
+      "asset": "env/overlay_cloud_wisp",
+      "x": 1000,
+      "y": 1700,
+      "width": 96,
+      "height": 48,
+      "frames": 1,
+      "frameMillis": 1000,
+      "drift": {
+        "x": 10,
+        "y": 0
+      },
+      "opacity": 0.35
+    },
+    {
+      "asset": "env/overlay_cloud_wisp",
+      "x": 200,
+      "y": 800,
+      "width": 96,
+      "height": 48,
+      "frames": 1,
+      "frameMillis": 1000,
+      "drift": {
+        "x": 8,
+        "y": 0
+      },
+      "opacity": 0.3
+    },
+    {
+      "asset": "env/overlay_birds",
+      "x": 600,
+      "y": 2200,
+      "width": 24,
+      "height": 24,
+      "frames": 6,
+      "frameMillis": 180,
+      "drift": {
+        "x": 18,
+        "y": -4
+      },
+      "opacity": 0.9
     }
   ]
 }

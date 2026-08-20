@@ -191,9 +191,13 @@ void main() {
       // screen height, so a change to the bar's own geometry moves it here too.
       final double fold = tester.getTopLeft(find.byType(StrideTabBar)).dy;
 
+      // The queue selector changed the label; the fold property is unchanged
+      // and the selector deliberately lives in the identity column beside the
+      // stage so it costs no height above the button — the arithmetic in
+      // `gather_node_card.dart` still holds.
       final Finder button = find.widgetWithText(
         StrideButton,
-        'Gather — 90 steps',
+        'Gather ×1 — 90 steps',
       );
       expect(button, findsOneWidget, reason: 'the game action must exist');
 

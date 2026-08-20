@@ -48,6 +48,18 @@ class SessionController extends ChangeNotifier {
   bool _startupSyncDone = false;
   Timer? _resultTimer;
 
+  /// Called immediately before an **exclusive** command — travel, or any
+  /// combat command — executes. The activity queue registers here so starting
+  /// a journey or a fight cancels its in-progress repetition safely
+  /// (`MILESTONES/ACTIVITY_FEEL_PRESENTATION_01.md` §4a).
+  ///
+  /// One nullable callback, deliberately, and not a listener list or an event
+  /// bus: there is exactly one consumer, and the seam should stay too small to
+  /// grow sideways. It is presentation wiring — nothing here decides whether
+  /// the command runs, and the engine's own refusals
+  /// (`resource_node_not_here`, `encounter_in_progress`) remain the authority.
+  VoidCallback? onExclusiveCommand;
+
   /// True while a session command is in flight. For a spinner and a disabled
   /// control — **not** what enforces single-flight. `StrideSession` refuses
   /// re-entrancy itself, because a disabled `onPressed` only takes effect on the
@@ -75,6 +87,18 @@ class SessionController extends ChangeNotifier {
   /// and the line reads differently for taking something off.
   EquipReport? get lastEquip => _lastEquip;
   bool get lastEquipRemoved => _lastEquipRemoved;
+
+  /// True while a combat command is in flight.
+  ///
+  /// Exists for one mounting decision: on a killing blow's mid-commit frame
+  /// the encounter is already cleared in memory and the report has not yet
+  /// returned, so `session.encounter` and [lastCombat] are BOTH null. The
+  /// Adventure screen reading only those two unmounted the whole combat stage
+  /// for that frame — the location cards flashed and the victory replay was
+  /// skipped. This flag holds the stage up across the gap. A subset of [busy],
+  /// never a second source of game state.
+  bool _combatBusy = false;
+  bool get combatBusy => _combatBusy;
 
   /// The report from the last combat command — start, attack, eat or retreat.
   ///
@@ -175,6 +199,7 @@ class SessionController extends ChangeNotifier {
   /// location, which is the last thing that should be shown wrong.
   Future<void> travel(ContentId destination) async {
     if (_busy) return;
+    onExclusiveCommand?.call();
     _busy = true;
     _clearResults(notify: false);
     notifyListeners();
@@ -251,13 +276,16 @@ class SessionController extends ChangeNotifier {
   /// [lastCombat] for why it does not ride the result timer.
   Future<void> _combat(Future<CombatReport> Function() command) async {
     if (_busy) return;
+    onExclusiveCommand?.call();
     _busy = true;
+    _combatBusy = true;
     _clearResults(notify: false);
     notifyListeners();
     try {
       _lastCombat = await command();
     } finally {
       _busy = false;
+      _combatBusy = false;
       notifyListeners();
     }
   }

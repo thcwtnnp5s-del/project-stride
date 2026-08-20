@@ -236,7 +236,33 @@ The second preserves H-2 by construction and is the one to cost first.
 
 ---
 
-## OD-03 — The step-economy mark — 🔶 **STILL OPEN.** One attempt, not shipped
+## OD-03 — The step-economy mark — ✅ **CLOSED, shipped** (Activity Feel 01, 2026-08-20)
+
+**Closed by three blind rounds**, record in
+`GAME_BIBLE/ART/exploration/ACTIVITY_FEEL_01/README.md` §3 and the
+provenance row in `assets/ui/v1/README.md`. The shipped mark is a **PixelLab
+cuffed traveler's boot**, 12 × 12, palette-conformed (A-2) to the canonical
+teal `#58D6C0` family with the muted `#B3A794` twin — the
+`walking_glyph.dart` two-colour pairing preserved exactly.
+
+Two geometry findings worth keeping, both extending this entry's own
+"one connected mass" lesson:
+
+- **A boot print cannot fit the 12 × 12 slot.** All 64 connected candidates
+  of a pro run measured 8×14–10×16 — a print's natural aspect is ~1:1.7.
+  A print trimmed to fit blind-read as "a padlock / keyhole". The print
+  direction is closed at this slot size, not merely unattempted.
+- **Shaded detail fragments at 24 dp; a bold silhouette with at most one
+  interior line survives.** The retired chrome glyph, facing a real
+  competitor in the final blind round, was itself misread as "the letter L /
+  a Tetris piece"; the shipped boot was the only candidate read as both an
+  object and drawn pixel art.
+
+Noted residual risk (blind round 3): a boot can read as an equipment slot;
+adjacency to the step figure resolves it. **The original direction below is
+preserved unedited.**
+
+### OD-03 — as raised: 🔶 One attempt, not shipped
 
 **Round 01 ran on 2026-08-17 alongside OD-04 and did not ship.** The generation
 returned two footprints side by side. It was not taken to blind QA because it

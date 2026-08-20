@@ -21,6 +21,51 @@ to `M-02` stays valid.
 
 ---
 
+## M-13 — Blind QA was staged inside a directory whose path named the intent
+
+**Date:** 2026-08-20 · **Category:** process / visual production (M-04 family) ·
+**Provenance:** Activity Feel & Presentation 01, all three blind rounds
+
+### What happened
+
+Every blind Visual QA round of the milestone staged its neutrally named
+plates (`seq_1`, `map_b`, `marks3`) under
+`GAME_BIBLE/ART/exploration/ACTIVITY_FEEL_01/step_icon/qa…` — and the
+reviewers reported the leak themselves, twice: locating the plates exposed
+sibling production filenames (`woodcut_f*`, `boot_*`, `crop_mine`) that
+announce every asset's intended semantics, and the path segment `step_icon`
+told the icon reviewer what the marks were for before a pixel was seen. One
+task prompt also disclosed the intent ("icon beside a step counter") ahead of
+the first-impression question.
+
+### Root cause
+
+M-04's blind-semantic-read rule was enforced on the **file names** and not on
+the **path or the prompt**. Staging inside the working round directory is the
+natural place to put plates, and it is exactly the place where every
+neighbouring byte is labelled with intent.
+
+### Consequence
+
+None to the verdicts that mattered — the reviewers disclosed the
+contamination and separated primed from perceptual answers, and the two FAIL
+verdicts (a print misread as a padlock; a shaded boot misread as a sprout)
+were *against* the primed direction, which is what makes them trustworthy.
+The cost is that every PASS this milestone carries a "formally compromised"
+asterisk the verdict did not need to carry.
+
+### Prevention
+
+- **Stage blind plates in a neutral directory whose path names nothing** —
+  a scratch folder with generic segments, never the round's working tree.
+- **The tasking prompt asks the first-impression question before revealing
+  any purpose** the answer is judged against; purpose-dependent questions
+  come after the blind reads, clearly separated.
+- A reviewer reporting staging contamination is the process working —
+  keep asking for that report.
+
+---
+
 ## M-12 — A tiled AI-generated world measured as joined and read as four paintings
 
 **Date:** 2026-08-19 · **Category:** art pipeline / verification (M-04 family) ·

@@ -71,6 +71,7 @@ library;
 
 import '../components/ambient_scene.dart';
 import '../components/ambient_stage.dart' show StageScenery;
+import 'pixel_icons.dart';
 import 'sprite_footprints.dart';
 
 const String _art = 'assets/art/v1';
@@ -268,6 +269,66 @@ abstract final class AmbientAssets {
     right: 49,
     bottom: 63,
   );
+
+  /// The working loop an active gathering queue plays for [skill], with its
+  /// footprint below — one entry per profession, looked up by the skill's
+  /// content-id string (`skill.woodcutting` — `assets/content/v1/skills.json`).
+  ///
+  /// **A string key, deliberately, not a `ContentId`.** The ambient boundary
+  /// guard (`ambient_player_test.dart`, "ambient sources touch nothing but
+  /// presentation") forbids this file any `stride_core` reference — ambient is
+  /// presentation only. The caller passes `skill.value`; the table is the same
+  /// either way.
+  ///
+  /// The three shipped loops are PixelLab west-facing work cycles
+  /// (`ACTIVITY_FEEL_01/README.md` §2, blind PASS-WITH-NOTE each), packaged
+  /// by `package-art.js` to one fixed box per loop with the feet on row 62.
+  /// Foraging plays **ping-pong** — down the kneel and back up through the
+  /// same frames — because the source loop ends crouched and a hard wrap to
+  /// standing would pop; listing the paths twice is frame-order authoring,
+  /// not duplicated assets. Cooking and smithing are unlisted and fall back
+  /// to the gather cycle rather than to nothing, so a future content pack
+  /// cannot mount an empty stage.
+  static List<String> activityLoopFor(String skill) =>
+      _activityLoops[skill] ?? PixelIcons.gatherFrames;
+
+  /// The rest-pose footprint of [activityLoopFor]'s frame set — the same
+  /// pairing `SpriteAnimation` requires, for the same shadow reason.
+  static SpriteFootprint activityFootprintFor(String skill) =>
+      _activityFootprints[skill] ?? SpriteFootprints.gather;
+
+  /// The loop's frame width in native pixels. The work loops are wider than
+  /// the 64-box because the tool's swing needs the room; the stage aligns
+  /// the figures by their feet centres, so a wider canvas costs nothing but
+  /// clipped arc tips at the stage edge.
+  static int activityCanvasFor(String skill) => _activityCanvases[skill] ?? 64;
+
+  static final List<String> _woodcutFrames = _frames('activity_woodcut', 8);
+  static final List<String> _mineFrames = _frames('activity_mine', 6);
+  static final List<String> _forageFrames = _frames('activity_forage', 9);
+
+  static final Map<String, List<String>> _activityLoops =
+      <String, List<String>>{
+        'skill.woodcutting': _woodcutFrames,
+        'skill.mining': _mineFrames,
+        'skill.foraging': <String>[
+          ..._forageFrames,
+          for (int i = 7; i >= 1; i--) _forageFrames[i],
+        ],
+      };
+
+  static const Map<String, SpriteFootprint> _activityFootprints =
+      <String, SpriteFootprint>{
+        'skill.woodcutting': SpriteFootprints.ambientActivityWoodcut,
+        'skill.mining': SpriteFootprints.ambientActivityMine,
+        'skill.foraging': SpriteFootprints.ambientActivityForage,
+      };
+
+  static const Map<String, int> _activityCanvases = <String, int>{
+    'skill.woodcutting': 76,
+    'skill.mining': 66,
+    'skill.foraging': 44,
+  };
 
   /// The node vignettes as stage scenery, keyed by the asset path
   /// `PixelIcons.nodeFor` returns, each with its measured opaque box

@@ -71,7 +71,12 @@ class AdventureScreen extends StatelessWidget {
     // because the engine clears the encounter on the same commit that decides
     // it, and the result would otherwise vanish before it was read. The stale
     // banner is kept: a refused commit mid-fight is exactly when it matters.
-    if (s.encounter != null || c.lastCombat?.outcome != null) {
+    // `combatBusy` covers the killing blow's mid-commit frame, where the
+    // encounter is already cleared in memory and the report has not yet
+    // returned — both other conditions are null for that one frame, and
+    // without the flag the whole stage unmounted, flashed the location cards,
+    // and skipped the victory replay.
+    if (s.encounter != null || c.lastCombat?.outcome != null || c.combatBusy) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(
           StrideSpace.screenGutter,

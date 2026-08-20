@@ -239,6 +239,27 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_activity_woodcut` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientActivityWoodcut = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `ambient_activity_mine` — 13 px of contact, 27..39.
+  static const SpriteFootprint ambientActivityMine = SpriteFootprint(
+    left: 27,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `ambient_activity_forage` — 13 px of contact, 20..32.
+  static const SpriteFootprint ambientActivityForage = SpriteFootprint(
+    left: 20,
+    right: 32,
+    bottom: 62,
+  );
+
   /// `combat_traveler_combat_idle` — 12 px of contact, 28..39.
   static const SpriteFootprint combatTravelerCombatIdle = SpriteFootprint(
     left: 28,

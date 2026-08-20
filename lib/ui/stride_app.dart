@@ -27,14 +27,28 @@ import 'package:stride_core/stride_core.dart' show BootstrapBlocked;
 import '../runtime/stride_session.dart';
 import 'screens/system/blocked_screen.dart';
 import 'shell/stride_shell.dart';
+import 'state/activity_controller.dart';
 import 'state/session_controller.dart';
 import 'state/session_scope.dart';
 import 'theme/stride_theme.dart';
 
 class StrideApp extends StatefulWidget {
-  const StrideApp({super.key, required this.session, this.syncOnStart = true});
+  const StrideApp({
+    super.key,
+    required this.session,
+    this.syncOnStart = true,
+    this.activityTiming,
+  });
 
   final StrideSession session;
+
+  /// The activity queue's timing seams. Null in the app — real one-shot
+  /// timers and the real clock. Tests substitute a fake pair so a queued
+  /// gather completes on a manually advanced clock instead of a ten-second
+  /// wait; the same shape as [syncOnStart], and like it, deliberately not a
+  /// general switch — it changes when the presentation timer fires and
+  /// nothing else.
+  final ActivityTiming? activityTiming;
 
   /// Whether to reconcile new foreground health data once, after the first
   /// frame. True in the app; `main.dart` never passes it.
@@ -66,9 +80,20 @@ class _StrideAppState extends State<StrideApp> {
   // controller existing.
   late final SessionController _controller = SessionController(widget.session);
 
+  /// App-scoped, beside the session controller, so the queue continues while
+  /// the player browses other tabs — and never while the app is not resumed,
+  /// which the controller enforces itself as a `WidgetsBindingObserver`.
+  late final ActivityController _activity = ActivityController(
+    _controller,
+    timing: widget.activityTiming,
+  );
+
   @override
   void initState() {
     super.initState();
+    // The exclusive-command seam: travel or combat cancels the in-progress
+    // repetition before it executes. See `SessionController.onExclusiveCommand`.
+    _controller.onExclusiveCommand = _activity.cancelForExclusiveCommand;
     // Foreground startup sync, once, after the first frame.
     //
     // `addPostFrameCallback` rather than an `await` in `main`: startup already
@@ -91,6 +116,7 @@ class _StrideAppState extends State<StrideApp> {
 
   @override
   void dispose() {
+    _activity.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -128,13 +154,16 @@ class _StrideAppState extends State<StrideApp> {
         type: MaterialType.transparency,
         child: SessionScope(
           controller: _controller,
-          // The blocked branch is taken before the shell is built, not inside
-          // it. A blocked bootstrap has no engine, so a shell that rendered
-          // anyway would be reading the null-fallback zeros out of every getter
-          // and presenting them as the player's save.
-          child: blocked != null
-              ? BlockedScreen(blocked: blocked)
-              : const StrideShell(),
+          child: ActivityScope(
+            controller: _activity,
+            // The blocked branch is taken before the shell is built, not
+            // inside it. A blocked bootstrap has no engine, so a shell that
+            // rendered anyway would be reading the null-fallback zeros out of
+            // every getter and presenting them as the player's save.
+            child: blocked != null
+                ? BlockedScreen(blocked: blocked)
+                : const StrideShell(),
+          ),
         ),
       ),
     );
