@@ -18,16 +18,43 @@
 /// - **Cancel** keeps every completed craft and dispatches nothing more; the
 ///   in-progress repetition consumed nothing because nothing is consumed
 ///   until its boundary's command commits.
-/// - **Backgrounding fast-forwards the remainder**: the timer is theatre,
-///   the crafts are instant, and the owner's preference is that a queue
-///   never requires the phone to stay open (§55). On `paused` the controller
-///   dispatches every remaining repetition immediately, engine-validated
-///   each time. A force-quit mid-queue keeps completed crafts and grants
-///   nothing for undispatched ones — the documented behaviour.
+/// - **Backgrounding does not complete anything.** The queue carries a
+///   wall-clock **anchor** for the repetition in flight, exactly as the
+///   gathering queue does (`DECISIONS/0022` §6). Going to the background
+///   cancels only the foreground boundary timer; the anchor stays, elapsed
+///   time keeps accruing against it, and **the resume reconciles** — it
+///   commits only the whole repetitions the elapsed time legitimately
+///   completed, clamped to the requested count, and advances the anchor by
+///   exactly the completions it committed. Backgrounding is never itself a
+///   completion trigger, and no amount of elapsed time can produce more
+///   than the count the player asked for.
 ///
-/// **No schema change, no new `RULES.md` P-4 exception**: nothing here
-/// advances by wall-clock time in the domain's sense — there is no durable
-/// queue, no anchor, and closing the app mid-queue loses only theatre.
+/// **Where this deliberately differs from gathering, and why.** The gather
+/// queue is durable state in the save (`GameState.activityQueue`, v6)
+/// because each completion *spends banked steps* the player committed, so a
+/// killed process must not lose them. Crafting costs no steps and its queue
+/// is **ephemeral presentation**: a force-quit or an OS eviction ends the
+/// run, granting nothing and consuming nothing for repetitions that had not
+/// committed, while every repetition that did commit is already atomically
+/// on disk. Nothing is owed and nothing is lost, so no schema addition is
+/// warranted (brief §56).
+///
+/// ## Why this is not a second `RULES.md` P-4 exception
+///
+/// P-4 forbids *wall-clock progression masquerading as walking* — time
+/// standing in for movement. Nothing here does that, and the reason is
+/// structural rather than a promise: **crafting is free and instant in the
+/// domain**. A player can make ten planks with ten taps, right now, at zero
+/// step cost; the queue's clock cannot unlock anything those taps could not
+/// already produce. Time is a **brake on presentation**, never an engine of
+/// production — it delays output the player had already earned by walking
+/// for the ingredients, and it can produce nothing beyond the count they
+/// asked for. `DECISIONS/0022`'s exception exists because gathering's
+/// completions *spend banked steps*; there is no equivalent claim to make
+/// here, so no new decision is owed.
+///
+/// It also adds **no schema change**: the anchor is in memory, and a killed
+/// process ends the run rather than resuming it (see above).
 ///
 /// Timing is injectable ([ActivityTiming], the same seam the gather queue
 /// uses) so tests advance deterministically.
@@ -92,7 +119,12 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
   bool _stopRequested = false;
   bool _dispatchInFlight = false;
   int _durationMillis = 3000;
-  int _repetitionStartedAt = 0;
+
+  /// The wall-clock instant the repetition in flight began — the same
+  /// anchor semantics `GameState.activityQueue` carries for gathering. It
+  /// advances by exactly one duration per COMMITTED repetition, which is
+  /// what makes reconciliation exactly-once (`DECISIONS/0022` §6).
+  int _anchor = 0;
 
   Timer? _timer;
   Timer? _summaryTimer;
@@ -126,7 +158,7 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
   /// Presentation time into the current repetition, clamped.
   Duration get elapsedOfCurrent {
     if (!_running) return Duration.zero;
-    int elapsed = _timing.nowEpochMillis() - _repetitionStartedAt;
+    int elapsed = _timing.nowEpochMillis() - _anchor;
     if (elapsed < 0) elapsed = 0;
     if (elapsed > _durationMillis) elapsed = _durationMillis;
     return Duration(milliseconds: elapsed);
@@ -151,77 +183,123 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     _running = true;
     _stopRequested = false;
     _durationMillis = CraftDurations.of(recipe).inMilliseconds;
-    _repetitionStartedAt = _timing.nowEpochMillis();
+    _anchor = _timing.nowEpochMillis();
     _armBoundary();
     notifyListeners();
   }
 
-  /// Cancels the queue: completed crafts remain, the in-progress repetition
-  /// dispatches nothing (§16 cancellation semantics).
+  /// Cancels the queue (`DECISIONS/0022` §7): every repetition that had
+  /// **fully elapsed** when the player tapped Cancel still commits, the
+  /// partial one is discarded, and the remainder is dropped. The partial
+  /// repetition consumed nothing, because nothing is consumed until its
+  /// boundary command commits.
   void stop() {
     if (!_running || _stopRequested) return;
     _stopRequested = true;
     _cancelTimer();
-    _finish();
+    _settleStop();
   }
 
   // -- Lifecycle --------------------------------------------------------------
 
+  /// The last lifecycle state the binding reported. Null — never reported,
+  /// the widget-test harness and a fresh launch — is treated as foreground,
+  /// the same seam `ActivityController` documents.
+  AppLifecycleState? _lifecycle;
+
+  bool get _halted =>
+      _lifecycle != null && _lifecycle != AppLifecycleState.resumed;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_running) return;
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      // The §55 choice: the player put the phone away — finish the theatre
-      // instantly. Every remaining repetition is the same validated command;
-      // the first refusal stops the run truthfully.
-      _cancelTimer();
-      _fastForward();
-    }
-  }
+    if (_lifecycle == state) return;
+    final bool wasHalted = _halted;
+    _lifecycle = state;
+    if (!_running || _halted == wasHalted) return;
 
-  Future<void> _fastForward() async {
-    while (_running && !_stopRequested && _completed < _requested) {
-      final bool advanced = await _dispatchOne();
-      if (!advanced) return; // refusal or retry state already handled
+    if (_halted) {
+      // Background: cancel the foreground boundary timer and NOTHING else.
+      // The anchor is kept and elapsed time keeps accruing against it; the
+      // resume reconciles (`DECISIONS/0022` §6). Backgrounding must never be
+      // a completion trigger — an earlier revision of this controller
+      // dispatched the whole remainder here, which made Home a Skip Queue
+      // button, and that is the defect this shape exists to prevent.
+      _cancelTimer();
+      notifyListeners();
+      return;
     }
-    if (_running) _finish();
+
+    // Resumed: everything that legitimately elapsed commits now, once.
+    _reconcile();
+    notifyListeners();
   }
 
   // -- The machine ------------------------------------------------------------
 
-  void _armBoundary() {
-    _cancelTimer();
-    final int remaining =
-        _repetitionStartedAt + _durationMillis - _timing.nowEpochMillis();
-    _timer = _timing.startTimer(
-      Duration(milliseconds: remaining < 0 ? 0 : remaining),
-      () {
-        _timer = null;
-        _onBoundary();
-      },
-    );
+  /// How many whole repetitions the elapsed time has completed but not yet
+  /// committed — clamped to what remains of the request, and to zero against
+  /// a backward clock. The **only** source of "how many should land".
+  int _dueCount() {
+    if (_durationMillis <= 0) return _requested - _completed;
+    final int elapsed = _timing.nowEpochMillis() - _anchor;
+    if (elapsed <= 0) return 0;
+    final int whole = elapsed ~/ _durationMillis;
+    final int remaining = _requested - _completed;
+    return whole < remaining ? whole : remaining;
   }
 
-  Future<void> _onBoundary() async {
-    if (!_running || _stopRequested) return;
-    final bool advanced = await _dispatchOne();
-    if (!advanced || !_running) return;
-    if (_completed >= _requested) {
-      _finish();
-      return;
+  /// Commits every repetition the clock has legitimately finished, advancing
+  /// the anchor by exactly the completions it commits, then re-arms.
+  ///
+  /// Exactly-once comes from the anchor arithmetic, not from the timers: a
+  /// second reconcile with no further elapsed time finds `_dueCount() == 0`
+  /// and commits nothing.
+  Future<void> _reconcile() async {
+    if (!_running || _stopRequested || _dispatchInFlight) return;
+
+    int due = _dueCount();
+    while (due > 0) {
+      final bool committed = await _dispatchOne();
+      // A refusal, a busy retry or a stop mid-flight: that path has already
+      // decided what happens next, and the anchor must not move.
+      if (!committed) return;
+      _anchor += _durationMillis;
+      due -= 1;
+      if (_completed >= _requested) {
+        _finish();
+        return;
+      }
+      if (!_running || _stopRequested) return;
     }
-    _repetitionStartedAt = _timing.nowEpochMillis();
     _armBoundary();
     notifyListeners();
   }
 
-  /// Dispatches exactly one craft. Returns false when the caller should not
-  /// continue (busy retry armed, refusal finished the queue, or a stop).
+  /// Arms the one-shot timer for the moment the current repetition is due —
+  /// never `Timer.periodic`, and never while halted (the resume reconciles
+  /// instead). A boundary already in the past arms at zero and lands on the
+  /// next tick, where [_reconcile] sees it as due.
+  void _armBoundary() {
+    _cancelTimer();
+    if (_halted || !_running) return;
+    final int remaining =
+        _anchor + _durationMillis - _timing.nowEpochMillis();
+    _timer = _timing.startTimer(
+      Duration(milliseconds: remaining < 0 ? 0 : remaining),
+      () {
+        _timer = null;
+        _reconcile();
+      },
+    );
+  }
+
+  /// Dispatches exactly one craft. Returns true only when a repetition
+  /// actually committed — the caller advances the anchor on that and on
+  /// nothing else.
   Future<bool> _dispatchOne() async {
     if (_dispatchInFlight) return false;
     if (_sessions.busy || _session.isBusy) {
-      _retryLater(_onBoundary);
+      _retryLater(_reconcile);
       return false;
     }
     _dispatchInFlight = true;
@@ -229,7 +307,7 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     _dispatchInFlight = false;
     if (!_running || _stopRequested) return false;
     if (report == null) {
-      _retryLater(_onBoundary);
+      _retryLater(_reconcile);
       return false;
     }
     if (!report.succeeded) {
@@ -244,6 +322,32 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     _xp += report.experience ?? 0;
     _skillName = report.skillName ?? _skillName;
     return true;
+  }
+
+  /// Stop's settle (`DECISIONS/0022` §7): every repetition that had **fully
+  /// elapsed** at the moment of the stop still commits; the partial one is
+  /// discarded with the remainder.
+  Future<void> _settleStop() async {
+    int due = _dueCount();
+    while (due > 0 && _running) {
+      if (_dispatchInFlight || _sessions.busy || _session.isBusy) break;
+      _dispatchInFlight = true;
+      final CraftReport? report = await _sessions.craftQueued(_recipe!);
+      _dispatchInFlight = false;
+      if (report == null || !report.succeeded) {
+        if (report != null) _stopReport = report;
+        break;
+      }
+      _anchor += _durationMillis;
+      _completed += 1;
+      _lastReport = report;
+      _outputName = report.outputName ?? _outputName;
+      _quantity += report.quantity ?? 0;
+      _xp += report.experience ?? 0;
+      _skillName = report.skillName ?? _skillName;
+      due -= 1;
+    }
+    _finish();
   }
 
   void _retryLater(void Function() action) {

@@ -20,10 +20,12 @@ visible with the concrete gap; the whole job board moved to a **Goal Board**
 behind one button, in each location's own fiction, leaving Adventure a
 three-line goal summary; **crafting is a real activity** — categories,
 compact rarity-inked recipe rows, one working detail panel, a ×1/×5/×10
-queue clamped to the bag, a station stage seam, timed repetitions
-(components 3 s, food 4 s, gear 6 s) each committing the *unchanged* instant
-`CraftItem` exactly once, cancel keeping completions, and backgrounding
-fast-forwarding the rest so a queue never holds the phone open; equipment
+queue clamped to the bag, a **working craft stage** (the Traveler hammering
+at a forge or stirring over a cookfire, one PixelLab loop per craft skill),
+timed repetitions (components 3 s, food 4 s, gear 6 s) each committing the
+*unchanged* instant `CraftItem` exactly once, cancel keeping completions,
+and a backgrounded queue that keeps running on its wall-clock anchor and
+**reconciles only what legitimately elapsed** on resume; equipment
 finishes with a **reveal** (name, rank, stat delta, level-up unlocks,
 Equip); community projects gained animated per-material bars and a permanent
 **completion preview**; enemy cards present the **ecology** (known drops in

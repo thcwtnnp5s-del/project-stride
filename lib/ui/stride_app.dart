@@ -91,7 +91,7 @@ class _StrideAppState extends State<StrideApp> {
 
   /// App-scoped like the gather queue, so a craft queue survives a tab
   /// switch. Purely presentational over the instant `CraftItem` command —
-  /// see `craft_controller.dart` for the §55 background fast-forward.
+  /// see `craft_controller.dart` for the background/resume anchor semantics.
   late final CraftController _craft = CraftController(
     _controller,
     timing: widget.activityTiming,

@@ -314,6 +314,12 @@ abstract final class AmbientAssets {
   static final List<String> _mineFrames = _frames('activity_mine', 6);
   static final List<String> _forageFrames = _frames('activity_forage', 9);
 
+  /// The craft loops (PRESENTATION_WORLD_REWARD_FEEL_01 §17): the Traveler
+  /// at a forge and at a cookfire, the same west-facing family and the same
+  /// 64-row ground convention as the gathering loops.
+  static final List<String> _smithFrames = _frames('activity_smith', 7);
+  static final List<String> _cookFrames = _frames('activity_cook', 7);
+
   static final Map<String, List<String>> _activityLoops =
       <String, List<String>>{
         'skill.woodcutting': _woodcutFrames,
@@ -322,6 +328,8 @@ abstract final class AmbientAssets {
           ..._forageFrames,
           for (int i = 7; i >= 1; i--) _forageFrames[i],
         ],
+        'skill.smithing': _smithFrames,
+        'skill.cooking': _cookFrames,
       };
 
   static const Map<String, SpriteFootprint> _activityFootprints =
@@ -329,12 +337,16 @@ abstract final class AmbientAssets {
         'skill.woodcutting': SpriteFootprints.ambientActivityWoodcut,
         'skill.mining': SpriteFootprints.ambientActivityMine,
         'skill.foraging': SpriteFootprints.ambientActivityForage,
+        'skill.smithing': SpriteFootprints.ambientActivitySmith,
+        'skill.cooking': SpriteFootprints.ambientActivityCook,
       };
 
   static const Map<String, int> _activityCanvases = <String, int>{
     'skill.woodcutting': 76,
     'skill.mining': 66,
     'skill.foraging': 44,
+    'skill.smithing': 74,
+    'skill.cooking': 46,
   };
 
   /// The node vignettes as stage scenery, keyed by the asset path
@@ -381,6 +393,30 @@ abstract final class AmbientAssets {
     '$_art/node/hollow_thicket.png': StageScenery(
       assetPath: '$_art/node/hollow_thicket.png',
       bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
+    ),
+  };
+
+  /// The craft station a profession works at, as stage scenery — the forge
+  /// for smithing, the cookfire for cooking
+  /// (PRESENTATION_WORLD_REWARD_FEEL_01 §17). Null for a profession with no
+  /// authored station, in which case the craft stage shows the figure alone.
+  ///
+  /// Same role the node vignettes play on the gathering stage: ×1 art behind
+  /// the ×2 figure, raised off the ground line, placed by
+  /// `AmbientStageLayout`. Bounds measured by `Scripts/art/png.js` on the
+  /// packaged props.
+  static StageScenery? stationFor(String skill) => _stations[skill];
+
+  static const Map<String, StageScenery> _stations = <String, StageScenery>{
+    'skill.smithing': StageScenery(
+      assetPath: '$_art/node/station_forge.png',
+      native: 64,
+      bounds: SpriteBounds(left: 4, top: 18, right: 59, bottom: 61),
+    ),
+    'skill.cooking': StageScenery(
+      assetPath: '$_art/node/station_cookfire.png',
+      native: 64,
+      bounds: SpriteBounds(left: 6, top: 20, right: 57, bottom: 60),
     ),
   };
 

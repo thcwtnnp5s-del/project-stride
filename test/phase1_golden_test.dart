@@ -47,11 +47,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
 
+import 'support/fake_activity_timing.dart';
 import 'support/real_font.dart';
 
 final ContentId kNode = ContentId.unchecked('resource_node.meadow_patch');
@@ -291,4 +293,72 @@ void main() {
       );
     }
   });
+  testWidgets('the craft stage, mid-craft, with its station', (
+    WidgetTester tester,
+  ) async {
+    // PRESENTATION_WORLD_REWARD_FEEL_01 §17. This golden exists for one
+    // property the widget tests cannot state: that the Traveler and the
+    // station he is working at occupy the SAME PLACE. The first composite of
+    // this stage put the anvil at the far-left scenery slot and the figure at
+    // 0.6 of the width, so he swung a hammer at empty air — a defect that is
+    // invisible to any assertion about widgets existing, and obvious in an
+    // image.
+    //
+    // It is a layout witness, not a beauty contest (`MISTAKES.md` M-06):
+    // green means the figure, the loop and the station have not drifted
+    // apart. Whether it looks right is a question for a running build.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final FakeTiming fake = FakeTiming();
+    final StrideSession session = await bootBaselined(tester, 4000);
+    session.activityWallClock = fake.wallClock;
+    // Enough Meadow Herb for a Herb Broth, which is Cooking — the craft class
+    // whose loop and station both ship.
+    for (int i = 0; i < 4; i++) {
+      await tester.runAsync(() => session.gather(kNode));
+    }
+
+    await tester.pumpWidget(
+      StrideApp(
+        session: session,
+        syncOnStart: false,
+        activityTiming: fake.timing,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(StrideTabBar),
+        matching: find.text('Craft'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Herb Broth').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(StrideButton, 'Craft'));
+    // NOT pumpAndSettle: the working loop repeats forever by design, so
+    // there is no quiescent frame to settle to. Fixed pumps land on a
+    // deterministic frame of the loop instead.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120));
+
+    // Mid-repetition: the loop is running and nothing has committed yet.
+    expect(find.text('Crafting 0 / 1'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      for (final Element e in find.byType(Image).evaluate()) {
+        await precacheImage((e.widget as Image).image, e);
+      }
+    });
+    await tester.pump();
+    await expectLater(
+      find.byType(StrideApp),
+      matchesGoldenFile('goldens/craft_stage.png'),
+    );
+  });
+
 }

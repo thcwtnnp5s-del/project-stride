@@ -46,6 +46,15 @@ import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
 
+/// The craft stage's height: the figure box is 64 rows plus the contact
+/// shadow's bleed at x2 — 136 dp — so 150 clears it without the generous
+/// headroom the gathering stage needs for a swung axe.
+const double _craftStageHeight = 150;
+
+/// Room between the figure's contact centre and the station's near edge.
+/// Small: he is working AT it, not standing beside it.
+const double _stationGap = 8;
+
 /// The §19 categories, derived from the output item's authored data.
 enum CraftCategory {
   materials('Materials'),
@@ -516,32 +525,83 @@ class _ActiveCraftPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // The station stage — the Traveler working, when the profession has
-        // an authored loop. A profession without one (the art round has not
-        // delivered it yet) gets the bar alone rather than a wrong animation;
-        // the seam wires itself the day the frames land in
-        // `AmbientAssets._activityLoops`.
+        // The craft stage — the Traveler working AT this profession's
+        // station (PRESENTATION_WORLD_REWARD_FEEL_01 §17).
+        //
+        // The station is NOT passed to `AmbientStage.scenery`, and the
+        // reason is a blind-QA finding rather than a preference: the
+        // scenery slot places a node vignette far-left and *raised*, which
+        // is right for "this figure, at this place" and wrong for "this
+        // figure, working on this thing". Composited that way the Traveler
+        // swung a hammer at empty air with the anvil a screen away. Here the
+        // station stands on the same floor the figure's feet stand on,
+        // immediately in front of him — he faces west, so that is his
+        // viewer-left — and is painted *after* the figure, so the anvil
+        // reads as nearer the camera and the hammer head passes behind it
+        // at the bottom of the swing.
+        //
+        // Every number below comes from `AmbientStageLayout`, the same
+        // model the figure is placed by, so the two cannot drift apart.
         if (loop != null) ...<Widget>[
-          Container(
-            height: 110,
-            decoration: BoxDecoration(
-              color: StrideColors.surfaceBlock,
-              border: Border.all(color: StrideColors.borderDefault),
-              borderRadius: StrideRadius.inner,
-            ),
-            child: ClipRRect(
-              borderRadius: StrideRadius.inner,
-              child: AmbientStage(
-                gatherFrames: PixelIcons.gatherFrames,
-                gatherFootprint: SpriteFootprints.gather,
-                playToken: null,
-                scenes: AmbientAssets.scenes,
-                restFrame: AmbientAssets.restFrame,
-                restFootprint: AmbientAssets.restFootprint,
-                activityFrames: loop,
-                activityFootprint: AmbientAssets.activityFootprintFor(skill),
-                activityCanvas: AmbientAssets.activityCanvasFor(skill),
-                activityActive: true,
+          SizedBox(
+            height: _craftStageHeight,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: StrideColors.surfaceBlock,
+                border: Border.all(color: StrideColors.borderDefault),
+                borderRadius: StrideRadius.inner,
+              ),
+              child: ClipRRect(
+                borderRadius: StrideRadius.inner,
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints c) {
+                    final AmbientStageLayout layout = AmbientStageLayout(
+                      width: c.maxWidth,
+                      height: c.maxHeight,
+                    );
+                    final StageScenery? station =
+                        AmbientAssets.stationFor(skill);
+                    // Where the figure's feet actually land: the stage
+                    // aligns every activity loop's contact centre onto the
+                    // rest pose's, so this is the one true anchor.
+                    final double feetCentre =
+                        layout.groupLeft + SpriteFootprints.gather.centerX * 2;
+                    return Stack(
+                      children: <Widget>[
+                        AmbientStage(
+                          gatherFrames: PixelIcons.gatherFrames,
+                          gatherFootprint: SpriteFootprints.gather,
+                          playToken: null,
+                          scenes: AmbientAssets.scenes,
+                          restFrame: AmbientAssets.restFrame,
+                          restFootprint: AmbientAssets.restFootprint,
+                          activityFrames: loop,
+                          activityFootprint:
+                              AmbientAssets.activityFootprintFor(skill),
+                          activityCanvas:
+                              AmbientAssets.activityCanvasFor(skill),
+                          activityActive: true,
+                        ),
+                        if (station != null)
+                          Positioned(
+                            left: feetCentre -
+                                _stationGap -
+                                station.native.toDouble(),
+                            top: layout.groundLine -
+                                (station.bounds.bottom + 1),
+                            // x1, like the gathering stage draws its node
+                            // scenery: the station is far, the figure near.
+                            child: PixelAsset(
+                              assetPath: station.assetPath,
+                              nativeWidth: station.native,
+                              nativeHeight: station.native,
+                              scale: 1,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),

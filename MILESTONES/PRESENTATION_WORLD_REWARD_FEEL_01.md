@@ -95,12 +95,17 @@ recipe list plus one selected-recipe detail panel, a craft stage, and tiered
 completion feedback (quiet line for components; a reveal for equipment).
 Queue semantics: each completed repetition dispatches the ordinary
 `CraftItem` command — exactly-once spend and grant by the engine's own
-arithmetic; cancel loses nothing committed; on backgrounding the remaining
-queue **fast-forwards to completion** (crafting is domain-instant; the timer
-is presentation), so the owner's "don't hold the phone open" preference is
-met with **no schema change and no new P-4 exception**. A force-quit mid-queue
-keeps completed crafts and grants nothing for undispatched ones — documented
-behaviour.
+arithmetic; cancel loses nothing committed; the queue keeps running while the
+app is backgrounded and reconciles on resume, so the owner's "don't hold the
+phone open" preference is met with **no schema change and no new P-4
+exception**. A force-quit mid-queue keeps completed crafts and grants nothing
+for undispatched ones — documented behaviour.
+
+> **Superseded as planned.** This paragraph originally read "on backgrounding
+> the remaining queue **fast-forwards to completion**", and the first
+> implementation did exactly that — making Home a Skip Queue button. The owner
+> rejected it. See *Owner correction round* at the foot of this document for
+> the anchor-driven semantics that shipped.
 
 ### Phase 5 — Reward hierarchy (owner brief §21–§24)
 
@@ -198,12 +203,25 @@ down what you saw.
 10. **Community project.** Contribute. The material bar animates toward its
     target; the tile shows the stage ladder and an "On completion:" line
     naming the permanent change.
-11. **Crafting a basic material.** Craft screen: category chips, compact
-    rows, one selected recipe expanding. Craft an Oak Plank — a timed bar,
-    then a one-line result. It should feel like *making* something.
+11. **Crafting at a station.** Craft screen: category chips, compact rows,
+    one selected recipe expanding. Craft a cooked food — the Traveler
+    crouches over a lit cookfire and stirs, on the same floor as the fire,
+    for the whole bar; then a one-line result. Craft a metal component —
+    same stage, now a forge and a hammer swing that lands on the billet.
+    It should feel like *making* something, not like waiting.
 12. **Crafting queue.** A recipe your bag funds several of: ×5, start. The
     count climbs; ingredients leave and outputs arrive per repetition.
     Cancel mid-run: everything completed stays, nothing half-made.
+12a. **Backgrounding a queue is not a Skip button.** Start ×5 of a 4 s food.
+    Immediately press Home, wait ~5 s, reopen. **Exactly one** more should
+    have completed — not the whole queue. Note the count and the bag.
+12b. **A long absence completes the queue and no more.** Start ×3, press
+    Home, leave the phone for a few minutes, reopen. All 3 completed, the
+    queue is finished, and the bag lost exactly 3 recipes' worth of
+    ingredients — no extra repetition, no extra spend.
+12c. **Force-quit mid-queue.** Start ×5, let one finish, then swipe the app
+    away and relaunch. The completed craft is in the bag; no craft queue is
+    running; nothing was consumed for the repetition that was in flight.
 13. **Equipment craft.** Make a weapon or armour. The panel names it in its
     rarity, states `Attack 3 → 7`, names any level-up unlock, and offers
     **Equip** right there.
@@ -233,14 +251,15 @@ down what you saw.
 **BLOCKER:** none known.
 
 **GAMEPLAY / DESIGN**
-- The craft queue's remaining repetitions **fast-forward on backgrounding**
-  rather than continuing on a timer. This is deliberate (§55: a queue must
-  not require the app to stay open) and needs no schema, but it means a
-  force-quit *mid-queue* grants nothing for repetitions not yet dispatched.
-  Completed crafts are always kept.
-- Craft station art is a **seam, not a shipment**: the stage renders the
-  profession's working loop only where one exists, and smithing/cooking
-  loops have not been generated. Today those crafts show the bar alone.
+- The craft queue is **ephemeral**, unlike gathering's durable
+  `GameState.activityQueue`: a force-quit *mid-queue* grants nothing and
+  consumes nothing for the repetition in flight, and a relaunch starts with
+  no craft queue. Deliberate, and safe because crafting costs no steps —
+  reasoning in *Owner correction round* below and in `craft_controller.dart`.
+  Completed repetitions are always kept.
+- A craft profession with **no authored working loop** renders the progress
+  bar alone. Smithing and cooking ship loops and stations; anything beyond
+  those two crafts falls back until its loop is generated.
 
 **COSMETIC**
 - The Stonefall adit reads "a mine or a mountain outpost" from pixels alone;
@@ -249,3 +268,92 @@ down what you saw.
   other grass tones — reads as a biome, detectable as a treated region.
 - Blind QA's incidental finding, on record for a future node round: the
   shipped **Tin Seam** vignette's first blind read was "a giant cookie".
+
+---
+
+## Owner correction round (2026-08-21, after the first hand-off)
+
+The owner reviewed the hand-off report and returned two corrections. Both are
+inside this milestone; neither is a new workstream.
+
+### 1. Craft background semantics — CORRECTED, and the owner was right
+
+**The defect.** The first implementation's `_fastForward` dispatched *every*
+remaining repetition the moment the app was backgrounded, with no reference
+to elapsed time. That made Home an instant **Skip Queue** button. It
+contradicted `DECISIONS/0022` §6, which requires reconciliation to compute
+how many whole repetitions the elapsed time completed and to commit only
+those. The report's phrase "fast-forwards the remainder" described it
+accurately; the behaviour itself was wrong.
+
+**The correction.** `CraftController` now carries a wall-clock **anchor** for
+the repetition in flight and mirrors the gathering queue:
+
+- backgrounding cancels only the foreground boundary timer; the anchor stays
+  and elapsed time keeps accruing against it. **Backgrounding commits
+  nothing.**
+- resuming reconciles: it commits only whole elapsed repetitions, clamped to
+  the requested count, and advances the anchor by exactly the completions it
+  commits — so a second reconcile with no further time commits nothing.
+- a backward clock yields zero due repetitions and never strands the queue.
+- Cancel settles per `DECISIONS/0022` §7: fully-elapsed repetitions commit,
+  the partial one is discarded with the remainder.
+- the partial repetition consumes and grants nothing, because nothing is
+  consumed until its boundary command commits.
+
+**Force-quit, explicitly.** The craft queue is **ephemeral**, unlike
+gathering's durable `GameState.activityQueue` (v6). The difference is
+deliberate and the reason is asymmetric risk: a gather completion *spends
+banked steps* the player committed, so a killed process must not lose them;
+crafting costs no steps, so a run that dies grants nothing and consumes
+nothing for repetitions that had not committed, while every repetition that
+did commit is already atomically on disk. Nothing is owed and nothing is
+lost, so no schema addition is warranted (brief §56). A relaunch therefore
+starts with no craft queue, by design.
+
+**Still no second P-4 exception.** P-4 forbids time standing in for movement.
+Crafting is free and instant in the domain — ten taps make ten planks at zero
+step cost — so the queue's clock cannot unlock anything those taps could not
+already produce. Time is a brake on presentation, never an engine of
+production. `DECISIONS/0022`'s exception exists because gathering's
+completions spend steps; there is no equivalent claim here.
+
+**Proof.** `test/craft_flow_test.dart`, ten cases, including: backgrounding
+commits nothing and the resume commits exactly the one elapsed repetition; an
+hour away completes the requested count *and no more*; repeated
+pause/resume with no elapsed time commits nothing; a backward clock commits
+nothing; cancel commits the fully-elapsed repetition only; a dead process
+grants nothing further and the committed craft survives a reload.
+**Mutation-checked**: reverting the due-count to "everything" fails three of
+them.
+
+### 2. Craft visual shipment — SHIPPED
+
+Bar-only crafting is gone for both craft classes the progression slice
+exercises. Eight PixelLab generations: two accepted loops (smithing, cooking),
+two accepted station props (forge, cookfire), four rejected candidates kept as
+evidence. Full provenance, the blind-QA verdicts and the minors on record:
+`GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/out/craft/README.md`.
+
+Reuse is by profession, not by recipe: one Traveler loop and one station per
+craft skill, selected by the recipe's skill id, so every smithing recipe
+shares one loop and every cooking recipe shares the other. Completion still
+transitions into the existing tiered reveal.
+
+**The defect this round found**, and it is the one worth carrying: the station
+was first passed to `AmbientStage`'s scenery slot, which places a node
+vignette far-left and raised. Correct for "this figure, at this place"; wrong
+for "this figure, working on this thing" — the Traveler swung at empty air
+with the anvil a screen away. Nothing in the widget tree was wrong and no
+assertion about widgets could have seen it; the in-context composite showed it
+immediately. The craft screen now places the station on the figure's own
+ground line, immediately in front of him, from the same `AmbientStageLayout`
+the figure is placed by. `test/goldens/craft_stage.png` is the regression
+witness.
+
+**Known issue superseded.** The hand-off listed "craft station art is a seam,
+not a shipment" and the background fast-forward as accepted behaviours. Both
+are now resolved; the fast-forward entry is withdrawn and replaced by the
+anchor semantics above, and the seam entry is withdrawn — the loops ship. A
+profession with no authored loop still renders the bar alone, which is now a
+genuine fallback rather than the shipped state.

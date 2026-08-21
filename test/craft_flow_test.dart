@@ -1,5 +1,5 @@
 /// The timed craft flow's safety proof (PRESENTATION_WORLD_REWARD_FEEL_01
-/// §55): partial completion, cancellation, background fast-forward, refusal,
+/// §55): partial completion, cancellation, background/resume reconciliation,
 /// and exactly-once ingredient/output/XP accounting.
 ///
 /// The `CraftController` is presentation over the unchanged instant
@@ -87,7 +87,10 @@ void main() {
       final ActionReport r = await session.gather(kNode);
       expect(r.succeeded, isTrue, reason: '${r.rejection}');
     }
-    expect(session.inventoryCount(kHerb), herbs);
+    // Gathering rolls deterministic per-index yield bonuses (EPL01), so
+    // N gathers can yield more than N herbs. Tests below work in deltas
+    // off the real starting count rather than assuming the loop count.
+    expect(session.inventoryCount(kHerb), greaterThanOrEqualTo(herbs));
 
     final SessionController sessions = SessionController(session);
     final CraftController craft = CraftController(
@@ -185,8 +188,8 @@ void main() {
     expect(session.inventoryCount(kBroth), 1);
   });
 
-  test('backgrounding fast-forwards the remainder, each engine-validated',
-      () async {
+  test('backgrounding is NOT a completion trigger; the resume reconciles '
+      'only what legitimately elapsed', () async {
     final (
       StrideSession session,
       _,
@@ -195,18 +198,175 @@ void main() {
     ) = await boot(herbs: 6);
 
     craft.start(brothOf(session), 3);
-    fake.advance(CraftDurations.food);
-    await until(() => craft.completed == 1);
 
-    // The player pockets the phone: the theatre ends, the crafts land now
-    // (§55 — a queue never requires the app to stay open).
+    // Go to the background one second into the first repetition. NOTHING
+    // may commit: the earlier revision dispatched the whole remainder here,
+    // which made Home a Skip Queue button (`DECISIONS/0022` §6).
+    fake.advance(const Duration(seconds: 1));
     craft.didChangeAppLifecycleState(AppLifecycleState.paused);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(craft.completed, 0, reason: 'backgrounding completed a craft');
+    expect(session.inventoryCount(kHerb), 6);
+    expect(session.inventoryCount(kBroth), 0);
+
+    // Three more seconds pass in the pocket — with NO timers running, which
+    // is what `elapseInBackground` models. One repetition (4 s food pacing)
+    // has now legitimately finished; the second has not.
+    fake.elapseInBackground(const Duration(seconds: 3));
+    expect(craft.completed, 0, reason: 'a suspended process runs nothing');
+
+    // Resume: exactly the one finished repetition commits.
+    craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => craft.completed == 1);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(craft.completed, 1, reason: 'only the elapsed repetition landed');
+    expect(session.inventoryCount(kHerb), 4);
+    expect(session.inventoryCount(kBroth), 1);
+    expect(craft.active, isTrue, reason: 'the queue is still running');
+  });
+
+  test('a long background absence completes the queue and no more', () async {
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 20);
+
+    final int startHerbs = session.inventoryCount(kHerb);
+    craft.start(brothOf(session), 3);
+    craft.didChangeAppLifecycleState(AppLifecycleState.paused);
+    // An hour away: far more elapsed time than the queue needs. The clamp is
+    // the requested count — time can never produce unbounded output.
+    fake.elapseInBackground(const Duration(hours: 1));
+    craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => !craft.active);
-    expect(craft.completed, 3);
-    expect(session.inventoryCount(kHerb), 0);
+
+    expect(craft.completed, 3, reason: 'exactly the requested count');
+    expect(session.inventoryCount(kBroth), 3);
+    expect(
+      session.inventoryCount(kHerb),
+      startHerbs - 6,
+      reason: 'three broths consumed exactly two herbs each',
+    );
+
+    // And more time still produces nothing: the run is over.
+    fake.advance(const Duration(hours: 1));
+    await Future<void>.delayed(const Duration(milliseconds: 120));
     expect(session.inventoryCount(kBroth), 3);
   });
 
+  test('a second reconcile with no elapsed time commits nothing', () async {
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 8);
+
+    craft.start(brothOf(session), 4);
+    fake.advance(CraftDurations.food);
+    await until(() => craft.completed == 1);
+
+    // Two resumes in a row, no time between them: the anchor already moved
+    // by exactly the committed repetition, so the due count is zero and
+    // nothing lands. Exactly-once is the arithmetic, not the timers.
+    craft.didChangeAppLifecycleState(AppLifecycleState.paused);
+    craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    craft.didChangeAppLifecycleState(AppLifecycleState.paused);
+    craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    expect(craft.completed, 1);
+    expect(session.inventoryCount(kBroth), 1);
+    expect(session.inventoryCount(kHerb), 6);
+  });
+
+  test('a backward clock commits nothing and does not strand the queue',
+      () async {
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 6);
+
+    craft.start(brothOf(session), 2);
+    fake.rewind(const Duration(minutes: 5));
+    craft.didChangeAppLifecycleState(AppLifecycleState.paused);
+    craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(craft.completed, 0, reason: 'negative elapsed commits nothing');
+    expect(session.inventoryCount(kHerb), 6);
+
+    // The clock catching back up resolves it normally.
+    fake.elapseInBackground(const Duration(minutes: 5) + CraftDurations.food);
+    craft.didChangeAppLifecycleState(AppLifecycleState.paused);
+    craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await until(() => craft.completed >= 1);
+    expect(session.inventoryCount(kBroth), greaterThanOrEqualTo(1));
+  });
+
+  test('cancel commits what fully elapsed and discards the partial one',
+      () async {
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 8);
+
+    craft.start(brothOf(session), 4);
+    // One full repetition plus a fraction, with no boundary timer having
+    // fired — the clock moved while nothing was scheduled.
+    fake.elapseInBackground(CraftDurations.food + const Duration(seconds: 1));
+
+    craft.stop();
+    await until(() => !craft.active);
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+
+    // `DECISIONS/0022` §7: the fully-elapsed repetition commits, the
+    // partial one grants and consumes nothing.
+    expect(craft.completed, 1);
+    expect(session.inventoryCount(kBroth), 1);
+    expect(session.inventoryCount(kHerb), 6);
+
+    // Nothing further can land after the cancel.
+    fake.advance(const Duration(minutes: 10));
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    expect(session.inventoryCount(kBroth), 1);
+  });
+
+  test('a dropped controller (force quit) grants and consumes nothing more',
+      () async {
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 10);
+
+    final int startHerbs = session.inventoryCount(kHerb);
+    craft.start(brothOf(session), 5);
+    fake.advance(CraftDurations.food);
+    await until(() => craft.completed == 1);
+
+    // The process dies. `detached` is the last lifecycle state a dying app
+    // reports; after it nothing resumes, no timer fires, and there is no
+    // durable craft queue for a relaunch to reconcile — by design.
+    craft.didChangeAppLifecycleState(AppLifecycleState.detached);
+    fake.elapseInBackground(const Duration(hours: 2));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    // The one committed repetition is on disk; nothing else moved.
+    expect(session.inventoryCount(kBroth), 1);
+    expect(session.inventoryCount(kHerb), startHerbs - 2);
+
+    // And it survives a reload from disk — the commit was atomic.
+    await session.reload();
+    expect(session.inventoryCount(kBroth), 1);
+    expect(session.inventoryCount(kHerb), startHerbs - 2);
+  });
   test('a refused repetition stops the run truthfully and keeps the rest',
       () async {
     final (

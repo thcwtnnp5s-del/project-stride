@@ -260,6 +260,20 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_activity_smith` — 13 px of contact, 30..42.
+  static const SpriteFootprint ambientActivitySmith = SpriteFootprint(
+    left: 30,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_activity_cook` — 13 px of contact, 21..33.
+  static const SpriteFootprint ambientActivityCook = SpriteFootprint(
+    left: 21,
+    right: 33,
+    bottom: 62,
+  );
+
   /// `combat_traveler_combat_idle` — 12 px of contact, 28..39.
   static const SpriteFootprint combatTravelerCombatIdle = SpriteFootprint(
     left: 28,

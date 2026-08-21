@@ -799,9 +799,8 @@ const AF_COMBAT_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'combat');
 // corrected painting PASSED with all five playable locations blind-findable
 // and every seam CLEAN or VISIBLE-BUT-ACCEPTABLE. Full provenance in
 // `PRESENTATION_WORLD_REWARD_FEEL_01/out/world/README.md`.
-const PWRF_WORLD_SRC = path.join(
-  EXPLORE, 'PRESENTATION_WORLD_REWARD_FEEL_01', 'out', 'world',
-);
+const PWRF = path.join(EXPLORE, 'PRESENTATION_WORLD_REWARD_FEEL_01', 'out');
+const PWRF_WORLD_SRC = path.join(PWRF, 'world');
 {
   const master = png.load(
     path.join(PWRF_WORLD_SRC, 'atlas_master_688x384.png'),
@@ -941,7 +940,6 @@ for (const entry of eplManifest) {
  * and the blind-QA record in
  * `GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/out/nodes/README.md`.
  */
-const PWRF = path.join(EXPLORE, 'PRESENTATION_WORLD_REWARD_FEEL_01', 'out');
 const NODE_ART_PWRF = ['hardened_copper_seam'];
 for (const id of NODE_ART_PWRF) {
   const raster = png.load(path.join(PWRF, 'nodes', `node_${id}_96.png`));
@@ -949,6 +947,73 @@ for (const id of NODE_ART_PWRF) {
     throw new Error(`node_${id}_96: expected 96x96, got ${raster.width}x${raster.height}`);
   }
   emit(`node/${id}.png`, encode(raster));
+}
+
+
+// ------------------------------------- Presentation, World & Reward Feel 01
+
+/**
+ * CRAFT ACTIVITY LOOPS — the Traveler making something, west-facing, one
+ * loop per craft profession, and the two station props they work at
+ * (PRESENTATION_WORLD_REWARD_FEEL_01 §17).
+ *
+ * Same family and same rules as the gathering loops above: PixelLab
+ * `animate_character` v3 on the canonical Traveler, cropped here to a 64-row
+ * box with the feet on row 62 so a craft loop and a gather loop stand on the
+ * same ground line and the figure never jumps between them.
+ *
+ * The frame lists are the blind-QA frame selection, not the raw output. Both
+ * loops drop their leading reference frames, where the Traveler is empty
+ * handed: a working loop that starts without its tool and then pops one into
+ * frame reads as a glitch, and the loop only ever plays while a craft is
+ * actually running. Renumbered contiguously on emit.
+ *
+ * The stations are ×1 scenery, not figures — the same role the node
+ * vignettes play on the gathering stage.
+ */
+const PWRF_CRAFT_SRC = path.join(PWRF, 'craft');
+const CRAFT_LOOPS = {
+  activity_smith: {
+    src: 'smith4', frames: [2, 3, 4, 5, 6, 7, 8],
+    canvas: [88, 88], crop: { x: 6, y: 12, width: 74, height: 64 },
+  },
+  activity_cook: {
+    src: 'cook', frames: [2, 3, 4, 5, 6, 7, 8],
+    canvas: [88, 88], crop: { x: 15, y: 12, width: 46, height: 64 },
+  },
+};
+for (const [id, spec] of Object.entries(CRAFT_LOOPS)) {
+  spec.frames.forEach((srcIndex, outIndex) => {
+    const frame = png.load(
+      path.join(PWRF_CRAFT_SRC, `${spec.src}_f${srcIndex}.png`),
+    );
+    if (frame.width !== spec.canvas[0] || frame.height !== spec.canvas[1]) {
+      throw new Error(
+        `${spec.src}_f${srcIndex}: expected ${spec.canvas[0]}x${spec.canvas[1]}, ` +
+        `got ${frame.width}x${frame.height}`,
+      );
+    }
+    const cut = png.crop(
+      frame, spec.crop.x, spec.crop.y, spec.crop.width, spec.crop.height,
+    );
+    if (outIndex === 0) ambientFootprints[`ambient_${id}`] = png.footprint(cut);
+    emit(`ambient/${id}_f${outIndex}.png`, encode(cut));
+  });
+}
+// The stations are authored 64 x 48 and shipped on a 64-square canvas,
+// bottom-aligned: `StageScenery` places scenery by one native edge, so a
+// non-square prop would be drawn into a square box and stretched. Padding
+// with transparent rows is a lossless deterministic transform (`RULES.md`
+// A-2) and keeps the measured bounds honest — they simply shift down by the
+// pad.
+for (const id of ['station_forge', 'station_cookfire']) {
+  const raster = png.load(path.join(PWRF_CRAFT_SRC, `${id}_64x48.png`));
+  if (raster.width !== 64 || raster.height !== 48) {
+    throw new Error(`${id}: expected 64x48, got ${raster.width}x${raster.height}`);
+  }
+  const square = new png.Raster(64, 64);
+  png.blit(square, raster, 0, 16);
+  emit(`node/${id}.png`, encode(square));
 }
 
 // -------------------------------------------------------- footprint metrics
