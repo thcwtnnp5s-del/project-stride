@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
+import 'package:stride/ui/components/screen_header.dart' show formatSteps;
 import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layers.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
@@ -269,29 +270,61 @@ void main() {
     expect(find.textContaining('more steps'), findsNothing);
   });
 
-  testWidgets('a place with no road from here is described, not offered', (
+  testWidgets('a place two roads off is offered as one whole journey (B-2)', (
     WidgetTester tester,
   ) async {
     final StrideSession session = await boot(tester, banked: 50000);
-    await pumpWorld(tester, session);
+    final SessionController controller = await pumpWorld(tester, session);
 
     await select(tester, 'location.frostmere');
-    // No Travel control — the "Set as Journey" secondary control may stand,
-    // because a multi-leg journey is exactly what the Journey slot is for.
-    expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
-    // The whole journey and the leg the button would charge, from the content
-    // pack's own costs: Haven → Stonefall Mine 1,400, Mine → Frostmere 3,000.
+    // The whole journey, priced whole, from the content pack's own costs:
+    // Haven → Stonefall Mine 1,400, Mine → Frostmere 3,000.
+    expect(
+      find.text('By way of Stonefall Mine · 4,400 steps in all'),
+      findsOneWidget,
+    );
+    // And it is offered — one Travel control for the whole walk.
+    final Finder button = find.widgetWithText(StrideButton, 'Travel');
+    expect(button, findsOneWidget);
+    expect((tester.widget(button) as StrideButton).onPressed, isNotNull);
+
+    // The confirmation quotes the whole way's price and what it leaves.
+    final int before = session.usableEnergy;
+    await tester.tap(button);
+    await tester.pumpAndSettle();
     expect(
       find.text(
-        'By way of Stonefall Mine · 4,400 steps in all, 1,400 for the '
-        'first leg',
+        'By way of Stonefall Mine · 4,400 steps in all · leaves '
+        '${formatSteps(before - 4400)} banked',
       ),
       findsOneWidget,
     );
 
-    // Two roads away the other direction: the way names the place between.
+    // Walk it (dispatched under runAsync, as every real travel in this file
+    // is — the commit is real file IO): both legs commit, the charge is the
+    // journey's 4,400 — and the arrival line names the journey total with
+    // the final leg distinguished, never the last leg presented as the trip.
+    await tester.runAsync(
+      () => controller.travelJourney(<ContentId>[
+        ContentId.unchecked('location.stonefall_mine'),
+        ContentId.unchecked('location.frostmere'),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    expect(session.usableEnergy, before - 4400);
+    expect(session.currentLocation?.value, 'location.frostmere');
+    expect(
+      find.textContaining('4,400-step journey (final leg 3,000)'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the way names the place between, both directions', (
+    WidgetTester tester,
+  ) async {
+    final StrideSession session = await boot(tester, banked: 50000);
+    await pumpWorld(tester, session);
     await select(tester, 'location.forgotten_hollow');
-    expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
     expect(find.textContaining('By way of Whispering Woods'), findsOneWidget);
   });
 

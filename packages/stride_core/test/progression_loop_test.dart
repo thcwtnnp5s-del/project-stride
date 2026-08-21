@@ -387,6 +387,86 @@ void main() {
       expect(reloaded.progress.tracked.journey, frostmere);
       expect(reloaded.progress.tracked.pursuit, bronzeSword);
     });
+
+    // PRESENTATION_WORLD_REWARD_FEEL_01 B-1. A tracked rotating contract used
+    // to survive its own completion: the deck rotated, the tracked ContentId
+    // stayed, and the tracker silently showed a fresh 0/x instance of the
+    // contract the player just finished.
+    test('completing the tracked contract clears the slot, exactly', () {
+      final GameEngine engine = playerAt(
+        haven,
+        items: <ContentId, int>{meadowHerb: 7},
+      );
+      engine.execute(TrackGoal(slot: GoalSlot.journey, target: frostmere));
+      engine.execute(TrackGoal(slot: GoalSlot.pursuit, target: bronzeSword));
+      engine.execute(
+        TrackGoal(slot: GoalSlot.contract, target: herbalSupplies),
+      );
+
+      final EngineResult r = engine.execute(
+        CompleteContract(contract: herbalSupplies),
+      );
+      expect(r.isAccepted, isTrue, reason: '${r.rejection}');
+
+      // The completed contract is no longer tracked — not re-pointed at the
+      // rotation's fresh instance — and the other slots are untouched.
+      expect(engine.state.progress.tracked.contract, isNull);
+      expect(engine.state.progress.tracked.journey, frostmere);
+      expect(engine.state.progress.tracked.pursuit, bronzeSword);
+    });
+
+    test('completing an untracked contract leaves the slot alone', () {
+      final GameEngine engine = playerAt(
+        haven,
+        items: <ContentId, int>{meadowHerb: 7},
+      );
+      engine.execute(TrackGoal(slot: GoalSlot.contract, target: mill));
+      expect(
+        engine.execute(CompleteContract(contract: herbalSupplies)).isAccepted,
+        isTrue,
+      );
+      expect(engine.state.progress.tracked.contract, mill);
+    });
+
+    test('a tracked project clears on completion, never on a stage', () {
+      final GameEngine engine = playerAt(
+        haven,
+        items: <ContentId, int>{
+          oakPlank: 12,
+          bronzeIngot: 4,
+          oakLog: 30,
+          herbBroth: 3,
+        },
+      );
+      engine.execute(TrackGoal(slot: GoalSlot.contract, target: mill));
+
+      // Stage 1 completes — the project is still live work, still tracked.
+      engine.execute(
+        ContributeToProject(
+          project: mill,
+          contributions: <ContentId, int>{oakPlank: 12},
+        ),
+      );
+      expect(engine.state.progress.tracked.contract, mill);
+
+      engine.execute(
+        ContributeToProject(
+          project: mill,
+          contributions: <ContentId, int>{bronzeIngot: 4},
+        ),
+      );
+      final EngineResult done = engine.execute(
+        ContributeToProject(
+          project: mill,
+          contributions: <ContentId, int>{oakLog: 6, herbBroth: 3},
+        ),
+      );
+      expect(
+        (done.events.single as ProjectContributed).projectCompleted,
+        isTrue,
+      );
+      expect(engine.state.progress.tracked.contract, isNull);
+    });
   });
 
   group('§82 — contracts', () {

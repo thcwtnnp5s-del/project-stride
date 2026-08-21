@@ -32,6 +32,7 @@ import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_place_info.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_selection_panel.dart';
+import 'package:stride/ui/state/session_controller.dart' show JourneySummary;
 import 'package:stride_core/stride_core.dart'
     show ContentId, LocationKind, Terrain;
 
@@ -73,20 +74,16 @@ AtlasPlaceInfo _info({
   encounters: encounters,
 );
 
-TravelOption _option({
-  int cost = 800,
-  bool affordable = true,
-  List<String> missing = const <String>[],
-}) => TravelOption(
-  id: _id('mine'),
-  displayName: 'Stonefall Mine',
-  terrain: Terrain.foothills,
-  stepCost: cost,
-  isReached: true,
-  affordable: affordable,
-  missingRequirements: missing,
-  resourceCount: 2,
-);
+/// A direct road to Stonefall Mine at [cost].
+AtlasWay _direct({int cost = 800}) {
+  final AtlasNode mine = _node('stonefall_mine', 'Stonefall Mine');
+  return AtlasWay(
+    hops: <AtlasNode>[mine],
+    edges: <AtlasEdge>[],
+    totalCost: cost,
+    firstLegCost: cost,
+  );
+}
 
 /// A two-leg walk: here → Stonefall Mine → Frostmere, 800 then 1,500.
 AtlasWay _twoLegs() {
@@ -105,10 +102,11 @@ Future<void> pumpInspector(
   required AtlasPlaceInfo info,
   String name = 'Stonefall Mine',
   AtlasWay? way,
-  TravelOption? option,
+  List<String> missingEntry = const <String>[],
   int banked = 50000,
   bool busy = false,
   bool ready = true,
+  JourneySummary? lastJourney,
   VoidCallback? onTravel,
 }) async {
   tester.view.physicalSize = const Size(393 * 3, 852 * 3);
@@ -123,11 +121,11 @@ Future<void> pumpInspector(
             name: name,
             info: info,
             way: way,
-            option: option,
+            missingEntry: missingEntry,
             banked: banked,
             busy: busy,
             ready: ready,
-            lastTravel: null,
+            lastJourney: lastJourney,
             onTravel: onTravel ?? () {},
           ),
         ),
@@ -283,22 +281,11 @@ void main() {
     testWidgets('a direct road quotes the one price', (
       WidgetTester tester,
     ) async {
-      final AtlasNode mine = _node('stonefall_mine', 'Stonefall Mine');
-      await pumpInspector(
-        tester,
-        info: _info(),
-        option: _option(),
-        way: AtlasWay(
-          hops: <AtlasNode>[mine],
-          edges: <AtlasEdge>[],
-          totalCost: 600,
-          firstLegCost: 600,
-        ),
-      );
+      await pumpInspector(tester, info: _info(), way: _direct(cost: 600));
       expect(find.text('Road from here · 600 steps'), findsOneWidget);
     });
 
-    testWidgets('two roads off quotes the total and the first leg', (
+    testWidgets('two roads off quotes the whole way, and offers it', (
       WidgetTester tester,
     ) async {
       await pumpInspector(
@@ -308,14 +295,19 @@ void main() {
         way: _twoLegs(),
       );
       expect(
-        find.text(
-          'By way of Stonefall Mine · 2,300 steps in all, 800 for the '
-          'first leg',
-        ),
+        find.text('By way of Stonefall Mine · 2,300 steps in all'),
         findsOneWidget,
       );
-      // Described, not offered: no road from here means no control.
-      expect(find.byType(StrideButton), findsNothing);
+      // The whole journey is offered as one decision (B-2): the button is
+      // there, and its confirmation quotes the way and the total.
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsOneWidget);
+    });
+
+    testWidgets('a place no road chain reaches gets no control', (
+      WidgetTester tester,
+    ) async {
+      await pumpInspector(tester, info: _info(), way: null);
+      expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
     });
 
     test('says so plainly when no chain of roads reaches it', () {
@@ -341,7 +333,7 @@ void main() {
       await pumpInspector(
         tester,
         info: _info(),
-        option: _option(),
+        way: _direct(),
         onTravel: () => taps++,
       );
       final Finder button = find.widgetWithText(StrideButton, 'Travel');
@@ -365,7 +357,7 @@ void main() {
       await pumpInspector(
         tester,
         info: _info(),
-        option: _option(),
+        way: _direct(),
         onTravel: () => taps++,
       );
       await tester.tap(find.widgetWithText(StrideButton, 'Travel'));
@@ -377,6 +369,33 @@ void main() {
       expect(find.widgetWithText(StrideButton, 'Travel'), findsOneWidget);
     });
 
+    testWidgets('the confirmation quotes the whole journey and its way', (
+      WidgetTester tester,
+    ) async {
+      int taps = 0;
+      await pumpInspector(
+        tester,
+        name: 'Frostmere',
+        info: _info(kind: AtlasPlaceKind.perilous, terrain: 'Alpine'),
+        way: _twoLegs(),
+        banked: 3000,
+        onTravel: () => taps++,
+      );
+      await tester.tap(find.widgetWithText(StrideButton, 'Travel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Set out for Frostmere?'), findsOneWidget);
+      // The whole way's price, the way itself, and the balance it leaves —
+      // never the first leg presented as the trip (B-2).
+      expect(
+        find.text(
+          'By way of Stonefall Mine · 2,300 steps in all · leaves 700 banked',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.widgetWithText(StrideButton, 'Set out'));
+      expect(taps, 1);
+    });
+
     testWidgets('states the requirement before the price, and disables', (
       WidgetTester tester,
     ) async {
@@ -385,10 +404,8 @@ void main() {
         info: _info(),
         // Both refusals at once: the engine checks the requirement first, so
         // that is the sentence the panel must show.
-        option: _option(
-          affordable: false,
-          missing: const <String>['Bronze Sword'],
-        ),
+        way: _direct(),
+        missingEntry: const <String>['Bronze Sword'],
         banked: 100,
       );
       expect(find.text('Needs Bronze Sword'), findsOneWidget);
@@ -400,12 +417,7 @@ void main() {
     testWidgets('says how far short the player is when only the price bites', (
       WidgetTester tester,
     ) async {
-      await pumpInspector(
-        tester,
-        info: _info(),
-        option: _option(affordable: false),
-        banked: 100,
-      );
+      await pumpInspector(tester, info: _info(), way: _direct(), banked: 100);
       expect(find.text('Walk 700 more steps'), findsOneWidget);
       final Finder button = find.widgetWithText(StrideButton, 'Travel');
       expect((tester.widget(button) as StrideButton).onPressed, isNull);
@@ -414,22 +426,106 @@ void main() {
     testWidgets('is disabled while the session is busy or not ready', (
       WidgetTester tester,
     ) async {
-      await pumpInspector(tester, info: _info(), option: _option(), busy: true);
+      await pumpInspector(tester, info: _info(), way: _direct(), busy: true);
       expect(
         (tester.widget(find.byType(StrideButton)) as StrideButton).onPressed,
         isNull,
       );
       expect(find.text('Travelling…'), findsOneWidget);
 
-      await pumpInspector(
-        tester,
-        info: _info(),
-        option: _option(),
-        ready: false,
-      );
+      await pumpInspector(tester, info: _info(), way: _direct(), ready: false);
       expect(
         (tester.widget(find.byType(StrideButton)) as StrideButton).onPressed,
         isNull,
+      );
+    });
+  });
+
+  group('the arrival line (B-2)', () {
+    JourneySummary summary({
+      bool succeeded = true,
+      int totalSpent = 4400,
+      int finalLegCost = 3000,
+      int legsCompleted = 2,
+      int legsPlanned = 2,
+      bool firstVisit = false,
+      TravelReport? failure,
+      String arrivedName = 'Frostmere',
+    }) => JourneySummary(
+      succeeded: succeeded,
+      destinationName: 'Frostmere',
+      arrivedName: arrivedName,
+      totalSpent: totalSpent,
+      finalLegCost: finalLegCost,
+      legsCompleted: legsCompleted,
+      legsPlanned: legsPlanned,
+      firstVisit: firstVisit,
+      failure: failure,
+    );
+
+    testWidgets('a multi-leg arrival names the journey total, not the leg', (
+      WidgetTester tester,
+    ) async {
+      await pumpInspector(
+        tester,
+        info: _info(),
+        lastJourney: summary(firstVisit: true),
+      );
+      expect(
+        find.text(
+          'Arrived at Frostmere for the first time · 4,400-step journey '
+          '(final leg 3,000)',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a direct arrival keeps the plain single figure', (
+      WidgetTester tester,
+    ) async {
+      await pumpInspector(
+        tester,
+        info: _info(),
+        lastJourney: summary(
+          totalSpent: 800,
+          finalLegCost: 800,
+          legsCompleted: 1,
+          legsPlanned: 1,
+          arrivedName: 'Stonefall Mine',
+        ),
+      );
+      expect(
+        find.text('Arrived at Stonefall Mine · 800 steps'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a walk stopped mid-way says where, why, and what it spent', (
+      WidgetTester tester,
+    ) async {
+      await pumpInspector(
+        tester,
+        info: _info(),
+        lastJourney: summary(
+          succeeded: false,
+          totalSpent: 1400,
+          finalLegCost: 1400,
+          legsCompleted: 1,
+          arrivedName: 'Stonefall Mine',
+          failure: const TravelReport(
+            succeeded: false,
+            destinationName: 'Frostmere',
+            cost: 0,
+            rejection: 'insufficient_steps',
+          ),
+        ),
+      );
+      expect(
+        find.text(
+          'Stopped at Stonefall Mine — Not enough banked steps for that '
+          'journey. (1,400 steps walked)',
+        ),
+        findsOneWidget,
       );
     });
   });

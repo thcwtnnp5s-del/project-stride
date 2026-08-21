@@ -357,6 +357,12 @@ abstract final class AmbientAssets {
       assetPath: '$_art/node/tin_seam.png',
       bounds: SpriteBounds(left: 2, top: 6, right: 93, bottom: 90),
     ),
+    // PRESENTATION_WORLD_REWARD_FEEL_01 B-3 — the node RCP01 shipped without
+    // stage art. Bounds measured by Scripts/art/png.js on the accepted plate.
+    '$_art/node/hardened_copper_seam.png': StageScenery(
+      assetPath: '$_art/node/hardened_copper_seam.png',
+      bounds: SpriteBounds(left: 10, top: 11, right: 79, bottom: 90),
+    ),
     '$_art/node/rimefrost_hollow.png': StageScenery(
       assetPath: '$_art/node/rimefrost_hollow.png',
       bounds: SpriteBounds(left: 2, top: 5, right: 93, bottom: 91),

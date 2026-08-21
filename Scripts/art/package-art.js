@@ -912,6 +912,26 @@ for (const entry of eplManifest) {
   emit(`item/${entry.id}.png`, encode(raster));
 }
 
+// ------------------------------------- Presentation, World & Reward Feel 01
+
+/**
+ * The Hardened Copper Seam node vignette (PRESENTATION_WORLD_REWARD_FEEL_01
+ * B-3): the one gather node REGIONAL_CONTENT_PACK_01 shipped without stage
+ * art, so its activity stage rendered empty on the owner's device. Same
+ * 96 × 96 transparent node family and rules as NODE_ART above; provenance
+ * and the blind-QA record in
+ * `GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/out/nodes/README.md`.
+ */
+const PWRF = path.join(EXPLORE, 'PRESENTATION_WORLD_REWARD_FEEL_01', 'out');
+const NODE_ART_PWRF = ['hardened_copper_seam'];
+for (const id of NODE_ART_PWRF) {
+  const raster = png.load(path.join(PWRF, 'nodes', `node_${id}_96.png`));
+  if (raster.width !== 96 || raster.height !== 96) {
+    throw new Error(`node_${id}_96: expected 96x96, got ${raster.width}x${raster.height}`);
+  }
+  emit(`node/${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

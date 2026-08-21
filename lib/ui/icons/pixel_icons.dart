@@ -252,6 +252,8 @@ abstract final class PixelIcons {
     'resource_node.duskcap_grove': '$_art/node/duskcap_grove.png',
     'resource_node.copper_seam': '$_art/node/copper_seam.png',
     'resource_node.tin_seam': '$_art/node/tin_seam.png',
+    'resource_node.hardened_copper_seam':
+        '$_art/node/hardened_copper_seam.png',
     'resource_node.rimefrost_hollow': '$_art/node/rimefrost_hollow.png',
     'resource_node.frostpine_stand': '$_art/node/frostpine_stand.png',
     'resource_node.hollow_thicket': '$_art/node/hollow_thicket.png',

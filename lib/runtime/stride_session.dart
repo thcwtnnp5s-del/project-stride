@@ -3405,6 +3405,26 @@ final class StrideSession {
     return options;
   }
 
+  /// Entry requirements [location] declares that the player does not hold,
+  /// by display name. Empty when the way is open or the place is unknown.
+  ///
+  /// The same check `TravelTo` makes at the door, asked ahead of time so a
+  /// multi-leg journey can warn before its final leg rather than stranding
+  /// the player one road short. A hint, never the authority (`RULES.md` E-2):
+  /// the engine re-validates on every leg's execute.
+  List<String> missingEntryRequirementsFor(ContentId location) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const <String>[];
+    final LocationDefinition? place = content.locations[location];
+    if (place == null) return const <String>[];
+    return <String>[
+      for (final ContentId item in place.entryRequirements)
+        if (!active.state.inventory.has(item))
+          content.items[item]?.displayName ?? item.value,
+    ];
+  }
+
   /// Every recipe in the content pack, with every reason it can or cannot be
   /// made right now.
   ///
@@ -3569,6 +3589,11 @@ final class StrideSession {
       registry?.skills[id]?.displayName ??
       registry?.resourceNodes[id]?.displayName ??
       id.value;
+
+  /// The display name of [location], or null when the pack does not define
+  /// it. The nullable public face of the same lookup [travel]'s reports use.
+  String? locationNameOf(ContentId location) =>
+      registry?.locations[location]?.displayName;
 
   /// The refusal, when the bootstrap was blocked. Null on a started game.
   ///

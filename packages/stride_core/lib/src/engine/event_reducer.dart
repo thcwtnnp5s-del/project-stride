@@ -484,6 +484,18 @@ final class EventReducer {
     final List<ContentId>? slots = event.rotatedSlots;
     final int? next = event.rotatedNext;
 
+    // A completed contract leaves the tracker. Without this, a tracked
+    // rotating local need or re-acceptable bounty silently re-points at the
+    // fresh instance of the same contract — the owner's device found "Wolf
+    // Problem" complete and the tracker reading "Forest Wolf defeated 0/3"
+    // (PRESENTATION_WORLD_REWARD_FEEL_01 B-1). Clearing is information-only:
+    // tracking never reserves or spends anything (`RULES.md` P-9), and the
+    // completion's own presentation is the board's held result panel.
+    final TrackedGoals tracked = state.progress.tracked.contract ==
+            event.contract
+        ? state.progress.tracked.setting(GoalSlot.contract, null)
+        : state.progress.tracked;
+
     return state.copyWith(
       inventory: inventory,
       skills: skills,
@@ -493,6 +505,7 @@ final class EventReducer {
         hp: state.player.hp,
       ),
       progress: state.progress.copyWith(
+        tracked: tracked,
         acceptedContracts: accepted,
         bountyProgress: bounty,
         contractCompletions: <ContentId, int>{
@@ -548,6 +561,17 @@ final class EventReducer {
       );
     }
 
+    // A fully completed project leaves the tracker, exactly as a completed
+    // contract does (B-1): the slot is information, the project cannot be
+    // contributed to again, and the completion's presentation is the major
+    // held panel. A stage completion keeps the tracking — the project is
+    // still live work.
+    final TrackedGoals tracked =
+        event.projectCompleted && state.progress.tracked.contract ==
+            event.project
+        ? state.progress.tracked.setting(GoalSlot.contract, null)
+        : state.progress.tracked;
+
     return state.copyWith(
       inventory: inventory,
       player: PlayerState(
@@ -556,6 +580,7 @@ final class EventReducer {
         hp: state.player.hp,
       ),
       progress: state.progress.copyWith(
+        tracked: tracked,
         projects: projects,
         completedProjects: completed,
         revealedRumors: event.revealedRumors.isEmpty

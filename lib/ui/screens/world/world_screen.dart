@@ -256,9 +256,9 @@ class _ListFallback extends StatelessWidget {
                       ),
                     for (final TravelOption option in s.destinations)
                       _DestinationRow(option: option),
-                    if (c.lastTravel != null) ...<Widget>[
+                    if (c.lastJourney != null) ...<Widget>[
                       const SizedBox(height: StrideSpace.s8),
-                      TravelResultLine(report: c.lastTravel!),
+                      TravelResultLine(journey: c.lastJourney!),
                     ],
                   ],
                 ),

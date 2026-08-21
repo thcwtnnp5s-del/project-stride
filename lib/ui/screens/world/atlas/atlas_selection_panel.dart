@@ -35,7 +35,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show Terrain;
+import 'package:stride_core/stride_core.dart' show ContentId, Terrain;
 
 import '../../../../runtime/stride_session.dart';
 import '../../../components/adaptive_text.dart';
@@ -74,21 +74,29 @@ class AtlasSelectionPanel extends StatelessWidget {
     final SessionController watched = SessionScope.of(context);
     final SessionController controller = SessionScope.read(context);
     final RegionPlace place = selected.place;
-    final TravelOption? option = scene.optionFor(place.id);
+    final AtlasWay? way = scene.routeSummary(place.id);
+
+    // Every hop of the walk, in order — the journey the Travel button now
+    // dispatches whole (B-2). Each leg remains the same one-road engine
+    // command it always was; the panel merely stops pretending a two-leg
+    // walk is two separate decisions with two separate prices.
+    final List<ContentId> legs = way == null
+        ? const <ContentId>[]
+        : <ContentId>[for (final AtlasNode hop in way.hops) hop.place.id];
 
     return AtlasInspector(
       name: place.displayName,
       info: AtlasPlaceInfo.from(watched.session, place),
-      way: scene.routeSummary(place.id),
-      option: option,
+      way: way,
+      missingEntry: watched.session.missingEntryRequirementsFor(place.id),
       banked: watched.session.usableEnergy,
       busy: watched.busy,
       ready: watched.session.isReady,
-      lastTravel: watched.lastTravel,
-      onTravel: option == null
+      lastJourney: watched.lastJourney,
+      onTravel: legs.isEmpty
           ? null
           : () {
-              controller.travel(option.id);
+              controller.travelJourney(legs);
               onTravelled();
             },
       // The Journey slot (`DECISIONS/0023` §1): any place but *here* can be
@@ -131,11 +139,11 @@ class AtlasInspector extends StatelessWidget {
     required this.name,
     required this.info,
     required this.way,
-    required this.option,
+    required this.missingEntry,
     required this.banked,
     required this.busy,
     required this.ready,
-    required this.lastTravel,
+    required this.lastJourney,
     required this.onTravel,
     this.onTrackJourney,
   });
@@ -147,13 +155,15 @@ class AtlasInspector extends StatelessWidget {
   /// *is* here, or when no chain of roads reaches it.
   final AtlasWay? way;
 
-  /// The journey the session offers, when a road runs here directly.
-  final TravelOption? option;
+  /// Entry requirements the destination declares that the player does not
+  /// hold, by name. A projection of the same check the engine makes at the
+  /// door — a hint used to disable, never the authority (`RULES.md` E-2).
+  final List<String> missingEntry;
 
   final int banked;
   final bool busy;
   final bool ready;
-  final TravelReport? lastTravel;
+  final JourneySummary? lastJourney;
 
   /// Dispatches the journey. Null when there is nothing to dispatch.
   final VoidCallback? onTravel;
@@ -161,12 +171,22 @@ class AtlasInspector extends StatelessWidget {
   /// Tracks this place in the Journey slot. Null for *here*.
   final VoidCallback? onTrackJourney;
 
+  /// The one sentence explaining a closed journey, in the engine's own
+  /// refusal order: the requirement first, then the price.
+  String? get _refusal {
+    if (way == null) return null;
+    if (missingEntry.isNotEmpty) return 'Needs ${missingEntry.join(', ')}';
+    if (way!.totalCost > banked) {
+      return 'Walk ${formatSteps(way!.totalCost - banked)} more steps';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String? refusal = option == null
-        ? null
-        : AtlasSelectionPanel.subtitleFor(option!, banked);
-    final bool open = option != null && option!.canTravel && !busy && ready;
+    final String? refusal = _refusal;
+    final bool open =
+        way != null && refusal == null && !busy && ready && onTravel != null;
 
     return SectionCard(
       child: Column(
@@ -189,18 +209,20 @@ class AtlasInspector extends StatelessWidget {
                   ],
                 ),
               ),
-              if (option case final TravelOption o) ...<Widget>[
+              if (way case final AtlasWay w) ...<Widget>[
                 const SizedBox(width: StrideSpace.s8),
                 // The step figure keeps the muted "steps as a unit" glyph. It
                 // is a price, still a quantity of steps rather than the
                 // player's own balance, and L-16's two-tone rule turns on
-                // exactly that distinction.
+                // exactly that distinction. The figure is the WHOLE way's
+                // cost — the journey the button now walks (B-2) — never the
+                // first leg presented as the trip.
                 const WalkingGlyph(role: WalkingRole.unit),
                 const SizedBox(width: StrideSpace.s4),
                 AdaptiveText(
-                  formatSteps(o.stepCost),
+                  formatSteps(w.totalCost),
                   style: StrideType.itemCount,
-                  color: o.affordable
+                  color: w.totalCost <= banked
                       ? StrideColors.textPrimary
                       : StrideColors.textMuted,
                 ),
@@ -271,7 +293,7 @@ class AtlasInspector extends StatelessWidget {
             color: StrideColors.textSecondary,
           ),
 
-          if (option != null) ...<Widget>[
+          if (way != null && onTravel != null) ...<Widget>[
             if (refusal case final String reason) ...<Widget>[
               const SizedBox(height: StrideSpace.s4),
               AdaptiveText(
@@ -283,7 +305,7 @@ class AtlasInspector extends StatelessWidget {
             const SizedBox(height: StrideSpace.s10),
             _TravelControls(
               destinationName: name,
-              option: option!,
+              way: way!,
               banked: banked,
               busy: busy,
               open: open,
@@ -299,9 +321,9 @@ class AtlasInspector extends StatelessWidget {
             ),
           ],
 
-          if (lastTravel case final TravelReport report) ...<Widget>[
+          if (lastJourney case final JourneySummary journey) ...<Widget>[
             const SizedBox(height: StrideSpace.s10),
-            TravelResultLine(report: report),
+            TravelResultLine(journey: journey),
           ],
         ],
       ),
@@ -349,10 +371,10 @@ class AtlasInspector extends StatelessWidget {
 
   /// The one line about getting there.
   ///
-  /// Four cases, and the third is the one the panel exists for: a place two
-  /// roads away has a total price a player can plan a week's walking around,
-  /// **and** a first leg that is the only figure any button will charge. Both
-  /// are printed, and which is which is said in words rather than by position.
+  /// A place two roads away prints its way and its whole price — which is now
+  /// also exactly what the Travel button charges, leg by committed leg (B-2).
+  /// The "first leg" clause this line used to carry is gone with the
+  /// leg-at-a-time button that made it necessary.
   static String routeLine({
     required AtlasPlaceInfo info,
     required AtlasWay? way,
@@ -365,23 +387,23 @@ class AtlasInspector extends StatelessWidget {
     final String via = way.via
         .map((AtlasNode node) => node.place.displayName)
         .join(', then ');
-    return 'By way of $via · ${formatSteps(way.totalCost)} steps in all, '
-        '${formatSteps(way.firstLegCost)} for the first leg';
+    return 'By way of $via · ${formatSteps(way.totalCost)} steps in all';
   }
 }
 
 /// The travel control, with its confirmation step (brief §53).
 ///
 /// Tap Travel and the button becomes a small confirmation block: the
-/// destination, the first leg's cost, and the balance the journey leaves —
-/// stated before the spend, so setting out is a decision rather than a
-/// reflex. Cancel costs nothing. The flag is presentation state: it survives
-/// nothing, decides nothing, and the engine re-validates the journey on
-/// confirm exactly as it always did.
+/// destination, the WHOLE journey's cost with its way named, and the balance
+/// it leaves — stated before the spend, so setting out is a decision rather
+/// than a reflex (B-2: the first leg's price is never presented as the
+/// trip's). Cancel costs nothing. The flag is presentation state: it
+/// survives nothing, decides nothing, and the engine re-validates every leg
+/// on confirm exactly as it always did.
 class _TravelControls extends StatefulWidget {
   const _TravelControls({
     required this.destinationName,
-    required this.option,
+    required this.way,
     required this.banked,
     required this.busy,
     required this.open,
@@ -389,7 +411,7 @@ class _TravelControls extends StatefulWidget {
   });
 
   final String destinationName;
-  final TravelOption option;
+  final AtlasWay way;
   final int banked;
   final bool busy;
   final bool open;
@@ -406,7 +428,10 @@ class _TravelControlsState extends State<_TravelControls> {
   void didUpdateWidget(_TravelControls oldWidget) {
     super.didUpdateWidget(oldWidget);
     // A new selection or a changed price is a new question.
-    if (oldWidget.option.id != widget.option.id) _confirming = false;
+    if (oldWidget.destinationName != widget.destinationName ||
+        oldWidget.way.totalCost != widget.way.totalCost) {
+      _confirming = false;
+    }
   }
 
   @override
@@ -419,7 +444,11 @@ class _TravelControlsState extends State<_TravelControls> {
             : null,
       );
     }
-    final int after = widget.banked - widget.option.stepCost;
+    final AtlasWay way = widget.way;
+    final int after = widget.banked - way.totalCost;
+    final String via = way.via
+        .map((AtlasNode node) => node.place.displayName)
+        .join(', then ');
     return SurfaceBlock(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,8 +459,12 @@ class _TravelControlsState extends State<_TravelControls> {
           ),
           const SizedBox(height: StrideSpace.s4),
           Text(
-            '${formatSteps(widget.option.stepCost)} steps · leaves '
-            '${formatSteps(after < 0 ? 0 : after)} banked',
+            way.isDirect
+                ? '${formatSteps(way.totalCost)} steps · leaves '
+                      '${formatSteps(after < 0 ? 0 : after)} banked'
+                : 'By way of $via · ${formatSteps(way.totalCost)} steps '
+                      'in all · leaves ${formatSteps(after < 0 ? 0 : after)} '
+                      'banked',
             style: StrideType.micro.copyWith(
               color: StrideColors.textSecondary,
             ),
@@ -508,23 +541,43 @@ class _BossBadge extends StatelessWidget {
 }
 
 /// What the last journey did, while the line is still on screen.
+///
+/// A multi-leg arrival names the journey's true total with the final leg
+/// distinguished (B-2); a refusal mid-way says where the player truthfully
+/// stands and why the walk stopped — every committed leg stays committed.
 class TravelResultLine extends StatelessWidget {
-  const TravelResultLine({super.key, required this.report});
+  const TravelResultLine({super.key, required this.journey});
 
-  final TravelReport report;
+  final JourneySummary journey;
+
+  String get _sentence {
+    final JourneySummary j = journey;
+    if (j.succeeded) {
+      final String first = j.firstVisit ? ' for the first time' : '';
+      if (j.isMultiLeg) {
+        return 'Arrived at ${j.arrivedName}$first · '
+            '${formatSteps(j.totalSpent)}-step journey '
+            '(final leg ${formatSteps(j.finalLegCost)})';
+      }
+      return 'Arrived at ${j.arrivedName}$first · '
+          '${formatSteps(j.totalSpent)} steps';
+    }
+    final String why = j.failure == null
+        ? 'the way was refused'
+        : refusalText(j.failure!);
+    if (j.legsCompleted > 0) {
+      return 'Stopped at ${j.arrivedName} — $why '
+          '(${formatSteps(j.totalSpent)} steps walked)';
+    }
+    return why;
+  }
 
   @override
   Widget build(BuildContext context) => SurfaceBlock(
     child: AdaptiveText(
-      report.succeeded
-          ? report.firstVisit
-                ? 'Arrived at ${report.destinationName} for the first time · '
-                      '${formatSteps(report.cost)} steps'
-                : 'Arrived at ${report.destinationName} · '
-                      '${formatSteps(report.cost)} steps'
-          : refusalText(report),
+      _sentence,
       style: StrideType.sub,
-      color: report.succeeded
+      color: journey.succeeded
           ? StrideColors.textPrimary
           : StrideColors.textSecondary,
     ),

@@ -27,6 +27,60 @@ import '../../runtime/stride_session.dart';
 /// exists (Q-UI-7) or is authorised for Phase 1.
 const Duration _resultLifetime = Duration(seconds: 5);
 
+/// One walked journey's presentation summary — one or more legs, each an
+/// ordinary committed `TravelTo`, aggregated for display only.
+///
+/// Ephemeral by construction, like every report the controller holds: each
+/// figure is copied off a returned [TravelReport], nothing here is a second
+/// copy of durable state, and a relaunch has none (`RULES.md` E-2).
+///
+/// Exists for PRESENTATION_WORLD_REWARD_FEEL_01 B-2: the owner walked
+/// Haven → Frostmere, was correctly charged 4,400 across two legs, and the
+/// arrival card said "3,000 steps" — the final leg, presented as if it were
+/// the trip. The journey total and the final leg are now both first-class.
+final class JourneySummary {
+  const JourneySummary({
+    required this.succeeded,
+    required this.destinationName,
+    required this.arrivedName,
+    required this.totalSpent,
+    required this.finalLegCost,
+    required this.legsCompleted,
+    required this.legsPlanned,
+    required this.firstVisit,
+    this.failure,
+  });
+
+  /// Every leg landed and the player stands at the destination.
+  final bool succeeded;
+
+  /// Where the journey was headed.
+  final String destinationName;
+
+  /// Where the player actually is now — the destination on success, the last
+  /// successful leg's arrival on a mid-way refusal, or the origin when the
+  /// first leg refused.
+  final String arrivedName;
+
+  /// The sum of every successful leg's charged cost — the journey's true
+  /// price, as committed.
+  final int totalSpent;
+
+  /// What the last successful leg cost, 0 when no leg landed.
+  final int finalLegCost;
+
+  final int legsCompleted;
+  final int legsPlanned;
+
+  /// Whether the final arrival opened the destination.
+  final bool firstVisit;
+
+  /// The refusing leg's report, or null on success.
+  final TravelReport? failure;
+
+  bool get isMultiLeg => legsPlanned > 1;
+}
+
 class SessionController extends ChangeNotifier {
   SessionController(this._session);
 
@@ -75,8 +129,14 @@ class SessionController extends ChangeNotifier {
   /// The report from the last sync, while it is still on screen.
   SyncReport? get lastSync => _lastSync;
 
-  /// The report from the last journey, while it is still on screen.
+  /// The report from the last single travel leg, while it is still on
+  /// screen. Prefer [lastJourney] for presentation — it carries the whole
+  /// walk; this remains for the final leg's raw report.
   TravelReport? get lastTravel => _lastTravel;
+
+  /// The last walked journey's summary, while it is still on screen.
+  JourneySummary? get lastJourney => _lastJourney;
+  JourneySummary? _lastJourney;
 
   /// The report from the last craft, and which recipe it was — so a card knows
   /// whether the line on screen is about it.
@@ -279,19 +339,65 @@ class SessionController extends ChangeNotifier {
     }
   }
 
-  /// Walks a route to [destination].
+  /// Walks a route to [destination] — one adjacent leg.
   ///
   /// Nothing is rendered optimistically across the await, for the reason
   /// [gather] gives — and here the optimistic render would be the player's own
   /// location, which is the last thing that should be shown wrong.
-  Future<void> travel(ContentId destination) async {
-    if (_busy) return;
+  Future<void> travel(ContentId destination) =>
+      travelJourney(<ContentId>[destination]);
+
+  /// Walks a whole journey: each entry in [legs] is one adjacent hop,
+  /// dispatched as the same one-leg engine command it always was, in order.
+  ///
+  /// **No new travel semantics.** Every leg is atomic, charged exactly once,
+  /// and engine-validated; a refused leg stops the walk truthfully where the
+  /// player stands, keeping every leg already committed. What is new is only
+  /// the aggregation: [lastJourney] carries the journey's true total beside
+  /// the final leg, so a two-leg 4,400-step walk is never presented as its
+  /// 3,000-step last road (B-2).
+  Future<void> travelJourney(List<ContentId> legs) async {
+    if (_busy || legs.isEmpty) return;
     onExclusiveCommand?.call();
     _busy = true;
     _clearResults(notify: false);
     notifyListeners();
     try {
-      _lastTravel = await _session.travel(destination);
+      final String origin = _session.locationName;
+      int totalSpent = 0;
+      int finalLegCost = 0;
+      int completed = 0;
+      bool firstVisit = false;
+      String arrivedName = origin;
+      TravelReport? failure;
+      TravelReport? last;
+      for (final ContentId leg in legs) {
+        final TravelReport report = await _session.travel(leg);
+        last = report;
+        if (!report.succeeded) {
+          failure = report;
+          break;
+        }
+        totalSpent += report.cost;
+        finalLegCost = report.cost;
+        completed += 1;
+        firstVisit = report.firstVisit;
+        arrivedName = report.destinationName;
+        // Between legs the UI rebuilds from committed state on the final
+        // notification; intermediate arrivals are not flashed one by one.
+      }
+      _lastTravel = last;
+      _lastJourney = JourneySummary(
+        succeeded: failure == null,
+        destinationName: _session.locationNameOf(legs.last) ?? arrivedName,
+        arrivedName: arrivedName,
+        totalSpent: totalSpent,
+        finalLegCost: finalLegCost,
+        legsCompleted: completed,
+        legsPlanned: legs.length,
+        firstVisit: firstVisit,
+        failure: failure,
+      );
       _armResultTimer();
     } finally {
       _busy = false;
@@ -494,6 +600,7 @@ class SessionController extends ChangeNotifier {
     _lastActionNode = null;
     _lastSync = null;
     _lastTravel = null;
+    _lastJourney = null;
     _lastCraft = null;
     _lastCraftRecipe = null;
     _lastEquip = null;
