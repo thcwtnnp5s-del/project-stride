@@ -27,6 +27,7 @@ import 'package:stride_core/stride_core.dart'
 import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
 import '../../components/grounded_sprite.dart';
+import '../../components/rarity_item_title.dart';
 import '../../components/surfaces.dart';
 import '../../icons/combat_assets.dart';
 import '../../state/session_controller.dart';
@@ -81,12 +82,42 @@ class EncounterCard extends StatelessWidget {
               LabeledValueTile(label: 'Defence', value: '${o.defence}'),
             ],
           ),
-          const SizedBox(height: StrideSpace.s8),
+          // WHAT I KNOW ABOUT THIS CREATURE — learning the ecology
+          // (PRESENTATION_WORLD_REWARD_FEEL_01 §24). The tier chip above says
+          // how far along the study is; this says what the study has bought:
+          // each known drop in its own rarity's ink, and the signature as
+          // `???` until the enemy is Known. Presentation only — the roll is
+          // identical at every tier (`DECISIONS/0023` §5), and every value
+          // here is the session's own projection.
+          const SizedBox(height: StrideSpace.s10),
           Text(
-            _rewards(o),
+            '+${o.xp} XP',
             style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
-            maxLines: 2,
           ),
+          if (o.drops.isNotEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s6),
+            const Text('KNOWN DROPS', style: StrideType.microLabel),
+            const SizedBox(height: StrideSpace.s4),
+            Wrap(
+              spacing: StrideSpace.s8,
+              runSpacing: StrideSpace.s4,
+              children: <Widget>[
+                for (final DropPreview d in o.drops)
+                  d.revealed
+                      ? RarityName(
+                          name: d.signature ? '${d.name} ★' : d.name,
+                          rarity: d.rarity,
+                          style: StrideType.micro,
+                        )
+                      : Text(
+                          '???',
+                          style: StrideType.micro.copyWith(
+                            color: StrideColors.textMuted,
+                          ),
+                        ),
+              ],
+            ),
+          ],
           const SizedBox(height: StrideSpace.s12),
           StrideButton(
             label: c.busy ? 'Starting…' : 'Start Combat',
@@ -113,18 +144,6 @@ class EncounterCard extends StatelessWidget {
     KnowledgeTier.studied => 'Studied · ${o.victories}/${o.knownAt} to Known',
     KnowledgeTier.known => 'Known',
   };
-
-  /// The reward preview. A signature drop's existence stays concealed until
-  /// the enemy is Known — an unrevealed one renders as `???`
-  /// (`DECISIONS/0023` §5). The roll is the same either way.
-  static String _rewards(EncounterOption o) {
-    final String xp = '${o.xp} XP';
-    if (o.drops.isEmpty) return 'Rewards: $xp';
-    final String names = o.drops
-        .map((DropPreview d) => d.revealed ? d.name : '???')
-        .join(', ');
-    return 'Rewards: $xp, $names';
-  }
 
   /// What the button says under itself: how much of this visit is left, or the
   /// truthful reason it is disabled, in the engine's order.

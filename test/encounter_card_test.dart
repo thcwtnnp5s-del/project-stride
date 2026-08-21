@@ -125,7 +125,13 @@ void main() {
     expect(find.text('HEALTH'), findsOneWidget);
     expect(find.text('ATTACK'), findsOneWidget);
     expect(find.text('DEFENCE'), findsOneWidget);
-    expect(find.text('Rewards: 30 XP, Meadow Herb'), findsOneWidget);
+    // The reward preview, restructured by PRESENTATION_WORLD_REWARD_FEEL_01
+    // §24: the XP on its own line and each known drop in its rarity's ink
+    // under a KNOWN DROPS heading, so the card reads as what studying the
+    // creature has taught rather than as one run-on sentence.
+    expect(find.text('+30 XP'), findsOneWidget);
+    expect(find.text('KNOWN DROPS'), findsOneWidget);
+    expect(find.text('Meadow Herb'), findsOneWidget);
     final StrideButton start = tester.widget(
       find.widgetWithText(StrideButton, 'Start Combat'),
     );

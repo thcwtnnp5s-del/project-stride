@@ -172,9 +172,29 @@ void main() {
     expect(find.text('Oakback Bear'), findsOneWidget);
     expect(find.text('TWO LIGHT STRIKES A TURN'), findsOneWidget);
     // The signature fang exists but is concealed until the wolf is Known.
+    // The reward block is the §24 ecology presentation: XP on its own line,
+    // each known drop named in its rarity's ink under KNOWN DROPS, and the
+    // unrevealed signature as `???`.
+    final Finder wolfCard = find.ancestor(
+      of: find.text('Forest Wolf'),
+      matching: find.byType(EncounterCard),
+    );
     expect(
-      find.text('Rewards: 30 XP, Wolf Pelt, Meadow Herb, ???'),
+      find.descendant(of: wolfCard, matching: find.text('+30 XP')),
       findsOneWidget,
+    );
+    expect(
+      find.descendant(of: wolfCard, matching: find.text('KNOWN DROPS')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: wolfCard, matching: find.text('Wolf Pelt')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: wolfCard, matching: find.text('???')),
+      findsOneWidget,
+      reason: 'the signature fang stays concealed until Known',
     );
     final Finder start = find.descendant(
       of: find.ancestor(

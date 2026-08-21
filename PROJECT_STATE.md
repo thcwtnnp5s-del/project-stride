@@ -1,5 +1,59 @@
 # Project Stride — Project State
 
+**Version:** 2.12
+**Status:** 🚧 **PRESENTATION, WORLD & REWARD FEEL 01 — implementation
+complete, awaiting the owner's physical-device test.** Branch
+`playable-phase-2-multiregion`, on top of the Exploration & Progression Loop
+(`0700969`). Records: `MILESTONES/PRESENTATION_WORLD_REWARD_FEEL_01.md`,
+`MILESTONES/PIXELLAB_MAPS_EVALUATION.md`.
+
+The owner's device test ruled the **mechanics good enough to build on and
+the presentation not good enough yet**. This milestone answers that, and
+adds no mechanics.
+
+What changed, in one breath: Adventure is **one living stage instead of many
+repeated ones** — the location's painting, the Traveler and the cat, the
+selected activity's node as far scenery, the profession loop while a queue
+runs — with gather nodes reduced from ~380 dp cards to **~48 dp selectable
+rows** where only the chosen activity expands, and locked activities kept
+visible with the concrete gap; the whole job board moved to a **Goal Board**
+behind one button, in each location's own fiction, leaving Adventure a
+three-line goal summary; **crafting is a real activity** — categories,
+compact rarity-inked recipe rows, one working detail panel, a ×1/×5/×10
+queue clamped to the bag, a station stage seam, timed repetitions
+(components 3 s, food 4 s, gear 6 s) each committing the *unchanged* instant
+`CraftItem` exactly once, cancel keeping completions, and backgrounding
+fast-forwarding the rest so a queue never holds the phone open; equipment
+finishes with a **reveal** (name, rank, stat delta, level-up unlocks,
+Equip); community projects gained animated per-material bars and a permanent
+**completion preview**; enemy cards present the **ecology** (known drops in
+rarity ink, the signature `???` until Known); and the world is a **new
+wide-format continent** — 2752 × 1536 world px, pannable east/west, the
+playable cluster about a sixth of it, thirteen regional ambient overlays.
+
+Three device bugs fixed: a **completed contract or project now clears its
+tracked slot** (it used to silently re-track the rotation's fresh 0/x copy);
+**travel is one confirmed multi-leg journey** quoting the whole way's cost,
+with the arrival naming the journey total and the final leg (the 4,400-step
+walk that reported "3,000"); and the **Hardened Copper Seam has stage art**,
+with a new test holding pack, lookup and scenery in agreement for every
+node.
+
+PixelLab (owner-amended scope): the **combined MCP ecosystem** was tested
+live — tileset generation and chaining, a real metadata-driven headless
+autotile bake, style-matched map objects, reference-styled Pro generation,
+localized inpainting. Maps has **no programmatic creation and no structured
+export**, so it is not the foundation; the tileset/object/inpaint tools are
+adopted around a painted base. Full record and the preserved bake spike:
+`MILESTONES/PIXELLAB_MAPS_EVALUATION.md`.
+
+Suites: app **585**, `stride_core` **677**; analyze clean; goldens
+regenerated and reviewed. **No schema change, no migration, no economy
+re-basing, and nothing in the health / step-accounting path touched.**
+Open: Q-06, Q-07 remainder, OD-04, OD-06.
+
+---
+
 **Version:** 2.11
 **Status:** 🚧 **EXPLORATION & PROGRESSION LOOP 01 — implementation complete,
 awaiting the owner's physical-device test.** Branch

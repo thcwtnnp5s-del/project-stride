@@ -1,8 +1,11 @@
 # PRESENTATION_WORLD_REWARD_FEEL_01
 
-**Status:** 🚧 In progress
+**Status:** 🚧 Implementation complete — awaiting the owner's physical-device
+test.
 **Branch:** `playable-phase-2-multiregion`
 **Start HEAD:** `0700969`
+**Commits:** `4419cc2` (bug fixes) · `e03f96b` (Adventure + Goal Board) ·
+`a0f34f7` (craft feel) · `400b5d9` (world + PixelLab evaluation) · closeout
 **Owner brief:** delivered 2026-08-21, verbatim in the session that opened this
 milestone. This record is the repo-canonical distillation (`RULES.md` G-5).
 
@@ -157,3 +160,92 @@ generation in `GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/`.
   stands; no guessing at URLs.
 - UNRESOLVED: PixelLab Maps adoption — decided by the Phase 6 evaluation,
   not before it.
+
+---
+
+## Device acceptance script
+
+One thing at a time. Stop at the first step that surprises you and write
+down what you saw.
+
+1. **Save persists.** Launch. The banked figure is the one you left. Force
+   quit, relaunch: still there. `TOTAL WALKED` never falls.
+2. **Adventure redesign.** One picture at the top with the Traveler in it —
+   not a picture *and then* a card with another Traveler. Below it: a
+   walking band, an ACTIVITIES list of short rows, and CURRENT GOALS with a
+   Goal Board button. Nothing else.
+3. **Activity stage idle.** Watch the stage with nothing selected: the
+   Traveler should stretch, drink, look around, sometimes with the cat, then
+   settle. No node prop is on the stage.
+4. **Select Copper Seam** (travel to Stonefall first). The copper node
+   appears as scenery behind the Traveler; the row expands with the queue
+   controls; the projection line reads `1 × N = N steps · ×1 Copper Ore`.
+5. **Select Tin Seam.** The tin prop *replaces* the copper one on the same
+   stage. The Traveler does not move or reset.
+6. **Locked Hardened Copper Seam.** Its row says LOCKED and names the gap.
+   Select it — **its art appears on the stage** (this was the empty stage).
+   The controls are dead and say why.
+7. **Gathering queue.** ×5 on an affordable node, start. The Traveler works
+   continuously, the bar fills, the count climbs, banked steps fall per
+   completion. Lock the phone for a minute; come back: the queue has
+   advanced, gains reported once, nothing double-counted.
+8. **Goal Board.** Tap it. Full screen, titled in this place's fiction
+   (Notice Board at Haven, Mine Ledger at Stonefall). Tracker on top, board
+   below. CLOSE returns to Adventure.
+9. **Completed contract clears.** Track a Local Need, complete it at the
+   board. The tracker's Contract slot goes **empty** — it must NOT show the
+   same contract at 0/x again.
+10. **Community project.** Contribute. The material bar animates toward its
+    target; the tile shows the stage ladder and an "On completion:" line
+    naming the permanent change.
+11. **Crafting a basic material.** Craft screen: category chips, compact
+    rows, one selected recipe expanding. Craft an Oak Plank — a timed bar,
+    then a one-line result. It should feel like *making* something.
+12. **Crafting queue.** A recipe your bag funds several of: ×5, start. The
+    count climbs; ingredients leave and outputs arrive per repetition.
+    Cancel mid-run: everything completed stays, nothing half-made.
+13. **Equipment craft.** Make a weapon or armour. The panel names it in its
+    rarity, states `Attack 3 → 7`, names any level-up unlock, and offers
+    **Equip** right there.
+14. **Rare reward.** Fight until something uncommon drops. The victory panel
+    frames it in its rarity. On the encounter card, check KNOWN DROPS — a
+    signature you have not earned reads `???`.
+15. **Travel.** World tab, pick **Frostmere** from Haven's Rest. It is
+    offered as one journey. The confirmation says *By way of Stonefall Mine
+    · 4,400 steps in all · leaves N banked*.
+16. **Arrival cost wording.** After arriving: *Arrived at Frostmere ·
+    4,400-step journey (final leg 3,000)*. Not "3,000 steps".
+17. **Whole-world survey.** Pinch all the way out. The world is a wide
+    continent; the north-south extent frames; the five places you know sit
+    in one corner of it.
+18. **Far west / far east pan.** Drag west: an enormous old forest, a ruin.
+    Drag east and south: coast, islands, marsh, farmland, a river basin.
+    This should feel like most of the world is unvisited.
+19. **Environmental animation.** Watch the map: snow in the north, mist in
+    the western forest, cloud shadows drifting, birds on the coast, smoke at
+    the hamlet and the mine.
+20. **Health sync unchanged.** Sync steps. The banked figure moves by
+    exactly what was banked; two syncs in a row grant nothing the second
+    time; `TOTAL WALKED` is monotonic.
+
+## Known issues at hand-off
+
+**BLOCKER:** none known.
+
+**GAMEPLAY / DESIGN**
+- The craft queue's remaining repetitions **fast-forward on backgrounding**
+  rather than continuing on a timer. This is deliberate (§55: a queue must
+  not require the app to stay open) and needs no schema, but it means a
+  force-quit *mid-queue* grants nothing for repetitions not yet dispatched.
+  Completed crafts are always kept.
+- Craft station art is a **seam, not a shipment**: the stage renders the
+  profession's working loop only where one exists, and smithing/cooking
+  loops have not been generated. Today those crafts show the bar alone.
+
+**COSMETIC**
+- The Stonefall adit reads "a mine or a mountain outpost" from pixels alone;
+  its runtime label disambiguates (blind QA note).
+- The meadow band around Haven's Rest is one value step brighter than the
+  other grass tones — reads as a biome, detectable as a treated region.
+- Blind QA's incidental finding, on record for a future node round: the
+  shipped **Tin Seam** vignette's first blind read was "a giant cookie".
