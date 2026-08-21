@@ -28,6 +28,7 @@ import '../runtime/stride_session.dart';
 import 'screens/system/blocked_screen.dart';
 import 'shell/stride_shell.dart';
 import 'state/activity_controller.dart';
+import 'state/craft_controller.dart';
 import 'state/session_controller.dart';
 import 'state/session_scope.dart';
 import 'theme/stride_theme.dart';
@@ -88,6 +89,14 @@ class _StrideAppState extends State<StrideApp> {
     timing: widget.activityTiming,
   );
 
+  /// App-scoped like the gather queue, so a craft queue survives a tab
+  /// switch. Purely presentational over the instant `CraftItem` command —
+  /// see `craft_controller.dart` for the §55 background fast-forward.
+  late final CraftController _craft = CraftController(
+    _controller,
+    timing: widget.activityTiming,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +125,7 @@ class _StrideAppState extends State<StrideApp> {
 
   @override
   void dispose() {
+    _craft.dispose();
     _activity.dispose();
     _controller.dispose();
     super.dispose();
@@ -156,13 +166,16 @@ class _StrideAppState extends State<StrideApp> {
           controller: _controller,
           child: ActivityScope(
             controller: _activity,
-            // The blocked branch is taken before the shell is built, not
-            // inside it. A blocked bootstrap has no engine, so a shell that
-            // rendered anyway would be reading the null-fallback zeros out of
-            // every getter and presenting them as the player's save.
-            child: blocked != null
-                ? BlockedScreen(blocked: blocked)
-                : const StrideShell(),
+            child: CraftScope(
+              controller: _craft,
+              // The blocked branch is taken before the shell is built, not
+              // inside it. A blocked bootstrap has no engine, so a shell that
+              // rendered anyway would be reading the null-fallback zeros out
+              // of every getter and presenting them as the player's save.
+              child: blocked != null
+                  ? BlockedScreen(blocked: blocked)
+                  : const StrideShell(),
+            ),
           ),
         ),
       ),

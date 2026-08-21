@@ -405,6 +405,23 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  /// One craft repetition dispatched by the craft queue's presentation
+  /// (`CraftController`): the same command as [craft], atomically committed,
+  /// but the report goes back to the queue rather than onto the shared
+  /// result timer — the queue owns its own completion presentation. Null
+  /// when another command holds the busy flag; the caller retries on its
+  /// injectable timer, exactly as the gather queue does.
+  Future<CraftReport?> craftQueued(ContentId recipe) async {
+    if (_busy) return null;
+    _busy = true;
+    try {
+      return await _session.craft(recipe);
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
   /// Makes [recipe] once.
   Future<void> craft(ContentId recipe) async {
     if (_busy) return;

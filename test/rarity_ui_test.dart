@@ -703,11 +703,9 @@ void main() {
 
       final List<RecipeOption> recipes = session.recipeOptions;
       expect(recipes, isNotEmpty);
-      // Every recipe in this pack has an authored output rarity, so every card
-      // carries a badge. `findsWidgets` rather than a count: cards scroll, and
-      // only the built ones are in the tree.
-      expect(find.byType(RarityBadge), findsWidgets);
 
+      // Every row's name is in the rank's ink — rarity is identity, shown
+      // craftable or not (PRESENTATION_WORLD_REWARD_FEEL_01 §20).
       final RecipeOption first = recipes.first;
       expect(first.outputRarity, isNotNull);
       final Finder title = find.text(first.displayName);
@@ -716,6 +714,12 @@ void main() {
         (tester.widget(title.first) as Text).style!.color,
         RarityStyle.of(first.outputRarity!).ink,
       );
+
+      // The badge word lives on the selected recipe's expanded detail since
+      // the compact-row restructure.
+      await tester.tap(title.first);
+      await tester.pumpAndSettle();
+      expect(find.byType(RarityBadge), findsWidgets);
       expect(clippedLines(tester), isEmpty);
     });
 

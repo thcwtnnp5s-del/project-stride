@@ -1027,15 +1027,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // From recipes.json, not written into the widget. `findsWidgets` because
-      // each card names its output twice — as the recipe and as "Makes …".
+      // From recipes.json, not written into the widget — compact rows since
+      // the Craft restructure (PRESENTATION_WORLD_REWARD_FEEL_01 §19).
       expect(find.text('Herb Broth'), findsWidgets);
       expect(find.text('Bronze Ingot'), findsWidgets);
 
-      // A fresh save holds no materials, so every card must be disabled *and*
-      // say why. A grey button with no sentence beside it is indistinguishable
-      // from a broken one.
-      expect(find.textContaining('Nothing can be made yet'), findsOneWidget);
+      // A fresh save holds no materials: the census is honest, and the
+      // shortfall sentence lives on the selected recipe's expanded detail.
+      expect(
+        find.textContaining('Nothing here can be made yet'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Herb Broth').first);
+      await tester.pumpAndSettle();
       expect(
         find.textContaining('Needs 2 more Meadow Herb'),
         findsOneWidget,

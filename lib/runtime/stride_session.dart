@@ -566,6 +566,7 @@ final class RecipeOption {
     required this.id,
     required this.displayName,
     required this.skillName,
+    required this.skill,
     required this.requiredLevel,
     required this.currentLevel,
     required this.ingredients,
@@ -574,12 +575,19 @@ final class RecipeOption {
     required this.outputRarity,
     required this.outputQuantity,
     required this.experience,
+    this.outputCategory,
+    this.outputIsTool = false,
     this.lockReason,
   });
 
   final ContentId id;
   final String displayName;
   final String skillName;
+
+  /// The crafting skill's id — for the craft stage's profession loop and the
+  /// presentation duration table (PRESENTATION_WORLD_REWARD_FEEL_01 §15).
+  final ContentId skill;
+
   final int requiredLevel;
   final int currentLevel;
 
@@ -602,6 +610,15 @@ final class RecipeOption {
   /// Profile-scaled, as it would be awarded.
   final int experience;
 
+  /// The output item's authored category, or null when the pack does not
+  /// define the output. Drives the Craft screen's category filter
+  /// (PRESENTATION_WORLD_REWARD_FEEL_01 §19) — derivation only, never a rule.
+  final ItemCategory? outputCategory;
+
+  /// Whether the output is a tool (an equipment item with a tool kind) — the
+  /// filter separates Tools from Gear.
+  final bool outputIsTool;
+
   /// Why this recipe is not currently craftable regardless of skill and
   /// materials — the engine's own sentence for a contract-taught recipe the
   /// player has not earned yet (`DECISIONS/0023` §3). Null when unlocked.
@@ -615,6 +632,20 @@ final class RecipeOption {
       ingredients.every((RecipeIngredientLine i) => i.satisfied);
 
   bool get canCraft => !isLocked && skillMet && ingredientsMet;
+
+  /// How many consecutive crafts the held ingredients could fund, floor 0.
+  /// A hint for the queue selector's clamp — the engine re-validates every
+  /// dispatch, exactly as gathering's affordability clamp works.
+  int get craftableCount {
+    if (!canCraft) return 0;
+    int count = 1 << 30;
+    for (final RecipeIngredientLine line in ingredients) {
+      if (line.required <= 0) continue;
+      final int affordable = line.held ~/ line.required;
+      if (affordable < count) count = affordable;
+    }
+    return count == 1 << 30 ? 1 : count;
+  }
 }
 
 /// One line of a recipe's requirements, with what the player actually holds.
@@ -3464,6 +3495,7 @@ final class StrideSession {
           id: recipe.id,
           displayName: recipe.displayName,
           skillName: skill.displayName,
+          skill: recipe.skill,
           requiredLevel: recipe.requiredLevel,
           currentLevel: skill.levelAt(
             active.state.skills.experienceIn(recipe.skill),
@@ -3485,6 +3517,10 @@ final class StrideSession {
           outputRarity: content.items[recipe.outputItem]?.rarity,
           outputQuantity: active.profile.applyYield(recipe.outputQuantity),
           experience: active.profile.applyXp(recipe.xp),
+          outputCategory: content.items[recipe.outputItem]?.category,
+          outputIsTool:
+              (content.items[recipe.outputItem]?.toolKind ?? ToolKind.none) !=
+              ToolKind.none,
           lockReason: active.recipeLockReason(recipe, active.state),
         ),
       );

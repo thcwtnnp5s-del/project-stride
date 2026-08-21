@@ -106,17 +106,39 @@ does it matter, what changed, what can I do next*. Level-ups name their
 unlocks; rare drops get an entrance and a rarity frame; enemy-knowledge
 stages present as learning the ecology; travel arrival presents discovery.
 
-### Phase 6 — World atlas (owner brief §27–§36)
+### Phase 6 — World atlas (owner brief §27–§36, owner addendum 2026-08-21)
 
-Mandatory **PixelLab Maps evaluation** first (the account has Maps 0 /
-Tilesets 2 / Tiles 0). Finding at milestone start: the MCP surface can list,
-view and edit maps and generate tilesets, but **map creation lives in the web
-Map Workshop only** — the evaluation must establish whether the
-tileset+workshop pipeline beats re-authoring a larger single master painting,
-against M-12 (butted paintings fail blind QA; growth must be one painting or
-natural-boundary growth). Target: a wide-format continent master where the
-playable cluster reads as ~10–20%, real E/W pan, regional colour identity,
-future visual-only/rumored geography, and living overlays per region.
+Mandatory **PixelLab evaluation** first (the account has Maps 0 / Tilesets
+2 / Tiles 0). Finding at milestone start: the MCP surface can list, view and
+edit maps and generate tilesets, but **map creation lives in the web Map
+Workshop only**.
+
+**Owner addendum (mid-milestone):** the spike must NOT reduce to "web-UI
+Maps vs `atlas_master.png`". Evaluate the **combined MCP production model**
+against the flattened-raster workflow — top-down tilesets with
+chained/seamless terrain transitions, style-matched map objects
+(transparent, matched to an existing map/backdrop), raw-image and
+reference-based generation, image editing and localized inpainting, image
+animation — with `https://api.pixellab.ai/mcp/docs` inspected as part of the
+architecture decision. The candidate architecture: PixelLab owns macro
+terrain/tilesets, map objects (landmarks, settlements, ruins, vegetation),
+environmental animation and creative artwork; Flutter/Claude own world
+coordinates, pan/zoom, LOD, discovery, routes, hit targets, labels, state,
+compositing and playback. The real question: *can PixelLab's
+map/tileset/object/image MCP ecosystem become a more scalable
+terrain-authoring and world-production foundation for Stride?* The final
+report documents which MCP capabilities were actually tested.
+
+The same thinking applies to the shared activity stage where useful:
+resource nodes, trees, station props may be better as reusable,
+style-matched modular PixelLab objects swapped into one persistent scene
+than as bespoke full illustrations per activity.
+
+M-12 still governs joins: butted paintings fail blind QA; growth must be one
+painting, natural-boundary growth, or tile-grammar terrain that owns its own
+transitions. Target: a wide-format continent where the playable cluster
+reads as ~10–20%, real E/W pan, regional colour identity, future
+visual-only/rumored geography, and living overlays per region.
 
 ### Phase 7 — Verification, visual QA, docs
 

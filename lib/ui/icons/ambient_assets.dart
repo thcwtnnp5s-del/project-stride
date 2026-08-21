@@ -292,6 +292,13 @@ abstract final class AmbientAssets {
   static List<String> activityLoopFor(String skill) =>
       _activityLoops[skill] ?? PixelIcons.gatherFrames;
 
+  /// Whether [skill] has an authored working loop of its own. False for a
+  /// profession the art rounds have not delivered — the craft stage then
+  /// renders no figure rather than a wrong one (the gather fallback above is
+  /// for the gather stage, whose skills all have loops).
+  static bool hasActivityLoop(String skill) =>
+      _activityLoops.containsKey(skill);
+
   /// The rest-pose footprint of [activityLoopFor]'s frame set — the same
   /// pairing `SpriteAnimation` requires, for the same shadow reason.
   static SpriteFootprint activityFootprintFor(String skill) =>
