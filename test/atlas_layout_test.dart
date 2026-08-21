@@ -339,27 +339,27 @@ void main() {
     });
 
     test('ships the five glyphs, four landmarks and the one master world', () {
-      // Activity Feel & Presentation 01: the base + south tile column is
-      // retired for ONE master painting at scale 4 — 1536 × 2752 world px,
-      // no tile joins to fail a blind read (`MISTAKES.md` M-12). The device
-      // correction pass re-authored the painting as a continent whose
-      // inhabited region is a modest north-eastern slice; the Broken Tower
-      // landmark retired with the old moor (the continent paints one tower,
-      // Old Watch), leaving four: Millbridge, Old Watch, Ferry Crossing and
-      // the future-tier Far Town. Asserted so removing a glyph, the tile or
-      // a landmark is a deliberate edit here too.
+      // PRESENTATION_WORLD_REWARD_FEEL_01: the portrait master is replaced
+      // by the wide-format continent — ONE 688 × 384 painting at scale 4,
+      // 2752 × 1536 world px, still no tile joins to fail a blind read
+      // (`MISTAKES.md` M-12), and the east/west pan the owner asked for
+      // (§32). Four landmarks stand: Millbridge and Ferry Crossing as minor
+      // captions, Old Watch relocated onto the western forest's ruin as a
+      // future-tier question, and the future-tier Far Town where the south
+      // road leaves the map. Asserted so removing a glyph, the tile or a
+      // landmark is a deliberate edit here too.
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
       expect(layout.kindMarkers.keys, unorderedEquals(atlasMarkerKinds));
       expect(layout.tiles, hasLength(1));
       expect(layout.scale, 4);
-      expect(layout.worldWidth, 1536);
-      expect(layout.worldHeight, 2752);
+      expect(layout.worldWidth, 2752);
+      expect(layout.worldHeight, 1536);
       expect(layout.landmarks, hasLength(4));
       expect(
         layout.landmarks.where(
           (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,
         ),
-        hasLength(1),
+        hasLength(2),
       );
       expect(layout.validateAgainst(contentLocations), isEmpty);
     });

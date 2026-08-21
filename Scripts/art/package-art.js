@@ -784,11 +784,30 @@ const AF_COMBAT_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'combat');
  * bridge fixed by the third inpaint. Straight copy; full provenance in
  * `ACTIVITY_FEEL_01/README.md`.
  */
-const AF_WORLD_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'world');
+// Superseded, 2026-08-21 (PRESENTATION_WORLD_REWARD_FEEL_01): the portrait
+// AF01 master is replaced by the wide-format continent below. The AF01
+// source stays in its round directory as evidence; nothing else in its
+// block changes.
+//
+// The PWRF01 continent: one 688 × 384 PixelLab Pro generation (no seams by
+// construction — M-12), style-referenced to the AF01 master (outline,
+// detail, shading; palette free for the §35 regional vibrancy), corrected by
+// five localized inpaints (mine adit, Whispering Woods light woodland,
+// hamlet merge + town shrink, marsh legibility, marsh–sea continuity). Two
+// blind Visual QA rounds: the raw candidate FAILED (mine unreadable, light
+// forest missing, hamlet split, town oversized, marsh speckle); the
+// corrected painting PASSED with all five playable locations blind-findable
+// and every seam CLEAN or VISIBLE-BUT-ACCEPTABLE. Full provenance in
+// `PRESENTATION_WORLD_REWARD_FEEL_01/out/world/README.md`.
+const PWRF_WORLD_SRC = path.join(
+  EXPLORE, 'PRESENTATION_WORLD_REWARD_FEEL_01', 'out', 'world',
+);
 {
-  const master = png.load(path.join(AF_WORLD_SRC, 'atlas_master_384x688.png'));
-  if (master.width !== 384 || master.height !== 688) {
-    throw new Error(`atlas_master: expected 384x688, got ${master.width}x${master.height}`);
+  const master = png.load(
+    path.join(PWRF_WORLD_SRC, 'atlas_master_688x384.png'),
+  );
+  if (master.width !== 688 || master.height !== 384) {
+    throw new Error(`atlas_master: expected 688x384, got ${master.width}x${master.height}`);
   }
   emit('world/atlas_master.png', encode(master));
 }

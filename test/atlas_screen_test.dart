@@ -495,18 +495,30 @@ void main() {
     await pinch(tester, 100, 400);
     expect(state.zoom, zooms.max);
     await pinch(tester, 300, 40);
-    // The floor for a 1536-wide world in a 393 dp window is the fit zoom
-    // (393 / 1536 ≈ 0.256) snapped **down** onto the pixel grid — 0.25,
-    // which is also native ×1 — so pinching all the way out frames the whole
-    // landmass at rest, centred, with nothing resampled.
+    // The floor is native ×1 (0.25 at scale 4): the crispest reduction the
+    // sampler will make, and for the 2752-wide continent it is the
+    // absoluteFloor rather than a fit-the-width zoom — 393 / 2752 ≈ 0.14 is
+    // below it, so the range stops where the art stops being worth looking
+    // at rather than dropping columns.
     expect(state.zoom, state.minZoom);
     expect(state.zoom, zooms.absoluteFloor);
-    final double worldWidth = AtlasScene.build(session)!.worldWidth;
-    expect(state.camera.dx, lessThanOrEqualTo(0));
+
+    // The property that replaced "the whole width fits": at the survey floor
+    // the continent is **wider than the window and pannable east/west**,
+    // which is the owner's §32 ask — the world must not be a strip that
+    // frames in one look. The full height does frame, so the survey shows a
+    // band of the whole world at once and the player drags to see the rest.
+    final AtlasScene scene = AtlasScene.build(session)!;
+    final Rect window = tester.getRect(find.byType(AtlasViewport));
     expect(
-      state.camera.dx + 393 / state.zoom,
-      greaterThanOrEqualTo(worldWidth),
-      reason: 'the whole width is inside the window at the floor',
+      scene.worldWidth * state.zoom,
+      greaterThan(window.width),
+      reason: 'the continent must extend past the window at the floor',
+    );
+    expect(
+      scene.worldHeight * state.zoom,
+      lessThanOrEqualTo(window.height + 0.5),
+      reason: 'the whole north-south extent frames at the survey floor',
     );
   });
 
