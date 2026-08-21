@@ -31,11 +31,11 @@ import 'package:stride_health/stride_health.dart'
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
-import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
 import '../../icons/pixel_icons.dart';
+import '../../state/activity_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -43,28 +43,39 @@ import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../combat/combat_screen.dart';
 import '../system/stale_banner.dart';
-import 'board_card.dart';
+import 'activity_panel.dart';
 import 'encounter_card.dart';
-import 'gather_node_card.dart';
-import 'goal_tracker_card.dart';
+import 'goal_summary_card.dart';
+import 'location_stage.dart';
 
-class AdventureScreen extends StatelessWidget {
+class AdventureScreen extends StatefulWidget {
   const AdventureScreen({super.key});
+
+  @override
+  State<AdventureScreen> createState() => _AdventureScreenState();
+}
+
+class _AdventureScreenState extends State<AdventureScreen> {
+  /// The selected activity — ephemeral UI selection, never a game figure
+  /// (`RULES.md` E-2). Null is the idle stage: ambient Traveler, no node
+  /// scenery, nothing running. A running queue overrides it (the stage always
+  /// shows the work actually happening).
+  ContentId? _selected;
 
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
+    final ActivityController activity = ActivityScope.of(context);
     final StrideSession s = c.session;
     final List<ResourceNodeDefinition> nodes = s.nodesHere;
 
     // Null before the game starts, which this screen is never built for — the
     // bootstrap resolves before the first frame. Handled rather than asserted:
-    // an absent vignette is already a supported state, so there is nothing to
-    // gain from crashing over it.
+    // an absent vignette is already a supported state.
     final ContentId? here = s.currentLocation;
     final String? vignette = here == null ? null : PixelIcons.vignetteFor(here);
 
-    // THE FIGHT — in place of the vignette, the walking band and the cards.
+    // THE FIGHT — in place of the stage, the walking band and the cards.
     //
     // While an encounter is active the tab *is* the encounter (`DECISIONS/0020`
     // §Consequences): a cold relaunch mid-fight lands here from state alone,
@@ -98,24 +109,40 @@ class AdventureScreen extends StatelessWidget {
 
     final List<EncounterOption> encounters = s.encountersHere;
 
+    // The stage follows the work: a running queue's node wins over the tap
+    // selection, so the diorama never idles while the save is gathering.
+    final ContentId? active = activity.active ? activity.activeNode : null;
+    final ContentId? stagedId = active ?? _selected;
+    final ResourceNodeDefinition? staged = stagedId == null
+        ? null
+        : nodes.where((ResourceNodeDefinition n) => n.id == stagedId)
+              .firstOrNull;
+
+    // The identity of a *successful* gather at the staged node, and nothing
+    // else — the one-shot plays on the shared stage now. Suppressed while a
+    // queue runs: the working loop already has the stage.
+    final ActionReport? report =
+        staged != null && c.lastActionNode == staged.id ? c.lastAction : null;
+    final Object? playToken =
+        active == null && report != null && report.succeeded ? report : null;
+
     return ListView(
-      // Zero horizontal padding: the vignette is full-bleed, and every other
-      // child re-applies the gutter itself. A ListView-level gutter would inset
-      // the scene band and leave two strips of app ground beside a picture that
-      // is meant to be a window.
+      // Zero horizontal padding: the stage is full-bleed, and every other
+      // child re-applies the gutter itself.
       padding: const EdgeInsets.only(bottom: StrideSpace.s16),
       children: <Widget>[
-        // WHERE I AM — the picture, and the walking that funds what is below it.
-        //
-        // The strip is attached to the vignette rather than floated as its own
-        // card. The owner's device review found the screen reading as "location
-        // image, then a large walking card, then a large activity card" —
-        // three independent objects — and the walking card was the one with the
-        // least to say and the second-most visual mass on the screen.
-        if (vignette != null) ...<Widget>[
-          _LocationVignette(assetPath: vignette, name: s.locationName),
-        ] else
-          const SizedBox(height: StrideSpace.s12),
+        // WHERE I AM, ALIVE — one stage for the whole location
+        // (PRESENTATION_WORLD_REWARD_FEEL_01 §4–§5): the arrival painting,
+        // the Traveler and companions, the selected activity's node as far
+        // scenery, and the profession loop while a queue runs. The Traveler
+        // lives here and nowhere else on this screen.
+        LocationStage(
+          locationName: s.locationName,
+          vignette: vignette,
+          selectedNode: staged,
+          activityActive: active != null && staged != null,
+          playToken: playToken,
+        ),
 
         _Gutter(child: _WalkingStrip(controller: c)),
         const SizedBox(height: StrideSpace.cardGap),
@@ -129,48 +156,34 @@ class AdventureScreen extends StatelessWidget {
               ],
 
               // WHAT MY WALKING JUST MADE POSSIBLE — after a granting sync,
-              // held until dismissed (`DECISIONS/0023` §1; brief §5). Above
-              // everything else because it is the moment the sync exists for.
+              // held until dismissed (`DECISIONS/0023` §1). Above everything
+              // else because it is the moment the sync exists for.
               if (c.lastOpportunities.isNotEmpty) ...<Widget>[
                 _OpportunityBanner(controller: c),
                 const SizedBox(height: StrideSpace.cardGap),
               ],
 
-              // WHAT I CAN DO HERE — immediately, not after a second card.
-              // The gather control is the screen's primary action and must
-              // stay above the fold on ≥390 dp phones
-              // (`test/fold_clearance_test.dart`); the goal tracker and the
-              // board are planning surfaces and sit below the action.
-              if (nodes.isEmpty)
-                const SectionCard(
-                  child: Text(
-                    'There is nothing to gather here.',
-                    style: StrideType.body,
-                  ),
-                )
-              else
-                for (final ResourceNodeDefinition node in nodes) ...<Widget>[
-                  GatherNodeCard(node: node),
-                  const SizedBox(height: StrideSpace.cardGap),
-                ],
+              // WHAT I CAN DO HERE — the compact activity list; only the
+              // selected activity expands (§6).
+              ActivityPanel(
+                nodes: nodes,
+                selected: stagedId,
+                onSelect: (ContentId? id) => setState(() => _selected = id),
+              ),
+              const SizedBox(height: StrideSpace.cardGap),
 
-              // WHAT I CAN FIGHT HERE — one card per enemy at this location,
-              // below the gather cards. Absent where the content has no enemy
-              // (Haven's Rest), rather than an empty-state card: a safe place
-              // does not need to announce it.
+              // WHAT I CAN FIGHT HERE — one card per enemy at this location.
+              // Absent where the content has no enemy (Haven's Rest), rather
+              // than an empty-state card: a safe place does not need to
+              // announce it.
               for (final EncounterOption option in encounters) ...<Widget>[
                 EncounterCard(option: option),
                 const SizedBox(height: StrideSpace.cardGap),
               ],
 
-              // WHAT I AM WORKING TOWARDS — the three tracked slots.
-              const GoalTrackerCard(),
-              const SizedBox(height: StrideSpace.cardGap),
-
-              // WHAT THIS PLACE ASKS FOR — the contract board, in this
-              // location's own fiction (`DECISIONS/0023` §2). Absent where
-              // the place keeps no board (the Hollow).
-              const LocationBoardCard(),
+              // WHAT I AM WORKING TOWARDS — three lines and one button; the
+              // full tracker and the board live on the Goal Board (§8–§9).
+              const GoalSummaryCard(),
             ],
           ),
         ),
@@ -236,56 +249,6 @@ class _Gutter extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: StrideSpace.screenGutter),
     child: child,
-  );
-}
-
-/// The arrival vignette: where the player is, as a picture.
-///
-/// **Presentation only, and shaped so it cannot be mistaken for anything else.**
-/// There is no character in it, nothing in it is tappable, and no control sits
-/// on top of it. The player is not steering anyone around this place; they are
-/// looking at it, the way an illustration at the head of a chapter shows the
-/// room the chapter happens in.
-///
-/// The name is written over the image's lower edge rather than beside it,
-/// because the band is full-bleed and a caption in the gutter would re-introduce
-/// the inset the full-bleed layout exists to remove.
-class _LocationVignette extends StatelessWidget {
-  const _LocationVignette({required this.assetPath, required this.name});
-
-  final String assetPath;
-  final String name;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    alignment: Alignment.bottomLeft,
-    children: <Widget>[
-      PixelScene.vignette(assetPath),
-      // A gradient, not a solid plate: the vignette's lower edge is grass and
-      // trail, so a plate would cut the picture with a hard line while a
-      // gradient lets the ground run out under the text.
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
-          StrideSpace.screenGutter,
-          StrideSpace.s16,
-          StrideSpace.screenGutter,
-          // 12, not 8. The walking band now sits directly under the vignette
-          // with no card gap between them, so the caption was riding about
-          // 5 dp off the image's crop with the darkest part of its own gradient
-          // below it rather than behind it.
-          StrideSpace.s12,
-        ),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: <Color>[Color(0x00000000), Color(0xCC14120F)],
-          ),
-        ),
-        child: Text(name, style: StrideType.cardTitle, maxLines: 1),
-      ),
-    ],
   );
 }
 

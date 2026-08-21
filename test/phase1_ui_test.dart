@@ -269,6 +269,16 @@ void main() {
     FakeTiming fake, {
     required bool Function() until,
   }) async {
+    // Since the Adventure restructure (PRESENTATION_WORLD_REWARD_FEEL_01 §6)
+    // the gather control lives in the selected activity's expanded detail;
+    // select the row first when nothing is expanded yet.
+    if (find.textContaining('Gather ×').evaluate().isEmpty) {
+      final Finder row = find.text('Meadow Patch');
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+    }
     final Finder button = find.textContaining('Gather ×');
     await tester.ensureVisible(button);
     await tester.pumpAndSettle();
@@ -599,6 +609,10 @@ void main() {
       await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
       await tester.pumpAndSettle();
 
+      // The control lives in the selected activity's expanded detail (§6).
+      await tester.tap(find.text('Meadow Patch'));
+      await tester.pumpAndSettle();
+
       expect(find.textContaining('Walk 30 more steps'), findsOneWidget);
 
       // Tapping a disabled control must not fabricate a success — and must
@@ -689,6 +703,10 @@ void main() {
           activityTiming: fake.timing,
         ),
       );
+      await tester.pumpAndSettle();
+
+      // The control lives in the selected activity's expanded detail (§6).
+      await tester.tap(find.text('Meadow Patch'));
       await tester.pumpAndSettle();
 
       final Finder button = find.textContaining('Gather ×');
@@ -1138,13 +1156,17 @@ void main() {
         );
       }
 
-      // Frostmere is in the content pack and is reached through Stonefall — so
-      // it is on the atlas, selectable, and *not* offered as a single travel
-      // (the "Set as Journey" secondary control may stand: multi-leg journeys
-      // are what the Journey slot is for).
+      // Frostmere is in the content pack and is reached through Stonefall —
+      // since PRESENTATION_WORLD_REWARD_FEEL_01 B-2 the whole two-leg walk is
+      // offered as one journey, priced whole, enabled at 50,000 banked.
       await selectPlace(tester, 'location.frostmere');
-      expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
-      expect(find.textContaining('By way of Stonefall Mine'), findsOneWidget);
+      final Finder journey = find.widgetWithText(StrideButton, 'Travel');
+      expect(journey, findsOneWidget);
+      expect((tester.widget(journey) as StrideButton).onPressed, isNotNull);
+      expect(
+        find.text('By way of Stonefall Mine · 4,400 steps in all'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('an unaffordable journey is disabled and states the gap', (

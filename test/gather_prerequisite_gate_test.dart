@@ -24,7 +24,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
-import 'package:stride/ui/screens/adventure/gather_node_card.dart';
+import 'package:stride/ui/screens/adventure/activity_panel.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -133,63 +133,75 @@ void main() {
     return session;
   }
 
-  /// The [GatherNodeCard] whose title is [nodeName].
-  Finder cardOf(String nodeName) => find.ancestor(
-    of: find.text(nodeName),
-    matching: find.byType(GatherNodeCard),
-  );
+  /// Selects the activity row named [nodeName] in the compact list.
+  Future<void> select(WidgetTester tester, String nodeName) async {
+    final Finder row = find.text(nodeName);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+  }
 
-  /// The primary gather button inside [card].
-  StrideButton buttonIn(WidgetTester tester, Finder card) => tester
+  /// The expanded detail's primary gather button.
+  StrideButton gatherButton(WidgetTester tester) => tester
       .widgetList<StrideButton>(
-        find.descendant(of: card, matching: find.byType(StrideButton)),
+        find.descendant(
+          of: find.byType(ActivityDetail),
+          matching: find.byType(StrideButton),
+        ),
       )
       .first;
 
-  /// The requirement gates inside [card], in declaration order.
-  List<RequirementGate> gatesIn(WidgetTester tester, Finder card) => tester
+  /// The requirement gates in the expanded detail. Only UNMET gates render
+  /// since the Adventure restructure — met requirements live on the row's
+  /// sub-line (PRESENTATION_WORLD_REWARD_FEEL_01 §44).
+  List<RequirementGate> gates(WidgetTester tester) => tester
       .widgetList<RequirementGate>(
-        find.descendant(of: card, matching: find.byType(RequirementGate)),
+        find.descendant(
+          of: find.byType(ActivityDetail),
+          matching: find.byType(RequirementGate),
+        ),
       )
       .toList();
 
-  testWidgets('skill too low: controls disabled, concrete reason on the '
-      'button, unmet badge on the failing gate', (WidgetTester tester) async {
+  testWidgets('skill too low: row reads locked, controls disabled with the '
+      'concrete reason', (WidgetTester tester) async {
     await pumpApp(tester, steps: 2000, atWoods: true);
 
-    final Finder card = cardOf('Duskcap Grove');
-    expect(card, findsOneWidget);
-
-    // The button is disabled and says exactly why — no modal.
-    final StrideButton button = buttonIn(tester, card);
-    expect(button.onPressed, isNull);
-    expect(button.subLabel, 'Requires Foraging 3 — you are 1');
-
-    // The skill gate reads as UNMET and states the concrete failure; the tool
-    // gate (no tool needed) stays met.
-    final List<RequirementGate> gates = gatesIn(tester, card);
-    expect(gates, hasLength(2));
-    expect(gates[0].unmet, isTrue);
-    expect(gates[0].label, 'Requires Foraging 3 — you are 1');
-    expect(gates[1].unmet, isFalse);
-    expect(gates[1].label, 'No tool needed');
+    // The compact row states the gap before anything is tapped (§7: locked
+    // activities stay visible and aspirational).
+    expect(find.text('Duskcap Grove'), findsOneWidget);
+    expect(find.text('LOCKED'), findsOneWidget);
     expect(
-      find.descendant(
-        of: card,
-        matching: find.text('REQUIRES FORAGING 3 — YOU ARE 1'),
-      ),
+      find.text('Requires Foraging 3 — you are 1'),
       findsOneWidget,
     );
 
+    await select(tester, 'Duskcap Grove');
+
+    // The button is disabled and says exactly why — no modal.
+    final StrideButton button = gatherButton(tester);
+    expect(button.onPressed, isNull);
+    expect(button.subLabel, 'Requires Foraging 3 — you are 1');
+
+    // The failing gate carries the unmet state; met gates are not restated.
+    final List<RequirementGate> shown = gates(tester);
+    expect(shown, hasLength(1));
+    expect(shown[0].unmet, isTrue);
+    expect(shown[0].label, 'Requires Foraging 3 — you are 1');
+
     // The quantity presets are dead: tapping ×5 must not change the offer.
-    final Finder preset = find.descendant(of: card, matching: find.text('×5'));
+    final Finder preset = find.descendant(
+      of: find.byType(ActivityDetail),
+      matching: find.text('×5'),
+    );
     await tester.ensureVisible(preset);
     await tester.pump();
     await tester.tap(preset);
     await tester.pump();
-    expect(buttonIn(tester, card).label, 'Gather ×1 — 130 steps');
+    expect(gatherButton(tester).label, 'Gather ×1 — 130 steps');
     expect(
-      find.descendant(of: card, matching: find.text('1 × 130 = 130 steps')),
+      find.textContaining('1 × 130 = 130 steps'),
       findsOneWidget,
     );
   });
@@ -198,27 +210,29 @@ void main() {
       'unmet tool gate', (WidgetTester tester) async {
     await pumpApp(tester, steps: 2000, atWoods: true);
 
-    final Finder card = cardOf('Oak Stand');
-    expect(card, findsOneWidget);
+    await select(tester, 'Oak Stand');
 
-    final StrideButton button = buttonIn(tester, card);
+    final StrideButton button = gatherButton(tester);
     expect(button.onPressed, isNull);
     expect(button.subLabel, 'Equip a axe first');
 
-    // Skill is met (Oak Stand asks Woodcutting 1); the tool gate fails.
-    final List<RequirementGate> gates = gatesIn(tester, card);
-    expect(gates, hasLength(2));
-    expect(gates[0].unmet, isFalse);
-    expect(gates[1].unmet, isTrue);
-    expect(gates[1].label, 'Needs a axe — not equipped');
+    // Skill is met (Oak Stand asks Woodcutting 1) and is not restated; the
+    // tool gate fails and shows.
+    final List<RequirementGate> shown = gates(tester);
+    expect(shown, hasLength(1));
+    expect(shown[0].unmet, isTrue);
+    expect(shown[0].label, 'Needs a axe — not equipped');
 
     // The stepper is dead too.
-    final Finder plus = find.descendant(of: card, matching: find.text('+'));
+    final Finder plus = find.descendant(
+      of: find.byType(ActivityDetail),
+      matching: find.text('+'),
+    );
     await tester.ensureVisible(plus);
     await tester.pump();
     await tester.tap(plus);
     await tester.pump();
-    expect(buttonIn(tester, card).label, 'Gather ×1 — 120 steps');
+    expect(gatherButton(tester).label, 'Gather ×1 — 120 steps');
   });
 
   testWidgets('eligible: controls enabled exactly as today', (
@@ -226,27 +240,26 @@ void main() {
   ) async {
     await pumpApp(tester, steps: 500);
 
-    final Finder card = cardOf('Meadow Patch');
-    expect(card, findsOneWidget);
+    await select(tester, 'Meadow Patch');
 
-    final StrideButton button = buttonIn(tester, card);
+    final StrideButton button = gatherButton(tester);
     expect(button.onPressed, isNotNull);
     expect(button.subLabel, isNull);
 
-    final List<RequirementGate> gates = gatesIn(tester, card);
-    expect(gates, hasLength(2));
-    expect(gates[0].unmet, isFalse);
-    expect(gates[0].label, 'Requires Foraging 1');
-    expect(gates[1].unmet, isFalse);
-    expect(gates[1].label, 'No tool needed');
+    // Nothing gates, so no gate chips render — the row's sub-line already
+    // stated the met requirement.
+    expect(gates(tester), isEmpty);
 
     // The presets still work: ×5 re-quotes the button.
-    final Finder preset = find.descendant(of: card, matching: find.text('×5'));
+    final Finder preset = find.descendant(
+      of: find.byType(ActivityDetail),
+      matching: find.text('×5'),
+    );
     await tester.ensureVisible(preset);
     await tester.pump();
     await tester.tap(preset);
     await tester.pump();
-    expect(buttonIn(tester, card).label, 'Gather ×5 — 400 steps');
+    expect(gatherButton(tester).label, 'Gather ×5 — 400 steps');
   });
 
   test('the session projection mirrors the engine: unmet skill, unmet tool, '

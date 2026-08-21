@@ -119,6 +119,14 @@ void main() {
     await tester.pump();
   }
 
+  /// Selects the Meadow Patch activity row — since the Adventure restructure
+  /// (PRESENTATION_WORLD_REWARD_FEEL_01 §6) the queue controls live in the
+  /// selected activity's expanded detail, not on an always-open card.
+  Future<void> selectMeadowPatch(WidgetTester tester) async {
+    await tapVisible(tester, find.text('Meadow Patch'));
+    await tester.pumpAndSettle();
+  }
+
   /// Waits (in real milliseconds) for the dispatch's file I/O to land. Must
   /// run inside `runAsync`, like every real-I/O wait in this suite.
   Future<void> until(bool Function() condition) async {
@@ -150,13 +158,14 @@ void main() {
     final FakeTiming fake = FakeTiming();
     // 400 banked at 80 a gather affords exactly five.
     await pumpFunded(tester, fake, 400);
+    await selectMeadowPatch(tester);
 
     expect(find.text('Gather ×1 — 80 steps'), findsOneWidget);
-    expect(find.text('1 × 80 = 80 steps'), findsOneWidget);
+    expect(find.textContaining('1 × 80 = 80 steps'), findsOneWidget);
 
     await tapVisible(tester, find.text('×5'));
     expect(find.text('Gather ×5 — 400 steps'), findsOneWidget);
-    expect(find.text('5 × 80 = 400 steps'), findsOneWidget);
+    expect(find.textContaining('5 × 80 = 400 steps'), findsOneWidget);
 
     // ×10 is not affordable: the selection clamps and the honest number stays
     // visible — the UI never implies a queue the balance cannot complete.
@@ -170,13 +179,14 @@ void main() {
 
     await tapVisible(tester, find.text('−'));
     expect(find.text('Gather ×4 — 320 steps'), findsOneWidget);
-    expect(find.text('4 × 80 = 320 steps'), findsOneWidget);
+    expect(find.textContaining('4 × 80 = 320 steps'), findsOneWidget);
   });
 
   testWidgets('stop before any completion returns the card to idle with '
       'nothing spent and nothing granted', (WidgetTester tester) async {
     final FakeTiming fake = FakeTiming();
     final StrideSession session = await pumpFunded(tester, fake, 1000);
+    await selectMeadowPatch(tester);
 
     await tapVisible(tester, find.text('×5'));
     await tapVisible(tester, find.text('Gather ×5 — 400 steps'));
@@ -215,6 +225,7 @@ void main() {
   ) async {
     final FakeTiming fake = FakeTiming();
     final StrideSession session = await pumpFunded(tester, fake, 1000);
+    await selectMeadowPatch(tester);
 
     await tapVisible(tester, find.text('×10'));
     await tapVisible(tester, find.text('Gather ×10 — 800 steps'));

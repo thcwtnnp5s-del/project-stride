@@ -75,7 +75,10 @@ void main() {
         );
       }
     }
-    expect(scenery, hasLength(8), reason: 'one entry per node vignette');
+    // 9 since PRESENTATION_WORLD_REWARD_FEEL_01 B-3 added the Hardened
+    // Copper Seam; `node_art_resolution_test` holds the count to the content
+    // pack, so this stays a plain census.
+    expect(scenery, hasLength(9), reason: 'one entry per node vignette');
   });
 
   test(

@@ -326,6 +326,9 @@ class _ProjectTile extends StatelessWidget {
       if (amount > 0) offer.add('${line.name} ×$amount');
     }
 
+    // A project is not an ordinary contract (brief §12): it gets the stage
+    // ladder, an animated per-material bar, and the permanent-change preview
+    // that makes contributing feel like building something.
     return SurfaceBlock(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,19 +360,26 @@ class _ProjectTile extends StatelessWidget {
               style: StrideType.microLabel,
             ),
             const SizedBox(height: StrideSpace.s4),
-            Wrap(
-              spacing: StrideSpace.s8,
-              runSpacing: StrideSpace.s4,
-              children: <Widget>[
-                for (final RequirementLine line in current.lines)
-                  _ProgressChip(
-                    label: line.name,
-                    progress: line.progress,
-                    required: line.required,
-                    satisfied: line.satisfied,
-                  ),
-              ],
-            ),
+            for (final RequirementLine line in current.lines) ...<Widget>[
+              _MaterialProgressRow(line: line),
+              const SizedBox(height: StrideSpace.s4),
+            ],
+            // The permanent change, previewed before the work is done — the
+            // reason to contribute, not a surprise at the end (§12).
+            if (project.completionHeadline != null ||
+                project.developmentTo != null) ...<Widget>[
+              const SizedBox(height: StrideSpace.s4),
+              Text(
+                'On completion: ${<String>[
+                  ?project.completionHeadline,
+                  if (project.developmentTo != null)
+                    'the settlement becomes ${project.developmentTo}',
+                ].join(' · ')}',
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.textSecondary,
+                ),
+              ),
+            ],
             const SizedBox(height: StrideSpace.s8),
             Wrap(
               spacing: StrideSpace.s8,
@@ -400,6 +410,83 @@ class _ProjectTile extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// One project material as a name, a live `held / required`, and an animated
+/// fill — so a contribution visibly *builds* (brief §12: animate 2/12 →
+/// 4/12) instead of a chip's number silently changing.
+///
+/// The animation is presentation over committed figures: the target fraction
+/// is always the projected line the session returned, and
+/// `TweenAnimationBuilder` merely eases the bar from wherever it last drew.
+/// Reduced motion collapses the ease to its end state by the framework's own
+/// duration handling.
+class _MaterialProgressRow extends StatelessWidget {
+  const _MaterialProgressRow({required this.line});
+
+  final RequirementLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    final double fraction = line.required == 0
+        ? 1
+        : (line.progress / line.required).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                line.name,
+                style: StrideType.micro.copyWith(
+                  color: line.satisfied
+                      ? StrideColors.textPrimary
+                      : StrideColors.textSecondary,
+                ),
+              ),
+            ),
+            Text(
+              '${formatSteps(line.progress)} / ${formatSteps(line.required)}'
+              '${line.satisfied ? ' ✓' : ''}',
+              style: StrideType.micro.copyWith(
+                color: line.satisfied
+                    ? StrideColors.textPrimary
+                    : StrideColors.textSecondary,
+                fontFeatures: const <FontFeature>[
+                  FontFeature.tabularFigures(),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: fraction),
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeOutCubic,
+          builder: (BuildContext context, double value, Widget? child) =>
+              Container(
+            height: 6,
+            decoration: BoxDecoration(
+              color: StrideColors.surfaceGround,
+              borderRadius: StrideRadius.gate,
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: value,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: StrideColors.accentSteps,
+                  borderRadius: StrideRadius.gate,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
