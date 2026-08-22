@@ -1,7 +1,7 @@
 # PRESENTATION_WORLD_REWARD_FEEL_01
 
-**Status:** 🚧 Implementation complete — awaiting the owner's physical-device
-test.
+**Status:** 🚧 Device correction round complete — awaiting the owner's second
+physical-device test.
 **Branch:** `playable-phase-2-multiregion`
 **Start HEAD:** `0700969`
 **Commits:** `4419cc2` (bug fixes) · `e03f96b` (Adventure + Goal Board) ·
@@ -357,3 +357,159 @@ are now resolved; the fast-forward entry is withdrawn and replaced by the
 anchor semantics above, and the seam entry is withdrawn — the loops ship. A
 profession with no authored loop still renders the bar alone, which is now a
 genuine fallback rather than the shipped state.
+
+---
+
+## Device correction round (2026-08-22)
+
+The owner installed `1835a91` and returned a verdict: the progression works,
+the new UI architecture is a meaningful improvement, the shared activity
+concept is directionally correct, crafting feels like an activity, the atlas
+is a major improvement, and the Goal Board separation was the right
+architectural choice — followed by a list of presentation and correctness
+faults. This section is the repo-canonical record of what was done about
+them.
+
+### Correctness
+
+| Finding | What it was | What was done |
+|---|---|---|
+| Stale tracked contract survived migration (§13) | The reducer fix reached future completions and could never reach the save on the phone, where Wolf Problem was completed under the old build | **State version 8**, the migration table's first *repair* step. Clears a Contract tracker only when the contract is unaccepted **and** completed before — residue and nothing else. Runs once, as an ordinary `TrackGoal` event through the real engine. `DECISIONS/0024` |
+| "+0 STEPS BANKED · Journey Ready" (§14) | Two faults in one card: the banner read `lastSync`, which the result timer nulls while the banner waits for a tap; and the highlights were "true right now" asked after the sync, so standing facts re-announced forever | The banner holds its own copy of the figure. The highlights are the **difference** between the projection before the sync and after it, so a sync celebrates only what it made true |
+| Goal Board yellow underlines (§10) | Flutter's missing-Material fallback, **shipped twice**. The first fix wrapped `MaterialApp.home`, which is one route; the Goal Board is the product's first push and the Navigator builds it outside `home` | The `Material` moved to `MaterialApp.builder`, which wraps the Navigator, so no future route can acquire this by being new. The guard asserts on **resolved text decoration**, not on strings; with the old placement it reports the board's 50 underlined strings |
+
+### Presentation
+
+**The activity stage, §2–§6.** The architecture stays; the composition
+splits in two. Nothing selected is a LOCATION — the whole painting, the
+Traveler, the cat, the full idle cadence, and deliberately no resource prop,
+because a place is not a job. Selecting an activity is WORK — the
+profession's own tighter backdrop, the resource on the Traveler's own ground
+line immediately where his tool lands, the companion scenes dropped so the
+cat is not underfoot at a rock face, and the caption naming the work rather
+than the place.
+
+Families, not scenes per node (§4): one composition per profession with the
+resource swapped in by node, so Copper, Tin and Hardened Copper are three
+props in one mining scene and the code is identical for all nine nodes.
+
+**Encounters, §15.** The same shape as the activity list: ~48 dp rows, one
+expanded detail. Everything the ~400 dp card carried — the creature's own
+idle, its knowledge tier, its known drops in rarity ink, its stats, Start
+Combat — is inside the one enemy being considered.
+
+**The Goal Board, §9/§11/§12.** Four facts a job — title, type, progress,
+reward — with a state word so a row never conceals that something is
+finishable, and the flavour and the buttons in the one job the player
+opened. Community projects keep their full tile; what changed is that they
+are no longer competing with five equally loud contracts above them.
+
+**Craft copy, §8.** `0 craftable · 15 known`, the same shape at every count.
+
+**The world, §16–§27.** See below; it is the one item that does not fully
+pass.
+
+### Two placement rules that came out of blind review
+
+Both are in `AmbientStage` now, and both were found by a reviewer rather
+than by taste:
+
+- **`StageScenery.behindFigure`.** A prop tall enough to occlude the tool is
+  painted before the figure. A tree trunk drawn last hid the axe completely
+  and the honest read was *"a man pointing at a tree"*.
+- **`AmbientAssets.worksEast`.** The working side is a property of the
+  **loop**, not of the prop. Woodcutting, foraging, smithing and cooking all
+  face west; the mining loop faces east and throws its chips right, so
+  placing its boulder west put the ore behind the miner's back.
+
+### The world item, stated plainly
+
+**Delivered:** 3072 × 3072 world px, 2.25× the footprint, north/south
+doubled, one painting so no join; the five places spread so the map explains
+its own travel costs; fourteen future landmarks north, south, east, west and
+offshore, named, quieter, suffixed and deliberately untappable; a label LOD
+that keeps the far tier at survey zoom and drops the ferry crossings.
+
+**Not delivered:** a clean §23 topology review. The gate was run on the old
+painting and the new one with the same questions, so the comparison is a
+measurement rather than an opinion: **both FAIL; the incumbent carries one
+BLOCKER and the replacement carries none.** The incumbent's blocker is a
+rectangular compositing box in open water — inpaint residue from the first
+pass — and it is in the product today. Shipping the replacement is therefore
+a strict improvement on every measured axis, and it is still not clean.
+
+The shared faults are the generator's, not either painting's: sparse
+drainage, a stamped forest quarter, three or four coexisting projections,
+hard biome joins. The next pass is specified in the world record.
+
+**And a tooling blocker that outranks any art note:** MCP's inline base64
+ceiling measures at roughly **5.5 KB**. A 96 × 96 sprite fits; any crop of a
+painted map does not. So the five corrective inpaints of the first pass were
+only possible because they were small, and the coastline repair this round
+needed was impossible. Until an image can be hosted, **atlas-scale
+corrections must come from the web Map Workshop or a paint pass outside this
+pipeline.**
+
+### Known issues after this round
+
+**BLOCKER:** none known.
+
+**GAMEPLAY / DESIGN**
+- The atlas does not pass its topology gate (above). Materially better,
+  not clean.
+- Three nodes — Frostpine Stand, Rimefrost Hollow, Hollow Thicket — have no
+  authored work prop and fall back to their node vignette at the interaction
+  point. Better than where they were, worse than a work face.
+- Travel-leg distances are proportional to their step costs only roughly;
+  the painted features are where they are and travel costs are frozen
+  content this milestone does not touch.
+
+**COSMETIC**
+- The foraging backdrop's upper quarter is a flat field; it reads as
+  receding haze in motion and as empty canvas in a still.
+- The oak stump's cut face is drawn near-frontally and disagrees slightly
+  with the ground plane its own log establishes.
+- The three ore props share one boulder silhouette; the swap boundary is
+  visible on close inspection.
+- Craft loops keep their recorded minors: the smith posture pops on the
+  wrap, the cook bowl leaves the pot in two of seven frames, and both craft
+  stations are ¾-isometric against a flat side-view figure.
+- No native-resolution or ×8 review pass was run this round. Tangency and
+  stray-pixel inspection is **uninspected, not cleared**.
+
+### Revised device acceptance — presentation only
+
+1. **Adventure, idle.** Stonefall with nothing selected: the mine painting,
+   the Traveler, the cat, no ore boulder anywhere. It should look like a
+   place, not a job list.
+2. **Adventure, working.** Tap Copper Seam. The backdrop tightens to a mine
+   working with a lit floor, the seam stands at his feet, the cat is gone,
+   the caption says Copper Seam. Start it: the pick comes down on the rock
+   and the chips land on it.
+3. **The same scene, three ores.** Copper, Tin, Hardened Copper in turn.
+   Same place, three visibly different minerals.
+4. **Woodcutting and foraging.** Whispering Woods: the axe lands in the
+   notch; the forager crouches into the herbs with his face clear.
+5. **Encounters.** Salamander and Cave Goblin are rows. Open one: the
+   creature, its stats, its known drops, Start Combat. Only one opens.
+6. **Goal Board.** Open it. **No yellow underlines anywhere** — title,
+   headings, job text, rewards, buttons, CLOSE. Jobs are rows of four facts;
+   open one for its flavour and its buttons. The project still looks like a
+   project.
+7. **Craft.** The census reads `N craftable · M known`. The forge and the
+   cookfire still read.
+8. **The stale tracker.** First launch after installing: the Contract slot
+   should be **empty**, not "Wolf Problem · Forest Wolf 0 / 3".
+9. **Sync with nothing new.** Press Sync twice. The second must raise **no
+   reward card at all** — no "+0", no repeated Journey Ready.
+10. **Sync that crosses a threshold.** Walk until a tracked journey becomes
+    affordable, then sync. Journey Ready fires **once**, with the real
+    banked figure.
+11. **World, survey.** Pinch out. The continent should extend past the
+    window in **all four directions**, and the far names — Rimewatch,
+    Emberhold, Marshlight, Tern Isles — should be legible out there.
+12. **World, panning.** Go far north to the ice, far south to the marsh, far
+    east to the lighthouse, far west into the deep forest. Note anywhere the
+    map looks broken; the record above already lists what is known.
+13. **World, spacing.** Frostmere should be a long way north of Stonefall.
+    Does 3,000 steps look like 3,000 steps now?

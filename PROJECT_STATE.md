@@ -1,24 +1,32 @@
 # Project Stride — Project State
 
-**Version:** 2.12
-**Status:** 🚧 **PRESENTATION, WORLD & REWARD FEEL 01 — implementation
-complete, awaiting the owner's physical-device test.** Branch
+**Version:** 2.13
+**Status:** 🚧 **PRESENTATION, WORLD & REWARD FEEL 01 — device correction
+round complete, awaiting the owner's second physical-device test.** Branch
 `playable-phase-2-multiregion`, on top of the Exploration & Progression Loop
 (`0700969`). Records: `MILESTONES/PRESENTATION_WORLD_REWARD_FEEL_01.md`,
-`MILESTONES/PIXELLAB_MAPS_EVALUATION.md`.
+`MILESTONES/PIXELLAB_MAPS_EVALUATION.md`,
+`DECISIONS/0024_TRACKED_GOAL_VALIDITY_REPAIR.md`.
 
-The owner's device test ruled the **mechanics good enough to build on and
-the presentation not good enough yet**. This milestone answers that, and
-adds no mechanics.
+The owner's first device test ruled the **mechanics good enough to build on
+and the presentation not good enough yet**. The second ruled the new UI
+architecture a meaningful improvement and returned a list of presentation
+and correctness faults. Both are answered here, and neither added a
+mechanic.
 
-What changed, in one breath: Adventure is **one living stage instead of many
-repeated ones** — the location's painting, the Traveler and the cat, the
-selected activity's node as far scenery, the profession loop while a queue
-runs — with gather nodes reduced from ~380 dp cards to **~48 dp selectable
-rows** where only the chosen activity expands, and locked activities kept
-visible with the concrete gap; the whole job board moved to a **Goal Board**
-behind one button, in each location's own fiction, leaving Adventure a
-three-line goal summary; **crafting is a real activity** — categories,
+What changed, in one breath: Adventure is **one stage in two modes** —
+nothing selected is the LOCATION (the whole painting, the Traveler, the cat,
+the full idle cadence, and deliberately no resource prop), and selecting an
+activity is WORK (the profession's own tighter backdrop, the resource on the
+Traveler's own ground line where his tool lands, the companion scenes out of
+the way, the caption naming the work) — with gather nodes reduced from
+~380 dp cards to **~48 dp selectable rows**, **encounters given the same
+treatment** (Salamander and Cave Goblin were ~400 dp each and permanently
+expanded), and locked activities kept visible with the concrete gap; the
+whole job board moved to a **Goal Board** behind one button, in each
+location's own fiction, and the board itself reduced to **four facts a job**
+— title, type, progress, reward — with the flavour and the buttons in the
+one job the player opened; **crafting is a real activity** — categories,
 compact rarity-inked recipe rows, one working detail panel, a ×1/×5/×10
 queue clamped to the bag, a **working craft stage** (the Traveler hammering
 at a forge or stirring over a cookfire, one PixelLab loop per craft skill),
@@ -29,9 +37,12 @@ and a backgrounded queue that keeps running on its wall-clock anchor and
 finishes with a **reveal** (name, rank, stat delta, level-up unlocks,
 Equip); community projects gained animated per-material bars and a permanent
 **completion preview**; enemy cards present the **ecology** (known drops in
-rarity ink, the signature `???` until Known); and the world is a **new
-wide-format continent** — 2752 × 1536 world px, pannable east/west, the
-playable cluster about a sixth of it, thirteen regional ambient overlays.
+rarity ink, the signature `???` until Known); and the world is a **new continent, doubled** —
+one 512 × 512 PixelLab painting at scale 6, **3072 × 3072 world px**, 2.25×
+the first pass, pannable in all four directions, with the five places spread
+so thousands of steps look like thousands of steps and **fourteen future
+landmarks** north, south, east, west and offshore that are named, quieter,
+and deliberately not travelable.
 
 Three device bugs fixed: a **completed contract or project now clears its
 tracked slot** (it used to silently re-track the rotation's fresh 0/x copy);
@@ -49,9 +60,55 @@ export**, so it is not the foundation; the tileset/object/inpaint tools are
 adopted around a painted base. Full record and the preserved bake spike:
 `MILESTONES/PIXELLAB_MAPS_EVALUATION.md`.
 
-Suites: app **585**, `stride_core` **677**; analyze clean; goldens
-regenerated and reviewed. **No schema change, no migration, no economy
-re-basing, and nothing in the health / step-accounting path touched.**
+### The correction round's own corrections
+
+Three faults were **correctness**, not presentation, and all three are
+fixed with regression tests that fail if the fix is undone:
+
+- **The stale tracker survived migration.** The reducer fix reached future
+  completions and could not reach the save already on the phone, where Wolf
+  Problem had been completed under the old build. **State version 8** is the
+  migration table's first *repair* step: it clears a Contract tracker only
+  when the contract is unaccepted **and** has been completed before, which
+  is residue and nothing else. It runs once, as an ordinary event through
+  the real engine (`DECISIONS/0024`).
+- **"+0 STEPS BANKED / Journey Ready" was two faults in one card.** The
+  banner read `lastSync`, which the five-second result timer nulls while the
+  banner waits for a tap; it now holds its own copy. And the highlights were
+  "what is true right now" asked after the sync, so every standing fact
+  re-announced itself; they are now the **difference** between before and
+  after, so a sync celebrates only what it made true.
+- **The Goal Board's yellow underlines** were Flutter's missing-Material
+  fallback, shipped twice. The first fix wrapped `MaterialApp.home`, which
+  covers exactly one route — and the Goal Board is the product's first push,
+  built by the Navigator outside it. The `Material` moved to
+  `MaterialApp.builder`, so no future route can acquire this by being new.
+  The guard asserts on **resolved text decoration** rather than on strings,
+  and with the old placement it reports the board's 50 underlined strings.
+
+### What the world item does and does not deliver
+
+The continent is 2.25× larger and removes a blocker that is in the product
+today — a rectangular compositing box sitting in open water, inpaint residue
+from the first pass that reads as a texture that failed to load. It **does
+not pass the §23 topology gate**, and the gate was run on the old painting
+and the new one with the same questions so the comparison is a measurement:
+both FAIL, the incumbent with one blocker, the replacement with none. The
+shared faults — sparse drainage, a stamped forest quarter, mixed projection
+— belong to the generator, not to either painting, and the next pass is
+specified in the world record.
+
+A **tooling** constraint was found and matters more than any single art
+note: MCP's inline base64 ceiling measures at roughly **5.5 KB**, so
+map-scale inpainting cannot be driven through this pipeline at all. Sprite
+corrections work; atlas corrections need the web Map Workshop or a paint
+pass outside it.
+
+Suites: app **597**, `stride_core` **684**, `stride_storage` **108**;
+analyze clean; art packaging clean; goldens regenerated and reviewed.
+**No economy re-basing, and nothing in the health / step-accounting path
+touched.** One schema change, asked for by name: state version 8, a repair
+with no field added and no shape altered.
 Open: Q-06, Q-07 remainder, OD-04, OD-06.
 
 ---
