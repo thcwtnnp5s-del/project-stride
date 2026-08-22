@@ -202,7 +202,10 @@ class _OpportunityBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int banked = controller.lastSync?.newlyGranted ?? 0;
+    // The banner's own copy — `lastSync` is cleared by the result timer
+    // while this banner waits for a tap, and reading it here is what put
+    // "+0 STEPS BANKED" on the owner's device.
+    final int banked = controller.lastOpportunityBanked;
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

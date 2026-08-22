@@ -446,6 +446,19 @@ Future<String> runPersistenceScript(
 /// written. Both slots grew by **255 bytes**: `,"hp":40` inside player (8),
 /// plus the empty progress block at canonical key order (247). The frozen
 /// v6→v7 save fixture grew by the same 255.
+///
+/// ## Amended once more, for state version 8 — and here is that review
+///
+/// PRESENTATION_WORLD_REWARD_FEEL_01's stale-tracker repair bumped the state
+/// version with **no shape change at all**, so the only byte that moved in
+/// either snapshot is the version digit: `"stateVersion":7` → `:8`.
+///
+/// The evidence is in the lengths. Both slots are **1616 and 1618, exactly as
+/// before** — one digit replaced by one digit. Every behavioural line is
+/// byte-identical, and so are the identity and journal digests, length and
+/// content alike. Only the two snapshot digests moved, which is the least a
+/// changed byte can do and the most this change is allowed to do: a version
+/// bump that had also perturbed a field would have moved a length too.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -455,8 +468,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1616:4322f8c1
-slot_b:1618:599e0187''';
+slot_a:1616:a96e47c4
+slot_b:1618:70df31a9''';
 
 // ---------------------------------------------------------------------------
 // The suite

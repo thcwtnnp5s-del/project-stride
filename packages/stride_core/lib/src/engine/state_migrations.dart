@@ -38,6 +38,7 @@ final class StateMigrationStep {
     required this.rebasesEconomy,
     required this.decision,
     this.afterFirstReconcile = false,
+    this.clearsStaleTrackedContract = false,
   }) : assert(to == from + 1, 'a step moves exactly one version');
 
   /// The state version this step reads.
@@ -75,6 +76,20 @@ final class StateMigrationStep {
 
   /// The `DECISIONS/` document that authorised this step.
   final String decision;
+
+  /// Whether this step clears a Contract tracker left pointing at a contract
+  /// that is not actually being pursued.
+  ///
+  /// **A repair, and the table's first.** Every earlier step restated a
+  /// *shape*; this one restates a *fact* the shape was allowed to hold
+  /// wrongly. It is declared here, beside `rebasesEconomy`, for the same
+  /// reason that one is: a step that edits the player's recorded progress has
+  /// to ask for it by name, so no future format bump can silently rewrite
+  /// progress as a side effect of being newer.
+  ///
+  /// Scope is deliberately narrow — see `applyStateMigrationPath` for the
+  /// exact predicate and why each half of it is there.
+  final bool clearsStaleTrackedContract;
 
   @override
   String toString() =>
@@ -172,7 +187,31 @@ final class StateMigrations {
       rebasesEconomy: false,
       decision: 'DECISIONS/0023_EXPLORATION_PROGRESSION_LOOP.md',
     ),
+    // The stale Contract tracker repair. No field enters or leaves the save.
+    //
+    // Until this milestone, completing a rotating contract rotated the deck
+    // but left `progress.tracked.contract` pointing at the same ContentId —
+    // which the board had by then re-offered as a fresh instance. The tracker
+    // therefore re-read as an untouched "0 / 3" for work the player had
+    // already finished and claimed. The reducer now clears the slot at the
+    // moment of completion, so no save written by this build can acquire the
+    // residue; this step is for the saves that already have it, which the
+    // reducer fix alone cannot reach.
+    //
+    // Owner device report, 2026-08-21: Wolf Problem, completed before the
+    // build, still tracked as "Forest Wolf defeated 0 / 3".
+    StateMigrationStep(
+      from: 7,
+      to: 8,
+      rebasesEconomy: false,
+      clearsStaleTrackedContract: true,
+      decision: 'DECISIONS/0024_TRACKED_GOAL_VALIDITY_REPAIR.md',
+    ),
   ];
+
+  /// Whether any step on [path] repairs a stale Contract tracker.
+  static bool repairsTrackedContract(List<StateMigrationStep> path) =>
+      path.any((StateMigrationStep s) => s.clearsStaleTrackedContract);
 
   /// Whether [path] must wait for the first foreground reconciliation before
   /// it is applied and committed. True when any step on it says so.

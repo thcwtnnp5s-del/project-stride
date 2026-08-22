@@ -29,6 +29,7 @@ import 'package:meta/meta.dart';
 /// | 5 | World & Reward Depth 01 | `world.drivenOff` (a set of enemies) becomes `world.visitVictories` (a count per enemy) — repeatable encounters (`DECISIONS/0021`); a format bump only, no economy re-base |
 /// | 6 | Finite background activity | `activityQueue` — the durable, wall-clock-anchored activity queue (`DECISIONS/0022`); a format bump only, no economy re-base |
 /// | 7 | Exploration & Progression Loop 01 | `player.hp` (persistent HP), `progress` (enemy knowledge, contracts, projects, rumors, tracked goals), `encounter.playerFrostGuard` (`DECISIONS/0023`); a format bump only, no economy re-base |
+/// | 8 | PRESENTATION_WORLD_REWARD_FEEL_01 | **No shape change at all** — the first repair step. A v7 save could carry a Contract tracker pointing at a contract that had already been completed and rotated away, because the reducer did not clear the slot until this milestone fixed it. The step clears exactly that residue and nothing else (`DECISIONS/0024`); no economy re-base |
 @immutable
 final class StateVersion implements Comparable<StateVersion> {
   const StateVersion(this.value);
@@ -36,7 +37,7 @@ final class StateVersion implements Comparable<StateVersion> {
   final int value;
 
   /// The version new games are created at.
-  static const StateVersion current = StateVersion(7);
+  static const StateVersion current = StateVersion(8);
 
   /// The oldest version this build can read.
   ///

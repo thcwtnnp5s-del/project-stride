@@ -358,18 +358,30 @@ StateMigrationApplication applyStateMigrationPath({
 
   final List<GameEvent> events = <GameEvent>[];
   for (final StateMigrationStep step in path) {
-    if (!step.rebasesEconomy) continue;
-    final EngineResult result = engine.execute(
-      EstablishEconomyEpoch(
-        fromStateVersion: step.from,
-        toStateVersion: step.to,
-      ),
-    );
-    final CommandRejection? refused = result.rejection;
-    if (refused != null) {
-      return StateMigrationRefused(step: step, rejection: refused);
+    if (step.rebasesEconomy) {
+      final EngineResult result = engine.execute(
+        EstablishEconomyEpoch(
+          fromStateVersion: step.from,
+          toStateVersion: step.to,
+        ),
+      );
+      final CommandRejection? refused = result.rejection;
+      if (refused != null) {
+        return StateMigrationRefused(step: step, rejection: refused);
+      }
+      events.addAll(result.events);
     }
-    events.addAll(result.events);
+    if (step.clearsStaleTrackedContract &&
+        _trackedContractIsStale(registry, engine.state)) {
+      final EngineResult result = engine.execute(
+        const TrackGoal(slot: GoalSlot.contract),
+      );
+      final CommandRejection? refused = result.rejection;
+      if (refused != null) {
+        return StateMigrationRefused(step: step, rejection: refused);
+      }
+      events.addAll(result.events);
+    }
   }
 
   return StateMigrationApplied(
@@ -384,6 +396,38 @@ StateMigrationApplication applyStateMigrationPath({
       stepsApplied: path,
     ),
   );
+}
+
+/// Whether the Contract tracker points at work the player is not actually
+/// pursuing (`StateMigrationStep.clearsStaleTrackedContract`).
+///
+/// Both halves of the predicate are load-bearing, and each one exists to
+/// protect a case the other would damage:
+///
+/// - **Not accepted.** An accepted contract is live work, whatever its
+///   history, so an accepted tracker is never touched. This is the half that
+///   protects a repeatable contract the player has completed before and is
+///   right now doing again.
+/// - **Completed at least once.** A contract the player has never finished
+///   cannot be residue from a completion, so tracking one is an intention,
+///   not a leftover. This is the half that protects an aspirational tracker
+///   on a contract the player has lined up but not yet accepted — which the
+///   Goal Board explicitly allows.
+///
+/// A delivery order has no acceptance step, so `acceptedContracts` never
+/// holds one; a tracked delivery order that has been completed before is
+/// therefore repaired too, which is correct — that is the same residue.
+///
+/// Projects are excluded outright. A project's tracker is answered from
+/// `projects`/`completedProjects`, never rotates, and is cleared by the
+/// reducer on the completing contribution.
+bool _trackedContractIsStale(ContentRegistry registry, GameState state) {
+  final ContentId? tracked = state.progress.tracked.contract;
+  if (tracked == null) return false;
+  if (registry.projects.containsKey(tracked)) return false;
+  if (!registry.contracts.containsKey(tracked)) return false;
+  if (state.progress.acceptedContracts.contains(tracked)) return false;
+  return state.progress.completionsOf(tracked) > 0;
 }
 
 /// A migration the coordinator loaded but deliberately did not commit.

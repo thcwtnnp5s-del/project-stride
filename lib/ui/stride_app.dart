@@ -138,44 +138,54 @@ class _StrideAppState extends State<StrideApp> {
       title: 'Project Stride',
       debugShowCheckedModeBanner: false,
       theme: strideTheme(),
-      // Every screen sits under one Material, and this is not decoration.
+      // EVERY ROUTE sits under one Material, and this is not decoration.
       //
-      // `MaterialApp` supplies the theme but NOT a `Material`; `home` is
-      // whatever you put there. With no `Material` ancestor, `DefaultTextStyle`
-      // resolves to Flutter's fallback — whose own debug label reads "consider
-      // putting your text in a Material" — and that style carries
-      // `TextDecoration.underline` in double yellow.
+      // `MaterialApp` supplies the theme but NOT a `Material`. With no
+      // `Material` ancestor, `DefaultTextStyle` resolves to Flutter's
+      // fallback — whose own debug label reads "consider putting your text in
+      // a Material" — and that style carries `TextDecoration.underline` in
+      // double yellow.
       //
-      // The result is that **every string in the product is underlined**. Each
+      // The result is that **every string on the screen is underlined**. Each
       // `StrideType` role sets a colour, a size and a weight but not a
       // `decoration`, so the fallback's decoration is inherited by all of them
-      // and the app renders exactly as designed except for a yellow rule under
-      // every word.
+      // and the screen renders exactly as designed except for a yellow rule
+      // under every word.
       //
-      // Nothing caught it before a device: widget tests read strings rather than
-      // their decoration, and the golden harness has no real font, so it draws
-      // every glyph as a filled rectangle and the underline merges into the box.
-      // The first honest look was a screenshot from a running device.
+      // ## Why this is `builder` and not `home`
+      //
+      // It was `home` first, which fixed the tabs and left a trap: `home` is
+      // one route, and a **pushed** route is built by the Navigator outside
+      // it. The Goal Board — the first full-screen push in the product —
+      // walked straight into it, and the owner's device showed the whole
+      // surface underlined in yellow: title, headings, job text, rewards,
+      // buttons, CLOSE.
+      //
+      // `builder` wraps the Navigator itself, so every route the app will
+      // ever push inherits the same contract instead of each one having to
+      // remember. A screen is no longer allowed to acquire this bug by being
+      // new.
       //
       // `type: transparency` because `StrideScaffold` paints the page ground
       // itself — a Material with a colour here would put a second opaque layer
       // under every screen for nothing.
-      home: Material(
+      builder: (BuildContext context, Widget? child) => Material(
         type: MaterialType.transparency,
-        child: SessionScope(
-          controller: _controller,
-          child: ActivityScope(
-            controller: _activity,
-            child: CraftScope(
-              controller: _craft,
-              // The blocked branch is taken before the shell is built, not
-              // inside it. A blocked bootstrap has no engine, so a shell that
-              // rendered anyway would be reading the null-fallback zeros out
-              // of every getter and presenting them as the player's save.
-              child: blocked != null
-                  ? BlockedScreen(blocked: blocked)
-                  : const StrideShell(),
-            ),
+        child: child ?? const SizedBox.shrink(),
+      ),
+      home: SessionScope(
+        controller: _controller,
+        child: ActivityScope(
+          controller: _activity,
+          child: CraftScope(
+            controller: _craft,
+            // The blocked branch is taken before the shell is built, not
+            // inside it. A blocked bootstrap has no engine, so a shell that
+            // rendered anyway would be reading the null-fallback zeros out
+            // of every getter and presenting them as the player's save.
+            child: blocked != null
+                ? BlockedScreen(blocked: blocked)
+                : const StrideShell(),
           ),
         ),
       ),

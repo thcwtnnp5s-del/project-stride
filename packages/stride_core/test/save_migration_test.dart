@@ -305,6 +305,19 @@ File get v7FixtureFile =>
 /// through the real v6→v7 step (`DECISIONS/0023`). Same terms as v1–v6.
 Uint8List get v7Baseline => _frozen(v7FixtureFile);
 
+File get v8FixtureFile =>
+    File('${fixtureDirectory.path}/save/v8_baseline.save');
+
+/// The v7 fixture, after the stale-tracker repair, frozen in its turn.
+///
+/// Generated **once** by `tool/generate_v8_baseline.dart` from
+/// `v7_baseline.save` through the real v7→v8 step
+/// (`MILESTONES/PRESENTATION_WORLD_REWARD_FEEL_01.md`). Same terms as v1–v7.
+///
+/// The one fixture in this family that carries no format change: v8's geometry
+/// is v7's, and the step is a repair.
+Uint8List get v8Baseline => _frozen(v8FixtureFile);
+
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
   Uint8List framed,
@@ -821,10 +834,11 @@ void main() {
       expect(state.activityQueue, isNull);
       expect(state.player.hp, 40);
       expect(state.progress, ProgressState.initial());
+      // v7 is no longer current: the stale-tracker repair sits above it, and
+      // a v7 save on a phone still owes exactly that one step.
       expect(
-        StateVersion.migrationRequired(state.stateVersion),
-        isFalse,
-        reason: 'a migrated save must never migrate again',
+        StateMigrations.pathFrom(7).map((StateMigrationStep s) => s.to),
+        <int>[8],
       );
     });
 
@@ -834,6 +848,203 @@ void main() {
       // version digit is one byte either way. A change that had also
       // perturbed something else would not land on 255.
       expect(v7Baseline.length - v6Baseline.length, 255);
+    });
+  });
+
+  group('B8 — the round trip, carried forward to v8 (the repair step)', () {
+    test('the v8 fixture is the v7 fixture with the version digit moved', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v8Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 8);
+      // Nothing else may move. A repair-only bump replaces one digit with one
+      // digit, so the two fixtures are the same length to the byte.
+      expect(
+        v8Baseline.length - v7Baseline.length,
+        0,
+        reason: 'a repair-only version bump changes no field',
+      );
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 3,
+        ),
+        reason: 'a repair must not move the economy mark',
+      );
+      expect(state.steps.banked, 0);
+      expect(state.player.hp, 40);
+      expect(state.progress, ProgressState.initial());
+      expect(
+        StateVersion.migrationRequired(state.stateVersion),
+        isFalse,
+        reason: 'a migrated save must never migrate again',
+      );
+    });
+
+    // --- The repair itself. The owner's device carried exactly this state:
+    // Wolf Problem completed and claimed before the build, and the Contract
+    // tracker still pointing at it, re-read by the board's fresh instance as
+    // an untouched "Forest Wolf defeated 0 / 3".
+    //
+    // The reducer fix (this milestone) clears the slot at the moment of
+    // completion, so no save written by this build can acquire the residue.
+    // These are about the saves that already have it, which the reducer
+    // cannot reach.
+    group('the migrated existing-save case', () {
+      final ContentId wolfProblem = ContentId.unchecked('contract.wolf_problem');
+      final ContentId boarOnTrail = ContentId.unchecked('contract.boar_on_the_trail');
+
+      /// A v7 state whose Contract tracker points at [tracked], with the
+      /// completion and acceptance history the case needs.
+      GameState v7Tracking(
+        ContentId tracked, {
+        required int completions,
+        required bool accepted,
+      }) {
+        final SaveEnvelope envelope = decodeEnvelope(
+          unframe(v7Baseline).payload!,
+        );
+        return envelope.state.copyWith(
+          progress: envelope.state.progress.copyWith(
+            contractCompletions: <ContentId, int>{tracked: completions},
+            acceptedContracts: accepted
+                ? <ContentId>{tracked}
+                : const <ContentId>{},
+            tracked: TrackedGoals(contract: tracked),
+          ),
+        );
+      }
+
+      StateMigrationApplied migrate(GameState state) {
+        final StateMigrationApplication applied = applyStateMigrationPath(
+          registry: saveRegistry,
+          state: state,
+          path: StateMigrations.pathFrom(7),
+        );
+        expect(applied, isA<StateMigrationApplied>(), reason: '$applied');
+        return applied as StateMigrationApplied;
+      }
+
+      test('a completed, rotated-away contract is cleared', () {
+        final StateMigrationApplied applied = migrate(
+          v7Tracking(wolfProblem, completions: 1, accepted: false),
+        );
+
+        expect(
+          applied.engine.state.progress.tracked.contract,
+          isNull,
+          reason: 'the residue must not survive the migration',
+        );
+        // Cleared by the ordinary event, so the repair is in the transcript
+        // and in the save, not a quiet edit of decoded state.
+        expect(applied.events, hasLength(1));
+        expect(applied.events.single, isA<GoalTracked>());
+        expect((applied.events.single as GoalTracked).target, isNull);
+        expect(
+          (applied.events.single as GoalTracked).slot,
+          GoalSlot.contract,
+        );
+        // And nothing else moved: the repair is not a progress reset.
+        expect(applied.engine.state.progress.completionsOf(wolfProblem), 1);
+        expect(applied.engine.state.steps.epoch.retiredSteps, 1041 - 400);
+      });
+
+      test('a contract being done right now is left alone', () {
+        // The half that protects a repeatable contract the player has
+        // finished before and has accepted again. Same completion history as
+        // the stale case; the acceptance is the whole difference.
+        final StateMigrationApplied applied = migrate(
+          v7Tracking(wolfProblem, completions: 1, accepted: true),
+        );
+
+        expect(applied.engine.state.progress.tracked.contract, wolfProblem);
+        expect(applied.events, isEmpty);
+      });
+
+      test('a never-completed contract tracked as an intention is kept', () {
+        // The Goal Board lets a player track a contract they have lined up
+        // but not yet accepted. Nothing about that is residue.
+        final StateMigrationApplied applied = migrate(
+          v7Tracking(boarOnTrail, completions: 0, accepted: false),
+        );
+
+        expect(applied.engine.state.progress.tracked.contract, boarOnTrail);
+        expect(applied.events, isEmpty);
+      });
+
+      test('the repair runs once, and a v8 save is never re-repaired', () {
+        // Exactly-once is the state version and nothing else. Re-running the
+        // (now empty) path over the repaired save must be a no-op — and a
+        // save that legitimately re-tracks the contract afterwards must
+        // survive the next launch.
+        final GameState repaired = migrate(
+          v7Tracking(wolfProblem, completions: 1, accepted: false),
+        ).engine.state;
+        expect(repaired.stateVersion, 8);
+        expect(StateMigrations.pathFrom(repaired.stateVersion), isEmpty);
+
+        final GameState reTracked = repaired.copyWith(
+          progress: repaired.progress.copyWith(
+            tracked: TrackedGoals(contract: wolfProblem),
+          ),
+        );
+        final StateMigrationApplication again = applyStateMigrationPath(
+          registry: saveRegistry,
+          state: reTracked,
+          path: StateMigrations.pathFrom(reTracked.stateVersion),
+        );
+        expect(again, isA<StateMigrationApplied>());
+        expect(
+          (again as StateMigrationApplied).engine.state.progress.tracked
+              .contract,
+          wolfProblem,
+          reason:
+              'the repair is a one-time step, not a standing rule that '
+              'second-guesses the player every launch',
+        );
+      });
+
+      test('a tracked project is never touched by the contract repair', () {
+        // Projects do not rotate and are answered from their own state. The
+        // repair must not reach them even when one is complete.
+        final SaveEnvelope envelope = decodeEnvelope(
+          unframe(v7Baseline).payload!,
+        );
+        final ContentId project = saveRegistry.projects.keys.first;
+        final StateMigrationApplied applied = migrate(
+          envelope.state.copyWith(
+            progress: envelope.state.progress.copyWith(
+              completedProjects: <ContentId>{project},
+              tracked: TrackedGoals(contract: project),
+            ),
+          ),
+        );
+
+        expect(applied.engine.state.progress.tracked.contract, project);
+        expect(applied.events, isEmpty);
+      });
+    });
+
+    test('a save with no tracker comes through the repair untouched', () {
+      // The whole of B8's silent half: the repair issues no command where
+      // there is no residue, so the fixture could be written at all.
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v7Baseline).payload!,
+      );
+      final StateMigrationApplication applied = applyStateMigrationPath(
+        registry: saveRegistry,
+        state: envelope.state,
+        path: StateMigrations.pathFrom(7),
+      );
+      expect(applied, isA<StateMigrationApplied>());
+      expect((applied as StateMigrationApplied).events, isEmpty);
+      expect(applied.engine.state.progress, ProgressState.initial());
     });
   });
 

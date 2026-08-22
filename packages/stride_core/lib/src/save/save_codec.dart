@@ -608,6 +608,7 @@ final class StateCodecs {
     V5StateDecoder(),
     V6StateDecoder(),
     V7StateDecoder(),
+    V8StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -771,7 +772,9 @@ final class V6StateDecoder implements StateDecoder {
   );
 }
 
-/// Decoder for state version 7 — the current shape.
+/// Decoder for state version 7.
+///
+/// **Frozen**, on the same terms as [V1StateDecoder].
 ///
 /// Differs from v6 in three places, all `DECISIONS/0023`: `player.hp`,
 /// `progress`, and `encounter.playerFrostGuard` are present and are read.
@@ -780,6 +783,34 @@ final class V7StateDecoder implements StateDecoder {
 
   @override
   int get version => 7;
+
+  @override
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withEstablishedVersion,
+    combatShape: _CombatShape.visitVictories,
+    queueShape: _QueueShape.present,
+    loopShape: _LoopShape.present,
+  );
+}
+
+/// Decoder for state version 8 — the current shape.
+///
+/// **Identical to v7's geometry, deliberately.** v8 is the table's first
+/// repair-only step: it changes what a tracked Contract slot is allowed to
+/// hold, not what the save looks like. There is no field to read differently,
+/// so the shape is shared rather than copied — a copy would let two supposedly
+/// identical geometries drift.
+///
+/// The version still has to exist. The repair must run exactly once per save,
+/// and `StateVersion` is the only durable signal this codebase has for "a
+/// migration step has not yet run here". A flag beside it would be a second
+/// mechanism recording one fact.
+final class V8StateDecoder implements StateDecoder {
+  const V8StateDecoder();
+
+  @override
+  int get version => 8;
 
   @override
   GameState decode(Map<String, Object?> json) => _decodeStateShape(

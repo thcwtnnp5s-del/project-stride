@@ -153,13 +153,24 @@ void main() {
               'DECISIONS/0021_REPEATABLE_ENCOUNTERS_AND_RARITY.md',
               'DECISIONS/0022_FINITE_BACKGROUND_ACTIVITY.md',
               'DECISIONS/0023_EXPLORATION_PROGRESSION_LOOP.md',
+              'DECISIONS/0024_TRACKED_GOAL_VALIDITY_REPAIR.md',
             ],
+          );
+          // The seventh is the first *repair* step, and the one edit to
+          // recorded progress the table has ever carried. It is opt-in by
+          // name on the same terms as re-basing, and pinned here so that
+          // turning it on for another step is a reviewable edit.
+          expect(
+            StateMigrations.steps.map(
+              (StateMigrationStep s) => s.clearsStaleTrackedContract,
+            ),
+            <bool>[false, false, false, false, false, false, true],
           );
           expect(
             StateMigrations.steps.map(
               (StateMigrationStep s) => s.rebasesEconomy,
             ),
-            <bool>[true, true, false, false, false, false],
+            <bool>[true, true, false, false, false, false, false],
           );
         },
       );
@@ -168,11 +179,11 @@ void main() {
         expect(StateMigrations.pathFrom(StateVersion.current.value), isEmpty);
         expect(
           StateMigrations.pathFrom(2).map((StateMigrationStep s) => s.to),
-          <int>[3, 4, 5, 6, 7],
+          <int>[3, 4, 5, 6, 7, 8],
         );
         expect(
           StateMigrations.pathFrom(1).map((StateMigrationStep s) => s.to),
-          <int>[2, 3, 4, 5, 6, 7],
+          <int>[2, 3, 4, 5, 6, 7, 8],
         );
         expect(
           () => StateMigrations.pathFrom(0),
@@ -524,7 +535,7 @@ void main() {
       expect(ready.pendingMigration!.fromStateVersion, 2);
       expect(
         ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
-        <int>[3, 4, 5, 6, 7],
+        <int>[3, 4, 5, 6, 7, 8],
       );
       // The engine is the save as it is on disk: still v2, still 5,123.
       expect(ready.engine.state.stateVersion, 2);
@@ -593,6 +604,7 @@ void main() {
           5,
           6,
           7,
+          8,
         ]);
 
         // Two transactions: the sync's, then the migration's — the migration
@@ -900,7 +912,7 @@ void main() {
         expect(ready.engine.state.stateVersion, 1);
         expect(
           ready.pendingMigration!.steps.map((StateMigrationStep s) => s.to),
-          <int>[2, 3, 4, 5, 6, 7],
+          <int>[2, 3, 4, 5, 6, 7, 8],
         );
 
         final DeferredMigrationRun run = await completeAfterFirstSync(
@@ -927,6 +939,7 @@ void main() {
           5,
           6,
           7,
+          8,
         ]);
         expect(report.retiredSteps, 459043);
         expect(report.previouslyRetiredSteps, 0);

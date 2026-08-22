@@ -180,19 +180,53 @@ class SessionController extends ChangeNotifier {
 
   /// Runs a foreground step sync and keeps its report for display — and,
   /// when the sync banked something, the step-sync motivation highlights
-  /// derived from the tracked goals (`DECISIONS/0023` §1; brief §5).
+  /// **this sync made true** (`DECISIONS/0023` §1; brief §5).
+  ///
+  /// ## Why the highlights are a difference and not a snapshot
+  ///
+  /// `syncOpportunities()` answers "what is true right now", which is the
+  /// right question for a panel and the wrong one for a celebration. Asked
+  /// only after the sync, it re-announces every standing fact: the owner's
+  /// device raised **Journey Ready — Frostmere can now be reached** on a sync
+  /// that banked nothing new, for a journey that had been affordable for
+  /// hours. A reward that fires when nothing happened is not a reward, and it
+  /// devalues the one that fires when something did.
+  ///
+  /// So the same projection is taken **before** the sync as a baseline, and
+  /// only what is newly true is reported. Nothing about the reward's contents
+  /// changes; what changes is that "can now be reached" is now the truth.
+  /// A sync that banks steps without crossing any threshold reports the
+  /// banked figure alone, which is exactly what happened.
   Future<void> syncSteps() async {
     if (_busy) return;
     _busy = true;
     _clearResults(notify: false);
     notifyListeners();
     try {
+      // The baseline, from before anything is granted. A pure projection —
+      // it commits nothing and costs no state.
+      final Set<String> before = _session
+          .syncOpportunities()
+          .map(_opportunityKey)
+          .toSet();
       _lastSync = await _session.syncSteps();
-      // Derived from the actual post-sync state, only when walking actually
-      // banked, and held until acknowledged — a moment, not a wall of noise.
-      _lastOpportunities = (_lastSync?.newlyGranted ?? 0) > 0
-          ? _session.syncOpportunities()
+      final int banked = _lastSync?.newlyGranted ?? 0;
+      // Only when walking actually banked, only what the banking made
+      // possible, and held until acknowledged — a moment, not a wall of noise.
+      _lastOpportunities = banked > 0
+          ? _session
+                .syncOpportunities()
+                .where(
+                  (SyncOpportunity o) =>
+                      !before.contains(_opportunityKey(o)),
+                )
+                .toList(growable: false)
           : const <SyncOpportunity>[];
+      // The banner outlives `_lastSync`, which the result timer clears. It
+      // therefore keeps its own copy of the figure it announces: reading a
+      // field that had been nulled underneath it is what produced the
+      // owner's "+0 STEPS BANKED" card.
+      _lastOpportunityBanked = _lastOpportunities.isEmpty ? 0 : banked;
       _armResultTimer();
     } finally {
       _busy = false;
@@ -200,15 +234,25 @@ class SessionController extends ChangeNotifier {
     }
   }
 
+  static String _opportunityKey(SyncOpportunity o) =>
+      '${o.kind.name}|${o.headline}|${o.detail}';
+
   /// The motivation highlights from the last granting sync, until the banner
-  /// is dismissed. Empty when the last sync banked nothing.
+  /// is dismissed. Empty when the last sync banked nothing, and empty when it
+  /// banked something that made nothing newly possible.
   List<SyncOpportunity> get lastOpportunities => _lastOpportunities;
   List<SyncOpportunity> _lastOpportunities = const <SyncOpportunity>[];
+
+  /// What the sync that raised [lastOpportunities] banked. Held beside them
+  /// so the banner cannot outlive its own headline figure.
+  int get lastOpportunityBanked => _lastOpportunityBanked;
+  int _lastOpportunityBanked = 0;
 
   /// Dismisses the step-sync highlights banner.
   void acknowledgeOpportunities() {
     if (_lastOpportunities.isEmpty) return;
     _lastOpportunities = const <SyncOpportunity>[];
+    _lastOpportunityBanked = 0;
     notifyListeners();
   }
 
@@ -624,7 +668,10 @@ class SessionController extends ChangeNotifier {
     _lastEquipRemoved = false;
     _lastFood = null;
     if (combat) _lastCombat = null;
-    if (opportunities) _lastOpportunities = const <SyncOpportunity>[];
+    if (opportunities) {
+      _lastOpportunities = const <SyncOpportunity>[];
+      _lastOpportunityBanked = 0;
+    }
     if (notify) notifyListeners();
   }
 
