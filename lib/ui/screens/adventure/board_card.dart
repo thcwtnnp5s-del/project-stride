@@ -18,6 +18,7 @@ import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ContentId, ContractClass;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
@@ -40,6 +41,13 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
   /// copies off the committed report.
   ContractReport? _contractResult;
   ProjectReport? _projectResult;
+
+  /// The open job, or null when the board is fully collapsed. Ephemeral UI
+  /// selection, never a game figure (`RULES.md` E-2).
+  ContentId? _open;
+
+  void _toggle(ContentId id) =>
+      setState(() => _open = _open == id ? null : id);
 
   Future<void> _complete(SessionController c, ContentId contract) async {
     final ContractReport? report = await c.completeContract(contract);
@@ -109,40 +117,37 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
             _ContractResultPanel(report: r, onContinue: _dismissResults),
           ],
 
-          for (final ContractView need in board.localNeeds) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
-            _ContractTile(
-              contract: need,
-              busy: c.busy,
-              onComplete: () => _complete(c, need.id),
-              onAccept: null,
-              onTrack: () => c.trackGoalContract(need.id),
+          // Every job on this board as one scannable row, with the one the
+          // player opened expanded beneath it (§11). Orders, bounties and
+          // regional contracts share the row; they are distinguished by the
+          // type word, not by three separate layouts.
+          for (final ContractView job in <ContractView>[
+            ...board.localNeeds,
+            ...board.bounties,
+            ...board.regionals,
+          ]) ...<Widget>[
+            _ContractRow(
+              contract: job,
+              selected: _open == job.id,
+              onTap: () => _toggle(job.id),
             ),
+            if (_open == job.id)
+              _ContractDetail(
+                contract: job,
+                busy: c.busy,
+                onComplete: () => _complete(c, job.id),
+                onAccept: job.bounty == null ? null : () => _accept(c, job.id),
+                onTrack: () => c.trackGoalContract(job.id),
+              ),
           ],
-          for (final ContractView bounty in board.bounties) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
-            _ContractTile(
-              contract: bounty,
-              busy: c.busy,
-              onComplete: () => _complete(c, bounty.id),
-              onAccept: () => _accept(c, bounty.id),
-              onTrack: () => c.trackGoalContract(bounty.id),
-            ),
-          ],
-          for (final ContractView regional in board.regionals) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
-            _ContractTile(
-              contract: regional,
-              busy: c.busy,
-              onComplete: () => _complete(c, regional.id),
-              onAccept: regional.bounty == null
-                  ? null
-                  : () => _accept(c, regional.id),
-              onTrack: () => c.trackGoalContract(regional.id),
-            ),
-          ],
+
+          // Community projects stay visually distinct and stay above the
+          // fold of their own section (§12): they are the place's story, not
+          // another job. They keep their full tile — stage, animated
+          // material bars, permanent consequence — because that treatment is
+          // the point of them, and the owner asked for it to be preserved.
           for (final ProjectView project in board.projects) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
+            const SizedBox(height: StrideSpace.s10),
             _ProjectTile(
               project: project,
               busy: c.busy,
@@ -158,9 +163,181 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
   }
 }
 
-/// One contract, as a nested block.
-class _ContractTile extends StatelessWidget {
-  const _ContractTile({
+/// One contract, collapsed to a scannable row.
+///
+/// ## The density problem this exists for (§9, §11)
+///
+/// Moving the board off Adventure was the right architecture and the owner
+/// said so — and then found the board itself "still much too dense on
+/// physical hardware… a long wall of prose, cards, repeated Track buttons,
+/// repeated Deliver/Accept actions, rewards, project content". Relocating a
+/// wall is not the same as taking it down.
+///
+/// Every contract used to render its title, a **three-line brief**, its
+/// requirement chips, a full reward sentence and two buttons, permanently,
+/// for every job on the board. The prose sat at the same visual weight as the
+/// progress and the reward, which is precisely backwards: flavour is what you
+/// read once, progress is what you came to check.
+///
+/// So a row is four facts and nothing else — **title, type, progress,
+/// reward** — and the brief and the actions live in the one job the player
+/// opened. Same shape as the activity list and the encounter list; three
+/// lists that behave differently would be three things to learn.
+///
+/// Nothing is hidden that a player needs in order to decide: the state word
+/// on the right says READY, ACCEPTED, LOCKED or DONE, so a row never conceals
+/// that a job is finishable.
+class _ContractRow extends StatelessWidget {
+  const _ContractRow({
+    required this.contract,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ContractView contract;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static String typeLabel(ContractView c) => switch (c.contractClass) {
+    ContractClass.localNeed => 'ORDER',
+    ContractClass.bounty => 'BOUNTY',
+    ContractClass.regional => 'CONTRACT',
+  };
+
+  /// The one line that says how far along this job is.
+  ///
+  /// A bounty counts kills, an order counts goods, and a contract that wants
+  /// both says both. Falls back to the unavailability reason, because "you
+  /// cannot do this yet" is progress information too.
+  static String progressLine(ContractView c) {
+    final BountyView? bounty = c.bounty;
+    final List<String> parts = <String>[
+      for (final RequirementLine line in c.requires)
+        '${line.name} ${line.progress}/${line.required}',
+      for (final RequirementLine line in c.requiresOwned)
+        '${line.name} ${line.progress}/${line.required}',
+      if (bounty != null)
+        '${bounty.enemyName} '
+            '${bounty.accepted ? bounty.progress : 0}/${bounty.required}',
+    ];
+    if (parts.isNotEmpty) return parts.join(' · ');
+    return c.unavailableReason ?? 'Ready to hand in';
+  }
+
+  /// The reward, compressed to one line. The expanded detail spells it out.
+  static String rewardLine(ContractView c) => <String>[
+    for (final RequirementLine line in c.rewardItems)
+      '${line.name} ×${line.required}',
+    for (final SkillXpLine line in c.rewardSkillXp)
+      '+${line.xp} ${line.skillName}',
+    if (c.rewardCharacterXp > 0) '+${c.rewardCharacterXp} XP',
+    if (c.teachesRecipeName != null) 'recipe',
+  ].join(' · ');
+
+  /// What state the job is in, in one word, on the right of the row.
+  static (String, Color) state(ContractView c) {
+    if (c.isCompletedOneTime) return ('DONE', StrideColors.textMuted);
+    if (c.canComplete) return ('READY', StrideColors.accentSteps);
+    if (c.bounty?.accepted ?? false) {
+      return ('ACCEPTED', StrideColors.textSecondary);
+    }
+    if (!c.available) return ('LOCKED', StrideColors.textMuted);
+    return ('OPEN', StrideColors.textSecondary);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ContractView c = contract;
+    final bool done = c.isCompletedOneTime;
+    final (String word, Color ink) = state(c);
+    final String reward = rewardLine(c);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: c.name,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(top: StrideSpace.s6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: StrideSpace.s6,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? StrideColors.surfaceRaised
+                : StrideColors.surfaceBlock,
+            border: Border.all(color: StrideColors.borderDefault),
+            borderRadius: StrideRadius.inner,
+          ),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: AdaptiveText(
+                            c.name,
+                            style: StrideType.itemName,
+                            color: done
+                                ? StrideColors.textMuted
+                                : StrideColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: StrideSpace.s6),
+                        Text(
+                          typeLabel(c),
+                          style: StrideType.microLabel.copyWith(
+                            color: StrideColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!done) ...<Widget>[
+                      Text(
+                        progressLine(c),
+                        style: StrideType.micro.copyWith(
+                          color: StrideColors.textSecondary,
+                        ),
+                        maxLines: 2,
+                      ),
+                      if (reward.isNotEmpty)
+                        Text(
+                          reward,
+                          style: StrideType.micro.copyWith(
+                            color: StrideColors.textMuted,
+                          ),
+                          maxLines: 1,
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              Text(
+                word,
+                style: StrideType.microLabel.copyWith(color: ink),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The open contract: the flavour, the full reward, and the actions.
+///
+/// Everything the old permanently-expanded tile carried, in the one job the
+/// player asked about. The brief is here rather than in the row because
+/// prose is what you read once and progress is what you came to check.
+class _ContractDetail extends StatelessWidget {
+  const _ContractDetail({
     required this.contract,
     required this.busy,
     required this.onComplete,
@@ -176,76 +353,45 @@ class _ContractTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool done = contract.isCompletedOneTime;
-    final BountyView? bounty = contract.bounty;
+    final ContractView c = contract;
+    if (c.isCompletedOneTime) return const SizedBox.shrink();
+    final BountyView? bounty = c.bounty;
 
     final List<String> rewardWords = <String>[
-      for (final RequirementLine line in contract.rewardItems)
+      for (final RequirementLine line in c.rewardItems)
         '${line.name} ×${line.required}',
-      for (final SkillXpLine line in contract.rewardSkillXp)
+      for (final SkillXpLine line in c.rewardSkillXp)
         '+${line.xp} ${line.skillName} XP',
-      if (contract.rewardCharacterXp > 0)
-        '+${contract.rewardCharacterXp} Character XP',
-      if (contract.teachesRecipeName case final String recipe)
-        'teaches $recipe',
+      if (c.rewardCharacterXp > 0) '+${c.rewardCharacterXp} Character XP',
+      if (c.teachesRecipeName case final String recipe) 'teaches $recipe',
     ];
 
-    return SurfaceBlock(
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: StrideSpace.s6,
+        left: StrideSpace.s10,
+        right: StrideSpace.s10,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(
-                // Wraps rather than shrinks: an authored board title can
-                // outrun even AdaptiveText's shrink floor at accessibility
-                // scale on a narrow phone, and a name may take two lines but
-                // never lose a character.
-                child: Text(
-                  contract.name,
-                  style: done
-                      ? StrideType.itemName.copyWith(
-                          color: StrideColors.textMuted,
-                        )
-                      : StrideType.itemName,
-                ),
-              ),
-              Text(
-                done
-                    ? 'DONE'
-                    : switch (contract.contractClass) {
-                        ContractClass.localNeed => 'ORDER',
-                        ContractClass.bounty => 'BOUNTY',
-                        ContractClass.regional => 'CONTRACT',
-                      },
-                style: StrideType.microLabel.copyWith(
-                  color: StrideColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-          if (!done) ...<Widget>[
-            const SizedBox(height: StrideSpace.s4),
-            Text(contract.brief, style: StrideType.micro, maxLines: 3),
-          ],
-          if (!done && !contract.available &&
-              contract.unavailableReason != null) ...<Widget>[
+          Text(c.brief, style: StrideType.micro, maxLines: 4),
+          if (!c.available && c.unavailableReason != null) ...<Widget>[
             const SizedBox(height: StrideSpace.s4),
             Text(
-              contract.unavailableReason!,
+              c.unavailableReason!,
               style: StrideType.micro.copyWith(color: StrideColors.textMuted),
             ),
           ],
-          if (!done && contract.available) ...<Widget>[
+          if (c.available) ...<Widget>[
             const SizedBox(height: StrideSpace.s6),
             Wrap(
               spacing: StrideSpace.s8,
               runSpacing: StrideSpace.s4,
               children: <Widget>[
-                for (final RequirementLine line in contract.requires)
+                for (final RequirementLine line in c.requires)
                   _RequirementChip(line: line),
-                for (final RequirementLine line in contract.requiresOwned)
+                for (final RequirementLine line in c.requiresOwned)
                   _RequirementChip(line: line),
                 if (bounty != null)
                   _ProgressChip(
@@ -280,12 +426,10 @@ class _ContractTile extends StatelessWidget {
                   StrideButton.secondary(
                     label: busy
                         ? '…'
-                        : contract.contractClass == ContractClass.bounty
+                        : c.contractClass == ContractClass.bounty
                         ? 'Claim'
                         : 'Deliver',
-                    onPressed: busy || !contract.canComplete
-                        ? null
-                        : onComplete,
+                    onPressed: busy || !c.canComplete ? null : onComplete,
                   ),
                 StrideButton.secondary(
                   label: 'Track',
