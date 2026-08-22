@@ -338,29 +338,54 @@ void main() {
       expect(layout.markerForKind('hamlet'), isNull);
     });
 
-    test('ships the five glyphs, four landmarks and the one master world', () {
-      // PRESENTATION_WORLD_REWARD_FEEL_01: the portrait master is replaced
-      // by the wide-format continent — ONE 688 × 384 painting at scale 4,
-      // 2752 × 1536 world px, still no tile joins to fail a blind read
-      // (`MISTAKES.md` M-12), and the east/west pan the owner asked for
-      // (§32). Four landmarks stand: Millbridge and Ferry Crossing as minor
-      // captions, Old Watch relocated onto the western forest's ruin as a
-      // future-tier question, and the future-tier Far Town where the south
-      // road leaves the map. Asserted so removing a glyph, the tile or a
-      // landmark is a deliberate edit here too.
+    test('ships the five glyphs, the far tier and the one master world', () {
+      // PRESENTATION_WORLD_REWARD_FEEL_01 correction round: the continent
+      // grew north and south. ONE 512 × 512 painting at scale 6 — 3072 ×
+      // 3072 world px, 2.25× the footprint the owner found too small, and
+      // still one painting by one hand, so still no join to fail a blind
+      // read (`MISTAKES.md` M-12).
+      //
+      // Assembling three paintings into a taller strip was tried first and
+      // was rejected by blind Visual QA on its merits: separately generated
+      // bands disagree about scale, projection and drainage, and no seam
+      // treatment reconciles that. The reviewer's words were "three
+      // screenshots stacked".
+      //
+      // Sixteen landmarks stand. Two are minor captions (Millbridge, Ferry
+      // Crossing) and fourteen are **future** tier — places the roads point at
+      // and do not reach, spread north, south, east, west and offshore
+      // (§21). The tier is the classification the brief asked for: the atlas
+      // already draws it quieter, suffixes it, gives it no hit target and
+      // keeps the whole layer inside an `IgnorePointer`, so a promise cannot
+      // be tapped by accident.
+      //
+      // Asserted so removing a glyph, the tile, or the far tier is a
+      // deliberate edit here too.
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
       expect(layout.kindMarkers.keys, unorderedEquals(atlasMarkerKinds));
       expect(layout.tiles, hasLength(1));
-      expect(layout.scale, 4);
-      expect(layout.worldWidth, 2752);
-      expect(layout.worldHeight, 1536);
-      expect(layout.landmarks, hasLength(4));
+      expect(layout.scale, 6);
+      expect(layout.worldWidth, 3072);
+      expect(layout.worldHeight, 3072);
+      expect(layout.landmarks, hasLength(16));
       expect(
         layout.landmarks.where(
           (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,
         ),
-        hasLength(2),
+        hasLength(14),
       );
+      // No future landmark is a travelable place: the two sets are disjoint
+      // by id, which is what "visual only" has to mean in a layout file.
+      final Set<String> places = <String>{
+        for (final AtlasLocation l in layout.locations) l.id.value,
+      };
+      for (final AtlasNamedLandmark l in layout.landmarks) {
+        expect(
+          places.contains(l.id),
+          isFalse,
+          reason: '${l.id} is a landmark and must not also be a destination',
+        );
+      }
       expect(layout.validateAgainst(contentLocations), isEmpty);
     });
   });
@@ -406,7 +431,7 @@ void main() {
 
     test('reports a target under the accessibility floor', () {
       final String small = shippedLayout.replaceFirst(
-        '"hitRadius": 48',
+        '"hitRadius": 72',
         '"hitRadius": 10',
       );
       final AtlasLayout layout = AtlasLayout.parse(small);

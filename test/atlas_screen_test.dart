@@ -16,6 +16,7 @@
 ///   run only while the app is resumed.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -67,9 +68,23 @@ SyncFetch page(int steps) => SyncFetch(
 
 Finder hit(String id) => find.byKey(ValueKey<String>('atlas-hit:$id'));
 
+/// The shipped layout's own scale, read from the file the app ships rather
+/// than written down here. Every zoom in this suite derives from it.
+final int shippedAtlasScale =
+    (jsonDecode(
+              File(
+                'assets/content/v1/atlas/atlas_layout.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, Object?>)['scale']!
+        as int;
+
 /// The range for the shipped `scale: 4` master-painting layout — derived
-/// exactly as the viewport derives it: floor 0.25, opening 0.5, max 1.
-const AtlasZoom zooms = AtlasZoom.forScale(4);
+/// exactly as the viewport derives it: floor 1/scale, opening 2/scale, max
+/// 4/scale. Taken from the SHIPPED layout's own scale rather than a literal,
+/// because the correction round moved the continent from scale 4 to scale 6
+/// and a test that pins 0.25/0.5/1 is testing the number, not the model.
+final AtlasZoom zooms = AtlasZoom.forScale(shippedAtlasScale);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -184,21 +199,22 @@ void main() {
 
     // Every place carries its kind glyph under the ring, from the shipped
     // table — one hut, two trees, one pick, one dead tree (DECISIONS/0021 §5)
-    // — and each of the four landmarks (Millbridge, Old Watch, Ferry
-    // Crossing, Far Town) its cairn.
+    // — and each landmark its cairn. Eighteen landmarks now: the two minor
+    // captions and the sixteen far promises the correction round added
+    // north, south, east, west and offshore (§21).
     final List<String> glyphs = tester
         .widgetList<PixelAsset>(find.byType(PixelAsset))
         .map((PixelAsset a) => a.assetPath)
         .where((String path) => path.contains('/world/marker_'))
         .toList();
-    expect(glyphs, hasLength(9));
+    expect(glyphs, hasLength(21));
     int count(String tail) =>
         glyphs.where((String p) => p.endsWith(tail)).length;
     expect(count('marker_haven.png'), 1);
     expect(count('marker_wilds.png'), 2);
     expect(count('marker_worksite.png'), 1);
     expect(count('marker_perilous.png'), 1);
-    expect(count('marker_landmark.png'), 4);
+    expect(count('marker_landmark.png'), 16);
   });
 
   testWidgets('tapping a place opens its panel with what the rows carried', (
@@ -464,8 +480,9 @@ void main() {
       }
     }
 
-    // At the opening zoom (0.5) a 48-world-px radius is a 48 dp target,
-    // above the 44 dp floor; at the 1.0 ceiling it is simply twice that.
+    // At the opening zoom a 48-world-px radius clears the 44 dp floor, and
+    // at the ceiling it is simply twice that. Both are derived from the
+    // layout's scale, not written down.
     check(44);
     await pinch(tester, 100, 300);
     expect(viewportState(tester).zoom, zooms.max);
@@ -478,8 +495,8 @@ void main() {
     // Checklist item 5. Beyond the ceiling the map stops growing; below the
     // floor it stops shrinking; and a pinch that lets go in between lands on
     // a zoom at which one art pixel is a whole number of device pixels — at
-    // dpr 3 and art scale 4, a multiple of one twelfth — so pixel art never
-    // blurs at rest.
+    // dpr 3 and art scale 6, a multiple of one eighteenth — so pixel art
+    // never blurs at rest. The unit is computed from the shipped scale.
     final StrideSession session = await boot(tester);
     await pumpWorld(tester, session);
     final AtlasViewportState state = viewportState(tester);
@@ -487,10 +504,11 @@ void main() {
     await pinch(tester, 100, 133);
     final double settled = state.zoom;
     expect(settled, inExclusiveRange(state.minZoom, zooms.max));
+    final int unit = shippedAtlasScale * 3;   // art scale × dpr
     expect(
-      (settled * 12).roundToDouble(),
-      settled * 12,
-      reason: 'a twelfth: 4 (art) × zoom × 3 (dpr) is integral',
+      (settled * unit).roundToDouble(),
+      settled * unit,
+      reason: 'one native art pixel is a whole number of device pixels',
     );
     await pinch(tester, 100, 400);
     expect(state.zoom, zooms.max);
@@ -503,21 +521,24 @@ void main() {
     expect(state.zoom, state.minZoom);
     expect(state.zoom, zooms.absoluteFloor);
 
-    // The property that replaced "the whole width fits": at the survey floor
-    // the continent is **wider than the window and pannable east/west**,
-    // which is the owner's §32 ask — the world must not be a strip that
-    // frames in one look. The full height does frame, so the survey shows a
-    // band of the whole world at once and the player drags to see the rest.
+    // The property, in the form the correction round left it: at the survey
+    // floor the continent extends past the window in **both** axes.
+    //
+    // It used to say the full height frames in one look, and that was true
+    // and was the problem — a world you can take in vertically without
+    // moving is a strip. The owner's acceptance target is panning that means
+    // something in all four directions (§27), so north/south now has to fail
+    // to frame exactly as east/west already did.
     final AtlasScene scene = AtlasScene.build(session)!;
     final Rect window = tester.getRect(find.byType(AtlasViewport));
     expect(
       scene.worldWidth * state.zoom,
       greaterThan(window.width),
-      reason: 'the continent must extend past the window at the floor',
+      reason: 'the continent must extend past the window east and west',
     );
     expect(
       scene.worldHeight * state.zoom,
-      lessThanOrEqualTo(window.height + 0.5),
+      greaterThan(window.height),
       reason: 'the whole north-south extent frames at the survey floor',
     );
   });

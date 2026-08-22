@@ -803,10 +803,10 @@ const PWRF = path.join(EXPLORE, 'PRESENTATION_WORLD_REWARD_FEEL_01', 'out');
 const PWRF_WORLD_SRC = path.join(PWRF, 'world');
 {
   const master = png.load(
-    path.join(PWRF_WORLD_SRC, 'atlas_master_688x384.png'),
+    path.join(PWRF_WORLD_SRC, 'whole_a_0.png'),
   );
-  if (master.width !== 688 || master.height !== 384) {
-    throw new Error(`atlas_master: expected 688x384, got ${master.width}x${master.height}`);
+  if (master.width !== 512 || master.height !== 512) {
+    throw new Error(`atlas_master: expected 512x512, got ${master.width}x${master.height}`);
   }
   emit('world/atlas_master.png', encode(master));
 }

@@ -402,9 +402,14 @@ void main() {
       // Two tiers of label share one surface. A place name covered by a
       // landmark caption is a destination the player cannot read, and the
       // counter-scaling makes the geometry zoom-dependent — so it is checked
-      // at both ends of the range rather than once at 1×. At the floor the
-      // overview LOD hides the landmark captions entirely (that is its job),
-      // so out there only the place names are on the surface to collide.
+      // at both ends of the range rather than once at 1×.
+      //
+      // At the floor the overview LOD drops the **minor** tier and keeps the
+      // **future** tier: a ferry crossing is the caption a survey does
+      // without, and a distant tower is the caption a survey exists for
+      // (§21–§22). So out there the far captions are still on the surface,
+      // and are still checked against the place names — the LOD narrowed
+      // what is drawn, it did not narrow what has to stay readable.
       //
       // What collides is the **plate**, not the bare text: the plate is the
       // painted rect a viewer sees, and it is strictly larger than the name
@@ -436,14 +441,19 @@ void main() {
       check('1×', <String>[...places, ...captions]);
       await _pinch(tester, 300, 40);
       expect(state.zoom, zooms2.absoluteFloor);
-      check('the zoom floor', places);
-      for (final String caption in captions) {
-        expect(
-          find.byKey(ValueKey<String>(caption)),
-          findsNothing,
-          reason: 'the overview carries no landmark captions',
-        );
-      }
+      const String minorCaption = 'atlas-caption:landmark.watchtower';
+      const String futureCaption = 'atlas-caption:landmark.far_town';
+      check('the zoom floor', <String>[...places, futureCaption]);
+      expect(
+        find.byKey(const ValueKey<String>(minorCaption)),
+        findsNothing,
+        reason: 'the overview drops the minor tier',
+      );
+      expect(
+        find.byKey(const ValueKey<String>(futureCaption)),
+        findsOneWidget,
+        reason: 'and keeps the far tier, which is what a survey is for',
+      );
       await _pinch(tester, 100, 400);
       expect(state.zoom, zooms2.max);
       check('2×', <String>[...places, ...captions]);
@@ -665,7 +675,7 @@ void main() {
       );
     });
 
-    testWidgets('the overview hides landmark captions, marker art and props', (
+    testWidgets('the overview keeps the far tier and drops everything else', (
       WidgetTester tester,
     ) async {
       final AtlasViewportState state = await pump(
@@ -682,7 +692,13 @@ void main() {
       await _pinch(tester, 300, 40);
       expect(state.zoom, lessThan(zooms4.overviewBelow));
       expect(find.text('Ruined Watchtower'), findsNothing);
-      expect(find.text('Far Town —'), findsNothing);
+      expect(
+        find.text('Far Town —'),
+        findsOneWidget,
+        reason:
+            'the survey is where a far promise is meant to be legible '
+            '(§21–§22); it is the minor tier the survey does without',
+      );
       expect(art('marker_landmark'), findsNothing);
       expect(art('prop_cairn'), findsNothing);
       // The survey's vocabulary stays: every place name, and *here*.

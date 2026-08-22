@@ -524,10 +524,18 @@ class AtlasMarkerLayer extends StatelessWidget {
       child: Stack(
         children: <Widget>[
           // Named geography's labels first: a place's name always paints over
-          // a landmark's, never the other way round. In the overview only the
-          // heard rumors survive — a rumor is exactly the caption a survey of
-          // the wider world exists to show (brief §62), while minor landmarks
-          // are the caption tier the survey does without.
+          // a landmark's, never the other way round.
+          //
+          // The overview drops the **minor** tier and keeps the far ones. A
+          // ferry crossing and a stone bridge are the caption tier a survey
+          // does without; a heard rumor and a distant tower are exactly what
+          // a survey of the wider world exists to show (brief §62), and once
+          // the world doubled north and south they became the only thing
+          // telling a player there is anywhere else to go (§21–§22).
+          //
+          // This is the label LOD, and it is the whole of it: no other rule
+          // is needed while the far tier is this sparse across 2752 × 3072
+          // world pixels.
           RepaintBoundary(
             child: IgnorePointer(
               child: SizedBox(
@@ -538,8 +546,15 @@ class AtlasMarkerLayer extends StatelessWidget {
                     // The layout's named geography, plus every rumor the
                     // player has heard (`DECISIONS/0023` §8) — the scene
                     // joins the two so this layer needs no opinion.
-                    for (final AtlasNamedLandmark named
-                        in (overview ? scene.rumorLandmarks : scene.namedLandmarks))
+                    for (final AtlasNamedLandmark named in (overview
+                        ? <AtlasNamedLandmark>[
+                            ...scene.rumorLandmarks,
+                            ...scene.namedLandmarks.where(
+                              (AtlasNamedLandmark l) =>
+                                  l.tier == AtlasLandmarkTier.future,
+                            ),
+                          ]
+                        : scene.namedLandmarks))
                       _LandmarkLabel(landmark: named, zoom: zoom),
                   ],
                 ),
