@@ -1,24 +1,51 @@
-/// The location activity stage — one living diorama per location, in place of
-/// a Traveler repeated inside every resource card.
+/// The location activity stage — one diorama per location, in two modes.
 ///
 /// ## What this replaces (PRESENTATION_WORLD_REWARD_FEEL_01 §4–§5)
 ///
-/// The owner's device review found every gather card carrying its own 180 dp
-/// stage with its own copy of the Traveler — "Copper Seam card has Traveler,
-/// Tin Seam card has Traveler" — the busiest and most redundant thing on the
-/// screen. This widget is the one stage: the location vignette is its
-/// backdrop, the Traveler (and companions) live on its floor, the *selected*
-/// activity's node vignette stands as its far scenery, and the profession's
-/// working loop plays while a queue runs. Idle, the ambient cadence keeps the
-/// figure alive exactly as the per-card stage did.
+/// The owner's first device review found every gather card carrying its own
+/// 180 dp stage with its own copy of the Traveler — "Copper Seam card has
+/// Traveler, Tin Seam card has Traveler" — the busiest and most redundant
+/// thing on the screen. This widget is the one stage.
+///
+/// ## The two modes, and why the first version needed them (§2–§3)
+///
+/// The second device review found the shared stage right in principle and
+/// wrong in composition: **the idle composition was being reused literally as
+/// the work composition.** At Stonefall the full mine painting, the Traveler,
+/// the cat and a 96 px ore boulder all competed inside one 176 dp band, the
+/// boulder pasted against the far-left edge of a scene laid out for the
+/// Traveler and his cat, and nothing in the picture said what the Traveler
+/// was physically working on.
+///
+/// So the stage now answers two different questions with two compositions:
+///
+/// **LOCATION MODE** — nothing selected. The full arrival painting, the
+/// Traveler, the cat, the whole idle cadence. A pleasant living place, and
+/// deliberately *no* resource prop: a place is not a job.
+///
+/// **WORK MODE** — an activity is selected. The backdrop tightens to the
+/// profession's own work scene where one is authored and dims the location
+/// painting where it is not; the resource stands on the Traveler's own ground
+/// line immediately in front of him, where his tool lands; the companion
+/// scenes drop out, so the cat is not underfoot at a rock face; and the
+/// caption names the work rather than the place. Running the queue swaps the
+/// rest pose for the profession's working loop.
+///
+/// ## Families, not scenes per node (§4)
+///
+/// There is no route, no widget and no authored scene per ore, tree or herb.
+/// One composition per profession, with the resource object swapped in by
+/// node — `AmbientAssets.workPropFor` — so Copper, Tin and Hardened Copper
+/// are three props in one mining scene. Everything modular is data; the code
+/// is the same for all nine nodes in the pack.
 ///
 /// ## What it deliberately is not
 ///
 /// Not a scene engine. It is the existing [AmbientStage] composition — one
-/// model, measured offsets, the composition test — placed once, over the
-/// arrival vignette instead of beside it. There is no camera, no position,
-/// and nothing tappable on the picture; selection happens in the activity
-/// list below (`activity_panel.dart`).
+/// model, measured offsets, the composition test — with the near-prop slot
+/// the craft screen needed first. There is no camera, no position, and
+/// nothing tappable on the picture; selection happens in the activity list
+/// below (`activity_panel.dart`).
 ///
 /// Everything here is presentation over reports and projections. Nothing
 /// reads the domain directly and nothing holds durable state (`RULES.md`
@@ -47,21 +74,21 @@ class LocationStage extends StatelessWidget {
     required this.playToken,
   });
 
-  /// The location's display name, captioned over the lower edge exactly as
-  /// the plain arrival vignette was.
+  /// The location's display name, captioned over the lower edge in location
+  /// mode. Work mode captions the activity instead.
   final String locationName;
 
   /// The location's arrival vignette asset, or null when the pack has none —
   /// the stage then stands on the app ground the per-card stage used.
   final String? vignette;
 
-  /// The activity the player has selected in the list below, or null when
-  /// idle. Selection swaps the node's vignette onto the stage as far scenery;
-  /// it never starts anything.
+  /// The activity the player has selected in the list below, or null. This is
+  /// the mode switch: selecting composes the work scene, and it still starts
+  /// nothing.
   final ResourceNodeDefinition? selectedNode;
 
   /// True while the durable queue works [selectedNode]: the stage loops the
-  /// profession's working animation instead of the ambient cadence.
+  /// profession's working animation instead of standing at the work face.
   final bool activityActive;
 
   /// The identity of a successful single gather at [selectedNode] — plays the
@@ -73,21 +100,47 @@ class LocationStage extends StatelessWidget {
   /// (`Scripts/art/package-art.js` frames them once, reviewably).
   static const double height = 176;
 
+  /// The scrim that pushes the location painting back under a work scene when
+  /// the profession has no backdrop of its own. Enough that the figure and
+  /// the thing he is working on carry the frame; not so much that the player
+  /// loses track of where they are.
+  static const Color _backdropScrim = Color(0x8C14120F);
+
   @override
   Widget build(BuildContext context) {
     final ResourceNodeDefinition? node = selectedNode;
+    final bool working = node != null;
     final String? skill = node?.skill.value;
+    final String? nodeArt = node == null ? null : PixelIcons.nodeFor(node.id);
+
+    // The resource, near, at the point the tool reaches. Falls back to the
+    // node's far vignette where no work prop is authored — worse, and never
+    // blank; `node_art_resolution_test` holds every node to having one or the
+    // other.
+    final StageScenery? prop = !working
+        ? null
+        : AmbientAssets.workPropFor(nodeArt ?? '') ??
+              AmbientAssets.sceneryFor(nodeArt);
+
+    final String? workBackdrop = skill == null
+        ? null
+        : AmbientAssets.workBackdropFor(skill);
 
     final Widget figures = AmbientStage(
       gatherFrames: PixelIcons.gatherFrames,
       gatherFootprint: SpriteFootprints.gather,
       playToken: playToken,
-      scenes: AmbientAssets.scenes,
+      // Work mode drops the companion scenes — the cat is a companion, not a
+      // fixture, and a rock face is not where it sits (§6).
+      scenes: working ? AmbientAssets.soloScenes : AmbientAssets.scenes,
       restFrame: AmbientAssets.restFrame,
       restFootprint: AmbientAssets.restFootprint,
-      scenery: node == null
-          ? null
-          : AmbientAssets.sceneryFor(PixelIcons.nodeFor(node.id)),
+      // The far scenery slot stays empty in both modes now. It is the slot
+      // that put the ore boulder against the left edge of a scene composed
+      // for the Traveler and his cat; the resource belongs in `prop`, on the
+      // figure's own ground line.
+      prop: prop,
+      propEast: skill != null && AmbientAssets.worksEast(skill),
       activityFrames: skill == null
           ? null
           : AmbientAssets.activityLoopFor(skill),
@@ -107,11 +160,15 @@ class LocationStage extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            // The backdrop: the arrival painting, or the stage ground the
-            // per-card stage stood on where a location has no vignette.
-            if (vignette case final String art)
-              PixelScene.vignette(art, viewportHeight: height)
-            else
+            // The backdrop. Work mode prefers the profession's own tighter
+            // scene; where there is none it pushes the location painting back
+            // rather than competing with it.
+            if (working && workBackdrop != null)
+              PixelScene.vignette(workBackdrop, viewportHeight: height)
+            else if (vignette case final String art) ...<Widget>[
+              PixelScene.vignette(art, viewportHeight: height),
+              if (working) const ColoredBox(color: _backdropScrim),
+            ] else
               const ColoredBox(color: StrideColors.surfaceBlock),
 
             // The figures' ground band. The multiply contact shadow needs
@@ -134,8 +191,8 @@ class LocationStage extends StatelessWidget {
               ),
             ),
 
-            // The stage proper: scenery + figures, bottom-anchored, the same
-            // composition model the per-card stage used
+            // The stage proper: figures + near prop, bottom-anchored, the
+            // same composition model the per-card stage used
             // (`AmbientStageLayout`, `test/ambient_composition_test`).
             Positioned(
               left: 0,
@@ -145,14 +202,13 @@ class LocationStage extends StatelessWidget {
               child: figures,
             ),
 
-            // The name, over the lower edge, exactly as the plain vignette
-            // captioned it — beside the figures rather than under a second
-            // gradient of its own.
+            // The caption names whichever question the stage is answering:
+            // the place when idle, the work when working.
             Positioned(
               left: StrideSpace.screenGutter,
               bottom: StrideSpace.s8,
               child: Text(
-                locationName,
+                node?.displayName ?? locationName,
                 style: StrideType.cardTitle,
                 maxLines: 1,
               ),

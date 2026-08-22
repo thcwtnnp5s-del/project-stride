@@ -1035,8 +1035,9 @@ void main() {
       // A fresh save holds no materials: the census is honest, and the
       // shortfall sentence lives on the selected recipe's expanded detail.
       expect(
-        find.textContaining('Nothing here can be made yet'),
+        find.textContaining('0 craftable · '),
         findsOneWidget,
+        reason: 'the census is two figures in one shape at every count (§8)',
       );
       await tester.tap(find.text('Herb Broth').first);
       await tester.pumpAndSettle();

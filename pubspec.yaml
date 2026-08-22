@@ -165,6 +165,7 @@ flutter:
     - assets/art/v1/world/
     - assets/art/v1/env/
     - assets/art/v1/node/
+    - assets/art/v1/work/
     - assets/art/v1/portrait/traveler.png
     - assets/art/v1/sprite/traveler_south.png
     - assets/art/v1/anim/gather_f0.png

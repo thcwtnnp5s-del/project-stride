@@ -62,6 +62,11 @@ class _AdventureScreenState extends State<AdventureScreen> {
   /// shows the work actually happening).
   ContentId? _selected;
 
+  /// The expanded encounter — the same ephemeral kind of selection, kept
+  /// separate because the two lists answer different questions and a player
+  /// reading an enemy's drops has not stopped considering a gather.
+  ContentId? _selectedEnemy;
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
@@ -172,12 +177,17 @@ class _AdventureScreenState extends State<AdventureScreen> {
               ),
               const SizedBox(height: StrideSpace.cardGap),
 
-              // WHAT I CAN FIGHT HERE — one card per enemy at this location.
-              // Absent where the content has no enemy (Haven's Rest), rather
-              // than an empty-state card: a safe place does not need to
-              // announce it.
-              for (final EncounterOption option in encounters) ...<Widget>[
-                EncounterCard(option: option),
+              // WHAT I CAN FIGHT HERE — compact rows, only the selected
+              // creature expanded (§15). Absent where the content has no
+              // enemy (Haven's Rest), rather than an empty-state card: a safe
+              // place does not need to announce it.
+              if (encounters.isNotEmpty) ...<Widget>[
+                EncounterPanel(
+                  options: encounters,
+                  selected: _selectedEnemy,
+                  onSelect: (ContentId? id) =>
+                      setState(() => _selectedEnemy = id),
+                ),
                 const SizedBox(height: StrideSpace.cardGap),
               ],
 

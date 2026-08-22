@@ -22,9 +22,10 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart'
-    show EnemyBehavior, KnowledgeTier;
+    show ContentId, EnemyBehavior, KnowledgeTier;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/grounded_sprite.dart';
 import '../../components/rarity_item_title.dart';
@@ -36,6 +37,166 @@ import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 
+/// The encounter list: every enemy here as a compact, selectable row, with
+/// one expanded detail for the selected creature.
+///
+/// ## What this replaces (PRESENTATION_WORLD_REWARD_FEEL_01 §15)
+///
+/// One full [EncounterCard] per enemy — the 120 dp creature band, the chips,
+/// three stat tiles, the XP line, the drops and the button, about 400 dp
+/// each — permanently expanded, for every enemy at the location. Once the
+/// gather cards became rows, this was the tallest thing left on Adventure;
+/// the owner's device found Salamander and Cave Goblin between them
+/// consuming most of a screen.
+///
+/// The rows are ~48 dp. Everything the card carried is still here and still
+/// exact — the creature's own idle, its knowledge tier, its known drops in
+/// their rarity ink, its stats, Start Combat — inside the one enemy the
+/// player is actually considering. This is the same shape `ActivityPanel`
+/// uses for gathering, deliberately: two lists that behave differently for
+/// no reason are two things to learn.
+///
+/// Combat itself is untouched. Nothing here decides an outcome, and every
+/// dispatch is still re-validated by the engine (`RULES.md` E-2).
+class EncounterPanel extends StatelessWidget {
+  const EncounterPanel({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<EncounterOption> options;
+
+  /// The expanded enemy, or null when the list is fully collapsed.
+  final ContentId? selected;
+
+  /// Called with the tapped enemy, or null when the open row is tapped again.
+  final ValueChanged<ContentId?> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) return const SizedBox.shrink();
+    return SectionCard(
+      padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const SectionHeading(label: 'Encounters'),
+          const SizedBox(height: StrideSpace.s6),
+          for (final EncounterOption o in options) ...<Widget>[
+            _EncounterRow(
+              option: o,
+              selected: selected == o.enemyId,
+              onTap: () => onSelect(selected == o.enemyId ? null : o.enemyId),
+            ),
+            if (selected == o.enemyId)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: StrideSpace.s6,
+                  bottom: StrideSpace.s6,
+                ),
+                child: EncounterCard(option: o),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One compact encounter row: what it is, what it does, and how much of this
+/// visit is left.
+///
+/// The name over the tier and the three combat figures, with the
+/// remaining-this-visit count on the right — or SPENT, because the one thing
+/// a collapsed row must never hide is that the creature cannot be fought.
+class _EncounterRow extends StatelessWidget {
+  const _EncounterRow({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final EncounterOption option;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final EncounterOption o = option;
+    final String subLine = <String>[
+      EncounterCard.knowledgeLabel(o),
+      'HP ${o.maxHealth}',
+      'ATK ${o.attack}',
+      'DEF ${o.defence}',
+    ].join(' · ');
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: o.name,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: StrideSpace.s4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: StrideSpace.s6,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? StrideColors.surfaceRaised
+                : StrideColors.surfaceBlock,
+            // One border weight and one border colour, by the palette's own
+            // rule — the open row is distinguished by its raised fill and by
+            // the detail beneath it, not by a colour invented for this list.
+            border: Border.all(color: StrideColors.borderDefault),
+            borderRadius: StrideRadius.inner,
+          ),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    AdaptiveText(
+                      o.isBoss ? '${o.name} · Boss' : o.name,
+                      style: StrideType.itemName,
+                      color: StrideColors.textPrimary,
+                    ),
+                    Text(
+                      subLine,
+                      style: StrideType.micro.copyWith(
+                        color: StrideColors.textSecondary,
+                      ),
+                      maxLines: 2,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              Text(
+                o.available
+                    ? '${o.remainingThisVisit}/${o.encountersPerVisit}'
+                    : 'SPENT',
+                style: StrideType.microLabel.copyWith(
+                  color: o.available
+                      ? StrideColors.textSecondary
+                      : StrideColors.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The selected enemy's detail: the creature itself, what fighting it means,
+/// what is known about it, and the action.
 class EncounterCard extends StatelessWidget {
   const EncounterCard({super.key, required this.option});
 
@@ -47,11 +208,9 @@ class EncounterCard extends StatelessWidget {
     final EncounterOption o = option;
     final CombatantArt? art = CombatAssets.enemyFor(o.enemyId);
 
-    return SectionCard(
-      padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
           if (art != null) ...<Widget>[
             _EnemyStage(art: art),
             const SizedBox(height: StrideSpace.s10),
@@ -71,7 +230,7 @@ class EncounterCard extends StatelessWidget {
               RequirementGate(label: _behaviorLabel(o.behavior)),
               // The compact knowledge tier (`DECISIONS/0023` §5): Seen,
               // Studied, Known — and then it stops. Presentation only.
-              RequirementGate(label: _knowledgeLabel(o)),
+              RequirementGate(label: knowledgeLabel(o)),
             ],
           ),
           const SizedBox(height: StrideSpace.s10),
@@ -126,8 +285,7 @@ class EncounterCard extends StatelessWidget {
                 ? null
                 : () => c.startEncounter(o.enemyId),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -137,8 +295,10 @@ class EncounterCard extends StatelessWidget {
     EnemyBehavior.guarded => 'Heavy strike every third turn',
   };
 
-  /// The tier, with the distance to the next one while one exists.
-  static String _knowledgeLabel(EncounterOption o) => switch (o.knowledge) {
+  /// The tier, with the distance to the next one while one exists. Shared
+  /// with the collapsed row, so the two cannot describe one study
+  /// differently.
+  static String knowledgeLabel(EncounterOption o) => switch (o.knowledge) {
     KnowledgeTier.unseen => 'Unseen',
     KnowledgeTier.seen => 'Seen · ${o.victories}/${o.studiedAt} to Studied',
     KnowledgeTier.studied => 'Studied · ${o.victories}/${o.knownAt} to Known',

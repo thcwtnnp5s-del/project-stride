@@ -60,9 +60,28 @@ final class StageScenery {
     required this.assetPath,
     required this.bounds,
     this.native = 96,
+    this.behindFigure = false,
   });
 
   final String assetPath;
+
+  /// Whether this prop is painted **before** the figure rather than after.
+  ///
+  /// The default — after — is right for something the Traveler works *down
+  /// onto*: an anvil, a cookfire, an ore boulder at knee height. Painting it
+  /// last puts it nearer the camera, and the tool passes behind its far edge
+  /// at the bottom of the swing, which is what depth looks like.
+  ///
+  /// It is wrong for anything tall enough to occlude the swing. Blind QA
+  /// found the case: a tree trunk drawn after the figure **hid the axe
+  /// completely**, and the reviewer's honest first read of the frame was "a
+  /// man pointing at a tree". A prop the tool disappears into is not a prop
+  /// the tool is hitting.
+  ///
+  /// Declared per prop rather than inferred from the bounds. The question is
+  /// not how tall the art is, it is whether the tool's arc crosses it — and
+  /// the person who chose the loop is the one who knows.
+  final bool behindFigure;
 
   /// Native square size of the vignette, in pixels.
   final int native;
@@ -136,6 +155,50 @@ final class AmbientStageLayout {
   Rect get groupRect =>
       Rect.fromLTWH(groupLeft, groupTop, groupWidth, groupHeight);
 
+  /// The figure's ground-contact centre, in stage dp. Where the feet are.
+  double get feetCentre => groupLeft + SpriteFootprints.gather.centerX * scale;
+
+  /// Room between the figure's feet and the prop he is working on, dp.
+  static const double propGap = 8;
+
+  /// Where a **near interaction prop** goes: the thing the Traveler is
+  /// working *on*, as opposed to the place he is working *in*.
+  ///
+  /// Two placements, and the difference is the whole point of the pair:
+  ///
+  /// - [sceneryRect] is **far** — left edge, raised, ×1 behind the figure.
+  ///   It answers *where is he*, and it is right for an idle location.
+  /// - This is **near** — on his own ground line, immediately in front of
+  ///   his feet, drawn after him. It answers *what is he hitting*.
+  ///
+  /// In front means whichever side the loop actually works towards, which is
+  /// **not the same for every profession**. Woodcutting, foraging, smithing
+  /// and cooking all face west; the mining loop raises the pick over the
+  /// left shoulder and brings it down to the **east**, and its debris flies
+  /// east too. Placing every prop west put the ore boulder behind the
+  /// miner's back and fired his chips into bare floor.
+  ///
+  /// The prop's measured base sits exactly on the ground line either way, so
+  /// the figure and the thing he is working on share one floor — the single
+  /// fact that separates "a scene" from "two sprites in a box".
+  Rect propRect(StageScenery p, {bool east = false}) => Rect.fromLTWH(
+    east ? feetCentre + propGap : feetCentre - propGap - p.native,
+    groundLine - (p.bounds.bottom + 1),
+    p.native.toDouble(),
+    p.native.toDouble(),
+  );
+
+  /// The prop's opaque box in stage dp.
+  Rect propOpaque(StageScenery p, {bool east = false}) {
+    final Rect r = propRect(p, east: east);
+    return Rect.fromLTRB(
+      r.left + p.bounds.left,
+      r.top + p.bounds.top,
+      r.left + p.bounds.right + 1,
+      r.top + p.bounds.bottom + 1,
+    );
+  }
+
   Rect sceneryRect(StageScenery s) => Rect.fromLTWH(
     sceneryInset,
     height - sceneryBaseline - (s.bounds.bottom + 1),
@@ -175,6 +238,8 @@ class AmbientStage extends StatefulWidget {
     required this.restFrame,
     required this.restFootprint,
     this.scenery,
+    this.prop,
+    this.propEast = false,
     this.scale = 2,
     this.scenesPerVisit = 4,
     this.cadence = AmbientCadence.standard,
@@ -219,14 +284,46 @@ class AmbientStage extends StatefulWidget {
   final AmbientCadence? cadence;
   final int? seed;
 
-  /// The far vignette behind the figures, or none.
+  /// The far vignette behind the figures, or none. The *place*.
   final StageScenery? scenery;
+
+  /// The near prop the figure is working on, or none. The *thing*.
+  ///
+  /// Drawn on the figure's ground line, immediately in front of his feet and
+  /// **after** him in paint order, so a swung tool passes in front of the
+  /// prop's far side and lands on it. See [AmbientStageLayout.propRect].
+  ///
+  /// This slot exists because the craft screen needed it first and placed its
+  /// forge by hand, and the Adventure stage then needed exactly the same
+  /// thing for a copper seam. Two hand-placements of one idea is one idea
+  /// too few.
+  final StageScenery? prop;
+
+  /// Which side of the figure [prop] stands on — see
+  /// [AmbientStageLayout.propRect]. A property of the **loop**, not of the
+  /// prop: the same ore boulder goes east of a miner and would go west of
+  /// anyone facing the other way.
+  final bool propEast;
 
   final int scale;
 
   @override
   State<AmbientStage> createState() => _AmbientStageState();
 }
+
+/// The near prop, placed by the layout. One builder, so the two paint-order
+/// branches cannot drift into two different placements.
+Widget _prop(AmbientStageLayout layout, StageScenery prop, bool east) =>
+    Positioned(
+  left: layout.propRect(prop, east: east).left,
+  top: layout.propRect(prop, east: east).top,
+  child: PixelAsset(
+    assetPath: prop.assetPath,
+    nativeWidth: prop.native,
+    nativeHeight: prop.native,
+    scale: 1,
+  ),
+);
 
 class _AmbientStageState extends State<AmbientStage> {
   bool _gatherPlaying = false;
@@ -366,6 +463,7 @@ class _AmbientStageState extends State<AmbientStage> {
             scale: widget.scale,
           );
           final StageScenery? scenery = widget.scenery;
+          final StageScenery? prop = widget.prop;
           return SizedBox(
             width: layout.width,
             height: layout.height,
@@ -385,11 +483,18 @@ class _AmbientStageState extends State<AmbientStage> {
                       scale: 1,
                     ),
                   ),
+                if (prop != null && prop.behindFigure)
+                  _prop(layout, prop, widget.propEast),
                 Positioned(
                   left: layout.groupLeft,
                   top: layout.groupTop,
                   child: figures,
                 ),
+                // After the figure by default: the tool reaches over the
+                // prop's near edge and lands on it, rather than behind it.
+                // See `StageScenery.behindFigure` for the exception.
+                if (prop != null && !prop.behindFigure)
+                  _prop(layout, prop, widget.propEast),
               ],
             ),
           );

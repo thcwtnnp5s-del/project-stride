@@ -157,8 +157,19 @@ void main() {
     final StrideSession woodsSession = await boot(tester, atWoods: true);
     await show(tester, woodsSession);
     expect(find.text('Forest Wolf'), findsOneWidget);
-    // The creature is present before the fight: its combat idle art on the
-    // card, beside the gather stage's own figures.
+
+    // Compact rows, one open detail (§15). Nothing of the creature is drawn
+    // until the row the player is considering is the open one — which is the
+    // whole point of the change, so the test opens it the way a player does.
+    expect(
+      find.byType(EncounterCard),
+      findsNothing,
+      reason: 'no encounter is expanded until one is chosen',
+    );
+    await tapAndSettle(tester, find.text('Forest Wolf'));
+
+    // The creature is present before the fight: its combat idle art in the
+    // open row, beside the location stage's own figures.
     expect(
       tester
           .widgetList<GroundedSprite>(find.byType(GroundedSprite))
@@ -166,10 +177,13 @@ void main() {
       hasLength(1),
     );
     // Three enemies roam the woods now (Exploration & Progression Loop 01):
-    // the wolf, the boar and the bear each get a card.
-    expect(find.text('Roams here'), findsNWidgets(3));
+    // the wolf, the boar and the bear each get a row, and only one of them
+    // is expanded.
     expect(find.text('Wild Boar'), findsOneWidget);
     expect(find.text('Oakback Bear'), findsOneWidget);
+    expect(find.byType(EncounterCard), findsOneWidget);
+
+    expect(find.text('Roams here'), findsOneWidget);
     expect(find.text('TWO LIGHT STRIKES A TURN'), findsOneWidget);
     // The signature fang exists but is concealed until the wolf is Known.
     // The reward block is the §24 ecology presentation: XP on its own line,
@@ -218,6 +232,8 @@ void main() {
     final StrideSession s = await boot(tester, atWoods: true, provisioned: true);
     await show(tester, s);
 
+    // Open the wolf's row, then start the fight from its detail (§15).
+    await tapAndSettle(tester, find.text('Forest Wolf'));
     await tapAndSettle(
       tester,
       find.descendant(

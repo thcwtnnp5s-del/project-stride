@@ -51,10 +51,6 @@ import '../system/stale_banner.dart';
 /// headroom the gathering stage needs for a swung axe.
 const double _craftStageHeight = 150;
 
-/// Room between the figure's contact centre and the station's near edge.
-/// Small: he is working AT it, not standing beside it.
-const double _stationGap = 8;
-
 /// The §19 categories, derived from the output item's authored data.
 enum CraftCategory {
   materials('Materials'),
@@ -122,15 +118,21 @@ class _CraftScreenState extends State<CraftScreen> {
         ],
 
         // The filter, then the honest census of what it shows.
+        //
+        // Two figures in one shape, whatever the numbers are. The line read
+        // "Nothing here can be made yet — 15 known" at zero and "5 of 15 can
+        // be made now" otherwise: two different sentences, two different
+        // lengths, and the empty case phrased as an apology. The owner asked
+        // for the compact state instead (§8), and the same words at zero as
+        // at five is also the honest presentation — nothing craftable is a
+        // fact about the bag, not a disappointment to soften.
         _CategoryChips(
           selected: _category,
           onSelect: (CraftCategory? c) => setState(() => _category = c),
         ),
         const SizedBox(height: StrideSpace.s8),
         AdaptiveText(
-          ready == 0
-              ? 'Nothing here can be made yet — ${shown.length} known'
-              : '$ready of ${shown.length} can be made now',
+          '$ready craftable · ${shown.length} known',
           style: StrideType.sub,
           color: ready == 0
               ? StrideColors.textMuted
@@ -528,20 +530,16 @@ class _ActiveCraftPanel extends StatelessWidget {
         // The craft stage — the Traveler working AT this profession's
         // station (PRESENTATION_WORLD_REWARD_FEEL_01 §17).
         //
-        // The station is NOT passed to `AmbientStage.scenery`, and the
-        // reason is a blind-QA finding rather than a preference: the
-        // scenery slot places a node vignette far-left and *raised*, which
-        // is right for "this figure, at this place" and wrong for "this
-        // figure, working on this thing". Composited that way the Traveler
-        // swung a hammer at empty air with the anvil a screen away. Here the
-        // station stands on the same floor the figure's feet stand on,
-        // immediately in front of him — he faces west, so that is his
-        // viewer-left — and is painted *after* the figure, so the anvil
-        // reads as nearer the camera and the hammer head passes behind it
-        // at the bottom of the swing.
+        // The station goes in the stage's **prop** slot, not its scenery
+        // slot, and the difference is a blind-QA finding rather than a
+        // preference: scenery is far-left and raised, which is right for
+        // "this figure, at this place" and wrong for "this figure, working
+        // on this thing". Composited that way the Traveler swung a hammer at
+        // empty air with the anvil a screen away.
         //
-        // Every number below comes from `AmbientStageLayout`, the same
-        // model the figure is placed by, so the two cannot drift apart.
+        // The prop slot was this screen's hand-placement first; the Adventure
+        // stage then needed exactly the same thing for a copper seam, so it
+        // now lives in `AmbientStageLayout` where one model places both.
         if (loop != null) ...<Widget>[
           SizedBox(
             height: _craftStageHeight,
@@ -553,54 +551,18 @@ class _ActiveCraftPanel extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: StrideRadius.inner,
-                child: LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints c) {
-                    final AmbientStageLayout layout = AmbientStageLayout(
-                      width: c.maxWidth,
-                      height: c.maxHeight,
-                    );
-                    final StageScenery? station =
-                        AmbientAssets.stationFor(skill);
-                    // Where the figure's feet actually land: the stage
-                    // aligns every activity loop's contact centre onto the
-                    // rest pose's, so this is the one true anchor.
-                    final double feetCentre =
-                        layout.groupLeft + SpriteFootprints.gather.centerX * 2;
-                    return Stack(
-                      children: <Widget>[
-                        AmbientStage(
-                          gatherFrames: PixelIcons.gatherFrames,
-                          gatherFootprint: SpriteFootprints.gather,
-                          playToken: null,
-                          scenes: AmbientAssets.scenes,
-                          restFrame: AmbientAssets.restFrame,
-                          restFootprint: AmbientAssets.restFootprint,
-                          activityFrames: loop,
-                          activityFootprint:
-                              AmbientAssets.activityFootprintFor(skill),
-                          activityCanvas:
-                              AmbientAssets.activityCanvasFor(skill),
-                          activityActive: true,
-                        ),
-                        if (station != null)
-                          Positioned(
-                            left: feetCentre -
-                                _stationGap -
-                                station.native.toDouble(),
-                            top: layout.groundLine -
-                                (station.bounds.bottom + 1),
-                            // x1, like the gathering stage draws its node
-                            // scenery: the station is far, the figure near.
-                            child: PixelAsset(
-                              assetPath: station.assetPath,
-                              nativeWidth: station.native,
-                              nativeHeight: station.native,
-                              scale: 1,
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+                child: AmbientStage(
+                  gatherFrames: PixelIcons.gatherFrames,
+                  gatherFootprint: SpriteFootprints.gather,
+                  playToken: null,
+                  scenes: AmbientAssets.scenes,
+                  restFrame: AmbientAssets.restFrame,
+                  restFootprint: AmbientAssets.restFootprint,
+                  prop: AmbientAssets.stationFor(skill),
+                  activityFrames: loop,
+                  activityFootprint: AmbientAssets.activityFootprintFor(skill),
+                  activityCanvas: AmbientAssets.activityCanvasFor(skill),
+                  activityActive: true,
                 ),
               ),
             ),

@@ -1016,6 +1016,64 @@ for (const id of ['station_forge', 'station_cookfire']) {
   emit(`node/${id}.png`, encode(square));
 }
 
+/**
+ * WORK STAGES — the focused profession compositions
+ * (PRESENTATION_WORLD_REWARD_FEEL_01 correction round, §3–§5).
+ *
+ * Two kinds of asset, one per profession family and one per resource:
+ *
+ * - **Backdrops**, 384 × 176, the location vignettes' own frame size. A
+ *   deliberately plain place for a figure to stand in front of: a rock face,
+ *   a stand of trunks, a scrub bank. They replace the full location painting
+ *   while an activity is selected, because the owner's device found the idle
+ *   painting, the Traveler, the cat and a resource all competing inside one
+ *   176 dp band.
+ *
+ * - **Props**, 96 × 96 transparent, the near thing the tool lands on. Placed
+ *   by `AmbientStageLayout.propRect` on the figure's own ground line, not in
+ *   the far scenery slot. Three of them are inpainted from one accepted rock,
+ *   so Copper, Tin and Hardened Copper are the same outcrop with different
+ *   metal in it — the interchangeable resource object the brief asked for,
+ *   rather than a bespoke scene per ore.
+ *
+ * A node with no work prop falls back to its ordinary node vignette, still
+ * placed at the interaction point. Provenance and the blind-QA record in
+ * `GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/out/stage/README.md`.
+ */
+const PWRF_STAGE_SRC = path.join(PWRF, 'stage');
+const WORK_BACKDROPS = {
+  mining: 'work_mining_b_0',
+  woodcutting: 'work_woodcutting_0',
+  foraging: 'work_foraging_0',
+};
+for (const [id, src] of Object.entries(WORK_BACKDROPS)) {
+  const raster = png.load(path.join(PWRF_STAGE_SRC, `${src}.png`));
+  if (raster.width !== 384 || raster.height !== 176) {
+    throw new Error(
+      `work ${id}: expected 384x176, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`work/bg_${id}.png`, encode(raster));
+}
+
+const WORK_PROPS = {
+  copper_seam: 'prop_copper_b_0',
+  tin_seam: 'prop_tin_b_0',
+  hardened_copper_seam: 'prop_hardened_b_0',
+  oak_stand: 'prop_wood_a_2',
+  meadow_patch: 'prop_forage_a_0',
+  duskcap_grove: 'prop_duskcap_0',
+};
+for (const [id, src] of Object.entries(WORK_PROPS)) {
+  const raster = png.load(path.join(PWRF_STAGE_SRC, `${src}.png`));
+  if (raster.width !== 96 || raster.height !== 96) {
+    throw new Error(
+      `prop ${id}: expected 96x96, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`work/prop_${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

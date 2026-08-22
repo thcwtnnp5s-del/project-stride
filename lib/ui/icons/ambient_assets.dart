@@ -352,8 +352,116 @@ abstract final class AmbientAssets {
   /// The node vignettes as stage scenery, keyed by the asset path
   /// `PixelIcons.nodeFor` returns, each with its measured opaque box
   /// (`measure-ambient-extents.js`, 2026-08-19; all 96 × 96).
+  /// The idle scene set with the cat left out — the workplace cadence.
+  ///
+  /// The cat is a companion, not a UI element (§6). It belongs in the living
+  /// location: idling, resting, batting a string while the Traveler stands
+  /// around. It does not belong underfoot at a rock face a pickaxe is coming
+  /// down on, and the owner's device found exactly that — Traveler, cat, mine
+  /// entrance and a boulder all competing inside one 176 dp band.
+  ///
+  /// So the cat is not deleted anywhere; it is **absent from the work
+  /// composition**, and returns the moment the player steps back to the
+  /// location. This is the same seven solo scenes the full set opens with,
+  /// with the eight companion scenes filtered out by the layer they draw
+  /// rather than by a hand-kept second list that could drift.
+  static final AmbientSceneSet soloScenes = AmbientSceneSet(
+    scenes
+        .scenes
+        .where(
+          (AmbientScene s) => !s.layers.any(
+            (AmbientLayer l) =>
+                l.track.frames.any((String f) => f.contains('cat')),
+          ),
+        )
+        .toList(growable: false),
+  );
+
   static StageScenery? sceneryFor(String? nodeArt) =>
       nodeArt == null ? null : _scenery[nodeArt];
+
+  /// The **near work prop** for a resource node: the thing the Traveler's
+  /// tool actually lands on, drawn on his own ground line
+  /// (`AmbientStageLayout.propRect`).
+  ///
+  /// Distinct from [sceneryFor], which answers the far vignette — *where he
+  /// is* rather than *what he is hitting*. One per profession family, shared
+  /// by every node in it, because the owner asked for reusable compositions
+  /// with an interchangeable resource object and not a bespoke scene per ore
+  /// (§4). Where a node has no authored work prop the caller falls back to
+  /// its node vignette, which is worse but never blank.
+  static StageScenery? workPropFor(String nodeArt) => _workProps[nodeArt];
+
+  /// The **work backdrop** for a profession: the tighter place the focused
+  /// composition happens in, in place of the full location painting (§3).
+  /// Null where a profession has none, and the caller then dims the location
+  /// vignette instead.
+  static String? workBackdropFor(String skill) => _workBackdrops[skill];
+
+  /// Whether this profession's loop works towards the figure's **east**.
+  ///
+  /// Not a style choice and not uniform. Woodcutting, foraging, smithing and
+  /// cooking all face west and act on their viewer-left. The mining loop is
+  /// the exception: the Traveler faces east, raises the pick over his left
+  /// shoulder, brings it down to his right, and the chips fly right. Placing
+  /// its boulder west — as every other prop is placed — put the ore behind
+  /// the miner's back and threw his debris at bare floor, which blind QA
+  /// read as "holding a pickaxe near a rock", never as mining.
+  ///
+  /// A table rather than a measurement. The union of a loop's frame bounds is
+  /// symmetric for a tool that swings through an arc, so the extents cannot
+  /// answer this; only looking at the animation can, and this is where that
+  /// looking is written down.
+  static bool worksEast(String skill) => skill == 'skill.mining';
+
+  static const Map<String, String> _workBackdrops = <String, String>{
+    'skill.mining': '$_art/work/bg_mining.png',
+    'skill.woodcutting': '$_art/work/bg_woodcutting.png',
+    'skill.foraging': '$_art/work/bg_foraging.png',
+  };
+
+  /// Keyed by the node's **vignette path**, the same key [sceneryFor] takes,
+  /// so one lookup site answers both and a node cannot be wired into one
+  /// table and forgotten in the other.
+  ///
+  /// Bounds measured by `Scripts/art/png.js` on the packaged plate. Only the
+  /// bottom matters for placement — the prop sits with its lowest opaque row
+  /// on the ground line — but the whole box is recorded, because a composition
+  /// test that can only check one edge is a test of half a placement.
+  static const Map<String, StageScenery> _workProps = <String, StageScenery>{
+    '$_art/node/copper_seam.png': StageScenery(
+      assetPath: '$_art/work/prop_copper_seam.png',
+      bounds: SpriteBounds(left: 10, top: 11, right: 89, bottom: 90),
+      // Tall enough to swallow the pick if drawn last (blind QA round 2).
+      behindFigure: true,
+    ),
+    '$_art/node/tin_seam.png': StageScenery(
+      assetPath: '$_art/work/prop_tin_seam.png',
+      bounds: SpriteBounds(left: 10, top: 11, right: 89, bottom: 90),
+      // Tall enough to swallow the pick if drawn last (blind QA round 2).
+      behindFigure: true,
+    ),
+    '$_art/node/hardened_copper_seam.png': StageScenery(
+      assetPath: '$_art/work/prop_hardened_copper_seam.png',
+      bounds: SpriteBounds(left: 10, top: 11, right: 89, bottom: 90),
+      // Tall enough to swallow the pick if drawn last (blind QA round 2).
+      behindFigure: true,
+    ),
+    '$_art/node/oak_stand.png': StageScenery(
+      assetPath: '$_art/work/prop_oak_stand.png',
+      bounds: SpriteBounds(left: 2, top: 5, right: 90, bottom: 90),
+      // Tall enough to swallow the axe if drawn last (blind QA round 1).
+      behindFigure: true,
+    ),
+    '$_art/node/meadow_patch.png': StageScenery(
+      assetPath: '$_art/work/prop_meadow_patch.png',
+      bounds: SpriteBounds(left: 15, top: 37, right: 91, bottom: 91),
+    ),
+    '$_art/node/duskcap_grove.png': StageScenery(
+      assetPath: '$_art/work/prop_duskcap_grove.png',
+      bounds: SpriteBounds(left: 8, top: 16, right: 88, bottom: 94),
+    ),
+  };
 
   static const Map<String, StageScenery> _scenery = <String, StageScenery>{
     '$_art/node/meadow_patch.png': StageScenery(
