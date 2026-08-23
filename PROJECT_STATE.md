@@ -1,5 +1,58 @@
 # Project Stride — Project State
 
+**Version:** 2.14
+**Status:** 🚧 **PLAYABLE EXPERIENCE REFINEMENT 01 — implementation complete,
+awaiting the owner's physical-device test and the §0 confirmation.** Branch
+`playable-phase-2-multiregion`, on top of the Presentation, World & Reward
+Feel correction round (`a1ff92b`). Record:
+`MILESTONES/PLAYABLE_EXPERIENCE_REFINEMENT_01.md`; open question Q-08.
+
+The owner's extended device play ruled the game **strong enough to refine
+rather than expand**, and reported one blocker: a defeat → retreat →
+relaunch sequence that appeared to re-grant the day's steps (≈3,000 →
+≈6,000).
+
+**The blocker is not reproducible at the accounting boundary.** Eleven
+regression cases over the real session, repository and file layout prove
+that identical Health samples grant zero through live replay, the recovery
+rescan, defeat, manual sync and four relaunches, that new steps grant
+exactly once, that nothing is lost on retreat, that the adapter is read
+only on an explicit foreground sync, and that the epoch never moves. The
+one arithmetic path to a doubled bank is a **second HealthKit step source**
+(a Watch, or any app writing steps): the ledger credits per origin by
+design (H-1) and HealthKit's merged total de-duplicates where per-source
+sums do not; a Watch's late batch arriving on a relaunch is exactly the
+shape observed. The count of contributing sources is now visible — counts,
+never identities (H-7) — on the Character tab, the sync line and the held
+banner. Whether to reconcile on the merged total is **Q-08**, the owner's
+decision; no accounting or persistence code changed.
+
+What changed in presentation, in one breath: **one reward language** —
+`RewardBeat` / `LevelUpCard` / `StaggeredReveal`, three tiers (MINOR,
+MEDIUM, MAJOR), transient by contract — carries every result: craft
+completion is a beat rather than a log line in the recipe card (equipment
+in its rarity ink with the stat delta and Equip, held until OK), a finished
+gather queue gets its `GATHERING COMPLETE` beat, combat victory resolves
+XP → drops → **knowledge stage** (`STUDIED` names what is newly understood,
+`KNOWN` reveals the signature) → level-up → bounty progress on one clock,
+defeat says `Driven back / Retreated to … / Nothing was lost.` The giant
+stage captions are gone; a **locked selection** composes the scene without
+working and states its gate on the picture; HP shows by one rule; Goal
+Board rows carry a restrained type chip, the project tile folds its lore
+and pulses a contribution. **PixelLab**: six plates, two accepted — Stonefall
+is a cut slate gallery with timber, lantern, rails and a shaft mouth; the
+Woods clearing is open ground before the deeper wood — reviewed in context
+through a new stage-evidence harness; the smith and cook loops play
+ping-pong so the tool no longer pops on the wrap.
+
+Suites: app **613**, `stride_core` **684**, `stride_storage` **103 of 108** (five cross-process lock probes time out on this machine; package untouched — see the record),
+`stride_health` **143**; analyze clean; art packaging clean; goldens
+regenerated and reviewed. **Nothing in the health / step-accounting or
+persistence path changed; no economy re-basing; no schema change.**
+Open: Q-06, Q-07 remainder, **Q-08**, OD-04, OD-06.
+
+---
+
 **Version:** 2.13
 **Status:** 🚧 **PRESENTATION, WORLD & REWARD FEEL 01 — device correction
 round complete, awaiting the owner's second physical-device test.** Branch
