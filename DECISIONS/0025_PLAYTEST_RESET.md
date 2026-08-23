@@ -113,3 +113,16 @@ survives the journal codec.
 | Reuse `EstablishEconomyEpoch` with a new version | Its guard is "older than this step"; a player reset at the current version would be refused, and loosening the guard would let a format bump re-base by accident — the `0018` hazard. |
 | Display-only baseline (no state) | A figure that resets on one phone and not on a relaunch is a lie; the baseline has to be in the save. |
 | A walked baseline as a separate ledger field | The same v9 cost, and two marks that can disagree; the epoch already *is* the point the playtest began. |
+
+## Amended — 2026-08-23, the correction pass (device review)
+
+- **The Adventure band's `SPENT` is this epoch's.** `StrideSession.spentThisEpoch`
+  (`totalSpent − epoch.spentAtStart`) replaces the lifetime counter on the
+  play surface, so a fresh playtest reads `Spent 0` beside `Total walked 0`;
+  the lifetime spend is named on the Character tab once a reset has moved
+  the baseline. A projection — no counter, slice, watermark or cursor moved.
+- **A fresh playtest wears the starter loadout.** `PlaytestReset` carries
+  `equippedItems` (`ContentRegistry.startingEquipment`: sword, tunic, and
+  the first tool in loadout order), journalled like every other field and
+  decoded as empty from a record written before it existed. A brand-new
+  install's first transcript is unchanged (see the milestone record, §A).

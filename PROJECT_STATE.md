@@ -1,5 +1,44 @@
 # Project Stride — Project State
 
+**Version:** 2.16
+**Status:** 🚧 **PLAYABLE POLISH 01 — correction pass complete, not pushed,
+awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, on top of the published `3dae9e8`. Record:
+the "Correction pass" section of `MILESTONES/PLAYABLE_POLISH_01.md`. The
+future `EQUIPMENT_COMBAT_CRAFTING_DEPTH_01` workstream (material tiers,
+weapon families, Slash/Crush/Pierce, ammunition, combat energy, the bank
+cap, D20, road encounters) **remains deferred** to a fresh session after
+this pass is physically accepted.
+
+The device proved the fresh-playtest reset (mechanics pass: zero banked,
+zero walked, old steps never re-banked, 328 new steps banked once) and
+returned a list of presentation, pace and semantics findings, all
+answered: the Adventure band's **SPENT is this epoch's** (a projection;
+lifetime spend moves to the Character tab); a **fresh playtest wears the
+starter loadout**; **profession tools are never power-compared** — an axe
+over a pickaxe is a TOOL SWAP and the craft reveal names profession and
+tier; **MINOR craft results are transient** and never pin the card; the
+**Goal Board** gains a READY pill, a TRACKED mark and a collapsed project
+row; the **reward layer is one frame** with hairlines inside and Common
+rows plain; the **hardened seam** is re-authored (1 PixelLab round, 3 gens)
+as compressed copper and every loop re-audited in context; **gathering
+paces at 100 steps a minute** (600 ms a step on the engine's own cost,
+with an authored `workSpeedPercent` seam); **crafting is deliberate at
+zero steps** (`craftSeconds` per recipe: components 30–45 s, food 45–90 s,
+gear 120–180 s); and **rarity is re-based** by owner ruling — Common <
+Uncommon < Rare < Epic < Legendary, "how exceptional" not "where in
+progression", training gear Common, standard Bronze Uncommon, with the
+enum, palette names, content, canon and tests changed together.
+
+Suites: app **629**, `stride_core` **697**, `stride_health` **143**,
+`stride_storage` **108**; analyze and every guard clean; goldens
+regenerated and reviewed. Nothing in the health adapters or the step
+ledger's counters, slices, watermarks or cursor changed; no economy
+re-basing; no schema change (the two new content fields are optional).
+Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11, OD-04, OD-06.
+
+---
+
 **Version:** 2.15
 **Status:** 🚧 **PLAYABLE POLISH 01 — implementation complete, not pushed,
 awaiting the owner's review and device test.** Branch

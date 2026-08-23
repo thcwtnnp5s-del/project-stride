@@ -190,3 +190,166 @@ one schema change (v9) is asked for by name in `DECISIONS/0025`.
 6. Character › foot: **do not reset yet** unless you mean to. When you do:
    Reset walking baseline → confirm → Banked 0, Total walked 0, `lifetime
    471,…` beneath; relaunch; sync; nothing re-banks; walk; it banks once.
+
+---
+
+# Correction pass — 2026-08-23, from the owner's physical-device review
+
+**Branch:** `playable-phase-2-multiregion`, on top of the published
+`3dae9e8`. **Status:** implementation complete, not pushed. A correction and
+refinement pass on this workstream, not a new milestone. The future
+equipment / combat / crafting depth work (material tiers, weapon families,
+Slash/Crush/Pierce, ammunition, combat energy, the 5,000 cap, D20 rolls,
+road and NPC encounters) **remains deferred** to a fresh session —
+`EQUIPMENT_COMBAT_CRAFTING_DEPTH_01` — after this pass is physically
+accepted; nothing of it was started here.
+
+## What the device proved, and what it found
+
+The fresh-playtest reset **works**: Banked 0, Total Walked 0, skills and
+character at 1, starter bag restored, goals cleared, lifetime preserved;
+old walking did not re-bank; 328 genuinely new steps banked once after a
+manual sync. Nothing in that path changed. The findings were presentation,
+pace and semantics, answered below in the brief's letters.
+
+## A — SPENT is this playtest's; the starter loadout is worn
+
+- The Adventure band's `SPENT` read the lifetime counter (~57,140) after a
+  reset. It now reads **`spentThisEpoch`** — `totalSpent − epoch.spentAtStart`,
+  the ledger's own figure — so a fresh playtest shows `Spent 0` beside
+  `Total walked 0`. A projection; no counter moved. The Character tab
+  gains `Spent this playtest` / `Lifetime spent` tiles once a reset has
+  made the two different figures (`walkedBaselineMoved`).
+- A fresh playtest now **wears** the starter loadout — sword, tunic, and
+  the first tool in loadout order (the Training Axe; the pickaxe stays a
+  tap away in the bag) — via `PlaytestReset.equippedItems`
+  (`ContentRegistry.startingEquipment`), so a fresh game is playable at
+  once. **A brand-new install still grants unworn**: changing
+  `GameEngine.newGame`'s first transcript would have re-based fourteen
+  engine fixtures and the frozen cross-implementation conformance
+  transcript for a UX nicety on a path the owner does not take; deferred,
+  named here, not forgotten.
+
+## B — Profession tools are not power-compared
+
+`gearStatsOf` judges a tool **by tier within its profession**, and a tool
+of another profession is **`TOOL SWAP`** — never UPGRADE / SIDEGRADE, never
+a figure. The Craft block for a tool reads `WOODCUTTING TOOL · Tier 1 ·
+Works woodcutting sites up to tier 1 · Currently equipped: Bronze Pickaxe ·
+Mining tool · Tier 1`. The craft reveal says the tool line and `Swaps out
+Bronze Pickaxe · Mining tool · Tier 1` instead of `Tool power 4 → 4`;
+weapons and armour keep their stat delta. No "tool power" exists
+mechanically (`CombatRules` reads weapon and armour power only), and none
+was invented (`test/gear_stats_test.dart`).
+
+## C — MINOR craft results are transient
+
+A MINOR result no longer pins the recipe selection (only a running queue
+or a held MEDIUM result does), clears on its timer (now 4 s), and clears
+at once when the player opens any row. A held result keeps its Continue.
+(`craft_flow_test`: "a MINOR result is transient".)
+
+## D — Goal Board, one more pass
+
+READY is the one filled pill (dim step accent); a row or project holding
+the Contract goal slot says `TRACKED`; the **project tile is collapsed by
+default** — name, stage pill, the stage's materials in one tabular line —
+and opens on tap, or by itself when the player can contribute. Rows,
+chips, the open-job block and the board's fiction names are unchanged.
+
+## E — One frame, inside the layer
+
+Inside `RewardLayer` every beat is frameless (`RewardLayerScope`), the
+headline steps up to card-title weight, beats are separated by a hairline,
+the top accent rule is gone, and an item row keeps its rarity frame only
+from Uncommon up — a Common drop is a plain row with no badge. Inline on a
+card, a beat frames itself exactly as before. Combat's EXPERIENCE block is
+a labelled group, not a box. `combat_victory` golden regenerated.
+
+## F / G — Hardened seam round 2; the audit repeated
+
+One PixelLab round (3 gens) for the hardened seam; accepted seed 7720 —
+copper's own silhouette, darker, compressed, thick bands, crystal clusters
+(`GAME_BIBLE/ART/exploration/PLAYABLE_POLISH_01/README.md` §3). Copper and
+tin stand. Every profession loop re-captured in context: mining faces the
+seam and lands on it, the seam is west, locked does not animate; no loop
+regenerated.
+
+## H — Gathering paces at 100 steps a minute
+
+`ActivityDurations.forNode(node, cost)`: **600 ms per spendable step**, on
+the profile-scaled cost the engine charges (`StrideSession.costOf`), times
+the site's authored `workSpeedPercent` (content, default 100 — the one
+seam for a future special site; no shipped node authors it). Meadow Patch
+(80) is 48 s; 200 is 2 min; 1,000 is 10 min; ×N scales by construction.
+Queue semantics untouched: finite, background-reconciled on the anchor,
+cancel keeps completions, each completion the unchanged command, no
+escrow, no background sync (`activity_controller_test` re-timed, all 16
+cases pass; `activity_pace_test` pins the brief's table).
+
+## I — Crafting is deliberate, and still costs zero steps
+
+`RecipeDefinition.craftSeconds` (content, per recipe): components 30–45 s
+(Oak Plank 30, Oak Handle 40, Bronze Ingot 45, Pine Plank 45), food 45–90 s
+(Herb Broth 45, Duskcap Skewer 60, Frostbloom Tea 75, Hearty Stew 90), gear
+120–180 s (Bronze Axe / Pickaxe / Wolfhide Jerkin 120, Bronze Sword /
+Reinforced Pickaxe 150, Bronze Chestplate / Frost-lined Jerkin 180).
+`CraftDurations.of` reads it; category defaults (40/60/120) catch an
+unauthored recipe. The steps-per-minute rule is **not** applied to
+crafting; `craft_flow_test` asserts the ledger does not move across a run.
+
+## J / K — Rarity re-based: "how exceptional", not "where in progression"
+
+Owner ruling on device, superseding 2026-08-19: **Common (neutral) <
+Uncommon (green) < Rare (blue) < Epic (purple) < Legendary (orange)**.
+The enum order, the style table (the two hexes swapped names; nothing in
+the palette moved), `items.json`, `08_ITEM_RARITY.md`, `DECISIONS/0021` §4
+(amended, not rewritten) and the tests changed together. Training gear and
+every everyday material and first meal are Common; standard Bronze,
+Lynx Pelt and the healing meals Uncommon; a passive (Wolfhide Jerkin,
+Reinforced Pickaxe) and every signature Rare; Frost-lined Jerkin, Hollow
+Sigil and Frost Claw Epic; Legendary still empty and never required.
+Presentation follows: Common is a plain row, Uncommon a green frame, Rare
+up a noticeable payoff; no casino motion, streaks or timers.
+
+## Verification
+
+App **629**, `stride_core` **697**, `stride_storage` **108**,
+`stride_health` **143** (compile-only dependency; no health logic
+changed) — all passing. `flutter analyze` clean; core purity, single
+writer, origin privacy guards clean; `package-art.js --check` clean.
+Goldens regenerated and reviewed: `combat_victory`, `phase1_inventory(_large)`,
+`phase1_character(_large)`, `craft_stage`, `phase2_craft(_large)`.
+
+New or extended focused tests, by the brief's numbering: (1–2)
+`playtest_reset_session_test` (SPENT 0 / lifetime kept / replay 0 across
+relaunch / worn loadout); (3) `gear_stats_test` TOOL SWAP; (4)
+`craft_flow_test` transient MINOR; (5–6) `activity_pace_test` the table and
+the speed seam; (7) `activity_controller_test` and `craft_flow_test`
+re-timed, exact counts; (8–9) `craft_flow_test` zero-step, `activity_pace_test`
+authored seconds; (10–12) `rarity_test`, `production_content_test`,
+`gear_stats_test` (tier separate from rarity); (13–14)
+`board_reward_layer_test` (layer up, Continue returns to the board; the
+route is `barrierDismissible: false`); (15) `stage_evidence_test` captures.
+
+## Deferred from this pass
+
+- Starter loadout worn on a **brand-new install** (see A).
+- Everything in `EQUIPMENT_COMBAT_CRAFTING_DEPTH_01` (above), Q-09, Q-10,
+  Q-11 — unchanged.
+
+## Device acceptance — the correction pass
+
+1. Character › Start a fresh playtest → Adventure band: `Total walked 0 ·
+   Spent 0`; Inventory: sword, tunic and axe worn; walk, Sync: banks once.
+2. Craft › Bronze Axe with a pickaxe worn: `WOODCUTTING TOOL · Tier 1 ·
+   TOOL SWAP · Currently equipped: … Mining tool · Tier 1`; craft it: the
+   reveal names the tool and the swap, no "Tool power".
+3. Craft a Bronze Ingot ×1: ~45 s; `CRAFTED` shows briefly, then the card is
+   clean; opening another recipe clears it at once.
+4. Gather Meadow Patch ×5: `48s` a repetition, ~4 min the queue; background
+   and return: the right count, nothing more.
+5. Goal Board: READY is a pill; the project is one row until tapped; a
+   tracked job says TRACKED; deliver an order: one-frame overlay.
+6. Stonefall: the hardened seam reads as dark compressed copper.
+7. Inventory: training gear `COMMON` neutral; Bronze `UNCOMMON` green.
