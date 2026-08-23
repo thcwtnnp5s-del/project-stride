@@ -133,7 +133,12 @@ void main() {
     }
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(4));
     expect(find.widgetWithText(StrideButton, 'Unequip'), findsNothing);
-    expect(find.text('EQUIPPED'), findsNothing);
+    // The marker line carries the gear stat now (PLAYABLE_POLISH_01 §6) —
+    // `TIER 0` on the tools, `ATK 3` on the sword, `DEF 2` on the tunic —
+    // and the worn state is the Unequip control beneath it.
+    expect(find.text('TIER 0'), findsNWidgets(2));
+    expect(find.text('ATK 3'), findsOneWidget);
+    expect(find.text('DEF 2'), findsOneWidget);
 
     // The three slot labels, each over an em dash.
     for (final String slot in <String>['WEAPON', 'ARMOUR', 'TOOL']) {
@@ -157,7 +162,6 @@ void main() {
       until: () => session.equippedIn(EquipmentSlot.tool) == kAxe,
     );
 
-    expect(find.text('EQUIPPED'), findsOneWidget);
     expect(find.widgetWithText(StrideButton, 'Unequip'), findsOneWidget);
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(3));
     // The tile name and the slot summary both say Training Axe now.
@@ -187,7 +191,7 @@ void main() {
 
     // One slot, one occupant: the axe came off when the pickaxe went on.
     expect(session.isEquipped(kAxe), isFalse);
-    expect(find.text('EQUIPPED'), findsOneWidget);
+    expect(find.widgetWithText(StrideButton, 'Unequip'), findsOneWidget);
     expect(find.text('Training Pickaxe'), findsNWidgets(2));
     expect(find.text('Training Axe'), findsOneWidget);
 
@@ -198,7 +202,6 @@ void main() {
       until: () => session.equippedIn(EquipmentSlot.tool) == null,
     );
 
-    expect(find.text('EQUIPPED'), findsNothing);
     expect(find.widgetWithText(StrideButton, 'Unequip'), findsNothing);
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(4));
     expect(find.text('—'), findsNWidgets(3));

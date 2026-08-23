@@ -294,6 +294,72 @@ final class EquippedSummary {
   final int power;
 }
 
+/// How a piece of equipment compares with what is worn in its slot.
+enum GearVerdict { upgrade, downgrade, sidegrade, firstInSlot, equipped }
+
+/// What a piece of equipment does, for the Inventory and Craft screens
+/// (PLAYABLE_POLISH_01 §6): its one stat, its passives, and how it stands
+/// against the item in its slot today.
+///
+/// Every figure is content — `power`, `frostGuard`, the two yield
+/// percentages, the tool kind and tier — read through the same registry the
+/// engine reads, against the same `Equipment.bySlot` it consults. Nothing
+/// here is computed by the screen and nothing here is persisted
+/// (`RULES.md` E-2, E-5).
+final class GearStats {
+  const GearStats({
+    required this.item,
+    required this.slot,
+    required this.statName,
+    required this.statShort,
+    required this.power,
+    required this.tier,
+    required this.toolKind,
+    required this.passives,
+    required this.wornName,
+    required this.wornPower,
+    required this.verdict,
+  });
+
+  final ContentId item;
+  final EquipmentSlot slot;
+
+  /// "Attack", "Defence", "Tool power".
+  final String statName;
+
+  /// "ATK", "DEF", "TOOL" — for a tile with no room for the word.
+  final String statShort;
+  final int power;
+  final int tier;
+  final ToolKind toolKind;
+
+  /// The item's passives, one sentence each, in player words.
+  final List<String> passives;
+
+  /// The item in the slot today, or null when the slot is empty.
+  final String? wornName;
+  final int wornPower;
+  final GearVerdict verdict;
+
+  /// `+2`, `−1`, `±0` against the slot — or null when nothing is worn.
+  String? get deltaLabel {
+    if (wornName == null) return null;
+    final int d = power - wornPower;
+    if (d > 0) return '+$d';
+    if (d < 0) return '−${-d}';
+    return '±0';
+  }
+
+  /// The verdict in one word, for a label.
+  String get verdictLabel => switch (verdict) {
+    GearVerdict.upgrade => 'UPGRADE',
+    GearVerdict.downgrade => 'DOWNGRADE',
+    GearVerdict.sidegrade => 'SIDEGRADE',
+    GearVerdict.firstInSlot => 'EMPTY SLOT',
+    GearVerdict.equipped => 'EQUIPPED',
+  };
+}
+
 /// One skill's standing, with its level already derived from the content curve.
 /// One location, as the region map's legend needs it.
 ///
@@ -3135,6 +3201,61 @@ final class StrideSession {
           power: content.items[e.value]?.power ?? 0,
         ),
     ];
+  }
+
+  /// What [item] does as equipment, against what is worn in its slot — or
+  /// null for anything that is not equipment, or that the pack does not
+  /// define. See [GearStats].
+  GearStats? gearStatsOf(ContentId item) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final ItemDefinition? def = content?.items[item];
+    final EquipmentSlot? slot = def?.slot;
+    if (active == null || content == null || def == null || slot == null) {
+      return null;
+    }
+    final ContentId? wornId = active.state.equipment.inSlot(slot);
+    final ItemDefinition? worn = wornId == null ? null : content.items[wornId];
+    final int wornPower = worn?.power ?? 0;
+    final GearVerdict verdict = wornId == item
+        ? GearVerdict.equipped
+        : wornId == null
+        ? GearVerdict.firstInSlot
+        : def.power > wornPower
+        ? GearVerdict.upgrade
+        : def.power < wornPower
+        ? GearVerdict.downgrade
+        : GearVerdict.sidegrade;
+    final (String statName, String statShort) = switch (slot) {
+      EquipmentSlot.weapon => ('Attack', 'ATK'),
+      EquipmentSlot.armor => ('Defence', 'DEF'),
+      EquipmentSlot.tool => ('Tool power', 'TOOL'),
+    };
+    return GearStats(
+      item: item,
+      slot: slot,
+      statName: statName,
+      statShort: statShort,
+      power: def.power,
+      tier: def.tier,
+      toolKind: def.toolKind,
+      passives: <String>[
+        if (def.toolKind != ToolKind.none)
+          'Works ${def.toolKind == ToolKind.axe ? 'woodcutting' : 'mining'} '
+              'sites up to tier ${def.tier}',
+        if (def.frostGuard > 0)
+          'Cold weather: −${def.frostGuard} damage taken in alpine fights',
+        if (def.wildernessYieldPercent > 0)
+          'Wilderness ready: ${def.wildernessYieldPercent}% chance of +1 '
+              'yield when woodcutting or foraging',
+        if (def.toolBonusYieldPercent > 0)
+          '${def.toolBonusYieldPercent}% chance of +1 yield at sites this '
+              'tool works',
+      ],
+      wornName: worn?.displayName ?? (wornId?.value),
+      wornPower: wornPower,
+      verdict: verdict,
+    );
   }
 
   /// The item worn or wielded in [slot], or null when the slot is empty.

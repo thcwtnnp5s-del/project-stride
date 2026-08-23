@@ -184,12 +184,29 @@ class ValueTileRow extends StatelessWidget {
         }
 
         if (fits) {
+          // One height across the row: a tile with a unit line (`/ 100`,
+          // `unarmed`) used to stand taller than its neighbours and the row
+          // read as three different boxes (PLAYABLE_POLISH_01 §5). The
+          // tiles without a unit reserve the line — an empty one — rather
+          // than the row measuring intrinsics, which the tile's adaptive
+          // text cannot supply.
+          final bool anyUnit = tiles.any((LabeledValueTile t) => t.unit != null);
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               for (int i = 0; i < tiles.length; i++) ...<Widget>[
                 if (i > 0) const SizedBox(width: StrideSpace.s8),
-                Expanded(child: tiles[i]),
+                Expanded(
+                  child: anyUnit && tiles[i].unit == null
+                      ? LabeledValueTile(
+                          label: tiles[i].label,
+                          value: tiles[i].value,
+                          unit: '',
+                          leading: tiles[i].leading,
+                          valueColor: tiles[i].valueColor,
+                        )
+                      : tiles[i],
+                ),
               ],
             ],
           );

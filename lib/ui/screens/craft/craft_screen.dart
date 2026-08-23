@@ -30,6 +30,7 @@ import 'package:stride_core/stride_core.dart' show ContentId, ItemCategory;
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/gear_stats.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
@@ -405,6 +406,16 @@ class _RecipeDetailState extends State<_RecipeDetail> {
               color: StrideColors.textSecondary,
             ),
             const SizedBox(height: StrideSpace.s6),
+          ],
+
+          // Equipment says what it is worth before the materials are
+          // counted (PLAYABLE_POLISH_01 §6): the stat, the worn piece, the
+          // verdict, the passives — from the same projection the Inventory
+          // tile reads, so the bench and the bag agree.
+          if (controller.session.gearStatsOf(recipe.outputItem)
+              case final GearStats g) ...<Widget>[
+            GearStatsBlock(stats: g),
+            const SizedBox(height: StrideSpace.s8),
           ],
 
           // Held over required, always both — how close the player is and

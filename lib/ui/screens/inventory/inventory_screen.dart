@@ -35,6 +35,7 @@ import 'package:stride_core/stride_core.dart'
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/gear_stats.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
@@ -302,6 +303,20 @@ class _EquippedSummary extends StatelessWidget {
                     const SizedBox(height: StrideSpace.s2),
                     RarityBadge.compact(rarity: r),
                   ],
+                  // The figure combat reads, or what the tool opens — the
+                  // same line the tile carries, so the summary and the grid
+                  // never disagree about a piece.
+                  if (worn[slot] case final EquippedSummary e)
+                    if (session.gearStatsOf(e.itemId) case final GearStats g) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s2),
+                      Text(
+                        GearStatLine.textOf(g),
+                        style: StrideType.compactLabel.copyWith(
+                          color: StrideColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                      ),
+                    ],
                 ],
               ),
             ),
@@ -608,13 +623,21 @@ class _EquipControl extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Text(
-          equipped ? 'EQUIPPED' : '',
-          style: StrideType.compactLabel.copyWith(
-            color: StrideColors.textPrimary,
+        // The marker line carries the stat now (PLAYABLE_POLISH_01 §6):
+        // `ATK 7 · +2` against the worn weapon, `DEF 3 · WORN` for what is
+        // on the Traveler's back. The EQUIPPED marker is folded into it as
+        // the word WORN, so the line the tile reserved answers two questions
+        // instead of one and the grid's extent is unchanged.
+        if (session.gearStatsOf(item) case final GearStats g)
+          GearStatLine(stats: g)
+        else
+          Text(
+            equipped ? 'EQUIPPED' : '',
+            style: StrideType.compactLabel.copyWith(
+              color: StrideColors.textPrimary,
+            ),
+            maxLines: 1,
           ),
-          maxLines: 1,
-        ),
         const SizedBox(height: StrideSpace.s6),
         // Centred in the tile: the secondary control shrink-wraps to the left
         // of whatever it is given, and a left-hugging button in a centred

@@ -248,13 +248,6 @@ class _OpportunityBanner extends StatelessWidget {
               ),
             ],
           ),
-          if (controller.lastOpportunityOrigins > 1) ...<Widget>[
-            const SizedBox(height: StrideSpace.s4),
-            Text(
-              'Counted from ${controller.lastOpportunityOrigins} step sources',
-              style: StrideType.micro,
-            ),
-          ],
           for (final SyncOpportunity o in controller.lastOpportunities) ...<
               Widget>[
             const SizedBox(height: StrideSpace.s6),
@@ -577,13 +570,11 @@ class _SyncResult extends StatelessWidget {
     SyncStatus.noChange || SyncStatus.reconciled
         when r.authorization == HealthAuthorization.unavailable =>
       'Health is not available on this device',
-    // The source count is named only when there is more than one. Two
-    // sources reporting the same hours are both credited (`RULES.md` H-1
-    // keeps origins distinct), and a bank that grows by a second device's
-    // copy of the same walk should say so rather than look like a fault.
-    SyncStatus.reconciled when r.newlyGranted > 0 && r.originCount > 1 =>
-      '+${formatSteps(r.newlyGranted)} steps banked · '
-          '${r.originCount} step sources',
+    // The source count is not on the play surface (PLAYABLE_POLISH_01 §7):
+    // two sources reporting the same hours are both credited (`RULES.md`
+    // H-1 keeps origins distinct) and that fact matters, but it is a
+    // diagnostic, and its home is the Character tab's Total walked line —
+    // the persisted count, never an identity (H-7).
     SyncStatus.reconciled when r.newlyGranted > 0 =>
       '+${formatSteps(r.newlyGranted)} steps banked',
     // Observed is shown beside newlyGranted, never instead of it. A restated
