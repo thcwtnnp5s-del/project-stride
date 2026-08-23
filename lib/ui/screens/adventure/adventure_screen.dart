@@ -332,7 +332,10 @@ class _WalkingStrip extends StatelessWidget {
     final List<_WalkingFact> facts = <_WalkingFact>[
       _WalkingFact(
         label: 'Total walked',
-        value: formatSteps(s.totalGranted),
+        // Since the last playtest reset, or lifetime when there has been
+        // none (`DECISIONS/0025`); the Character tab names the lifetime
+        // figure beside it.
+        value: formatSteps(s.walkedSinceBaseline),
         leading: const WalkingGlyph(role: WalkingRole.stock),
         valueColor: StrideColors.accentSteps,
       ),

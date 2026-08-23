@@ -108,6 +108,7 @@ final class EventReducer {
           ),
         ),
       ),
+      PlaytestReset() => _playtestReset(state, event),
       StepRecoveryStarted() => state.copyWith(
         steps: state.steps.copyWith(
           recovery: RecoveryState(
@@ -240,6 +241,42 @@ final class EventReducer {
       current = apply(current, event);
     }
     return current;
+  }
+
+  /// The reset: the ledger keeps everything but its mark; with a fresh
+  /// start the rest of the state is the new-game shape (`DECISIONS/0025`).
+  GameState _playtestReset(GameState state, PlaytestReset event) {
+    final StepLedger steps = state.steps.copyWith(
+      epoch: EconomyEpoch(
+        grantedAtStart: event.grantedAtStart,
+        spentAtStart: event.spentAtStart,
+        establishedAtStateVersion: event.stateVersion,
+        walkedAtStart: event.grantedAtStart,
+      ),
+    );
+    if (!event.freshStart) return state.copyWith(steps: steps);
+
+    Inventory inventory = Inventory.empty();
+    for (final ContentId item in event.grantedItems) {
+      inventory = inventory.adding(item, 1);
+    }
+    return state.copyWith(
+      steps: steps,
+      player: const PlayerState.initial(),
+      inventory: inventory,
+      equipment: Equipment.empty(),
+      skills: SkillProgress(<ContentId, int>{
+        for (final ContentId skill in state.skills.experienceBySkill.keys)
+          skill: 0,
+      }),
+      world: WorldState(
+        currentLocation: event.startLocation,
+        unlockedLocations: <ContentId>{event.startLocation},
+      ),
+      clearEncounter: true,
+      clearActivityQueue: true,
+      progress: ProgressState.initial(),
+    );
   }
 
   GameState _started(GameState state, GameStarted event) {

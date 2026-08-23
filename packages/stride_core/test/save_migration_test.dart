@@ -134,6 +134,12 @@ import 'save_support.dart';
 /// `banked` therefore still reads 641, exactly as it did before this field
 /// existed, which is asserted directly below rather than left to inference.
 ///
+/// The same review, once more, for `"walkedAtStart":0` (state version 9,
+/// `DECISIONS/0025`): a v1 save has no such field, its absence means the
+/// player-facing walked count was never moved off the lifetime counter, and
+/// `0` is the only value it can decode to. `walkedSinceBaseline` therefore
+/// reads 1041 — `totalGranted` itself — and is asserted below.
+///
 /// ## The state version 3 amendment
 ///
 /// `"establishedAtStateVersion":0` was added inside the epoch when
@@ -206,7 +212,7 @@ const String expectedV1Signature =
     '"watermarkMillis":null},'
     '"correctionsObserved":0,'
     '"epoch":{"establishedAtStateVersion":0,"grantedAtStart":0,'
-    '"spentAtStart":0},'
+    '"spentAtStart":0,"walkedAtStart":0},'
     '"grantedBeforeWatermark":0,'
     '"grantedSlices":['
     '{"e":1750007200000,"g":137,"o":"0f1e2d3c4b5a6978","s":1750003600000},'
@@ -317,6 +323,16 @@ File get v8FixtureFile =>
 /// The one fixture in this family that carries no format change: v8's geometry
 /// is v7's, and the step is a repair.
 Uint8List get v8Baseline => _frozen(v8FixtureFile);
+
+File get v9FixtureFile =>
+    File('${fixtureDirectory.path}/save/v9_baseline.save');
+
+/// The v8 fixture, after the playtest reset's format bump, frozen in its turn.
+///
+/// Generated **once** by `tool/generate_v9_baseline.dart` from
+/// `v8_baseline.save` through the real v8→v9 step (`DECISIONS/0025`). Same
+/// terms as v1–v8.
+Uint8List get v9Baseline => _frozen(v9FixtureFile);
 
 /// Re-encodes [framed] with the envelope mutated, digest recomputed.
 Uint8List remake(
@@ -777,37 +793,10 @@ void main() {
     });
   });
 
-  group('B7 — the round trip, carried forward to v7', () {
-    test('encode(decode(fixture)) is byte-identical to the v7 fixture', () {
-      final Uint8List fixture = v7Baseline;
-      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
-
-      final Uint8List reencoded = encodeSnapshot(
-        state: envelope.state,
-        saveId: envelope.saveId,
-        generation: envelope.snapshotGeneration,
-        lastAppliedTransaction: envelope.lastAppliedTransaction,
-        originSaltFingerprint: null,
-      );
-
-      // The trap that fires the day someone adds a field to GameState without
-      // thinking about saves. Without it the change is entirely silent until a
-      // player's save fails to load in the field.
-      //
-      // If this fires: the encoder and the v7 decoder no longer agree. Either
-      // the new field belongs in state version 8 (add a decoder, add a new
-      // fixture, add a `StateMigrations` step that says whether it re-bases —
-      // it should not — and make this test decode-only for v7), or the encoder
-      // has an ordering or type defect. Editing the fixture is never the fix.
-      expect(
-        reencoded,
-        fixture,
-        reason:
-            'the canonical encoder no longer reproduces a v7 save. See the '
-            'regeneration policy at the top of this file.',
-      );
-    });
-
+  group('B7 — decoding a v7 save changes no value it carries', () {
+    // Decode-only since state version 9, on the terms B itself set: the
+    // encoder writes the current shape and v7's no longer is it. The
+    // round-trip property lives in B9 now.
     test('the v7 fixture is the migrated v6 fixture, and says so', () {
       final SaveEnvelope envelope = decodeEnvelope(
         unframe(v7Baseline).payload!,
@@ -834,11 +823,12 @@ void main() {
       expect(state.activityQueue, isNull);
       expect(state.player.hp, 40);
       expect(state.progress, ProgressState.initial());
-      // v7 is no longer current: the stale-tracker repair sits above it, and
-      // a v7 save on a phone still owes exactly that one step.
+      // v7 is no longer current: the stale-tracker repair and the playtest
+      // reset's format bump sit above it, and a v7 save on a phone owes
+      // exactly those two steps.
       expect(
         StateMigrations.pathFrom(7).map((StateMigrationStep s) => s.to),
-        <int>[8],
+        <int>[8, 9],
       );
     });
 
@@ -880,10 +870,15 @@ void main() {
       expect(state.steps.banked, 0);
       expect(state.player.hp, 40);
       expect(state.progress, ProgressState.initial());
+      // v8 is no longer current either: the playtest reset's format bump
+      // sits above it, and it is not a repair.
       expect(
-        StateVersion.migrationRequired(state.stateVersion),
+        StateMigrations.pathFrom(8).map((StateMigrationStep s) => s.to),
+        <int>[9],
+      );
+      expect(
+        StateMigrations.pathFrom(8).single.clearsStaleTrackedContract,
         isFalse,
-        reason: 'a migrated save must never migrate again',
       );
     });
 
@@ -986,7 +981,7 @@ void main() {
         final GameState repaired = migrate(
           v7Tracking(wolfProblem, completions: 1, accepted: false),
         ).engine.state;
-        expect(repaired.stateVersion, 8);
+        expect(repaired.stateVersion, 9);
         expect(StateMigrations.pathFrom(repaired.stateVersion), isEmpty);
 
         final GameState reTracked = repaired.copyWith(
@@ -1147,6 +1142,90 @@ void main() {
         before,
         reason: 'a refusal never deletes; the save must survive the downgrade',
       );
+    });
+  });
+  group('B9 — the round trip, carried forward to v9 (the walked baseline)', () {
+    test('encode(decode(fixture)) is byte-identical to the v9 fixture', () {
+      final Uint8List fixture = v9Baseline;
+      final SaveEnvelope envelope = decodeEnvelope(unframe(fixture).payload!);
+
+      final Uint8List reencoded = encodeSnapshot(
+        state: envelope.state,
+        saveId: envelope.saveId,
+        generation: envelope.snapshotGeneration,
+        lastAppliedTransaction: envelope.lastAppliedTransaction,
+        originSaltFingerprint: null,
+      );
+
+      // The trap that fires the day someone adds a field to GameState without
+      // thinking about saves. If this fires: the encoder and the v9 decoder
+      // no longer agree. Either the new field belongs in state version 10
+      // (add a decoder, add a new fixture, add a `StateMigrations` step that
+      // says whether it re-bases — it should not — and make this test
+      // decode-only for v9), or the encoder has an ordering or type defect.
+      // Editing the fixture is never the fix.
+      expect(
+        reencoded,
+        fixture,
+        reason:
+            'the canonical encoder no longer reproduces a v9 save. See the '
+            'regeneration policy at the top of this file.',
+      );
+    });
+
+    test('the v9 fixture is the v8 fixture plus the walked baseline', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v9Baseline).payload!,
+      );
+      final GameState state = envelope.state;
+
+      expect(state.stateVersion, 9);
+      // Exactly `,"walkedAtStart":0` — 18 bytes — and the version digit,
+      // which is one byte either way. A change that had also perturbed
+      // something else would not land on 18.
+      expect(v9Baseline.length - v8Baseline.length, 18);
+      expect(state.steps.totalGranted, 1041);
+      expect(state.steps.totalSpent, 400);
+      expect(
+        state.steps.epoch,
+        const EconomyEpoch(
+          grantedAtStart: 1041,
+          spentAtStart: 400,
+          establishedAtStateVersion: 3,
+        ),
+        reason: 'a format bump must not move the economy mark',
+      );
+      expect(state.steps.banked, 0);
+      // The baseline decodes to 0, so the player-facing figure is the
+      // lifetime counter — what every pre-reset save meant.
+      expect(state.steps.epoch.walkedAtStart, 0);
+      expect(state.steps.walkedSinceBaseline, 1041);
+      expect(state.progress, ProgressState.initial());
+      expect(
+        StateVersion.migrationRequired(state.stateVersion),
+        isFalse,
+        reason: 'a migrated save must never migrate again',
+      );
+      expect(StateMigrations.pathFrom(9), isEmpty);
+    });
+
+    test('a v8 save migrates to v9 with no event and no moved balance', () {
+      final SaveEnvelope envelope = decodeEnvelope(
+        unframe(v8Baseline).payload!,
+      );
+      final StateMigrationApplication applied = applyStateMigrationPath(
+        registry: saveRegistry,
+        state: envelope.state,
+        path: StateMigrations.pathFrom(8),
+      );
+      expect(applied, isA<StateMigrationApplied>(), reason: '$applied');
+      final GameState migrated = (applied as StateMigrationApplied).engine.state;
+      expect(applied.events, isEmpty);
+      expect(migrated.stateVersion, 9);
+      expect(migrated.steps.banked, envelope.state.steps.banked);
+      expect(migrated.steps.epoch.grantedAtStart, 1041);
+      expect(migrated.steps.epoch.walkedAtStart, 0);
+      expect(migrated.steps.checkpoint, envelope.state.steps.checkpoint);
     });
   });
 }

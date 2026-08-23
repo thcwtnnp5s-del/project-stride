@@ -207,7 +207,18 @@ final class StateMigrations {
       clearsStaleTrackedContract: true,
       decision: 'DECISIONS/0024_TRACKED_GOAL_VALIDITY_REPAIR.md',
     ),
-  ];
+     // The playtest reset (`DECISIONS/0025`): `steps.epoch.walkedAtStart`
+    // enters the save — where the player-facing walked count begins. A
+    // format bump and nothing else: a v8 save decodes with the baseline at
+    // 0, which is what every v8 save meant, and no balance moves. The reset
+    // itself is a player command, never a migration.
+    StateMigrationStep(
+      from: 8,
+      to: 9,
+      rebasesEconomy: false,
+      decision: 'DECISIONS/0025_PLAYTEST_RESET.md',
+    ),
+ ];
 
   /// Whether any step on [path] repairs a stale Contract tracker.
   static bool repairsTrackedContract(List<StateMigrationStep> path) =>

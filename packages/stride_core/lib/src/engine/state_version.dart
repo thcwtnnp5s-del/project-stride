@@ -37,7 +37,7 @@ final class StateVersion implements Comparable<StateVersion> {
   final int value;
 
   /// The version new games are created at.
-  static const StateVersion current = StateVersion(8);
+  static const StateVersion current = StateVersion(9);
 
   /// The oldest version this build can read.
   ///

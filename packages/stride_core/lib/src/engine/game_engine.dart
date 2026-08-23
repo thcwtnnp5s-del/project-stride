@@ -173,6 +173,7 @@ final class GameEngine {
         ReconcileStepSync() => _reconcile(command, state),
         EstablishEconomyEpoch() => _establishEpoch(command, state),
         EstablishNewGameBaseline() => _establishBaseline(command, state),
+        ResetPlaytest() => _resetPlaytest(command, state),
         StartEncounter() => _startEncounter(command, state),
         CombatAttack() => _combatAttack(command, state),
         CombatEat() => _combatEat(command, state),
@@ -624,6 +625,48 @@ final class GameEngine {
         spentAtStart: state.steps.totalSpent,
         fromStateVersion: command.stateVersion,
         toStateVersion: command.stateVersion,
+      ),
+    ]);
+  }
+
+  /// Begins a fresh playtest. See [ResetPlaytest] and `DECISIONS/0025`.
+  ///
+  /// Pure over the ledger it is handed: the new mark is what the counters
+  /// read now. No guard against running twice — a second reset is a second
+  /// deliberate act — but a fight or a queue in flight is refused unless the
+  /// reset is a fresh start, which discards them.
+  _Decision _resetPlaytest(ResetPlaytest command, GameState state) {
+    if (!command.freshStart) {
+      if (state.encounter != null) {
+        return _Decision.reject(
+          RejectionCode.encounterInProgress,
+          command,
+          'finish or retreat from the fight before resetting the baseline',
+        );
+      }
+      if (state.activityQueue != null) {
+        return _Decision.reject(
+          RejectionCode.activityQueueActive,
+          command,
+          'stop the running activity before resetting the baseline',
+        );
+      }
+    }
+    final EconomyEpoch epoch = state.steps.epoch;
+    return _Decision.accept(<GameEvent>[
+      PlaytestReset(
+        sequence: state.eventSequence,
+        grantedAtStart: state.steps.totalGranted,
+        spentAtStart: state.steps.totalSpent,
+        previousGrantedAtStart: epoch.grantedAtStart,
+        previousSpentAtStart: epoch.spentAtStart,
+        previousWalkedAtStart: epoch.walkedAtStart,
+        stateVersion: command.stateVersion,
+        freshStart: command.freshStart,
+        startLocation: registry.startLocation.id,
+        grantedItems: command.freshStart
+            ? registry.startingLoadout
+            : const <ContentId>[],
       ),
     ]);
   }

@@ -52,6 +52,7 @@ List<GameCommand> allCommands() => <GameCommand>[
       ContentId.unchecked('item.oak_plank'): 1,
     },
   ),
+  const ResetPlaytest(freshStart: false, stateVersion: 9),
 ];
 
 /// The classification each command must carry.
@@ -119,6 +120,10 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   'AcceptContract': true,
   'CompleteContract': true,
   'ContributeToProject': true,
+  // The owner's own control (`DECISIONS/0025`): a confirmed fresh playtest
+  // from the Character tab. Player-facing by decision, and the one
+  // re-basing that is not a migration step.
+  'ResetPlaytest': true,
 };
 
 /// Proves [allCommands] covers the sealed hierarchy.
@@ -151,6 +156,7 @@ String classify(GameCommand command) => switch (command) {
   AcceptContract() => 'AcceptContract',
   CompleteContract() => 'CompleteContract',
   ContributeToProject() => 'ContributeToProject',
+  ResetPlaytest() => 'ResetPlaytest',
 };
 
 void main() {

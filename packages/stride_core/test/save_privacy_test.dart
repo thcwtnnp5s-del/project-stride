@@ -588,6 +588,12 @@ void main() {
           // the mark: 0, 2 or 3. It is a fact about the save format, not
           // about the player, and carries nothing health-derived.
           'establishedAtStateVersion',
+          // Reviewed for the playtest reset (`DECISIONS/0025`). A step
+          // count — where the player-facing walked figure begins — on the
+          // same terms as `grantedAtStart`: a total, never a sample, never
+          // an origin, nothing health-derived beyond what the counters
+          // already carry.
+          'walkedAtStart',
         },
         reason: 'a new field inside the epoch needs a privacy review too',
       );

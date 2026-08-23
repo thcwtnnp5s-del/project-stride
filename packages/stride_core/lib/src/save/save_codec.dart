@@ -329,10 +329,13 @@ Map<String, Object?> encodeStepLedger(StepLedger ledger) => <String, Object?>{
   // `establishedAtStateVersion` is state version 3 (`DECISIONS/0018`). Absent
   // in a v2 save, where a non-origin epoch can only have been set by the
   // Phase 2 cutover and so reads as 2 — see `V2StateDecoder`.
+  // `walkedAtStart` is state version 9 (`DECISIONS/0025`): where the
+  // player-facing walked count begins. Absent before v9, and meant 0.
   'epoch': <String, Object?>{
     'establishedAtStateVersion': ledger.epoch.establishedAtStateVersion,
     'grantedAtStart': ledger.epoch.grantedAtStart,
     'spentAtStart': ledger.epoch.spentAtStart,
+    'walkedAtStart': ledger.epoch.walkedAtStart,
   },
   'grantedBeforeWatermark': ledger.grantedBeforeWatermark,
   'correctionsObserved': ledger.correctionsObserved,
@@ -609,6 +612,7 @@ final class StateCodecs {
     V6StateDecoder(),
     V7StateDecoder(),
     V8StateDecoder(),
+    V9StateDecoder(),
   ];
 
   static StateDecoder? decoderFor(int version) {
@@ -822,6 +826,28 @@ final class V8StateDecoder implements StateDecoder {
   );
 }
 
+/// Decoder for state version 9 — the current shape.
+///
+/// Differs from v8 in exactly one place: `steps.epoch.walkedAtStart` is
+/// present and is read (`DECISIONS/0025`). A v8 save has none and decodes
+/// as `0`, which is what a v8 save meant: nothing had ever moved the
+/// player-facing walked count off the lifetime counter.
+final class V9StateDecoder implements StateDecoder {
+  const V9StateDecoder();
+
+  @override
+  int get version => 9;
+
+  @override
+  GameState decode(Map<String, Object?> json) => _decodeStateShape(
+    json,
+    epochShape: _EpochShape.withWalkedBaseline,
+    combatShape: _CombatShape.visitVictories,
+    queueShape: _QueueShape.present,
+    loopShape: _LoopShape.present,
+  );
+}
+
 /// Whether — and how — the shape carries the combat fields.
 enum _CombatShape {
   /// State versions 1–3: no `encounter`, no per-visit combat record at all.
@@ -870,6 +896,9 @@ enum _EpochShape {
 
   /// State version 3: the marks and `establishedAtStateVersion`.
   withEstablishedVersion,
+
+  /// State version 9: the above and `walkedAtStart` (`DECISIONS/0025`).
+  withWalkedBaseline,
 }
 
 /// The shared state shape, parameterised by the one field that differs.
@@ -1320,7 +1349,18 @@ StepLedger _decodeLedger(
           epochJson,
           'establishedAtStateVersion',
         ),
+      );    case _EpochShape.withWalkedBaseline:
+      final Map<String, Object?> epochJson = objectAt(json, 'epoch');
+      epoch = EconomyEpoch(
+        grantedAtStart: intAt(epochJson, 'grantedAtStart'),
+        spentAtStart: intAt(epochJson, 'spentAtStart'),
+        establishedAtStateVersion: intAt(
+          epochJson,
+          'establishedAtStateVersion',
+        ),
+        walkedAtStart: intAt(epochJson, 'walkedAtStart'),
       );
+
   }
 
   return StepLedger(

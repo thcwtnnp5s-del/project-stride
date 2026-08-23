@@ -229,18 +229,25 @@ final class EconomyEpoch {
     required this.grantedAtStart,
     required this.spentAtStart,
     required this.establishedAtStateVersion,
+    this.walkedAtStart = 0,
   }) : assert(grantedAtStart >= 0, 'an epoch mark cannot be negative'),
        assert(spentAtStart >= 0, 'an epoch mark cannot be negative'),
        assert(
          establishedAtStateVersion >= 0,
          'an epoch cannot be established at a negative state version',
+       ),
+       assert(walkedAtStart >= 0, 'a walked baseline cannot be negative'),
+       assert(
+         walkedAtStart <= grantedAtStart,
+         'the walked baseline cannot be ahead of the economy mark',
        );
 
   /// The epoch a new game starts under: everything ever granted is playable.
   const EconomyEpoch.origin()
     : grantedAtStart = 0,
       spentAtStart = 0,
-      establishedAtStateVersion = 0;
+      establishedAtStateVersion = 0,
+      walkedAtStart = 0;
 
   /// What [StepLedger.totalGranted] read when the playable economy began.
   final int grantedAtStart;
@@ -252,15 +259,29 @@ final class EconomyEpoch {
   ///
   /// `0` for the origin. Otherwise the `toStateVersion` of the migration step
   /// that set it (`StateMigrations`), which is also the smallest state version
-  /// a save carrying this exact mark can have been written at.
+  /// a save carrying this exact mark can have been written at. A playtest
+  /// reset (`DECISIONS/0025`) records the running state version, so a later
+  /// re-basing migration still finds a mark older than itself.
   final int establishedAtStateVersion;
+
+  /// Where the **player-facing** walked count begins (`DECISIONS/0025`).
+  ///
+  /// `0` for every epoch a migration or a new-game baseline sets — their
+  /// `TOTAL WALKED` stays lifetime, history reported rather than hidden
+  /// (`DECISIONS/0016`). A playtest reset sets it to its own
+  /// [grantedAtStart], so the figure the owner reads starts again from zero
+  /// while [StepLedger.totalGranted] — the monotonic counter, `RULES.md`
+  /// H-2 — is not touched. State version 9; absent in earlier saves and
+  /// decoded as `0`, which is what they meant.
+  final int walkedAtStart;
 
   /// Whether this epoch retires nothing and was set by no migration — the
   /// state of a game that has never been through a cutover.
   bool get isOrigin =>
       grantedAtStart == 0 &&
       spentAtStart == 0 &&
-      establishedAtStateVersion == 0;
+      establishedAtStateVersion == 0 &&
+      walkedAtStart == 0;
 
   /// Steps credited before the cutover, and therefore not spendable.
   ///
@@ -278,16 +299,21 @@ final class EconomyEpoch {
       other is EconomyEpoch &&
       other.grantedAtStart == grantedAtStart &&
       other.spentAtStart == spentAtStart &&
-      other.establishedAtStateVersion == establishedAtStateVersion;
+      other.establishedAtStateVersion == establishedAtStateVersion &&
+      other.walkedAtStart == walkedAtStart;
 
   @override
-  int get hashCode =>
-      Object.hash(grantedAtStart, spentAtStart, establishedAtStateVersion);
+  int get hashCode => Object.hash(
+    grantedAtStart,
+    spentAtStart,
+    establishedAtStateVersion,
+    walkedAtStart,
+  );
 
   @override
   String toString() =>
       'EconomyEpoch(granted=$grantedAtStart;spent=$spentAtStart;'
-      'establishedAt=v$establishedAtStateVersion)';
+      'establishedAt=v$establishedAtStateVersion;walkedFrom=$walkedAtStart)';
 }
 
 /// The step ledger.
@@ -432,6 +458,11 @@ final class StepLedger {
 
   /// Committed to activities since the epoch.
   int get spentThisEpoch => totalSpent - epoch.spentAtStart;
+
+  /// What the player is shown as walked: everything granted since the
+  /// epoch's walked baseline (`DECISIONS/0025`). Equal to [totalGranted]
+  /// for every game that has never been through a playtest reset.
+  int get walkedSinceBaseline => totalGranted - epoch.walkedAtStart;
 
   /// Earned and unspent **since the epoch**. Never expires (`DECISIONS/0008`).
   ///

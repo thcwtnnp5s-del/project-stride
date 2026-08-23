@@ -310,6 +310,34 @@ final class EstablishNewGameBaseline extends GameCommand {
   String get name => 'EstablishNewGameBaseline';
 }
 
+/// Begin a fresh playtest (`DECISIONS/0025`): the spendable balance and the
+/// player-facing walked count start again from zero, and with [freshStart]
+/// so does the game — while the step ledger's history, dedupe and cursor
+/// stay exactly as they are.
+///
+/// Player-facing, deliberately: this is the owner's own control, behind a
+/// confirmation, on the Character tab. It is the one re-basing that is not a
+/// migration step, and it is allowed to run more than once — each run is a
+/// deliberate, confirmed act, never time, absence, or a side effect.
+///
+/// Refused while a fight is on or a queue is running, unless [freshStart],
+/// which discards both as part of beginning again.
+@immutable
+final class ResetPlaytest extends GameCommand {
+  const ResetPlaytest({required this.freshStart, required this.stateVersion});
+
+  /// Also return the game state — bag, gear, skills, character, world,
+  /// progression — to new. False resets only the two baselines.
+  final bool freshStart;
+
+  /// The running state version, recorded on the epoch as
+  /// `establishedAtStateVersion`.
+  final int stateVersion;
+
+  @override
+  String get name => 'ResetPlaytest';
+}
+
 /// Work a resource node once, paying for it out of banked steps.
 ///
 /// **The first command that turns walking into something.** Until S-01A the

@@ -459,6 +459,17 @@ Future<String> runPersistenceScript(
 /// content alike. Only the two snapshot digests moved, which is the least a
 /// changed byte can do and the most this change is allowed to do: a version
 /// bump that had also perturbed a field would have moved a length too.
+///
+/// ## Amended again, for state version 9 — same review
+///
+/// The playtest reset (`DECISIONS/0025`) added `"walkedAtStart":0` inside
+/// the epoch object, so both slot lengths and both snapshot digests moved.
+/// Every behavioural line above them is byte-identical once more, journal
+/// length and digest included — the conformance sequence resets nothing, so
+/// no new record is written. Both slots grew by **18 bytes**, which is
+/// exactly `,"walkedAtStart":0` (the key sorts last in the epoch object, so
+/// the comma precedes it). The frozen v8→v9 save fixture grows by the same
+/// 18.
 const String expectedPersistenceTranscript = '''
 commit1 durable tx=1 gen=0 slot=a snapshotDurable=true retries=0
 commit2 durable tx=2 gen=1 slot=b snapshotDurable=true retries=0
@@ -468,8 +479,8 @@ identity saveId=save-conformance-0001 fingerprint=48ea03704e5fbe8e
 journalLines 1
 identity:68:e7502a24
 journal:218:0e84a81c
-slot_a:1616:a96e47c4
-slot_b:1618:70df31a9''';
+slot_a:1634:dfc2102b
+slot_b:1636:8d7fbaa7''';
 
 // ---------------------------------------------------------------------------
 // The suite

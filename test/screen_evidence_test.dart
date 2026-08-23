@@ -147,6 +147,20 @@ void main() {
 
     await open(tester, 'Character');
     await capture(tester, 'character');
+    // The foot of the sheet: the owner's playtest controls, and the
+    // confirmation they open (`DECISIONS/0025`).
+    await tester.dragUntilVisible(
+      find.text('Reset walking baseline'),
+      find.byType(ListView).first,
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start a fresh playtest'));
+    await tester.pumpAndSettle();
+    expect(find.text('START A FRESH PLAYTEST?'), findsOneWidget);
+    await capture(tester, 'character_playtest_confirm');
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
 
     await open(tester, 'Skills');
     await capture(tester, 'skills');

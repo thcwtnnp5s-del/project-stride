@@ -155,6 +155,21 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'previousGrantedAtStart': event.previousGrantedAtStart,
     'previousSpentAtStart': event.previousSpentAtStart,
   },
+  PlaytestReset() => <String, Object?>{
+    't': 'PlaytestReset',
+    'seq': event.sequence,
+    'grantedAtStart': event.grantedAtStart,
+    'spentAtStart': event.spentAtStart,
+    'previousGrantedAtStart': event.previousGrantedAtStart,
+    'previousSpentAtStart': event.previousSpentAtStart,
+    'previousWalkedAtStart': event.previousWalkedAtStart,
+    'stateVersion': event.stateVersion,
+    'freshStart': event.freshStart,
+    'startLocation': event.startLocation.value,
+    'grantedItems': <String>[
+      for (final ContentId item in event.grantedItems) item.value,
+    ],
+  },
   StepRecoveryStarted() => <String, Object?>{
     't': 'StepRecoveryStarted',
     'seq': event.sequence,
@@ -553,6 +568,49 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         toStateVersion: to,
         previousGrantedAtStart: previousGranted,
         previousSpentAtStart: previousSpent,
+      );
+
+    case 'PlaytestReset':
+      final int? granted = i('grantedAtStart');
+      final int? spentAt = i('spentAtStart');
+      final int? prevGranted = i('previousGrantedAtStart');
+      final int? prevSpent = i('previousSpentAtStart');
+      final int? prevWalked = i('previousWalkedAtStart');
+      final int? version = i('stateVersion');
+      final Object? fresh = json['freshStart'];
+      final ContentId? start = id('startLocation');
+      final Object? items = json['grantedItems'];
+      if (granted == null ||
+          spentAt == null ||
+          prevGranted == null ||
+          prevSpent == null ||
+          prevWalked == null ||
+          version == null ||
+          fresh is! bool ||
+          start == null ||
+          items is! List<Object?>) {
+        return null;
+      }
+      // A negative mark would mint spendable steps, as for the epoch record.
+      if (granted < 0 || spentAt < 0 || prevGranted < 0 || prevSpent < 0) {
+        return null;
+      }
+      final List<ContentId> grantedItems = <ContentId>[];
+      for (final Object? raw in items) {
+        if (raw is! String) return null;
+        grantedItems.add(ContentId.unchecked(raw));
+      }
+      return PlaytestReset(
+        sequence: seq,
+        grantedAtStart: granted,
+        spentAtStart: spentAt,
+        previousGrantedAtStart: prevGranted,
+        previousSpentAtStart: prevSpent,
+        previousWalkedAtStart: prevWalked,
+        stateVersion: version,
+        freshStart: fresh,
+        startLocation: start,
+        grantedItems: grantedItems,
       );
 
     case 'ActivityQueueStarted':

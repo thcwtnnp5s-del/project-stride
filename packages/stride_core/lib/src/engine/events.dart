@@ -55,6 +55,62 @@ final class GameStarted extends GameEvent {
   String get name => 'GameStarted';
 }
 
+/// The owner began a fresh playtest (`DECISIONS/0025`).
+///
+/// Moves the economy mark to the ledger's current totals — the same mark
+/// `DECISIONS/0016`/`0018`/`0019` move, so `banked` reads zero — and sets
+/// the walked baseline to the same point, so the player-facing walked count
+/// starts again. **Touches no counter, no slice, no watermark, no cursor**:
+/// `totalGranted` keeps every step ever credited (`RULES.md` H-2), the
+/// granted-slice map and the per-origin watermarks keep refusing a re-grant
+/// of history (H-3, H-4), and the next sync reads forward from where the
+/// last one stopped.
+///
+/// With [freshStart] the game itself also begins again: the bag, the gear,
+/// the skills, the character, the world position, the progression loop and
+/// any fight or queue in flight — the new-game shape, granted [grantedItems]
+/// at [startLocation], on top of the untouched ledger.
+final class PlaytestReset extends GameEvent {
+  const PlaytestReset({
+    required super.sequence,
+    required this.grantedAtStart,
+    required this.spentAtStart,
+    required this.previousGrantedAtStart,
+    required this.previousSpentAtStart,
+    required this.previousWalkedAtStart,
+    required this.stateVersion,
+    required this.freshStart,
+    required this.startLocation,
+    this.grantedItems = const <ContentId>[],
+  });
+
+  /// The new mark — the ledger's totals at the reset. The walked baseline is
+  /// [grantedAtStart] too: one mark, two readings.
+  final int grantedAtStart;
+  final int spentAtStart;
+
+  /// The mark this one replaces, for the record and the report.
+  final int previousGrantedAtStart;
+  final int previousSpentAtStart;
+  final int previousWalkedAtStart;
+
+  /// The running state version, recorded on the epoch.
+  final int stateVersion;
+
+  /// Whether the game state (not the ledger) was also returned to new.
+  final bool freshStart;
+  final ContentId startLocation;
+  final List<ContentId> grantedItems;
+
+  /// What the reset retired from the spendable balance.
+  int get retiredBanked =>
+      (grantedAtStart - previousGrantedAtStart) -
+      (spentAtStart - previousSpentAtStart);
+
+  @override
+  String get name => 'PlaytestReset';
+}
+
 /// Steps entered the ledger from a synthetic source.
 @immutable
 final class SyntheticStepsGranted extends GameEvent {

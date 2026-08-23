@@ -320,6 +320,15 @@ class SessionController extends ChangeNotifier {
     Map<ContentId, int> contributions,
   ) => _run(() => _session.contributeToProject(project, contributions));
 
+  /// Begins a fresh playtest (`DECISIONS/0025`). A fresh start discards any
+  /// running queue, so the activity controller is told first, exactly as a
+  /// fight is announced; the baseline-only reset is refused by the engine
+  /// while a queue runs, so nothing needs telling.
+  Future<PlaytestResetReport?> resetPlaytest({required bool freshStart}) {
+    if (freshStart) onExclusiveCommand?.call();
+    return _run(() => _session.resetPlaytest(freshStart: freshStart));
+  }
+
   /// One progression-loop command: busy-gated, results cleared, listeners
   /// notified, report returned to the caller. Null when busy.
   Future<T?> _run<T>(Future<T> Function() command) async {

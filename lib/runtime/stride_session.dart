@@ -1444,6 +1444,30 @@ final class CombatReport {
 }
 
 /// What an equip or unequip did.
+/// What a playtest reset did (`DECISIONS/0025`).
+final class PlaytestResetReport {
+  const PlaytestResetReport({
+    required this.succeeded,
+    required this.freshStart,
+    this.retiredBanked = 0,
+    this.walkedRetired = 0,
+    this.rejection,
+    this.detail,
+  });
+
+  final bool succeeded;
+  final bool freshStart;
+
+  /// Spendable steps the reset retired from the balance.
+  final int retiredBanked;
+
+  /// What the player-facing walked figure read before it started again.
+  final int walkedRetired;
+
+  final String? rejection;
+  final String? detail;
+}
+
 final class EquipReport {
   const EquipReport({
     required this.succeeded,
@@ -1805,6 +1829,18 @@ final class StrideSession {
 
   int get totalGranted => engine?.state.steps.totalGranted ?? 0;
   int get totalSpent => engine?.state.steps.totalSpent ?? 0;
+
+  /// The walked figure the player is shown: everything credited since the
+  /// last playtest reset, or the lifetime counter when there has been none
+  /// (`DECISIONS/0025`). [totalGranted] stays the lifetime figure.
+  int get walkedSinceBaseline =>
+      engine?.state.steps.walkedSinceBaseline ?? 0;
+
+  /// Whether a playtest reset has ever moved the walked baseline — when it
+  /// has, the Character tab names the lifetime figure beside the reset one,
+  /// so history is reported rather than hidden (`DECISIONS/0016`).
+  bool get walkedBaselineMoved =>
+      (engine?.state.steps.epoch.walkedAtStart ?? 0) > 0;
 
   /// Whether a durable cursor exists. **Never its contents.**
   ///
@@ -2877,6 +2913,72 @@ final class StrideSession {
   /// Empties [slot], and commits it atomically.
   Future<EquipReport> unequip(EquipmentSlot slot) =>
       _equipment(UnequipItem(slot: slot), engine?.state.equipment.inSlot(slot));
+
+  /// Begins a fresh playtest (`DECISIONS/0025`): the spendable balance and
+  /// the player-facing walked figure start again from zero; with
+  /// [freshStart] so does the game. The step ledger's counters, dedupe
+  /// slices, watermarks and cursor are untouched — the reset moves a mark,
+  /// and the next sync reads forward from where the last one stopped.
+  ///
+  /// Single-flighted like every other command, committed through the same
+  /// single-writer path. The owner's own control; confirmed on the Character
+  /// tab before it is dispatched.
+  Future<PlaytestResetReport> resetPlaytest({required bool freshStart}) async {
+    if (_inFlight) {
+      return PlaytestResetReport(
+        succeeded: false,
+        freshStart: freshStart,
+        rejection: 'session_busy',
+        detail: 'another action is still running',
+      );
+    }
+    _inFlight = true;
+    try {
+      final GameEngine? active = engine;
+      if (active == null || registry == null || _stale || migrationPending) {
+        return PlaytestResetReport(
+          succeeded: false,
+          freshStart: freshStart,
+          rejection: 'session_not_ready',
+          detail: _notReadyDetail,
+        );
+      }
+      final int bankedBefore = active.state.steps.banked;
+      final int walkedBefore = active.state.steps.walkedSinceBaseline;
+      final EngineResult result = active.execute(
+        ResetPlaytest(
+          freshStart: freshStart,
+          stateVersion: StateVersion.current.value,
+        ),
+      );
+      if (result case RejectedResult(:final CommandRejection rejection)) {
+        return PlaytestResetReport(
+          succeeded: false,
+          freshStart: freshStart,
+          rejection: rejection.code.wire,
+          detail: rejection.explanation,
+        );
+      }
+      final CommitOutcome commit = await _commit(active, result.events);
+      if (commit is CommitRefused) {
+        _stale = true;
+        return PlaytestResetReport(
+          succeeded: false,
+          freshStart: freshStart,
+          rejection: 'commit_refused',
+          detail: commit.reason.name,
+        );
+      }
+      return PlaytestResetReport(
+        succeeded: true,
+        freshStart: freshStart,
+        retiredBanked: bankedBefore,
+        walkedRetired: walkedBefore,
+      );
+    } finally {
+      _inFlight = false;
+    }
+  }
 
   Future<EquipReport> _equipment(GameCommand command, ContentId? item) async {
     final String name = item == null
