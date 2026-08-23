@@ -312,7 +312,7 @@ abstract final class AmbientAssets {
   static int activityCanvasFor(String skill) => _activityCanvases[skill] ?? 64;
 
   static final List<String> _woodcutFrames = _frames('activity_woodcut', 8);
-  static final List<String> _mineFrames = _frames('activity_mine', 6);
+  static final List<String> _mineFrames = _frames('activity_mine', 8);
   static final List<String> _forageFrames = _frames('activity_forage', 9);
 
   /// The craft loops (PRESENTATION_WORLD_REWARD_FEEL_01 §17): the Traveler
@@ -356,7 +356,7 @@ abstract final class AmbientAssets {
 
   static const Map<String, int> _activityCanvases = <String, int>{
     'skill.woodcutting': 76,
-    'skill.mining': 66,
+    'skill.mining': 60,
     'skill.foraging': 44,
     'skill.smithing': 74,
     'skill.cooking': 46,
@@ -413,19 +413,22 @@ abstract final class AmbientAssets {
 
   /// Whether this profession's loop works towards the figure's **east**.
   ///
-  /// Not a style choice and not uniform. Woodcutting, foraging, smithing and
-  /// cooking all face west and act on their viewer-left. The mining loop is
-  /// the exception: the Traveler faces east, raises the pick over his left
-  /// shoulder, brings it down to his right, and the chips fly right. Placing
-  /// its boulder west — as every other prop is placed — put the ore behind
-  /// the miner's back and threw his debris at bare floor, which blind QA
-  /// read as "holding a pickaxe near a rock", never as mining.
+  /// Every shipped loop — woodcutting, mining, foraging, smithing, cooking —
+  /// faces west and acts on its viewer-left, so today the answer is always
+  /// no. The hook stays because the answer is a property of the **loop**,
+  /// not of the stage: the first mining loop (ACTIVITY_FEEL_01 `mine2`) was
+  /// a west-facing figure whose strike landed east, behind his own back.
+  /// Placing the seam east made the pick touch it and made the whole scene
+  /// read as backward on the owner's device — the Traveler working with his
+  /// back to the ore (PLAYABLE_POLISH_01 §1). The loop was re-authored to
+  /// strike in front rather than the stage bent around the fault. If a
+  /// future loop genuinely works east, say so here and nowhere else.
   ///
   /// A table rather than a measurement. The union of a loop's frame bounds is
   /// symmetric for a tool that swings through an arc, so the extents cannot
   /// answer this; only looking at the animation can, and this is where that
   /// looking is written down.
-  static bool worksEast(String skill) => skill == 'skill.mining';
+  static bool worksEast(String skill) => false;
 
   static const Map<String, String> _workBackdrops = <String, String>{
     'skill.mining': '$_art/work/bg_mining.png',
@@ -444,19 +447,19 @@ abstract final class AmbientAssets {
   static const Map<String, StageScenery> _workProps = <String, StageScenery>{
     '$_art/node/copper_seam.png': StageScenery(
       assetPath: '$_art/work/prop_copper_seam.png',
-      bounds: SpriteBounds(left: 10, top: 11, right: 89, bottom: 90),
+      bounds: SpriteBounds(left: 4, top: 3, right: 91, bottom: 92),
       // Tall enough to swallow the pick if drawn last (blind QA round 2).
       behindFigure: true,
     ),
     '$_art/node/tin_seam.png': StageScenery(
       assetPath: '$_art/work/prop_tin_seam.png',
-      bounds: SpriteBounds(left: 10, top: 11, right: 89, bottom: 90),
+      bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 91),
       // Tall enough to swallow the pick if drawn last (blind QA round 2).
       behindFigure: true,
     ),
     '$_art/node/hardened_copper_seam.png': StageScenery(
       assetPath: '$_art/work/prop_hardened_copper_seam.png',
-      bounds: SpriteBounds(left: 10, top: 11, right: 89, bottom: 90),
+      bounds: SpriteBounds(left: 5, top: 7, right: 88, bottom: 90),
       // Tall enough to swallow the pick if drawn last (blind QA round 2).
       behindFigure: true,
     ),

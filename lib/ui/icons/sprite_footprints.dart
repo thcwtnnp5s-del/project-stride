@@ -246,10 +246,10 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
-  /// `ambient_activity_mine` — 13 px of contact, 27..39.
+  /// `ambient_activity_mine` — 13 px of contact, 28..40.
   static const SpriteFootprint ambientActivityMine = SpriteFootprint(
-    left: 27,
-    right: 39,
+    left: 28,
+    right: 40,
     bottom: 62,
   );
 

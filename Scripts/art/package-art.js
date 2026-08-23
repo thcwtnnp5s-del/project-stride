@@ -715,14 +715,26 @@ for (const id of ['wolf_pelt', 'lynx_pelt', 'wolfhide_jerkin', 'frostlined_jerki
  * duplicating frames here.
  */
 const ACTIVITY_SRC = path.join(EXPLORE, 'ACTIVITY_FEEL_01', 'out', 'ambient');
+// PLAYABLE_POLISH_01 §1: the mining loop is re-authored. The ACTIVITY_FEEL_01
+// loop (`mine2`) was a west-facing figure whose strike landed EAST — behind
+// his own back — so the stage had to put the seam behind him to get the
+// pick to touch it, and the owner's device read the whole scene as
+// backward. `mine3a` raises the pick over the shoulder and brings it down
+// in FRONT (west), like every other profession, so the seam goes back to
+// the west with the rest of the props. Frame 5 (the pick passing directly
+// over the head, reading as a halo) is dropped; the rest ship in order.
+const POLISH_AMBIENT_SRC = path.join(
+  EXPLORE, 'PLAYABLE_POLISH_01', 'out', 'ambient',
+);
 const ACTIVITY_LOOPS = {
   activity_woodcut: {
     src: 'woodcut2', frames: [0, 1, 2, 3, 5, 6, 7, 8],
     canvas: [108, 92], crop: { x: 14, y: 14, width: 76, height: 64 },
   },
   activity_mine: {
-    src: 'mine2', frames: [0, 1, 2, 4, 5, 8],
-    canvas: [96, 92], crop: { x: 13, y: 14, width: 66, height: 64 },
+    dir: POLISH_AMBIENT_SRC,
+    src: 'mine3a', frames: [0, 1, 2, 3, 4, 6, 7, 8],
+    canvas: [96, 96], crop: { x: 12, y: 16, width: 60, height: 64 },
   },
   activity_forage: {
     src: 'forage', frames: [0, 1, 2, 3, 4, 5, 6, 7, 8],
@@ -731,7 +743,9 @@ const ACTIVITY_LOOPS = {
 };
 for (const [id, spec] of Object.entries(ACTIVITY_LOOPS)) {
   spec.frames.forEach((srcIndex, outIndex) => {
-    const frame = png.load(path.join(ACTIVITY_SRC, `${spec.src}_f${srcIndex}.png`));
+    const frame = png.load(
+      path.join(spec.dir ?? ACTIVITY_SRC, `${spec.src}_f${srcIndex}.png`),
+    );
     if (frame.width !== spec.canvas[0] || frame.height !== spec.canvas[1]) {
       throw new Error(
         `${spec.src}_f${srcIndex}: expected ${spec.canvas[0]}x${spec.canvas[1]}, ` +
@@ -1082,16 +1096,29 @@ for (const [id, { dir, src, flip }] of Object.entries(WORK_BACKDROPS)) {
   emit(`work/bg_${id}.png`, encode(raster));
 }
 
+// PLAYABLE_POLISH_01 §2: the three ore seams are re-authored. The PWRF
+// props were one boulder with the vein patch swapped, and the owner's device
+// read them as "the same node with a pasted overlay". Each seam is now its
+// own generation under one shared prompt skeleton, differing only in the
+// material clause — copper: warm orange-brown veins in blue-grey slate;
+// tin: wide pale silver bands in darker slate; hardened copper: a denser,
+// darker, blockier outcrop with thick dull bronze bands and jutting
+// crystals. Candidates, seeds and rejections in the round's README.
+const POLISH_PROP_SRC = path.join(
+  EXPLORE, 'PLAYABLE_POLISH_01', 'out', 'props',
+);
 const WORK_PROPS = {
-  copper_seam: 'prop_copper_b_0',
-  tin_seam: 'prop_tin_b_0',
-  hardened_copper_seam: 'prop_hardened_b_0',
-  oak_stand: 'prop_wood_a_2',
-  meadow_patch: 'prop_forage_a_0',
-  duskcap_grove: 'prop_duskcap_0',
+  copper_seam: { dir: POLISH_PROP_SRC, src: 'prop_copper_seam_96' },
+  tin_seam: { dir: POLISH_PROP_SRC, src: 'prop_tin_seam_96' },
+  hardened_copper_seam: {
+    dir: POLISH_PROP_SRC, src: 'prop_hardened_copper_seam_96',
+  },
+  oak_stand: { dir: PWRF_STAGE_SRC, src: 'prop_wood_a_2' },
+  meadow_patch: { dir: PWRF_STAGE_SRC, src: 'prop_forage_a_0' },
+  duskcap_grove: { dir: PWRF_STAGE_SRC, src: 'prop_duskcap_0' },
 };
-for (const [id, src] of Object.entries(WORK_PROPS)) {
-  const raster = png.load(path.join(PWRF_STAGE_SRC, `${src}.png`));
+for (const [id, { dir, src }] of Object.entries(WORK_PROPS)) {
+  const raster = png.load(path.join(dir, `${src}.png`));
   if (raster.width !== 96 || raster.height !== 96) {
     throw new Error(
       `prop ${id}: expected 96x96, got ${raster.width}x${raster.height}`,
