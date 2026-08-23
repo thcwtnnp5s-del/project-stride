@@ -1684,6 +1684,25 @@ final class StrideSession {
 
   int get syncCount => engine?.state.steps.checkpoint.syncCount ?? 0;
 
+  /// How many distinct step sources the ledger currently holds credit for —
+  /// the origins present in the retained granted slices. **A count, never an
+  /// identity** (`RULES.md` H-7), and read from the committed ledger rather
+  /// than from the last sync report, so it survives a relaunch.
+  ///
+  /// Instrumentation for the Playable Experience Refinement 01 accounting
+  /// investigation: a ledger that sums two origins for the same hours — a
+  /// phone and a watch, or a phone and an app that writes steps — banks that
+  /// walk twice by arithmetic, not by fault, and this figure is what tells a
+  /// player (and the owner) that their bank has two contributors.
+  int get ledgerOriginCount {
+    final StepLedger? ledger = engine?.state.steps;
+    if (ledger == null) return 0;
+    return ledger.grantedSlices.keys
+        .map((ObservationKey k) => k.origin)
+        .toSet()
+        .length;
+  }
+
   SourceState get sourceState =>
       engine?.state.steps.sourceState ?? SourceState.unknown;
 

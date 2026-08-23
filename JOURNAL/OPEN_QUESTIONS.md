@@ -689,3 +689,36 @@ build could ship, labelled here so the choice is visibly provisional
   costs one column at large text scales.
 - **The "future" landmark treatment.** A trailing em dash ("Far Town —") over
   a caption. Untested on a device; it may read as a truncation.
+
+---
+
+## Q-08 — Two step sources, one walk: whose total is the bank?
+
+**Raised:** 2026-08-22, Playable Experience Refinement 01
+(`MILESTONES/PLAYABLE_EXPERIENCE_REFINEMENT_01.md` §0). **UNRESOLVED** —
+owner decision.
+
+The ledger credits per `(origin, bucket)` and sums origins (`RULES.md` H-1).
+HealthKit's merged Steps figure de-duplicates the overlap between an iPhone
+and an Apple Watch (or any app writing step samples); the per-source sums
+the adapter restates do not. A walk recorded by two sources is banked twice,
+and the second source's late arrival makes it look like a relaunch re-granted
+the day. Reproduced by characterisation test; the count of contributing
+sources is now visible on the Character tab.
+
+Options:
+
+1. **Keep per-source summing** (today). Safe for the multi-device backlog
+   argument; over-credits a two-sensor player by roughly the watch's share.
+2. **Adapter restates HealthKit's merged total under one synthetic origin.**
+   Exact to the Health app; loses per-origin watermarks, so a watch backlog
+   arriving after its bucket is settled (7-day retention) is `lateDiscarded`.
+   Would need the adapter's completeness scope to vouch "all origins".
+3. **Merged total, per-origin discovery.** Keep the anchored discovery
+   per source (so a late watch batch re-opens the bucket), restate the
+   bucket's merged total, and key the slice on a fixed merged origin. Same
+   loss profile as 2 for buckets already settled; otherwise exact.
+
+Recommendation: 3, as a `stride_health` adapter change under its own
+decision, after the owner confirms on device that two sources are present.
+Not a refinement-milestone change: it touches the H-1/H-3 boundary.

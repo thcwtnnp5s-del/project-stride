@@ -148,7 +148,12 @@ class CharacterScreen extends StatelessWidget {
                   LabeledValueTile(
                     label: 'Total walked',
                     value: formatSteps(s.totalGranted),
-                    unit: 'steps earned',
+                    // Named only when more than one source has been
+                    // credited: a persisted count (never an identity) that
+                    // explains a bank two devices both contributed to.
+                    unit: s.ledgerOriginCount > 1
+                        ? 'steps earned · ${s.ledgerOriginCount} sources'
+                        : 'steps earned',
                     leading: const WalkingGlyph(role: WalkingRole.stock),
                     valueColor: StrideColors.accentSteps,
                   ),

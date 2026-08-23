@@ -227,6 +227,9 @@ class SessionController extends ChangeNotifier {
       // field that had been nulled underneath it is what produced the
       // owner's "+0 STEPS BANKED" card.
       _lastOpportunityBanked = _lastOpportunities.isEmpty ? 0 : banked;
+      _lastOpportunityOrigins = _lastOpportunities.isEmpty
+          ? 0
+          : (_lastSync?.originCount ?? 0);
       _armResultTimer();
     } finally {
       _busy = false;
@@ -248,11 +251,20 @@ class SessionController extends ChangeNotifier {
   int get lastOpportunityBanked => _lastOpportunityBanked;
   int _lastOpportunityBanked = 0;
 
+  /// How many step sources the sync behind [lastOpportunities] read from.
+  /// A count only (`RULES.md` H-7), held beside the banked figure for the
+  /// same reason: the banner owns everything it renders. The banner names
+  /// the count only when it exceeds one — a walk recorded by two devices is
+  /// banked by both, and the player should be able to see that it was.
+  int get lastOpportunityOrigins => _lastOpportunityOrigins;
+  int _lastOpportunityOrigins = 0;
+
   /// Dismisses the step-sync highlights banner.
   void acknowledgeOpportunities() {
     if (_lastOpportunities.isEmpty) return;
     _lastOpportunities = const <SyncOpportunity>[];
     _lastOpportunityBanked = 0;
+    _lastOpportunityOrigins = 0;
     notifyListeners();
   }
 
