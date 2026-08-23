@@ -50,12 +50,9 @@ import 'package:stride_core/stride_core.dart' show KnowledgeTier;
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
-import '../../components/pixel_asset.dart';
-import '../../components/rarity_badge.dart';
-import '../../components/rarity_item_title.dart';
 import '../../components/reward_beat.dart';
+import '../../components/reward_layer.dart';
 import '../../components/surfaces.dart';
-import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -147,21 +144,35 @@ class _CombatScreenState extends State<CombatScreen> {
     // remembered view — a relaunch cannot have one, and a report cannot
     // outlive one — the panel stands alone; otherwise the stage plays the
     // outcome first and the panel follows.
+    // The result rises over the stage in the reward layer
+    // (PLAYABLE_POLISH_01 §4) once the stage has finished playing the
+    // outcome; the card beneath the scrim keeps the log and the locked
+    // controls, so the fight is still there behind its own ending. Continue
+    // is `acknowledgeCombat`, as before.
     if (view == null) {
       if (outcome == null || report == null) return const SizedBox.shrink();
-      return _ResultPanel(
-        // Keyed on the outcome, so a second fight in the same visit builds a
-        // fresh State and replays its reveal rather than inheriting the last
-        // panel's finished clock.
-        key: ObjectKey(outcome),
-        report: report,
-        outcome: outcome,
-        controller: c,
+      return RewardRaise(
+        token: outcome,
+        tier: RewardTier.medium,
+        accent: _ResultPanel.accentOf(outcome),
+        beats: _ResultPanel.beatsOf(report, outcome),
+        onDismiss: c.acknowledgeCombat,
+        child: const SizedBox.shrink(),
       );
     }
 
     final bool ended = live == null;
-    return Column(
+    final bool resolved =
+        ended && outcome != null && report != null && !_playing;
+    return RewardRaise(
+      token: resolved ? outcome : null,
+      tier: RewardTier.medium,
+      accent: resolved ? _ResultPanel.accentOf(outcome) : null,
+      beats: resolved
+          ? _ResultPanel.beatsOf(report, outcome)
+          : const <Widget>[],
+      onDismiss: c.acknowledgeCombat,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         CombatStage(
@@ -171,14 +182,6 @@ class _CombatScreenState extends State<CombatScreen> {
           onPlayingChanged: _onPlayingChanged,
         ),
         const SizedBox(height: StrideSpace.cardGap),
-        if (ended && outcome != null && report != null && !_playing)
-          _ResultPanel(
-            key: ObjectKey(outcome),
-            report: report,
-            outcome: outcome,
-            controller: c,
-          )
-        else
           SectionCard(
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
             child: Column(
@@ -199,6 +202,7 @@ class _CombatScreenState extends State<CombatScreen> {
             ),
           ),
       ],
+      ),
     );
   }
 }
@@ -238,7 +242,11 @@ class _CombatLog extends StatelessWidget {
         : !r.succeeded
         ? <String>[_refusalText(r)]
         : <String>[
-            for (final CombatBeat b in r.events) describeBeat(b, enemyName),
+            // The outcome itself is the layer's; the log beneath it keeps
+            // the round's blows and never narrates the ending twice.
+            for (final CombatBeat b in r.events)
+              if (b is! WonBeat && b is! LostBeat && b is! RetreatedBeat)
+                describeBeat(b, enemyName),
           ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,69 +428,42 @@ class _CombatControlsState extends State<_CombatControls> {
 /// No chest, no reveal, no "tap to open", no burst, no currency, nothing
 /// stacked or sequenced to be opened (`RULES.md` P-6). The motion is one
 /// staggered resolve of facts already committed, once.
-class _ResultPanel extends StatelessWidget {
-  const _ResultPanel({
-    super.key,
-    required this.report,
-    required this.outcome,
-    required this.controller,
-  });
+class _ResultPanel {
+  const _ResultPanel._(this.report);
 
   final CombatReport report;
-  final CombatBeat outcome;
-  final SessionController controller;
 
-  @override
-  Widget build(BuildContext context) {
-    final CombatBeat o = outcome;
-    final List<Widget> beats = switch (o) {
-      final WonBeat w => _victory(w),
-      final LostBeat l => _drivenBack(l),
-      final RetreatedBeat r => _retreated(r),
+  /// The beats the layer resolves for [outcome], top to bottom.
+  static List<Widget> beatsOf(CombatReport report, CombatBeat outcome) {
+    final _ResultPanel p = _ResultPanel._(report);
+    return switch (outcome) {
+      final WonBeat w => p._victory(w),
+      final LostBeat l => p._drivenBack(l),
+      final RetreatedBeat r => p._retreated(r),
       _ => <Widget>[
         Text(
-          describeBeat(o, report.enemyName),
+          describeBeat(outcome, report.enemyName),
           style: StrideType.body,
           maxLines: 4,
         ),
       ],
     };
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // Keyed on the outcome by the caller, so a second fight in the same
-          // visit replays its own resolve rather than inheriting a finished
-          // clock.
-          StaggeredReveal(children: beats),
-          const SizedBox(height: StrideSpace.s12),
-          // Primary and full width: it is the only thing to do here, and the
-          // acknowledgement is what clears the report and returns the cards.
-          // `acknowledgeCombat` is idempotent — a second tap on a panel that
-          // is already gone would find no report and do nothing.
-          StrideButton(
-            label: 'Continue',
-            onPressed: controller.acknowledgeCombat,
-          ),
-        ],
-      ),
-    );
   }
+
+  /// A win takes the step accent — the ink every universal payoff wears;
+  /// being driven back or retreating takes the plain frame, because losing
+  /// nothing is not an event to celebrate and not one to punish.
+  static Color? accentOf(CombatBeat outcome) =>
+      outcome is WonBeat ? StrideColors.accentSteps : null;
 
   List<Widget> _victory(WonBeat o) => <Widget>[
     // The headline, with the fall beneath it — the card title weight a win
     // deserves.
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const AdaptiveText('VICTORY', style: StrideType.cardTitle),
-        const SizedBox(height: StrideSpace.s2),
-        Text(
-          '${report.enemyName} falls.',
-          style: StrideType.body,
-          maxLines: 2,
-        ),
-      ],
+    RewardBeat(
+      tier: RewardTier.major,
+      eyebrow: 'VICTORY',
+      title: '${report.enemyName} falls',
+      accent: StrideColors.accentSteps,
     ),
     // The experience, on its own ground: MINOR unless a level landed, which
     // the LevelUpCard below says.
@@ -521,7 +502,12 @@ class _ResultPanel extends StatelessWidget {
         else
           for (int i = 0; i < o.drops.length; i++) ...<Widget>[
             if (i > 0) const SizedBox(height: StrideSpace.s6),
-            _RewardRow(line: o.drops[i]),
+            RewardItemRow(
+              id: o.drops[i].id,
+              name: o.drops[i].name,
+              quantity: o.drops[i].quantity,
+              rarity: o.drops[i].rarity,
+            ),
           ],
       ],
     ),
@@ -588,127 +574,24 @@ class _ResultPanel extends StatelessWidget {
   /// ever implying a death. Quieter heading than a win: losing nothing is
   /// not an event to celebrate, and not one to punish.
   List<Widget> _drivenBack(LostBeat l) => <Widget>[
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeading(label: 'Driven back'),
-        const SizedBox(height: StrideSpace.s6),
-        AdaptiveText(
-          'Retreated to ${l.retreatToName}',
-          style: StrideType.sub,
-          color: StrideColors.textPrimary,
-        ),
-        const SizedBox(height: StrideSpace.s2),
-        const Text('Nothing was lost.', style: StrideType.body, maxLines: 2),
-        if (l.healed) ...<Widget>[
-          const SizedBox(height: StrideSpace.s2),
-          AdaptiveText(
-            'Rested and recovered at ${l.retreatToName}.',
-            style: StrideType.micro,
-            color: StrideColors.textSecondary,
-          ),
-        ],
+    RewardBeat(
+      tier: RewardTier.medium,
+      eyebrow: 'DRIVEN BACK',
+      title: 'Retreated to ${l.retreatToName}',
+      lines: <String>[
+        'Nothing was lost.',
+        if (l.healed) 'Rested and recovered at ${l.retreatToName}.',
       ],
     ),
   ];
 
   List<Widget> _retreated(RetreatedBeat r) => <Widget>[
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeading(label: 'Retreated'),
-        const SizedBox(height: StrideSpace.s6),
-        Text(
-          describeBeat(r, report.enemyName),
-          style: StrideType.body,
-          maxLines: 4,
-        ),
-      ],
+    RewardBeat(
+      tier: RewardTier.medium,
+      eyebrow: 'RETREATED',
+      title: 'Retreated to ${r.retreatToName}',
+      lines: const <String>['Nothing was lost.'],
     ),
   ];
 }
 
-/// One dropped item: its icon, its name in its rarity's ink, the rarity word,
-/// and how many — inside a 1 px frame of the same rarity's accent.
-///
-/// The quantity is [StrideType.itemCount], the same role the inventory grid
-/// gives `×24`, so `×2` here and `×2` there are the same object.
-///
-/// ## Why the badge is on its own line
-///
-/// It shared the name's column first, and that column is what is left of the
-/// row after a 48 px icon and a three-digit count. At 320 dp and text scale 1.4
-/// it comes to about 93 dp, and `LEGENDARY` — the longest of the five words,
-/// and the rank nothing carries yet, so nobody would have found this on a
-/// device — needs 131.4. Beneath the name it has the frame's full width less
-/// the icon indent, which is 184 dp in the same case.
-class _RewardRow extends StatelessWidget {
-  const _RewardRow({required this.line});
-
-  final RewardLine line;
-
-  /// The icon's edge plus its gap: what the badge is indented by, so the word
-  /// starts under the name rather than under the picture.
-  static const double _nameIndent = 48 + StrideSpace.s10;
-
-  @override
-  Widget build(BuildContext context) => RarityFrame(
-    rarity: line.rarity,
-    padding: const EdgeInsets.all(StrideSpace.s8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            // `itemFor` never returns null: an item this icon set does not
-            // cover yet — the new pelts and jerkins, until the lead packages
-            // them — gets the deliberately non-representational slab, and the
-            // name beside it carries the meaning (**L-17**).
-            _RewardIcon(assetPath: PixelIcons.itemFor(line.id)),
-            const SizedBox(width: StrideSpace.s10),
-            Expanded(
-              // Wrapping, because this is the narrowest full-width name
-              // surface in the app: at 320 dp the name column is 116 dp and
-              // `Frost-lined Jerkin` needs 198.9 at this role. A name is
-              // prose; it takes the second line rather than the smaller type.
-              child: RarityName.wrapping(
-                name: line.name,
-                rarity: line.rarity,
-                style: StrideType.sub,
-              ),
-            ),
-            const SizedBox(width: StrideSpace.s8),
-            AdaptiveText('×${line.quantity}', style: StrideType.itemCount),
-          ],
-        ),
-        // The word, always. Colour is never the only carrier.
-        if (line.rarity != null) ...<Widget>[
-          const SizedBox(height: StrideSpace.s6),
-          Padding(
-            padding: const EdgeInsets.only(left: _nameIndent),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: RarityBadge(rarity: line.rarity),
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
-}
-
-/// An approved 48 px item icon, as shipped.
-///
-/// The row's arrival is the panel's one staggered resolve (`StaggeredReveal`);
-/// the icon no longer carries a second motion of its own, so pixel art lands
-/// on whole pixels from its first frame (`RULES.md` A-2: nothing here is
-/// authored, and nothing loops).
-class _RewardIcon extends StatelessWidget {
-  const _RewardIcon({required this.assetPath});
-
-  final String assetPath;
-
-  @override
-  Widget build(BuildContext context) => PixelAsset.item(assetPath);
-}

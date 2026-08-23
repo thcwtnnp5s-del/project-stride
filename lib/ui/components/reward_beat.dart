@@ -34,13 +34,16 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ContentId, Rarity;
 
+import '../icons/pixel_icons.dart';
 import '../theme/rarity_style.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
 import 'data_display.dart';
+import 'pixel_asset.dart';
 import 'rarity_badge.dart';
+import 'rarity_item_title.dart';
 
 /// How much a result matters — the only axis presentation may vary on.
 enum RewardTier { minor, medium, major }
@@ -313,6 +316,121 @@ class _StaggeredRevealState extends State<StaggeredReveal>
             child: widget.children[i],
           ),
         ),
+      ],
+    ],
+  );
+}
+
+/// One item gained, as a row: the approved 48 px icon, the name in its
+/// rarity ink, the count, and — when the item has a rarity — the word
+/// beneath, because colour is never the only carrier.
+///
+/// Lifted from the combat panel (PLAYABLE_POLISH_01 §4) so a contract
+/// reward, a finished gather queue and a victory drop are one row, not
+/// three. The row's arrival is the panel's one staggered resolve; the icon
+/// carries no motion of its own, so pixel art lands on whole pixels from its
+/// first frame (`RULES.md` A-2).
+class RewardItemRow extends StatelessWidget {
+  const RewardItemRow({
+    super.key,
+    required this.id,
+    required this.name,
+    required this.quantity,
+    this.rarity,
+  });
+
+  final ContentId id;
+  final String name;
+  final int quantity;
+  final Rarity? rarity;
+
+  /// The icon's edge plus its gap: what the badge is indented by, so the word
+  /// starts under the name rather than under the picture.
+  static const double _nameIndent = 48 + StrideSpace.s10;
+
+  @override
+  Widget build(BuildContext context) => RarityFrame(
+    rarity: rarity,
+    padding: const EdgeInsets.all(StrideSpace.s8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            // `itemFor` never returns null: an item the icon set does not
+            // cover gets the deliberately non-representational slab, and the
+            // name beside it carries the meaning (**L-17**).
+            PixelAsset.item(PixelIcons.itemFor(id)),
+            const SizedBox(width: StrideSpace.s10),
+            Expanded(
+              // Wrapping: this is the narrowest full-width name surface in
+              // the app. A name is prose; it takes the second line rather
+              // than the smaller type.
+              child: RarityName.wrapping(
+                name: name,
+                rarity: rarity,
+                style: StrideType.sub,
+              ),
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            AdaptiveText('×$quantity', style: StrideType.itemCount),
+          ],
+        ),
+        if (rarity != null) ...<Widget>[
+          const SizedBox(height: StrideSpace.s6),
+          Padding(
+            padding: const EdgeInsets.only(left: _nameIndent),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: RarityBadge(rarity: rarity),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// A labelled group of facts inside a beat or a layer: `EXPERIENCE` over
+/// `+40 XP`, `LEARNED` over a recipe name. The micro-label is the grammar
+/// every panel already speaks; this keeps the three reward surfaces from
+/// each spelling it slightly differently.
+class RewardFacts extends StatelessWidget {
+  const RewardFacts({
+    super.key,
+    required this.label,
+    required this.children,
+    this.gap = StrideSpace.s4,
+  });
+
+  final String label;
+  final List<Widget> children;
+  final double gap;
+
+  /// A group of plain lines.
+  static Widget lines(
+    String label,
+    List<String> lines, {
+    TextStyle style = StrideType.sub,
+    Color color = StrideColors.textPrimary,
+  }) => RewardFacts(
+    label: label,
+    children: <Widget>[
+      for (final String line in lines)
+        AdaptiveText(line, style: style, color: color),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Text(label, style: StrideType.microLabel, maxLines: 1),
+      SizedBox(height: gap),
+      for (int i = 0; i < children.length; i++) ...<Widget>[
+        if (i > 0) SizedBox(height: gap),
+        children[i],
       ],
     ],
   );

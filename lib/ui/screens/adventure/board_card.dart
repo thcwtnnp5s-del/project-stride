@@ -7,11 +7,12 @@
 /// rendered when it disagrees (`RULES.md` E-2). Nothing here computes a rule —
 /// eligibility, rotation and rewards all arrive projected from the session.
 ///
-/// Completion presentation follows the reward hierarchy (brief §67): a
-/// delivery's result is an inline line; a taught recipe or revealed rumor gets
-/// a held panel; a project stage is a held panel; project completion is the
-/// major tier — a full-card banner with the world change, held until
-/// Continue.
+/// Completion presentation (PLAYABLE_POLISH_01 §3–§4): a delivery, a claimed
+/// bounty, a finished stage and a completed project each rise over the board
+/// in the reward layer (`reward_layer.dart`) — the board is the ledger, the
+/// payoff is its own plane — and are held until Continue. A plain
+/// contribution that finishes nothing, an acceptance, and a refusal stay
+/// inline: they are bookkeeping, not payoffs.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -20,6 +21,8 @@ import 'package:stride_core/stride_core.dart' show ContentId, ContractClass;
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/reward_beat.dart';
+import '../../components/reward_layer.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../state/session_controller.dart';
@@ -49,9 +52,26 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
   void _toggle(ContentId id) =>
       setState(() => _open = _open == id ? null : id);
 
-  Future<void> _complete(SessionController c, ContentId contract) async {
-    final ContractReport? report = await c.completeContract(contract);
+  Future<void> _complete(SessionController c, ContractView job) async {
+    final ContractReport? report = await c.completeContract(job.id);
     if (!mounted || report == null) return;
+    if (report.succeeded) {
+      // The payoff, above the board. The row beneath has already rotated
+      // to the next need or marked itself DONE; the layer is what the tap
+      // was for.
+      setState(() {
+        _contractResult = null;
+        _projectResult = null;
+        _open = null;
+      });
+      await showRewardLayer(
+        context,
+        tier: RewardTier.medium,
+        accent: _TypeChip.rewardInkOf(job.contractClass),
+        beats: contractRewardBeats(report, job.contractClass),
+      );
+      return;
+    }
     setState(() {
       _contractResult = report;
       _projectResult = null;
@@ -73,6 +93,20 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
       project.contributable,
     );
     if (!mounted || report == null) return;
+    if (report.succeeded &&
+        (report.stageCompleted || report.projectCompleted)) {
+      setState(() {
+        _projectResult = null;
+        _contractResult = null;
+      });
+      await showRewardLayer(
+        context,
+        tier: report.projectCompleted ? RewardTier.major : RewardTier.medium,
+        accent: StrideColors.accentSteps,
+        beats: projectRewardBeats(report),
+      );
+      return;
+    }
     setState(() {
       _projectResult = report;
       _contractResult = null;
@@ -130,15 +164,21 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
               contract: job,
               selected: _open == job.id,
               onTap: () => _toggle(job.id),
+              // The open job's detail lives inside the row's own frame, so
+              // the expanded state is one block rather than a row with loose
+              // prose beneath it (PLAYABLE_POLISH_01 §3).
+              detail: _open == job.id
+                  ? _ContractDetail(
+                      contract: job,
+                      busy: c.busy,
+                      onComplete: () => _complete(c, job),
+                      onAccept: job.bounty == null
+                          ? null
+                          : () => _accept(c, job.id),
+                      onTrack: () => c.trackGoalContract(job.id),
+                    )
+                  : null,
             ),
-            if (_open == job.id)
-              _ContractDetail(
-                contract: job,
-                busy: c.busy,
-                onComplete: () => _complete(c, job.id),
-                onAccept: job.bounty == null ? null : () => _accept(c, job.id),
-                onTrack: () => c.trackGoalContract(job.id),
-              ),
           ],
 
           // Community projects stay visually distinct and stay above the
@@ -162,6 +202,118 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
     );
   }
 }
+
+/// The beats a completed contract raises in the layer: what was completed
+/// (the eyebrow names the type — ORDER DELIVERED, BOUNTY CLAIMED, CONTRACT
+/// COMPLETE), the items, the experience, anything learned or heard, and the
+/// universal level-up beneath. Every figure is a copy off the committed
+/// report; nothing is re-derived from state (`RULES.md` E-2).
+List<Widget> contractRewardBeats(ContractReport r, ContractClass kind) {
+  final Color ink = _TypeChip.rewardInkOf(kind);
+  return <Widget>[
+    RewardBeat(
+      tier: RewardTier.medium,
+      eyebrow: switch (kind) {
+        ContractClass.localNeed => 'ORDER DELIVERED',
+        ContractClass.bounty => 'BOUNTY CLAIMED',
+        ContractClass.regional => 'CONTRACT COMPLETE',
+      },
+      title: r.contractName,
+      accent: ink,
+      lines: <String>[
+        if (r.consumed.isNotEmpty)
+          'Handed over: ${r.consumed.map((RewardLine l) => '${l.name} ×${l.quantity}').join(', ')}',
+      ],
+    ),
+    if (r.rewardItems.isNotEmpty)
+      RewardFacts(
+        label: 'ITEMS',
+        gap: StrideSpace.s6,
+        children: <Widget>[
+          for (final RewardLine line in r.rewardItems)
+            RewardItemRow(
+              id: line.id,
+              name: line.name,
+              quantity: line.quantity,
+              rarity: line.rarity,
+            ),
+        ],
+      ),
+    if (r.rewardSkillXp.isNotEmpty || r.characterXp > 0)
+      RewardFacts.lines('EXPERIENCE', <String>[
+        for (final SkillXpLine line in r.rewardSkillXp)
+          '+${line.xp} ${line.skillName} XP',
+        if (r.characterXp > 0) '+${r.characterXp} Character XP',
+      ]),
+    if (r.taughtRecipeName case final String recipe)
+      RewardBeat(
+        tier: RewardTier.medium,
+        eyebrow: 'RECIPE LEARNED',
+        title: recipe,
+        accent: StrideColors.categoryQuest,
+        lines: const <String>['Ready at the bench'],
+      ),
+    if (r.revealedRumorNames.isNotEmpty)
+      RewardFacts.lines(
+        'RUMOR HEARD',
+        r.revealedRumorNames,
+        color: StrideColors.textSecondary,
+      ),
+    if (r.levelledUp)
+      LevelUpCard(
+        name: 'Traveler',
+        level: r.levelAfter ?? 0,
+        why: '+2 Max HP · harder fights are within reach',
+      ),
+  ];
+}
+
+/// The beats a finished stage or a completed project raises: the headline,
+/// the settlement's change, what was given, the experience, rumors, and
+/// the level-up. A completed project is the MAJOR tier — the one event in
+/// the game that permanently changes a place.
+List<Widget> projectRewardBeats(ProjectReport r) => <Widget>[
+  if (r.projectCompleted)
+    RewardBeat(
+      tier: RewardTier.major,
+      eyebrow: 'PROJECT COMPLETE',
+      title: r.completionHeadline ?? r.projectName,
+      accent: StrideColors.accentSteps,
+      lines: <String>[
+        if (r.completionHeadline != null) r.projectName,
+        if (r.developmentChanged)
+          '${r.developmentBefore} → ${r.developmentAfter}',
+        'The work is done; its benefits are permanent.',
+      ],
+    )
+  else
+    RewardBeat(
+      tier: RewardTier.medium,
+      eyebrow: 'STAGE COMPLETE',
+      title: r.stageName,
+      accent: StrideColors.accentSteps,
+      lines: <String>[r.projectName],
+    ),
+  if (r.contributed.isNotEmpty)
+    RewardFacts.lines('CONTRIBUTED', <String>[
+      for (final RewardLine line in r.contributed)
+        '${line.name} ×${line.quantity}',
+    ], color: StrideColors.textSecondary),
+  if (r.characterXp > 0)
+    RewardFacts.lines('EXPERIENCE', <String>['+${r.characterXp} Character XP']),
+  if (r.revealedRumorNames.isNotEmpty)
+    RewardFacts.lines(
+      'RUMOR HEARD',
+      r.revealedRumorNames,
+      color: StrideColors.textSecondary,
+    ),
+  if (r.levelledUp)
+    LevelUpCard(
+      name: 'Traveler',
+      level: r.levelAfter ?? 0,
+      why: '+2 Max HP · harder fights are within reach',
+    ),
+];
 
 /// One contract, collapsed to a scannable row.
 ///
@@ -192,11 +344,16 @@ class _ContractRow extends StatelessWidget {
     required this.contract,
     required this.selected,
     required this.onTap,
+    this.detail,
   });
 
   final ContractView contract;
   final bool selected;
   final VoidCallback onTap;
+
+  /// The open job's brief, requirements and actions, drawn inside this
+  /// row's frame beneath a rule. Null when collapsed.
+  final Widget? detail;
 
   /// The one line that says how far along this job is.
   ///
@@ -243,77 +400,107 @@ class _ContractRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ContractView c = contract;
     final bool done = c.isCompletedOneTime;
+    final bool locked = !done && !c.available;
     final (String word, Color ink) = state(c);
     final String reward = rewardLine(c);
+    // A finishable job is the one thing on the board worth finding at a
+    // glance, so its frame takes the dim step accent along with the word;
+    // everything else keeps the one border weight.
+    final Color frame = c.canComplete && !done
+        ? StrideColors.accentStepsDim
+        : StrideColors.borderDefault;
+
+    // The open row's head is raised; its detail beneath sits on the block
+    // fill so the primary control — itself the raised level — stands out
+    // against it rather than vanishing into a raised ground.
+    final Widget head = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: StrideSpace.s10,
+          vertical: StrideSpace.s8,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? StrideColors.surfaceRaised : null,
+          borderRadius: detail == null
+              ? StrideRadius.inner
+              : const BorderRadius.vertical(top: Radius.circular(9)),
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: AdaptiveText(
+                          c.name,
+                          style: StrideType.itemName,
+                          color: done || locked
+                              ? StrideColors.textMuted
+                              : StrideColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: StrideSpace.s6),
+                      _TypeChip(
+                        contractClass: c.contractClass,
+                        done: done || locked,
+                      ),
+                    ],
+                  ),
+                  if (!done) ...<Widget>[
+                    const SizedBox(height: StrideSpace.s2),
+                    Text(
+                      progressLine(c),
+                      style: StrideType.micro.copyWith(
+                        color: locked
+                            ? StrideColors.textMuted
+                            : StrideColors.textSecondary,
+                        fontFeatures: const <FontFeature>[
+                          FontFeature.tabularFigures(),
+                        ],
+                      ),
+                      maxLines: 2,
+                    ),
+                    if (reward.isNotEmpty)
+                      Text(
+                        reward,
+                        style: StrideType.micro.copyWith(
+                          color: StrideColors.textMuted,
+                        ),
+                        maxLines: 1,
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            Text(word, style: StrideType.microLabel.copyWith(color: ink)),
+          ],
+        ),
+      ),
+    );
 
     return Semantics(
       button: true,
       selected: selected,
       label: c.name,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.only(top: StrideSpace.s6),
-          padding: const EdgeInsets.symmetric(
-            horizontal: StrideSpace.s10,
-            vertical: StrideSpace.s6,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? StrideColors.surfaceRaised
-                : StrideColors.surfaceBlock,
-            border: Border.all(color: StrideColors.borderDefault),
-            borderRadius: StrideRadius.inner,
-          ),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Flexible(
-                          child: AdaptiveText(
-                            c.name,
-                            style: StrideType.itemName,
-                            color: done
-                                ? StrideColors.textMuted
-                                : StrideColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: StrideSpace.s6),
-                        _TypeChip(contractClass: c.contractClass, done: done),
-                      ],
-                    ),
-                    if (!done) ...<Widget>[
-                      Text(
-                        progressLine(c),
-                        style: StrideType.micro.copyWith(
-                          color: StrideColors.textSecondary,
-                        ),
-                        maxLines: 2,
-                      ),
-                      if (reward.isNotEmpty)
-                        Text(
-                          reward,
-                          style: StrideType.micro.copyWith(
-                            color: StrideColors.textMuted,
-                          ),
-                          maxLines: 1,
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: StrideSpace.s8),
-              Text(
-                word,
-                style: StrideType.microLabel.copyWith(color: ink),
-              ),
-            ],
-          ),
+      child: Container(
+        margin: const EdgeInsets.only(top: StrideSpace.s6),
+        decoration: BoxDecoration(
+          color: StrideColors.surfaceBlock,
+          border: Border.all(color: frame),
+          borderRadius: StrideRadius.inner,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            head,
+            if (detail case final Widget d) d,
+          ],
         ),
       ),
     );
@@ -343,6 +530,15 @@ class _TypeChip extends StatelessWidget {
 
   static Color inkOf(ContractClass c) => switch (c) {
     ContractClass.localNeed => StrideColors.accentStepsDim,
+    ContractClass.bounty => StrideColors.rarityRare,
+    ContractClass.regional => StrideColors.categoryQuest,
+  };
+
+  /// The same three inks at reveal strength: the layer's frame and eyebrow
+  /// for a completion of this type. An ORDER's dimmed accent is right for a
+  /// 6 px mark and wrong for a frame, so it takes the full step accent.
+  static Color rewardInkOf(ContractClass c) => switch (c) {
+    ContractClass.localNeed => StrideColors.accentSteps,
     ContractClass.bounty => StrideColors.rarityRare,
     ContractClass.regional => StrideColors.categoryQuest,
   };
@@ -413,15 +609,22 @@ class _ContractDetail extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.only(
-        top: StrideSpace.s6,
-        left: StrideSpace.s10,
-        right: StrideSpace.s10,
+      padding: const EdgeInsets.fromLTRB(
+        StrideSpace.s10,
+        StrideSpace.s8,
+        StrideSpace.s10,
+        StrideSpace.s10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(c.brief, style: StrideType.micro, maxLines: 4),
+          Text(
+            c.brief,
+            style: StrideType.micro.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+            maxLines: 4,
+          ),
           if (!c.available && c.unavailableReason != null) ...<Widget>[
             const SizedBox(height: StrideSpace.s4),
             Text(
@@ -450,36 +653,48 @@ class _ContractDetail extends StatelessWidget {
               ],
             ),
             if (rewardWords.isNotEmpty) ...<Widget>[
-              const SizedBox(height: StrideSpace.s6),
+              const SizedBox(height: StrideSpace.s8),
+              const Text('REWARD', style: StrideType.microLabel, maxLines: 1),
+              const SizedBox(height: StrideSpace.s2),
               Text(
-                'Reward: ${rewardWords.join(' · ')}',
+                rewardWords.join(' · '),
                 style: StrideType.micro.copyWith(
-                  color: StrideColors.textSecondary,
+                  color: StrideColors.textPrimary,
                 ),
               ),
             ],
-            const SizedBox(height: StrideSpace.s8),
-            Wrap(
-              spacing: StrideSpace.s8,
-              runSpacing: StrideSpace.s4,
+            const SizedBox(height: StrideSpace.s10),
+            // One game action per job, primary; Track is a utility beside
+            // it. Deliver is a real command (it spends goods) and Accept is
+            // the bounty's first step, so both take the filled control; not
+            // ready yet is the same control, disabled, never a second shape.
+            Row(
               children: <Widget>[
-                if (bounty != null && !bounty.accepted)
-                  StrideButton.secondary(
-                    label: busy ? '…' : 'Accept',
-                    onPressed: busy ? null : onAccept,
-                  )
-                else
-                  StrideButton.secondary(
-                    label: busy
-                        ? '…'
-                        : c.contractClass == ContractClass.bounty
-                        ? 'Claim'
-                        : 'Deliver',
-                    onPressed: busy || !c.canComplete ? null : onComplete,
+                Expanded(
+                  flex: 3,
+                  child: bounty != null && !bounty.accepted
+                      ? StrideButton(
+                          label: busy ? '…' : 'Accept',
+                          onPressed: busy ? null : onAccept,
+                        )
+                      : StrideButton(
+                          label: busy
+                              ? '…'
+                              : c.contractClass == ContractClass.bounty
+                              ? 'Claim'
+                              : 'Deliver',
+                          onPressed: busy || !c.canComplete
+                              ? null
+                              : onComplete,
+                        ),
+                ),
+                const SizedBox(width: StrideSpace.s8),
+                Expanded(
+                  flex: 2,
+                  child: StrideButton.secondary(
+                    label: 'Track',
+                    onPressed: busy ? null : onTrack,
                   ),
-                StrideButton.secondary(
-                  label: 'Track',
-                  onPressed: busy ? null : onTrack,
                 ),
               ],
             ),
@@ -545,14 +760,12 @@ class _ProjectTileState extends State<_ProjectTile> {
                 // project name may take two lines but never lose a character.
                 child: Text(project.name, style: StrideType.itemName),
               ),
-              Text(
-                project.isComplete
+              _StagePill(
+                label: project.isComplete
                     ? 'COMPLETE'
                     : 'STAGE ${project.currentStage + 1} / '
                           '${project.stages.length}',
-                style: StrideType.microLabel.copyWith(
-                  color: StrideColors.textSecondary,
-                ),
+                done: project.isComplete,
               ),
             ],
           ),
@@ -562,7 +775,12 @@ class _ProjectTileState extends State<_ProjectTile> {
             behavior: HitTestBehavior.opaque,
             onTap: () => setState(() => _briefOpen = !_briefOpen),
             child: Text(
-              _briefOpen ? project.brief : 'About this project ▸',
+              _briefOpen
+                  ? project.brief
+                  // No glyph: the chevron and triangle code points are not
+                  // in every face the app resolves to, and a missing glyph
+                  // is a box. A word never is.
+                  : 'About this project · more',
               style: StrideType.micro.copyWith(
                 color: _briefOpen
                     ? StrideColors.textSecondary
@@ -598,22 +816,28 @@ class _ProjectTileState extends State<_ProjectTile> {
                 ),
               ),
             ],
-            const SizedBox(height: StrideSpace.s8),
-            Wrap(
-              spacing: StrideSpace.s8,
-              runSpacing: StrideSpace.s4,
+            const SizedBox(height: StrideSpace.s10),
+            Row(
               children: <Widget>[
-                StrideButton.secondary(
-                  label: busy
-                      ? '…'
-                      : offer.isEmpty
-                      ? 'Nothing to contribute'
-                      : 'Contribute ${offer.join(', ')}',
-                  onPressed: busy ? null : widget.onContribute,
+                Expanded(
+                  flex: 3,
+                  child: StrideButton(
+                    label: busy
+                        ? '…'
+                        : offer.isEmpty
+                        ? 'Nothing to contribute'
+                        : 'Contribute',
+                    subLabel: busy || offer.isEmpty ? null : offer.join(', '),
+                    onPressed: busy ? null : widget.onContribute,
+                  ),
                 ),
-                StrideButton.secondary(
-                  label: 'Track',
-                  onPressed: busy ? null : widget.onTrack,
+                const SizedBox(width: StrideSpace.s8),
+                Expanded(
+                  flex: 2,
+                  child: StrideButton.secondary(
+                    label: 'Track',
+                    onPressed: busy ? null : widget.onTrack,
+                  ),
                 ),
               ],
             ),
@@ -627,6 +851,36 @@ class _ProjectTileState extends State<_ProjectTile> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// The project's stage, as the same restrained chip the contract rows wear
+/// for their type, so the two kinds of tile share one grammar.
+class _StagePill extends StatelessWidget {
+  const _StagePill({required this.label, required this.done});
+
+  final String label;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color ink = done ? StrideColors.textMuted : StrideColors.accentSteps;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: StrideSpace.s6,
+        vertical: 1,
+      ),
+      decoration: BoxDecoration(
+        border: Border.all(color: ink.withValues(alpha: 0.55)),
+        borderRadius: StrideRadius.chip,
+      ),
+      child: Text(
+        label,
+        style: StrideType.microLabel.copyWith(
+          color: done ? StrideColors.textMuted : StrideColors.textSecondary,
+        ),
       ),
     );
   }
@@ -778,7 +1032,9 @@ class _ProgressChip extends StatelessWidget {
   );
 }
 
-/// The held panel for a contract command's outcome.
+/// The inline panel for a contract command that is **not** a payoff: a
+/// refusal, or an acceptance. Both are bookkeeping the board answers in
+/// place; a completion never lands here (it rises in the reward layer).
 class _ContractResultPanel extends StatelessWidget {
   const _ContractResultPanel({required this.report, required this.onContinue});
 
@@ -788,75 +1044,24 @@ class _ContractResultPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!report.succeeded) {
-      return SurfaceBlock(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(report.detail ?? 'That could not be done.',
-                style: StrideType.micro),
-            const SizedBox(height: StrideSpace.s6),
-            StrideButton.secondary(label: 'OK', onPressed: onContinue),
-          ],
-        ),
+      return _InlineNotice(
+        text: report.detail ?? 'That could not be done.',
+        onDismiss: onContinue,
       );
     }
-    if (report.accepted) {
-      return SurfaceBlock(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              '${report.contractName} accepted — victories count from now.',
-              style: StrideType.body,
-            ),
-            const SizedBox(height: StrideSpace.s6),
-            StrideButton.secondary(label: 'OK', onPressed: onContinue),
-          ],
-        ),
-      );
-    }
-    return SurfaceBlock(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            '${report.contractName.toUpperCase()} COMPLETE',
-            style: StrideType.sectionHeading,
-          ),
-          const SizedBox(height: StrideSpace.s6),
-          for (final RewardLine line in report.rewardItems)
-            Text('+${line.quantity} ${line.name}', style: StrideType.body),
-          for (final SkillXpLine line in report.rewardSkillXp)
-            Text('+${line.xp} ${line.skillName} XP', style: StrideType.sub),
-          if (report.characterXp > 0)
-            Text(
-              '+${report.characterXp} Character XP'
-              '${report.levelledUp ? ' — Level ${report.levelAfter}!' : ''}',
-              style: StrideType.sub,
-            ),
-          if (report.taughtRecipeName case final String recipe)
-            Text(
-              'New recipe learned: $recipe',
-              style: StrideType.body.copyWith(color: StrideColors.textPrimary),
-            ),
-          for (final String rumor in report.revealedRumorNames)
-            Text(
-              'Rumor heard: $rumor',
-              style: StrideType.sub.copyWith(
-                color: StrideColors.textSecondary,
-              ),
-            ),
-          const SizedBox(height: StrideSpace.s8),
-          StrideButton.secondary(label: 'Continue', onPressed: onContinue),
-        ],
-      ),
+    return RewardBeat(
+      tier: RewardTier.minor,
+      eyebrow: 'ACCEPTED',
+      title: report.contractName,
+      lines: const <String>['Victories count from now.'],
+      onContinue: onContinue,
     );
   }
 }
 
-/// The held panel for a project contribution — the **major** tier on full
-/// completion (brief §70): headline, the settlement's change, and what is
-/// newly possible.
+/// The inline panel for a project contribution that finished nothing, or a
+/// refusal. A finished stage and a completed project rise in the reward
+/// layer instead.
 class _ProjectResultPanel extends StatelessWidget {
   const _ProjectResultPanel({required this.report, required this.onContinue});
 
@@ -866,87 +1071,48 @@ class _ProjectResultPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!report.succeeded) {
-      return SurfaceBlock(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(report.detail ?? 'That could not be contributed.',
-                style: StrideType.micro),
-            const SizedBox(height: StrideSpace.s6),
-            StrideButton.secondary(label: 'OK', onPressed: onContinue),
-          ],
-        ),
+      return _InlineNotice(
+        text: report.detail ?? 'That could not be contributed.',
+        onDismiss: onContinue,
       );
     }
-
-    if (report.projectCompleted) {
-      return SurfaceBlock(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              report.completionHeadline ??
-                  '${report.projectName.toUpperCase()} COMPLETE',
-              style: StrideType.sectionHeading.copyWith(
-                color: StrideColors.textPrimary,
-              ),
-            ),
-            if (report.developmentChanged) ...<Widget>[
-              const SizedBox(height: StrideSpace.s6),
-              Text(
-                '${report.developmentBefore} → ${report.developmentAfter}',
-                style: StrideType.body,
-              ),
-            ],
-            if (report.characterXp > 0) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              Text(
-                '+${report.characterXp} Character XP'
-                '${report.levelledUp ? ' — Level ${report.levelAfter}!' : ''}',
-                style: StrideType.sub,
-              ),
-            ],
-            for (final String rumor in report.revealedRumorNames) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              Text(
-                'Rumor heard: $rumor',
-                style: StrideType.sub.copyWith(
-                  color: StrideColors.textSecondary,
-                ),
-              ),
-            ],
-            const SizedBox(height: StrideSpace.s8),
-            StrideButton(label: 'Continue', onPressed: onContinue),
-          ],
-        ),
-      );
-    }
-
-    return SurfaceBlock(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            report.stageCompleted
-                ? '${report.stageName.toUpperCase()} COMPLETE'
-                : 'Contributed to ${report.projectName}',
-            style: report.stageCompleted
-                ? StrideType.sectionHeading
-                : StrideType.body,
-          ),
-          const SizedBox(height: StrideSpace.s4),
-          for (final RewardLine line in report.contributed)
-            Text('−${line.quantity} ${line.name}', style: StrideType.sub),
-          if (report.characterXp > 0)
-            Text(
-              '+${report.characterXp} Character XP'
-              '${report.levelledUp ? ' — Level ${report.levelAfter}!' : ''}',
-              style: StrideType.sub,
-            ),
-          const SizedBox(height: StrideSpace.s8),
-          StrideButton.secondary(label: 'Continue', onPressed: onContinue),
-        ],
-      ),
+    return RewardBeat(
+      tier: RewardTier.minor,
+      eyebrow: 'CONTRIBUTED',
+      title: report.projectName,
+      lines: <String>[
+        for (final RewardLine line in report.contributed)
+          '${line.name} ×${line.quantity}',
+        if (report.characterXp > 0) '+${report.characterXp} Character XP',
+      ],
+      onContinue: onContinue,
     );
   }
+}
+
+/// A refusal, in place: one line and a way to clear it.
+class _InlineNotice extends StatelessWidget {
+  const _InlineNotice({required this.text, required this.onDismiss});
+
+  final String text;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) => SurfaceBlock(
+    child: Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            text,
+            style: StrideType.micro.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+            maxLines: 3,
+          ),
+        ),
+        const SizedBox(width: StrideSpace.s8),
+        StrideButton.secondary(label: 'OK', onPressed: onDismiss),
+      ],
+    ),
+  );
 }

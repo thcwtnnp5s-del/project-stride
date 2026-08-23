@@ -296,7 +296,7 @@ void main() {
     // The panel itemises: the fall, the experience on its own ground under
     // its own label, and one framed row per drop (the log keeps its one-line
     // form). `test/rarity_ui_test.dart` owns the row's anatomy.
-    expect(find.text('Forest Wolf falls.'), findsOneWidget);
+    expect(find.text('Forest Wolf falls'), findsOneWidget);
     expect(find.text('EXPERIENCE'), findsOneWidget);
     expect(find.text('+30 XP'), findsOneWidget);
     // Drops are chance-rolled now (Exploration & Progression Loop 01), so the

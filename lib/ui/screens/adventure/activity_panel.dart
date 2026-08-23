@@ -24,6 +24,7 @@ import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/reward_beat.dart';
+import '../../components/reward_layer.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
@@ -481,7 +482,32 @@ class _GatherControl extends StatelessWidget {
         : null;
     final bool summaryHere = activity.summaryNode == node.id;
 
-    return Column(
+    // A level gained — by the queue, or by a single gather — is a MEDIUM
+    // result and rises in the reward layer (PLAYABLE_POLISH_01 §4); the
+    // strip beneath then shows nothing of it. The queue's token is its
+    // finished figures (the controller holds one summary at a time); a
+    // single gather's is its report.
+    final bool queueHeld = summaryHere && activity.levelledUp;
+    final bool reportHeld = !summaryHere && report != null && report.levelledUp;
+    final Object? heldToken = queueHeld
+        ? 'queue:${node.id.value}:${activity.completed}:${activity.skillLevelAfter}'
+        : reportHeld
+        ? report
+        : null;
+
+    return RewardRaise(
+      token: heldToken,
+      tier: RewardTier.medium,
+      accent: StrideColors.forSkill(node.skill),
+      beats: queueHeld
+          ? _QueueSummaryStrip.heldBeats(activity, node.skill)
+          : reportHeld
+          ? _ResultStrip.heldBeats(report, node.skill)
+          : const <Widget>[],
+      onDismiss: queueHeld
+          ? ActivityScope.read(context).dismissSummary
+          : () {},
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         StrideButton(
@@ -502,14 +528,15 @@ class _GatherControl extends StatelessWidget {
         // The finished queue's summary takes the strip while it lives; a lone
         // report (the last repetition's) only shows when no summary does, so
         // the same fact is never printed twice.
-        if (summaryHere) ...<Widget>[
+        if (summaryHere && !queueHeld) ...<Widget>[
           const SizedBox(height: StrideSpace.s8),
           _QueueSummaryStrip(activity: activity, skill: node.skill),
-        ] else if (report != null) ...<Widget>[
+        ] else if (report != null && !reportHeld) ...<Widget>[
           const SizedBox(height: StrideSpace.s8),
           _ResultStrip(report: report, skill: node.skill),
         ],
       ],
+      ),
     );
   }
 }
@@ -758,26 +785,41 @@ class _QueueSummaryStrip extends StatelessWidget {
             title: title,
             lines: lines,
           ),
-        if (activity.levelledUp)
-          LevelUpCard(
-            name: skillName ?? '',
-            level: activity.skillLevelAfter ?? 0,
-            skill: skill,
-            unlocked: activity.unlockedNames,
-            why: activity.unlockedNames.isEmpty
-                ? null
-                : 'Richer sites and recipes are open to you',
-          ),
-        if (activity.levelledUp)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: StrideButton.secondary(
-              label: 'OK',
-              onPressed: ActivityScope.read(context).dismissSummary,
-            ),
-          ),
       ],
     );
+  }
+
+  /// The layer's beats for a queue that crossed a level: the completion
+  /// beat, the item row, and the universal level-up.
+  static List<Widget> heldBeats(ActivityController activity, ContentId skill) {
+    final String item = activity.gainedItemName ?? 'Items';
+    final String? skillName = activity.gainedSkillName;
+    final int done = activity.completed;
+    final AwaySummary? away = activity.awaySummary;
+    return <Widget>[
+      RewardBeat(
+        tier: RewardTier.medium,
+        eyebrow: 'GATHERING COMPLETE',
+        title: '$done ${done == 1 ? 'repetition' : 'repetitions'} completed',
+        accent: StrideColors.forSkill(skill),
+        lines: <String>[
+          if (activity.gainedQuantity > 0) '$item ×${activity.gainedQuantity}',
+          if (skillName != null && activity.gainedXp > 0)
+            '+${activity.gainedXp} $skillName XP',
+          if (away != null && away.quantity > 0)
+            '${away.quantity} ${away.itemName ?? item} gathered while away',
+        ],
+      ),
+      LevelUpCard(
+        name: skillName ?? '',
+        level: activity.skillLevelAfter ?? 0,
+        skill: skill,
+        unlocked: activity.unlockedNames,
+        why: activity.unlockedNames.isEmpty
+            ? null
+            : 'Richer sites and recipes are open to you',
+      ),
+    ];
   }
 }
 
@@ -819,18 +861,34 @@ class _ResultStrip extends StatelessWidget {
             if (skillName != null && xp != null) '+$xp $skillName XP',
           ],
         ),
-        if (report.levelledUp)
-          LevelUpCard(
-            name: skillName ?? '',
-            level: report.skillLevelAfter ?? 0,
-            skill: skill,
-            unlocked: report.unlockedNames,
-            why: report.unlockedNames.isEmpty
-                ? null
-                : 'Richer sites and recipes are open to you',
-          ),
       ],
     );
+  }
+
+  /// The layer's beats for a single gather that crossed a level.
+  static List<Widget> heldBeats(ActionReport report, ContentId skill) {
+    final String item = report.itemName ?? 'items';
+    final String? skillName = report.skillName;
+    final int? xp = report.experience;
+    return <Widget>[
+      RewardBeat(
+        tier: RewardTier.minor,
+        eyebrow: 'GATHERED',
+        title: '$item ×${report.quantity ?? 0}',
+        lines: <String>[
+          if (skillName != null && xp != null) '+$xp $skillName XP',
+        ],
+      ),
+      LevelUpCard(
+        name: skillName ?? '',
+        level: report.skillLevelAfter ?? 0,
+        skill: skill,
+        unlocked: report.unlockedNames,
+        why: report.unlockedNames.isEmpty
+            ? null
+            : 'Richer sites and recipes are open to you',
+      ),
+    ];
   }
 }
 

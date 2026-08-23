@@ -34,6 +34,7 @@ import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
 import '../../components/reward_beat.dart';
+import '../../components/reward_layer.dart';
 import '../../components/surfaces.dart';
 import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
@@ -42,6 +43,7 @@ import '../../components/ambient_stage.dart';
 import '../../state/craft_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
+import '../../theme/rarity_style.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
@@ -105,7 +107,25 @@ class _CraftScreenState extends State<CraftScreen> {
               .toList();
     final int ready = shown.where((RecipeOption r) => r.canCraft).length;
 
-    return ListView(
+    // A held summary — finished equipment, or a level gained — rises over
+    // the screen in the reward layer (PLAYABLE_POLISH_01 §4) and is what
+    // Continue acknowledges; the recipe detail beneath shows nothing of it.
+    final RecipeOption? pinnedRecipe = pinned == null
+        ? null
+        : recipes.cast<RecipeOption?>().firstWhere(
+            (RecipeOption? r) => r!.id == pinned,
+            orElse: () => null,
+          );
+    final bool held = craft.summaryHeld && pinnedRecipe != null;
+
+    return RewardRaise(
+      token: held ? craft.lastReport : null,
+      tier: RewardTier.medium,
+      accent: held ? _CraftSummary.heldAccent(craft, pinnedRecipe) : null,
+      beats: held ? _CraftSummary.heldBeats(context, craft, pinnedRecipe) : const <Widget>[],
+      trailing: held ? _CraftSummary.equipControl(context, craft, pinnedRecipe) : null,
+      onDismiss: CraftScope.read(context).dismissSummary,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(
         StrideSpace.screenGutter,
         StrideSpace.s12,
@@ -164,6 +184,7 @@ class _CraftScreenState extends State<CraftScreen> {
           const SizedBox(height: StrideSpace.s6),
         ],
       ],
+      ),
     );
   }
 }
@@ -732,10 +753,7 @@ class _CraftSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final SessionController controller = SessionScope.of(context);
     final CraftReport? refusal = craft.stopReport;
-    final CraftReport? last = craft.lastReport;
-    final EquipDelta? delta = last?.equipDelta;
 
     if (craft.quantity == 0 && refusal != null) {
       return SurfaceBlock(
@@ -748,62 +766,95 @@ class _CraftSummary extends StatelessWidget {
     }
     if (craft.quantity == 0) return const SizedBox.shrink();
 
+    // A held summary is the reward layer's (PLAYABLE_POLISH_01 §4); the
+    // card beneath the scrim shows nothing of it, so the result is read
+    // exactly once, in one place.
+    if (craft.summaryHeld) return const SizedBox.shrink();
+
     final String skillName = craft.skillName ?? recipe.skillName;
     final String xpLine = '+${craft.xp} $skillName XP';
-    final bool held = craft.summaryHeld;
 
-    final Widget crafted = delta != null && last != null
-        // MEDIUM — finished equipment: the name in its rarity, the stat story
-        // against what is worn, and Equip right there.
-        ? RewardBeat(
-            tier: RewardTier.medium,
-            eyebrow: 'CRAFTED',
-            title: last.outputName ?? recipe.outputName,
-            rarity: recipe.outputRarity,
-            lines: <String>[
-              '${delta.statName}  ${delta.before} → ${delta.after}',
-              xpLine,
-            ],
-            child: StrideButton(
-              label: 'Equip',
-              onPressed: controller.busy
-                  ? null
-                  : () => SessionScope.read(context).equip(recipe.outputItem),
-            ),
-          )
-        // MINOR — components and food: the brief, truthful beat.
-        : RewardBeat(
-            tier: RewardTier.minor,
-            eyebrow: 'CRAFTED',
-            title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
-            lines: <String>[
-              xpLine,
-              if (refusal != null) 'Stopped: ${_refusalText(refusal)}',
-            ],
-          );
-
+    // MINOR — components and food: the brief, truthful beat, on the timer.
     return StaggeredReveal(
       children: <Widget>[
-        crafted,
-        if (last != null && last.levelledUp)
-          LevelUpCard(
-            name: last.skillName ?? skillName,
-            level: last.skillLevelAfter ?? 0,
-            skill: recipe.skill,
-            unlocked: last.unlockedNames,
-            why: last.unlockedNames.isEmpty
-                ? null
-                : 'New work is ready at the bench',
-          ),
-        if (held)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: StrideButton.secondary(
-              label: 'OK',
-              onPressed: CraftScope.read(context).dismissSummary,
-            ),
-          ),
+        RewardBeat(
+          tier: RewardTier.minor,
+          eyebrow: 'CRAFTED',
+          title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
+          lines: <String>[
+            xpLine,
+            if (refusal != null) 'Stopped: ${_refusalText(refusal)}',
+          ],
+        ),
       ],
+    );
+  }
+
+  /// The layer's frame: the item's rarity for finished equipment, the
+  /// skill's hue for a level gained on a component run.
+  static Color heldAccent(CraftController craft, RecipeOption recipe) =>
+      craft.lastReport?.equipDelta != null
+      ? (RarityStyle.maybe(recipe.outputRarity)?.accent ??
+            StrideColors.forSkill(recipe.skill))
+      : StrideColors.forSkill(recipe.skill);
+
+  /// The beats a held craft summary raises: MEDIUM for finished equipment
+  /// — the name in its rarity, the stat story against what is worn — or the
+  /// MINOR crafted line when only the level-up made it held, and the
+  /// universal [LevelUpCard] beneath when a level landed.
+  static List<Widget> heldBeats(
+    BuildContext context,
+    CraftController craft,
+    RecipeOption recipe,
+  ) {
+    final CraftReport? last = craft.lastReport;
+    final EquipDelta? delta = last?.equipDelta;
+    final String skillName = craft.skillName ?? recipe.skillName;
+    final String xpLine = '+${craft.xp} $skillName XP';
+    return <Widget>[
+      if (delta != null && last != null)
+        RewardBeat(
+          tier: RewardTier.medium,
+          eyebrow: 'CRAFTED',
+          title: last.outputName ?? recipe.outputName,
+          rarity: recipe.outputRarity,
+          lines: <String>[
+            '${delta.statName}  ${delta.before} → ${delta.after}',
+            xpLine,
+          ],
+        )
+      else
+        RewardBeat(
+          tier: RewardTier.minor,
+          eyebrow: 'CRAFTED',
+          title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
+          lines: <String>[xpLine],
+        ),
+      if (last != null && last.levelledUp)
+        LevelUpCard(
+          name: last.skillName ?? skillName,
+          level: last.skillLevelAfter ?? 0,
+          skill: recipe.skill,
+          unlocked: last.unlockedNames,
+          why: last.unlockedNames.isEmpty
+              ? null
+              : 'New work is ready at the bench',
+        ),
+    ];
+  }
+
+  /// Equip, beside Continue, for finished equipment only. Dispatches the
+  /// unchanged equip command; the layer stays up until Continue, so the
+  /// player can equip and then read the rest.
+  static Widget? equipControl(
+    BuildContext context,
+    CraftController craft,
+    RecipeOption recipe,
+  ) {
+    if (craft.lastReport?.equipDelta == null) return null;
+    return StrideButton.secondary(
+      label: 'Equip',
+      onPressed: () => SessionScope.read(context).equip(recipe.outputItem),
     );
   }
 

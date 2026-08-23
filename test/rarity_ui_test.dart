@@ -443,7 +443,7 @@ void main() {
       );
 
       expect(find.text('VICTORY'), findsOneWidget);
-      expect(find.text('Forest Wolf falls.'), findsOneWidget);
+      expect(find.text('Forest Wolf falls'), findsOneWidget);
       // The experience is separated from the rewards, under its own label.
       expect(find.text('EXPERIENCE'), findsOneWidget);
       expect(find.text('+30 XP'), findsOneWidget);
