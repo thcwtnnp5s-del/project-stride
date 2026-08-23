@@ -254,6 +254,7 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'damage': event.damage,
     'enemyHpAfter': event.enemyHpAfter,
     'turn': event.turn,
+    'roll': event.roll,
   },
   CombatConsumableUsed() => <String, Object?>{
     't': 'CombatConsumableUsed',
@@ -271,6 +272,7 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'turn': event.turn,
     'heavy': event.heavy,
     'strikeIndex': event.strikeIndex,
+    'roll': event.roll,
   },
   CombatRoundEnded() => <String, Object?>{
     't': 'CombatRoundEnded',
@@ -855,11 +857,17 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
       final int? turn = i('turn');
       if (damage == null || after == null || turn == null) return null;
       if (damage < 0 || after < 0 || turn < 1) return null;
+      // `roll` arrived with PLAYABLE_POLISH_01; a record without it was
+      // written before the blow's quality was recorded, and `0` — an even
+      // blow — is the honest reading of a figure nobody kept.
+      final int roll = i('roll') ?? 0;
+      if (roll < -1 || roll > 1) return null;
       return CombatPlayerStruck(
         sequence: seq,
         damage: damage,
         enemyHpAfter: after,
         turn: turn,
+        roll: roll,
       );
 
     case 'CombatConsumableUsed':
@@ -887,6 +895,8 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
       if (damage == null || after == null || turn == null) return null;
       if (damage < 0 || after < 0 || turn < 1) return null;
       if (strikeIndex == null || strikeIndex < 0) return null;
+      final int roll = i('roll') ?? 0;
+      if (roll < -1 || roll > 1) return null;
       return CombatEnemyStruck(
         sequence: seq,
         damage: damage,
@@ -894,6 +904,7 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         turn: turn,
         heavy: b('heavy'),
         strikeIndex: strikeIndex,
+        roll: roll,
       );
 
     case 'CombatRoundEnded':

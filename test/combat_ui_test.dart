@@ -275,9 +275,19 @@ void main() {
     expect(find.text('${v.enemyHp} / 20'), findsOneWidget);
     expect(find.text('${v.playerHp} / 40'), findsOneWidget);
     expect(find.text('20 / 20'), findsNothing, reason: 'the wolf was hit');
-    // The log narrates the round from the report, not from state.
-    expect(find.textContaining('You strike for'), findsOneWidget);
-    expect(find.textContaining('Forest Wolf strikes for'), findsNWidgets(2));
+    // The log narrates the round from the report, not from state — and
+    // names the blow's quality from the event's own roll
+    // (PLAYABLE_POLISH_01 §8): one of three phrasings each way.
+    expect(
+      find.textContaining(RegExp(r'^(You strike|A strong hit|A glancing blow) for [0-9]+')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        RegExp(r'^Forest Wolf (strikes|hits hard|grazes you) for [0-9]+'),
+      ),
+      findsNWidgets(2),
+    );
 
     // Fight on through the controller until it resolves.
     final SessionController c = controller();

@@ -1260,11 +1260,27 @@ final class EncounterStartedBeat extends CombatBeat {
 }
 
 /// The player hit the enemy.
+/// How a blow landed, from its roll: the one word the narration and the
+/// stage can say about it (PLAYABLE_POLISH_01 §8). Derived from the
+/// committed event's own roll, never re-rolled.
+enum StrikeQuality { weak, even, strong }
+
+StrikeQuality _qualityOf(int roll) => switch (roll) {
+  < 0 => StrikeQuality.weak,
+  > 0 => StrikeQuality.strong,
+  _ => StrikeQuality.even,
+};
+
 final class PlayerStruckBeat extends CombatBeat {
-  const PlayerStruckBeat({required this.damage, required this.enemyHpAfter});
+  const PlayerStruckBeat({
+    required this.damage,
+    required this.enemyHpAfter,
+    this.quality = StrikeQuality.even,
+  });
 
   final int damage;
   final int enemyHpAfter;
+  final StrikeQuality quality;
 }
 
 /// The player ate. Exactly one of the item left the inventory.
@@ -1290,12 +1306,14 @@ final class EnemyStruckBeat extends CombatBeat {
     required this.playerHpAfter,
     required this.heavy,
     required this.strikeIndex,
+    this.quality = StrikeQuality.even,
   });
 
   final int damage;
   final int playerHpAfter;
   final bool heavy;
   final int strikeIndex;
+  final StrikeQuality quality;
 }
 
 /// The round is over and the fight goes on. [turn] is the turn the player is
@@ -3139,6 +3157,7 @@ final class StrideSession {
       CombatPlayerStruck() => PlayerStruckBeat(
         damage: event.damage,
         enemyHpAfter: event.enemyHpAfter,
+        quality: _qualityOf(event.roll),
       ),
       CombatConsumableUsed() => ConsumableUsedBeat(
         itemName: itemName(event.item),
@@ -3150,6 +3169,7 @@ final class StrideSession {
         playerHpAfter: event.playerHpAfter,
         heavy: event.heavy,
         strikeIndex: event.strikeIndex,
+        quality: _qualityOf(event.roll),
       ),
       CombatRoundEnded() => RoundEndedBeat(
         turn: event.turn,

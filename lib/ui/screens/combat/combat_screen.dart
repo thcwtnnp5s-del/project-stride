@@ -289,12 +289,22 @@ String describeBeat(CombatBeat b, String enemy) => switch (b) {
     'The fight begins. ${b.enemyName} ${b.enemyHp} / ${b.enemyMaxHp}, '
         'you ${b.playerHp} / ${b.playerMaxHp}.',
   PlayerStruckBeat() =>
-    'You strike for ${b.damage}. $enemy is at ${b.enemyHpAfter}.',
+    '${switch (b.quality) {
+      StrikeQuality.strong => 'A strong hit',
+      StrikeQuality.weak => 'A glancing blow',
+      StrikeQuality.even => 'You strike',
+    }} for ${b.damage}. $enemy is at ${b.enemyHpAfter}.',
   ConsumableUsedBeat() =>
     'You eat ${b.itemName} and recover ${b.healed}. '
         'You are at ${b.playerHpAfter}.',
   EnemyStruckBeat() =>
-    '$enemy ${b.heavy ? 'lands a heavy blow' : 'strikes'} for ${b.damage}. '
+    '$enemy ${b.heavy
+        ? 'lands a heavy blow'
+        : switch (b.quality) {
+            StrikeQuality.strong => 'hits hard',
+            StrikeQuality.weak => 'grazes you',
+            StrikeQuality.even => 'strikes',
+          }} for ${b.damage}. '
         'You are at ${b.playerHpAfter}.',
   RoundEndedBeat() =>
     b.telegraph

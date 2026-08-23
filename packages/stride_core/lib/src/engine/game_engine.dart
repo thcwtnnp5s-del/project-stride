@@ -310,10 +310,15 @@ final class GameEngine {
     int sequence = state.eventSequence;
     final int turn = encounter.turn;
 
+    final int roll = CombatRules.roll(
+      encounter.seed,
+      turn,
+      CombatRules.playerStrikeSalt,
+    );
     final int damage = CombatRules.strike(
       encounter.playerAttack,
       enemy.defence,
-      CombatRules.roll(encounter.seed, turn, CombatRules.playerStrikeSalt),
+      roll,
     );
     final int enemyHpAfter = encounter.enemyHp - damage < 0
         ? 0
@@ -324,6 +329,7 @@ final class GameEngine {
         damage: damage,
         enemyHpAfter: enemyHpAfter,
         turn: turn,
+        roll: roll,
       ),
     );
 
@@ -546,17 +552,16 @@ final class GameEngine {
 
     int hp = playerHp;
     for (int i = 0; i < strikes; i++) {
+      final int roll = heavy
+          ? 0
+          : CombatRules.roll(
+              encounter.seed,
+              turn,
+              CombatRules.enemyStrikeSalt + i,
+            );
       int damage = heavy
           ? CombatRules.heavyStrike(enemy.attack, encounter.playerDefence)
-          : CombatRules.strike(
-              enemy.attack,
-              encounter.playerDefence,
-              CombatRules.roll(
-                encounter.seed,
-                turn,
-                CombatRules.enemyStrikeSalt + i,
-              ),
-            );
+          : CombatRules.strike(enemy.attack, encounter.playerDefence, roll);
       if (frostGuard > 0) {
         damage = damage - frostGuard < 1 ? 1 : damage - frostGuard;
       }
@@ -569,6 +574,7 @@ final class GameEngine {
           turn: turn,
           heavy: heavy,
           strikeIndex: i,
+          roll: roll,
         ),
       );
       if (hp == 0) {

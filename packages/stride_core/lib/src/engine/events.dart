@@ -751,11 +751,18 @@ final class CombatPlayerStruck extends GameEvent {
     required this.damage,
     required this.enemyHpAfter,
     required this.turn,
+    this.roll = 0,
   });
 
   final int damage;
   final int enemyHpAfter;
   final int turn;
+
+  /// The strike's roll, −1, 0 or +1 (`CombatRules.roll`) — the one figure
+  /// that made this blow weak, even or strong. Recorded so the presentation
+  /// can say so (PLAYABLE_POLISH_01 §8) without re-deriving it; `0` in a
+  /// journal record written before the field existed.
+  final int roll;
 
   @override
   String get name => 'CombatPlayerStruck';
@@ -794,6 +801,7 @@ final class CombatEnemyStruck extends GameEvent {
     required this.turn,
     required this.heavy,
     required this.strikeIndex,
+    this.roll = 0,
   });
 
   final int damage;
@@ -801,6 +809,10 @@ final class CombatEnemyStruck extends GameEvent {
   final int turn;
   final bool heavy;
   final int strikeIndex;
+
+  /// The strike's roll, as on [CombatPlayerStruck.roll]. Always `0` for a
+  /// heavy strike, which rolls nothing.
+  final int roll;
 
   @override
   String get name => 'CombatEnemyStruck';
