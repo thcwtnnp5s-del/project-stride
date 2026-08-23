@@ -1041,13 +1041,39 @@ for (const id of ['station_forge', 'station_cookfire']) {
  * `GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/out/stage/README.md`.
  */
 const PWRF_STAGE_SRC = path.join(PWRF, 'stage');
+// PLAYABLE_EXPERIENCE_REFINEMENT_01 §6: the mining and woodcutting backdrops
+// were re-authored for region identity (the owner's device found the first
+// mining plate "a test chamber"). Provenance, the rejected candidates and
+// the reason the mining plate ships mirrored are in the source README.
+const PER01_STAGE_SRC = path.join(
+  EXPLORE,
+  'PLAYABLE_EXPERIENCE_REFINEMENT_01',
+  'out',
+  'stage',
+);
+/** A horizontal mirror: a deterministic transform that invents nothing (A-2). */
+function flipX(src) {
+  const out = new png.Raster(src.width, src.height);
+  for (let y = 0; y < src.height; y++) {
+    for (let x = 0; x < src.width; x++) {
+      const from = src.idx(x, y);
+      const to = out.idx(src.width - 1 - x, y);
+      out.data[to] = src.data[from];
+      out.data[to + 1] = src.data[from + 1];
+      out.data[to + 2] = src.data[from + 2];
+      out.data[to + 3] = src.data[from + 3];
+    }
+  }
+  return out;
+}
 const WORK_BACKDROPS = {
-  mining: 'work_mining_b_0',
-  woodcutting: 'work_woodcutting_0',
-  foraging: 'work_foraging_0',
+  mining: { dir: PER01_STAGE_SRC, src: 'mine_rock_s7', flip: false },
+  woodcutting: { dir: PER01_STAGE_SRC, src: 'woods_open_s7', flip: false },
+  foraging: { dir: PWRF_STAGE_SRC, src: 'work_foraging_0', flip: false },
 };
-for (const [id, src] of Object.entries(WORK_BACKDROPS)) {
-  const raster = png.load(path.join(PWRF_STAGE_SRC, `${src}.png`));
+for (const [id, { dir, src, flip }] of Object.entries(WORK_BACKDROPS)) {
+  let raster = png.load(path.join(dir, `${src}.png`));
+  if (flip) raster = flipX(raster);
   if (raster.width !== 384 || raster.height !== 176) {
     throw new Error(
       `work ${id}: expected 384x176, got ${raster.width}x${raster.height}`,

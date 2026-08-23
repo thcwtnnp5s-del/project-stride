@@ -195,3 +195,6 @@ GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.png
 
 # Per-machine iOS signing team (DEVELOPMENT_TEAM). TECHNICAL/IOS_DEVICE_INSTALL.md.
 ios/Flutter/Local.xcconfig
+
+# Playable Experience Refinement 01 — accepted stage art and its candidates
+!GAME_BIBLE/ART/exploration/PLAYABLE_EXPERIENCE_REFINEMENT_01/out/**
