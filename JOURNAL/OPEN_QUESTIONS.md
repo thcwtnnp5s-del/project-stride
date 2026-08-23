@@ -722,3 +722,103 @@ Options:
 Recommendation: 3, as a `stride_health` adapter change under its own
 decision, after the owner confirms on device that two sources are present.
 Not a refinement-milestone change: it touches the H-1/H-3 boundary.
+
+## Q-09 — Combat variability: widen the roll, or roll a visible die?
+
+**Raised:** 2026-08-23, Playable Polish 01 (`MILESTONES/PLAYABLE_POLISH_01.md`
+§8). **UNRESOLVED** — owner decision; a design note, not an implementation.
+
+The owner found combat "a little too predetermined". The strike roll is
+−1/0/+1 on `attack − defence` (`CombatRules.strike`), which at early figures
+(attack 3 against defence 1–2) is a 1–3 spread and at bronze (9 against 2–4)
+is 4–8: real, but invisible, because nothing said which blow had rolled
+what. Playable Polish 01 made the roll **visible** — the event records it and
+the log says *strong hit / glancing blow / hits hard / grazes you* — and
+changed no figure.
+
+Options, in rising order of change:
+
+1. **Keep the arithmetic; keep the words.** Done. Cheapest, and honest to
+   the existing balance.
+2. **Widen the roll to −2..+2**, floored at 1 as today. One constant
+   (`CombatRules.roll` → `% 5 − 2`); every fight re-seeds the same way, so
+   the test fixtures' scripted fights change and `combat_stage_test`'s
+   "strikes for 7 / back for 4" round is re-authored. Needs a balance pass
+   on the four enemies' HP.
+3. **A visible d20-style check**: `roll(1..20) + attack ≥ 10 + defence`
+   decides *hit*, margin decides *weak / hit / strong* (×0.5 / ×1 / ×1.5 of
+   `attack`), with the die shown on the stage before the blow lands. This is
+   the owner's stated future direction. It changes the combat model
+   (`DECISIONS/0020` locked hit-always-lands), introduces a miss, and needs
+   its own decision, its own balance, and a stage beat for the die. The
+   seeded resolver already produces 0..99 deterministically
+   (`CombatRules.percentRoll`), so the *engine* cost is small; the design
+   and presentation cost is not.
+
+Recommendation: 1 for this build; decide 2 vs 3 after a device playtest
+with the words in. If 3, write `DECISIONS/0026` first.
+
+## Q-10 — A banked-steps cap and combat energy
+
+**Raised:** 2026-08-23, Playable Polish 01 (§10). **UNRESOLVED** — owner
+direction exists; implementation deferred by the owner's own priority
+order ("the polish pass above is more important than forcing this in
+half-finished").
+
+Direction as given: banked steps cap at 5,000; a combat energy of 0–5;
++1 energy per 1,000 newly walked steps; energy refills only from new
+walking; a fight spends 1; at 5 a spent point is refilled by the next
+1,000 walked.
+
+What it touches, concretely:
+
+- **Model.** `StepLedger` today has no cap: `banked` is a difference of
+  counters. A cap is a *spend path* question, not a grant one — H-2 forbids
+  lowering `totalGranted` and P-5 forbids decay. The clean shape is a
+  **third counter**, `totalForfeited` (steps granted above the cap at the
+  moment of grant), with `banked = grantedThisEpoch − spentThisEpoch −
+  forfeitedThisEpoch`, capped at grant time by the reconciler: a grant that
+  would carry `banked` past 5,000 credits `totalGranted` in full (the
+  lifetime figure is honest) and forfeits the excess. Forfeit is recorded,
+  never hidden, and is the one place P-5 needs a decision: "absence is never
+  punished" — walking 12,000 in a day and keeping 5,000 is a cap, not a
+  decay, but it needs saying in an ADR. State version 10.
+- **Combat energy.** A second ledger-derived figure: `energy = min(5,
+  floor(grantedSinceEnergyMark / 1000) − energySpent)`, with
+  `energyMarkGranted` and `energySpent` on the ledger so it survives a
+  relaunch and never comes from the clock. `StartEncounter` refuses at 0
+  (`RejectionCode.noCombatEnergy`, a new code) and spends 1 on acceptance.
+  Refill "only from new walking" is automatic: the figure reads off
+  `totalGranted`, which only walking moves.
+- **Economy interplay.** Gathering, crafting and travel keep spending
+  `banked` exactly as today; energy is a separate gate on fights only, so
+  nothing the owner found readable changes meaning. The cap is the one
+  thing that alters a walk's value, and only above 5,000 banked.
+- **UI.** The step band gains the energy pips (five marks, the step accent
+  filled, dim unfilled — the same accent rule as the banked figure; no new
+  hue) and the banked figure shows `4,200 / 5,000` at the cap's approach;
+  the encounter row's Start control reads `Start — 1 energy` and the
+  refusal says `Walk 1,000 more steps for another fight`.
+- **Tests.** The reconciler's cap arithmetic (grant in full, forfeit the
+  excess, never below zero); energy across relaunch; the refusal; the
+  sync-highlight banner saying `+1 combat energy` when a sync crosses a
+  thousand.
+
+Estimated at one focused session once the ADR is written. Not started.
+
+## Q-11 — Random encounters on travel
+
+**Raised:** 2026-08-23, Playable Polish 01 (§9). **UNRESOLVED** — future
+design note only; no scaffolding was added.
+
+Travel is one confirmed multi-leg journey with an arrival trace
+(`DECISIONS/0023`). An interruption — an enemy on the road, an NPC request,
+a small event — would be a new event kind between `TravelTo`'s acceptance
+and the arrival, seeded from the event sequence and the route
+(`CombatRules.seedFor` is the pattern), with the journey's steps already
+spent and never refunded (P-7: nothing is lost). The clean seam is the
+travel command's event list: an `EncounterOffered(location, enemy | npc |
+event)` before `Travelled`, presented by the existing encounter card on
+arrival. Content-declared per route, deterministic per journey, never
+time-triggered. Needs a World Designer pass on what the road can offer
+before any code.

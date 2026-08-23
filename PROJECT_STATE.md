@@ -1,5 +1,45 @@
 # Project Stride — Project State
 
+**Version:** 2.15
+**Status:** 🚧 **PLAYABLE POLISH 01 — implementation complete, not pushed,
+awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, five commits on top of Playable Experience
+Refinement 01 (`1880d5d`). Record: `MILESTONES/PLAYABLE_POLISH_01.md`;
+decision `DECISIONS/0025_PLAYTEST_RESET.md`; open questions Q-09, Q-10,
+Q-11.
+
+The owner's polish brief, in its own order. In one breath: the **mining
+loop was backward** — the PixelLab source struck behind the figure and the
+stage had placed the seam behind him to match; re-authored through
+PixelLab, the miner now faces the seam and every profession works west
+(`f9321c9`). The **three ore seams** are three generations, not one
+boulder with a swapped patch — copper warm, tin silver, hardened dense and
+dark. A **reward layer** (`reward_layer.dart`) now carries every MEDIUM and
+MAJOR payoff — a delivery, a bounty, a contract, a project stage or
+completion, finished equipment, a level, victory and defeat — as a scrim
+and a framed panel above the surface that earned it, held until Continue;
+the Goal Board beneath is one block per open job with Deliver filled
+beside Track (`2cd2d35`). **Gear is evaluable at a glance**:
+`gearStatsOf` gives the tile `ATK 9 +6` and the bench a block with the
+worn piece, the verdict and the passives (`eeb26fc`). The **playtest
+reset** (`DECISIONS/0025`, state v9) is the owner's confirmed command on
+the Character tab: Banked Steps and Total Walked start again from zero,
+with or without a fresh game, while `totalGranted`, the slices, the
+watermarks and the cursor are untouched — proven through the real session
+that re-delivered history grants zero after a reset and across a relaunch
+(`39de384`). The **blow's quality** is recorded and said in the combat log
+with no figure changed (`1e8dc1c`). The bank cap and combat energy (Q-10),
+the roll spread and D20 (Q-09) and road encounters (Q-11) are written up
+as concrete plans and deliberately not started.
+
+Suites: app **623**, `stride_core` **695**, `stride_health` **143**,
+`stride_storage` **108**; analyze and every guard clean; goldens
+regenerated and reviewed. Nothing in the health adapters changed; no
+economy re-basing ran; one schema change (v9), asked for by name.
+Open: Q-06, Q-07 remainder, Q-08, **Q-09, Q-10, Q-11**, OD-04, OD-06.
+
+---
+
 **Version:** 2.14
 **Status:** 🚧 **PLAYABLE EXPERIENCE REFINEMENT 01 — implementation complete,
 awaiting the owner's physical-device test and the §0 confirmation.** Branch
