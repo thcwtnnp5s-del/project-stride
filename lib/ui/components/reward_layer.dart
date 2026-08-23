@@ -102,6 +102,24 @@ Future<void> showRewardLayer(
   );
 }
 
+/// A hairline above a beat that follows another, so the layer reads as one
+/// sheet of facts rather than a stack of boxes.
+class _Ruled extends StatelessWidget {
+  const _Ruled({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      Container(height: 1, color: StrideColors.separator),
+      const SizedBox(height: StrideSpace.s10),
+      child,
+    ],
+  );
+}
+
 /// The panel itself, route-free, so a test or a golden can lay it out
 /// without a Navigator.
 class RewardLayer extends StatelessWidget {
@@ -175,26 +193,29 @@ class RewardLayer extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    // The rule: the layer's one ornament. It says "this is a
-                    // reveal, not a card" before a word is read, in the
-                    // result's own colour.
-                    Container(
-                      height: major ? 4 : 3,
-                      margin: const EdgeInsets.fromLTRB(
-                        StrideSpace.cardPadding,
-                        StrideSpace.cardPadding,
-                        StrideSpace.cardPadding,
-                        0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: frame,
-                        borderRadius: StrideRadius.gate,
-                      ),
-                    ),
+                    // One frame, in the result's ink, and nothing else
+                    // drawn around the content (finding E): the beats
+                    // inside are frameless (`RewardLayerScope`) and are
+                    // separated by a hairline rather than boxed.
                     Flexible(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(StrideSpace.cardPadding),
-                        child: StaggeredReveal(children: beats),
+                        padding: const EdgeInsets.fromLTRB(
+                          StrideSpace.cardPadding,
+                          StrideSpace.cardPadding + StrideSpace.s2,
+                          StrideSpace.cardPadding,
+                          StrideSpace.cardPadding,
+                        ),
+                        child: RewardLayerScope(
+                          child: StaggeredReveal(
+                            gap: StrideSpace.s10,
+                            children: <Widget>[
+                              for (int i = 0; i < beats.length; i++)
+                                i == 0
+                                    ? beats[i]
+                                    : _Ruled(child: beats[i]),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                     Padding(

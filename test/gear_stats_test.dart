@@ -21,6 +21,10 @@ final ContentId wolfhide = ContentId.unchecked('item.wolfhide_jerkin');
 final ContentId frostlined = ContentId.unchecked('item.frostlined_jerkin');
 final ContentId reinforcedPick = ContentId.unchecked('item.reinforced_pickaxe');
 final ContentId herb = ContentId.unchecked('item.meadow_herb');
+final ContentId trainingAxe = ContentId.unchecked('item.training_axe');
+final ContentId trainingPick = ContentId.unchecked('item.training_pickaxe');
+final ContentId bronzeAxe = ContentId.unchecked('item.bronze_axe');
+final ContentId bronzePick = ContentId.unchecked('item.bronze_pickaxe');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -96,11 +100,41 @@ void main() {
     expect(pick.passives, contains('15% chance of +1 yield at sites this tool works'));
   });
 
+  test('an axe over a pickaxe is a TOOL SWAP, never a power comparison', () async {
+    final StrideSession s = await boot();
+    expect((await s.equip(trainingPick)).succeeded, isTrue);
+
+    // The device case: Bronze Axe crafted while a pickaxe is worn. It is
+    // not a sidegrade and there is no "Tool power 4 → 4".
+    final GearStats axe = s.gearStatsOf(bronzeAxe)!;
+    expect(axe.verdict, GearVerdict.toolSwap);
+    expect(axe.verdictLabel, 'TOOL SWAP');
+    expect(axe.profession, 'Woodcutting');
+    expect(axe.tier, 1);
+    expect(axe.wornName, 'Training Pickaxe');
+    expect(axe.wornToolKind, ToolKind.pickaxe);
+    expect(axe.wornTier, 0);
+    expect(axe.deltaLabel, isNull, reason: 'no figure is compared');
+    expect(GearStatLine.textOf(axe), 'TIER 1');
+
+    // The same profession compares by tier: a bronze pickaxe over the
+    // training pickaxe is an upgrade; the training pickaxe over bronze a
+    // downgrade; worn is worn.
+    expect(s.gearStatsOf(bronzePick)!.verdict, GearVerdict.upgrade);
+    expect(s.gearStatsOf(trainingPick)!.verdict, GearVerdict.equipped);
+    // Nothing is worn in the tool slot once the pickaxe comes off: the axe
+    // is then first in an empty slot, not a swap.
+    expect((await s.unequip(EquipmentSlot.tool)).succeeded, isTrue);
+    expect(s.gearStatsOf(trainingAxe)!.verdict, GearVerdict.firstInSlot);
+  });
+
   test('a tool is described by what it opens, not by a figure', () async {
     final StrideSession s = await boot();
     final GearStats pick = s.gearStatsOf(reinforcedPick)!;
     expect(pick.slot, EquipmentSlot.tool);
+    expect(pick.profession, 'Mining');
     expect(GearStatLine.textOf(pick), 'TIER 2');
+    expect(s.gearStatsOf(bronzeSword)!.profession, isNull);
   });
 
   test('a downgrade says so', () async {

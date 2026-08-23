@@ -314,10 +314,11 @@ void main() {
       await tester.pump();
     }
 
-    // Phase 2: one repetition boundary. The boundary timer fires inside
-    // runAsync (real zone), so the reconcile's file I/O completes in place.
+    // Phase 2: one repetition boundary — Meadow Patch costs 80 steps, so
+    // 48 s at 100 steps a minute. The boundary timer fires inside runAsync
+    // (real zone), so the reconcile's file I/O completes in place.
     await tester.runAsync(() async {
-      fake.advance(const Duration(seconds: 10));
+      fake.advance(const Duration(seconds: 48));
       final DateTime d2 = DateTime.now().add(const Duration(seconds: 10));
       // Wait on the queue itself, not only the session: the figures move
       // inside the command, a beat before the controller counts the
@@ -725,7 +726,7 @@ void main() {
         await tester.tap(button, warnIfMissed: false);
         // One repetition's worth of presentation time: if the double tap had
         // started two queues, two dispatches would land here.
-        fake.advance(const Duration(seconds: 10));
+        fake.advance(const Duration(seconds: 48));
         final DateTime deadline = DateTime.now().add(
           const Duration(seconds: 10),
         );

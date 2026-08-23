@@ -70,26 +70,41 @@ import '../../runtime/stride_session.dart'
 import 'activity_controller.dart' show ActivityTiming;
 import 'session_controller.dart';
 
-/// How long one crafted repetition's presentation takes (§15) — authored
-/// presentation pacing, not domain content, exactly like
-/// `ActivityDurations`. These are the starting targets the brief names.
+/// How long one crafted repetition takes at the bench.
+///
+/// **Crafting costs zero steps**, so it cannot take the gathering pace
+/// (100 steps a minute); instead every shipped recipe authors its own
+/// `craftSeconds` in `recipes.json` (the correction pass, finding I) so a
+/// component is a small job (30–45 s), a meal a little longer (45–90 s) and
+/// a piece of gear a real one (120–180 s). These category defaults catch a
+/// recipe that authored none. Presentation pacing only: the engine
+/// validates and commits each repetition unchanged, and a queue frozen at
+/// start keeps its own figure.
 abstract final class CraftDurations {
   const CraftDurations._();
 
-  static const Duration component = Duration(seconds: 3);
-  static const Duration food = Duration(seconds: 4);
-  static const Duration equipment = Duration(seconds: 6);
+  static const Duration component = Duration(seconds: 40);
+  static const Duration food = Duration(seconds: 60);
+  static const Duration equipment = Duration(seconds: 120);
 
-  static Duration of(RecipeOption recipe) => switch (recipe.outputCategory) {
-    ItemCategory.consumable => food,
-    ItemCategory.equipment => equipment,
-    _ => component,
-  };
+  static Duration of(RecipeOption recipe) {
+    if (recipe.craftSeconds case final int authored) {
+      return Duration(seconds: authored);
+    }
+    return switch (recipe.outputCategory) {
+      ItemCategory.consumable => food,
+      ItemCategory.equipment => equipment,
+      _ => component,
+    };
+  }
 }
 
 /// How long the finished queue's summary stays on the panel — the same
 /// lifetime every other result line gets, for the same reason.
-const Duration _summaryLifetime = Duration(seconds: 6);
+/// A MINOR result's life on the card. Four seconds: long enough to read
+/// `CRAFTED · Bronze Ingot ×1 · +30 Smithing XP`, short enough never to read
+/// as bookkeeping the card kept (the correction pass, finding C).
+const Duration _summaryLifetime = Duration(seconds: 4);
 
 /// Retry pace when a dispatch finds the session busy.
 const Duration _busyRetry = Duration(milliseconds: 250);

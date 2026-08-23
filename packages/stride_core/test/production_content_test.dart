@@ -98,10 +98,24 @@ void main() {
       // phone.
       Rarity rarityOf(String id) =>
           registry.items[ContentId.unchecked(id)]!.rarity;
-      expect(rarityOf('item.oak_log'), Rarity.uncommon);
+      // Re-based 2026-08-23: rarity is "how exceptional", not "where in
+      // progression". Starter gear, everyday materials and first food are
+      // Common; standard Bronze is Uncommon; a passive or a signature is
+      // Rare; the chain's end is Epic.
+      expect(rarityOf('item.oak_log'), Rarity.common);
       expect(rarityOf('item.wolf_pelt'), Rarity.common);
-      expect(rarityOf('item.lynx_pelt'), Rarity.rare);
+      expect(rarityOf('item.training_sword'), Rarity.common);
+      expect(rarityOf('item.training_axe'), Rarity.common);
+      expect(rarityOf('item.training_pickaxe'), Rarity.common);
+      expect(rarityOf('item.traveler_tunic'), Rarity.common);
+      expect(rarityOf('item.bronze_sword'), Rarity.uncommon);
+      expect(rarityOf('item.bronze_axe'), Rarity.uncommon);
+      expect(rarityOf('item.bronze_pickaxe'), Rarity.uncommon);
+      expect(rarityOf('item.bronze_chestplate'), Rarity.uncommon);
+      expect(rarityOf('item.lynx_pelt'), Rarity.uncommon);
+      expect(rarityOf('item.pristine_wolf_fang'), Rarity.rare);
       expect(rarityOf('item.wolfhide_jerkin'), Rarity.rare);
+      expect(rarityOf('item.reinforced_pickaxe'), Rarity.rare);
       expect(rarityOf('item.frostlined_jerkin'), Rarity.epic);
       expect(rarityOf('item.hollow_sigil'), Rarity.epic);
 

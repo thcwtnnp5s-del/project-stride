@@ -18,18 +18,20 @@ void main() {
       // would make this assert that the enum equals itself. The order is the
       // decision; the list is the record of it.
       expect(Rarity.values, <Rarity>[
-        Rarity.uncommon,
         Rarity.common,
+        Rarity.uncommon,
         Rarity.rare,
         Rarity.epic,
         Rarity.legendary,
       ]);
 
-      // **Uncommon sits below Common**, which is the reverse of the usual RPG
-      // convention and is deliberate — it is the order the owner's rarity list
-      // gave. If this ever fires because someone "fixed" it, the fix is a
-      // decision, not a code change (`RULES.md` G-3).
-      expect(Rarity.uncommon.rank, lessThan(Rarity.common.rank));
+      // **Common is the floor and Uncommon the first step up** — the owner's
+      // ruling of 2026-08-23 (PLAYABLE_POLISH_01 correction pass), which
+      // deliberately supersedes the 2026-08-19 order that put Uncommon below
+      // Common. Rarity answers "how exceptional is this item"; progression
+      // tier is a separate axis. If this fires, the change is a decision
+      // (`RULES.md` G-3), recorded in `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`.
+      expect(Rarity.common.rank, lessThan(Rarity.uncommon.rank));
     });
 
     test('ranks are 0..4 and match the declaration order', () {
@@ -45,8 +47,8 @@ void main() {
 
     test('labels are the player-facing words, capitalised once', () {
       expect(Rarity.values.map((Rarity r) => r.label), <String>[
-        'Uncommon',
         'Common',
+        'Uncommon',
         'Rare',
         'Epic',
         'Legendary',

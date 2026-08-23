@@ -49,7 +49,7 @@
       "id": "item.oak_log",
       "displayName": "Oak Log",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 0
     },
     {
@@ -63,28 +63,28 @@
       "id": "item.copper_ore",
       "displayName": "Copper Ore",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 0
     },
     {
       "id": "item.tin_ore",
       "displayName": "Tin Ore",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 0
     },
     {
       "id": "item.meadow_herb",
       "displayName": "Meadow Herb",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 0
     },
     {
       "id": "item.duskcap",
       "displayName": "Duskcap",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 0
     },
     {
@@ -112,7 +112,7 @@
       "id": "item.lynx_pelt",
       "displayName": "Frost Lynx Pelt",
       "category": "material",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "tier": 1
     },
     {
@@ -126,7 +126,7 @@
       "id": "item.boar_tusk",
       "displayName": "Boar Tusk",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 0
     },
     {
@@ -154,7 +154,7 @@
       "id": "item.ram_horn",
       "displayName": "Ram Horn",
       "category": "material",
-      "rarity": "uncommon",
+      "rarity": "common",
       "tier": 1
     },
     {
@@ -241,7 +241,7 @@
       "id": "item.bronze_sword",
       "displayName": "Bronze Sword",
       "category": "equipment",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "slot": "weapon",
       "tier": 1,
       "power": 9,
@@ -251,7 +251,7 @@
       "id": "item.bronze_axe",
       "displayName": "Bronze Axe",
       "category": "equipment",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "slot": "tool",
       "toolKind": "axe",
       "tier": 1,
@@ -262,7 +262,7 @@
       "id": "item.bronze_pickaxe",
       "displayName": "Bronze Pickaxe",
       "category": "equipment",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "slot": "tool",
       "toolKind": "pickaxe",
       "tier": 1,
@@ -273,7 +273,7 @@
       "id": "item.reinforced_pickaxe",
       "displayName": "Reinforced Pickaxe",
       "category": "equipment",
-      "rarity": "epic",
+      "rarity": "rare",
       "slot": "tool",
       "toolKind": "pickaxe",
       "tier": 2,
@@ -285,7 +285,7 @@
       "id": "item.bronze_chestplate",
       "displayName": "Bronze Chestplate",
       "category": "equipment",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "slot": "armor",
       "tier": 1,
       "power": 7,
@@ -334,7 +334,7 @@
       "id": "item.frostbloom_tea",
       "displayName": "Frostbloom Tea",
       "category": "consumable",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "tier": 1,
       "healing": 40
     },
@@ -342,7 +342,7 @@
       "id": "item.hearty_stew",
       "displayName": "Hearty Stew",
       "category": "consumable",
-      "rarity": "rare",
+      "rarity": "uncommon",
       "tier": 1,
       "healing": 30
     },

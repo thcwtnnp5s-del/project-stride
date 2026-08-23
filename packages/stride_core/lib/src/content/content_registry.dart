@@ -101,6 +101,22 @@ final class ContentRegistry {
   /// (`DECISIONS/0004_MILESTONE_01_SCOPE.md`).
   final List<ContentId> startingLoadout;
 
+  /// What a **fresh playtest** wears from the loadout: the first item in
+  /// loadout order for each equipment slot (PLAYABLE_POLISH_01 correction
+  /// pass, owner direction: a fresh game should be playable at once — the
+  /// M-11 shape). The tool slot holds one tool, so the first tool in the
+  /// list — the Training Axe — is worn and the pickaxe stays in the bag a
+  /// tap away. `GameEngine.newGame` deliberately still grants unworn; see
+  /// the note there.
+  Map<EquipmentSlot, ContentId> get startingEquipment {
+    final Map<EquipmentSlot, ContentId> worn = <EquipmentSlot, ContentId>{};
+    for (final ContentId id in startingLoadout) {
+      final EquipmentSlot? slot = items[id]?.slot;
+      if (slot != null && !worn.containsKey(slot)) worn[slot] = id;
+    }
+    return worn;
+  }
+
   /// Every ID the registry knows, sorted.
   List<ContentId> get allIds => <ContentId>[
     ...items.keys,

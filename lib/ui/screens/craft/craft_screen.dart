@@ -96,9 +96,14 @@ class _CraftScreenState extends State<CraftScreen> {
     final StrideSession session = controller.session;
     final List<RecipeOption> recipes = session.recipeOptions;
 
-    // A running or just-finished queue pins the selection to its recipe, so
-    // the working surface never disappears under the player mid-craft.
-    final ContentId? pinned = craft.activeRecipe ?? craft.summaryRecipe;
+    // A running queue, or a finished one whose MEDIUM result is still held,
+    // pins the selection to its recipe, so the working surface never
+    // disappears under the player mid-craft. A MINOR result does **not**
+    // pin (the correction pass): it is transient — on its timer, and gone
+    // the moment the player opens another recipe — so a "CRAFTED · Bronze
+    // Ingot" block can never sit in the way of the next job.
+    final ContentId? pinned =
+        craft.activeRecipe ?? (craft.summaryHeld ? craft.summaryRecipe : null);
     final ContentId? selectedId = pinned ?? _selected;
 
     final List<RecipeOption> shown = _category == null
@@ -174,9 +179,16 @@ class _CraftScreenState extends State<CraftScreen> {
           _RecipeRow(
             recipe: recipe,
             selected: selectedId == recipe.id,
-            onTap: () => setState(
-              () => _selected = _selected == recipe.id ? null : recipe.id,
-            ),
+            onTap: () {
+              // Opening or closing any row clears a transient result; a
+              // held one has its own Continue.
+              if (!craft.active && !craft.summaryHeld) {
+                CraftScope.read(context).dismissSummary();
+              }
+              setState(
+                () => _selected = _selected == recipe.id ? null : recipe.id,
+              );
+            },
           ),
           if (selectedId == recipe.id) ...<Widget>[
             const SizedBox(height: StrideSpace.s4),
@@ -830,7 +842,14 @@ class _CraftSummary extends StatelessWidget {
           title: last.outputName ?? recipe.outputName,
           rarity: recipe.outputRarity,
           lines: <String>[
-            '${delta.statName}  ${delta.before} → ${delta.after}',
+            // A tool says what it is and what it would replace; a weapon or
+            // armour says the stat delta. No "Tool power 4 → 4".
+            if (delta.isTool) ...<String>[
+              delta.toolLine!,
+              if (delta.replaces case final String r)
+                delta.swapsProfession ? 'Swaps out $r' : 'Replaces $r',
+            ] else
+              '${delta.statName}  ${delta.before} → ${delta.after}',
             xpLine,
           ],
         )

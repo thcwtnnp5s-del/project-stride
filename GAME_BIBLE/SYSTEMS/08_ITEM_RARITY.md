@@ -1,6 +1,6 @@
 # Item Rarity
 
-**Status:** Implementation contract for World & Reward Depth 01. The **ranks,
+**Status:** Implementation contract for World & Reward Depth 01, **re-based by the Playable Polish 01 correction pass (2026-08-23)**. The **ranks,
 their order and their colours** are owner direction and are not provisional.
 Which rank each item carries is content, and is provisional like every other
 balance figure.
@@ -39,59 +39,74 @@ in `stride_core`, and nothing in the engine consults it.
 Ascending. `Rarity.rank` is 0–4 and `Rarity.wireName` is the lowercase enum
 name, which is the only spelling `items.json` accepts.
 
+**Rarity answers "how exceptional is this particular item?"** Material or
+equipment *tier* — Training, Bronze, and whatever comes after — answers
+"where is this in progression?" and is a separate axis. A stronger material
+is not automatically a higher rarity: standard Bronze is Uncommon, and a
+future Iron may be Common or Uncommon too. Rarity is emotional register;
+tier is progression.
+
 | Rank | Name | Wire | Colour | What earns it |
 |---:|---|---|---|---|
-| 0 | Uncommon | `uncommon` | grey | Tier-0 gathered material — picked up in handfuls, no tool required |
-| 1 | Common | `common` | green | Processed, cooked, granted, or gathered behind a real requirement |
-| 2 | Rare | `rare` | blue | Bronze-tier equipment, and the materials only combat yields |
-| 3 | Epic | `epic` | purple | The end of a chain: a boss token, the best armour authored |
-| 4 | Legendary | `legendary` | orange | **Nothing yet** — reserved |
+| 0 | Common | `common` | neutral (warm grey) | Ordinary and expected: starter gear, everyday gathered and processed materials, the first kitchen's food |
+| 1 | Uncommon | `uncommon` | green | A useful, meaningful improvement: standard Bronze equipment, food that heals properly, a basic enemy's material |
+| 2 | Rare | `rare` | blue | Genuinely exciting: signatures, enhanced equipment with a passive, the reward of a real contract or enemy |
+| 3 | Epic | `epic` | purple | "I really needed this": a boss token, the best armour authored, a difficult reward |
+| 4 | Legendary | `legendary` | orange/gold | "Holy cow" — exceptional signature or world items; **nothing yet**, reserved; never required for critical progression |
 
-### The caveat — raised, and closed by the owner
+### The order — ruled twice, and this is the ruling that stands
 
-**Uncommon sits below Common.** That is the reverse of the convention most RPGs
-use, where Common is the floor and Uncommon the first step up.
+The first implementation (2026-08-19) put **Uncommon below Common**, as the
+owner's original list was written, and was ruled intentional at the time.
+On physical review of Playable Polish 01 (2026-08-23) the owner found that
+ladder made "Rare" meaningless — ordinary Bronze gear was Rare — and
+re-based rarity onto the conventional register above, with the explicit
+instruction that progression tier and rarity be separate concepts. **This
+document supersedes the 2026-08-19 ruling.** The enum, the style table, the
+tests and the authored table below were all changed together, so no surface
+carries the old order.
 
-It was implemented exactly as the owner's rarity list wrote it — those names,
-in that order, with those colours — and flagged rather than quietly
-"corrected", because an implementation that fixed it would have made a design
-decision while pretending to fix a typo (`RULES.md` G-3).
-
-✅ **RESOLVED — owner ruling, 2026-08-19:** the order and colour mapping are
-**intentional and canonical**: Uncommon = gray → Common = green → Rare = blue →
-Epic = purple → Legendary = orange, ascending in exactly this order. This is
-Stride's own ladder, not a transcription slip, and it is no longer open to
-"conventional" correction. The flag in `Rarity`'s doc comment,
-`rarity_test.dart` and the milestone record predates this ruling; this
-document is the canonical answer they point at.
+The palette did not move: the same two hexes that once sat on the other two
+ranks sit on these — neutral grey is now Common and moss green is now
+Uncommon (`lib/ui/theme/stride_colors.dart`).
 
 Legendary is deliberately empty. The enum declares it, the UI style table
 covers it, and `production_content_test.dart` asserts that no shipped item
-carries it — so the rank is ready before content needs it, and adding the first
-Legendary item is a visible edit rather than a quiet one.
+carries it — so the rank is ready before content needs it, and adding the
+first Legendary item is a visible edit rather than a quiet one. The emotional
+target for an eventual Legendary drop is roughly 1 in 1,000 of an *optional*
+roll; it must never gate critical progression (`RULES.md` P-10).
 
 ## The authored table
 
-Provisional. The rationale throughout is **tier of effort to obtain**, not
-power.
+Provisional. The rationale throughout is **how exceptional**, never power,
+and never tier.
 
 | Rarity | Items |
 |---|---|
-| Uncommon | `oak_log` · `copper_ore` · `tin_ore` · `meadow_herb` · `duskcap` |
-| Common | `pine_log` · `rime_blossom` · `hollow_root` · `wolf_pelt` · `oak_handle` · `bronze_ingot` · `pine_plank` · `training_sword` · `training_axe` · `training_pickaxe` · `traveler_tunic` · `herb_broth` · `duskcap_skewer` |
-| Rare | `lynx_pelt` · `bronze_sword` · `bronze_axe` · `bronze_pickaxe` · `bronze_chestplate` · `wolfhide_jerkin` · `hearty_stew` · `frostbloom_tea` |
-| Epic | `hollow_sigil` · `frostlined_jerkin` |
+| Common | `training_sword` · `training_axe` · `training_pickaxe` · `traveler_tunic` · `oak_log` · `pine_log` · `copper_ore` · `tin_ore` · `meadow_herb` · `duskcap` · `rime_blossom` · `hollow_root` · `wolf_pelt` · `boar_hide` · `boar_tusk` · `scrap_metal` · `heat_scale` · `ram_wool` · `ram_horn` · `oak_handle` · `oak_plank` · `bronze_ingot` · `pine_plank` · `herb_broth` · `duskcap_skewer` |
+| Uncommon | `bronze_sword` · `bronze_axe` · `bronze_pickaxe` · `bronze_chestplate` · `lynx_pelt` · `hearty_stew` · `frostbloom_tea` |
+| Rare | `wolfhide_jerkin` · `reinforced_pickaxe` · `bear_pelt` · `pristine_wolf_fang` · `great_tusk` · `goblin_toolhead` · `ember_core` · `pristine_horn` |
+| Epic | `hollow_sigil` · `frostlined_jerkin` · `frost_claw` |
 | Legendary | *(none)* |
 
-Two things in that table are worth naming:
+Three things in that table are worth naming:
 
-- **The starting loadout is Common, not Uncommon.** It is granted rather than
-  gathered, and a player's first sword sitting a rank below the grass they pick
-  would read as a joke at their expense.
-- **`wolf_pelt` is Common and `lynx_pelt` is Rare** even though both come from
-  a single fight. The wolf is the first enemy in the game and the lynx needs
-  bronze and an alpine crossing; the gap between them is the gap the ranks are
-  there to show.
+- **The starting loadout is Common** — the floor, as a first sword should
+  be — and so is everything a first walk gathers.
+- **Bronze is Uncommon, not Rare.** It is the first real improvement, and it
+  is *standard*: every player makes it. Rare is kept for what not every player
+  will have.
+- **A passive makes a piece Rare** (the Wolfhide Jerkin, the Reinforced
+  Pickaxe): the enhancement is the exceptional thing, not the material.
+
+## Presentation follows the register
+
+Common results are low-key (the plain beat, no frame); Uncommon takes the
+green ink and a modest frame; Rare earns a noticeable payoff in the reward
+layer; Epic is elevated; Legendary will deserve a major beat when it
+exists. Fewer, more meaningful peaks — never casino motion, streaks, timers
+or FOMO (`RULES.md` P-5, P-6).
 
 ## How it is enforced
 

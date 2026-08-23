@@ -295,7 +295,18 @@ final class EquippedSummary {
 }
 
 /// How a piece of equipment compares with what is worn in its slot.
-enum GearVerdict { upgrade, downgrade, sidegrade, firstInSlot, equipped }
+///
+/// [toolSwap] is a tool of another profession going into the one tool
+/// slot — an axe over a pickaxe. It is neither an upgrade nor a sidegrade:
+/// the two do different work, and the only honest word is "swap".
+enum GearVerdict { upgrade, downgrade, sidegrade, firstInSlot, equipped, toolSwap }
+
+/// The profession a tool kind serves, in the player's word.
+String toolProfessionOf(ToolKind kind) => switch (kind) {
+  ToolKind.axe => 'Woodcutting',
+  ToolKind.pickaxe => 'Mining',
+  ToolKind.none => 'Utility',
+};
 
 /// What a piece of equipment does, for the Inventory and Craft screens
 /// (PLAYABLE_POLISH_01 §6): its one stat, its passives, and how it stands
@@ -319,10 +330,21 @@ final class GearStats {
     required this.wornName,
     required this.wornPower,
     required this.verdict,
+    this.wornToolKind,
+    this.wornTier = 0,
   });
 
   final ContentId item;
   final EquipmentSlot slot;
+
+  /// For a tool: the worn tool's kind and tier, so the comparison can say
+  /// `Bronze Pickaxe · Mining tool · Tier 1` rather than a power figure.
+  final ToolKind? wornToolKind;
+  final int wornTier;
+
+  /// `Woodcutting` / `Mining` for a tool; null for weapons and armour.
+  String? get profession =>
+      slot == EquipmentSlot.tool ? toolProfessionOf(toolKind) : null;
 
   /// "Attack", "Defence", "Tool power".
   final String statName;
@@ -343,7 +365,8 @@ final class GearStats {
 
   /// `+2`, `−1`, `±0` against the slot — or null when nothing is worn.
   String? get deltaLabel {
-    if (wornName == null) return null;
+    // A tool has no figure to compare (see [GearVerdict.toolSwap]).
+    if (wornName == null || slot == EquipmentSlot.tool) return null;
     final int d = power - wornPower;
     if (d > 0) return '+$d';
     if (d < 0) return '−${-d}';
@@ -357,6 +380,7 @@ final class GearStats {
     GearVerdict.sidegrade => 'SIDEGRADE',
     GearVerdict.firstInSlot => 'EMPTY SLOT',
     GearVerdict.equipped => 'EQUIPPED',
+    GearVerdict.toolSwap => 'TOOL SWAP',
   };
 }
 
@@ -644,6 +668,7 @@ final class RecipeOption {
     this.outputCategory,
     this.outputIsTool = false,
     this.lockReason,
+    this.craftSeconds,
   });
 
   final ContentId id;
@@ -669,6 +694,10 @@ final class RecipeOption {
   /// player is working towards. Null only when the pack has no definition for
   /// [outputItem].
   final Rarity? outputRarity;
+
+  /// The authored bench time for one repetition, or null for the category
+  /// default (`RecipeDefinition.craftSeconds`).
+  final int? craftSeconds;
 
   /// Profile-scaled, as it would be produced.
   final int outputQuantity;
@@ -843,11 +872,25 @@ final class EquipDelta {
     required this.statName,
     required this.before,
     required this.after,
-  });
+  }) : toolLine = null,
+       replaces = null,
+       swapsProfession = false;
+
+  const EquipDelta.tool({
+    required this.toolLine,
+    required this.replaces,
+    this.swapsProfession = false,
+  }) : slot = EquipmentSlot.tool,
+       statName = 'Tool',
+       before = 0,
+       after = 0;
 
   final EquipmentSlot slot;
 
-  /// "Attack" for weapons, "Defence" for armour, "Tool power" for tools.
+  /// "Attack" for weapons, "Defence" for armour. A tool has no stat the
+  /// engine reads (`CombatRules` takes weapon and armour power; a tool is
+  /// its kind and tier), so a tool delta carries [toolLine] instead and
+  /// [statName] is never shown for one.
   final String statName;
 
   /// What the currently equipped item in the slot provides (0 when empty).
@@ -856,7 +899,21 @@ final class EquipDelta {
   /// What the crafted item provides.
   final int after;
 
-  bool get isUpgrade => after > before;
+  /// A profession tool's identity in player words — `Woodcutting tool ·
+  /// Tier 1` — or null for a weapon or armour.
+  final String? toolLine;
+
+  /// What wearing the crafted tool would take off — `Bronze Pickaxe ·
+  /// Mining tool · Tier 1` — or null when the slot is empty.
+  final String? replaces;
+
+  /// True when [replaces] is a tool of another profession: an axe over a
+  /// pickaxe is a swap, never an upgrade or a sidegrade (the correction
+  /// pass: "Tool power 4 → 4" was the wrong sentence).
+  final bool swapsProfession;
+
+  bool get isTool => toolLine != null;
+  bool get isUpgrade => !isTool && after > before;
 }
 
 final class SkillSummary {
@@ -1847,6 +1904,12 @@ final class StrideSession {
 
   int get totalGranted => engine?.state.steps.totalGranted ?? 0;
   int get totalSpent => engine?.state.steps.totalSpent ?? 0;
+
+  /// Steps spent **in this economy** — since the current epoch's mark, which
+  /// a playtest reset moves (`DECISIONS/0025`). The Adventure band shows
+  /// this; [totalSpent] is the lifetime counter and stays on the Character
+  /// tab. A projection: the ledger's `spentThisEpoch`, nothing stored.
+  int get spentThisEpoch => engine?.state.steps.spentThisEpoch ?? 0;
 
   /// The walked figure the player is shown: everything credited since the
   /// last playtest reset, or the lifetime counter when there has been none
@@ -2905,10 +2968,20 @@ final class StrideSession {
     final ItemDefinition? worn = wornId == null
         ? null
         : registry?.items[wornId];
+    if (slot == EquipmentSlot.tool) {
+      return EquipDelta.tool(
+        toolLine: '${toolProfessionOf(item.toolKind)} tool · Tier ${item.tier}',
+        replaces: worn == null
+            ? null
+            : '${worn.displayName} · ${toolProfessionOf(worn.toolKind)} tool'
+                  ' · Tier ${worn.tier}',
+        swapsProfession: worn != null && worn.toolKind != item.toolKind,
+      );
+    }
     final String statName = switch (slot) {
       EquipmentSlot.weapon => 'Attack',
       EquipmentSlot.armor => 'Defence',
-      EquipmentSlot.tool => 'Tool power',
+      EquipmentSlot.tool => 'Tool',
     };
     return EquipDelta(
       slot: slot,
@@ -3339,13 +3412,21 @@ final class StrideSession {
     final ContentId? wornId = active.state.equipment.inSlot(slot);
     final ItemDefinition? worn = wornId == null ? null : content.items[wornId];
     final int wornPower = worn?.power ?? 0;
+    // A tool is judged by tier within its own profession, and a tool of
+    // another profession is a swap — never a power comparison, because the
+    // engine reads no tool power and an axe does not out-mine a pickaxe.
+    final bool tool = slot == EquipmentSlot.tool;
+    final int mine = tool ? def.tier : def.power;
+    final int theirs = tool ? (worn?.tier ?? 0) : wornPower;
     final GearVerdict verdict = wornId == item
         ? GearVerdict.equipped
         : wornId == null
         ? GearVerdict.firstInSlot
-        : def.power > wornPower
+        : tool && worn != null && worn.toolKind != def.toolKind
+        ? GearVerdict.toolSwap
+        : mine > theirs
         ? GearVerdict.upgrade
-        : def.power < wornPower
+        : mine < theirs
         ? GearVerdict.downgrade
         : GearVerdict.sidegrade;
     final (String statName, String statShort) = switch (slot) {
@@ -3377,6 +3458,8 @@ final class StrideSession {
       wornName: worn?.displayName ?? (wornId?.value),
       wornPower: wornPower,
       verdict: verdict,
+      wornToolKind: worn?.toolKind,
+      wornTier: worn?.tier ?? 0,
     );
   }
 
@@ -3888,6 +3971,7 @@ final class StrideSession {
               (content.items[recipe.outputItem]?.toolKind ?? ToolKind.none) !=
               ToolKind.none,
           lockReason: active.recipeLockReason(recipe, active.state),
+          craftSeconds: recipe.craftSeconds,
         ),
       );
     }

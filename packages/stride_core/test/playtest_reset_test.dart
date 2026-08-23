@@ -187,7 +187,15 @@ void main() {
       // empty progression block, no fight, no queue.
       final GameEngine fresh = newEngine();
       expect(after.inventory.counts, fresh.state.inventory.counts);
-      expect(after.equipment.bySlot, isEmpty);
+      // Worn, not merely carried (the correction pass): the sword, the
+      // tunic and the first tool in loadout order — so a fresh playtest is
+      // playable at once rather than M-11's bag of unequipped gear.
+      expect(after.equipment.bySlot, stepRegistry.startingEquipment);
+      expect(after.equipment.bySlot, hasLength(3));
+      expect(
+        after.equipment.bySlot[EquipmentSlot.tool],
+        ContentId.unchecked('item.training_axe'),
+      );
       expect(after.skills.experienceBySkill, fresh.state.skills.experienceBySkill);
       expect(after.world.currentLocation, fresh.state.world.currentLocation);
       expect(after.world.unlockedLocations, fresh.state.world.unlockedLocations);
@@ -250,5 +258,7 @@ void main() {
     expect(decoded.freshStart, isTrue);
     expect(decoded.startLocation, event.startLocation);
     expect(decoded.grantedItems, event.grantedItems);
+    expect(decoded.equippedItems, event.equippedItems);
+    expect(decoded.equippedItems, hasLength(3));
   });
 }

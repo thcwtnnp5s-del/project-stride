@@ -339,7 +339,10 @@ class _WalkingStrip extends StatelessWidget {
         leading: const WalkingGlyph(role: WalkingRole.stock),
         valueColor: StrideColors.accentSteps,
       ),
-      _WalkingFact(label: 'Spent', value: formatSteps(s.totalSpent)),
+      // Spent in this economy — since the epoch a playtest reset moves —
+      // so a fresh playtest reads Spent 0 beside Total walked 0; the
+      // lifetime figure is the Character tab's (`DECISIONS/0025`).
+      _WalkingFact(label: 'Spent', value: formatSteps(s.spentThisEpoch)),
       // Persistent HP (`DECISIONS/0023` §4): carried between fights, restored
       // by food and by safe arrivals — a fact a player checks before choosing
       // to fight. Shown only while it is information: at full health it is

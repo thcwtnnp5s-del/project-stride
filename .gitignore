@@ -198,3 +198,7 @@ ios/Flutter/Local.xcconfig
 
 # Playable Experience Refinement 01 — accepted stage art and its candidates
 !GAME_BIBLE/ART/exploration/PLAYABLE_EXPERIENCE_REFINEMENT_01/out/**
+
+# Playable Polish 01 — the re-authored mining loop and the three seams, and
+# their candidates: packaging sources `package-art.js` reads. QA plates stay local.
+!GAME_BIBLE/ART/exploration/PLAYABLE_POLISH_01/out/**

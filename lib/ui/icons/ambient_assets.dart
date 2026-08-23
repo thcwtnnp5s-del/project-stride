@@ -459,7 +459,7 @@ abstract final class AmbientAssets {
     ),
     '$_art/node/hardened_copper_seam.png': StageScenery(
       assetPath: '$_art/work/prop_hardened_copper_seam.png',
-      bounds: SpriteBounds(left: 5, top: 7, right: 88, bottom: 90),
+      bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 92),
       // Tall enough to swallow the pick if drawn last (blind QA round 2).
       behindFigure: true,
     ),

@@ -1,4 +1,5 @@
 import '../content/content_id.dart';
+import '../content/definitions.dart' show EquipmentSlot;
 
 import '../steps/step_ledger.dart';
 
@@ -260,11 +261,16 @@ final class EventReducer {
     for (final ContentId item in event.grantedItems) {
       inventory = inventory.adding(item, 1);
     }
+    Equipment equipment = Equipment.empty();
+    for (final MapEntry<EquipmentSlot, ContentId> e
+        in event.equippedItems.entries) {
+      equipment = equipment.equipping(e.key, e.value);
+    }
     return state.copyWith(
       steps: steps,
       player: const PlayerState.initial(),
       inventory: inventory,
-      equipment: Equipment.empty(),
+      equipment: equipment,
       skills: SkillProgress(<ContentId, int>{
         for (final ContentId skill in state.skills.experienceBySkill.keys)
           skill: 0,

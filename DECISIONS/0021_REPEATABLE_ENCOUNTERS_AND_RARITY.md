@@ -44,9 +44,13 @@ content/presentation property — not procedural gear.
    A v4 `drivenOff` entry decodes as `visitVictories[enemy] = 1` (the enemy
    was beaten once this visit — true then, true now). v1–v3 decode with an
    empty map. Frozen fixture `v5_baseline.save`; v1–v4 fixtures untouched.
-4. **Authored rarity.** `stride_core` gains `enum Rarity { uncommon, common,
-   rare, epic, legendary }` (ascending, in the owner's order and colours —
-   gray, green, blue, purple, orange). Every item in `items.json` carries a
+4. **Authored rarity.** `stride_core` gains `enum Rarity` (ascending). *As
+   decided here* the order was `uncommon, common, rare, epic, legendary`;
+   **amended 2026-08-23** (Playable Polish 01 correction pass, owner ruling on
+   device) to `common, uncommon, rare, epic, legendary` — neutral, green,
+   blue, purple, orange — with rarity meaning "how exceptional" and
+   progression tier a separate axis. `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`
+   is canonical for the current order and table. Every item in `items.json` carries a
    **required** `rarity`; the loader refuses a missing or unknown value, so
    "all items have a valid rarity" holds by construction. Rarity is
    **content and presentation metadata only**: no random rolls, affixes,

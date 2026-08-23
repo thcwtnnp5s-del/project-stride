@@ -174,6 +174,27 @@ class CharacterScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              // The lifetime accounting, named as such, only once a reset
+              // has made "this playtest" and "ever" two different figures
+              // (`DECISIONS/0025`). The Adventure band shows this playtest's
+              // spend; this is the one place the lifetime spend is read.
+              if (s.walkedBaselineMoved) ...<Widget>[
+                const SizedBox(height: StrideSpace.s8),
+                ValueTileRow(
+                  tiles: <LabeledValueTile>[
+                    LabeledValueTile(
+                      label: 'Spent this playtest',
+                      value: formatSteps(s.spentThisEpoch),
+                      unit: 'steps',
+                    ),
+                    LabeledValueTile(
+                      label: 'Lifetime spent',
+                      value: formatSteps(s.totalSpent),
+                      unit: 'every playtest',
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

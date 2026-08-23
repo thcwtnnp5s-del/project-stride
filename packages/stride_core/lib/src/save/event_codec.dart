@@ -169,6 +169,11 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'grantedItems': <String>[
       for (final ContentId item in event.grantedItems) item.value,
     ],
+    'equippedItems': <String, Object?>{
+      for (final MapEntry<EquipmentSlot, ContentId> e
+          in event.equippedItems.entries)
+        e.key.name: e.value.value,
+    },
   },
   StepRecoveryStarted() => <String, Object?>{
     't': 'StepRecoveryStarted',
@@ -602,6 +607,22 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         if (raw is! String) return null;
         grantedItems.add(ContentId.unchecked(raw));
       }
+      // `equippedItems` arrived with the correction pass; a record without
+      // it was written when a fresh start wore nothing, and decodes so.
+      final Object? wornRaw = json['equippedItems'];
+      final Map<EquipmentSlot, ContentId> equippedItems =
+          <EquipmentSlot, ContentId>{};
+      if (wornRaw != null) {
+        if (wornRaw is! Map<String, Object?>) return null;
+        for (final MapEntry<String, Object?> e in wornRaw.entries) {
+          final EquipmentSlot? slot = EquipmentSlot.values
+              .cast<EquipmentSlot?>()
+              .firstWhere((EquipmentSlot? s) => s!.name == e.key, orElse: () => null);
+          final Object? v = e.value;
+          if (slot == null || v is! String) return null;
+          equippedItems[slot] = ContentId.unchecked(v);
+        }
+      }
       return PlaytestReset(
         sequence: seq,
         grantedAtStart: granted,
@@ -613,6 +634,7 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         freshStart: fresh,
         startLocation: start,
         grantedItems: grantedItems,
+        equippedItems: equippedItems,
       );
 
     case 'ActivityQueueStarted':

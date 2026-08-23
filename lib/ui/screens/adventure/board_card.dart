@@ -123,6 +123,10 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
     final SessionController c = SessionScope.of(context);
     final BoardView? board = c.session.boardHere;
     if (board == null) return const SizedBox.shrink();
+    // The one Contract slot: a row or a tile that is tracked says so with a
+    // small mark, so "which one am I working towards" is answered at a
+    // glance (the correction pass, finding D).
+    final ContentId? tracked = c.session.trackedGoals.contract?.id;
 
     return SectionCard(
       child: Column(
@@ -163,6 +167,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
             _ContractRow(
               contract: job,
               selected: _open == job.id,
+              tracked: tracked == job.id,
               onTap: () => _toggle(job.id),
               // The open job's detail lives inside the row's own frame, so
               // the expanded state is one block rather than a row with loose
@@ -191,6 +196,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
             _ProjectTile(
               project: project,
               busy: c.busy,
+              tracked: tracked == project.id,
               onContribute: project.hasSomethingToGive
                   ? () => _contribute(c, project)
                   : null,
@@ -345,11 +351,15 @@ class _ContractRow extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.detail,
+    this.tracked = false,
   });
 
   final ContractView contract;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Whether this job holds the Contract goal slot.
+  final bool tracked;
 
   /// The open job's brief, requirements and actions, drawn inside this
   /// row's frame beneath a rule. Null when collapsed.
@@ -478,7 +488,40 @@ class _ContractRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: StrideSpace.s8),
-            Text(word, style: StrideType.microLabel.copyWith(color: ink)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                // READY is the one state worth finding at a glance, so it
+                // alone is a filled pill in the step accent's dim form; the
+                // other states stay a word (finding D).
+                if (c.canComplete && !done)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: StrideSpace.s6,
+                      vertical: 2,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: StrideColors.accentStepsDim,
+                      borderRadius: StrideRadius.chip,
+                    ),
+                    child: Text(
+                      word,
+                      style: StrideType.microLabel.copyWith(color: ink),
+                    ),
+                  )
+                else
+                  Text(word, style: StrideType.microLabel.copyWith(color: ink)),
+                if (tracked) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s2),
+                  Text(
+                    'TRACKED',
+                    style: StrideType.compactLabel.copyWith(
+                      color: StrideColors.accentSteps,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
@@ -713,12 +756,14 @@ class _ProjectTile extends StatefulWidget {
     required this.busy,
     required this.onContribute,
     required this.onTrack,
+    this.tracked = false,
   });
 
   final ProjectView project;
   final bool busy;
   final VoidCallback? onContribute;
   final VoidCallback onTrack;
+  final bool tracked;
 
   @override
   State<_ProjectTile> createState() => _ProjectTileState();
@@ -728,6 +773,14 @@ class _ProjectTileState extends State<_ProjectTile> {
   /// Whether the long brief is open. Ephemeral UI state; the tile's facts —
   /// stage, materials, consequence, actions — never hide behind it.
   bool _briefOpen = false;
+
+  /// Whether the tile is open at all (finding D): collapsed, a project is
+  /// one row — name, stage pill, the current stage's materials in one line
+  /// — so it no longer dominates a board it shares with five jobs. Open, it
+  /// is the full tile the owner asked to keep. Opens by itself when the
+  /// player can contribute something, because that is the moment the bars
+  /// matter.
+  bool _open = false;
 
   @override
   Widget build(BuildContext context) {
@@ -749,17 +802,48 @@ class _ProjectTileState extends State<_ProjectTile> {
     // the materials with their bars, the consequence, the actions — and the
     // lore folded behind one small toggle rather than four lines of prose
     // above the figures the player came to check.
-    return SurfaceBlock(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final bool open = _open || project.hasSomethingToGive;
+    final String materials = project.isComplete
+        ? 'The work is done; its benefits are permanent.'
+        : current.lines
+              .map(
+                (RequirementLine l) =>
+                    '${l.name} ${formatSteps(l.progress)}/${formatSteps(l.required)}',
+              )
+              .join(' · ');
+
+    final Widget head = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _open = !_open),
+      child: Row(
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
                 // Wraps rather than shrinks, as the contract title above: a
                 // project name may take two lines but never lose a character.
-                child: Text(project.name, style: StrideType.itemName),
-              ),
+                Text(project.name, style: StrideType.itemName),
+                if (!open) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s2),
+                  Text(
+                    materials,
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textSecondary,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: StrideSpace.s8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
               _StagePill(
                 label: project.isComplete
                     ? 'COMPLETE'
@@ -767,8 +851,28 @@ class _ProjectTileState extends State<_ProjectTile> {
                           '${project.stages.length}',
                 done: project.isComplete,
               ),
+              if (widget.tracked) ...<Widget>[
+                const SizedBox(height: StrideSpace.s2),
+                Text(
+                  'TRACKED',
+                  style: StrideType.compactLabel.copyWith(
+                    color: StrideColors.accentSteps,
+                  ),
+                ),
+              ],
             ],
           ),
+        ],
+      ),
+    );
+
+    if (!open) return SurfaceBlock(child: head);
+
+    return SurfaceBlock(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          head,
           // The lore, subordinate: one tappable line, open on request.
           const SizedBox(height: StrideSpace.s2),
           GestureDetector(

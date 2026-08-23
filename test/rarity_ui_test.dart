@@ -449,8 +449,9 @@ void main() {
       expect(find.text('+30 XP'), findsOneWidget);
       expect(find.text('REWARDS'), findsOneWidget);
 
-      // One frame per drop, and one icon per drop.
-      expect(find.byType(RarityFrame), findsNWidgets(4));
+      // One icon per drop; a frame only from Uncommon up — the Common row
+      // is plain (the correction pass, finding E), so three of four.
+      expect(find.byType(RarityFrame), findsNWidgets(3));
       expect(find.byType(PixelAsset), findsNWidgets(4));
       expect(find.text('No drops this time.'), findsNothing);
 
@@ -470,12 +471,15 @@ void main() {
           reason: name,
         );
         // …and the rank's word rides beside it, because colour is never the
-        // only carrier.
-        expect(
-          find.text(row.$1.label.toUpperCase()),
-          findsWidgets,
-          reason: name,
-        );
+        // only carrier — except Common, which is the floor and says
+        // nothing (finding E: a Common row is plain).
+        if (row.$1 != Rarity.common) {
+          expect(
+            find.text(row.$1.label.toUpperCase()),
+            findsWidgets,
+            reason: name,
+          );
+        }
         expect(find.text(row.$2), findsOneWidget, reason: '$name quantity');
       });
 

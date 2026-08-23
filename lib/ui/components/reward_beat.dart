@@ -48,6 +48,23 @@ import 'rarity_item_title.dart';
 /// How much a result matters — the only axis presentation may vary on.
 enum RewardTier { minor, medium, major }
 
+/// Marks the subtree inside a reward layer (`reward_layer.dart`).
+///
+/// Inside it, beats drop their own frames and item rows keep a rarity frame
+/// only from Uncommon up: the layer is the one strong frame, and a box
+/// inside a box inside a box was the device finding the correction pass
+/// answers (finding E). Outside it — inline on a card — a beat frames
+/// itself as before.
+class RewardLayerScope extends InheritedWidget {
+  const RewardLayerScope({super.key, required super.child});
+
+  static bool isInside(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<RewardLayerScope>() != null;
+
+  @override
+  bool updateShouldNotify(RewardLayerScope oldWidget) => false;
+}
+
 /// One result, as a beat.
 class RewardBeat extends StatelessWidget {
   const RewardBeat({
@@ -100,9 +117,12 @@ class RewardBeat extends StatelessWidget {
       RewardTier.minor => StrideColors.textSecondary,
       _ => rarityStyle?.accent ?? accent ?? StrideColors.textSecondary,
     };
+    final bool inLayer = RewardLayerScope.isInside(context);
+    // In the layer the headline steps up a weight: the frame it no longer
+    // carries is replaced by size, which is the hierarchy the layer wants.
     final TextStyle titleStyle = switch (tier) {
       RewardTier.minor => StrideType.sub,
-      RewardTier.medium => StrideType.sectionHeading,
+      RewardTier.medium => inLayer ? StrideType.cardTitle : StrideType.sectionHeading,
       RewardTier.major => StrideType.cardTitle,
     };
 
@@ -152,6 +172,11 @@ class RewardBeat extends StatelessWidget {
     // MINOR sits on the fill alone; MEDIUM and MAJOR take a frame in their
     // accent. The difference between the two upper tiers is weight and the
     // rule's thickness, never a different shape.
+    // Inside the layer: no fill, no border — the layer is the frame, and
+    // the beat is content. Outside: the nested block as before.
+    if (inLayer) {
+      return SizedBox(width: double.infinity, child: body);
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(StrideSpace.blockPadding),
@@ -349,10 +374,14 @@ class RewardItemRow extends StatelessWidget {
   static const double _nameIndent = 48 + StrideSpace.s10;
 
   @override
-  Widget build(BuildContext context) => RarityFrame(
-    rarity: rarity,
-    padding: const EdgeInsets.all(StrideSpace.s8),
-    child: Column(
+  Widget build(BuildContext context) {
+    // Common is low-key everywhere: a plain row. From Uncommon up the row
+    // keeps its rarity frame — the ink and the word say the item is worth
+    // looking at, and the frame is the only box the layer allows inside
+    // itself (finding E).
+    final bool plain =
+        rarity == null || rarity == Rarity.common;
+    final Widget row = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Row(
@@ -377,7 +406,7 @@ class RewardItemRow extends StatelessWidget {
             AdaptiveText('×$quantity', style: StrideType.itemCount),
           ],
         ),
-        if (rarity != null) ...<Widget>[
+        if (rarity != null && !plain) ...<Widget>[
           const SizedBox(height: StrideSpace.s6),
           Padding(
             padding: const EdgeInsets.only(left: _nameIndent),
@@ -388,8 +417,19 @@ class RewardItemRow extends StatelessWidget {
           ),
         ],
       ],
-    ),
-  );
+    );
+    if (plain) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: StrideSpace.s4),
+        child: row,
+      );
+    }
+    return RarityFrame(
+      rarity: rarity,
+      padding: const EdgeInsets.all(StrideSpace.s8),
+      child: row,
+    );
+  }
 }
 
 /// A labelled group of facts inside a beat or a layer: `EXPERIENCE` over

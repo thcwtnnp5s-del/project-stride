@@ -137,7 +137,11 @@ void main() {
     expect(s.walkedSinceBaseline, 0);
     expect(s.totalGranted, granted);
     expect(s.inventoryCount(herb), 0, reason: 'the bag is new');
-    expect(s.equippedSummary, isEmpty);
+    // Worn at once: sword, tunic, axe (the correction pass).
+    expect(s.equippedSummary, hasLength(3));
+    expect(s.usableEnergy, 0);
+    expect(s.spentThisEpoch, 0, reason: 'SPENT starts again with the epoch');
+    expect(s.totalSpent, greaterThan(0), reason: 'the lifetime counter does not');
     expect(s.locationName, "Haven's Rest");
     for (final SkillSummary k in s.skillSummaries) {
       expect(k.experience, 0, reason: k.id.value);

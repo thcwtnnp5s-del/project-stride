@@ -128,6 +128,8 @@ void main() {
       FakeTiming fake,
     ) = await boot(herbs: 6);
 
+    final int spentBefore = session.totalSpent;
+    final int bankedBefore = session.usableEnergy;
     craft.start(brothOf(session), 3);
     expect(craft.active, isTrue);
     expect(craft.completed, 0);
@@ -137,21 +139,26 @@ void main() {
     expect(session.inventoryCount(kBroth), 0);
 
     // Food paces at 4 s (§15). Each boundary dispatches one CraftItem.
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => craft.completed == 1);
     expect(session.inventoryCount(kHerb), 4);
     expect(session.inventoryCount(kBroth), 1);
 
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => craft.completed == 2);
     expect(session.inventoryCount(kHerb), 2);
     expect(session.inventoryCount(kBroth), 2);
 
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => !craft.active);
     expect(craft.completed, 3);
     expect(session.inventoryCount(kHerb), 0);
     expect(session.inventoryCount(kBroth), 3);
+
+    // Crafting costs zero steps, however long the bench takes (the
+    // correction pass, finding I): the ledger did not move.
+    expect(session.totalSpent, spentBefore);
+    expect(session.usableEnergy, bankedBefore);
 
     // The retained summary reports the whole run.
     expect(craft.summaryRecipe, kBrothRecipe);
@@ -165,6 +172,40 @@ void main() {
     );
   });
 
+  test('a MINOR result is transient: it clears on its timer, and on dismiss',
+      () async {
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 4);
+
+    craft.start(brothOf(session), 1);
+    fake.advance(CraftDurations.of(brothOf(session)));
+    await until(() => !craft.active);
+    expect(craft.summaryRecipe, kBrothRecipe);
+    expect(craft.quantity, 1);
+    expect(craft.summaryHeld, isFalse, reason: 'a meal with no level is MINOR');
+
+    // The timer clears it (finding C of the correction pass): the card
+    // returns to the clean detail on its own.
+    fake.advance(const Duration(seconds: 4));
+    await until(() => craft.summaryRecipe == null);
+    expect(craft.quantity, 0);
+    expect(craft.lastReport, isNull);
+
+    // And a second one clears at once when dismissed — which the Craft
+    // screen does when any row is opened.
+    craft.start(brothOf(session), 1);
+    fake.advance(CraftDurations.of(brothOf(session)));
+    await until(() => !craft.active);
+    expect(craft.summaryRecipe, kBrothRecipe);
+    craft.dismissSummary();
+    expect(craft.summaryRecipe, isNull);
+    expect(craft.quantity, 0);
+  });
+
   test('cancel keeps what completed and dispatches nothing more', () async {
     final (
       StrideSession session,
@@ -174,7 +215,7 @@ void main() {
     ) = await boot(herbs: 6);
 
     craft.start(brothOf(session), 3);
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => craft.completed == 1);
 
     craft.stop();
@@ -209,10 +250,10 @@ void main() {
     expect(session.inventoryCount(kHerb), 6);
     expect(session.inventoryCount(kBroth), 0);
 
-    // Three more seconds pass in the pocket — with NO timers running, which
-    // is what `elapseInBackground` models. One repetition (4 s food pacing)
+    // Forty-four more seconds pass in the pocket — with NO timers running, which
+    // is what `elapseInBackground` models. One repetition (45 s broth pacing)
     // has now legitimately finished; the second has not.
-    fake.elapseInBackground(const Duration(seconds: 3));
+    fake.elapseInBackground(const Duration(seconds: 44));
     expect(craft.completed, 0, reason: 'a suspended process runs nothing');
 
     // Resume: exactly the one finished repetition commits.
@@ -265,7 +306,7 @@ void main() {
     ) = await boot(herbs: 8);
 
     craft.start(brothOf(session), 4);
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => craft.completed == 1);
 
     // Two resumes in a row, no time between them: the anchor already moved
@@ -300,7 +341,7 @@ void main() {
     expect(session.inventoryCount(kHerb), 6);
 
     // The clock catching back up resolves it normally.
-    fake.elapseInBackground(const Duration(minutes: 5) + CraftDurations.food);
+    fake.elapseInBackground(const Duration(minutes: 5) + CraftDurations.of(brothOf(session)));
     craft.didChangeAppLifecycleState(AppLifecycleState.paused);
     craft.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => craft.completed >= 1);
@@ -319,7 +360,7 @@ void main() {
     craft.start(brothOf(session), 4);
     // One full repetition plus a fraction, with no boundary timer having
     // fired — the clock moved while nothing was scheduled.
-    fake.elapseInBackground(CraftDurations.food + const Duration(seconds: 1));
+    fake.elapseInBackground(CraftDurations.of(brothOf(session)) + const Duration(seconds: 1));
 
     craft.stop();
     await until(() => !craft.active);
@@ -348,7 +389,7 @@ void main() {
 
     final int startHerbs = session.inventoryCount(kHerb);
     craft.start(brothOf(session), 5);
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => craft.completed == 1);
 
     // The process dies. `detached` is the last lifecycle state a dying app
@@ -379,10 +420,10 @@ void main() {
     // The bag funds one craft; the controller is asked for two — the clamp
     // is the UI's, and the engine is the authority on the second.
     craft.start(brothOf(session), 2);
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => craft.completed == 1);
 
-    fake.advance(CraftDurations.food);
+    fake.advance(CraftDurations.of(brothOf(session)));
     await until(() => !craft.active);
     expect(craft.completed, 1);
     expect(craft.stopReport, isNotNull);

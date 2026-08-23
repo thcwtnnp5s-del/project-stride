@@ -100,18 +100,25 @@ final class ActivityTiming {
 abstract final class ActivityDurations {
   const ActivityDurations._();
 
-  /// For a skill the table does not name — a future profession lands at a
-  /// sane pace rather than at zero.
-  static const Duration fallback = Duration(seconds: 12);
+  /// The default pace: **100 spendable steps = 60 seconds of work**, so one
+  /// step is 600 ms (the correction pass, finding H — the old 10–14 s
+  /// repetition "felt spammy and disposable"). A queue of ×N scales with
+  /// the site's cost by construction: 80 steps ≈ 48 s, 200 steps = 2 min,
+  /// 1,000 steps = 10 min.
+  static const int millisPerStep = 600;
 
-  /// Keyed by skill content id (`assets/content/v1/skills.json`).
-  static const Map<String, Duration> _bySkill = <String, Duration>{
-    'skill.woodcutting': Duration(seconds: 12),
-    'skill.mining': Duration(seconds: 14),
-    'skill.foraging': Duration(seconds: 10),
-  };
+  /// For a site with no cost to read — never in the product, kept so a
+  /// malformed call lands at a sane pace rather than at zero.
+  static const Duration fallback = Duration(seconds: 60);
 
-  static Duration of(ContentId skill) => _bySkill[skill.value] ?? fallback;
+  /// One repetition at [node], which spends [stepCost] (the profile-scaled
+  /// figure the engine will charge — `StrideSession.costOf`), scaled by the
+  /// site's authored `workSpeedPercent` (100 is the default pace).
+  static Duration forNode(ResourceNodeDefinition node, int stepCost) {
+    if (stepCost <= 0) return fallback;
+    final int speed = node.workSpeedPercent <= 0 ? 100 : node.workSpeedPercent;
+    return Duration(milliseconds: (stepCost * millisPerStep * 100) ~/ speed);
+  }
 }
 
 /// How long the finished queue's summary (gains, or the refusal that stopped
@@ -302,7 +309,12 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
     _completed = 0;
     _running = true;
     _startPending = true;
-    _durationMillis = ActivityDurations.of(node.skill).inMilliseconds;
+    // The pace follows the spend: the profile-scaled cost the engine will
+    // charge, read from the session so the two cannot disagree.
+    _durationMillis = ActivityDurations.forNode(
+      node,
+      _session.costOf(node.id) ?? 0,
+    ).inMilliseconds;
     _dispatchStart();
     notifyListeners();
   }

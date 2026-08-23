@@ -64,3 +64,25 @@ In-context capture of the three seams: `qa/stage_seams_after.png`.
 Woodcutting and foraging props were reviewed at the same time and left
 alone: the oak stump with chips, the meadow patch with basket, and the
 duskcap ring are already distinct at a glance.
+
+## 3. Correction pass (2026-08-23, device review) — hardened seam round 2 (ACCEPTED)
+
+**Finding.** On device the three seams were "much better" but the hardened
+seam still read as "a random black rock pile" rather than an advanced
+copper-bearing formation; copper and tin were accepted as they are.
+
+**Round.** Three `create_image_pixen` generations (3 gens), the copper
+seam's own prompt skeleton with the material clause "darker, denser
+blue-black slate, compressed, thick heavy bands of dark burnt-copper and
+bronze, clusters of sharp angular copper crystals, no glow":
+
+| File | Seed | Verdict |
+|---|---|---|
+| `seam_hardened2_s7720` | 7720 (copper's seed) | **ACCEPTED** → `prop_hardened_copper_seam_96` — copper's rounded silhouette, darker stone, thick bands, crystal clusters at the flanks; reads as compressed copper even under the locked-selection shadow (`qa/stage_seams_correction.png`) |
+| `seam_hardened2_s4101` | 4101 | rejected — stacked blocks, read as masonry |
+| `seam_hardened2_s2200` | 2200 | rejected — a plain ball with one vein |
+
+Running total for the round: 17 generations. In-context audit of every
+profession loop repeated this pass (mining contact and facing, woodcut,
+forage, smith, cook, the locked hardened selection at rest): no
+regeneration needed.

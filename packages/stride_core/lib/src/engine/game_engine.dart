@@ -81,6 +81,10 @@ final class GameEngine {
     );
 
     final GameEngine engine = GameEngine(registry: registry, state: empty);
+    // The loadout is granted to the bag, unworn — the shape every engine
+    // fixture and the frozen conformance transcript are built on. A fresh
+    // *playtest* wears it (`PlaytestReset.equippedItems`); changing a brand
+    // new game's first transcript is a separate, deliberate edit.
     engine._commit(<GameEvent>[
       GameStarted(
         sequence: 0,
@@ -673,6 +677,9 @@ final class GameEngine {
         grantedItems: command.freshStart
             ? registry.startingLoadout
             : const <ContentId>[],
+        equippedItems: command.freshStart
+            ? registry.startingEquipment
+            : const <EquipmentSlot, ContentId>{},
       ),
     ]);
   }

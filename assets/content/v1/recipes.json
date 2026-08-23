@@ -16,6 +16,7 @@
       "outputItem": "item.oak_plank",
       "outputQuantity": 1,
       "xp": 12,
+      "craftSeconds": 30,
       "retiredByProject": "project.havens_rest_mill"
     },
     {
@@ -32,6 +33,7 @@
       "outputItem": "item.oak_plank",
       "outputQuantity": 1,
       "xp": 12,
+      "craftSeconds": 30,
       "unlockedByProject": "project.havens_rest_mill"
     },
     {
@@ -47,7 +49,8 @@
       ],
       "outputItem": "item.oak_handle",
       "outputQuantity": 1,
-      "xp": 15
+      "xp": 15,
+      "craftSeconds": 40
     },
     {
       "id": "recipe.oak_handle_pair",
@@ -63,6 +66,7 @@
       "outputItem": "item.oak_handle",
       "outputQuantity": 2,
       "xp": 24,
+      "craftSeconds": 60,
       "unlockedByProject": "project.havens_rest_mill"
     },
     {
@@ -82,7 +86,8 @@
       ],
       "outputItem": "item.bronze_ingot",
       "outputQuantity": 1,
-      "xp": 30
+      "xp": 30,
+      "craftSeconds": 45
     },
     {
       "id": "recipe.bronze_sword",
@@ -101,7 +106,8 @@
       ],
       "outputItem": "item.bronze_sword",
       "outputQuantity": 1,
-      "xp": 90
+      "xp": 90,
+      "craftSeconds": 150
     },
     {
       "id": "recipe.bronze_axe",
@@ -120,7 +126,8 @@
       ],
       "outputItem": "item.bronze_axe",
       "outputQuantity": 1,
-      "xp": 70
+      "xp": 70,
+      "craftSeconds": 120
     },
     {
       "id": "recipe.bronze_pickaxe",
@@ -139,7 +146,8 @@
       ],
       "outputItem": "item.bronze_pickaxe",
       "outputQuantity": 1,
-      "xp": 70
+      "xp": 70,
+      "craftSeconds": 120
     },
     {
       "id": "recipe.reinforced_pickaxe",
@@ -167,6 +175,7 @@
       "outputItem": "item.reinforced_pickaxe",
       "outputQuantity": 1,
       "xp": 110,
+      "craftSeconds": 150,
       "unlockedByContract": "contract.mine_hardware"
     },
     {
@@ -186,7 +195,8 @@
       ],
       "outputItem": "item.bronze_chestplate",
       "outputQuantity": 1,
-      "xp": 140
+      "xp": 140,
+      "craftSeconds": 180
     },
     {
       "id": "recipe.wolfhide_jerkin",
@@ -206,6 +216,7 @@
       "outputItem": "item.wolfhide_jerkin",
       "outputQuantity": 1,
       "xp": 60,
+      "craftSeconds": 120,
       "unlockedByContract": "contract.woodland_aid"
     },
     {
@@ -234,6 +245,7 @@
       "outputItem": "item.frostlined_jerkin",
       "outputQuantity": 1,
       "xp": 120,
+      "craftSeconds": 180,
       "unlockedByContract": "contract.cold_weather_kit"
     },
     {
@@ -249,7 +261,8 @@
       ],
       "outputItem": "item.herb_broth",
       "outputQuantity": 1,
-      "xp": 12
+      "xp": 12,
+      "craftSeconds": 45
     },
     {
       "id": "recipe.duskcap_skewer",
@@ -268,7 +281,8 @@
       ],
       "outputItem": "item.duskcap_skewer",
       "outputQuantity": 1,
-      "xp": 26
+      "xp": 26,
+      "craftSeconds": 60
     },
     {
       "id": "recipe.frostbloom_tea",
@@ -287,7 +301,8 @@
       ],
       "outputItem": "item.frostbloom_tea",
       "outputQuantity": 1,
-      "xp": 48
+      "xp": 48,
+      "craftSeconds": 75
     },
     {
       "id": "recipe.hearty_stew",
@@ -306,7 +321,8 @@
       ],
       "outputItem": "item.hearty_stew",
       "outputQuantity": 1,
-      "xp": 45
+      "xp": 45,
+      "craftSeconds": 90
     },
     {
       "id": "recipe.pine_plank",
@@ -321,7 +337,8 @@
       ],
       "outputItem": "item.pine_plank",
       "outputQuantity": 1,
-      "xp": 110
+      "xp": 110,
+      "craftSeconds": 45
     }
   ]
 }

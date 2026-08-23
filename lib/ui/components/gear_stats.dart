@@ -20,7 +20,8 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show EquipmentSlot, ToolKind;
 
-import '../../runtime/stride_session.dart' show GearStats, GearVerdict;
+import '../../runtime/stride_session.dart'
+    show GearStats, GearVerdict, toolProfessionOf;
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
@@ -38,15 +39,21 @@ class GearStatsBlock extends StatelessWidget {
     final bool tool = g.slot == EquipmentSlot.tool;
     final Color verdictInk = switch (g.verdict) {
       GearVerdict.upgrade || GearVerdict.firstInSlot => StrideColors.textPrimary,
-      GearVerdict.equipped => StrideColors.textSecondary,
-      GearVerdict.sidegrade => StrideColors.textSecondary,
+      GearVerdict.equipped ||
+      GearVerdict.sidegrade ||
+      GearVerdict.toolSwap => StrideColors.textSecondary,
       GearVerdict.downgrade => StrideColors.textMuted,
     };
+    // A tool names the worn tool's profession and tier — `Bronze Pickaxe ·
+    // Mining tool · Tier 1` — never a power figure (the correction pass).
     final String wornLine = switch (g.verdict) {
       GearVerdict.equipped => 'Worn now',
       GearVerdict.firstInSlot => 'Nothing in the ${_slotWord(g.slot)} slot',
-      _ =>
-        'Worn: ${g.wornName} ${tool ? '' : g.wornPower}'.trimRight(),
+      _ when tool =>
+        'Currently equipped: ${g.wornName} · '
+            '${toolProfessionOf(g.wornToolKind ?? ToolKind.none)} tool · '
+            'Tier ${g.wornTier}',
+      _ => 'Worn: ${g.wornName} ${g.wornPower}',
     };
 
     return Container(
@@ -66,13 +73,15 @@ class GearStatsBlock extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      tool ? 'TOOL' : g.statName.toUpperCase(),
+                      tool
+                          ? '${g.profession!.toUpperCase()} TOOL'
+                          : g.statName.toUpperCase(),
                       style: StrideType.microLabel,
                       maxLines: 1,
                     ),
                     const SizedBox(height: StrideSpace.s2),
                     AdaptiveText(
-                      tool ? '${_toolWord(g.toolKind)} · tier ${g.tier}' : '${g.power}',
+                      tool ? 'Tier ${g.tier}' : '${g.power}',
                       style: tool ? StrideType.sub : StrideType.numericValue,
                       color: StrideColors.textPrimary,
                     ),
@@ -126,11 +135,6 @@ class GearStatsBlock extends StatelessWidget {
     EquipmentSlot.tool => 'tool',
   };
 
-  static String _toolWord(ToolKind kind) => switch (kind) {
-    ToolKind.axe => 'Axe',
-    ToolKind.pickaxe => 'Pickaxe',
-    ToolKind.none => 'Tool',
-  };
 }
 
 /// The one line a tile can afford.
@@ -163,7 +167,7 @@ class GearStatLine extends StatelessWidget {
     final GearStats g = stats;
     final Color ink = switch (g.verdict) {
       GearVerdict.downgrade => StrideColors.textMuted,
-      GearVerdict.sidegrade => StrideColors.textSecondary,
+      GearVerdict.sidegrade || GearVerdict.toolSwap => StrideColors.textSecondary,
       _ => StrideColors.textPrimary,
     };
     return Text(

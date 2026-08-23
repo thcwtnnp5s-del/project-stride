@@ -195,7 +195,7 @@ void main() {
     // queue commits under real async (`DECISIONS/0022` §5).
     expect(find.text('Gathering 0 / 5'), findsOneWidget);
     expect(find.text('Stop gathering'), findsOneWidget);
-    expect(find.text('10s'), findsOneWidget);
+    expect(find.text('48s'), findsOneWidget);
     expect(find.textContaining('Gather ×'), findsNothing);
     await pumpUntil(
       tester,
@@ -247,7 +247,7 @@ void main() {
     // First repetition: advance the fake clock inside runAsync so the
     // dispatch's real file I/O can complete.
     await tester.runAsync(() async {
-      fake.advance(const Duration(seconds: 10));
+      fake.advance(const Duration(seconds: 48));
       await until(() => activity.completed == 1);
     });
     await tester.pump();
@@ -264,7 +264,7 @@ void main() {
 
     // Second repetition accumulates.
     await tester.runAsync(() async {
-      fake.advance(const Duration(seconds: 10));
+      fake.advance(const Duration(seconds: 48));
       await until(() => activity.completed == 2);
     });
     await tester.pump();

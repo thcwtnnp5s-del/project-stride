@@ -118,10 +118,11 @@ abstract final class StrideColors {
   //
   // Chosen to sit inside this palette rather than beside it: every ink is a
   // desaturated member of the warm dark world above, not the saturated
-  // convention an MMO uses. The order the owner authored is gray → green →
-  // blue → purple → orange (`MILESTONES/WORLD_REWARD_DEPTH_01.md` §5), which
-  // puts Uncommon *below* Common; that is content's decision, not the
-  // palette's, and this file only supplies the five hues.
+  // convention an MMO uses. The ladder is Common (neutral) → Uncommon
+  // (green) → Rare (blue) → Epic (purple) → Legendary (orange), ascending
+  // (`GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`, re-based 2026-08-23); this file
+  // only supplies the five hues, and the same two hexes that once sat on the
+  // other two ranks sit here — nothing in the palette moved, only its names.
   //
   // **None of them is [accentSteps].** L-16 reserves teal for walking, steps
   // and banked quantity, so the Rare rank is a cobalt that leans blue-violet
@@ -130,14 +131,14 @@ abstract final class StrideColors {
   // statement. `test/rarity_ui_test.dart` asserts the teal half of that.
   //
   // Contrast, measured against the surfaces these sit on (WCAG ratio, ink on
-  // [surfaceCard] / [surfaceBlock]): uncommon 6.5 / 5.8, common 6.7 / 5.9,
+  // [surfaceCard] / [surfaceBlock]): common 6.5 / 5.8, uncommon 6.7 / 5.9,
   // rare 5.6 / 5.0, epic 5.7 / 5.1, legendary 7.7 / 6.9. All clear 4.5.
 
-  /// Rank 0 — a desaturated warm gray.
-  static const Color rarityUncommon = Color(0xFFA8A093);
+  /// Rank 0 — a desaturated warm gray. Neutral: ordinary and expected.
+  static const Color rarityCommon = Color(0xFFA8A093);
 
   /// Rank 1 — moss, not the yellow-green of [skillForaging].
-  static const Color rarityCommon = Color(0xFF86B06A);
+  static const Color rarityUncommon = Color(0xFF86B06A);
 
   /// Rank 2 — cobalt. **Never the teal accent**, and off [skillMining].
   static const Color rarityRare = Color(0xFF7D91DE);
@@ -155,8 +156,8 @@ abstract final class StrideColors {
   // second piece of type. A reward row is framed by one of these; it is never
   // filled with one.
 
-  static const Color rarityUncommonDim = Color(0xFF4A453D);
-  static const Color rarityCommonDim = Color(0xFF3E4F32);
+  static const Color rarityCommonDim = Color(0xFF4A453D);
+  static const Color rarityUncommonDim = Color(0xFF3E4F32);
   static const Color rarityRareDim = Color(0xFF3A4268);
   static const Color rarityEpicDim = Color(0xFF4C3D66);
   static const Color rarityLegendaryDim = Color(0xFF664A1D);

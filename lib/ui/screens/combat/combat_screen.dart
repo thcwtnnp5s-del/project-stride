@@ -477,21 +477,18 @@ class _ResultPanel {
     ),
     // The experience, on its own ground: MINOR unless a level landed, which
     // the LevelUpCard below says.
-    SurfaceBlock(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Text('EXPERIENCE', style: StrideType.microLabel, maxLines: 1),
-          const SizedBox(height: StrideSpace.s4),
-          AdaptiveText('+${o.xp} XP', style: StrideType.numericValue),
-          if (o.knowledgeXp > 0)
-            AdaptiveText(
-              'including +${o.knowledgeXp} for knowing the ${o.enemyName}',
-              style: StrideType.micro,
-              color: StrideColors.textSecondary,
-            ),
-        ],
-      ),
+    // No block of its own: the layer is the frame (finding E).
+    RewardFacts(
+      label: 'EXPERIENCE',
+      children: <Widget>[
+        AdaptiveText('+${o.xp} XP', style: StrideType.numericValue),
+        if (o.knowledgeXp > 0)
+          AdaptiveText(
+            'including +${o.knowledgeXp} for knowing the ${o.enemyName}',
+            style: StrideType.micro,
+            color: StrideColors.textSecondary,
+          ),
+      ],
     ),
     // The drops. Each row carries its rarity's frame; a rare or better row
     // is therefore the loudest thing in the list without a second treatment.

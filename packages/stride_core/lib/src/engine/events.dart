@@ -82,6 +82,7 @@ final class PlaytestReset extends GameEvent {
     required this.freshStart,
     required this.startLocation,
     this.grantedItems = const <ContentId>[],
+    this.equippedItems = const <EquipmentSlot, ContentId>{},
   });
 
   /// The new mark — the ledger's totals at the reset. The walked baseline is
@@ -101,6 +102,10 @@ final class PlaytestReset extends GameEvent {
   final bool freshStart;
   final ContentId startLocation;
   final List<ContentId> grantedItems;
+
+  /// What the fresh game wears, by slot (`ContentRegistry.startingEquipment`).
+  /// Empty for a baseline-only reset.
+  final Map<EquipmentSlot, ContentId> equippedItems;
 
   /// What the reset retired from the spendable balance.
   int get retiredBanked =>

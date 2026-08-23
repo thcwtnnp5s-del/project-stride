@@ -46,8 +46,9 @@ final StepOriginKey phone = StepOriginKey('a1b2c3d4e5f60718');
 const int hour = 60 * 60 * 1000;
 const int t0 = 1750000000000;
 
-/// Meadow Patch is Foraging, so one repetition presents for 10 s.
-const Duration kRep = Duration(seconds: 10);
+/// Meadow Patch costs 80 steps, so at 100 steps a minute one repetition
+/// presents for 48 s (`ActivityDurations.forNode`, the correction pass).
+const Duration kRep = Duration(seconds: 48);
 
 SyncFetch page(int steps) => SyncFetch(
   IncrementalSync(
@@ -186,11 +187,11 @@ void main() {
 
     // One second short of the repetition: nothing has been committed, and
     // the bar reads exactly the wall-clock elapsed against the anchor.
-    fake.advance(const Duration(seconds: 9));
+    fake.advance(const Duration(seconds: 47));
     await settle();
     expect(s.totalSpent, 0);
     expect(s.inventoryCount(kHerb), 0);
-    expect(a.elapsedOfCurrent, const Duration(seconds: 9));
+    expect(a.elapsedOfCurrent, const Duration(seconds: 47));
 
     fake.advance(const Duration(seconds: 1));
     await until(() => a.completed == 1, reason: 'the repetition completes');
@@ -254,11 +255,11 @@ void main() {
     );
 
     await startAndCommit(sessions, a, s, 3);
-    fake.advance(const Duration(seconds: 4));
+    fake.advance(const Duration(seconds: 43));
     background(a);
 
     // Five more seconds in the pocket: nine of ten elapsed, no boundary.
-    fake.elapseInBackground(const Duration(seconds: 5));
+    fake.elapseInBackground(const Duration(seconds: 4));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await settle();
 
@@ -267,7 +268,7 @@ void main() {
     // The pocketed time counts — the bar resumes at nine seconds, not four.
     // This is the exact inversion of the pre-0022 pause semantics, by owner
     // ruling.
-    expect(a.elapsedOfCurrent, const Duration(seconds: 9));
+    expect(a.elapsedOfCurrent, const Duration(seconds: 47));
 
     // One more second and the boundary timer, re-armed on resume for the
     // remainder, completes the repetition.
@@ -288,7 +289,7 @@ void main() {
 
     await startAndCommit(sessions, a, s, 3);
     background(a);
-    fake.elapseInBackground(const Duration(seconds: 12));
+    fake.elapseInBackground(const Duration(seconds: 50));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => a.completed == 1, reason: 'the away repetition commits');
 
@@ -316,8 +317,8 @@ void main() {
 
     await startAndCommit(sessions, a, s, 5);
     background(a);
-    // Three and a half repetitions in the pocket.
-    fake.elapseInBackground(const Duration(seconds: 35));
+    // Three and a half repetitions (48 s each) in the pocket.
+    fake.elapseInBackground(const Duration(seconds: 168));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => a.completed == 3, reason: 'three away repetitions');
 
@@ -326,8 +327,8 @@ void main() {
     expect(xpOf(s), 30);
     expect(a.active, isTrue);
     expect(a.awaySummary!.quantity, 3);
-    // And the durable anchor sits mid-repetition, five seconds in.
-    expect(a.elapsedOfCurrent, const Duration(seconds: 5));
+    // And the durable anchor sits mid-repetition, twenty-four seconds in.
+    expect(a.elapsedOfCurrent, const Duration(seconds: 24));
   });
 
   test('background beyond the whole queue: capped at the requested count, '
@@ -366,7 +367,7 @@ void main() {
 
     await startAndCommit(sessions, a, s, 5);
     background(a);
-    fake.elapseInBackground(const Duration(seconds: 12));
+    fake.elapseInBackground(const Duration(seconds: 50));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => a.completed == 1, reason: 'the away repetition commits');
     expect(s.totalSpent, 80);
@@ -410,14 +411,14 @@ void main() {
     a.dispose();
     sessions.dispose();
 
-    // Relaunch 25 seconds of wall-clock later: two more repetitions elapsed
-    // (at 20 s and 30 s from the anchor... the second and third boundaries),
+    // Relaunch 120 seconds of wall-clock later: two more repetitions elapsed
+    // (at 96 s and 144 s from the anchor... the second and third boundaries),
     // and the fourth is half way.
     final FakeTiming relaunchClock = FakeTiming()
       ..elapseInBackground(
         Duration(milliseconds: fake.nowEpochMillis - FakeTiming.epochStart),
       )
-      ..elapseInBackground(const Duration(seconds: 25));
+      ..elapseInBackground(const Duration(seconds: 120));
     final StrideSession relaunched = await StrideSession.start(
       overrideRoot: root,
       source: MockStepSource(script: const <SyncFetch>[]),
@@ -461,7 +462,7 @@ void main() {
     expect(relaunched.totalSpent, 240);
   });
 
-  test('stop at 27 s of a 10 s × 5 queue: exactly 2 committed, the partial '
+  test('stop at 110 s of a 48 s × 5 queue: exactly 2 committed, the partial '
       'discarded, the queue cleared — and a relaunch agrees', () async {
     final FakeTiming fake = FakeTiming();
     final StrideSession s = await funded(1000, fake);
@@ -471,10 +472,10 @@ void main() {
     );
 
     await startAndCommit(sessions, a, s, 5);
-    // Locked for 27 seconds — no foreground boundary ever fired, so the
+    // Locked for 110 seconds — no foreground boundary ever fired, so the
     // stop's own closing reconciliation does the committing.
     background(a);
-    fake.elapseInBackground(const Duration(seconds: 27));
+    fake.elapseInBackground(const Duration(seconds: 110));
     a.stop();
     await until(
       () => s.activityQueue == null && !a.active,
@@ -578,7 +579,7 @@ void main() {
 
     await startAndCommit(sessions, a, s, 5);
     background(a);
-    fake.elapseInBackground(const Duration(seconds: 60));
+    fake.elapseInBackground(const Duration(seconds: 150));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => !a.active, reason: 'the refused third stops the queue');
 
@@ -610,7 +611,7 @@ void main() {
     background(a);
     final TravelReport travel = await s.travel(kWoods);
     expect(travel.succeeded, isTrue, reason: '${travel.rejection}');
-    fake.elapseInBackground(const Duration(seconds: 30));
+    fake.elapseInBackground(const Duration(seconds: 100));
     a.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await until(() => !a.active, reason: 'the impossible completion refuses');
 
@@ -719,7 +720,7 @@ void main() {
     await until(() => s.activityQueue != null, reason: 'one start commits');
 
     expect(s.activityQueue!.requested, 2, reason: 'the first tap won');
-    fake.advance(const Duration(minutes: 1));
+    fake.advance(const Duration(minutes: 2));
     await until(() => !a.active, reason: 'the queue of two finishes');
     expect(s.totalSpent, 160, reason: 'two commits, never twelve');
   });

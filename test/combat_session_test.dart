@@ -148,7 +148,7 @@ void main() {
       wolfHere.drops.map((DropPreview d) => (d.name, d.rarity)),
       <(String, Rarity?)>[
         ('Wolf Pelt', Rarity.common),
-        ('Meadow Herb', Rarity.uncommon),
+        ('Meadow Herb', Rarity.common),
         ('Pristine Wolf Fang', Rarity.rare),
       ],
     );

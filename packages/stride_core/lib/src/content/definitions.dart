@@ -37,16 +37,21 @@ enum ItemCategory { material, equipment, consumable, quest }
 /// fix is a two-line swap in `items.json` and this doc comment — not a code
 /// change. See `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`.
 enum Rarity {
-  /// Grey. Tier-0 gathered material: picked up in handfuls without a tool.
-  uncommon('Uncommon'),
-
-  /// Green. Processed, cooked, granted, or gathered behind a real requirement.
+  /// Neutral. Ordinary and expected: starter gear, everyday materials, the
+  /// food a first kitchen makes. The floor (PLAYABLE_POLISH_01 correction
+  /// pass, owner ruling 2026-08-23 — this order supersedes the 2026-08-19
+  /// one; `GAME_BIBLE/SYSTEMS/08_ITEM_RARITY.md`).
   common('Common'),
 
-  /// Blue. Bronze-tier equipment and the materials only combat yields.
+  /// Green. A useful, meaningful improvement: standard Bronze equipment, the
+  /// food that heals properly.
+  uncommon('Uncommon'),
+
+  /// Blue. Genuinely exciting: signatures, enhanced equipment with a
+  /// passive, the reward of a real contract or a real enemy.
   rare('Rare'),
 
-  /// Purple. The end of a chain: a boss token, the best armour authored.
+  /// Purple. "I really needed this": a boss token, the best armour authored.
   epic('Epic'),
 
   /// Orange. **Nothing carries it yet** — reserved so the enum, the style
@@ -613,6 +618,7 @@ final class ResourceNodeDefinition {
     required this.yieldsQuantity,
     required this.stepCost,
     required this.xp,
+    this.workSpeedPercent = 100,
     this.bonusYieldLevel = 0,
     this.bonusYieldPercent = 0,
     this.unlockedByProject,
@@ -646,6 +652,15 @@ final class ResourceNodeDefinition {
   /// the Stonefall Lift's hardened seam. Null for always-available nodes.
   final ContentId? unlockedByProject;
 
+  /// How fast this site is worked, as a percentage of the default pace
+  /// (PLAYABLE_POLISH_01 correction pass, finding H). The default pace is
+  /// **100 spendable steps per minute of work** — `0.6 s` a step — and
+  /// this scales it: 200 works twice as fast, 50 half. Presentation pacing
+  /// only: every completion still spends the same steps through the same
+  /// command, and the engine never reads it. Authored rarely; the seam
+  /// exists so a future special site need not change the formula.
+  final int workSpeedPercent;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -658,6 +673,7 @@ final class ResourceNodeDefinition {
     'stepCost',
     'xp',
     'bonusYieldLevel',
+    'workSpeedPercent',
     'bonusYieldPercent',
     'unlockedByProject',
   };
@@ -693,6 +709,12 @@ final class ResourceNodeDefinition {
         max: 1000,
       ),
       stepCost: reader.requireInt('stepCost', min: 1, max: 1000000),
+      workSpeedPercent: reader.optionalInt(
+        'workSpeedPercent',
+        fallback: 100,
+        min: 25,
+        max: 400,
+      ),
       xp: reader.requireInt('xp', min: 0, max: 1000000),
       bonusYieldLevel: reader.optionalInt('bonusYieldLevel', min: 0, max: 99),
       bonusYieldPercent: reader.optionalInt(
@@ -722,6 +744,7 @@ final class RecipeDefinition {
     required this.outputItem,
     required this.outputQuantity,
     required this.xp,
+    this.craftSeconds,
     this.unlockedByProject,
     this.retiredByProject,
     this.unlockedByContract,
@@ -751,6 +774,15 @@ final class RecipeDefinition {
   /// start.
   final ContentId? unlockedByContract;
 
+  /// How long one repetition of this recipe takes at the bench, in seconds
+  /// (PLAYABLE_POLISH_01 correction pass, finding I). Crafting costs **zero
+  /// steps**, so it cannot be paced by the steps-per-minute rule; its pace
+  /// is authored per recipe for delayed gratification — a component is a
+  /// small job, a sword a real one. Null falls back to the category default
+  /// the craft controller keeps. Presentation pacing: the engine validates
+  /// and commits each repetition exactly as before, and never reads this.
+  final int? craftSeconds;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -760,6 +792,7 @@ final class RecipeDefinition {
     'outputItem',
     'outputQuantity',
     'xp',
+    'craftSeconds',
     'unlockedByProject',
     'retiredByProject',
     'unlockedByContract',
@@ -792,6 +825,9 @@ final class RecipeDefinition {
         max: 1000,
       ),
       xp: reader.requireInt('xp', min: 0, max: 1000000),
+      craftSeconds: reader.map.containsKey('craftSeconds')
+          ? reader.requireInt('craftSeconds', min: 1, max: 3600)
+          : null,
       unlockedByProject: reader.map.containsKey('unlockedByProject')
           ? reader.requireId('unlockedByProject', ContentNamespace.project)
           : null,
