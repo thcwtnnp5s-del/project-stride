@@ -23,6 +23,7 @@ import 'package:stride_core/stride_core.dart'
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/reward_beat.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
@@ -722,57 +723,71 @@ class _QueueSummaryStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ActionReport? refusal = activity.stopReport;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final AwaySummary? away = activity.awaySummary;
+    final String item = activity.gainedItemName ?? 'Items';
+    final String? skillName = activity.gainedSkillName;
+    final int done = activity.completed;
+
+    // The queue's completion beat (PLAYABLE_EXPERIENCE_REFINEMENT_01 §10):
+    // how many, the total yield, the total XP — one MINOR beat, with the
+    // universal level-up beneath it when the climb crossed a level. The
+    // away line stays a fact on the beat rather than a second card.
+    final List<String> lines = <String>[
+      if (activity.gainedQuantity > 0) '$item ×${activity.gainedQuantity}',
+      if (skillName != null && activity.gainedXp > 0)
+        '+${activity.gainedXp} $skillName XP',
+      if (away != null && away.quantity > 0)
+        '${away.quantity} ${away.itemName ?? item} gathered while away',
+      if (refusal != null) gatherRefusalText(refusal),
+    ];
+    final String eyebrow = refusal != null
+        ? 'STOPPED'
+        : done > 0
+        ? 'GATHERING COMPLETE'
+        : 'GATHERING';
+    final String title = done > 0
+        ? '$done ${done == 1 ? 'repetition' : 'repetitions'} completed'
+        : (refusal != null ? 'Nothing completed' : '');
+
+    return StaggeredReveal(
       children: <Widget>[
-        if (activity.awaySummary case final AwaySummary away
-            when away.quantity > 0) ...<Widget>[
-          Text(
-            '+${away.quantity} ${away.itemName ?? 'items'} · '
-            '+${away.experience} ${away.skillName ?? ''} XP while away',
-            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
+        if (title.isNotEmpty || lines.isNotEmpty)
+          RewardBeat(
+            tier: RewardTier.minor,
+            eyebrow: eyebrow,
+            title: title,
+            lines: lines,
           ),
-          const SizedBox(height: StrideSpace.s4),
-        ],
-        if (activity.gainedQuantity > 0)
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  '${activity.gainedItemName ?? 'Items'} '
-                  '×${activity.gainedQuantity}',
-                  style: StrideType.micro.copyWith(
-                    color: StrideColors.textPrimary,
-                  ),
-                ),
-              ),
-              if (activity.gainedSkillName case final String skillName)
-                Text(
-                  '+${activity.gainedXp} $skillName XP',
-                  style: StrideType.micro.copyWith(
-                    color: StrideColors.forSkill(skill),
-                  ),
-                ),
-            ],
+        if (activity.levelledUp)
+          LevelUpCard(
+            name: skillName ?? '',
+            level: activity.skillLevelAfter ?? 0,
+            skill: skill,
+            unlocked: activity.unlockedNames,
+            why: activity.unlockedNames.isEmpty
+                ? null
+                : 'Richer sites and recipes are open to you',
           ),
-        if (refusal != null) ...<Widget>[
-          if (activity.gainedQuantity > 0)
-            const SizedBox(height: StrideSpace.s4),
-          Text(
-            gatherRefusalText(refusal),
-            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
+        if (activity.levelledUp)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: StrideButton.secondary(
+              label: 'OK',
+              onPressed: ActivityScope.read(context).dismissSummary,
+            ),
           ),
-        ],
       ],
     );
   }
 }
 
-/// The result of the gather that just happened.
+/// The result of the single gather that just happened.
 ///
 /// **Ephemeral by construction.** Every value comes from the `ActionReport`
 /// the command just returned — not from state, not accumulated, not
 /// persisted. It clears on a timer, on the next command, and on a tab change.
+/// A MINOR beat; the universal level-up beneath it when the gather crossed a
+/// level (§10, §29).
 class _ResultStrip extends StatelessWidget {
   const _ResultStrip({required this.report, required this.skill});
 
@@ -791,24 +806,28 @@ class _ResultStrip extends StatelessWidget {
     }
 
     final String item = report.itemName ?? 'items';
-    final String qty = '${report.quantity ?? 0}';
     final String? skillName = report.skillName;
     final int? xp = report.experience;
 
-    return Row(
+    return StaggeredReveal(
       children: <Widget>[
-        Expanded(
-          child: Text(
-            '$item ×$qty',
-            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
-          ),
+        RewardBeat(
+          tier: RewardTier.minor,
+          eyebrow: 'GATHERED',
+          title: '$item ×${report.quantity ?? 0}',
+          lines: <String>[
+            if (skillName != null && xp != null) '+$xp $skillName XP',
+          ],
         ),
-        if (skillName != null && xp != null)
-          Text(
-            '+$xp $skillName XP',
-            style: StrideType.micro.copyWith(
-              color: StrideColors.forSkill(skill),
-            ),
+        if (report.levelledUp)
+          LevelUpCard(
+            name: skillName ?? '',
+            level: report.skillLevelAfter ?? 0,
+            skill: skill,
+            unlocked: report.unlockedNames,
+            why: report.unlockedNames.isEmpty
+                ? null
+                : 'Richer sites and recipes are open to you',
           ),
       ],
     );

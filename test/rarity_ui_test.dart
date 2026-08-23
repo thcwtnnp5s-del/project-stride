@@ -39,6 +39,7 @@ import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/rarity_badge.dart';
 import 'package:stride/ui/components/rarity_item_title.dart';
+import 'package:stride/ui/components/reward_beat.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/screens/combat/combat_screen.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -494,15 +495,21 @@ void main() {
       expect(clippedLines(tester), isEmpty);
     });
 
-    testWidgets('a level-up is its own line inside the experience block', (
-      WidgetTester tester,
-    ) async {
+    testWidgets('a level-up is the universal level-up beat, beneath the '
+        'experience block', (WidgetTester tester) async {
+      // PLAYABLE_EXPERIENCE_REFINEMENT_01 §29: one level-up presentation
+      // shared by gathering, crafting and combat — never a line appended
+      // inside whichever block happened to trigger it.
       await showPanel(
         tester,
         won(drops: const <RewardLine>[], xp: 120, levelAfter: 3),
       );
       expect(find.text('+120 XP'), findsOneWidget);
-      expect(find.text('Level 3!'), findsOneWidget);
+      expect(find.text('Level 3!'), findsNothing);
+      expect(find.byType(LevelUpCard), findsOneWidget);
+      expect(find.text('LEVEL UP'), findsOneWidget);
+      expect(find.text('TRAVELER LEVEL 3'), findsOneWidget);
+      expect(clippedLines(tester), isEmpty);
     });
 
     testWidgets('Continue acknowledges exactly once and cannot be tapped '

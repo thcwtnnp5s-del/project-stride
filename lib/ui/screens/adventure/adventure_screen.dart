@@ -123,6 +123,18 @@ class _AdventureScreenState extends State<AdventureScreen> {
         : nodes.where((ResourceNodeDefinition n) => n.id == stagedId)
               .firstOrNull;
 
+    // The selection's gate, projected once from the same rules the engine
+    // enforces, so the stage and the disabled control never disagree (§8).
+    final GatherEligibility? gate = staged == null
+        ? null
+        : s.gatherEligibilityOf(staged.id);
+    final bool locked = gate != null && !gate.eligible;
+    final String? lockReason = staged == null || gate == null || !locked
+        ? null
+        : !gate.skillMet
+        ? 'Requires ${s.displayNameOf(staged.skill)} ${gate.requiredLevel}'
+        : 'Needs a ${staged.requiredToolKind.name}';
+
     // The identity of a *successful* gather at the staged node, and nothing
     // else — the one-shot plays on the shared stage now. Suppressed while a
     // queue runs: the working loop already has the stage.
@@ -147,6 +159,8 @@ class _AdventureScreenState extends State<AdventureScreen> {
           selectedNode: staged,
           activityActive: active != null && staged != null,
           playToken: playToken,
+          locked: locked,
+          lockReason: lockReason,
         ),
 
         _Gutter(child: _WalkingStrip(controller: c)),
@@ -336,7 +350,14 @@ class _WalkingStrip extends StatelessWidget {
       // noise, and the extra wrap row it costs is what pushes the gather
       // control below the fold on a fresh save
       // (`test/fold_clearance_test.dart`).
-      if (s.playerHp < s.playerMaxHp)
+      //
+      // Consistent rule (PLAYABLE_EXPERIENCE_REFINEMENT_01 §22): shown
+      // wherever a fight is possible — the figure a player checks before
+      // choosing one — and anywhere it is below full. Hidden only at full
+      // health in a safe place, where it says nothing. It stays a fact in the
+      // band, after the step figures and in the same role, so it is
+      // subordinate to the bank rather than a second header.
+      if (s.playerHp < s.playerMaxHp || s.encountersHere.isNotEmpty)
         _WalkingFact(label: 'HP', value: '${s.playerHp} / ${s.playerMaxHp}'),
     ];
 

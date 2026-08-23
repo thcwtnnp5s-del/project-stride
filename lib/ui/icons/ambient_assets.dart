@@ -286,9 +286,10 @@ abstract final class AmbientAssets {
   /// Foraging plays **ping-pong** — down the kneel and back up through the
   /// same frames — because the source loop ends crouched and a hard wrap to
   /// standing would pop; listing the paths twice is frame-order authoring,
-  /// not duplicated assets. Cooking and smithing are unlisted and fall back
-  /// to the gather cycle rather than to nothing, so a future content pack
-  /// cannot mount an empty stage.
+  /// not duplicated assets. Smithing and cooking play the same way, for the
+  /// same reason. A skill with no listed loop falls back to the gather cycle
+  /// rather than to nothing, so a future content pack cannot mount an empty
+  /// stage.
   static List<String> activityLoopFor(String skill) =>
       _activityLoops[skill] ?? PixelIcons.gatherFrames;
 
@@ -328,8 +329,20 @@ abstract final class AmbientAssets {
           ..._forageFrames,
           for (int i = 7; i >= 1; i--) _forageFrames[i],
         ],
-        'skill.smithing': _smithFrames,
-        'skill.cooking': _cookFrames,
+        // The craft loops play ping-pong for the same reason foraging does
+        // (PLAYABLE_EXPERIENCE_REFINEMENT_01 §14): both source loops end
+        // with the tool low — hammer on the anvil, spoon in the pot — and
+        // begin with it raised, so a hard wrap popped the tool back up in one
+        // frame. Played down and back up through the same frames the stroke
+        // is continuous. Frame-order authoring, not new frames (A-2).
+        'skill.smithing': <String>[
+          ..._smithFrames,
+          for (int i = 5; i >= 1; i--) _smithFrames[i],
+        ],
+        'skill.cooking': <String>[
+          ..._cookFrames,
+          for (int i = 5; i >= 1; i--) _cookFrames[i],
+        ],
       };
 
   static const Map<String, SpriteFootprint> _activityFootprints =

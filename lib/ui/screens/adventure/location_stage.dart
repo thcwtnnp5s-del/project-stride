@@ -62,7 +62,7 @@ import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
-import '../../theme/stride_typography.dart';
+import '../../components/data_display.dart';
 
 class LocationStage extends StatelessWidget {
   const LocationStage({
@@ -72,7 +72,21 @@ class LocationStage extends StatelessWidget {
     required this.selectedNode,
     required this.activityActive,
     required this.playToken,
+    this.locked = false,
+    this.lockReason,
   });
+
+  /// True when [selectedNode] cannot be worked yet — skill too low, tool not
+  /// equipped. The scene still composes (the player is looking at the seam),
+  /// but the working loop is never played and the resource is held back.
+  final bool locked;
+
+  /// The one-line reason the selection is locked, shown on the stage.
+  final String? lockReason;
+
+  /// Shadow over a locked selection's scene: enough to say "not yet", not so
+  /// much that the seam disappears.
+  static const Color _lockedScrim = Color(0x5A14120F);
 
   /// The location's display name, captioned over the lower edge in location
   /// mode. Work mode captions the activity instead.
@@ -150,7 +164,10 @@ class LocationStage extends StatelessWidget {
       activityCanvas: skill == null
           ? 64
           : AmbientAssets.activityCanvasFor(skill),
-      activityActive: activityActive,
+      // A locked selection never works, whatever the queue says — and the
+      // queue cannot say anything, because the control that starts it is
+      // disabled on the same projection. Defence in depth, not a second rule.
+      activityActive: activityActive && !locked,
     );
 
     return ClipRect(
@@ -202,17 +219,25 @@ class LocationStage extends StatelessWidget {
               child: figures,
             ),
 
-            // The caption names whichever question the stage is answering:
-            // the place when idle, the work when working.
-            Positioned(
-              left: StrideSpace.screenGutter,
-              bottom: StrideSpace.s8,
-              child: Text(
-                node?.displayName ?? locationName,
-                style: StrideType.cardTitle,
-                maxLines: 1,
-              ),
-            ),
+            // No caption (PLAYABLE_EXPERIENCE_REFINEMENT_01 §5). The
+            // card-title overlay — `COPPER SEAM`, `MEADOW PATCH` — competed
+            // with the art and read as a debug label on the device; the place
+            // is named in the header's eyebrow and the selected activity in
+            // the row beneath, so the painting is left to breathe.
+
+            // The locked selection (§8): the scene is composed — the player
+            // asked to look at this seam — but nothing can begin, so the
+            // resource sits back in shadow and the one fact that gates it is
+            // said on the picture, quietly, where the work would happen.
+            if (working && locked) ...<Widget>[
+              const ColoredBox(color: _lockedScrim),
+              if (lockReason case final String reason)
+                Positioned(
+                  right: StrideSpace.screenGutter,
+                  bottom: StrideSpace.s8,
+                  child: RequirementGate(label: reason, unmet: true),
+                ),
+            ],
           ],
         ),
       ),

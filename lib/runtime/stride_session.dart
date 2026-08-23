@@ -1248,6 +1248,13 @@ final class WonBeat extends CombatBeat {
     required this.levelBefore,
     required this.levelAfter,
     required this.drops,
+    this.enemyName = '',
+    this.knowledgeBefore,
+    this.knowledgeAfter,
+    this.knowledgeXp = 0,
+    this.understoodDrops = const <String>[],
+    this.signatureDrops = const <String>[],
+    this.bountyProgress = const <BountyProgressLine>[],
   });
 
   /// Profile-scaled, as awarded.
@@ -1261,14 +1268,72 @@ final class WonBeat extends CombatBeat {
   /// the reward the disk actually holds.
   final List<RewardLine> drops;
 
+  final String enemyName;
+
+  /// The enemy-knowledge tier this victory found and left (`DECISIONS/0023`
+  /// §5), computed from the event's own `victoriesAfter` against the enemy's
+  /// thresholds — so the beat announces exactly the crossing the commit
+  /// made. Null on a record written before victories were counted.
+  final KnowledgeTier? knowledgeBefore;
+  final KnowledgeTier? knowledgeAfter;
+
+  /// The one-time Known award, already inside [xp]; named so the bestiary
+  /// milestone can be announced as its own beat.
+  final int knowledgeXp;
+
+  /// The enemy's ordinary drops by name — "newly understood" when the tier
+  /// reaches Studied. Content, not a roll.
+  final List<String> understoodDrops;
+
+  /// The signature drops by name — revealed when the tier reaches Known;
+  /// `???` until then, which the panel prints rather than this field.
+  final List<String> signatureDrops;
+
+  /// Accepted bounties this victory advanced, with the count after.
+  final List<BountyProgressLine> bountyProgress;
+
   bool get levelledUp => levelAfter > levelBefore;
+
+  /// True when this victory crossed a knowledge threshold.
+  bool get knowledgeAdvanced =>
+      knowledgeBefore != null &&
+      knowledgeAfter != null &&
+      knowledgeAfter!.index > knowledgeBefore!.index;
+
+  /// The rarest thing that dropped, or null when nothing did.
+  Rarity? get rarestDrop {
+    Rarity? best;
+    for (final RewardLine line in drops) {
+      final Rarity? r = line.rarity;
+      if (r == null) continue;
+      if (best == null || r.index > best.index) best = r;
+    }
+    return best;
+  }
+}
+
+/// One accepted bounty's progress after a victory: `Forest Wolf 2 / 3`.
+final class BountyProgressLine {
+  const BountyProgressLine({
+    required this.contractName,
+    required this.progress,
+    required this.required,
+  });
+
+  final String contractName;
+  final int progress;
+  final int required;
 }
 
 /// The player fell and was moved to [retreatToName]. Nothing was lost.
 final class LostBeat extends CombatBeat {
-  const LostBeat({required this.retreatToName});
+  const LostBeat({required this.retreatToName, this.healed = false});
 
   final String retreatToName;
+
+  /// True when the safe destination restored the player's HP on arrival —
+  /// said on the card so retreat never reads as death (§19).
+  final bool healed;
 }
 
 /// The player chose to leave for [retreatToName]. Nothing was lost.
@@ -2922,21 +2987,60 @@ final class StrideSession {
         turn: event.turn,
         telegraph: event.telegraph,
       ),
-      EncounterWon() => WonBeat(
-        xp: event.characterXp,
-        levelBefore: event.levelBefore,
-        levelAfter: event.levelAfter,
-        drops: <RewardLine>[
-          for (final MapEntry<ContentId, int> d in event.drops.entries)
-            RewardLine(
-              id: d.key,
-              name: itemName(d.key),
-              quantity: d.value,
-              rarity: content.items[d.key]?.rarity,
-            ),
-        ],
+      EncounterWon() => () {
+        final EnemyDefinition? enemy = content.enemies[event.enemy];
+        final int? after = event.victoriesAfter;
+        KnowledgeTier tierAt(int victories) => enemy == null
+            ? KnowledgeTier.seen
+            : victories >= enemy.knownAt
+            ? KnowledgeTier.known
+            : victories >= enemy.studiedAt
+            ? KnowledgeTier.studied
+            : KnowledgeTier.seen;
+        return WonBeat(
+          xp: event.characterXp,
+          levelBefore: event.levelBefore,
+          levelAfter: event.levelAfter,
+          enemyName: enemy?.displayName ?? event.enemy.value,
+          drops: <RewardLine>[
+            for (final MapEntry<ContentId, int> d in event.drops.entries)
+              RewardLine(
+                id: d.key,
+                name: itemName(d.key),
+                quantity: d.value,
+                rarity: content.items[d.key]?.rarity,
+              ),
+          ],
+          knowledgeBefore: after == null ? null : tierAt(after - 1),
+          knowledgeAfter: after == null ? null : tierAt(after),
+          knowledgeXp: event.knowledgeXp,
+          understoodDrops: <String>[
+            if (enemy != null)
+              for (final EnemyDrop drop in enemy.drops)
+                if (!drop.signature) itemName(drop.item),
+          ],
+          signatureDrops: <String>[
+            if (enemy != null)
+              for (final EnemyDrop drop in enemy.drops)
+                if (drop.signature) itemName(drop.item),
+          ],
+          bountyProgress: <BountyProgressLine>[
+            for (final MapEntry<ContentId, int> b
+                in event.bountyProgress.entries)
+              if (content.contracts[b.key] case final ContractDefinition c
+                  when c.bountyEnemy != null)
+                BountyProgressLine(
+                  contractName: c.displayName,
+                  progress: b.value,
+                  required: c.bountyCount,
+                ),
+          ],
+        );
+      }(),
+      EncounterLost() => LostBeat(
+        retreatToName: placeName(event.retreatTo),
+        healed: event.restoredHp != null,
       ),
-      EncounterLost() => LostBeat(retreatToName: placeName(event.retreatTo)),
       EncounterRetreated() => RetreatedBeat(
         retreatToName: placeName(event.retreatTo),
       ),

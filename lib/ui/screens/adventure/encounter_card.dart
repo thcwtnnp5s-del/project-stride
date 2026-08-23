@@ -150,9 +150,15 @@ class _EncounterRow extends StatelessWidget {
                 ? StrideColors.surfaceRaised
                 : StrideColors.surfaceBlock,
             // One border weight and one border colour, by the palette's own
-            // rule — the open row is distinguished by its raised fill and by
-            // the detail beneath it, not by a colour invented for this list.
-            border: Border.all(color: StrideColors.borderDefault),
+            // rule — the open row is distinguished by its raised fill, a
+            // quiet left rule in the walking accent's dim form, and by the
+            // detail beneath it; no colour is invented for this list
+            // (PLAYABLE_EXPERIENCE_REFINEMENT_01 §20).
+            border: Border.all(
+              color: selected
+                  ? StrideColors.accentStepsDim
+                  : StrideColors.borderDefault,
+            ),
             borderRadius: StrideRadius.inner,
           ),
           child: Row(

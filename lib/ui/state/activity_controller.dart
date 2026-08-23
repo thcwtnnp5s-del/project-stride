@@ -211,6 +211,10 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
 
   AwaySummary? _awaySummary;
 
+  int? _levelBefore;
+  int? _levelAfter;
+  List<String> _unlockedNames = const <String>[];
+
   /// The last lifecycle state the binding reported. Null — never reported, the
   /// widget-test harness and a fresh launch — is treated as foreground, the
   /// same seam `AmbientPlayer` documents.
@@ -265,6 +269,21 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
   /// The refusing report, for the card to render with the same wording a
   /// single gather's refusal gets.
   ActionReport? get stopReport => _stopReport;
+
+  /// True when this queue raised the skill a level — the finished summary
+  /// then carries the universal level-up beat and is held for a tap rather
+  /// than a timer (PLAYABLE_EXPERIENCE_REFINEMENT_01 §10, §29, §32).
+  bool get levelledUp =>
+      _levelBefore != null && _levelAfter != null && _levelAfter! > _levelBefore!;
+  int? get skillLevelAfter => _levelAfter;
+  List<String> get unlockedNames => _unlockedNames;
+
+  /// Dismisses a held finished-queue summary. Idempotent.
+  void dismissSummary() {
+    if (_running || _node == null) return;
+    _clearSummary();
+    notifyListeners();
+  }
 
   /// The refusal's stable wire code, for tests and logs.
   String? get stopReason => _stopReport?.rejection;
@@ -451,6 +470,7 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
 
     if (report.completions.isNotEmpty) {
       _accumulate(report.completions);
+      _absorbLevel(report);
       _completed = report.completedAfter;
       if (!watched) {
         _awaySummary = _awayOf(report);
@@ -491,6 +511,7 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (report.succeeded && report.completions.isNotEmpty) {
       _accumulate(report.completions);
+      _absorbLevel(report);
       _completed = report.completedAfter;
     }
     _finish(rejection: report.succeeded ? report.stopReason : report.rejection);
@@ -530,6 +551,21 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
       _timer = null;
       action();
     });
+  }
+
+  /// The skill level the queue found and left, and what the climb opened —
+  /// read from each reconcile's report, never from state, so the finished
+  /// queue's level-up beat describes exactly the commits that earned it.
+  void _absorbLevel(ActivityQueueReport report) {
+    final int? before = report.skillLevelBefore;
+    final int? after = report.skillLevelAfter;
+    if (before != null && (_levelBefore == null || before < _levelBefore!)) {
+      _levelBefore = before;
+    }
+    if (after != null && (_levelAfter == null || after > _levelAfter!)) {
+      _levelAfter = after;
+    }
+    _unlockedNames = <String>[..._unlockedNames, ...report.unlockedNames];
   }
 
   void _accumulate(List<ActivityCompletionLine> completions) {
@@ -578,7 +614,12 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
             detail: detail,
           );
 
-    if (_completed > 0 || _stopReport != null || _awaySummary != null) {
+    if (levelledUp) {
+      // MEDIUM: a level is acknowledged, not timed out. The summary holds
+      // until the player taps it away or starts the next queue.
+      _summaryTimer?.cancel();
+      _summaryTimer = null;
+    } else if (_completed > 0 || _stopReport != null || _awaySummary != null) {
       _summaryTimer?.cancel();
       _summaryTimer = _timing.startTimer(_summaryLifetime, () {
         _summaryTimer = null;
@@ -604,6 +645,9 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
     _gainXp = 0;
     _stopReport = null;
     _awaySummary = null;
+    _levelBefore = null;
+    _levelAfter = null;
+    _unlockedNames = const <String>[];
   }
 
   void _cancelTimer() {

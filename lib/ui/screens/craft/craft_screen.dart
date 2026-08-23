@@ -33,6 +33,7 @@ import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
+import '../../components/reward_beat.dart';
 import '../../components/surfaces.dart';
 import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
@@ -712,10 +713,17 @@ class _CraftRepetitionBarState extends State<CraftRepetitionBar>
   );
 }
 
-/// The finished queue's feedback, tiered (§18): a quiet line for components
-/// and food, the full reveal for equipment — name, rank, the stat story
-/// against what is worn, the level-up when one landed, and Equip right
-/// there.
+/// The finished queue's feedback, as a beat (PLAYABLE_EXPERIENCE_REFINEMENT_01
+/// §12–§13, §29, §32).
+///
+/// The device review found the result embedded in the recipe card — `Oak
+/// Plank ×1 · +12 Smithing XP / SMITHING LEVEL 4 / Frost-lined Jerkin · Pine
+/// Plank unlocked.` — reading as diagnostic output the card had kept. It is
+/// now a deliberate completion beat in the one reward language
+/// (`reward_beat.dart`): MINOR for a component or a meal, MEDIUM for finished
+/// equipment, and the universal [LevelUpCard] beneath either when a level
+/// landed. MINOR resolves on the controller's timer; MEDIUM and a level-up
+/// are held until acknowledged, then the card returns to the clean detail.
 class _CraftSummary extends StatelessWidget {
   const _CraftSummary({required this.craft, required this.recipe});
 
@@ -740,80 +748,62 @@ class _CraftSummary extends StatelessWidget {
     }
     if (craft.quantity == 0) return const SizedBox.shrink();
 
-    // MEDIUM tier — finished equipment gets the reveal.
-    if (delta != null && last != null) {
-      return RarityFrame(
-        rarity: recipe.outputRarity,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: AdaptiveText(
-                    '${last.outputName?.toUpperCase()} CRAFTED',
-                    style: StrideType.sectionHeading,
-                    color: StrideColors.textPrimary,
-                  ),
-                ),
-                if (recipe.outputRarity != null) ...<Widget>[
-                  const SizedBox(width: StrideSpace.s8),
-                  RarityBadge(rarity: recipe.outputRarity),
-                ],
-              ],
-            ),
-            const SizedBox(height: StrideSpace.s4),
-            AdaptiveText(
+    final String skillName = craft.skillName ?? recipe.skillName;
+    final String xpLine = '+${craft.xp} $skillName XP';
+    final bool held = craft.summaryHeld;
+
+    final Widget crafted = delta != null && last != null
+        // MEDIUM — finished equipment: the name in its rarity, the stat story
+        // against what is worn, and Equip right there.
+        ? RewardBeat(
+            tier: RewardTier.medium,
+            eyebrow: 'CRAFTED',
+            title: last.outputName ?? recipe.outputName,
+            rarity: recipe.outputRarity,
+            lines: <String>[
               '${delta.statName}  ${delta.before} → ${delta.after}',
-              style: StrideType.body,
-              color: StrideColors.textPrimary,
-            ),
-            AdaptiveText(
-              '+${craft.xp} ${craft.skillName ?? recipe.skillName} XP',
-              style: StrideType.micro,
-              color: StrideColors.textSecondary,
-            ),
-            if (last.levelledUp) ...<Widget>[
-              const SizedBox(height: StrideSpace.s6),
-              _LevelUpLines(report: last),
+              xpLine,
             ],
-            const SizedBox(height: StrideSpace.s8),
-            StrideButton(
+            child: StrideButton(
               label: 'Equip',
               onPressed: controller.busy
                   ? null
                   : () => SessionScope.read(context).equip(recipe.outputItem),
             ),
-          ],
-        ),
-      );
-    }
+          )
+        // MINOR — components and food: the brief, truthful beat.
+        : RewardBeat(
+            tier: RewardTier.minor,
+            eyebrow: 'CRAFTED',
+            title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
+            lines: <String>[
+              xpLine,
+              if (refusal != null) 'Stopped: ${_refusalText(refusal)}',
+            ],
+          );
 
-    // MINOR tier — components and food: the brief, truthful line.
-    return SurfaceBlock(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          AdaptiveText(
-            '${craft.outputName ?? recipe.outputName} ×${craft.quantity} · '
-            '+${craft.xp} ${craft.skillName ?? recipe.skillName} XP',
-            style: StrideType.sub,
-            color: StrideColors.textPrimary,
+    return StaggeredReveal(
+      children: <Widget>[
+        crafted,
+        if (last != null && last.levelledUp)
+          LevelUpCard(
+            name: last.skillName ?? skillName,
+            level: last.skillLevelAfter ?? 0,
+            skill: recipe.skill,
+            unlocked: last.unlockedNames,
+            why: last.unlockedNames.isEmpty
+                ? null
+                : 'New work is ready at the bench',
           ),
-          if (last != null && last.levelledUp) ...<Widget>[
-            const SizedBox(height: StrideSpace.s6),
-            _LevelUpLines(report: last),
-          ],
-          if (refusal != null) ...<Widget>[
-            const SizedBox(height: StrideSpace.s4),
-            AdaptiveText(
-              'Stopped: ${_refusalText(refusal)}',
-              style: StrideType.micro,
-              color: StrideColors.textSecondary,
+        if (held)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: StrideButton.secondary(
+              label: 'OK',
+              onPressed: CraftScope.read(context).dismissSummary,
             ),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -827,30 +817,4 @@ class _CraftSummary extends StatelessWidget {
     'commit_refused' => 'That did not save. Reload before crafting again.',
     _ => 'That could not be crafted.',
   };
-}
-
-/// `SMITHING LEVEL 3` and what it unlocked — the §22 answer to "what
-/// changed, what can I do next".
-class _LevelUpLines extends StatelessWidget {
-  const _LevelUpLines({required this.report});
-
-  final CraftReport report;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: <Widget>[
-      AdaptiveText(
-        '${report.skillName?.toUpperCase()} LEVEL ${report.skillLevelAfter}',
-        style: StrideType.sectionHeading,
-        color: StrideColors.textPrimary,
-      ),
-      if (report.unlockedNames.isNotEmpty)
-        AdaptiveText(
-          '${report.unlockedNames.join(' · ')} unlocked.',
-          style: StrideType.sub,
-          color: StrideColors.textSecondary,
-        ),
-    ],
-  );
 }

@@ -45,12 +45,15 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import 'package:stride_core/stride_core.dart' show KnowledgeTier;
+
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
+import '../../components/reward_beat.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
@@ -394,28 +397,30 @@ class _CombatControlsState extends State<_CombatControls> {
 
 /// Victory, defeat or retreat, once, with a Continue that acknowledges it.
 ///
-/// ## What a victory reads as, top to bottom
+/// ## The victory choreography (PLAYABLE_EXPERIENCE_REFINEMENT_01 §16–§18)
 ///
-/// `VICTORY` · *the enemy falls* · the **experience block**, on its own nested
-/// ground so the figure is not one more sentence · **REWARDS**, one framed row
-/// per drop carrying icon, name in its rarity's ink, the rarity word, and the
-/// quantity · `Continue`.
+/// The stage has already played the enemy's fall and its settle before this
+/// panel mounts (`combat_presentation_order_test`). From here the result
+/// resolves top to bottom on one clock, fast, never unskippable:
 ///
-/// The separation is the point. The shipped panel ran the XP and the drops
-/// together as two lines of prose — `+30 XP` then `Drops: Meadow Herb, Wolf
-/// Pelt ×2` — so winning a fight and winning *something* arrived as the same
-/// sentence, and the rarity the content authors had already decided was
-/// invisible.
+/// `VICTORY` · *the enemy falls* → the **experience** → the **drops**, one
+/// framed row each → the **knowledge** advance, if this victory crossed one
+/// → the **level-up**, if one landed → bounty progress, if any → `Continue`.
+///
+/// ## The hierarchy (§17)
+///
+/// Not every reward at equal weight. An ordinary win is XP and materials on
+/// the quiet ground; a knowledge stage (Seen → Studied, Studied → Known) is a
+/// MEDIUM beat naming what is now understood; a rare drop's row carries its
+/// rarity frame and nothing else is louder; a character level is the
+/// universal [LevelUpCard]; bounty progress is one small line.
 ///
 /// ## What it deliberately is not
 ///
 /// No chest, no reveal, no "tap to open", no burst, no currency, nothing
-/// stacked or sequenced to be opened. `RULES.md` **P-6** forbids the systems
-/// that presentation belongs to, and a panel that *looks* like a loot box
-/// teaches the loop that a loot box exists. The one flourish is
-/// [_RewardIcon] — a single scale-and-fade of art already on disk, once,
-/// never looping.
-class _ResultPanel extends StatefulWidget {
+/// stacked or sequenced to be opened (`RULES.md` P-6). The motion is one
+/// staggered resolve of facts already committed, once.
+class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
     super.key,
     required this.report,
@@ -428,93 +433,15 @@ class _ResultPanel extends StatefulWidget {
   final SessionController controller;
 
   @override
-  State<_ResultPanel> createState() => _ResultPanelState();
-}
-
-class _ResultPanelState extends State<_ResultPanel>
-    with SingleTickerProviderStateMixin {
-  /// One controller for the whole panel, sliced by [Interval] per row, rather
-  /// than one controller and one delayed callback per row.
-  ///
-  /// Deterministic by construction: with a single clock the stagger is a
-  /// function of the row index, so the reveal is identical on every run and a
-  /// test can settle it. Per-row `Future.delayed` would put N timers in flight
-  /// that outlive a dispose.
-  late final AnimationController _reveal = AnimationController(
-    vsync: this,
-    duration: _revealTotal(_rewardCount),
-  );
-
-  /// Resolved from the ambient `MediaQuery`, so it is read in
-  /// [didChangeDependencies] and not in `initState`.
-  bool _started = false;
-
-  int get _rewardCount => switch (widget.outcome) {
-    final WonBeat w => w.drops.length,
-    _ => 0,
-  };
-
-  /// One row's reveal, and the gap between two rows starting.
-  static const Duration _rowDuration = Duration(milliseconds: 350);
-  static const Duration _rowStagger = Duration(milliseconds: 80);
-
-  static Duration _revealTotal(int rows) => Duration(
-    milliseconds:
-        _rowDuration.inMilliseconds +
-        _rowStagger.inMilliseconds * (rows > 0 ? rows - 1 : 0),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    // Reduced motion is honoured by arriving already finished, not by playing
-    // faster: the rows are the information, and the animation is the only part
-    // anyone asked to be rid of.
-    if (MediaQuery.disableAnimationsOf(context) || _rewardCount == 0) {
-      _reveal.value = 1;
-    } else {
-      // One-shot. Nothing here repeats, reverses, or waits on the clock for a
-      // second pass — the panel is a still image three hundred milliseconds
-      // after it appears.
-      _reveal.forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _reveal.dispose();
-    super.dispose();
-  }
-
-  /// The slice of [_reveal] that belongs to row [index].
-  Animation<double> _rowCurve(int index) {
-    final int total = _revealTotal(_rewardCount).inMilliseconds;
-    final double begin = (_rowStagger.inMilliseconds * index) / total;
-    final double end = begin + _rowDuration.inMilliseconds / total;
-    return CurvedAnimation(
-      parent: _reveal,
-      curve: Interval(begin, end > 1 ? 1 : end, curve: Curves.easeOutCubic),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final CombatBeat outcome = widget.outcome;
-    final String heading = switch (outcome) {
-      WonBeat() => 'Victory',
-      LostBeat() => 'Driven back',
-      RetreatedBeat() => 'Retreated',
-      _ => 'Encounter over',
-    };
-    // Victory itemises; the two retreats say where the player now is and that
-    // nothing was lost, in the log's own words — unchanged.
-    final List<Widget> body = switch (outcome) {
-      final WonBeat o => _victory(o),
+    final CombatBeat o = outcome;
+    final List<Widget> beats = switch (o) {
+      final WonBeat w => _victory(w),
+      final LostBeat l => _drivenBack(l),
+      final RetreatedBeat r => _retreated(r),
       _ => <Widget>[
         Text(
-          describeBeat(outcome, widget.report.enemyName),
+          describeBeat(o, report.enemyName),
           style: StrideType.body,
           maxLines: 4,
         ),
@@ -524,15 +451,10 @@ class _ResultPanelState extends State<_ResultPanel>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Victory gets the headline weight a win deserves — the card title,
-          // not a section eyebrow; the two retreats keep the quieter heading,
-          // because losing nothing is not an event to celebrate.
-          if (outcome is WonBeat)
-            AdaptiveText(heading.toUpperCase(), style: StrideType.cardTitle)
-          else
-            SectionHeading(label: heading),
-          const SizedBox(height: StrideSpace.s10),
-          ...body,
+          // Keyed on the outcome by the caller, so a second fight in the same
+          // visit replays its own resolve rather than inheriting a finished
+          // clock.
+          StaggeredReveal(children: beats),
           const SizedBox(height: StrideSpace.s12),
           // Primary and full width: it is the only thing to do here, and the
           // acknowledgement is what clears the report and returns the cards.
@@ -540,7 +462,7 @@ class _ResultPanelState extends State<_ResultPanel>
           // is already gone would find no report and do nothing.
           StrideButton(
             label: 'Continue',
-            onPressed: widget.controller.acknowledgeCombat,
+            onPressed: controller.acknowledgeCombat,
           ),
         ],
       ),
@@ -548,13 +470,22 @@ class _ResultPanelState extends State<_ResultPanel>
   }
 
   List<Widget> _victory(WonBeat o) => <Widget>[
-    Text(
-      '${widget.report.enemyName} falls.',
-      style: StrideType.body,
-      maxLines: 2,
+    // The headline, with the fall beneath it — the card title weight a win
+    // deserves.
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const AdaptiveText('VICTORY', style: StrideType.cardTitle),
+        const SizedBox(height: StrideSpace.s2),
+        Text(
+          '${report.enemyName} falls.',
+          style: StrideType.body,
+          maxLines: 2,
+        ),
+      ],
     ),
-    const SizedBox(height: StrideSpace.s10),
-    // The experience, on its own ground.
+    // The experience, on its own ground: MINOR unless a level landed, which
+    // the LevelUpCard below says.
     SurfaceBlock(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,30 +493,138 @@ class _ResultPanelState extends State<_ResultPanel>
           const Text('EXPERIENCE', style: StrideType.microLabel, maxLines: 1),
           const SizedBox(height: StrideSpace.s4),
           AdaptiveText('+${o.xp} XP', style: StrideType.numericValue),
-          if (o.levelledUp) ...<Widget>[
-            const SizedBox(height: StrideSpace.s2),
+          if (o.knowledgeXp > 0)
             AdaptiveText(
-              'Level ${o.levelAfter}!',
-              style: StrideType.sub,
-              color: StrideColors.textPrimary,
+              'including +${o.knowledgeXp} for knowing the ${o.enemyName}',
+              style: StrideType.micro,
+              color: StrideColors.textSecondary,
             ),
-          ],
         ],
       ),
     ),
-    const SizedBox(height: StrideSpace.s12),
-    const Text('REWARDS', style: StrideType.microLabel, maxLines: 1),
-    const SizedBox(height: StrideSpace.s6),
-    if (o.drops.isEmpty)
-      // Quiet, and never an apology. Nothing was lost and nothing is owed;
-      // the drop tables are chances, and a chance that did not land is a fact
-      // rather than a failure (`RULES.md` P-5, P-7).
-      const Text('No drops this time.', style: StrideType.micro, maxLines: 2)
-    else
-      for (int i = 0; i < o.drops.length; i++) ...<Widget>[
-        if (i > 0) const SizedBox(height: StrideSpace.s6),
-        _RewardRow(line: o.drops[i], reveal: _rowCurve(i)),
+    // The drops. Each row carries its rarity's frame; a rare or better row
+    // is therefore the loudest thing in the list without a second treatment.
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Text('REWARDS', style: StrideType.microLabel, maxLines: 1),
+        const SizedBox(height: StrideSpace.s6),
+        if (o.drops.isEmpty)
+          // Quiet, and never an apology. Nothing was lost and nothing is
+          // owed; the drop tables are chances, and a chance that did not land
+          // is a fact rather than a failure (`RULES.md` P-5, P-7).
+          const Text(
+            'No drops this time.',
+            style: StrideType.micro,
+            maxLines: 2,
+          )
+        else
+          for (int i = 0; i < o.drops.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(height: StrideSpace.s6),
+            _RewardRow(line: o.drops[i]),
+          ],
       ],
+    ),
+    // The knowledge stage, when this victory crossed one (§18): Studied names
+    // what is now understood and keeps the signature concealed; Known reveals
+    // the signature.
+    if (o.knowledgeAdvanced)
+      RewardBeat(
+        tier: RewardTier.medium,
+        eyebrow: o.enemyName.toUpperCase(),
+        title: switch (o.knowledgeAfter) {
+          KnowledgeTier.known => 'KNOWN',
+          KnowledgeTier.studied => 'STUDIED',
+          _ => 'SEEN',
+        },
+        accent: StrideColors.accentSteps,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (o.knowledgeAfter == KnowledgeTier.studied &&
+                o.understoodDrops.isNotEmpty) ...<Widget>[
+              const Text('NEWLY UNDERSTOOD', style: StrideType.microLabel),
+              for (final String name in o.understoodDrops)
+                AdaptiveText(
+                  name,
+                  style: StrideType.sub,
+                  color: StrideColors.textPrimary,
+                ),
+            ],
+            if (o.signatureDrops.isNotEmpty) ...<Widget>[
+              if (o.knowledgeAfter == KnowledgeTier.studied)
+                const SizedBox(height: StrideSpace.s4),
+              const Text('SIGNATURE', style: StrideType.microLabel),
+              for (final String name in o.signatureDrops)
+                AdaptiveText(
+                  o.knowledgeAfter == KnowledgeTier.known ? name : '???',
+                  style: StrideType.sub,
+                  color: o.knowledgeAfter == KnowledgeTier.known
+                      ? StrideColors.textPrimary
+                      : StrideColors.textMuted,
+                ),
+            ],
+          ],
+        ),
+      ),
+    // The character level: the universal beat (§29).
+    if (o.levelledUp)
+      LevelUpCard(
+        name: 'Traveler',
+        level: o.levelAfter,
+        why: '+2 Max HP · harder fights are within reach',
+      ),
+    // Bounty progress: one small line each, never a card (§17).
+    for (final BountyProgressLine b in o.bountyProgress)
+      AdaptiveText(
+        '${b.contractName} · ${b.progress} / ${b.required}',
+        style: StrideType.micro,
+        color: StrideColors.textSecondary,
+      ),
+  ];
+
+  /// Retreat-not-death (§19): where the player now is, that nothing was
+  /// lost, and — when the safe destination healed them — that too, without
+  /// ever implying a death. Quieter heading than a win: losing nothing is
+  /// not an event to celebrate, and not one to punish.
+  List<Widget> _drivenBack(LostBeat l) => <Widget>[
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SectionHeading(label: 'Driven back'),
+        const SizedBox(height: StrideSpace.s6),
+        AdaptiveText(
+          'Retreated to ${l.retreatToName}',
+          style: StrideType.sub,
+          color: StrideColors.textPrimary,
+        ),
+        const SizedBox(height: StrideSpace.s2),
+        const Text('Nothing was lost.', style: StrideType.body, maxLines: 2),
+        if (l.healed) ...<Widget>[
+          const SizedBox(height: StrideSpace.s2),
+          AdaptiveText(
+            'Rested and recovered at ${l.retreatToName}.',
+            style: StrideType.micro,
+            color: StrideColors.textSecondary,
+          ),
+        ],
+      ],
+    ),
+  ];
+
+  List<Widget> _retreated(RetreatedBeat r) => <Widget>[
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SectionHeading(label: 'Retreated'),
+        const SizedBox(height: StrideSpace.s6),
+        Text(
+          describeBeat(r, report.enemyName),
+          style: StrideType.body,
+          maxLines: 4,
+        ),
+      ],
+    ),
   ];
 }
 
@@ -604,10 +643,9 @@ class _ResultPanelState extends State<_ResultPanel>
 /// device — needs 131.4. Beneath the name it has the frame's full width less
 /// the icon indent, which is 184 dp in the same case.
 class _RewardRow extends StatelessWidget {
-  const _RewardRow({required this.line, required this.reveal});
+  const _RewardRow({required this.line});
 
   final RewardLine line;
-  final Animation<double> reveal;
 
   /// The icon's edge plus its gap: what the badge is indented by, so the word
   /// starts under the name rather than under the picture.
@@ -627,7 +665,7 @@ class _RewardRow extends StatelessWidget {
             // cover yet — the new pelts and jerkins, until the lead packages
             // them — gets the deliberately non-representational slab, and the
             // name beside it carries the meaning (**L-17**).
-            _RewardIcon(assetPath: PixelIcons.itemFor(line.id), reveal: reveal),
+            _RewardIcon(assetPath: PixelIcons.itemFor(line.id)),
             const SizedBox(width: StrideSpace.s10),
             Expanded(
               // Wrapping, because this is the narrowest full-width name
@@ -660,35 +698,17 @@ class _RewardRow extends StatelessWidget {
   );
 }
 
-/// The one flourish: an approved 48 px item icon, scaled and faded in once.
+/// An approved 48 px item icon, as shipped.
 ///
-/// **A-2, and nothing more.** This invents no object, no silhouette, no frame
-/// and no illustrated content — it is a deterministic transformation of art
-/// PixelLab already made, played once. It does not loop, it does not bounce
-/// past 1, and there is no second element on screen that exists only to move.
-///
-/// [FadeTransition] and [ScaleTransition] rather than an [AnimatedBuilder]
-/// around the sprite: both rebuild nothing, so the `Image` is decoded once and
-/// the transform runs on the layer.
+/// The row's arrival is the panel's one staggered resolve (`StaggeredReveal`);
+/// the icon no longer carries a second motion of its own, so pixel art lands
+/// on whole pixels from its first frame (`RULES.md` A-2: nothing here is
+/// authored, and nothing loops).
 class _RewardIcon extends StatelessWidget {
-  const _RewardIcon({required this.assetPath, required this.reveal});
+  const _RewardIcon({required this.assetPath});
 
   final String assetPath;
-  final Animation<double> reveal;
-
-  /// The scale it starts from. **0.86, not 0** — a sprite scaled from nothing
-  /// is resampled through every fractional size on the way up, and this is
-  /// pixel art whose whole reason for existing is landing on whole pixels. A
-  /// short, shallow move reads as arrival without ever putting the icon far
-  /// off its integer multiple for long.
-  static const double _from = 0.86;
 
   @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: reveal,
-    child: ScaleTransition(
-      scale: Tween<double>(begin: _from, end: 1).animate(reveal),
-      child: PixelAsset.item(assetPath),
-    ),
-  );
+  Widget build(BuildContext context) => PixelAsset.item(assetPath);
 }

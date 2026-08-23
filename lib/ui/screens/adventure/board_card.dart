@@ -198,12 +198,6 @@ class _ContractRow extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static String typeLabel(ContractView c) => switch (c.contractClass) {
-    ContractClass.localNeed => 'ORDER',
-    ContractClass.bounty => 'BOUNTY',
-    ContractClass.regional => 'CONTRACT',
-  };
-
   /// The one line that says how far along this job is.
   ///
   /// A bounty counts kills, an order counts goods, and a contract that wants
@@ -290,12 +284,7 @@ class _ContractRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: StrideSpace.s6),
-                        Text(
-                          typeLabel(c),
-                          style: StrideType.microLabel.copyWith(
-                            color: StrideColors.textMuted,
-                          ),
-                        ),
+                        _TypeChip(contractClass: c.contractClass, done: done),
                       ],
                     ),
                     if (!done) ...<Widget>[
@@ -326,6 +315,63 @@ class _ContractRow extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The job's type, as a restrained chip: a 6 px mark in the type's own ink
+/// beside the word (PLAYABLE_EXPERIENCE_REFINEMENT_01 §24).
+///
+/// Three types, three inks — an ORDER is the settlement's need (the step
+/// accent, dimmed: it is walking turned into goods), a BOUNTY is a fight (the
+/// Rare rank's blue, the ink the encounter rows already use for knowledge),
+/// a CONTRACT is the region's story (the quest category's ink). The word is
+/// always present; the mark and the ink only make three rows scannable at a
+/// glance. No card theme, no second layout.
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({required this.contractClass, required this.done});
+
+  final ContractClass contractClass;
+  final bool done;
+
+  static String labelOf(ContractClass c) => switch (c) {
+    ContractClass.localNeed => 'ORDER',
+    ContractClass.bounty => 'BOUNTY',
+    ContractClass.regional => 'CONTRACT',
+  };
+
+  static Color inkOf(ContractClass c) => switch (c) {
+    ContractClass.localNeed => StrideColors.accentStepsDim,
+    ContractClass.bounty => StrideColors.rarityRare,
+    ContractClass.regional => StrideColors.categoryQuest,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final Color ink = done ? StrideColors.textMuted : inkOf(contractClass);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s6, vertical: 1),
+      decoration: BoxDecoration(
+        border: Border.all(color: ink.withValues(alpha: 0.55)),
+        borderRadius: StrideRadius.chip,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: ink, borderRadius: StrideRadius.gate),
+          ),
+          const SizedBox(width: StrideSpace.s4),
+          Text(
+            labelOf(contractClass),
+            style: StrideType.microLabel.copyWith(
+              color: done ? StrideColors.textMuted : StrideColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -446,7 +492,7 @@ class _ContractDetail extends StatelessWidget {
 
 /// One community project, as a nested block: staged progress and the
 /// contribute control.
-class _ProjectTile extends StatelessWidget {
+class _ProjectTile extends StatefulWidget {
   const _ProjectTile({
     required this.project,
     required this.busy,
@@ -460,7 +506,18 @@ class _ProjectTile extends StatelessWidget {
   final VoidCallback onTrack;
 
   @override
+  State<_ProjectTile> createState() => _ProjectTileState();
+}
+
+class _ProjectTileState extends State<_ProjectTile> {
+  /// Whether the long brief is open. Ephemeral UI state; the tile's facts —
+  /// stage, materials, consequence, actions — never hide behind it.
+  bool _briefOpen = false;
+
+  @override
   Widget build(BuildContext context) {
+    final ProjectView project = widget.project;
+    final bool busy = widget.busy;
     final List<String> offer = <String>[];
     // Names resolved by the session are already in the lines; the offer's
     // words come from the current stage's lines so they match.
@@ -472,7 +529,11 @@ class _ProjectTile extends StatelessWidget {
 
     // A project is not an ordinary contract (brief §12): it gets the stage
     // ladder, an animated per-material bar, and the permanent-change preview
-    // that makes contributing feel like building something.
+    // that makes contributing feel like building something. Its hierarchy
+    // is tightened (PLAYABLE_EXPERIENCE_REFINEMENT_01 §26): title and stage,
+    // the materials with their bars, the consequence, the actions — and the
+    // lore folded behind one small toggle rather than four lines of prose
+    // above the figures the player came to check.
     return SurfaceBlock(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,8 +556,21 @@ class _ProjectTile extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: StrideSpace.s4),
-          Text(project.brief, style: StrideType.micro, maxLines: 4),
+          // The lore, subordinate: one tappable line, open on request.
+          const SizedBox(height: StrideSpace.s2),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _briefOpen = !_briefOpen),
+            child: Text(
+              _briefOpen ? project.brief : 'About this project ▸',
+              style: StrideType.micro.copyWith(
+                color: _briefOpen
+                    ? StrideColors.textSecondary
+                    : StrideColors.textMuted,
+              ),
+              maxLines: _briefOpen ? 6 : 1,
+            ),
+          ),
           if (!project.isComplete) ...<Widget>[
             const SizedBox(height: StrideSpace.s6),
             Text(
@@ -535,11 +609,11 @@ class _ProjectTile extends StatelessWidget {
                       : offer.isEmpty
                       ? 'Nothing to contribute'
                       : 'Contribute ${offer.join(', ')}',
-                  onPressed: busy ? null : onContribute,
+                  onPressed: busy ? null : widget.onContribute,
                 ),
                 StrideButton.secondary(
                   label: 'Track',
-                  onPressed: busy ? null : onTrack,
+                  onPressed: busy ? null : widget.onTrack,
                 ),
               ],
             ),
@@ -592,16 +666,33 @@ class _MaterialProgressRow extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              '${formatSteps(line.progress)} / ${formatSteps(line.required)}'
-              '${line.satisfied ? ' ✓' : ''}',
-              style: StrideType.micro.copyWith(
-                color: line.satisfied
-                    ? StrideColors.textPrimary
-                    : StrideColors.textSecondary,
-                fontFeatures: const <FontFeature>[
-                  FontFeature.tabularFigures(),
-                ],
+            // The figure pulses once when it changes — the impact beat of a
+            // contribution (PLAYABLE_EXPERIENCE_REFINEMENT_01 §27): `2 / 12`
+            // becomes `3 / 12` with a short settle, the bar eases beneath it.
+            // Keyed on the progress so a rebuild with the same figure plays
+            // nothing.
+            TweenAnimationBuilder<double>(
+              key: ValueKey<int>(line.progress),
+              tween: Tween<double>(begin: 1.3, end: 1),
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeOutBack,
+              builder: (BuildContext context, double scale, Widget? child) =>
+                  Transform.scale(
+                    scale: scale,
+                    alignment: Alignment.centerRight,
+                    child: child,
+                  ),
+              child: Text(
+                '${formatSteps(line.progress)} / ${formatSteps(line.required)}'
+                '${line.satisfied ? ' ✓' : ''}',
+                style: StrideType.micro.copyWith(
+                  color: line.satisfied
+                      ? StrideColors.textPrimary
+                      : StrideColors.textSecondary,
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures(),
+                  ],
+                ),
               ),
             ),
           ],

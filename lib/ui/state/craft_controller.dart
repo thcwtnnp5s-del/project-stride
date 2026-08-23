@@ -358,10 +358,28 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     });
   }
 
+  /// Whether the finished summary is a MEDIUM beat — equipment, or a level
+  /// gained — and therefore held for acknowledgement rather than timed out
+  /// (PLAYABLE_EXPERIENCE_REFINEMENT_01 §12, §13, §32).
+  bool get summaryHeld {
+    final CraftReport? last = _lastReport;
+    return last != null && (last.levelledUp || last.equipDelta != null);
+  }
+
+  /// Dismisses a held summary. Idempotent; a no-op while a queue runs.
+  void dismissSummary() {
+    if (_running || _recipe == null) return;
+    _clearSummary();
+    notifyListeners();
+  }
+
   void _finish() {
     _running = false;
     _stopRequested = false;
-    if (_completed > 0 || _stopReport != null) {
+    if (_completed > 0 && summaryHeld) {
+      _summaryTimer?.cancel();
+      _summaryTimer = null;
+    } else if (_completed > 0 || _stopReport != null) {
       _summaryTimer?.cancel();
       _summaryTimer = _timing.startTimer(_summaryLifetime, () {
         _summaryTimer = null;
