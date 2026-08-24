@@ -1,5 +1,48 @@
 # Project Stride — Project State
 
+**Version:** 2.18
+**Status:** 🚧 **PLAYABLE POLISH 02 — the physical-device presentation pass
+is built, awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, on top of the audio foundation (`14fedaf`).
+Record: `MILESTONES/PLAYABLE_POLISH_02.md`; decision
+`DECISIONS/0026_STEP_TRACKER_PROJECTION.md`; art round
+`GAME_BIBLE/ART/exploration/PLAYABLE_POLISH_02/README.md`.
+
+The owner's device list, answered in its own order. The **Character tab
+carries a Steps card** (Today / This Week / last synced / Step Tracker) and
+the tracker is a pushed screen — day-by-hour, week-by-day, the sync control
+beside its own timestamp; the local-day fold is `StrideSession.stepHistory()`
+under `DECISIONS/0026`, closing Q-UI-9 by ownership rather than waiver, on
+the same one wall-clock seam, with the UI-boundary guard unweakened.
+**Crafting is a scene**: three 384 × 176 work backdrops (smithy, carpenter's
+workshop, hearth) and three 96² stations (anvil, bench, tripod cookpot)
+through PixelLab; recipes carry an optional presentation-only `station` word
+so the five wood recipes read as bench work; loop, timers and commits are
+untouched. The **job board leads with reward icons**, colours reward lines
+by rarity, shows READY/ACCEPTED counts and says honestly that orders rotate
+on delivery. The **combat idle is re-authored east-in-profile with the sword
+visible** (the PE01 v3 drift, recorded then, corrected now; 9 frames,
+80 × 64) — the Traveler faces the enemy. **Tools name what they open**
+("Mines: Copper Seam, Tin Seam", "Tier 2 opens Hardened Copper Seam") from
+the same node fields the engine gates with, and equipment tiles expand to
+the full gear evaluation in the bag. Faction reputation and tool speed
+bonuses do not exist and were not faked; combat audio remains deferred with
+its seam noted.
+
+Suites: app **651**, `stride_core` **697**, `stride_health` 143,
+`stride_storage` 108; analyze clean; the CI/verify guard set clean; goldens
+regenerated and reviewed. (Found, not introduced: the step-model guard's
+production scan — which CI does not run — carries a pre-existing
+`\.signature\b` false positive against the knowledge system's
+`drop.signature`, verified identical at `14fedaf`; on record in the
+milestone §7 and flagged as its own task.) Nothing in the health adapters or the step ledger's counters,
+slices, watermarks or cursor changed; no schema change (the content field
+is optional; state stays v9). PixelLab: ≈128 generations, balance 1,921
+before the round. Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11,
+OD-04, OD-06.
+
+---
+
 **Version:** 2.17
 **Status:** 🚧 **AUDIO_PRESENTATION_01 — the playable audio foundation is
 built, awaiting the owner's review and device test.** Branch
