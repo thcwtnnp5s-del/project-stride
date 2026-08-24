@@ -74,7 +74,15 @@ class LocationStage extends StatelessWidget {
     required this.playToken,
     this.locked = false,
     this.lockReason,
+    this.onActivityBeat,
+    this.onGatherCue,
   });
+
+  /// The audio layer's action beats, passed through to [AmbientStage]:
+  /// the working loop crossing its strike frame, and the one-shot gather
+  /// beginning. Presentation wiring only — see the stage's own contract.
+  final VoidCallback? onActivityBeat;
+  final VoidCallback? onGatherCue;
 
   /// True when [selectedNode] cannot be worked yet — skill too low, tool not
   /// equipped. The scene still composes (the player is looking at the seam),
@@ -168,6 +176,11 @@ class LocationStage extends StatelessWidget {
       // queue cannot say anything, because the control that starts it is
       // disabled on the same projection. Defence in depth, not a second rule.
       activityActive: activityActive && !locked,
+      activityStrikeFrame: skill == null
+          ? 0
+          : AmbientAssets.strikeFrameFor(skill),
+      onActivityBeat: onActivityBeat,
+      onGatherCue: onGatherCue,
     );
 
     return ClipRect(

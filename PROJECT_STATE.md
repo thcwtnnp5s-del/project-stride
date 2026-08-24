@@ -1,5 +1,46 @@
 # Project Stride — Project State
 
+**Version:** 2.17
+**Status:** 🚧 **AUDIO_PRESENTATION_01 — the playable audio foundation is
+built, awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`. Record: `MILESTONES/AUDIO_PRESENTATION_01.md`;
+manifest `AUDIO/AUDIO_ASSET_MANIFEST.md`; dependency record
+`DEPENDENCIES.md`.
+
+The workstream ran asset generation through five owner listening gates —
+nothing was integrated unheard. Accepted: five region tracks (Haven and
+Frostmere from the bake-off's Round 3 piano anchors; Whispering Woods,
+Stonefall Mine and Forgotten Hollow new, one deliberate candidate each) and
+five profession action cues (mining 4102, woodcutting 4203, foraging 4301,
+smithing 4401, cooking 4503 — cooking took three attempts; 4501 and 4502
+are retained rejected references). Owner rulings on the record: **one
+strong cue per activity** (variants only if device play proves repetition
+distracting); **cues punctuate what the player watches** — visible
+animation beats, never activity duration, steps, or unwatched queues;
+combat keeps regional music, no combat SFX this phase. Stability balance
+399 → **61**; no further generation without the owner reopening it.
+
+The runtime layer is minimal and presentation-only: `lib/audio/` holds the
+one app-scoped `AudioController` (MUSIC crossfading per region with
+same-region changes a structural no-op; SFX through per-cue cooldowns;
+AMBIENCE as architecture only), settings (on by default, music 0.55 under
+SFX 0.9) persisted as one JSON beside — never inside — the save directory,
+and the `audioplayers 6.8.1` seam (pinned, recorded, policy-checked).
+`AmbientStage`'s working loops fire the cue on their authored strike frame;
+the one-shot gather sounds on the result, never the tap. Audio touches no
+engine state, adds no background modes, and dies with the screen that shows
+it. Assets ship in `assets/audio/v1/` (~19 MB of the 30 MB budget),
+deterministically mastered, every file a manifest row with its verbatim
+prompt.
+
+Suites: app **646** (+17 audio), `stride_core` 697, `stride_health` 143,
+`stride_storage` 108 untouched; analyze and every guard clean; Android
+debug build green. Deferred by name: ambience production, combat/UI/travel
+SFX, battle and World music, stingers, per-material variants. Open: Q-06,
+Q-07 remainder, Q-08, Q-09, Q-10, Q-11, OD-04, OD-06.
+
+---
+
 **Version:** 2.16
 **Status:** 🚧 **PLAYABLE POLISH 01 — correction pass complete, not pushed,
 awaiting the owner's review and device test.** Branch

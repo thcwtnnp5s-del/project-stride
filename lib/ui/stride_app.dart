@@ -24,10 +24,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:stride_core/stride_core.dart' show BootstrapBlocked;
 
+import '../audio/audio_controller.dart';
+import '../audio/audio_settings.dart';
+import '../audio/silent_audio_output.dart';
 import '../runtime/stride_session.dart';
 import 'screens/system/blocked_screen.dart';
 import 'shell/stride_shell.dart';
 import 'state/activity_controller.dart';
+import 'state/audio_scope.dart';
 import 'state/craft_controller.dart';
 import 'state/session_controller.dart';
 import 'state/session_scope.dart';
@@ -37,11 +41,19 @@ class StrideApp extends StatefulWidget {
   const StrideApp({
     super.key,
     required this.session,
+    this.audio,
     this.syncOnStart = true,
     this.activityTiming,
   });
 
   final StrideSession session;
+
+  /// The app-scoped audio controller. `main.dart` passes the real one;
+  /// null — every widget test — gets a silent, non-persisting controller so
+  /// the tree still carries an `AudioScope` and no platform channel or file
+  /// is ever touched. Ownership transfers either way: this widget's state
+  /// disposes whichever controller it ends up holding.
+  final AudioController? audio;
 
   /// The activity queue's timing seams. Null in the app — real one-shot
   /// timers and the real clock. Tests substitute a fake pair so a queued
@@ -97,12 +109,35 @@ class _StrideAppState extends State<StrideApp> {
     timing: widget.activityTiming,
   );
 
+  /// The audio layer. Exactly one instance, beside the other app-scoped
+  /// controllers — a widget-local player that could duplicate on rebuild is
+  /// unrepresentable from here down.
+  ///
+  /// The fallback is silent AND disabled: disabled means the controller
+  /// starts no channel and arms no fade timer, so the widget tests that
+  /// compose without audio inherit no pending-timer teardown failures from a
+  /// layer they never asked for.
+  late final AudioController _audio =
+      widget.audio ??
+      AudioController(
+        output: const SilentAudioOutput(),
+        settings: const AudioSettings(enabled: false),
+      );
+
   @override
   void initState() {
     super.initState();
     // The exclusive-command seam: travel or combat cancels the in-progress
     // repetition before it executes. See `SessionController.onExclusiveCommand`.
     _controller.onExclusiveCommand = _activity.cancelForExclusiveCommand;
+    // Region music follows the committed location, read fresh on every
+    // session notification. `setRegion` self-deduplicates, so the storm of
+    // notifications a sync or a fight produces costs an early return each —
+    // and combat, tab changes and screen pushes re-announce the same place,
+    // which is exactly why same-assignment is a no-op there. Combat keeps
+    // the regional track by construction: nothing here reads the encounter.
+    _controller.addListener(_syncAudioRegion);
+    _syncAudioRegion();
     // Foreground startup sync, once, after the first frame.
     //
     // `addPostFrameCallback` rather than an `await` in `main`: startup already
@@ -123,8 +158,14 @@ class _StrideAppState extends State<StrideApp> {
     });
   }
 
+  void _syncAudioRegion() {
+    _audio.setRegion(widget.session.currentLocation?.value);
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_syncAudioRegion);
+    _audio.dispose();
     _craft.dispose();
     _activity.dispose();
     _controller.dispose();
@@ -179,13 +220,16 @@ class _StrideAppState extends State<StrideApp> {
           controller: _activity,
           child: CraftScope(
             controller: _craft,
-            // The blocked branch is taken before the shell is built, not
-            // inside it. A blocked bootstrap has no engine, so a shell that
-            // rendered anyway would be reading the null-fallback zeros out
-            // of every getter and presenting them as the player's save.
-            child: blocked != null
-                ? BlockedScreen(blocked: blocked)
-                : const StrideShell(),
+            child: AudioScope(
+              controller: _audio,
+              // The blocked branch is taken before the shell is built, not
+              // inside it. A blocked bootstrap has no engine, so a shell that
+              // rendered anyway would be reading the null-fallback zeros out
+              // of every getter and presenting them as the player's save.
+              child: blocked != null
+                  ? BlockedScreen(blocked: blocked)
+                  : const StrideShell(),
+            ),
           ),
         ),
       ),

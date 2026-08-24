@@ -12,6 +12,7 @@
 
 import 'package:flutter/material.dart';
 
+import 'audio/audio_controller.dart';
 import 'runtime/stride_session.dart';
 import 'ui/stride_app.dart';
 
@@ -35,5 +36,13 @@ Future<void> main() async {
   // the same isolate.
   final StrideSession session = await StrideSession.start();
 
-  runApp(StrideApp(session: session));
+  // The presentation audio layer (AUDIO_PRESENTATION_01): loads the volume
+  // preferences (one tiny JSON read) and configures the platform session.
+  // Awaited here for the same truthfulness reason as the session — the first
+  // frame's settings block shows what is stored, not a default that then
+  // jumps. Audio touches no game state and cannot block a launch: every
+  // failure path inside degrades to defaults or silence.
+  final AudioController audio = await AudioController.start();
+
+  runApp(StrideApp(session: session, audio: audio));
 }

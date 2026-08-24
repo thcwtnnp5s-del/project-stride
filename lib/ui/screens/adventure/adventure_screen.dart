@@ -36,6 +36,7 @@ import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/activity_controller.dart';
+import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -161,6 +162,16 @@ class _AdventureScreenState extends State<AdventureScreen> {
           playToken: playToken,
           locked: locked,
           lockReason: lockReason,
+          // The action beats (AUDIO_PRESENTATION_01): the profession's one
+          // accepted cue, fired by the stage when the work is visibly
+          // happening — the loop's strike frame, or the one-shot beginning.
+          // `read`, not `of`: a beat must not subscribe this screen.
+          onActivityBeat: staged == null
+              ? null
+              : () => AudioScope.read(context).playSkillCue(staged.skill.value),
+          onGatherCue: staged == null
+              ? null
+              : () => AudioScope.read(context).playSkillCue(staged.skill.value),
         ),
 
         _Gutter(child: _WalkingStrip(controller: c)),

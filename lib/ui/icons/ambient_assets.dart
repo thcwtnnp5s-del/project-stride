@@ -311,6 +311,26 @@ abstract final class AmbientAssets {
   /// clipped arc tips at the stage edge.
   static int activityCanvasFor(String skill) => _activityCanvases[skill] ?? 64;
 
+  /// Which frame of [activityLoopFor]'s list is the **strike** — the tool
+  /// meeting the material — so the action cue sounds when the player sees
+  /// the contact (AUDIO_PRESENTATION_01). A property of the authored loops,
+  /// which is why it lives beside them and not in the audio tables.
+  ///
+  /// The wrap loops (mining, woodcutting) land mid-cycle; the ping-pong
+  /// loops land at their turning point — the last index of the base frame
+  /// run, where the hammer is on the anvil, the spoon in the pot, the hand
+  /// at the plant. First-pass authoring by loop structure, expected to be
+  /// retuned by ear on the device (a polish observation, not a system).
+  static int strikeFrameFor(String skill) => _strikeFrames[skill] ?? 0;
+
+  static const Map<String, int> _strikeFrames = <String, int>{
+    'skill.mining': 4,
+    'skill.woodcutting': 4,
+    'skill.foraging': 8,
+    'skill.smithing': 6,
+    'skill.cooking': 6,
+  };
+
   static final List<String> _woodcutFrames = _frames('activity_woodcut', 8);
   static final List<String> _mineFrames = _frames('activity_mine', 8);
   static final List<String> _forageFrames = _frames('activity_forage', 9);

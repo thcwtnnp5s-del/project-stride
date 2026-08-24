@@ -38,6 +38,7 @@ import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
+import 'audio_block.dart';
 import 'playtest_block.dart';
 
 class CharacterScreen extends StatelessWidget {
@@ -224,6 +225,12 @@ class CharacterScreen extends StatelessWidget {
         // has built and stays above the fold at 393 dp; where this block sits
         // in the sheet's order is the owner's call once the slice is played.
         _CombatBlock(figures: s.combatFigures, equipped: s.equippedSummary),
+        const SizedBox(height: StrideSpace.cardGap),
+
+        // The audio preferences (AUDIO_PRESENTATION_01): sound on/off and
+        // the two bus volumes. Player-facing but quiet, above the owner's
+        // instrument below.
+        const AudioBlock(),
         const SizedBox(height: StrideSpace.cardGap),
 
         // The owner's playtest controls, last and quiet (`DECISIONS/0025`).

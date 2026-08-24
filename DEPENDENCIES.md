@@ -105,6 +105,35 @@ checkout drift from the lockfile without anything noticing. A lockfile plus
 Enforced mechanically by `Scripts/check-dependency-policy.sh`, which is why this
 section is short: the policy is executable, and this file only records intent.
 
+### `audioplayers` — the app's one audio plugin
+
+| | |
+|---|---|
+| Package | `audioplayers` (Blue Fire) |
+| Version | **6.8.1**, pinned exactly (no `^`, no `~`) |
+| Licence | MIT |
+| Required by | `lib/audio/audio_output.dart` — the presentation audio layer (AUDIO_PRESENTATION_01) |
+| Direct dependencies at this version | the six federated platform packages (`audioplayers_android/_darwin/_linux/_platform_interface/_web/_windows`), plus `file`, `http`, `meta`, `path_provider` (already present), `synchronized`, `uuid` |
+
+**What it is for, and what breaks without it:** playing the accepted region
+music and profession action cues. Flutter has no built-in audio playback;
+without a plugin the alternative is a first-party platform channel over
+`AVAudioPlayer`/`ExoPlayer` — real native surface area for a presentation
+feature, disproportionate to the risk it would remove.
+
+**Why this one:** the smallest maintained plugin that provides what the audio
+layer needs — multiple simultaneous players with per-player volume (the
+region-music crossfade is two players), asset-source looping, and a
+low-latency mode for short cues. `just_audio` carries a heavier transitive
+tree (`audio_session`, `rxdart`, `crypto`, …) for features (gapless playlists,
+streaming) this project does not use.
+
+**What it may never own:** nothing health- or persistence-shaped. It plays
+bundled presentation assets; `check-dependency-policy.sh`'s prohibition on
+health aggregation packages is untouched, and audio remains outside
+`stride_core` entirely. The exact transitive closure is recorded by the
+committed `pubspec.lock` at this version; re-check it on every bump.
+
 - **`stride_core`** is pure Dart. No Flutter, no `dart:io`, no plugins. This is
   what lets the entire simulation — reconciliation, the ledger, the save
   protocol — be tested with `dart test` in seconds, on any platform, with no

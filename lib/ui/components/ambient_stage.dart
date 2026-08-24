@@ -248,6 +248,9 @@ class AmbientStage extends StatefulWidget {
     this.activityFootprint,
     this.activityActive = false,
     this.activityCanvas = 64,
+    this.activityStrikeFrame = 0,
+    this.onActivityBeat,
+    this.onGatherCue,
   });
 
   /// See [SpriteAnimation].
@@ -272,6 +275,23 @@ class AmbientStage extends StatefulWidget {
   /// overhang is headroom the stage's own clip owns; height stays the 64-row
   /// convention (feet on row 62).
   final int activityCanvas;
+
+  /// Which frame of [activityFrames] is the strike — the tool landing —
+  /// so [onActivityBeat] fires when the player sees the contact
+  /// (`AmbientAssets.strikeFrameFor`).
+  final int activityStrikeFrame;
+
+  /// Called once per working-loop cycle, as the loop crosses
+  /// [activityStrikeFrame] — the audio layer's action beat
+  /// (AUDIO_PRESENTATION_01). Presentation wiring only: it fires only while
+  /// the loop is mounted and animating, so leaving the screen or reduced
+  /// motion silences it structurally, and nothing behind it is decided here.
+  final VoidCallback? onActivityBeat;
+
+  /// Called when the one-shot gather animation begins — the single tap's
+  /// action beat, same contract as [onActivityBeat]. On the play, not the
+  /// tap: a refused gather does not animate, so it does not sound either.
+  final VoidCallback? onGatherCue;
 
   /// See [AmbientPlayer].
   final AmbientSceneSet scenes;
@@ -345,6 +365,8 @@ class _AmbientStageState extends State<AmbientStage> {
   void _onGatherPlaying(bool playing) {
     if (playing == _gatherPlaying) return;
     _gatherPlaying = playing;
+    // The moment the one-shot becomes visible work is the moment it sounds.
+    if (playing) widget.onGatherCue?.call();
     _rebuild();
   }
 
@@ -401,6 +423,8 @@ class _AmbientStageState extends State<AmbientStage> {
               footprint: activityFootprint,
               canvas: widget.activityCanvas,
               scale: widget.scale,
+              beatFrame: widget.activityStrikeFrame,
+              onBeat: widget.onActivityBeat,
             ),
           )
         : Stack(
@@ -519,12 +543,18 @@ class _ActivityLoop extends StatefulWidget {
     required this.footprint,
     required this.canvas,
     required this.scale,
+    this.beatFrame = 0,
+    this.onBeat,
   });
 
   final List<String> frames;
   final SpriteFootprint footprint;
   final int canvas;
   final int scale;
+
+  /// See [AmbientStage.activityStrikeFrame] / [AmbientStage.onActivityBeat].
+  final int beatFrame;
+  final VoidCallback? onBeat;
 
   @override
   State<_ActivityLoop> createState() => _ActivityLoopState();
@@ -563,7 +593,17 @@ class _ActivityLoopState extends State<_ActivityLoop>
       widget.frames.length - 1,
     );
     if (next == _frame) return;
+    // The beat is a **crossing**, not an equality: under load a slow frame
+    // can jump the counter past the strike frame, and an equality test would
+    // silently drop that cycle's sound while the picture showed the tool
+    // landing. Wrapping (next < prev) means a new cycle began.
+    final int prev = _frame;
+    final int beat = widget.beatFrame;
+    final bool crossed = next > prev
+        ? prev < beat && beat <= next
+        : beat > prev || beat <= next;
     setState(() => _frame = next);
+    if (crossed) widget.onBeat?.call();
   }
 
   @override

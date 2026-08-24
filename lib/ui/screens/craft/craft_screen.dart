@@ -41,6 +41,7 @@ import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
 import '../../components/ambient_stage.dart';
+import '../../state/audio_scope.dart';
 import '../../state/craft_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -608,6 +609,14 @@ class _ActiveCraftPanel extends StatelessWidget {
                   activityFootprint: AmbientAssets.activityFootprintFor(skill),
                   activityCanvas: AmbientAssets.activityCanvasFor(skill),
                   activityActive: true,
+                  // The craft beats (AUDIO_PRESENTATION_01): the hammer
+                  // lands, the stir turns — the one accepted cue per
+                  // profession, on the visible strike frame, only while
+                  // this stage is mounted. Leaving the screen stops the
+                  // sound; the craft queue itself never sonifies.
+                  activityStrikeFrame: AmbientAssets.strikeFrameFor(skill),
+                  onActivityBeat: () =>
+                      AudioScope.read(context).playSkillCue(skill),
                 ),
               ),
             ),

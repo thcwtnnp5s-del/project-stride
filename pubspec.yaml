@@ -24,6 +24,10 @@ dependencies:
   # The only way to reach an application-support directory from Flutter.
   # It touches no health data and reads no content; it returns a path.
   path_provider: ^2.1.5
+  # The presentation audio layer's one plugin: region music and profession
+  # action cues (AUDIO_PRESENTATION_01). Pinned exactly; the record of why —
+  # and what it may never own — is in DEPENDENCIES.md.
+  audioplayers: 6.8.1
 
 # No third-party health aggregation package may appear here or in any other
 # pubspec. Health integration is first-party, in packages/stride_health.
@@ -181,3 +185,20 @@ flutter:
     - assets/art/v1/location/stonefall_mine.png
     - assets/art/v1/location/frostmere.png
     - assets/art/v1/location/forgotten_hollow.png
+
+    # Production audio, v1 (AUDIO_PRESENTATION_01). Same file-by-file rule as
+    # content: an undeclared file is audio that does not exist, and a stray one
+    # is audio nobody reviewed. Runtime code references these only through
+    # `lib/audio/audio_cues.dart` asset IDs (DECISIONS/0005); provenance and
+    # mastering are in assets/audio/v1/README.md and
+    # AUDIO/AUDIO_ASSET_MANIFEST.md.
+    - assets/audio/v1/music/music_haven_01.m4a
+    - assets/audio/v1/music/music_whispering_woods_01.m4a
+    - assets/audio/v1/music/music_stonefall_mine_01.m4a
+    - assets/audio/v1/music/music_frostmere_01.m4a
+    - assets/audio/v1/music/music_forgotten_hollow_01.m4a
+    - assets/audio/v1/sfx/sfx_gather_mining_01.wav
+    - assets/audio/v1/sfx/sfx_gather_woodcutting_01.wav
+    - assets/audio/v1/sfx/sfx_gather_foraging_01.wav
+    - assets/audio/v1/sfx/sfx_craft_smithing_01.wav
+    - assets/audio/v1/sfx/sfx_craft_cooking_01.wav
