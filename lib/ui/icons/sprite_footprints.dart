@@ -274,13 +274,6 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
-  /// `combat_traveler_combat_idle` — 12 px of contact, 28..39.
-  static const SpriteFootprint combatTravelerCombatIdle = SpriteFootprint(
-    left: 28,
-    right: 39,
-    bottom: 62,
-  );
-
   /// `combat_traveler_attack` — 12 px of contact, 34..45.
   static const SpriteFootprint combatTravelerAttack = SpriteFootprint(
     left: 34,
@@ -496,5 +489,12 @@ abstract final class SpriteFootprints {
     left: 23,
     right: 34,
     bottom: 50,
+  );
+
+  /// `combat_traveler_combat_idle` — 11 px of contact, 31..41.
+  static const SpriteFootprint combatTravelerCombatIdle = SpriteFootprint(
+    left: 31,
+    right: 41,
+    bottom: 62,
   );
 }

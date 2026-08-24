@@ -743,6 +743,16 @@ void main() {
       );
       await tab(tester, 'Character');
 
+      // The Combat card sits below the fold since the Steps card joined
+      // the sheet (the physical-device polish pass); the list builds
+      // lazily, so scroll it into being before asserting on it.
+      await tester.scrollUntilVisible(
+        find.text('ARMOUR'),
+        120,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('ARMOUR'), findsOneWidget);
       expect(find.text('Traveler Tunic'), findsOneWidget);
       final EquippedSummary worn = session.equippedSummary.single;

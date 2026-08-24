@@ -730,6 +730,11 @@ final class ResourceNodeDefinition {
   }
 }
 
+/// The workstation a recipe is worked at, for the craft stage's scene.
+/// Presentation-only content data: the engine never reads it, and a recipe
+/// without one leaves the scene to the skill's default.
+enum CraftStation { forge, woodbench, cookfire }
+
 /// Turning materials into capability. Crafting costs no steps
 /// (`GAME_BIBLE/SYSTEMS/04_CRAFTING_SYSTEM_FRAMEWORK.md`) — the steps were
 /// already spent gathering.
@@ -745,6 +750,7 @@ final class RecipeDefinition {
     required this.outputQuantity,
     required this.xp,
     this.craftSeconds,
+    this.station,
     this.unlockedByProject,
     this.retiredByProject,
     this.unlockedByContract,
@@ -783,6 +789,13 @@ final class RecipeDefinition {
   /// and commits each repetition exactly as before, and never reads this.
   final int? craftSeconds;
 
+  /// Where this recipe is worked, for the craft stage's scene — an oak
+  /// plank is bench work even though the Smithing skill owns it, and the
+  /// authored word is what keeps that from being a hardcoded item list in
+  /// a widget (`RULES.md` E-5). Null: the presentation defaults by skill.
+  /// The engine never reads this.
+  final CraftStation? station;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -793,6 +806,7 @@ final class RecipeDefinition {
     'outputQuantity',
     'xp',
     'craftSeconds',
+    'station',
     'unlockedByProject',
     'retiredByProject',
     'unlockedByContract',
@@ -827,6 +841,14 @@ final class RecipeDefinition {
       xp: reader.requireInt('xp', min: 0, max: 1000000),
       craftSeconds: reader.map.containsKey('craftSeconds')
           ? reader.requireInt('craftSeconds', min: 1, max: 3600)
+          : null,
+      station: reader.map.containsKey('station')
+          ? reader.requireEnum<CraftStation>('station', const <String,
+              CraftStation>{
+              'forge': CraftStation.forge,
+              'woodbench': CraftStation.woodbench,
+              'cookfire': CraftStation.cookfire,
+            })
           : null,
       unlockedByProject: reader.map.containsKey('unlockedByProject')
           ? reader.requireId('unlockedByProject', ContentNamespace.project)

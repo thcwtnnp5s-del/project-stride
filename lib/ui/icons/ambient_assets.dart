@@ -540,27 +540,60 @@ abstract final class AmbientAssets {
     ),
   };
 
-  /// The craft station a profession works at, as stage scenery — the forge
-  /// for smithing, the cookfire for cooking
-  /// (PRESENTATION_WORLD_REWARD_FEEL_01 §17). Null for a profession with no
-  /// authored station, in which case the craft stage shows the figure alone.
-  ///
-  /// Same role the node vignettes play on the gathering stage: ×1 art behind
-  /// the ×2 figure, raised off the ground line, placed by
-  /// `AmbientStageLayout`. Bounds measured by `Scripts/art/png.js` on the
-  /// packaged props.
-  static StageScenery? stationFor(String skill) => _stations[skill];
+  /// The workstation kind a craft scene composes around, resolved from the
+  /// recipe's authored `station` word with the profession as fallback
+  /// (`RecipeDefinition.station` — an oak plank is bench work even though
+  /// Smithing owns it). String keys for the same boundary reason as
+  /// [activityLoopFor]: the caller passes `recipe.station?.name` and
+  /// `skill.value`; this file names no `stride_core` type.
+  static String craftStationKind(String? authored, String skill) =>
+      authored ?? (skill == 'skill.cooking' ? 'cookfire' : 'forge');
 
+  /// The work backdrop of a craft scene — the forge interior, the
+  /// carpenter's bench room, the hearth — same 384 × 176 family as the
+  /// profession work backdrops above (this pass, item 2). Null while a
+  /// station has no authored scene; the stage then keeps its plain ground.
+  static String? craftBackdropFor(String station) =>
+      _craftBackdrops[station];
+
+  static const Map<String, String> _craftBackdrops = <String, String>{
+    'forge': '$_art/work/bg_smithing.png',
+    'woodbench': '$_art/work/bg_woodworking.png',
+    'cookfire': '$_art/work/bg_cooking.png',
+  };
+
+  /// The craft station the Traveler works at, as stage scenery — the anvil,
+  /// the bench, the cookfire (PRESENTATION_WORLD_REWARD_FEEL_01 §17; scene
+  /// scale raised by the physical-device polish pass, item 2). Keyed by the
+  /// station kind [craftStationKind] resolves. Null for a station with no
+  /// authored prop, in which case the craft stage shows the figure alone.
+  ///
+  /// Same role the seam props play on the gathering stage: near art at the
+  /// figure's own ground line, placed by `AmbientStageLayout`. Bounds
+  /// measured by `Scripts/art/png.js` on the packaged props.
+  static StageScenery? stationFor(String station) => _stations[station];
+
+  /// The 96² Polish 02 stations. All three are tall enough to swallow a
+  /// swung tool if drawn last, so they paint behind the figure and the
+  /// hammer or spoon lands visibly on the working surface — the same
+  /// blind-QA rule the seams and the oak trunk follow
+  /// (`StageScenery.behindFigure`). The 64² `node/station_*.png` pair they
+  /// supersede stays packaged as the exploration record.
   static const Map<String, StageScenery> _stations = <String, StageScenery>{
-    'skill.smithing': StageScenery(
-      assetPath: '$_art/node/station_forge.png',
-      native: 64,
-      bounds: SpriteBounds(left: 4, top: 18, right: 59, bottom: 61),
+    'forge': StageScenery(
+      assetPath: '$_art/work/station_forge.png',
+      bounds: SpriteBounds(left: 6, top: 13, right: 89, bottom: 88),
+      behindFigure: true,
     ),
-    'skill.cooking': StageScenery(
-      assetPath: '$_art/node/station_cookfire.png',
-      native: 64,
-      bounds: SpriteBounds(left: 6, top: 20, right: 57, bottom: 60),
+    'woodbench': StageScenery(
+      assetPath: '$_art/work/station_woodbench.png',
+      bounds: SpriteBounds(left: 1, top: 4, right: 93, bottom: 93),
+      behindFigure: true,
+    ),
+    'cookfire': StageScenery(
+      assetPath: '$_art/work/station_cookfire.png',
+      bounds: SpriteBounds(left: 5, top: 3, right: 89, bottom: 91),
+      behindFigure: true,
     ),
   };
 

@@ -40,6 +40,7 @@ import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
 import 'audio_block.dart';
 import 'playtest_block.dart';
+import 'steps_block.dart';
 
 class CharacterScreen extends StatelessWidget {
   const CharacterScreen({super.key});
@@ -137,6 +138,13 @@ class CharacterScreen extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: StrideSpace.cardGap),
+
+        // STEPS — today, this week, and the tracker behind them (the
+        // physical-device polish pass, item 1; `DECISIONS/0026`). Above the
+        // lifetime card because "did today count?" is the question a player
+        // opens this tab with after a walk.
+        const StepsBlock(),
         const SizedBox(height: StrideSpace.cardGap),
 
         SectionCard(

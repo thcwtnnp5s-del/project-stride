@@ -382,6 +382,16 @@ void main() {
     await tester.tap(find.text('Character'));
     await tester.pumpAndSettle();
 
+    // The Combat card sits below the fold since the Steps card joined the
+    // sheet (the physical-device polish pass); the list builds lazily, so
+    // scroll it into being before asserting on it.
+    await tester.scrollUntilVisible(
+      find.text('COMBAT'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('COMBAT'), findsOneWidget);
     expect(find.text('unarmed'), findsOneWidget);
     expect(find.text('no armour'), findsOneWidget);

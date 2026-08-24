@@ -669,6 +669,7 @@ final class RecipeOption {
     this.outputIsTool = false,
     this.lockReason,
     this.craftSeconds,
+    this.station,
   });
 
   final ContentId id;
@@ -698,6 +699,10 @@ final class RecipeOption {
   /// The authored bench time for one repetition, or null for the category
   /// default (`RecipeDefinition.craftSeconds`).
   final int? craftSeconds;
+
+  /// The authored workstation for the craft stage's scene, or null for the
+  /// skill's default (`RecipeDefinition.station`). Presentation only.
+  final CraftStation? station;
 
   /// Profile-scaled, as it would be produced.
   final int outputQuantity;
@@ -914,6 +919,74 @@ final class EquipDelta {
 
   bool get isTool => toolLine != null;
   bool get isUpgrade => !isTool && after > before;
+}
+
+/// One local calendar day of the step tracker (`DECISIONS/0026`).
+final class StepDayLine {
+  const StepDayLine({
+    required this.startOfDayMillis,
+    required this.granted,
+    required this.isToday,
+  });
+
+  /// Local midnight of this day, epoch millis — for labelling only.
+  final int startOfDayMillis;
+
+  /// Steps the ledger credited whose observation bucket starts in this day.
+  final int granted;
+
+  final bool isToday;
+}
+
+/// One hour of today with credited steps in it. Hours with nothing are
+/// absent, not zero — the tracker draws the day from what exists.
+final class StepHourLine {
+  const StepHourLine({required this.startMillis, required this.granted});
+
+  /// Local top-of-hour, epoch millis.
+  final int startMillis;
+  final int granted;
+}
+
+/// What the step tracker shows (`StrideSession.stepHistory`,
+/// `DECISIONS/0026`): the last seven local days of credited steps, today's
+/// hours, and the freshness facts that make the figures trustworthy.
+final class StepHistory {
+  const StepHistory({
+    required this.days,
+    required this.hoursToday,
+    required this.lastSyncAtMillis,
+    required this.originCount,
+    required this.lifetimeGranted,
+    required this.nowMillis,
+  });
+
+  /// Seven entries, oldest first; the last is today.
+  final List<StepDayLine> days;
+
+  /// Today's credited steps by local hour, ascending. See [StepHourLine].
+  final List<StepHourLine> hoursToday;
+
+  /// `StrideSession.lastSyncAtMillis`, copied so one object carries the
+  /// whole tracker.
+  final int? lastSyncAtMillis;
+
+  /// How many distinct pseudonymous sources hold credit in the retained
+  /// window — a count, never an identity (`RULES.md` H-7).
+  final int originCount;
+
+  /// Every step ever credited (`totalGranted`) — the lifetime context line.
+  final int lifetimeGranted;
+
+  /// The wall-clock reading the fold ran at, for relative labels.
+  final int nowMillis;
+
+  StepDayLine get today => days.isEmpty
+      ? const StepDayLine(startOfDayMillis: 0, granted: 0, isToday: true)
+      : days.last;
+
+  /// The seven-day total, today included.
+  int get week => days.fold(0, (int a, StepDayLine d) => a + d.granted);
 }
 
 final class SkillSummary {
@@ -1954,6 +2027,112 @@ final class StrideSession {
   SourceState get sourceState =>
       engine?.state.steps.sourceState ?? SourceState.unknown;
 
+  /// When the last successful foreground sync finished, in epoch millis —
+  /// or null before the first one this launch.
+  ///
+  /// **Ephemeral, deliberately.** Persisting a sync timestamp would put a
+  /// wall-clock fact in the save for a presentation nicety, and the save
+  /// format is not moved for niceties. A cold launch syncs on its own
+  /// bootstrap path, so the figure is populated within moments of the app
+  /// existing; "null" is honestly "not yet, this launch".
+  ///
+  /// The reading comes from [activityWallClock] — the product's one
+  /// injectable wall-clock seam (`DECISIONS/0022` §8, extended by `0026`) —
+  /// never from a second `DateTime.now` site.
+  int? get lastSyncAtMillis => _lastSyncAtMillis;
+  int? _lastSyncAtMillis;
+
+  /// The step tracker's projection (`DECISIONS/0026`): granted steps per
+  /// local calendar day over the retained window, from the same committed
+  /// slices the bank is summed from.
+  ///
+  /// ## The local-day policy, owned here
+  ///
+  /// `TimeBucket` is a UTC hour-granularity span. A "day" is the device's
+  /// local calendar day **at read time**: each retained slice is attributed
+  /// to the local day its bucket *starts* in, and hours of today are grouped
+  /// the same way. This is the timezone policy Q-UI-9 refused to let a
+  /// widget invent; it lives here, in one documented place, and feeds no
+  /// rule — nothing in the engine reads it back.
+  ///
+  /// ## What the figures are, and are not
+  ///
+  /// Sums of **granted** slices — what the ledger actually credited, the
+  /// same per-origin accounting the bank uses (`RULES.md` H-1). Two sources
+  /// crediting the same hour both count, exactly as they do in the bank;
+  /// [StepHistory.originCount] says when that is happening. Figures move
+  /// only when a sync commits, which is the honest shape: the tracker shows
+  /// what the game has counted, and [lastSyncAtMillis] says how fresh that
+  /// is. Days older than the ledger's retention window are compacted away
+  /// and shown as absent, never as zero walked.
+  StepHistory stepHistory() {
+    final StepLedger? ledger = engine?.state.steps;
+    final int nowMillis = activityWallClock();
+    if (ledger == null) {
+      return StepHistory(
+        days: const <StepDayLine>[],
+        hoursToday: const <StepHourLine>[],
+        lastSyncAtMillis: _lastSyncAtMillis,
+        originCount: 0,
+        lifetimeGranted: 0,
+        nowMillis: nowMillis,
+      );
+    }
+    final DateTime now = DateTime.fromMillisecondsSinceEpoch(nowMillis);
+    final DateTime todayStart = DateTime(now.year, now.month, now.day);
+
+    // Local-midnight boundaries for the last seven days, oldest first.
+    final List<DateTime> starts = <DateTime>[
+      for (int i = 6; i >= 0; i--)
+        DateTime(todayStart.year, todayStart.month, todayStart.day - i),
+    ];
+    final List<int> totals = List<int>.filled(starts.length, 0);
+    final Map<int, int> hourTotals = <int, int>{};
+
+    for (final MapEntry<ObservationKey, int> slice
+        in ledger.grantedSlices.entries) {
+      if (slice.value <= 0) continue;
+      final DateTime start = DateTime.fromMillisecondsSinceEpoch(
+        slice.key.bucket.startMillis,
+      );
+      final DateTime day = DateTime(start.year, start.month, start.day);
+      for (int i = 0; i < starts.length; i++) {
+        if (day == starts[i]) {
+          totals[i] += slice.value;
+          break;
+        }
+      }
+      if (day == todayStart) {
+        final int hourStart = DateTime(
+          start.year,
+          start.month,
+          start.day,
+          start.hour,
+        ).millisecondsSinceEpoch;
+        hourTotals[hourStart] = (hourTotals[hourStart] ?? 0) + slice.value;
+      }
+    }
+
+    return StepHistory(
+      days: <StepDayLine>[
+        for (int i = 0; i < starts.length; i++)
+          StepDayLine(
+            startOfDayMillis: starts[i].millisecondsSinceEpoch,
+            granted: totals[i],
+            isToday: i == starts.length - 1,
+          ),
+      ],
+      hoursToday: <StepHourLine>[
+        for (final int hour in hourTotals.keys.toList()..sort())
+          StepHourLine(startMillis: hour, granted: hourTotals[hour]!),
+      ],
+      lastSyncAtMillis: _lastSyncAtMillis,
+      originCount: ledgerOriginCount,
+      lifetimeGranted: ledger.totalGranted,
+      nowMillis: nowMillis,
+    );
+  }
+
   // -- Health ---------------------------------------------------------------
 
   /// Whether the platform's health service is present and usable.
@@ -2027,6 +2206,13 @@ final class StrideSession {
       final SyncReport report = (await _syncSteps(
         maxPages,
       )).withAuthorization(_lastAuthorization);
+      // A real read happened — the store answered, whether or not it had
+      // anything new. Refusals, unavailability and keying faults do not
+      // move the mark: "last synced" must mean "last actually read".
+      if (report.status == SyncStatus.reconciled ||
+          report.status == SyncStatus.noChange) {
+        _lastSyncAtMillis = activityWallClock();
+      }
       // After the sync, whatever it did. The pending migration waits for the
       // sync's one chance to observe the backlog, not for the backlog to have
       // been observed: an unavailable or denied source at the cutover means
@@ -3443,9 +3629,16 @@ final class StrideSession {
       tier: def.tier,
       toolKind: def.toolKind,
       passives: <String>[
-        if (def.toolKind != ToolKind.none)
+        // A tool names the sites it actually opens, from the same node data
+        // the engine gates gathering on — never a tier abstraction alone
+        // (this pass, §5: "Tier 1" is functional; "Mines Copper Ore, Tin
+        // Ore" is a reason to want the tool). The tier line stays as the
+        // rule the names are instances of.
+        if (def.toolKind != ToolKind.none) ...<String>[
           'Works ${def.toolKind == ToolKind.axe ? 'woodcutting' : 'mining'} '
               'sites up to tier ${def.tier}',
+          ..._toolSiteLines(content, def),
+        ],
         if (def.frostGuard > 0)
           'Cold weather: −${def.frostGuard} damage taken in alpine fights',
         if (def.wildernessYieldPercent > 0)
@@ -3461,6 +3654,65 @@ final class StrideSession {
       wornToolKind: worn?.toolKind,
       wornTier: worn?.tier ?? 0,
     );
+  }
+
+  /// The named-site lines a tool's passives carry: which sites in the pack
+  /// this tool opens, what they yield, and — when the pack holds one — the
+  /// first site the *next* tier would open. All read from the same
+  /// `ResourceNodeDefinition` fields (`requiredToolKind`,
+  /// `minimumToolTier`, `yieldsItem`) the engine validates a gather with,
+  /// so the sentence and the gate cannot disagree.
+  static List<String> _toolSiteLines(
+    ContentRegistry content,
+    ItemDefinition def,
+  ) {
+    final List<ResourceNodeDefinition> ofKind = content.resourceNodes.values
+        .where((ResourceNodeDefinition n) => n.requiredToolKind == def.toolKind)
+        .toList();
+    if (ofKind.isEmpty) return const <String>[];
+
+    final List<ResourceNodeDefinition> works = ofKind
+        .where((ResourceNodeDefinition n) => n.minimumToolTier <= def.tier)
+        .toList()
+      // Tier order, so the sentence reads as the progression: the sites a
+      // training tool opens first, the ones a better one added after. The
+      // id is the tie-break because `List.sort` is not stable.
+      ..sort((ResourceNodeDefinition a, ResourceNodeDefinition b) {
+        final int byTier = a.minimumToolTier.compareTo(b.minimumToolTier);
+        return byTier != 0 ? byTier : a.id.value.compareTo(b.id.value);
+      });
+    final List<ResourceNodeDefinition> beyond = ofKind
+        .where((ResourceNodeDefinition n) => n.minimumToolTier > def.tier)
+        .toList();
+
+    // Site names, not yield names: the Hardened Copper Seam yields the same
+    // ore the Copper Seam does, so a yield list makes a tier-2 pick read
+    // identical to a tier-0 one — and access is exactly what the better
+    // tool buys.
+    String sites(Iterable<ResourceNodeDefinition> nodes) {
+      final Set<String> seen = <String>{};
+      final List<String> names = <String>[];
+      for (final ResourceNodeDefinition n in nodes) {
+        if (seen.add(n.displayName)) names.add(n.displayName);
+      }
+      return names.join(', ');
+    }
+
+    // The next tier's gap is one line naming the nearest locked site, not a
+    // catalogue: the point is "a better tool matters", said with a real
+    // place. Sorted so "nearest" is deterministic.
+    beyond.sort((ResourceNodeDefinition a, ResourceNodeDefinition b) {
+      final int byTier = a.minimumToolTier.compareTo(b.minimumToolTier);
+      return byTier != 0 ? byTier : a.id.value.compareTo(b.id.value);
+    });
+    return <String>[
+      if (works.isNotEmpty)
+        '${def.toolKind == ToolKind.axe ? 'Chops' : 'Mines'}: '
+            '${sites(works)}',
+      if (beyond.isNotEmpty)
+        'Tier ${beyond.first.minimumToolTier} opens '
+            '${beyond.first.displayName}',
+    ];
   }
 
   /// The item worn or wielded in [slot], or null when the slot is empty.
@@ -3972,6 +4224,7 @@ final class StrideSession {
               ToolKind.none,
           lockReason: active.recipeLockReason(recipe, active.state),
           craftSeconds: recipe.craftSeconds,
+          station: recipe.station,
         ),
       );
     }

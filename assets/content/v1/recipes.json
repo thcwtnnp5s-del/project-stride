@@ -17,6 +17,7 @@
       "outputQuantity": 1,
       "xp": 12,
       "craftSeconds": 30,
+      "station": "woodbench",
       "retiredByProject": "project.havens_rest_mill"
     },
     {
@@ -34,6 +35,7 @@
       "outputQuantity": 1,
       "xp": 12,
       "craftSeconds": 30,
+      "station": "woodbench",
       "unlockedByProject": "project.havens_rest_mill"
     },
     {
@@ -50,7 +52,8 @@
       "outputItem": "item.oak_handle",
       "outputQuantity": 1,
       "xp": 15,
-      "craftSeconds": 40
+      "craftSeconds": 40,
+      "station": "woodbench"
     },
     {
       "id": "recipe.oak_handle_pair",
@@ -67,6 +70,7 @@
       "outputQuantity": 2,
       "xp": 24,
       "craftSeconds": 60,
+      "station": "woodbench",
       "unlockedByProject": "project.havens_rest_mill"
     },
     {
@@ -338,7 +342,8 @@
       "outputItem": "item.pine_plank",
       "outputQuantity": 1,
       "xp": 110,
-      "craftSeconds": 45
+      "craftSeconds": 45,
+      "station": "woodbench"
     }
   ]
 }

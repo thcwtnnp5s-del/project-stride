@@ -131,6 +131,13 @@ scan "(^|[^A-Za-z0-9_])(Directory|File|RandomAccessFile)\(" \
 # differences of that seam against the committed queue anchor, reached through
 # the session; `DateTime.now` remains forbidden in lib/ui in full, and a
 # second wall-clock read anywhere needs its own decision.
+#
+# Q-UI-9 itself is ANSWERED, not waived (DECISIONS/0026): the owner asked for
+# the step tracker by name, and the local-day fold lives in
+# `StrideSession.stepHistory()` -- lib/runtime, behind the session boundary,
+# reading the SAME `activityWallClock` seam (a second caller, not a second
+# read site). lib/ui renders the projection's figures and computes nothing;
+# every pattern below still holds in full.
 scan "(grantedSlices|DateTime\.now|\.toLocal\()" \
   "lib/ui must not derive a local-day figure (Q-UI-9)"
 

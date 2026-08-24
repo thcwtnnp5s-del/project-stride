@@ -629,8 +629,14 @@ const COMBAT_SRC = path.join(EXPLORE, 'PLAYABLE_EXPANSION_01', 'out', 'combat');
 const combatManifest = JSON.parse(
   fs.readFileSync(path.join(COMBAT_SRC, 'manifest.json'), 'utf8'),
 );
+// PLAYABLE_POLISH_02 replaces the Traveler's combat idle: the PE01 v3 output
+// drifted to three-quarter view and read as facing away from the enemy on
+// the owner's device. The PE01 frames stay in the exploration tree as
+// evidence; the replacement is emitted in the Polish 02 section below.
+const REPLACED_BY_POLISH2 = new Set(['traveler_combat_idle']);
 const combatFootprints = {};
 for (const entry of combatManifest) {
+  if (REPLACED_BY_POLISH2.has(entry.id)) continue;
   const [w, h] = entry.canvas;
   if (entry.kind === 'backdrop') {
     const frame = png.load(path.join(COMBAT_SRC, `${entry.id}.png`));
@@ -1125,6 +1131,72 @@ for (const [id, { dir, src }] of Object.entries(WORK_PROPS)) {
     );
   }
   emit(`work/prop_${id}.png`, encode(raster));
+}
+
+// ------------------------------------------------- Playable Polish 02
+
+/**
+ * THE CRAFT SCENES AND THE GUARD IDLE RE-AUTHOR (the physical-device polish
+ * pass; provenance and review in `PLAYABLE_POLISH_02/README.md`).
+ *
+ * - Three craft work backdrops, the same 384 × 176 family as the profession
+ *   work backdrops: the smithy interior, the carpenter's workshop, the
+ *   hearth. Keyed by workstation, not by profession — an oak plank is bench
+ *   work even though Smithing owns it (`RecipeDefinition.station`).
+ * - Three 96² station props the figure works at: anvil, bench, cookpot.
+ *   These supersede the 64² `node/station_*.png` pair on the craft stage
+ *   (the owner's device read the old scale as "a tiny forge in a box");
+ *   the old files stay packaged for the exploration record.
+ * - The Traveler's combat guard idle, re-authored east-in-profile with the
+ *   sword visible (see `REPLACED_BY_POLISH2` above). Raw 96 × 88 frames are
+ *   cropped here to an 80 × 64 canvas with the feet on row 62 — the same
+ *   crop-at-packaging rule the vignettes follow, from the manifest's own
+ *   `crop` offsets, so the transformation is recorded and reproducible.
+ */
+const POLISH2 = path.join(EXPLORE, 'PLAYABLE_POLISH_02', 'out');
+const CRAFT_BACKDROPS = {
+  smithing: 'bg_smithing_384',
+  woodworking: 'bg_woodworking_384',
+  cooking: 'bg_cooking_384',
+};
+for (const [id, src] of Object.entries(CRAFT_BACKDROPS)) {
+  const raster = png.load(path.join(POLISH2, 'stage', `${src}.png`));
+  if (raster.width !== 384 || raster.height !== 176) {
+    throw new Error(
+      `craft ${id}: expected 384x176, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`work/bg_${id}.png`, encode(raster));
+}
+const CRAFT_STATIONS = {
+  forge: 'station_forge_96',
+  woodbench: 'station_woodbench_96',
+  cookfire: 'station_cookfire_96',
+};
+for (const [id, src] of Object.entries(CRAFT_STATIONS)) {
+  const raster = png.load(path.join(POLISH2, 'stage', `${src}.png`));
+  if (raster.width !== 96 || raster.height !== 96) {
+    throw new Error(
+      `station ${id}: expected 96x96, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`work/station_${id}.png`, encode(raster));
+}
+const polish2Combat = JSON.parse(
+  fs.readFileSync(path.join(POLISH2, 'combat', 'manifest.json'), 'utf8'),
+);
+for (const entry of polish2Combat) {
+  if (entry.status !== 'accepted') continue;
+  const [w, h] = entry.canvas;
+  const [cx, cy] = entry.crop;
+  for (let i = 0; i < entry.frames; i++) {
+    const raw = png.load(path.join(POLISH2, 'combat', 'raw', `${i}.png`));
+    const cut = png.crop(raw, cx, cy, w, h);
+    if (i === 0) {
+      combatFootprints[`combat_${entry.id}`] = png.footprint(cut);
+    }
+    emit(`combat/${entry.id}_f${i}.png`, encode(cut));
+  }
 }
 
 // -------------------------------------------------------- footprint metrics

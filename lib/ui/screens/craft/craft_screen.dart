@@ -51,10 +51,16 @@ import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
 
-/// The craft stage's height: the figure box is 64 rows plus the contact
-/// shadow's bleed at x2 — 136 dp — so 150 clears it without the generous
-/// headroom the gathering stage needs for a swung axe.
-const double _craftStageHeight = 150;
+/// The craft stage's height: the location stage's own 176, because since
+/// the physical-device polish pass (item 2) the stage carries a full work
+/// backdrop — the forge interior, the bench room, the hearth — and the
+/// 384 × 176 scene family sets the band. The figures' box inside it stays
+/// the shared 140 (`LocationStage._stageHeight`'s reasoning).
+const double _craftStageHeight = 176;
+
+/// The figures' box: the 64-row sprite plus shadow bleed at ×2 — the same
+/// interior the location stage reserves.
+const double _craftFiguresHeight = 140;
 
 /// The §19 categories, derived from the output item's authored data.
 enum CraftCategory {
@@ -569,12 +575,23 @@ class _ActiveCraftPanel extends StatelessWidget {
     final List<String>? loop = AmbientAssets.hasActivityLoop(skill)
         ? AmbientAssets.activityLoopFor(skill)
         : null;
+    // The scene follows the recipe's authored workstation, with the skill
+    // as fallback — an oak plank is bench work even though Smithing owns it
+    // (`RecipeDefinition.station`, this pass, item 2).
+    final String station = AmbientAssets.craftStationKind(
+      recipe.station?.name,
+      skill,
+    );
+    final String? backdrop = AmbientAssets.craftBackdropFor(station);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // The craft stage — the Traveler working AT this profession's
-        // station (PRESENTATION_WORLD_REWARD_FEEL_01 §17).
+        // The craft stage — the Traveler working AT this recipe's station,
+        // IN the station's own scene (PRESENTATION_WORLD_REWARD_FEEL_01
+        // §17; the backdrop and the scene scale are the physical-device
+        // polish pass, item 2 — the tiny forge-in-a-box read as
+        // underwhelming on the phone).
         //
         // The station goes in the stage's **prop** slot, not its scenery
         // slot, and the difference is a blind-QA finding rather than a
@@ -583,9 +600,11 @@ class _ActiveCraftPanel extends StatelessWidget {
         // on this thing". Composited that way the Traveler swung a hammer at
         // empty air with the anvil a screen away.
         //
-        // The prop slot was this screen's hand-placement first; the Adventure
-        // stage then needed exactly the same thing for a copper seam, so it
-        // now lives in `AmbientStageLayout` where one model places both.
+        // The composition is the location stage's WORK mode: the 384 × 176
+        // backdrop clipped and centred at ×1 (the combat stage's clipping
+        // rule — a narrower card sees less of the flanks, never a shifted
+        // scene), a quiet ground gradient so the contact shadows have a
+        // floor, and the figures bottom-anchored on it.
         if (loop != null) ...<Widget>[
           SizedBox(
             height: _craftStageHeight,
@@ -597,26 +616,64 @@ class _ActiveCraftPanel extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: StrideRadius.inner,
-                child: AmbientStage(
-                  gatherFrames: PixelIcons.gatherFrames,
-                  gatherFootprint: SpriteFootprints.gather,
-                  playToken: null,
-                  scenes: AmbientAssets.scenes,
-                  restFrame: AmbientAssets.restFrame,
-                  restFootprint: AmbientAssets.restFootprint,
-                  prop: AmbientAssets.stationFor(skill),
-                  activityFrames: loop,
-                  activityFootprint: AmbientAssets.activityFootprintFor(skill),
-                  activityCanvas: AmbientAssets.activityCanvasFor(skill),
-                  activityActive: true,
-                  // The craft beats (AUDIO_PRESENTATION_01): the hammer
-                  // lands, the stir turns — the one accepted cue per
-                  // profession, on the visible strike frame, only while
-                  // this stage is mounted. Leaving the screen stops the
-                  // sound; the craft queue itself never sonifies.
-                  activityStrikeFrame: AmbientAssets.strikeFrameFor(skill),
-                  onActivityBeat: () =>
-                      AudioScope.read(context).playSkillCue(skill),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    if (backdrop != null)
+                      PixelScene.vignette(
+                        backdrop,
+                        viewportHeight: _craftStageHeight,
+                      ),
+                    // The figures' ground band (`LocationStage`'s): the
+                    // multiply contact shadow needs something to darken.
+                    const Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 72,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: <Color>[
+                              Color(0x0014120F),
+                              Color(0x8014120F),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 6,
+                      height: _craftFiguresHeight,
+                      child: AmbientStage(
+                        gatherFrames: PixelIcons.gatherFrames,
+                        gatherFootprint: SpriteFootprints.gather,
+                        playToken: null,
+                        scenes: AmbientAssets.scenes,
+                        restFrame: AmbientAssets.restFrame,
+                        restFootprint: AmbientAssets.restFootprint,
+                        prop: AmbientAssets.stationFor(station),
+                        activityFrames: loop,
+                        activityFootprint:
+                            AmbientAssets.activityFootprintFor(skill),
+                        activityCanvas: AmbientAssets.activityCanvasFor(skill),
+                        activityActive: true,
+                        // The craft beats (AUDIO_PRESENTATION_01): the hammer
+                        // lands, the stir turns — the one accepted cue per
+                        // profession, on the visible strike frame, only while
+                        // this stage is mounted. Leaving the screen stops the
+                        // sound; the craft queue itself never sonifies.
+                        activityStrikeFrame:
+                            AmbientAssets.strikeFrameFor(skill),
+                        onActivityBeat: () =>
+                            AudioScope.read(context).playSkillCue(skill),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

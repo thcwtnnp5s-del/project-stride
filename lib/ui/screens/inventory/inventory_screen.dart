@@ -49,8 +49,19 @@ import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
+
+  @override
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends State<InventoryScreen> {
+  /// The equipment tile whose full evaluation is open beneath the grid —
+  /// ephemeral UI selection, never a game figure (`RULES.md` E-2). Added by
+  /// the physical-device polish pass (item 5): the tile's one line says
+  /// `TIER 1`; what that tier *opens* needs the room of a block.
+  ContentId? _gearDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +155,24 @@ class InventoryScreen extends StatelessWidget {
                     entries: group.entries,
                     equipment: group.equipment,
                     consumable: group.consumable,
+                    selected: group.equipment ? _gearDetail : null,
+                    onSelect: group.equipment
+                        ? (ContentId id) => setState(
+                            () => _gearDetail = _gearDetail == id ? null : id,
+                          )
+                        : null,
                   ),
+                  // The opened piece's full evaluation — the same
+                  // `GearStatsBlock` the craft bench shows, under the grid
+                  // it was opened from, so the bag can answer "why does a
+                  // better tool matter" without a trip to the bench (this
+                  // pass, item 5).
+                  if (group.equipment && _gearDetail != null)
+                    if (c.session.gearStatsOf(_gearDetail!)
+                        case final GearStats g) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s8),
+                      GearStatsBlock(stats: g),
+                    ],
                 ],
               ],
             ),
@@ -366,11 +394,18 @@ class _ItemGrid extends StatelessWidget {
     required this.entries,
     required this.equipment,
     this.consumable = false,
+    this.selected,
+    this.onSelect,
   });
 
   final List<InventoryEntry> entries;
   final bool equipment;
   final bool consumable;
+
+  /// The tile whose evaluation is open beneath the grid, and the tap that
+  /// toggles it. Null for groups whose tiles have nothing to expand.
+  final ContentId? selected;
+  final ValueChanged<ContentId>? onSelect;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -442,6 +477,8 @@ class _ItemGrid extends StatelessWidget {
           entry: entries[i],
           equipment: equipment,
           consumable: consumable,
+          selected: selected == entries[i].id,
+          onTap: onSelect == null ? null : () => onSelect!(entries[i].id),
         ),
       );
     },
@@ -505,6 +542,8 @@ class _ItemTile extends StatelessWidget {
     required this.entry,
     required this.equipment,
     this.consumable = false,
+    this.selected = false,
+    this.onTap,
   });
 
   final InventoryEntry entry;
@@ -515,11 +554,36 @@ class _ItemTile extends StatelessWidget {
   /// Whether this tile carries the eat control (`DECISIONS/0023` §4).
   final bool consumable;
 
+  /// Whether this tile's evaluation is open beneath the grid, and the tap
+  /// that toggles it. The tap wraps the whole tile; the equip control
+  /// inside keeps its own gesture and wins where they overlap.
+  final bool selected;
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final Widget tile = _tile(context);
+    if (onTap == null) return tile;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: entry.displayName,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: tile,
+      ),
+    );
+  }
+
+  Widget _tile(BuildContext context) => Container(
     decoration: BoxDecoration(
-      color: StrideColors.surfaceCard,
-      border: Border.all(color: StrideColors.borderDefault),
+      color: selected ? StrideColors.surfaceRaised : StrideColors.surfaceCard,
+      border: Border.all(
+        color: selected
+            ? StrideColors.accentSteps
+            : StrideColors.borderDefault,
+      ),
       borderRadius: StrideRadius.inner,
     ),
     padding: const EdgeInsets.fromLTRB(3, _tilePadTop, 3, _tilePadBottom),

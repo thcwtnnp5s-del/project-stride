@@ -16,15 +16,20 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show ContentId, ContractClass;
+import 'package:stride_core/stride_core.dart'
+    show ContentId, ContractClass, Rarity;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/pixel_asset.dart';
+import '../../components/rarity_item_title.dart';
 import '../../components/reward_beat.dart';
 import '../../components/reward_layer.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
+import '../../icons/pixel_icons.dart';
+import '../../theme/rarity_style.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -128,18 +133,44 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
     // glance (the correction pass, finding D).
     final ContentId? tracked = c.session.trackedGoals.contract?.id;
 
+    final List<ContractView> jobs = <ContractView>[
+      ...board.localNeeds,
+      ...board.bounties,
+      ...board.regionals,
+    ];
+    // The board's standing, at a glance (this pass, item 3): how many jobs
+    // are finishable now, and how many bounties the player has committed
+    // to. Counts of the same projections the rows themselves render.
+    final int ready = jobs
+        .where((ContractView j) => j.canComplete && !j.isCompletedOneTime)
+        .length;
+    final int accepted = jobs
+        .where(
+          (ContractView j) =>
+              !j.isCompletedOneTime && (j.bounty?.accepted ?? false),
+        )
+        .length;
+    final String standing = <String>[
+      if (ready > 0) '$ready READY',
+      if (accepted > 0) '$accepted ACCEPTED',
+      if (board.developmentState != null)
+        board.developmentState!.toUpperCase(),
+    ].join(' · ');
+
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           SectionHeading(
             label: board.boardName,
-            trailing: board.developmentState == null
+            trailing: standing.isEmpty
                 ? null
                 : Text(
-                    board.developmentState!.toUpperCase(),
+                    standing,
                     style: StrideType.microLabel.copyWith(
-                      color: StrideColors.textSecondary,
+                      color: ready > 0
+                          ? StrideColors.accentSteps
+                          : StrideColors.textSecondary,
                     ),
                   ),
           ),
@@ -159,11 +190,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
           // player opened expanded beneath it (§11). Orders, bounties and
           // regional contracts share the row; they are distinguished by the
           // type word, not by three separate layouts.
-          for (final ContractView job in <ContractView>[
-            ...board.localNeeds,
-            ...board.bounties,
-            ...board.regionals,
-          ]) ...<Widget>[
+          for (final ContractView job in jobs) ...<Widget>[
             _ContractRow(
               contract: job,
               selected: _open == job.id,
@@ -183,6 +210,19 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
                       onTrack: () => c.trackGoalContract(job.id),
                     )
                   : null,
+            ),
+          ],
+
+          // How the board refreshes, said once and honestly (this pass,
+          // item 3): local needs rotate when they are delivered — there is
+          // no timer, nothing expires, and nothing here may imply
+          // otherwise (`RULES.md` P-5).
+          if (board.localNeeds.isNotEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s6),
+            Text(
+              'New orders are posted as these are delivered.',
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 1,
             ),
           ],
 
@@ -385,15 +425,16 @@ class _ContractRow extends StatelessWidget {
     return c.unavailableReason ?? 'Ready to hand in';
   }
 
-  /// The reward, compressed to one line. The expanded detail spells it out.
-  static String rewardLine(ContractView c) => <String>[
-    for (final RequirementLine line in c.rewardItems)
-      '${line.name} ×${line.required}',
-    for (final SkillXpLine line in c.rewardSkillXp)
-      '+${line.xp} ${line.skillName}',
-    if (c.rewardCharacterXp > 0) '+${c.rewardCharacterXp} XP',
-    if (c.teachesRecipeName != null) 'recipe',
-  ].join(' · ');
+  /// The item whose pixel icon fronts the row (this pass, item 3): the
+  /// first reward item — the reason to take the job — or, when the job
+  /// rewards no item, the first requested good, so an order still shows
+  /// what it is about. Null only for a job that is pure XP end to end.
+  static ContentId? rowIconItem(ContractView c) {
+    if (c.rewardItems.isNotEmpty) return c.rewardItems.first.item;
+    if (c.requires.isNotEmpty) return c.requires.first.item;
+    if (c.requiresOwned.isNotEmpty) return c.requiresOwned.first.item;
+    return null;
+  }
 
   /// What state the job is in, in one word, on the right of the row.
   static (String, Color) state(ContractView c) {
@@ -412,7 +453,7 @@ class _ContractRow extends StatelessWidget {
     final bool done = c.isCompletedOneTime;
     final bool locked = !done && !c.available;
     final (String word, Color ink) = state(c);
-    final String reward = rewardLine(c);
+    final ContentId? iconItem = rowIconItem(c);
     // A finishable job is the one thing on the board worth finding at a
     // glance, so its frame takes the dim step accent along with the word;
     // everything else keeps the one border weight.
@@ -439,6 +480,21 @@ class _ContractRow extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
+            // The job's face (this pass, item 3): the reward's own pixel
+            // icon, or the requested good's where the pay is pure XP. Done
+            // and locked rows keep the well so the list holds one rail —
+            // the reserved-rail rule the skill rows learned from Visual QA.
+            if (iconItem != null)
+              Opacity(
+                opacity: done || locked ? 0.45 : 1,
+                child: InsetWell.square(
+                  contentSize: 48,
+                  child: PixelAsset.item(PixelIcons.itemFor(iconItem)),
+                ),
+              )
+            else
+              const SizedBox(width: 50, height: 50),
+            const SizedBox(width: StrideSpace.s10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,14 +531,8 @@ class _ContractRow extends StatelessWidget {
                       ),
                       maxLines: 2,
                     ),
-                    if (reward.isNotEmpty)
-                      Text(
-                        reward,
-                        style: StrideType.micro.copyWith(
-                          color: StrideColors.textMuted,
-                        ),
-                        maxLines: 1,
-                      ),
+                    const SizedBox(height: StrideSpace.s2),
+                    _RewardStrip(contract: c, dimmed: locked),
                   ],
                 ],
               ),
@@ -546,6 +596,72 @@ class _ContractRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The collapsed row's reward line, coloured (this pass, item 3): each item
+/// in its rarity's own ink, experience in the secondary ink, a taught
+/// recipe in the quest ink. Same facts the plain string carried; what
+/// changed is that a Rare pelt now looks like one from across the board.
+/// Locked rows dim the whole strip — a reward that cannot be reached yet is
+/// information, not an enticement.
+class _RewardStrip extends StatelessWidget {
+  const _RewardStrip({required this.contract, this.dimmed = false});
+
+  final ContractView contract;
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ContractView c = contract;
+    Color inkFor(Rarity? rarity) => dimmed
+        ? StrideColors.textMuted
+        : RarityStyle.maybe(rarity)?.accent ?? StrideColors.textSecondary;
+
+    final List<Widget> parts = <Widget>[
+      for (final RequirementLine line in c.rewardItems)
+        Text(
+          '${line.name} ×${line.required}',
+          style: StrideType.micro.copyWith(color: inkFor(line.rarity)),
+          maxLines: 1,
+        ),
+      for (final SkillXpLine line in c.rewardSkillXp)
+        Text(
+          '+${line.xp} ${line.skillName}',
+          style: StrideType.micro.copyWith(
+            color: dimmed
+                ? StrideColors.textMuted
+                : StrideColors.textSecondary,
+          ),
+          maxLines: 1,
+        ),
+      if (c.rewardCharacterXp > 0)
+        Text(
+          '+${c.rewardCharacterXp} XP',
+          style: StrideType.micro.copyWith(
+            color: dimmed
+                ? StrideColors.textMuted
+                : StrideColors.textSecondary,
+          ),
+          maxLines: 1,
+        ),
+      if (c.teachesRecipeName != null)
+        Text(
+          'teaches a recipe',
+          style: StrideType.micro.copyWith(
+            color: dimmed
+                ? StrideColors.textMuted
+                : StrideColors.categoryQuest,
+          ),
+          maxLines: 1,
+        ),
+    ];
+    if (parts.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: StrideSpace.s8,
+      runSpacing: StrideSpace.s2,
+      children: parts,
     );
   }
 }
@@ -643,13 +759,12 @@ class _ContractDetail extends StatelessWidget {
     final BountyView? bounty = c.bounty;
 
     final List<String> rewardWords = <String>[
-      for (final RequirementLine line in c.rewardItems)
-        '${line.name} ×${line.required}',
       for (final SkillXpLine line in c.rewardSkillXp)
         '+${line.xp} ${line.skillName} XP',
       if (c.rewardCharacterXp > 0) '+${c.rewardCharacterXp} Character XP',
       if (c.teachesRecipeName case final String recipe) 'teaches $recipe',
     ];
+    final bool hasReward = rewardWords.isNotEmpty || c.rewardItems.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -695,16 +810,45 @@ class _ContractDetail extends StatelessWidget {
                   ),
               ],
             ),
-            if (rewardWords.isNotEmpty) ...<Widget>[
+            if (hasReward) ...<Widget>[
               const SizedBox(height: StrideSpace.s8),
               const Text('REWARD', style: StrideType.microLabel, maxLines: 1),
-              const SizedBox(height: StrideSpace.s2),
-              Text(
-                rewardWords.join(' · '),
-                style: StrideType.micro.copyWith(
-                  color: StrideColors.textPrimary,
+              const SizedBox(height: StrideSpace.s4),
+              // Item rewards as real rows — the pixel asset, the name in
+              // its rarity ink, the count (this pass, item 3): the same
+              // grammar the victory panel and the reward layer speak, so a
+              // job's promise and its payoff look like the same thing.
+              for (final RequirementLine line in c.rewardItems) ...<Widget>[
+                Row(
+                  children: <Widget>[
+                    InsetWell.square(
+                      contentSize: 48,
+                      child: PixelAsset.item(PixelIcons.itemFor(line.item)),
+                    ),
+                    const SizedBox(width: StrideSpace.s10),
+                    Expanded(
+                      child: RarityName(
+                        name: line.name,
+                        rarity: line.rarity,
+                        style: StrideType.sub,
+                      ),
+                    ),
+                    const SizedBox(width: StrideSpace.s8),
+                    AdaptiveText(
+                      '×${line.required}',
+                      style: StrideType.itemCount,
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: StrideSpace.s4),
+              ],
+              if (rewardWords.isNotEmpty)
+                Text(
+                  rewardWords.join(' · '),
+                  style: StrideType.micro.copyWith(
+                    color: StrideColors.textPrimary,
+                  ),
+                ),
             ],
             const SizedBox(height: StrideSpace.s10),
             // One game action per job, primary; Track is a utility beside

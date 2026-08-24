@@ -100,6 +100,42 @@ void main() {
     expect(pick.passives, contains('15% chance of +1 yield at sites this tool works'));
   });
 
+  test('a tool names the sites it opens, and the site the next tier would', () async {
+    // The physical-device polish pass, item 5: "Tier 1" is functional;
+    // naming the sites is a reason to want the tool. Both lines read the
+    // same node fields the engine gates a gather with.
+    final StrideSession s = await boot();
+
+    // Tier 0 pick: the two open seams, and the tier-2 site as the gap.
+    final GearStats training = s.gearStatsOf(trainingPick)!;
+    expect(training.passives, contains('Mines: Copper Seam, Tin Seam'));
+    expect(
+      training.passives,
+      contains('Tier 2 opens Hardened Copper Seam'),
+    );
+
+    // Tier 2 pick: every pickaxe site, and no gap line — the pack holds
+    // nothing above it.
+    final GearStats reinforced = s.gearStatsOf(reinforcedPick)!;
+    expect(
+      reinforced.passives,
+      contains('Mines: Copper Seam, Tin Seam, Hardened Copper Seam'),
+    );
+    expect(
+      reinforced.passives.where((String p) => p.startsWith('Tier ')),
+      isEmpty,
+    );
+
+    // Axes read the same way, in their own verb.
+    final GearStats axe = s.gearStatsOf(trainingAxe)!;
+    expect(axe.passives, contains('Chops: Oak Stand'));
+    expect(axe.passives, contains('Tier 1 opens Frostpine Stand'));
+    expect(
+      s.gearStatsOf(bronzeAxe)!.passives,
+      contains('Chops: Oak Stand, Frostpine Stand'),
+    );
+  });
+
   test('an axe over a pickaxe is a TOOL SWAP, never a power comparison', () async {
     final StrideSession s = await boot();
     expect((await s.equip(trainingPick)).succeeded, isTrue);

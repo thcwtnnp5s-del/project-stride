@@ -47,7 +47,8 @@
 /// `Scripts/art/png.js` (`bounds`, union across the sequence):
 ///
 /// ```text
-/// traveler_combat_idle 64x64 12,4..56,62   wolf_idle       56x56  7,12..51,40
+/// traveler_combat_idle 80x64 25,6..73,62 (Polish 02 re-author)
+///                                          wolf_idle       56x56  7,12..51,40
 /// traveler_attack      80x64 22,1..72,62   wolf_attack     56x56  4,12..51,40
 /// traveler_hit         64x64 14,2..50,62   wolf_defeat     56x56  5,12..51,41
 /// goblin_idle          56x56 17,8..38,46   guardian_idle   96x96 30,11..69,83
@@ -231,12 +232,16 @@ abstract final class CombatAssets {
   // -------------------------------------------------------------- Traveler
 
   static final CombatantArt traveler = CombatantArt(
+    // Re-authored east-in-profile with the sword visible (PLAYABLE_POLISH_02):
+    // the PE01 idle drifted to three-quarter view and read as facing away
+    // from the enemy on the owner's device. 80-wide like the attack — the
+    // blade reaches past the 64-box.
     idle: _track(
       'traveler_combat_idle',
-      7,
+      9,
       6,
       AmbientLoop.pingpong,
-      canvasWidth: 64,
+      canvasWidth: 80,
       canvasHeight: 64,
       anchorRow: 62,
       footprint: SpriteFootprints.combatTravelerCombatIdle,
