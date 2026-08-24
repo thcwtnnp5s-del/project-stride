@@ -1,0 +1,17 @@
+[
+  {
+    "id": "traveler_combat_idle",
+    "kind": "traveler",
+    "frames": 9,
+    "fps": 6,
+    "loop": "pingpong",
+    "canvas": [80, 64],
+    "baseline": 62,
+    "facing": "east",
+    "status": "accepted",
+    "anchor": 62,
+    "crop": [8, 12],
+    "raw": "raw/{i}.png (96x88, feet row 74)",
+    "note": "guard idle re-authored (PLAYABLE_POLISH_02): v3 from custom start = the raw attack's f3 (sword extended east, strict profile), replacing the PE01 idle whose v3 output drifted to three-quarter view and read as facing away from the enemy on the owner's device. Sword visible in every frame; 80-wide canvas because the blade reaches past the 64-box exactly as the attack does."
+  }
+]

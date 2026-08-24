@@ -202,3 +202,9 @@ ios/Flutter/Local.xcconfig
 # Playable Polish 01 — the re-authored mining loop and the three seams, and
 # their candidates: packaging sources `package-art.js` reads. QA plates stay local.
 !GAME_BIBLE/ART/exploration/PLAYABLE_POLISH_01/out/**
+
+# Playable Polish 02 — the craft-scene backdrops and stations, and the raw
+# guard-idle frames with their crop manifest: packaging sources
+# `package-art.js` reads (`--check` cannot pass on a clean checkout without
+# them). The rejected idle round in work/ stays local.
+!GAME_BIBLE/ART/exploration/PLAYABLE_POLISH_02/out/**
