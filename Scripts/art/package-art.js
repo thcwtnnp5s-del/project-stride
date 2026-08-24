@@ -1199,6 +1199,34 @@ for (const entry of polish2Combat) {
   }
 }
 
+// ------------------------------------------------- World Map Polish 01
+
+/**
+ * THE WESTERN FOREST FIRE (provenance and the rejected candidates in
+ * `WORLD_MAP_POLISH_01/README.md`).
+ *
+ * One animated atlas overlay: a burnt hollow eaten into the western forest
+ * with two live flames, style-matched by PixelLab inpainting against the
+ * shipped master's own canopy at the river fork, then animated with
+ * `animate_image`. The loop is the eight *generated* frames — the input
+ * still's flames are a size larger, so wrapping through it would pop — and
+ * each source frame is already the deterministic 40 × 40 content crop of the
+ * 64 × 64 canvas (A-2: crop only, nothing invented). Placement lives in
+ * `atlas_layout.json`, never here.
+ */
+const WMP01_ENV_SRC = path.join(EXPLORE, 'WORLD_MAP_POLISH_01', 'out', 'env');
+for (let i = 0; i < 8; i++) {
+  const frame = png.load(
+    path.join(WMP01_ENV_SRC, `overlay_forest_fire_40x40_f${i}.png`),
+  );
+  if (frame.width !== 40 || frame.height !== 40) {
+    throw new Error(
+      `overlay_forest_fire_f${i}: expected 40x40, got ${frame.width}x${frame.height}`,
+    );
+  }
+  emit(`env/overlay_forest_fire_f${i}.png`, encode(frame));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

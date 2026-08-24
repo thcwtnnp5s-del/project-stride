@@ -1,5 +1,38 @@
 # Project Stride — Project State
 
+**Version:** 2.19
+**Status:** 🚧 **WORLD MAP POLISH 01 — the atlas presentation pass is built,
+awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, on top of Playable Polish 02 (`0905b76`).
+Record: `MILESTONES/WORLD_MAP_POLISH_01.md`; art round
+`GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_01/README.md`.
+
+A presentation-only World pass, in one breath: the **western forest fire**
+is on the map — a burnt hollow eaten into the far-west forest at the river
+fork with two live flames, style-matched by PixelLab inpainting against the
+master's own canopy, animated in eight still-canopy frames (1.6 s loop),
+decorative only (no hit target, no label, no system, no audio) — and the
+**ambience the 512 × 512 continent replacement silently dropped is
+restored**: chimney smoke at Haven's Rest, a smoke thread at the Stonefall
+adit (the forge column was tried and rejected in preview — it read as
+boulders), two drifting cloud shadows, a cloud wisp, and the bird flocks'
+drift, all re-placed on the new painting's geography, with one mist patch
+moved off the fire's corner. The world record's next-pass art items
+(drainage, stamped forest, projection ruling, delta bars) stay deferred on
+the record — map-scale inpainting is still tooling-blocked, and the fire
+incidentally gives the stamped west quarter its first authored feature.
+
+Suites: app **652** (+1: every asset the atlas layout names — every frame of
+every overlay included — must exist packaged at its declared size); analyze
+clean; the guard set clean; `package-art.js --check` clean from tracked
+sources; the two World goldens regenerated and reviewed (only they changed).
+Nothing outside the atlas presentation layer was touched. PixelLab: 7
+generations (6 fire stills, 5 rejected on the record; 1 animation), balance
+1,840 → 1,833. Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11, OD-04,
+OD-06.
+
+---
+
 **Version:** 2.18
 **Status:** 🚧 **PLAYABLE POLISH 02 — the physical-device presentation pass
 is built, awaiting the owner's review and device test.** Branch

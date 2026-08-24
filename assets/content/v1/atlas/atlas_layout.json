@@ -459,8 +459,8 @@
     },
     {
       "asset": "env/overlay_forest_mist",
-      "x": 330,
-      "y": 1260,
+      "x": 270,
+      "y": 1080,
       "frames": 6,
       "frameMillis": 250,
       "drift": {
@@ -520,8 +520,8 @@
       "frames": 6,
       "frameMillis": 167,
       "drift": {
-        "x": 0,
-        "y": 0
+        "x": 16,
+        "y": -3
       },
       "opacity": 0.9,
       "width": 24,
@@ -534,8 +534,8 @@
       "frames": 6,
       "frameMillis": 167,
       "drift": {
-        "x": 0,
-        "y": 0
+        "x": 16,
+        "y": -3
       },
       "opacity": 0.9,
       "width": 24,
@@ -548,12 +548,96 @@
       "frames": 6,
       "frameMillis": 167,
       "drift": {
-        "x": 0,
-        "y": 0
+        "x": 16,
+        "y": -3
       },
       "opacity": 0.9,
       "width": 24,
       "height": 24
+    },
+    {
+      "asset": "env/overlay_smoke",
+      "x": 1128,
+      "y": 1500,
+      "frames": 6,
+      "frameMillis": 220,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 0.8,
+      "width": 16,
+      "height": 14
+    },
+    {
+      "asset": "env/overlay_smoke",
+      "x": 1806,
+      "y": 1404,
+      "frames": 6,
+      "frameMillis": 220,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 0.8,
+      "width": 16,
+      "height": 14
+    },
+    {
+      "asset": "env/overlay_forest_fire",
+      "x": 210,
+      "y": 1386,
+      "frames": 8,
+      "frameMillis": 200,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 40,
+      "height": 40
+    },
+    {
+      "asset": "env/overlay_cloud_shadow",
+      "x": 900,
+      "y": 1650,
+      "frames": 1,
+      "frameMillis": 1000,
+      "drift": {
+        "x": 12,
+        "y": 0
+      },
+      "opacity": 0.16,
+      "width": 96,
+      "height": 48
+    },
+    {
+      "asset": "env/overlay_cloud_shadow",
+      "x": 600,
+      "y": 2150,
+      "frames": 1,
+      "frameMillis": 1000,
+      "drift": {
+        "x": 12,
+        "y": 0
+      },
+      "opacity": 0.16,
+      "width": 96,
+      "height": 48
+    },
+    {
+      "asset": "env/overlay_cloud_wisp",
+      "x": 1500,
+      "y": 800,
+      "frames": 1,
+      "frameMillis": 1000,
+      "drift": {
+        "x": 9,
+        "y": 0
+      },
+      "opacity": 0.3,
+      "width": 96,
+      "height": 48
     }
   ]
 }

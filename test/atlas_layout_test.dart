@@ -29,6 +29,7 @@ import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:flutter/services.dart' show AssetBundle, ByteData;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/atlas_layout.dart';
+import 'package:stride/ui/icons/atlas_assets.dart';
 import 'package:stride_core/stride_core.dart';
 
 void main() {
@@ -155,6 +156,93 @@ void main() {
         reason: 'no unpainted strip on the right',
       );
       expect(bottom, layout.worldHeight, reason: 'no unpainted strip below');
+    });
+
+    test('every asset the layout names is packaged at its declared size', () {
+      // The risk, seen live in World Map Polish 01's re-anchor: the layout is
+      // data and the PNGs are packaging, and nothing held them together — an
+      // overlay could name six frames of a sequence whose files were never
+      // emitted, or declare 64 × 64 over a 32 × 32 file, and the failure would
+      // be a blank flicker on the device rather than anything a suite catches.
+      // Every reference the layout can make is walked here: base tiles,
+      // location landmarks, named-landmark art, kind glyphs, props, and every
+      // frame of every overlay, each asserted present with the IHDR size the
+      // layout declares.
+      final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
+
+      void expectPng(String path, int width, int height, String owner) {
+        final File file = File(path);
+        expect(
+          file.existsSync(),
+          isTrue,
+          reason: '$owner names $path, which is not packaged',
+        );
+        final List<int> header = file.readAsBytesSync().sublist(16, 24);
+        int be(int offset) =>
+            (header[offset] << 24) |
+            (header[offset + 1] << 16) |
+            (header[offset + 2] << 8) |
+            header[offset + 3];
+        expect(
+          '${be(0)}x${be(4)}',
+          '${width}x$height',
+          reason: '$owner declares ${width}x$height for $path',
+        );
+      }
+
+      for (final AtlasTile tile in layout.tiles) {
+        expectPng(
+          AtlasAssets.pathFor(tile.asset),
+          tile.width,
+          tile.height,
+          'tile',
+        );
+      }
+      for (final AtlasLocation location in layout.locations) {
+        if (location.landmark case final AtlasLandmark art) {
+          expectPng(
+            AtlasAssets.pathFor(art.asset),
+            art.width,
+            art.height,
+            location.id.value,
+          );
+        }
+      }
+      for (final AtlasNamedLandmark landmark in layout.landmarks) {
+        if (landmark.marker case final AtlasLandmark art) {
+          expectPng(
+            AtlasAssets.pathFor(art.asset),
+            art.width,
+            art.height,
+            landmark.id,
+          );
+        }
+      }
+      for (final MapEntry<String, AtlasLandmark> entry
+          in layout.kindMarkers.entries) {
+        expectPng(
+          AtlasAssets.pathFor(entry.value.asset),
+          entry.value.width,
+          entry.value.height,
+          'kindMarkers.${entry.key}',
+        );
+      }
+      for (final AtlasProp prop in layout.props) {
+        expectPng(
+          AtlasAssets.pathFor(prop.asset),
+          prop.width,
+          prop.height,
+          'prop',
+        );
+      }
+      for (final AtlasOverlay overlay in layout.overlays) {
+        for (final String path in AtlasAssets.framePaths(
+          overlay.asset,
+          overlay.frameCount,
+        )) {
+          expectPng(path, overlay.width, overlay.height, overlay.asset);
+        }
+      }
     });
   });
 

@@ -208,3 +208,9 @@ ios/Flutter/Local.xcconfig
 # `package-art.js` reads (`--check` cannot pass on a clean checkout without
 # them). The rejected idle round in work/ stays local.
 !GAME_BIBLE/ART/exploration/PLAYABLE_POLISH_02/out/**
+
+# World Map Polish 01 — the forest-fire overlay frames `package-art.js` reads
+# (`--check` cannot pass on a clean checkout without them), and the rejected
+# fire candidates the round record cites as evidence.
+!GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_01/out/**
+!GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_01/rejected/**
