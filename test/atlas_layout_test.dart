@@ -58,12 +58,17 @@ void main() {
     ).readAsStringSync();
     // The shipped world with its landmarks and glyph table removed: the
     // schema cases below drop their own entries into an empty `landmarks`
-    // list against the real world size, ids and validator.
+    // list against the real world size, ids and validator. The v4 overlay
+    // field is stripped too, so the versions the cases rewind to stay
+    // honest documents of their own era.
     final Map<String, Object?> bare =
         (jsonDecode(shippedLayout) as Map<String, Object?>)
           ..['landmarks'] = <Object?>[]
           ..remove('kindMarkers')
           ..remove('rumors');
+    for (final Object? overlay in bare['overlays']! as List<Object?>) {
+      (overlay! as Map<String, Object?>).remove('intervalMillis');
+    }
     bareLayout = const JsonEncoder.withIndent('  ').convert(bare);
   });
 
@@ -247,15 +252,15 @@ void main() {
   });
 
   group('the schema', () {
-    /// The shipped document with its version reset and the v2/v3 blocks
-    /// removed — which is exactly what the file was two milestones ago.
+    /// The shipped document with its version reset and the later blocks
+    /// removed — which is exactly what the file was in earlier milestones.
     String asV1() => bareLayout
-        .replaceFirst('"schemaVersion": 3', '"schemaVersion": 1')
+        .replaceFirst('"schemaVersion": 4', '"schemaVersion": 1')
         .replaceFirst('"landmarks": [],\n', '');
 
     test('ships at the current version', () {
-      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 3);
-      expect(atlasLayoutSchemaVersion, 3);
+      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 4);
+      expect(atlasLayoutSchemaVersion, 4);
     });
 
     test('still reads a v1 document, with no landmarks and no rumors', () {
@@ -265,15 +270,15 @@ void main() {
       expect(v1.kindMarkers, isEmpty);
       expect(v1.rumors, isEmpty);
       // Everything else is unchanged: the two versions describe one world.
-      final AtlasLayout v3 = AtlasLayout.parse(shippedLayout);
-      expect(v1.locations.length, v3.locations.length);
-      expect(v1.worldWidth, v3.worldWidth);
-      expect(v1.routes.length, v3.routes.length);
+      final AtlasLayout current = AtlasLayout.parse(shippedLayout);
+      expect(v1.locations.length, current.locations.length);
+      expect(v1.worldWidth, current.worldWidth);
+      expect(v1.routes.length, current.routes.length);
     });
 
     test('refuses v1 carrying v2 blocks rather than dropping them', () {
       final String lying = bareLayout.replaceFirst(
-        '"schemaVersion": 3',
+        '"schemaVersion": 4',
         '"schemaVersion": 1',
       );
       expect(
@@ -291,7 +296,7 @@ void main() {
     test('refuses v2 carrying the rumors block rather than dropping it', () {
       // The shipped document has real rumors; only its version lies.
       final String lying = shippedLayout.replaceFirst(
-        '"schemaVersion": 3',
+        '"schemaVersion": 4',
         '"schemaVersion": 2',
       );
       expect(
@@ -307,12 +312,95 @@ void main() {
     });
 
     test('refuses a version it has never heard of', () {
-      for (final String version in <String>['0', '4', '99']) {
+      for (final String version in <String>['0', '5', '99']) {
         expect(
           () => AtlasLayout.parse('{"schemaVersion": $version}'),
           throwsA(isA<AtlasLayoutException>()),
           reason: version,
         );
+      }
+    });
+
+    test('refuses pre-v4 overlays carrying intervalMillis', () {
+      // A v3 reader would play the loop continuously — dropped behaviour is
+      // refused exactly as dropped data is.
+      final String lying = bareLayout
+          .replaceFirst('"schemaVersion": 4', '"schemaVersion": 3')
+          .replaceFirst('"frames": 8,', '"frames": 8, "intervalMillis": 9000,');
+      expect(
+        () => AtlasLayout.parse(lying),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('schemaVersion 4'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses a negative interval', () {
+      final String bad = bareLayout.replaceFirst(
+        '"frames": 8,',
+        '"frames": 8, "intervalMillis": -1,',
+      );
+      expect(
+        () => AtlasLayout.parse(bad),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('intervalMillis'),
+          ),
+        ),
+      );
+    });
+
+    test('an intermittent overlay opens quiet, plays whole, and repeats', () {
+      // 4 frames × 250 ms after a 2 s gap: a 3 s cycle whose first two
+      // seconds draw nothing. The gap comes FIRST so a clock that never
+      // advances — the test harness, reduced motion, the background — shows
+      // no creature at all rather than one frozen mid-appearance.
+      const AtlasOverlay egg = AtlasOverlay(
+        asset: 'env/overlay_egg',
+        x: 0,
+        y: 0,
+        width: 32,
+        height: 32,
+        frameCount: 4,
+        frameMillis: 250,
+        driftX: 0,
+        driftY: 0,
+        intervalMillis: 2000,
+      );
+      expect(egg.cycleMillis, 3000);
+      expect(egg.visibleAt(Duration.zero), isFalse);
+      expect(egg.visibleAt(const Duration(milliseconds: 1999)), isFalse);
+      expect(egg.visibleAt(const Duration(milliseconds: 2000)), isTrue);
+      expect(egg.frameIndexAt(const Duration(milliseconds: 2000)), 0);
+      expect(egg.frameIndexAt(const Duration(milliseconds: 2750)), 3);
+      // The next cycle: quiet again, then frame 0 again — the rise always
+      // plays from its first frame.
+      expect(egg.visibleAt(const Duration(milliseconds: 3000)), isFalse);
+      expect(egg.visibleAt(const Duration(milliseconds: 5000)), isTrue);
+      expect(egg.frameIndexAt(const Duration(milliseconds: 5000)), 0);
+
+      // interval 0 is the continuous loop, cadence unchanged.
+      const AtlasOverlay loop = AtlasOverlay(
+        asset: 'env/overlay_loop',
+        x: 0,
+        y: 0,
+        width: 32,
+        height: 32,
+        frameCount: 4,
+        frameMillis: 250,
+        driftX: 0,
+        driftY: 0,
+      );
+      for (final int t in <int>[0, 249, 250, 999, 1000, 1250]) {
+        final Duration at = Duration(milliseconds: t);
+        expect(loop.visibleAt(at), isTrue, reason: '$t');
+        expect(loop.frameIndexAt(at), t ~/ 250 % 4, reason: '$t');
       }
     });
 

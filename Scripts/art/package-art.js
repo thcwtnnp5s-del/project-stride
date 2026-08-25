@@ -1227,6 +1227,110 @@ for (let i = 0; i < 8; i++) {
   emit(`env/overlay_forest_fire_f${i}.png`, encode(frame));
 }
 
+/**
+ * THE AMBIENT-LIFE PASS (World Map Polish 01, part 2 — the completed "map
+ * feels alive" request; provenance in `WORLD_MAP_POLISH_01/README.md`).
+ *
+ * Two asset families, one rule each:
+ *
+ * **In-place living regions** — a crop of the shipped master painting,
+ * animated by `animate_image`, placed back at its exact source coordinate so
+ * the painting itself appears to move (volcano activity, tree rustle, water
+ * ripples). Frame 0 is the untouched source crop — identical to the pixels
+ * beneath, so an intermittent play fades in from nothing. The generated
+ * frames get a deterministic **edge feather**: the outer two rings are the
+ * source's own pixels, the next two blend 2:1 toward the source, the next
+ * two 1:2 — so the living region has no hard seam against the still painting
+ * around it. Compositing two approved images is transformation, not
+ * authoring (A-2); the motion inside is PixelLab's.
+ *
+ * **Creature sprites** — transparent easter eggs (yeti, water dragon, bear),
+ * style-matched map objects animated by `animate_image`, cropped here to the
+ * union of every frame's opaque bounds. Straight crops, nothing else.
+ */
+const WMP01_INPLACE = {
+  volcano: { size: 64, frames: 16 },
+  tree_rustle_a: { size: 48, frames: 8 },
+  // `out` crops the emitted frames after feathering: an opaque in-place
+  // region paints above the landmark-art layer, so where a generated crop's
+  // edge reaches into a landmark glyph's box, the reaching edge is cut off
+  // rather than the glyph swallowed (rustle_b vs Sunken Rows, the delta vs
+  // Reedmouth, the coast vs Outer Shoal — each checked against the layout's
+  // anchors). The layout's coordinates and sizes describe the cropped frames.
+  tree_rustle_b: { size: 48, frames: 8, out: [0, 0, 44, 44] },
+  // Continuous loops: the two ripple sets ship without their source frame —
+  // a still frame inside a continuous water loop reads as a stutter.
+  ripple_coast: { size: 48, frames: 8, loopOnly: true, out: [0, 0, 40, 48] },
+  ripple_delta: { size: 48, frames: 8, loopOnly: true, out: [12, 0, 36, 48] },
+};
+/** The generated frame feathered onto its source: ring 0–1 source, 2–3 blend
+ * 2:1 source, 4–5 blend 1:2, interior generated. Deterministic integers. */
+function feather(src, gen, size) {
+  const out = new png.Raster(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const ring = Math.min(x, y, size - 1 - x, size - 1 - y);
+      const i = (y * size + x) * 4;
+      // Weights in thirds: 3 = all source, 0 = all generated.
+      const w = ring < 2 ? 3 : ring < 4 ? 2 : ring < 6 ? 1 : 0;
+      for (let k = 0; k < 4; k++) {
+        out.data[i + k] = Math.round(
+          (src.data[i + k] * w + gen.data[i + k] * (3 - w)) / 3,
+        );
+      }
+    }
+  }
+  return out;
+}
+for (const [id, spec] of Object.entries(WMP01_INPLACE)) {
+  const src = png.load(
+    path.join(WMP01_ENV_SRC, `inplace_${id}_src_${spec.size}.png`),
+  );
+  if (src.width !== spec.size || src.height !== spec.size) {
+    throw new Error(`inplace ${id}: source is ${src.width}x${src.height}`);
+  }
+  const cut = (frame) =>
+    spec.out == null ? frame : png.crop(frame, ...spec.out);
+  let out = 0;
+  if (!spec.loopOnly) emit(`env/overlay_${id}_f${out++}.png`, encode(cut(src)));
+  for (let i = 1; i <= spec.frames; i++) {
+    const gen = png.load(
+      path.join(WMP01_ENV_SRC, `inplace_${id}_raw_${spec.size}_f${i}.png`),
+    );
+    if (gen.width !== spec.size || gen.height !== spec.size) {
+      throw new Error(`inplace ${id} f${i}: ${gen.width}x${gen.height}`);
+    }
+    emit(
+      `env/overlay_${id}_f${out++}.png`,
+      encode(cut(feather(src, gen, spec.size))),
+    );
+  }
+}
+const WMP01_CREATURES = {
+  // crop: [x, y, w, h] on the 64x64 canvas — the union of opaque bounds
+  // across every frame, padded to whole even sizes, recorded here so the
+  // transformation is reproducible.
+  // The yeti is a single still: two `animate_image` attempts dropped the
+  // fishing rod in most frames (a flickering rod is worse than a patient
+  // fisher), both kept in `rejected/`. A-1: the failure is recorded, the
+  // accepted still ships, the idle-motion seam stays open.
+  yeti: { crop: [22, 18, 24, 30], frames: 1 },
+  water_dragon: { crop: [12, 12, 40, 36], frames: 9 },
+  bear_peek: { crop: [18, 20, 28, 24], frames: 9 },
+};
+for (const [id, spec] of Object.entries(WMP01_CREATURES)) {
+  const [cx, cy, w, h] = spec.crop;
+  for (let i = 0; i < spec.frames; i++) {
+    const raw = png.load(
+      path.join(WMP01_ENV_SRC, `creature_${id}_raw_64_f${i}.png`),
+    );
+    if (raw.width !== 64 || raw.height !== 64) {
+      throw new Error(`creature ${id} f${i}: ${raw.width}x${raw.height}`);
+    }
+    emit(`env/overlay_${id}_f${i}.png`, encode(png.crop(raw, cx, cy, w, h)));
+  }
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

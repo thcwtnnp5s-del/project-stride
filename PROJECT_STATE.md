@@ -1,5 +1,41 @@
 # Project Stride — Project State
 
+**Version:** 2.20
+**Status:** 🚧 **WORLD MAP POLISH 01, PART 2 — the ambient-life pass is
+built, awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, on top of part 1 (`61e530d`). Record:
+`MILESTONES/WORLD_MAP_POLISH_01.md` part 2; art round
+`GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_01/README.md` part 2.
+
+The recovered half of the owner's map brief, in one breath: the atlas now
+**rewards looking around** — the volcano stirs, smokes and bursts on its own
+clock (~every 18 s); a **blue yeti ice-fishes** on the frozen tarn (a still,
+after two animation attempts dropped its rod — failure on the record, A-1);
+a **cute water dragon** surfaces in the eastern sea every ~30 s, undulates
+and slips under; a **bear peeks** from the southern forest edge every ~26 s
+and looks around for five seconds; two forest patches **rustle** on offset
+clocks; and the **water finally moves** — two continuous ripple loops made
+by animating crops of the painting itself and placing them back where they
+came from, which is also how the volcano and rustles work (frame 0 is the
+untouched source crop, edges deterministically feathered back onto the
+painting so no seam box can read). The five-times-failed water-shimmer
+sprite was deliberately not re-attempted. "Occasional" is layout schema
+**v4**: an optional overlay `intervalMillis` quiet gap, gap-first so a
+frozen clock — tests, reduced motion, background — shows no creature at
+all. Everything is presentation-only: no labels, no hit targets, no
+gameplay, no audio; every placement was checked against marker glyphs,
+labels and routes, with three collisions caught in placement review and
+fixed by regeneration or emit-cropping.
+
+Suites: app **655** (+3 schema/cadence); analyze clean; guards clean;
+`package-art.js --check` clean (693 files; 70 new overlay frames from
+tracked sources); goldens **unchanged by design** and verified so. PixelLab
+part 2: 18 generations across 17 jobs (rejects on the record), balance
+1,833 → 1,815. Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11, OD-04,
+OD-06.
+
+---
+
 **Version:** 2.19
 **Status:** 🚧 **WORLD MAP POLISH 01 — the atlas presentation pass is built,
 awaiting the owner's review and device test.** Branch

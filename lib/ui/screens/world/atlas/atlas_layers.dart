@@ -390,15 +390,15 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
   int _frameKey(Duration t) {
     int key = 0;
     for (final AtlasOverlay overlay in widget.scene.layout.overlays) {
-      key = key * 31 + _frameIndex(overlay, t);
+      // Visibility first: an intermittent overlay appearing or withdrawing
+      // is a repaint even when its frame index happens to match.
+      key = key * 31 + (overlay.visibleAt(t) ? 1 : 0);
+      key = key * 31 + overlay.frameIndexAt(t);
       key = key * 31 + _driftPosition(overlay, t).dx.floor();
       key = key * 31 + _driftPosition(overlay, t).dy.floor();
     }
     return key;
   }
-
-  static int _frameIndex(AtlasOverlay overlay, Duration t) =>
-      (t.inMilliseconds ~/ overlay.frameMillis) % overlay.frameCount;
 
   /// Where the sprite is at [t], wrapped so it re-enters from the opposite
   /// edge of the world once it has drifted off.
@@ -436,25 +436,31 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
           height: widget.scene.worldHeight,
           child: Stack(
             children: <Widget>[
+              // An intermittent overlay (v4 `intervalMillis`) is simply not
+              // built during its quiet gap — the creature is gone, not
+              // paused. With the ticker off (background, reduced motion, or
+              // the test harness) `_elapsed` holds, so whatever state the
+              // cycle was in freezes exactly as the continuous loops do.
               for (final AtlasOverlay overlay in widget.scene.layout.overlays)
-                Positioned(
-                  left: _driftPosition(overlay, _elapsed).dx.floorToDouble(),
-                  top: _driftPosition(overlay, _elapsed).dy.floorToDouble(),
-                  child: Opacity(
-                    // The compositor multiplier: the sprites are opaque art
-                    // and the layout says how faint each one sits.
-                    opacity: overlay.opacity,
-                    child: PixelAsset(
-                      assetPath: AtlasAssets.framePath(
-                        overlay.asset,
-                        _frameIndex(overlay, _elapsed),
+                if (overlay.visibleAt(_elapsed))
+                  Positioned(
+                    left: _driftPosition(overlay, _elapsed).dx.floorToDouble(),
+                    top: _driftPosition(overlay, _elapsed).dy.floorToDouble(),
+                    child: Opacity(
+                      // The compositor multiplier: the sprites are opaque art
+                      // and the layout says how faint each one sits.
+                      opacity: overlay.opacity,
+                      child: PixelAsset(
+                        assetPath: AtlasAssets.framePath(
+                          overlay.asset,
+                          overlay.frameIndexAt(_elapsed),
+                        ),
+                        nativeWidth: overlay.width,
+                        nativeHeight: overlay.height,
+                        scale: scale,
                       ),
-                      nativeWidth: overlay.width,
-                      nativeHeight: overlay.height,
-                      scale: scale,
                     ),
                   ),
-                ),
             ],
           ),
         ),

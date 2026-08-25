@@ -63,6 +63,62 @@ passes over the fire rather than under it.
 pixen; 5 rejected, 1 accepted) + 1 animation. Balance 1,840 → 1,833,
 matching exactly.
 
+---
+
+# Part 2 — the ambient-life pass (2026-08-25)
+
+The completion of the owner's "map feels alive" request: easter eggs and
+ambient motion, all presentation-only, no labels, no hit targets, no
+gameplay. Runtime support: `atlas_layout.json` schema **v4** adds an
+optional overlay `intervalMillis` — a quiet gap between plays, gap-first so
+a frozen clock (tests, reduced motion, background) shows no creature at all.
+
+## Audit before generating
+
+- **Water shimmer/ripple sprites**: five recorded failures across two
+  earlier rounds with a standing "stop re-attempting" note. Not re-attempted.
+  This pass uses a different method entirely — animating crops of the
+  painting itself (below) — which is why water finally moves.
+- **Oakback Bear combat sprites**: exist, wrong scale/projection for a map
+  peek. Not reused.
+- Yeti, water dragon, volcano activity, tree rustle: nothing existed.
+
+## Method A — in-place living regions
+
+A crop of the shipped master is animated with `animate_image` and placed
+back at its exact source coordinate, so the painting itself moves. Frame 0
+is the untouched source crop (an intermittent play therefore fades in from
+nothing); the generated frames get a deterministic 6-px edge feather back
+onto the source (A-2 compositing) so no seam box can show. Where a crop's
+edge reached into a landmark glyph's box, the emitted frames are cropped
+away from the glyph instead (`package-art.js` `out` — Sunken Rows,
+Reedmouth, Outer Shoal all checked).
+
+| Set | Source crop (native) | Job | Behaviour |
+|---|---|---|---|
+| `overlay_volcano` | (412, 28) 64² | `474db612` 16f | Lava swells → dark smoke → small burst → settles; 17 frames (src + 16) × 250 ms, quiet 14 s |
+| `overlay_tree_rustle_a` | (20, 340) 48² | `77521ee9` 8f | Canopy sways gently; 9 f × 300 ms, quiet 9 s. **First location (40, 298), job `12f63b22`, was abandoned in placement review** — its crop would have covered the Deepwood Shrine glyph; regenerated from a clean spot |
+| `overlay_tree_rustle_b` | (96, 404) 48² | `cd4e54ce` 8f | Same, 9 f × 320 ms, quiet 13 s; emitted 44² (clear of Sunken Rows) |
+| `overlay_ripple_coast` | (420, 280) 48² | `7e7392c0` 8f | Continuous 8-frame water loop × 350 ms; emitted 40×48 (clear of Outer Shoal) |
+| `overlay_ripple_delta` | (352, 404) 48² | `07c57ed7` 8f | Continuous, emitted 36×48 from x+12 (clear of Reedmouth) |
+| *(bay ripple)* | (452, 208) 48² | `750a412a` | **REJECTED** — the model invented a small creature at the crop edge and over-bold waves. `rejected/ripple_bay_strip_REJECTED.png` |
+
+## Method B — creature easter eggs (style-matched map objects + animation)
+
+| Creature | Accepted still | Animation | Behaviour |
+|---|---|---|---|
+| `overlay_yeti` | `10853f03` (v2; v1 `b9f6d8b8` lost the rod — `rejected/yeti_v1_no_rod_64x64.png`) | **STATIC, failure recorded (A-1):** two `animate_image` attempts (`84706774`, `bc64851c`) dropped the fishing rod in most frames; both strips in `rejected/`. A patient fisher beats a flickering rod; the idle-motion seam stays open | Sits ice-fishing on the frozen tarn's east ice, world (1461, 423), 24×30 |
+| `overlay_water_dragon` | `8284ff8f` (v3; v1 `ee089592` a puddle-cat, v2 `cfdca5b5` a duck in foam — both in `rejected/`) | `603d7d0b` 8f — body undulates, head sways, foam flecks, coils lower at the end | Pops up in the eastern sea NW of Saltreach Light, world (2436, 1923), 40×36; 9 f × 450 ms every ~30 s |
+| `overlay_bear_peek` | `a78e07da` (v2; v1 `f3e90a6b` an angular hamster — `rejected/bear_v1_64x64.png`) | `8fdeee7d` 8f — looks slowly left, right, blinks, returns (~5.4 s) | Peeks from the southern forest edge by the farmland, world (546, 2106), 28×24; 9 f × 600 ms every ~26 s |
+
+## Generation count, part 2
+
+17 generations: yeti 2 stills + 2 animation attempts (both rejected);
+dragon 3 stills + 1 animation; bear 2 stills + 1 animation; volcano 1;
+rustle 3 (one abandoned in placement review); ripples 3 (one rejected).
+Balance check in the milestone record. In-context placement previews:
+scratchpad `prev3_*`.
+
 ## Restored ambience — what was dropped and where it returns
 
 The scale-4 layout (commit `400b5d9`) shipped 13 overlays; the 512 × 512

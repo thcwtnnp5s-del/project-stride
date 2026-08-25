@@ -108,6 +108,90 @@ The round README itemises every job id. Resets 2026-09-16.
 - No interaction-model change: pan, pinch, tap-to-select, and the travel
   panel are untouched.
 
+---
+
+# Part 2 — the ambient-life pass (2026-08-25)
+
+**Start HEAD:** `61e530d` (part 1). The owner recovered the cut-off half of
+the original request: easter eggs and ambient motion — a blue yeti ice
+fishing, water ripples, a cute water dragon, volcano activity, tree rustle,
+and a forest-creature peek. All shipped as presentation-only atlas overlays:
+no labels, no hit targets, no quests, no timers-as-gameplay, no audio, no
+state.
+
+## The one runtime change: overlay intermittence (layout schema v4)
+
+"Occasional" was not expressible: the overlay system only looped
+continuously. `atlas_layout.json` v4 adds one optional overlay field,
+`intervalMillis` — a quiet gap between plays of the loop, during which the
+overlay draws nothing. The gap comes **first** in the cycle, so a clock that
+never advances (the test harness, reduced motion, a backgrounded app) shows
+no creature at all rather than one frozen mid-appearance — and the goldens
+stay egg-free by construction. Pre-v4 documents refuse the field, exactly as
+v1 refuses `landmarks` and v2 refuses `rumors`. Pure cadence helpers
+(`visibleAt` / `frameIndexAt`) live on `AtlasOverlay` and are unit-tested;
+`AtlasOverlayLayer` simply skips an overlay during its gap.
+
+## What was audited before generating
+
+The five-times-failed "water shimmer" sprite (standing stop-re-attempting
+note) was **not** re-attempted — water moves via a new method instead. The
+Oakback Bear combat sprites are the wrong projection for a map peek and were
+not reused. Nothing else usable existed. Full audit in the round README.
+
+## What ships, and where
+
+| Element | Where (world px) | Behaviour |
+|---|---|---|
+| **Volcano activity** | the caldera, (2472, 168) | Lava swells, dark smoke, a small burst, settles — 4.25 s play every ~18 s. An animated crop of the painting itself, placed back at its source coordinate |
+| **Tree rustle ×2** | west forest (120, 2040); southern forest (576, 2424) | The canopy sways for ~2.7 s every 9 s / 13 s — offset so they never sync |
+| **Water ripples ×2** | coast shallows (2520, 1680); the delta (2184, 2424) | Continuous slow 2.8 s loops of the painting's own water |
+| **Blue yeti ice fishing** | the frozen tarn's east ice, (1461, 423) | A tiny yeti with a fishing rod over an ice hole. **Static still** — two animation attempts dropped the rod in most frames; both rejected on the record (A-1), the idle-motion seam stays open |
+| **Water dragon** | the eastern sea NW of Saltreach Light, (2436, 1923) | Surfaces every ~30 s, undulates and sways for ~4 s, coils lower, gone |
+| **Bear peek** | southern forest edge by the farmland, (546, 2106) | A bear head pops up every ~26 s, looks slowly left and right, blinks, ~5.4 s |
+
+Distribution: north-east (volcano), north (yeti), east (dragon, coast
+ripple), south-east (delta ripple), south-west (bear, rustle b), west
+(rustle a, and part 1's fire). Nothing stacked, and every in-place crop was
+checked against the layout's landmark-glyph boxes — three collisions found
+in placement review (Deepwood Shrine, Sunken Rows corner, Reedmouth,
+Outer Shoal) and fixed by regenerating one rustle from a clean spot and
+cropping the emitted frames of the other three sets away from the glyphs.
+Creatures and in-place regions all sit clear of place markers, labels,
+route lines and hit targets; clouds still pass over everything.
+
+## The seam-box problem, and the feather
+
+An opaque animated crop against the still painting would read as a living
+rectangle. Every in-place frame therefore gets a deterministic edge feather
+at packaging: the outer two pixel rings are the source crop's own pixels,
+the next two blend 2:1 toward the source, the next two 1:2 (A-2 —
+compositing two approved images; the motion inside is PixelLab's). Frame 0
+of every intermittent in-place set is the source crop itself, so a play
+fades in from the painting and no pop marks the appearance.
+
+## Verification
+
+- App suite **655** (652 + 3: v4 gating both directions, negative interval,
+  and the open-quiet/play-whole/repeat cadence contract), all green;
+  `stride_core` untouched.
+- `flutter analyze` clean; `package-art.js --check` clean (693 files, all
+  70 new frames reproducible from tracked sources); the six CI guard
+  scripts clean.
+- The layout-asset presence test from part 1 now covers all 70 new frames
+  automatically.
+- Goldens: **unchanged** — the new elements sit outside the goldens'
+  viewport, intermittent overlays are invisible at the harness's frozen
+  clock by design, and the golden test passed without regeneration.
+- Every placement verified in composited context previews at map scale.
+
+## PixelLab accounting, part 2
+
+Balance 1,833 → **1,815**: 18 generations for 17 jobs (the 16-frame volcano
+animation costs 2). Rejected on the record: 2 yeti animation attempts, 2
+dragon stills, 1 yeti still, 1 bear still, 1 bay ripple set, 1 relocated
+rustle set. Cycle resets 2026-09-16.
+
 ## Device acceptance checklist (World screen additions)
 
 1. Open the World tab. The map opens centred on your location and is
@@ -129,3 +213,27 @@ The round README itemises every job id. Resets 2026-09-16.
    UI overlap/clipping at the western edge of the world.
 10. Confirm travel, audio, save and step behaviour are unchanged (no
     gameplay surface was touched).
+
+### Part 2 — ambient life (linger on each area ~30 s; the eggs are timed)
+
+11. **Volcano** (far north-east): within ~18 s the crater stirs — lava
+    swells, a smoke puff, a small burst, then it settles. Restrained, not a
+    disaster; interesting from the survey zoom.
+12. **Frozen tarn** (north, by Frostmere): find the tiny **blue yeti ice
+    fishing** on the east ice. It is a still figure, not tappable, no label.
+13. **Eastern sea** (near the lighthouse): wait ~30 s — the **water dragon**
+    surfaces, sways and undulates for a few seconds, coils lower, and is
+    gone. "Did I just see that?" is the intended feeling.
+14. **Coast shallows and the delta**: the water visibly but gently moves in
+    two places — slow ripples, no visual noise, shorelines still.
+15. **Forests** (west and south): occasional patches of canopy rustle for a
+    couple of seconds, in different places at different times — not a
+    global wind.
+16. **Southern forest edge by the farmland**: within ~26 s a **bear head**
+    pops out of the trees, looks around slowly (~5 s), blinks, and ducks
+    away.
+17. Confirm none of the new life covers a place name, marker glyph, route
+    line or tap target, and that the map never feels like it is constantly
+    moving everywhere at once.
+18. Toggle iOS Reduce Motion: the eggs and living regions stop entirely
+    (the map goes still); turning it off brings them back.

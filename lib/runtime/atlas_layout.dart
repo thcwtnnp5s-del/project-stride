@@ -59,7 +59,14 @@ const String atlasLayoutAsset = 'assets/content/v1/atlas/atlas_layout.json';
 /// label is the rumor's own name ("Eastern City ?"), drawn only once the
 /// state says the rumor is revealed. An unheard rumor draws nothing, which is
 /// the discovery model's RUMORED tier made literal.
-const int atlasLayoutSchemaVersion = 3;
+///
+/// **v4 adds one optional overlay field:** `intervalMillis` — a quiet gap
+/// between plays of an overlay's loop, during which the overlay draws
+/// nothing at all. Absent or zero is the continuous loop every earlier
+/// document meant. This is what makes an *occasional* piece of map life — a
+/// creature that peeks and withdraws, a volcano that stirs and settles —
+/// expressible as data rather than as a wall of blank frames.
+const int atlasLayoutSchemaVersion = 4;
 
 /// The oldest schema this reader still accepts.
 const int atlasLayoutMinimumSchemaVersion = 1;
@@ -241,6 +248,7 @@ final class AtlasOverlay {
     required this.driftX,
     required this.driftY,
     this.opacity = 1,
+    this.intervalMillis = 0,
   });
 
   /// The asset key of the frame sequence. Frame `n` resolves to
@@ -268,6 +276,38 @@ final class AtlasOverlay {
   /// own; a cloud shadow is a solid dark shape that must never be drawn
   /// opaque, exactly as the contact shadow is a compositor step.
   final double opacity;
+
+  /// Milliseconds of nothing between plays of the loop (v4). Zero — every
+  /// pre-v4 document — is the continuous loop.
+  final int intervalMillis;
+
+  /// One play of the loop, in milliseconds.
+  int get activeMillis => frameCount * frameMillis;
+
+  /// One full cycle: the play plus the quiet gap.
+  int get cycleMillis => activeMillis + intervalMillis;
+
+  /// Whether the overlay draws anything at [elapsed]. Always true for a
+  /// continuous loop. For an intermittent one the cycle opens with its quiet
+  /// gap, so a clock that never advances — the test harness, reduced motion,
+  /// a backgrounded app — shows *no creature at all* rather than one frozen
+  /// mid-appearance, and a freshly opened screen holds its first discovery
+  /// back for one gap.
+  bool visibleAt(Duration elapsed) =>
+      intervalMillis == 0 ||
+      elapsed.inMilliseconds % cycleMillis >= intervalMillis;
+
+  /// The frame to draw at [elapsed]. For a continuous loop this is the old
+  /// modular cadence unchanged; for an intermittent one the play starts from
+  /// frame 0 the moment its gap ends, so a creature's rise always plays from
+  /// its first frame. Meaningless while [visibleAt] is false — clamped inside
+  /// the frame range regardless, so a caller that ignores visibility still
+  /// gets a frame that exists.
+  int frameIndexAt(Duration elapsed) {
+    final int inCycle = elapsed.inMilliseconds % cycleMillis;
+    final int inPlay = inCycle >= intervalMillis ? inCycle - intervalMillis : 0;
+    return inPlay ~/ frameMillis % frameCount;
+  }
 }
 
 /// A scatter prop — a lone oak, a cairn, a snowdrift — standing on the base at
@@ -501,6 +541,18 @@ final class AtlasLayout {
     // The v3 block, on the same terms.
     if (version < 3 && decoded['rumors'] != null) {
       throw const AtlasLayoutException('rumors need schemaVersion 3');
+    }
+    // The v4 field, on the same terms: an earlier reader would parse an
+    // intermittent overlay as a continuous loop — dropped behaviour rather
+    // than dropped data, and refused all the same.
+    if (version < 4) {
+      for (final Object? raw in _list(decoded, 'overlays')) {
+        if (raw is Map<String, Object?> && raw['intervalMillis'] != null) {
+          throw const AtlasLayoutException(
+            'intervalMillis needs schemaVersion 4',
+          );
+        }
+      }
     }
     final List<AtlasNamedLandmark> landmarks = <AtlasNamedLandmark>[
       if (decoded['landmarks'] != null)
@@ -863,6 +915,9 @@ final class AtlasLayout {
       driftX: _number(driftRaw, 'x', within: '$at.drift'),
       driftY: _number(driftRaw, 'y', within: '$at.drift'),
       opacity: raw['opacity'] == null ? 1 : _number(raw, 'opacity', within: at),
+      intervalMillis: raw['intervalMillis'] == null
+          ? 0
+          : _int(raw, 'intervalMillis', within: at),
     );
     if (overlay.opacity <= 0 || overlay.opacity > 1) {
       throw AtlasLayoutException('$at.opacity must be in (0, 1]');
@@ -871,6 +926,9 @@ final class AtlasLayout {
       throw AtlasLayoutException(
         '$at needs at least one frame of positive length',
       );
+    }
+    if (overlay.intervalMillis < 0) {
+      throw AtlasLayoutException('$at.intervalMillis must not be negative');
     }
     if (overlay.width <= 0 || overlay.height <= 0) {
       throw AtlasLayoutException('$at size must be positive');

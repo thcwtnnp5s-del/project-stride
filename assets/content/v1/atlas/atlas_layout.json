@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "world": {
     "width": 3072,
     "height": 3072
@@ -596,6 +596,123 @@
       "opacity": 1,
       "width": 40,
       "height": 40
+    },
+    {
+      "asset": "env/overlay_volcano",
+      "x": 2472,
+      "y": 168,
+      "frames": 17,
+      "frameMillis": 250,
+      "intervalMillis": 14000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "asset": "env/overlay_tree_rustle_a",
+      "x": 120,
+      "y": 2040,
+      "frames": 9,
+      "frameMillis": 300,
+      "intervalMillis": 9000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 48,
+      "height": 48
+    },
+    {
+      "asset": "env/overlay_tree_rustle_b",
+      "x": 576,
+      "y": 2424,
+      "frames": 9,
+      "frameMillis": 320,
+      "intervalMillis": 13000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 44,
+      "height": 44
+    },
+    {
+      "asset": "env/overlay_ripple_coast",
+      "x": 2520,
+      "y": 1680,
+      "frames": 8,
+      "frameMillis": 350,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 40,
+      "height": 48
+    },
+    {
+      "asset": "env/overlay_ripple_delta",
+      "x": 2184,
+      "y": 2424,
+      "frames": 8,
+      "frameMillis": 350,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 36,
+      "height": 48
+    },
+    {
+      "asset": "env/overlay_yeti",
+      "x": 1461,
+      "y": 423,
+      "frames": 1,
+      "frameMillis": 1000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 24,
+      "height": 30
+    },
+    {
+      "asset": "env/overlay_water_dragon",
+      "x": 2436,
+      "y": 1923,
+      "frames": 9,
+      "frameMillis": 450,
+      "intervalMillis": 26000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 40,
+      "height": 36
+    },
+    {
+      "asset": "env/overlay_bear_peek",
+      "x": 546,
+      "y": 2106,
+      "frames": 9,
+      "frameMillis": 600,
+      "intervalMillis": 21000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 28,
+      "height": 24
     },
     {
       "asset": "env/overlay_cloud_shadow",
