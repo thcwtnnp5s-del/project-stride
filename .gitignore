@@ -214,3 +214,10 @@ ios/Flutter/Local.xcconfig
 # fire candidates the round record cites as evidence.
 !GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_01/out/**
 !GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_01/rejected/**
+
+# World Map Polish 03 — the frontier-ring pieces, in-place scene sources and
+# creature frames `package-art.js` composes the expanded world from
+# (`--check` cannot pass on a clean checkout without them), and the rejected
+# candidates the round record cites as evidence.
+!GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_03/out/**
+!GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_03/rejected/**

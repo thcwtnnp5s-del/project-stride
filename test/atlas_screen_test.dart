@@ -201,20 +201,21 @@ void main() {
     // table — one hut, two trees, one pick, one dead tree (DECISIONS/0021 §5)
     // — and each landmark its cairn. Eighteen landmarks now: the two minor
     // captions and the sixteen far promises the correction round added
-    // north, south, east, west and offshore (§21).
+    // north, south, east, west and offshore (§21) — twenty-one of them
+    // since World Map Polish 03 added the five frontier names.
     final List<String> glyphs = tester
         .widgetList<PixelAsset>(find.byType(PixelAsset))
         .map((PixelAsset a) => a.assetPath)
         .where((String path) => path.contains('/world/marker_'))
         .toList();
-    expect(glyphs, hasLength(21));
+    expect(glyphs, hasLength(26));
     int count(String tail) =>
         glyphs.where((String p) => p.endsWith(tail)).length;
     expect(count('marker_haven.png'), 1);
     expect(count('marker_wilds.png'), 2);
     expect(count('marker_worksite.png'), 1);
     expect(count('marker_perilous.png'), 1);
-    expect(count('marker_landmark.png'), 16);
+    expect(count('marker_landmark.png'), 21);
   });
 
   testWidgets('tapping a place opens its panel with what the rows carried', (

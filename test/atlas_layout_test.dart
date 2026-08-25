@@ -58,16 +58,19 @@ void main() {
     ).readAsStringSync();
     // The shipped world with its landmarks and glyph table removed: the
     // schema cases below drop their own entries into an empty `landmarks`
-    // list against the real world size, ids and validator. The v4 overlay
-    // field is stripped too, so the versions the cases rewind to stay
-    // honest documents of their own era.
+    // list against the real world size, ids and validator. The v4 and v5
+    // overlay fields are stripped too, so the versions the cases rewind to
+    // stay honest documents of their own era.
     final Map<String, Object?> bare =
         (jsonDecode(shippedLayout) as Map<String, Object?>)
           ..['landmarks'] = <Object?>[]
           ..remove('kindMarkers')
           ..remove('rumors');
     for (final Object? overlay in bare['overlays']! as List<Object?>) {
-      (overlay! as Map<String, Object?>).remove('intervalMillis');
+      (overlay! as Map<String, Object?>)
+        ..remove('intervalMillis')
+        ..remove('travel')
+        ..remove('playLoops');
     }
     bareLayout = const JsonEncoder.withIndent('  ').convert(bare);
   });
@@ -255,12 +258,12 @@ void main() {
     /// The shipped document with its version reset and the later blocks
     /// removed — which is exactly what the file was in earlier milestones.
     String asV1() => bareLayout
-        .replaceFirst('"schemaVersion": 4', '"schemaVersion": 1')
+        .replaceFirst('"schemaVersion": 5', '"schemaVersion": 1')
         .replaceFirst('"landmarks": [],\n', '');
 
     test('ships at the current version', () {
-      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 4);
-      expect(atlasLayoutSchemaVersion, 4);
+      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 5);
+      expect(atlasLayoutSchemaVersion, 5);
     });
 
     test('still reads a v1 document, with no landmarks and no rumors', () {
@@ -278,7 +281,7 @@ void main() {
 
     test('refuses v1 carrying v2 blocks rather than dropping them', () {
       final String lying = bareLayout.replaceFirst(
-        '"schemaVersion": 4',
+        '"schemaVersion": 5',
         '"schemaVersion": 1',
       );
       expect(
@@ -296,7 +299,7 @@ void main() {
     test('refuses v2 carrying the rumors block rather than dropping it', () {
       // The shipped document has real rumors; only its version lies.
       final String lying = shippedLayout.replaceFirst(
-        '"schemaVersion": 4',
+        '"schemaVersion": 5',
         '"schemaVersion": 2',
       );
       expect(
@@ -312,7 +315,7 @@ void main() {
     });
 
     test('refuses a version it has never heard of', () {
-      for (final String version in <String>['0', '5', '99']) {
+      for (final String version in <String>['0', '6', '99']) {
         expect(
           () => AtlasLayout.parse('{"schemaVersion": $version}'),
           throwsA(isA<AtlasLayoutException>()),
@@ -325,7 +328,7 @@ void main() {
       // A v3 reader would play the loop continuously — dropped behaviour is
       // refused exactly as dropped data is.
       final String lying = bareLayout
-          .replaceFirst('"schemaVersion": 4', '"schemaVersion": 3')
+          .replaceFirst('"schemaVersion": 5', '"schemaVersion": 3')
           .replaceFirst('"frames": 8,', '"frames": 8, "intervalMillis": 9000,');
       expect(
         () => AtlasLayout.parse(lying),
@@ -402,6 +405,116 @@ void main() {
         expect(loop.visibleAt(at), isTrue, reason: '$t');
         expect(loop.frameIndexAt(at), t ~/ 250 % 4, reason: '$t');
       }
+    });
+
+    test('refuses pre-v5 overlays carrying travel', () {
+      // A v4 reader would pin the travelling sprite to its origin — dropped
+      // motion, refused exactly as dropped data is.
+      final String lying = shippedLayout
+          .replaceFirst('"schemaVersion": 5', '"schemaVersion": 4')
+          .replaceFirst(
+            '"intervalMillis": 14000,',
+            '"intervalMillis": 14000, "travel": { "x": -12, "y": 0 },',
+          );
+      expect(
+        () => AtlasLayout.parse(lying),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('schemaVersion 5'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses travel on a continuous loop, and travel beside drift', () {
+      // Travel is measured from the start of a play; a continuous loop has
+      // no play boundary, so the combination is meaningless and refused.
+      final String continuous = bareLayout.replaceFirst(
+        '"frames": 8,',
+        '"frames": 8, "travel": { "x": -12, "y": 0 },',
+      );
+      expect(
+        () => AtlasLayout.parse(continuous),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('intervalMillis'),
+          ),
+        ),
+      );
+      // One sprite, one kind of motion: drift wraps forever, travel resets
+      // each play — both at once is two owners for one position.
+      final String both = shippedLayout.replaceFirst(
+        '"drift": {\n        "x": 16,\n        "y": -3\n      },',
+        '"drift": { "x": 16, "y": -3 }, '
+            '"intervalMillis": 9000, "travel": { "x": -12, "y": 0 },',
+      );
+      expect(both, isNot(shippedLayout), reason: 'the rewrite must land');
+      expect(
+        () => AtlasLayout.parse(both),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('travel and drift'),
+          ),
+        ),
+      );
+    });
+
+    test('a travelling overlay journeys during its play and resets', () {
+      // 4 frames × 250 ms after a 2 s gap, moving west 12 world px/s: the
+      // sprite stands at its origin through the whole gap, retraces the same
+      // 12-px journey during each 1 s play, and starts over from the origin.
+      const AtlasOverlay serpent = AtlasOverlay(
+        asset: 'env/overlay_serpent',
+        x: 100,
+        y: 50,
+        width: 32,
+        height: 32,
+        frameCount: 4,
+        frameMillis: 250,
+        driftX: 0,
+        driftY: 0,
+        intervalMillis: 2000,
+        travelX: -12,
+      );
+      expect(serpent.playMillisAt(Duration.zero), 0);
+      expect(serpent.playMillisAt(const Duration(milliseconds: 1999)), 0);
+      expect(serpent.playMillisAt(const Duration(milliseconds: 2000)), 0);
+      expect(serpent.playMillisAt(const Duration(milliseconds: 2500)), 500);
+      expect(serpent.playMillisAt(const Duration(milliseconds: 2999)), 999);
+      // The next cycle: the journey has reset with the play.
+      expect(serpent.playMillisAt(const Duration(milliseconds: 3000)), 0);
+      expect(serpent.playMillisAt(const Duration(milliseconds: 5100)), 100);
+
+      // playLoops stretches the play: the same four frames run three times
+      // over — frameIndexAt's modulo wraps them — before the gap returns.
+      const AtlasOverlay dragon = AtlasOverlay(
+        asset: 'env/overlay_dragon',
+        x: 0,
+        y: 0,
+        width: 32,
+        height: 32,
+        frameCount: 4,
+        frameMillis: 250,
+        driftX: 0,
+        driftY: 0,
+        intervalMillis: 2000,
+        travelX: 30,
+        playLoops: 3,
+      );
+      expect(dragon.activeMillis, 3000);
+      expect(dragon.cycleMillis, 5000);
+      expect(dragon.visibleAt(const Duration(milliseconds: 1999)), isFalse);
+      expect(dragon.visibleAt(const Duration(milliseconds: 4900)), isTrue);
+      // Second pass through the loop, still inside one play.
+      expect(dragon.frameIndexAt(const Duration(milliseconds: 3100)), 0);
+      expect(dragon.playMillisAt(const Duration(milliseconds: 4900)), 2900);
+      expect(dragon.visibleAt(const Duration(milliseconds: 5000)), isFalse);
     });
 
     test('reads landmarks, their tier and their optional art', () {
@@ -514,41 +627,41 @@ void main() {
       expect(layout.markerForKind('hamlet'), isNull);
     });
 
-    test('ships the five glyphs, the far tier and the one master world', () {
-      // PRESENTATION_WORLD_REWARD_FEEL_01 correction round: the continent
-      // grew north and south. ONE 512 × 512 painting at scale 6 — 3072 ×
-      // 3072 world px, 2.25× the footprint the owner found too small, and
-      // still one painting by one hand, so still no join to fail a blind
-      // read (`MISTAKES.md` M-12).
+    test('ships the five glyphs, the far tier and the one composed world', () {
+      // World Map Polish 03: the owner's scale-up brief. The accepted
+      // 512 × 512 master painting is byte-preserved at the centre of ONE
+      // composed 768 × 768 base — a ring of eight style-referenced frontier
+      // pieces, dither-crossfaded at the joins by the packaging step — so
+      // the world is 4608 × 4608 world px at scale 6, 2.25× the previous
+      // footprint, with frontier in all four directions. Still one tile at
+      // runtime: the composition happens in `package-art.js`, where the
+      // seam treatment is recorded and reproducible (M-12's stacked
+      // screenshots were untreated butt joins of unrelated generations).
       //
-      // Assembling three paintings into a taller strip was tried first and
-      // was rejected by blind Visual QA on its merits: separately generated
-      // bands disagree about scale, projection and drainage, and no seam
-      // treatment reconciles that. The reviewer's words were "three
-      // screenshots stacked".
-      //
-      // Sixteen landmarks stand. Two are minor captions (Millbridge, Ferry
-      // Crossing) and fourteen are **future** tier — places the roads point at
-      // and do not reach, spread north, south, east, west and offshore
-      // (§21). The tier is the classification the brief asked for: the atlas
-      // already draws it quieter, suffixes it, gives it no hit target and
-      // keeps the whole layer inside an `IgnorePointer`, so a promise cannot
-      // be tapped by accident.
+      // Twenty-one landmarks stand. Two are minor captions (Millbridge,
+      // Ferry Crossing) and nineteen are **future** tier — places the roads
+      // point at and do not reach, now including the five frontier names
+      // (the Worldspine, the Frozen Shelf, Cinder Skerries, Wanderer's
+      // Isles, Sunward Strand). The tier is the classification the brief
+      // asked for: the atlas draws it quieter, suffixes it, gives it no hit
+      // target and keeps the whole layer inside an `IgnorePointer`, so a
+      // promise cannot be tapped by accident.
       //
       // Asserted so removing a glyph, the tile, or the far tier is a
       // deliberate edit here too.
       final AtlasLayout layout = AtlasLayout.parse(shippedLayout);
       expect(layout.kindMarkers.keys, unorderedEquals(atlasMarkerKinds));
       expect(layout.tiles, hasLength(1));
+      expect(layout.tiles.single.asset, 'world/atlas_base');
       expect(layout.scale, 6);
-      expect(layout.worldWidth, 3072);
-      expect(layout.worldHeight, 3072);
-      expect(layout.landmarks, hasLength(16));
+      expect(layout.worldWidth, 4608);
+      expect(layout.worldHeight, 4608);
+      expect(layout.landmarks, hasLength(21));
       expect(
         layout.landmarks.where(
           (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,
         ),
-        hasLength(14),
+        hasLength(19),
       );
       // No future landmark is a travelable place: the two sets are disjoint
       // by id, which is what "visual only" has to mean in a layout file.

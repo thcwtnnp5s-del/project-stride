@@ -828,7 +828,10 @@ const PWRF_WORLD_SRC = path.join(PWRF, 'world');
   if (master.width !== 512 || master.height !== 512) {
     throw new Error(`atlas_master: expected 512x512, got ${master.width}x${master.height}`);
   }
-  emit('world/atlas_master.png', encode(master));
+  // World Map Polish 03: the painting no longer ships as its own asset — it
+  // is composed byte-preserved into `world/atlas_base` (below), which is the
+  // one tile the layout draws. The size check stays: every in-place overlay
+  // is a crop of this canvas.
 }
 
 /**
@@ -1214,18 +1217,12 @@ for (const entry of polish2Combat) {
  * 64 × 64 canvas (A-2: crop only, nothing invented). Placement lives in
  * `atlas_layout.json`, never here.
  */
+// Retired, World Map Polish 03: the owner's device review found the fire's
+// black hollow read as a circular sticker. The replacement (`overlay_fire2`,
+// below) is an irregular burn scar edited into the painting's own canopy.
+// The v1 sources stay in `WORLD_MAP_POLISH_01/out/env/` as evidence; only
+// the emission is removed.
 const WMP01_ENV_SRC = path.join(EXPLORE, 'WORLD_MAP_POLISH_01', 'out', 'env');
-for (let i = 0; i < 8; i++) {
-  const frame = png.load(
-    path.join(WMP01_ENV_SRC, `overlay_forest_fire_40x40_f${i}.png`),
-  );
-  if (frame.width !== 40 || frame.height !== 40) {
-    throw new Error(
-      `overlay_forest_fire_f${i}: expected 40x40, got ${frame.width}x${frame.height}`,
-    );
-  }
-  emit(`env/overlay_forest_fire_f${i}.png`, encode(frame));
-}
 
 /**
  * THE AMBIENT-LIFE PASS (World Map Polish 01, part 2 — the completed "map
@@ -1306,29 +1303,235 @@ for (const [id, spec] of Object.entries(WMP01_INPLACE)) {
     );
   }
 }
-const WMP01_CREATURES = {
-  // crop: [x, y, w, h] on the 64x64 canvas — the union of opaque bounds
-  // across every frame, padded to whole even sizes, recorded here so the
-  // transformation is reproducible.
-  // The yeti is a single still: two `animate_image` attempts dropped the
-  // fishing rod in most frames (a flickering rod is worse than a patient
-  // fisher), both kept in `rejected/`. A-1: the failure is recorded, the
-  // accepted still ships, the idle-motion seam stays open.
-  yeti: { crop: [22, 18, 24, 30], frames: 1 },
-  water_dragon: { crop: [12, 12, 40, 36], frames: 9 },
-  bear_peek: { crop: [18, 20, 28, 24], frames: 9 },
-};
-for (const [id, spec] of Object.entries(WMP01_CREATURES)) {
-  const [cx, cy, w, h] = spec.crop;
-  for (let i = 0; i < spec.frames; i++) {
-    const raw = png.load(
-      path.join(WMP01_ENV_SRC, `creature_${id}_raw_64_f${i}.png`),
-    );
-    if (raw.width !== 64 || raw.height !== 64) {
-      throw new Error(`creature ${id} f${i}: ${raw.width}x${raw.height}`);
+// Retired, World Map Polish 03 — all three part-2 creature sprites failed
+// the owner's device review on integration (the bear head was mascot-sized,
+// the floating yeti read as pasted, the water dragon read as a slug). Their
+// replacements below are grounded differently: the yeti and bear are edits
+// of the painting itself (in-place scenes), and the serpent is a re-authored
+// full-figure sprite. The v1 sources stay in `WORLD_MAP_POLISH_01/out/env/`
+// as evidence; only the emissions are removed.
+
+// ------------------------------------------------- World Map Polish 03
+
+/**
+ * THE EXPANDED WORLD BASE — a 768 × 768 composed continent (provenance in
+ * `WORLD_MAP_POLISH_03/README.md`).
+ *
+ * The owner's scale-up brief: the world should feel about twice as big, with
+ * frontier in all four directions. The accepted 512 × 512 master painting is
+ * NOT repainted — it sits byte-preserved at (128, 128) inside a ring of eight
+ * PixelLab Pro pieces, each style-referenced against a 64 × 64 crop of the
+ * master's own adjacent edge: a mountain-wall west, a frozen polar sea north,
+ * open ocean with islets east, and a southern coast of plains and estuary.
+ *
+ * The joins get a deterministic **dither crossfade**: within six pixels of a
+ * seam, pixels swap across it with a probability that falls off with
+ * distance, driven by an integer hash of the coordinate. Unlike an averaging
+ * blend this invents no colours — every output pixel is one of the two
+ * approved images' own pixels (A-2), and the interleave reads as texture
+ * rather than as a line. M-12's failed composites were butt joins with no
+ * treatment and no shared style ancestry; these pieces are style-referenced
+ * to the very edges they touch and then interleaved.
+ */
+const WMP03 = path.join(EXPLORE, 'WORLD_MAP_POLISH_03', 'out');
+{
+  const piece = (name, w, h) => {
+    const raster = png.load(path.join(WMP03, 'world', `${name}.png`));
+    if (raster.width !== w || raster.height !== h) {
+      throw new Error(`${name}: expected ${w}x${h}, got ${raster.width}x${raster.height}`);
     }
-    emit(`env/overlay_${id}_f${i}.png`, encode(png.crop(raw, cx, cy, w, h)));
+    return raster;
+  };
+  const base = new png.Raster(768, 768);
+  png.blit(base, piece('corner_nw_128', 128, 128), 0, 0);
+  png.blit(base, piece('strip_north_512x128', 512, 128), 128, 0);
+  png.blit(base, piece('corner_ne_128', 128, 128), 640, 0);
+  png.blit(base, piece('strip_west_128x512', 128, 512), 0, 128);
+  png.blit(base, piece('strip_east_128x512', 128, 512), 640, 128);
+  png.blit(base, piece('corner_sw_128', 128, 128), 0, 640);
+  png.blit(base, piece('strip_south_512x128', 512, 128), 128, 640);
+  png.blit(base, piece('corner_se_128', 128, 128), 640, 640);
+  const master = png.load(path.join(PWRF_WORLD_SRC, 'whole_a_0.png'));
+  png.blit(base, master, 128, 128);
+
+  // The dither crossfade. `before` is the untouched composition so a swapped
+  // pixel is always sourced from the original, never from another swap.
+  const before = base.clone();
+  const hash = (x, y, salt) => {
+    let h = (x * 73856093) ^ (y * 19349663) ^ (salt * 83492791);
+    h = (h ^ (h >>> 13)) >>> 0;
+    return (h % 1024) / 1024;
+  };
+  const BAND = 11;
+  const chance = (d) => 0.45 * (1 - (d - 1) / BAND); // d in 1..BAND
+  const swap = (ax, ay, bx, by) => {
+    const ai = base.idx(ax, ay);
+    const bi = before.idx(bx, by);
+    for (let k = 0; k < 4; k++) base.data[ai + k] = before.data[bi + k];
+  };
+  for (const seamY of [128, 640]) {
+    for (let x = 0; x < 768; x++) {
+      for (let d = 1; d <= BAND; d++) {
+        const p = chance(d);
+        if (hash(x, seamY - d, 1) < p) swap(x, seamY - d, x, seamY + d - 1);
+        if (hash(x, seamY + d - 1, 2) < p) swap(x, seamY + d - 1, x, seamY - d);
+      }
+    }
   }
+  for (const seamX of [128, 640]) {
+    for (let y = 0; y < 768; y++) {
+      for (let d = 1; d <= BAND; d++) {
+        const p = chance(d);
+        if (hash(seamX - d, y, 3) < p) swap(seamX - d, y, seamX + d - 1, y);
+        if (hash(seamX + d - 1, y, 4) < p) swap(seamX + d - 1, y, seamX - d, y);
+      }
+    }
+  }
+  emit('world/atlas_base.png', encode(base));
+}
+
+/**
+ * REWORKED IN-PLACE SCENES — the fire, the yeti and the bear, this time as
+ * edits of the painting itself so nothing can float (the device review's
+ * verdict on the pasted sprites). Each is a 64 × 64 crop of the master,
+ * edited by PixelLab (`edit_image`) and animated by `animate_image`.
+ *
+ * The animations wobble the terrain around the subject, so unlike the part-2
+ * feather — which trusted the whole frame — each frame here is composited
+ * back onto its source crop through a fixed **content box**: outside the box
+ * the pixels are the source's own; the box's outer rings blend inward
+ * (0–1 source, 2–3 blend 2:1, 4–5 blend 1:2, interior generated). Only the
+ * box is emitted; everything outside it is identical to the painting and
+ * would be dead weight. Box coordinates were measured on the accepted frames
+ * and are recorded here so the transformation is reproducible.
+ */
+const WMP03_ENV = path.join(WMP03, 'env');
+/** [gen] composited onto [src] through [box] = [x, y, w, h], then cropped. */
+function boxFeather(src, gen, box) {
+  const [bx, by, bw, bh] = box;
+  const out = new png.Raster(bw, bh);
+  for (let y = 0; y < bh; y++) {
+    for (let x = 0; x < bw; x++) {
+      const ring = Math.min(x, y, bw - 1 - x, bh - 1 - y);
+      const w = ring < 2 ? 3 : ring < 4 ? 2 : ring < 6 ? 1 : 0;
+      const si = src.idx(bx + x, by + y);
+      const gi = gen.idx(bx + x, by + y);
+      const oi = out.idx(x, y);
+      for (let k = 0; k < 4; k++) {
+        out.data[oi + k] = Math.round(
+          (src.data[si + k] * w + gen.data[gi + k] * (3 - w)) / 3,
+        );
+      }
+    }
+  }
+  return out;
+}
+const WMP03_SCENES = {
+  // Continuous loops: the burn scar and the fisher are features of the
+  // world, not apparitions — they are always there, gently moving.
+  fire2: { box: [8, 4, 42, 44], frames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+  // The yeti's box starts two rows lower than the content measurement said,
+  // deliberately: at [10, 10] the emitted region's top edge grazed
+  // Frostmere's hit circle in the placement sweep, and the two trimmed rows
+  // are blank ice the feather returned to the painting anyway.
+  yeti2: { box: [10, 12, 44, 34], frames: [1, 2, 3, 4, 5, 6, 7, 8] },
+  // The bear is a discovery: its cycle opens on the untouched canopy
+  // (frame 0 = the source box, so an intermittent play fades in from the
+  // painting), rises through the duck-away frames REVERSED, then plays the
+  // look-around-and-duck forward. f12 is pinned to the empty canopy and is
+  // the natural exit; the sampled reverse is its entrance.
+  bear2: {
+    box: [20, 16, 26, 28],
+    cycle: [null, 10, 8, 6, 4, 2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  },
+};
+for (const [id, spec] of Object.entries(WMP03_SCENES)) {
+  const src = png.load(path.join(WMP03_ENV, `inplace_${id}_src_64.png`));
+  if (src.width !== 64 || src.height !== 64) {
+    throw new Error(`inplace ${id}: source is ${src.width}x${src.height}`);
+  }
+  const gen = (i) => {
+    const frame = png.load(
+      path.join(WMP03_ENV, `inplace_${id}_raw_64_f${i}.png`),
+    );
+    if (frame.width !== 64 || frame.height !== 64) {
+      throw new Error(`inplace ${id} f${i}: ${frame.width}x${frame.height}`);
+    }
+    return frame;
+  };
+  const sequence = spec.cycle ?? spec.frames;
+  let out = 0;
+  for (const i of sequence) {
+    const frame = i == null
+      ? png.crop(src, ...spec.box)
+      : boxFeather(src, gen(i), spec.box);
+    emit(`env/overlay_${id}_f${out++}.png`, encode(frame));
+  }
+}
+
+/**
+ * REWORKED AND NEW CREATURES — transparent travelling sprites: the loch
+ * serpent (replacing the slug-read water dragon), the sky dragon, the whale,
+ * and the sail. Each set is cropped to the union of every frame's opaque
+ * bounds, measured here (the same rule the part-2 creatures recorded by
+ * hand), padded by one pixel and clamped to the canvas.
+ */
+const WMP03_CREATURES = {
+  // The serpent's cycle is two pinned animations joined at the risen still:
+  // rise (submerged → risen, 7 frames counting the input) then swim-and-dive
+  // (risen → submerged, 11). The rise's input frame IS the dive's pinned
+  // ending, so the joined cycle opens and closes on the same near-empty
+  // splash and nothing pops.
+  nessie: {
+    canvas: [48, 36],
+    files: [
+      ...Array.from({ length: 7 }, (_, i) => `creature_nessie_rise_48x36_f${i}.png`),
+      ...Array.from({ length: 10 }, (_, i) => `creature_nessie_swim_48x36_f${i + 1}.png`),
+    ],
+  },
+  skydragon: {
+    canvas: [72, 32],
+    files: Array.from({ length: 10 }, (_, i) => `creature_skydragon_raw_72x32_f${i + 1}.png`),
+  },
+  whale: {
+    canvas: [64, 64],
+    files: Array.from({ length: 9 }, (_, i) => `creature_whale_raw_64_f${i}.png`),
+  },
+  ship: { canvas: [64, 64], files: ['creature_ship_still_64.png'] },
+};
+for (const [id, spec] of Object.entries(WMP03_CREATURES)) {
+  const [cw, ch] = spec.canvas;
+  const frames = spec.files.map((file) => {
+    const frame = png.load(path.join(WMP03_ENV, file));
+    if (frame.width !== cw || frame.height !== ch) {
+      throw new Error(`${file}: expected ${cw}x${ch}, got ${frame.width}x${frame.height}`);
+    }
+    return frame;
+  });
+  let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+  for (const frame of frames) {
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        if (frame.alphaAt(x, y) > 0) {
+          if (x < x0) x0 = x;
+          if (y < y0) y0 = y;
+          if (x > x1) x1 = x;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+  }
+  x0 = Math.max(0, x0 - 1);
+  y0 = Math.max(0, y0 - 1);
+  x1 = Math.min(cw - 1, x1 + 1);
+  y1 = Math.min(ch - 1, y1 + 1);
+  frames.forEach((frame, i) => {
+    emit(
+      `env/overlay_${id}_f${i}.png`,
+      encode(png.crop(frame, x0, y0, x1 - x0 + 1, y1 - y0 + 1)),
+    );
+  });
+  console.log(`  ${id}: ${frames.length} frames at ${x1 - x0 + 1}x${y1 - y0 + 1} (crop ${x0},${y0})`);
 }
 
 // -------------------------------------------------------- footprint metrics

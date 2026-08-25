@@ -51,10 +51,10 @@ const String _bigWorld = '''
   "world": { "width": 1536, "height": 2752 },
   "scale": 2,
   "base": { "tiles": [
-    { "asset": "world/atlas_master", "x": 0, "y": 0, "width": 384, "height": 688 },
-    { "asset": "world/atlas_master", "x": 384, "y": 0, "width": 384, "height": 688 },
-    { "asset": "world/atlas_master", "x": 0, "y": 688, "width": 384, "height": 688 },
-    { "asset": "world/atlas_master", "x": 384, "y": 688, "width": 384, "height": 688 }
+    { "asset": "world/atlas_base", "x": 0, "y": 0, "width": 384, "height": 688 },
+    { "asset": "world/atlas_base", "x": 384, "y": 0, "width": 384, "height": 688 },
+    { "asset": "world/atlas_base", "x": 0, "y": 688, "width": 384, "height": 688 },
+    { "asset": "world/atlas_base", "x": 384, "y": 688, "width": 384, "height": 688 }
   ] },
   "locations": [
     { "id": "location.a", "x": 200, "y": 2400, "hitRadius": 44, "landmark": null },
@@ -84,7 +84,7 @@ const String _scale4World = '''
   "world": { "width": 1536, "height": 2752 },
   "scale": 4,
   "base": { "tiles": [
-    { "asset": "world/atlas_master", "x": 0, "y": 0, "width": 384, "height": 688 }
+    { "asset": "world/atlas_base", "x": 0, "y": 0, "width": 384, "height": 688 }
   ] },
   "locations": [
     { "id": "location.a", "x": 250, "y": 2300, "hitRadius": 44, "landmark": null },

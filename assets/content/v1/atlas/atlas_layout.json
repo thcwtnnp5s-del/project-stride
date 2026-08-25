@@ -1,35 +1,35 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "world": {
-    "width": 3072,
-    "height": 3072
+    "width": 4608,
+    "height": 4608
   },
   "rumors": [
     {
       "id": "rumor.eastern_city",
-      "x": 2760,
-      "y": 2100
+      "x": 3528,
+      "y": 2868
     },
     {
       "id": "rumor.lower_gallery",
-      "x": 1908,
-      "y": 1392
+      "x": 2676,
+      "y": 2160
     },
     {
       "id": "rumor.northern_range",
-      "x": 2580,
-      "y": 420
+      "x": 3348,
+      "y": 1188
     }
   ],
   "scale": 6,
   "base": {
     "tiles": [
       {
-        "asset": "world/atlas_master",
+        "asset": "world/atlas_base",
         "x": 0,
         "y": 0,
-        "width": 512,
-        "height": 512
+        "width": 768,
+        "height": 768
       }
     ]
   },
@@ -73,36 +73,36 @@
   "locations": [
     {
       "id": "location.havens_rest",
-      "x": 1200,
-      "y": 1590,
+      "x": 1968,
+      "y": 2358,
       "hitRadius": 72,
       "landmark": null
     },
     {
       "id": "location.whispering_woods",
-      "x": 762,
-      "y": 1518,
+      "x": 1530,
+      "y": 2286,
       "hitRadius": 72,
       "landmark": null
     },
     {
       "id": "location.stonefall_mine",
-      "x": 1860,
-      "y": 1440,
+      "x": 2628,
+      "y": 2208,
       "hitRadius": 72,
       "landmark": null
     },
     {
       "id": "location.forgotten_hollow",
-      "x": 1830,
-      "y": 1770,
+      "x": 2598,
+      "y": 2538,
       "hitRadius": 72,
       "landmark": null
     },
     {
       "id": "location.frostmere",
-      "x": 1452,
-      "y": 330,
+      "x": 2220,
+      "y": 1098,
       "hitRadius": 72,
       "landmark": null
     }
@@ -111,8 +111,8 @@
     {
       "id": "landmark.rimewatch",
       "name": "Rimewatch",
-      "x": 2298,
-      "y": 240,
+      "x": 3066,
+      "y": 1008,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -125,8 +125,8 @@
     {
       "id": "landmark.emberhold",
       "name": "Emberhold",
-      "x": 2922,
-      "y": 192,
+      "x": 3690,
+      "y": 960,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -139,8 +139,8 @@
     {
       "id": "landmark.glasslake",
       "name": "Glasslake",
-      "x": 1230,
-      "y": 468,
+      "x": 1998,
+      "y": 1236,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -153,8 +153,8 @@
     {
       "id": "landmark.the_taiga",
       "name": "The Longwood",
-      "x": 360,
-      "y": 240,
+      "x": 1128,
+      "y": 1008,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -167,8 +167,8 @@
     {
       "id": "landmark.deepwood_shrine",
       "name": "Deepwood Shrine",
-      "x": 288,
-      "y": 1800,
+      "x": 1056,
+      "y": 2568,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -181,8 +181,8 @@
     {
       "id": "landmark.greenwatch",
       "name": "Greenwatch",
-      "x": 180,
-      "y": 1050,
+      "x": 948,
+      "y": 1818,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -195,8 +195,8 @@
     {
       "id": "landmark.wolfwood",
       "name": "Wolfwood",
-      "x": 468,
-      "y": 2580,
+      "x": 1236,
+      "y": 3348,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -209,8 +209,8 @@
     {
       "id": "landmark.tern_isles",
       "name": "Tern Isles",
-      "x": 2730,
-      "y": 1608,
+      "x": 3498,
+      "y": 2376,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -223,8 +223,8 @@
     {
       "id": "landmark.outer_shoal",
       "name": "Outer Shoal",
-      "x": 2820,
-      "y": 1920,
+      "x": 3588,
+      "y": 2688,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -237,8 +237,8 @@
     {
       "id": "landmark.saltreach_light",
       "name": "Saltreach Light",
-      "x": 2808,
-      "y": 2232,
+      "x": 3576,
+      "y": 3000,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -251,8 +251,8 @@
     {
       "id": "landmark.amberfield",
       "name": "Amberfield",
-      "x": 1350,
-      "y": 2232,
+      "x": 2118,
+      "y": 3000,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -265,8 +265,8 @@
     {
       "id": "landmark.marshlight",
       "name": "Marshlight",
-      "x": 1572,
-      "y": 2772,
+      "x": 2340,
+      "y": 3540,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -279,8 +279,8 @@
     {
       "id": "landmark.reedmouth",
       "name": "Reedmouth",
-      "x": 2100,
-      "y": 2580,
+      "x": 2868,
+      "y": 3348,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -293,8 +293,8 @@
     {
       "id": "landmark.sunken_rows",
       "name": "Sunken Rows",
-      "x": 900,
-      "y": 2730,
+      "x": 1668,
+      "y": 3498,
       "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
@@ -307,8 +307,8 @@
     {
       "id": "landmark.stone_bridge",
       "name": "Millbridge",
-      "x": 1458,
-      "y": 1800,
+      "x": 2226,
+      "y": 2568,
       "tier": "minor",
       "marker": {
         "asset": "world/marker_landmark",
@@ -321,9 +321,79 @@
     {
       "id": "landmark.ferry_crossing",
       "name": "Ferry Crossing",
-      "x": 1800,
-      "y": 2100,
+      "x": 2568,
+      "y": 2868,
       "tier": "minor",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.worldspine",
+      "name": "The Worldspine",
+      "x": 250,
+      "y": 2300,
+      "tier": "future",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.frozen_shelf",
+      "name": "The Frozen Shelf",
+      "x": 1900,
+      "y": 290,
+      "tier": "future",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.cinder_skerries",
+      "name": "Cinder Skerries",
+      "x": 4180,
+      "y": 320,
+      "tier": "future",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.wanderers_isles",
+      "name": "Wanderer's Isles",
+      "x": 4210,
+      "y": 2000,
+      "tier": "future",
+      "marker": {
+        "asset": "world/marker_landmark",
+        "width": 20,
+        "height": 20,
+        "anchorX": 10,
+        "anchorY": 10
+      }
+    },
+    {
+      "id": "landmark.sunward_strand",
+      "name": "Sunward Strand",
+      "x": 2300,
+      "y": 4390,
+      "tier": "future",
       "marker": {
         "asset": "world/marker_landmark",
         "width": 20,
@@ -339,8 +409,8 @@
       "to": "location.whispering_woods",
       "points": [
         [
-          990,
-          1572
+          1758,
+          2340
         ]
       ]
     },
@@ -349,12 +419,12 @@
       "to": "location.stonefall_mine",
       "points": [
         [
-          1500,
-          1572
+          2268,
+          2340
         ],
         [
-          1710,
-          1500
+          2478,
+          2268
         ]
       ]
     },
@@ -363,16 +433,16 @@
       "to": "location.stonefall_mine",
       "points": [
         [
-          1080,
-          1392
+          1848,
+          2160
         ],
         [
-          1500,
-          1332
+          2268,
+          2100
         ],
         [
-          1770,
-          1392
+          2538,
+          2160
         ]
       ]
     },
@@ -381,16 +451,16 @@
       "to": "location.forgotten_hollow",
       "points": [
         [
-          900,
-          1800
+          1668,
+          2568
         ],
         [
-          1200,
-          1920
+          1968,
+          2688
         ],
         [
-          1590,
-          1890
+          2358,
+          2658
         ]
       ]
     },
@@ -399,16 +469,16 @@
       "to": "location.frostmere",
       "points": [
         [
-          1800,
-          1230
+          2568,
+          1998
         ],
         [
-          1698,
-          960
+          2466,
+          1728
         ],
         [
-          1572,
-          660
+          2340,
+          1428
         ]
       ]
     }
@@ -417,8 +487,8 @@
   "overlays": [
     {
       "asset": "env/overlay_snow_flurry",
-      "x": 1200,
-      "y": 180,
+      "x": 1968,
+      "y": 948,
       "frames": 8,
       "frameMillis": 167,
       "drift": {
@@ -431,8 +501,8 @@
     },
     {
       "asset": "env/overlay_snow_flurry",
-      "x": 1590,
-      "y": 360,
+      "x": 2358,
+      "y": 1128,
       "frames": 8,
       "frameMillis": 167,
       "drift": {
@@ -445,8 +515,8 @@
     },
     {
       "asset": "env/overlay_snow_flurry",
-      "x": 960,
-      "y": 570,
+      "x": 1728,
+      "y": 1338,
       "frames": 8,
       "frameMillis": 167,
       "drift": {
@@ -459,8 +529,8 @@
     },
     {
       "asset": "env/overlay_forest_mist",
-      "x": 270,
-      "y": 1080,
+      "x": 1038,
+      "y": 1848,
       "frames": 6,
       "frameMillis": 250,
       "drift": {
@@ -473,8 +543,8 @@
     },
     {
       "asset": "env/overlay_forest_mist",
-      "x": 540,
-      "y": 1980,
+      "x": 1308,
+      "y": 2748,
       "frames": 6,
       "frameMillis": 250,
       "drift": {
@@ -487,8 +557,8 @@
     },
     {
       "asset": "env/overlay_forest_mist",
-      "x": 240,
-      "y": 2520,
+      "x": 1008,
+      "y": 3288,
       "frames": 6,
       "frameMillis": 250,
       "drift": {
@@ -501,8 +571,8 @@
     },
     {
       "asset": "env/overlay_forest_mist",
-      "x": 1440,
-      "y": 2700,
+      "x": 2208,
+      "y": 3468,
       "frames": 6,
       "frameMillis": 250,
       "drift": {
@@ -515,8 +585,8 @@
     },
     {
       "asset": "env/overlay_birds",
-      "x": 1800,
-      "y": 1080,
+      "x": 2568,
+      "y": 1848,
       "frames": 6,
       "frameMillis": 167,
       "drift": {
@@ -529,8 +599,8 @@
     },
     {
       "asset": "env/overlay_birds",
-      "x": 2520,
-      "y": 1800,
+      "x": 3288,
+      "y": 2568,
       "frames": 6,
       "frameMillis": 167,
       "drift": {
@@ -543,8 +613,8 @@
     },
     {
       "asset": "env/overlay_birds",
-      "x": 1080,
-      "y": 2340,
+      "x": 1848,
+      "y": 3108,
       "frames": 6,
       "frameMillis": 167,
       "drift": {
@@ -557,8 +627,8 @@
     },
     {
       "asset": "env/overlay_smoke",
-      "x": 1128,
-      "y": 1500,
+      "x": 1896,
+      "y": 2268,
       "frames": 6,
       "frameMillis": 220,
       "drift": {
@@ -571,8 +641,8 @@
     },
     {
       "asset": "env/overlay_smoke",
-      "x": 1806,
-      "y": 1404,
+      "x": 2574,
+      "y": 2172,
       "frames": 6,
       "frameMillis": 220,
       "drift": {
@@ -582,25 +652,11 @@
       "opacity": 0.8,
       "width": 16,
       "height": 14
-    },
-    {
-      "asset": "env/overlay_forest_fire",
-      "x": 210,
-      "y": 1386,
-      "frames": 8,
-      "frameMillis": 200,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 40,
-      "height": 40
     },
     {
       "asset": "env/overlay_volcano",
-      "x": 2472,
-      "y": 168,
+      "x": 3240,
+      "y": 936,
       "frames": 17,
       "frameMillis": 250,
       "intervalMillis": 14000,
@@ -614,8 +670,8 @@
     },
     {
       "asset": "env/overlay_tree_rustle_a",
-      "x": 120,
-      "y": 2040,
+      "x": 888,
+      "y": 2808,
       "frames": 9,
       "frameMillis": 300,
       "intervalMillis": 9000,
@@ -629,8 +685,8 @@
     },
     {
       "asset": "env/overlay_tree_rustle_b",
-      "x": 576,
-      "y": 2424,
+      "x": 1344,
+      "y": 3192,
       "frames": 9,
       "frameMillis": 320,
       "intervalMillis": 13000,
@@ -644,8 +700,8 @@
     },
     {
       "asset": "env/overlay_ripple_coast",
-      "x": 2520,
-      "y": 1680,
+      "x": 3288,
+      "y": 2448,
       "frames": 8,
       "frameMillis": 350,
       "drift": {
@@ -658,8 +714,8 @@
     },
     {
       "asset": "env/overlay_ripple_delta",
-      "x": 2184,
-      "y": 2424,
+      "x": 2952,
+      "y": 3192,
       "frames": 8,
       "frameMillis": 350,
       "drift": {
@@ -671,53 +727,9 @@
       "height": 48
     },
     {
-      "asset": "env/overlay_yeti",
-      "x": 1461,
-      "y": 423,
-      "frames": 1,
-      "frameMillis": 1000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 24,
-      "height": 30
-    },
-    {
-      "asset": "env/overlay_water_dragon",
-      "x": 2436,
-      "y": 1923,
-      "frames": 9,
-      "frameMillis": 450,
-      "intervalMillis": 26000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 40,
-      "height": 36
-    },
-    {
-      "asset": "env/overlay_bear_peek",
-      "x": 546,
-      "y": 2106,
-      "frames": 9,
-      "frameMillis": 600,
-      "intervalMillis": 21000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 28,
-      "height": 24
-    },
-    {
       "asset": "env/overlay_cloud_shadow",
-      "x": 900,
-      "y": 1650,
+      "x": 1668,
+      "y": 2418,
       "frames": 1,
       "frameMillis": 1000,
       "drift": {
@@ -730,8 +742,8 @@
     },
     {
       "asset": "env/overlay_cloud_shadow",
-      "x": 600,
-      "y": 2150,
+      "x": 1368,
+      "y": 2918,
       "frames": 1,
       "frameMillis": 1000,
       "drift": {
@@ -744,8 +756,8 @@
     },
     {
       "asset": "env/overlay_cloud_wisp",
-      "x": 1500,
-      "y": 800,
+      "x": 2268,
+      "y": 1568,
       "frames": 1,
       "frameMillis": 1000,
       "drift": {
@@ -755,6 +767,122 @@
       "opacity": 0.3,
       "width": 96,
       "height": 48
+    },
+    {
+      "asset": "env/overlay_fire2",
+      "x": 954,
+      "y": 2106,
+      "frames": 10,
+      "frameMillis": 200,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 42,
+      "height": 44
+    },
+    {
+      "asset": "env/overlay_yeti2",
+      "x": 2172,
+      "y": 1176,
+      "frames": 8,
+      "frameMillis": 350,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 44,
+      "height": 34
+    },
+    {
+      "asset": "env/overlay_bear2",
+      "x": 1272,
+      "y": 2784,
+      "frames": 19,
+      "frameMillis": 320,
+      "intervalMillis": 20000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 26,
+      "height": 28
+    },
+    {
+      "asset": "env/overlay_nessie",
+      "x": 3204,
+      "y": 2691,
+      "frames": 17,
+      "frameMillis": 400,
+      "intervalMillis": 26000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": -12,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 44,
+      "height": 33
+    },
+    {
+      "asset": "env/overlay_skydragon",
+      "x": 900,
+      "y": 1200,
+      "frames": 10,
+      "frameMillis": 400,
+      "playLoops": 3,
+      "intervalMillis": 40000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": 30,
+        "y": -5
+      },
+      "opacity": 1,
+      "width": 64,
+      "height": 31
+    },
+    {
+      "asset": "env/overlay_whale",
+      "x": 4080,
+      "y": 2820,
+      "frames": 9,
+      "frameMillis": 350,
+      "intervalMillis": 30000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1,
+      "width": 38,
+      "height": 41
+    },
+    {
+      "asset": "env/overlay_ship",
+      "x": 3960,
+      "y": 3120,
+      "frames": 1,
+      "frameMillis": 14000,
+      "intervalMillis": 45000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": -9,
+        "y": 4
+      },
+      "opacity": 1,
+      "width": 15,
+      "height": 20
     }
   ]
 }

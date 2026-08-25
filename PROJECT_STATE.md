@@ -1,5 +1,43 @@
 # Project Stride — Project State
 
+**Version:** 2.21
+**Status:** 🚧 **WORLD MAP POLISH 03 — the scale-up and easter-egg rework is
+built, awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, on top of part 2 (`5b0395d`). Record:
+`MILESTONES/WORLD_MAP_POLISH_03.md`; art round
+`GAME_BIBLE/ART/exploration/WORLD_MAP_POLISH_03/README.md`.
+
+The device review's verdict on the ambient-life layer — right direction,
+wrong execution — answered in one breath: the world is **2.25× bigger
+without repainting anything** (the accepted 512² master sits byte-preserved
+inside a composed 768² base — eight PixelLab Pro frontier pieces
+style-referenced to the master's own edges, dither-crossfaded at the joins:
+the Worldspine west, a frozen polar sea north, open ocean east, an estuary
+coast south, five honest future-tier names on the frontier); every flagged
+egg is **reworked as part of the painting** rather than pasted on it — the
+fire is an irregular burn scar with charred trunks (edit-in-place, not a
+black circle), the yeti sits at a real ice hole and keeps its rod through
+all 8 frames, the bear is a ~12 px head that rises from a canopy gap and
+ducks away, and the slug-read water dragon is a proper loch serpent that
+surfaces, swims west and dives; and the sky gets the owner's **flying
+dragon** — long, slim, undulating across the north-west for ~12 s at long
+intervals — plus a whale roll, a distant sail, and one idea rejected on its
+merits (aurora; the shimmer failure family). Layout schema **v5** adds
+`travel` (per-play journeys, gap-reset, no wrap) and `playLoops` (long plays
+without duplicate frames). Placement swept programmatically at origin and
+travel-endpoint against every hit circle, glyph and label zone; one graze
+found and fixed at the emitted-box level.
+
+Suites: app **658** (+3 v5 schema/cadence); analyze clean; guards clean;
+`package-art.js --check` clean (740 files; the composed base and 63 new
+overlay frames reproducible from tracked sources; the four superseded eggs
+and the standalone master retired under the orphan sweep). Goldens
+**unchanged by design** and verified so. PixelLab: 399 generations, balance
+1,815 → 1,416, rejects on the record. Open: Q-06, Q-07 remainder, Q-08,
+Q-09, Q-10, Q-11, OD-04, OD-06.
+
+---
+
 **Version:** 2.20
 **Status:** 🚧 **WORLD MAP POLISH 01, PART 2 — the ambient-life pass is
 built, awaiting the owner's review and device test.** Branch

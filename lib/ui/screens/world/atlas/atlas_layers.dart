@@ -400,9 +400,19 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
     return key;
   }
 
-  /// Where the sprite is at [t], wrapped so it re-enters from the opposite
-  /// edge of the world once it has drifted off.
+  /// Where the sprite is at [t]. A drifting sprite wraps, re-entering from
+  /// the opposite edge of the world once it has drifted off; a travelling
+  /// sprite (v5) moves from its origin only while its play runs and stands
+  /// at the origin again for every new play — the parser holds the two kinds
+  /// of motion mutually exclusive.
   Offset _driftPosition(AtlasOverlay overlay, Duration t) {
+    if (overlay.travelX != 0 || overlay.travelY != 0) {
+      final double playSeconds = overlay.playMillisAt(t) / 1000;
+      return Offset(
+        overlay.x + overlay.travelX * playSeconds,
+        overlay.y + overlay.travelY * playSeconds,
+      );
+    }
     final double seconds = t.inMicroseconds / Duration.microsecondsPerSecond;
     final double w = widget.scene.worldWidth;
     final double h = widget.scene.worldHeight;

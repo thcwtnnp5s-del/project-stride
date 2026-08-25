@@ -66,7 +66,19 @@ const String atlasLayoutAsset = 'assets/content/v1/atlas/atlas_layout.json';
 /// document meant. This is what makes an *occasional* piece of map life — a
 /// creature that peeks and withdraws, a volcano that stirs and settles —
 /// expressible as data rather than as a wall of blank frames.
-const int atlasLayoutSchemaVersion = 4;
+///
+/// **v5 adds two optional overlay fields.** `playLoops` — how many times one
+/// play runs through the frame loop before the quiet gap returns (so a
+/// creature can undulate its short loop across a long journey without the
+/// asset set carrying duplicate frames). And `travel` — world pixels per second
+/// the sprite moves *during one play*, measured from the moment its quiet gap
+/// ends and reset by the next gap. This is a journey, not a drift: a serpent
+/// that surfaces and swims a little way west before diving, a dragon that
+/// crosses a stretch of sky and is gone. It therefore requires
+/// `intervalMillis` (a continuous loop has no play boundary to measure from)
+/// and excludes `drift` (one sprite, one kind of motion), and it never wraps —
+/// the play ends before the world's edge does.
+const int atlasLayoutSchemaVersion = 5;
 
 /// The oldest schema this reader still accepts.
 const int atlasLayoutMinimumSchemaVersion = 1;
@@ -249,6 +261,9 @@ final class AtlasOverlay {
     required this.driftY,
     this.opacity = 1,
     this.intervalMillis = 0,
+    this.travelX = 0,
+    this.travelY = 0,
+    this.playLoops = 1,
   });
 
   /// The asset key of the frame sequence. Frame `n` resolves to
@@ -281,8 +296,20 @@ final class AtlasOverlay {
   /// pre-v4 document — is the continuous loop.
   final int intervalMillis;
 
-  /// One play of the loop, in milliseconds.
-  int get activeMillis => frameCount * frameMillis;
+  /// World pixels per second the sprite moves during one play (v5), measured
+  /// from the end of the quiet gap and reset by the next one. Zero for a
+  /// sprite that plays in place. Unlike [driftX]/[driftY] this never wraps:
+  /// the journey is as long as the play and no longer.
+  final double travelX;
+  final double travelY;
+
+  /// How many times one play runs through the frame loop (v5). One — every
+  /// pre-v5 document — is the single pass. [frameIndexAt]'s modulo already
+  /// wraps the frames, so a longer play simply loops them.
+  final int playLoops;
+
+  /// One play, in milliseconds: the frame loop, [playLoops] times over.
+  int get activeMillis => frameCount * frameMillis * playLoops;
 
   /// One full cycle: the play plus the quiet gap.
   int get cycleMillis => activeMillis + intervalMillis;
@@ -307,6 +334,15 @@ final class AtlasOverlay {
     final int inCycle = elapsed.inMilliseconds % cycleMillis;
     final int inPlay = inCycle >= intervalMillis ? inCycle - intervalMillis : 0;
     return inPlay ~/ frameMillis % frameCount;
+  }
+
+  /// Milliseconds into the current play at [elapsed] — zero throughout the
+  /// quiet gap, so a travelling sprite stands at its origin until its play
+  /// begins and retraces the same journey every cycle.
+  int playMillisAt(Duration elapsed) {
+    if (intervalMillis == 0) return elapsed.inMilliseconds;
+    final int inCycle = elapsed.inMilliseconds % cycleMillis;
+    return inCycle >= intervalMillis ? inCycle - intervalMillis : 0;
   }
 }
 
@@ -550,6 +586,18 @@ final class AtlasLayout {
         if (raw is Map<String, Object?> && raw['intervalMillis'] != null) {
           throw const AtlasLayoutException(
             'intervalMillis needs schemaVersion 4',
+          );
+        }
+      }
+    }
+    // The v5 field, on the same terms: an earlier reader would pin a
+    // travelling sprite to its origin — dropped motion, refused all the same.
+    if (version < 5) {
+      for (final Object? raw in _list(decoded, 'overlays')) {
+        if (raw is Map<String, Object?> &&
+            (raw['travel'] != null || raw['playLoops'] != null)) {
+          throw const AtlasLayoutException(
+            'travel and playLoops need schemaVersion 5',
           );
         }
       }
@@ -904,6 +952,9 @@ final class AtlasLayout {
     }
     final String at = 'overlays[$index]';
     final Map<String, Object?> driftRaw = _object(raw, 'drift', within: at);
+    final Map<String, Object?>? travelRaw = raw['travel'] == null
+        ? null
+        : _object(raw, 'travel', within: at);
     final AtlasOverlay overlay = AtlasOverlay(
       asset: _string(raw, 'asset', within: at),
       x: _number(raw, 'x', within: at),
@@ -918,7 +969,29 @@ final class AtlasLayout {
       intervalMillis: raw['intervalMillis'] == null
           ? 0
           : _int(raw, 'intervalMillis', within: at),
+      travelX: travelRaw == null ? 0 : _number(travelRaw, 'x', within: '$at.travel'),
+      travelY: travelRaw == null ? 0 : _number(travelRaw, 'y', within: '$at.travel'),
+      playLoops: raw['playLoops'] == null
+          ? 1
+          : _int(raw, 'playLoops', within: at),
     );
+    if (overlay.playLoops < 1) {
+      throw AtlasLayoutException('$at.playLoops must be at least 1');
+    }
+    if ((overlay.travelX != 0 || overlay.travelY != 0) &&
+        overlay.intervalMillis == 0) {
+      throw AtlasLayoutException(
+        '$at.travel needs intervalMillis: a journey is measured from the '
+        'start of a play, and a continuous loop has none',
+      );
+    }
+    if ((overlay.travelX != 0 || overlay.travelY != 0) &&
+        (overlay.driftX != 0 || overlay.driftY != 0)) {
+      throw AtlasLayoutException(
+        '$at declares both travel and drift; one sprite has one kind of '
+        'motion',
+      );
+    }
     if (overlay.opacity <= 0 || overlay.opacity > 1) {
       throw AtlasLayoutException('$at.opacity must be in (0, 1]');
     }
