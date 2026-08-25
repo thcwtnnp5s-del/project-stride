@@ -1,0 +1,14 @@
+{
+    "description":  "Horizontal strip of a top-down pixel art fantasy world map: a remote polar snowfield above a glacier. Soft smooth white and pale blue shading exactly like the reference glacier - NO dark outlines, no cracked-ice line pattern. Wind-streaked snow drifts, the soft edge of a glacier shelf, and one small frost-covered rock outcrop. Mostly empty calm snow. No text, no borders.",
+    "width":  384,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_glacier_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "below: the glacier and snowy forest immediately south of this strip; continue it northward with the same soft shading",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_north_w_below.png"
+                             }
+                         ],
+    "seed":  91
+}

@@ -1,0 +1,14 @@
+{
+    "description":  "Vertical strip of a top-down pixel art fantasy world map: the frontier west of a great mountain range. High snow ridges at the top descend westward into a broad hazy highland valley of grass and sparse conifers. The pale dirt caravan road from the reference enters at the right edge about four-fifths of the way down, winds gently down into the valley floor and fades into the remote distance toward the left. One small weathered standing stone beside the road far out in the valley. Remote, open, calm. No buildings, no text, no borders.",
+    "width":  128,
+    "height":  512,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_passmeadow_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "east: the terrain immediately right of this strip - snowfield at top, then mountains with a pale dirt caravan road exiting the right edge about four-fifths of the way down; continue it westward",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_west_n_right.png"
+                             }
+                         ],
+    "seed":  79
+}

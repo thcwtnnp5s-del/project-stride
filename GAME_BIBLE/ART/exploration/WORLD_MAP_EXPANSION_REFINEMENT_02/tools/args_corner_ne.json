@@ -1,0 +1,12 @@
+{
+  "description": "Corner tile of a top-down pixel art fantasy world map: a cold northern sea in full daylight. Pale teal-blue polar water in the same bright daytime palette as the reference images, scattered small white drift-ice floes thinning toward the bottom edge, and one tiny dark cinder skerry with a thin white steam wisp near the top right. The bottom edge must blend into the open teal ocean of the 'sea' reference; the left edge must blend into the pack ice of the 'ice' reference. No dark navy water, no night tones. No text, no borders.",
+  "width": 128,
+  "height": 128,
+  "no_background": false,
+  "style_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_northice_64.png",
+  "reference_images": [
+    { "base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/ref_ne_north_128.png", "usage": "ice: the pack-ice terrain immediately west of this corner; continue it" },
+    { "base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/ref_ne_east_128.png", "usage": "sea: the ocean immediately south of this corner; match its water color at the bottom edge" }
+  ],
+  "seed": 42
+}

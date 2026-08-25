@@ -1,0 +1,14 @@
+{
+    "description":  "Horizontal strip of a top-down pixel art fantasy world map: the far northern frontier. Continue the reference terrain northward into a remote wind-streaked polar snowfield with a glacier shelf edge, wind-cut drifts and one or two isolated frost-covered rock outcrops. Mostly empty authored snow, sparse and calm. No creatures, no buildings, no text, no borders.",
+    "width":  384,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_northice_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "below: the glacier and snowy forest immediately south of this strip; continue it northward",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_north_w_below.png"
+                             }
+                         ],
+    "seed":  71
+}

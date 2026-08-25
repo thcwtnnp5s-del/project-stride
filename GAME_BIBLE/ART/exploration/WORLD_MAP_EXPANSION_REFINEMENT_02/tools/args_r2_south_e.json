@@ -1,0 +1,14 @@
+{
+    "description":  "Horizontal strip of a top-down pixel art fantasy world map: warm southern sea. Turquoise shallows with one or two pale sandbars near the top edge continuing the reference, deepening to open teal water with short white wave dashes toward the bottom. Calm. No text, no borders.",
+    "width":  384,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_shallows_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "above: the beach and shallows immediately north of this strip; continue them southward",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_south_e_above.png"
+                             }
+                         ],
+    "seed":  77
+}

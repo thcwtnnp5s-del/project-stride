@@ -1,5 +1,49 @@
 # Project Stride — Project State
 
+**Version:** 2.22
+**Status:** 🚧 **WORLD MAP EXPANSION REFINEMENT 02 — the second scale-up and
+coherence pass is built, awaiting the owner's review and device test.**
+Branch `playable-phase-2-multiregion`, on top of World Map Polish 03
+(`4f8459e`). Record: `MILESTONES/WORLD_MAP_EXPANSION_REFINEMENT_02.md`; art
+round `GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/README.md`.
+
+The device review's verdict — right world, one more major pass — answered in
+one breath: the atlas is **1024², world 6144 px** (the 512² master still
+byte-preserved, now at (256, 256) inside two rings, every coordinate swept
++768); the four worst WMP03 joins are **fixed at the source** (the east
+dither band, the NE night patch, the SE beach cut-off, the south luminance
+line — regenerated pieces with full-column context references, edit-in-place
+patches, and a deterministic water/snow palette conform that invents no
+colors); the **west opens**: a caravan road runs continuously from
+Whispering Woods across a log bridge, through a corridor cut in the master's
+forest, over Wayfarer's Pass and down into a far western valley — scenery
+that promises travel, no new destination (G-3); the **dragon flies
+head-first** (the WMP03 travel vector was backwards) and **breathes one
+small westward flame per crossing** (28-frame journey, playLoops 1); the
+fire egg — found by the placement sweep sitting exactly on the new road —
+is re-authored smaller in the south-west forest; three quiet **new eggs**
+join (a westbound caravan on the pass road, a roadside stag, a marsh flock
+that lifts and settles), every interval still mutually distinct; and the
+label pass **removes** a name (Outer Shoal's crowded column) while adding
+only three on a ~78 % larger world. Flat open ocean is now assembled
+deterministically from the approved east strip's own water after four
+generation rolls drifted — the lesson and the tools (`plab.js` transport,
+finally committed; `waterconform`; `assemble_ocean`) are on the record.
+The regional-ecology §8 compass conflict (canon said estuary west, Dust
+Reach east; the accepted painting says Worldspine west, ocean east) is
+amended on the record rather than silently diverged (G-7).
+
+Suites: app **658**; analyze clean; guards clean; `package-art.js --check`
+clean (792 files; the 1024 composition and 82 overlay frames reproducible
+from tracked sources; overlay_fire2 retired under the orphan sweep).
+Goldens: only the two World goldens changed, regenerated and reviewed.
+PixelLab: 601 generations, balance 1,416 → **815**, rejects on the record.
+Open: Q-06, Q-07 remainder (three more proposal names), Q-08, Q-09, Q-10,
+Q-11, OD-04, OD-06; the whole-world-survey zoom-floor feel is an explicit
+device-checklist owner call.
+
+---
+
 **Version:** 2.21
 **Status:** 🚧 **WORLD MAP POLISH 03 — the scale-up and easter-egg rework is
 built, awaiting the owner's review and device test.** Branch

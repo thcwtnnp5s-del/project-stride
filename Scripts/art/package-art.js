@@ -1334,25 +1334,78 @@ for (const [id, spec] of Object.entries(WMP01_INPLACE)) {
  * to the very edges they touch and then interleaved.
  */
 const WMP03 = path.join(EXPLORE, 'WORLD_MAP_POLISH_03', 'out');
+// ------------------------------------ World Map Expansion Refinement 02
+//
+// The 1024 × 1024 base (provenance in
+// `WORLD_MAP_EXPANSION_REFINEMENT_02/README.md`): the byte-preserved 512²
+// master now sits at (256, 256) inside TWO rings. The inner ring keeps
+// WMP03's north strip and NW/SW corners; its east strip, NE/SE corners and
+// west strip are replaced by this round's seam-corrected pieces (the west
+// strip carries the caravan pass). Five static in-place patches — the
+// corridor cut and road join through the master's forest, the daylight
+// conversion of the north strip's right end, the east strip's top fade, and
+// the south join blend — are PixelLab edits of tracked crops, blitted at
+// recorded coordinates before the crossfade. The outer ring is this round's
+// twelve frontier pieces (the flat east ocean is a recorded deterministic
+// assembly of the approved east strip's own water, A-2). WMP03's corner_sw
+// carries a 1px white generation border on its formerly-canvas left/bottom
+// edges; those lines are replicated over from their neighbours here, since
+// they are interior joins now.
+const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
 {
-  const piece = (name, w, h) => {
-    const raster = png.load(path.join(WMP03, 'world', `${name}.png`));
+  const piece = (dir, name, w, h) => {
+    const raster = png.load(path.join(dir, 'world', `${name}.png`));
     if (raster.width !== w || raster.height !== h) {
       throw new Error(`${name}: expected ${w}x${h}, got ${raster.width}x${raster.height}`);
     }
     return raster;
   };
-  const base = new png.Raster(768, 768);
-  png.blit(base, piece('corner_nw_128', 128, 128), 0, 0);
-  png.blit(base, piece('strip_north_512x128', 512, 128), 128, 0);
-  png.blit(base, piece('corner_ne_128', 128, 128), 640, 0);
-  png.blit(base, piece('strip_west_128x512', 128, 512), 0, 128);
-  png.blit(base, piece('strip_east_128x512', 128, 512), 640, 128);
-  png.blit(base, piece('corner_sw_128', 128, 128), 0, 640);
-  png.blit(base, piece('strip_south_512x128', 512, 128), 128, 640);
-  png.blit(base, piece('corner_se_128', 128, 128), 640, 640);
+  const base = new png.Raster(1024, 1024);
+
+  // Outer ring (WMER02).
+  png.blit(base, piece(WMER02, 'r2_corner_nw_f0', 128, 128), 0, 0);
+  png.blit(base, piece(WMER02, 'r2_north_w_f0', 384, 128), 128, 0);
+  png.blit(base, piece(WMER02, 'r2_north_e_f0', 384, 128), 512, 0);
+  png.blit(base, piece(WMER02, 'r2_corner_ne_f0', 128, 128), 896, 0);
+  png.blit(base, piece(WMER02, 'r2_west_n_f0', 128, 512), 0, 128);
+  png.blit(base, piece(WMER02, 'r2_west_s_f0', 128, 256), 0, 640);
+  png.blit(base, piece(WMER02, 'r2_east_n_f0', 128, 384), 896, 128);
+  png.blit(base, piece(WMER02, 'r2_east_s_f0', 128, 384), 896, 512);
+  png.blit(base, piece(WMER02, 'r2_corner_sw_f0', 128, 128), 0, 896);
+  png.blit(base, piece(WMER02, 'r2_south_w_f0', 384, 128), 128, 896);
+  png.blit(base, piece(WMER02, 'r2_south_e_f0', 384, 128), 512, 896);
+  png.blit(base, piece(WMER02, 'r2_corner_se_f0', 128, 128), 896, 896);
+
+  // Inner ring: WMP03 retained + WMER02 replacements, offset +128.
+  png.blit(base, piece(WMP03, 'corner_nw_128', 128, 128), 128, 128);
+  png.blit(base, piece(WMP03, 'strip_north_512x128', 512, 128), 256, 128);
+  png.blit(base, piece(WMER02, 'corner_ne_conformed_v2', 128, 128), 768, 128);
+  png.blit(base, piece(WMER02, 'cand_strip_west_f0', 128, 512), 128, 256);
+  png.blit(base, piece(WMER02, 'cand_strip_east_f0', 128, 512), 768, 256);
+  const cornerSW = piece(WMP03, 'corner_sw_128', 128, 128);
+  for (let y = 0; y < 128; y++) {
+    const a = cornerSW.idx(0, y);
+    const b = cornerSW.idx(1, y);
+    for (let k = 0; k < 4; k++) cornerSW.data[a + k] = cornerSW.data[b + k];
+  }
+  for (let x = 0; x < 128; x++) {
+    const a = cornerSW.idx(x, 127);
+    const b = cornerSW.idx(x, 126);
+    for (let k = 0; k < 4; k++) cornerSW.data[a + k] = cornerSW.data[b + k];
+  }
+  png.blit(base, cornerSW, 128, 768);
+  png.blit(base, piece(WMP03, 'strip_south_512x128', 512, 128), 256, 768);
+  png.blit(base, piece(WMER02, 'cand_corner_se_f3', 128, 128), 768, 768);
   const master = png.load(path.join(PWRF_WORLD_SRC, 'whole_a_0.png'));
-  png.blit(base, master, 128, 128);
+  png.blit(base, master, 256, 256);
+
+  // Static in-place patches (edited crops; coordinates in 1024 space).
+  const patch = (name, w, h, x, y) => png.blit(base, piece(WMER02, name, w, h), x, y);
+  patch('northfix2_edit_f0', 128, 128, 640, 128);
+  patch('eaststriptop_edit_f0', 128, 64, 768, 256);
+  patch('corridor_edit_f0', 128, 75, 256, 483);
+  patch('southjoin_edit_f0', 256, 60, 188, 738);
+  patch('roadjoin_edit_f0', 104, 72, 216, 480);
 
   // The dither crossfade. `before` is the untouched composition so a swapped
   // pixel is always sourced from the original, never from another swap.
@@ -1369,8 +1422,8 @@ const WMP03 = path.join(EXPLORE, 'WORLD_MAP_POLISH_03', 'out');
     const bi = before.idx(bx, by);
     for (let k = 0; k < 4; k++) base.data[ai + k] = before.data[bi + k];
   };
-  for (const seamY of [128, 640]) {
-    for (let x = 0; x < 768; x++) {
+  for (const seamY of [128, 256, 768, 896]) {
+    for (let x = 0; x < 1024; x++) {
       for (let d = 1; d <= BAND; d++) {
         const p = chance(d);
         if (hash(x, seamY - d, 1) < p) swap(x, seamY - d, x, seamY + d - 1);
@@ -1378,8 +1431,8 @@ const WMP03 = path.join(EXPLORE, 'WORLD_MAP_POLISH_03', 'out');
       }
     }
   }
-  for (const seamX of [128, 640]) {
-    for (let y = 0; y < 768; y++) {
+  for (const seamX of [128, 256, 768, 896]) {
+    for (let y = 0; y < 1024; y++) {
       for (let d = 1; d <= BAND; d++) {
         const p = chance(d);
         if (hash(seamX - d, y, 3) < p) swap(seamX - d, y, seamX + d - 1, y);
@@ -1427,9 +1480,11 @@ function boxFeather(src, gen, box) {
   return out;
 }
 const WMP03_SCENES = {
-  // Continuous loops: the burn scar and the fisher are features of the
-  // world, not apparitions — they are always there, gently moving.
-  fire2: { box: [8, 4, 42, 44], frames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+  // fire2 is retired: the caravan corridor cut through the master's forest
+  // (WMER02) runs through its content box, so the always-visible frame 0
+  // would paint pre-corridor forest over the road. The burn-scar concept is
+  // re-authored as fire3 in the south-west forest (WMER02 scenes below);
+  // the fire2 sources stay in WMP03's out/ as evidence.
   // The yeti's box starts two rows lower than the content measurement said,
   // deliberately: at [10, 10] the emitted region's top edge grazed
   // Frostmere's hit circle in the placement sweep, and the two trimmed rows
@@ -1470,6 +1525,54 @@ for (const [id, spec] of Object.entries(WMP03_SCENES)) {
 }
 
 /**
+ * WMER02 IN-PLACE SCENES — the same crop → edit → animate → box-feather
+ * method as WMP03, with this round's file naming (`<id>_src_64.png`,
+ * `<id>_f<i>.png`). fire3 replaces the corridor-displaced fire2 in the
+ * south-west forest. The stag follows the bear's discovery pattern: cycle
+ * opens on the untouched roadside (frame 0 = the source box), enters through
+ * sampled reversed exit frames, holds its standing look, then exits forward
+ * (f10 is pinned to the empty source). The flock's animation is pinned at
+ * both ends to the untouched marsh, so the plain frame sequence opens and
+ * closes empty.
+ */
+const WMER02_ENV = path.join(WMER02, 'env');
+const WMER02_SCENES = {
+  fire3: { box: [12, 0, 44, 52], frames: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+  stag: {
+    box: [8, 12, 28, 22],
+    cycle: [null, 9, 7, 5, 3, 1, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  },
+  flock: {
+    box: [0, 24, 64, 40],
+    frames: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    filePrefix: 'flock2',
+  },
+};
+for (const [id, spec] of Object.entries(WMER02_SCENES)) {
+  const src = png.load(path.join(WMER02_ENV, `${id}_src_64.png`));
+  if (src.width !== 64 || src.height !== 64) {
+    throw new Error(`wmer02 ${id}: source is ${src.width}x${src.height}`);
+  }
+  const gen = (i) => {
+    const frame = png.load(
+      path.join(WMER02_ENV, `${spec.filePrefix ?? id}_f${i}.png`),
+    );
+    if (frame.width !== 64 || frame.height !== 64) {
+      throw new Error(`wmer02 ${id} f${i}: ${frame.width}x${frame.height}`);
+    }
+    return frame;
+  };
+  const sequence = spec.cycle ?? spec.frames;
+  let out = 0;
+  for (const i of sequence) {
+    const frame = i == null
+      ? png.crop(src, ...spec.box)
+      : boxFeather(src, gen(i), spec.box);
+    emit(`env/overlay_${id}_f${out++}.png`, encode(frame));
+  }
+}
+
+/**
  * REWORKED AND NEW CREATURES — transparent travelling sprites: the loch
  * serpent (replacing the slug-read water dragon), the sky dragon, the whale,
  * and the sail. Each set is cropped to the union of every frame's opaque
@@ -1489,20 +1592,42 @@ const WMP03_CREATURES = {
       ...Array.from({ length: 10 }, (_, i) => `creature_nessie_swim_48x36_f${i + 1}.png`),
     ],
   },
+  // The dragon's journey is two flight loops then the WMER02 fire-breath
+  // moment (owner brief): the breath was animated from the same still the
+  // flight loop grew from, so the splice frames nearly coincide. With
+  // `playLoops: 1` in the layout, the breath happens exactly once per
+  // crossing. Direction note: the sprite's head faces west and the layout's
+  // travel vector now points west too — the WMP03 data had it flying
+  // tail-first east.
   skydragon: {
     canvas: [72, 32],
-    files: Array.from({ length: 10 }, (_, i) => `creature_skydragon_raw_72x32_f${i + 1}.png`),
+    files: [
+      ...Array.from({ length: 10 }, (_, i) => `creature_skydragon_raw_72x32_f${i + 1}.png`),
+      ...Array.from({ length: 10 }, (_, i) => `creature_skydragon_raw_72x32_f${i + 1}.png`),
+      ...Array.from({ length: 8 }, (_, i) => ({
+        dir: path.join(WMER02, 'env'),
+        name: `firebreath_f${i + 1}.png`,
+      })),
+    ],
   },
   whale: {
     canvas: [64, 64],
     files: Array.from({ length: 9 }, (_, i) => `creature_whale_raw_64_f${i}.png`),
   },
   ship: { canvas: [64, 64], files: ['creature_ship_still_64.png'] },
+  // WMER02: a tiny covered wagon for the caravan corridor. One still; motion
+  // is the layout's v5 `travel`, the ship's pattern.
+  caravan: {
+    canvas: [24, 24],
+    files: [{ dir: path.join(WMER02, 'env'), name: 'caravan_f0.png' }],
+  },
 };
 for (const [id, spec] of Object.entries(WMP03_CREATURES)) {
   const [cw, ch] = spec.canvas;
   const frames = spec.files.map((file) => {
-    const frame = png.load(path.join(WMP03_ENV, file));
+    const frame = typeof file === 'string'
+      ? png.load(path.join(WMP03_ENV, file))
+      : png.load(path.join(file.dir, file.name));
     if (frame.width !== cw || frame.height !== ch) {
       throw new Error(`${file}: expected ${cw}x${ch}, got ${frame.width}x${frame.height}`);
     }

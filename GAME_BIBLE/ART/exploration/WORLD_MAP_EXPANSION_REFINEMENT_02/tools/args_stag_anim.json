@@ -1,0 +1,7 @@
+{
+  "action": "the stag turns its head to look around calmly, then bounds back into the conifer trees on the left and disappears; the road, grass and trees stay completely still",
+  "first_frame_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/env/stag_edit_f0.png",
+  "last_frame_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/env/stag_src_64.png",
+  "frame_count": 10,
+  "seed": 68
+}

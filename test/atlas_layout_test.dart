@@ -628,24 +628,26 @@ void main() {
     });
 
     test('ships the five glyphs, the far tier and the one composed world', () {
-      // World Map Polish 03: the owner's scale-up brief. The accepted
-      // 512 × 512 master painting is byte-preserved at the centre of ONE
-      // composed 768 × 768 base — a ring of eight style-referenced frontier
-      // pieces, dither-crossfaded at the joins by the packaging step — so
-      // the world is 4608 × 4608 world px at scale 6, 2.25× the previous
-      // footprint, with frontier in all four directions. Still one tile at
-      // runtime: the composition happens in `package-art.js`, where the
-      // seam treatment is recorded and reproducible (M-12's stacked
-      // screenshots were untreated butt joins of unrelated generations).
+      // World Map Expansion Refinement 02: the owner's second scale-up. The
+      // accepted 512 × 512 master painting is byte-preserved at the centre
+      // of ONE composed 1024 × 1024 base — WMP03's inner frontier ring
+      // (seam-corrected this round) inside a second ring of twelve pieces,
+      // dither-crossfaded at every join by the packaging step — so the world
+      // is 6144 × 6144 world px at scale 6, with a caravan corridor opening
+      // the west. Still one tile at runtime: the composition happens in
+      // `package-art.js`, where the seam treatment is recorded and
+      // reproducible (M-12's stacked screenshots were untreated butt joins
+      // of unrelated generations).
       //
-      // Twenty-one landmarks stand. Two are minor captions (Millbridge,
-      // Ferry Crossing) and nineteen are **future** tier — places the roads
-      // point at and do not reach, now including the five frontier names
-      // (the Worldspine, the Frozen Shelf, Cinder Skerries, Wanderer's
-      // Isles, Sunward Strand). The tier is the classification the brief
-      // asked for: the atlas draws it quieter, suffixes it, gives it no hit
-      // target and keeps the whole layer inside an `IgnorePointer`, so a
-      // promise cannot be tapped by accident.
+      // Twenty-three landmarks stand. Two are minor captions (Millbridge,
+      // Ferry Crossing) and twenty-one are **future** tier — places the
+      // roads point at and do not reach. This round retired Outer Shoal
+      // (four names stacked in one south-east column on the device) and
+      // added three frontier names (Wayfarer's Pass, The White Reach, The
+      // Far Isles). The tier is the classification the brief asked for: the
+      // atlas draws it quieter, suffixes it, gives it no hit target and
+      // keeps the whole layer inside an `IgnorePointer`, so a promise
+      // cannot be tapped by accident.
       //
       // Asserted so removing a glyph, the tile, or the far tier is a
       // deliberate edit here too.
@@ -654,14 +656,14 @@ void main() {
       expect(layout.tiles, hasLength(1));
       expect(layout.tiles.single.asset, 'world/atlas_base');
       expect(layout.scale, 6);
-      expect(layout.worldWidth, 4608);
-      expect(layout.worldHeight, 4608);
-      expect(layout.landmarks, hasLength(21));
+      expect(layout.worldWidth, 6144);
+      expect(layout.worldHeight, 6144);
+      expect(layout.landmarks, hasLength(23));
       expect(
         layout.landmarks.where(
           (AtlasNamedLandmark l) => l.tier == AtlasLandmarkTier.future,
         ),
-        hasLength(19),
+        hasLength(21),
       );
       // No future landmark is a travelable place: the two sets are disjoint
       // by id, which is what "visual only" has to mean in a layout file.

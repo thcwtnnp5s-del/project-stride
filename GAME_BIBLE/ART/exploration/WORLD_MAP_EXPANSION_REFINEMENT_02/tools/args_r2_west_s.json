@@ -1,0 +1,14 @@
+{
+    "description":  "Vertical strip of a top-down pixel art fantasy world map: the western foothills of a mountain range. Forested slopes with varied silhouettes and shaded valleys tapering southward, opening to a patch of clear ground near the bottom. No repeating pattern, no text, no borders.",
+    "width":  128,
+    "height":  256,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_westforest_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "east: the mountain and forest terrain immediately right of this strip; continue it westward",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_west_s_right.png"
+                             }
+                         ],
+    "seed":  80
+}

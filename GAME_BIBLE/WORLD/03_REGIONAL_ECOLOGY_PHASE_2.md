@@ -256,6 +256,18 @@ Named so the geography has somewhere to grow, and deliberately **not built**:
 | **The Meadowrun mouth** | West, downriver | Coast and estuary. Where fishing would belong, if fishing is ever added. |
 | **Deeper Stonefall** | Down | Iron and the metal tier above bronze. Depth, not distance. |
 
+> **Amendment (World Map Expansion Refinement 02, 2026-08-25).** The painted
+> atlas the owner accepted on device across World Map Polish 03 and this
+> round fixes the opposite compass: the **Worldspine mountain wall stands
+> west** (now opened by a caravan pass at Wayfarer's Pass), the **open ocean
+> lies east**, and the **estuary coast runs south**. The two directional
+> exits above are therefore superseded as *directions* while remaining live
+> as *ideas*: a dry rain-shadow region would now sit **beyond the
+> Worldspine, west**, and the estuary/coast identity is already painted
+> **south**. This is recorded here rather than silently diverging (G-7);
+> re-founding the exit table onto the painted geography is the World
+> Designer's task when any of these regions is actually built.
+
 The dry region the Phase 2 brief offered as optional is **recorded here rather
 than built**. It is the right place for it geographically, and adding a fifth
 environmental identity would have widened the slice without deepening it — the

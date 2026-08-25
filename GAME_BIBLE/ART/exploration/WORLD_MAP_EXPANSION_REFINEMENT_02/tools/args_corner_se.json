@@ -1,0 +1,12 @@
+{
+  "description": "Corner tile of a top-down pixel art fantasy world map: warm southern shallows meeting the open sea. Bright turquoise shallow water with one or two pale sandbars continuing in from the left edge, matching the 'shore' reference exactly, and a thin golden beach line from the reference fading out into the water. Water deepens smoothly to the same teal as the 'sea' reference toward the top and right. Scattered short white wave dashes. No dark wedges, no shadows, no text, no borders.",
+  "width": 128,
+  "height": 128,
+  "no_background": false,
+  "style_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_shallows_64.png",
+  "reference_images": [
+    { "base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/ref_se_south_128.png", "usage": "shore: the beach and shallows immediately west of this corner; continue them" },
+    { "base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/ref_se_east_128.png", "usage": "sea: the ocean immediately north of this corner; match its water color at the top edge" }
+  ],
+  "seed": 43
+}

@@ -1,0 +1,14 @@
+{
+    "description":  "Corner tile of a top-down pixel art fantasy world map: a remote polar snowfield with wind-cut drifts and a hint of two distant low white peaks near the top left. Mostly empty snow, calm. No text, no borders.",
+    "width":  128,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_northice_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "south-east: the snowy terrain this corner extends; continue it",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_nw_diag.png"
+                             }
+                         ],
+    "seed":  73
+}

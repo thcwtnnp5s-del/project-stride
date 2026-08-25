@@ -1,0 +1,14 @@
+{
+    "description":  "Vertical strip of a top-down pixel art fantasy world map: open ocean east of an island chain. Same teal water and short white wave dashes as the reference, a thin chain of three tiny distant islands with pale sand rings in the upper half, then empty open sea. No text, no borders.",
+    "width":  128,
+    "height":  384,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_ocean_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "west: the ocean and islands immediately left of this strip; match the water color and wave style exactly",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_east_n_left.png"
+                             }
+                         ],
+    "seed":  75
+}

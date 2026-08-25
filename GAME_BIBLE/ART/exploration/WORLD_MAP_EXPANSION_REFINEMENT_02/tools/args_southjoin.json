@@ -1,0 +1,5 @@
+{
+  "description": "This map region has a too-straight horizontal boundary between the darker forest above and the brighter meadow below. Blend it naturally: let irregular clumps of the darker trees spill down into the meadow and tongues of bright meadow reach up between them, so no straight line remains. Keep both terrain styles and colors exactly as they are; only the boundary shape changes.",
+  "images_base64": ["@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/world/southjoin_src_256x60.png"],
+  "seed": 53
+}

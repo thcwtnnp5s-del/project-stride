@@ -1,0 +1,5 @@
+{
+  "description": "In this sea map tile, the dark volcanic rocky coast on the left edge must stay exactly as it is in the lower half, but toward the top it fades fully into open water: the top four rows of the image must be entirely open teal sea with no rock and no orange lava glow. Remove any lava near the top; keep the water color, the waves and everything in the lower half identical.",
+  "images_base64": ["@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/world/eaststriptop_src_128x64.png"],
+  "seed": 55
+}

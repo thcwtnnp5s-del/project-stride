@@ -1,0 +1,11 @@
+{
+  "description": "Vertical strip of a top-down pixel art fantasy world map: the sea directly east of a continent. The reference image labelled 'coast' is the terrain immediately to the west of this strip; continue it seamlessly eastward. At the very top, the dark volcanic rock coastline from the reference fades into the water within the first quarter. Everything else is open ocean in exactly the same teal-blue water color as the reference, with the same scattered short white wave dashes throughout. Two or three small islands in the same style as the reference: lush green tops with pale sand rings. Water deepens very slightly toward the right edge. Calm, readable, no text, no grid lines, no borders.",
+  "width": 128,
+  "height": 512,
+  "no_background": false,
+  "style_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_ocean_64.png",
+  "reference_images": [
+    { "base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/ref_east_column_128x512.png", "usage": "coast: the map terrain immediately west of this strip; continue its water color, wave style and island style seamlessly eastward" }
+  ],
+  "seed": 41
+}

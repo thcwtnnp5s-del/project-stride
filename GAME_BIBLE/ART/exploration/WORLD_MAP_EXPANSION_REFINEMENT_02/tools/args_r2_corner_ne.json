@@ -1,0 +1,14 @@
+{
+    "description":  "Corner tile of a top-down pixel art fantasy world map: frozen polar sea thinning to open cold water toward the bottom right, scattered small white floes. Calm daylight palette. No text, no borders.",
+    "width":  128,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_northice_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "south-west: the frozen sea this corner extends; continue it",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_ne_diag.png"
+                             }
+                         ],
+    "seed":  74
+}

@@ -1,0 +1,14 @@
+{
+    "description":  "Horizontal strip of a top-down pixel art fantasy world map: sunlit southern grassland plains with a few scattered single trees, opening southward to a low coastline with a thin golden beach along the bottom edge and the first turquoise water in the bottom corners. Broad, open, calm. No buildings, no text, no borders.",
+    "width":  384,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_shallows_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "above: the meadow, forest edge and coast beginning immediately north of this strip; continue it southward",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_south_w_above.png"
+                             }
+                         ],
+    "seed":  76
+}

@@ -199,23 +199,24 @@ void main() {
 
     // Every place carries its kind glyph under the ring, from the shipped
     // table — one hut, two trees, one pick, one dead tree (DECISIONS/0021 §5)
-    // — and each landmark its cairn. Eighteen landmarks now: the two minor
-    // captions and the sixteen far promises the correction round added
-    // north, south, east, west and offshore (§21) — twenty-one of them
-    // since World Map Polish 03 added the five frontier names.
+    // — and each landmark its cairn. Twenty-three landmarks since World Map
+    // Expansion Refinement 02: the two minor captions and twenty-one far
+    // promises (Outer Shoal retired from the crowded south-east column;
+    // Wayfarer's Pass, The White Reach and The Far Isles named on the second
+    // frontier ring).
     final List<String> glyphs = tester
         .widgetList<PixelAsset>(find.byType(PixelAsset))
         .map((PixelAsset a) => a.assetPath)
         .where((String path) => path.contains('/world/marker_'))
         .toList();
-    expect(glyphs, hasLength(26));
+    expect(glyphs, hasLength(28));
     int count(String tail) =>
         glyphs.where((String p) => p.endsWith(tail)).length;
     expect(count('marker_haven.png'), 1);
     expect(count('marker_wilds.png'), 2);
     expect(count('marker_worksite.png'), 1);
     expect(count('marker_perilous.png'), 1);
-    expect(count('marker_landmark.png'), 21);
+    expect(count('marker_landmark.png'), 23);
   });
 
   testWidgets('tapping a place opens its panel with what the rows carried', (

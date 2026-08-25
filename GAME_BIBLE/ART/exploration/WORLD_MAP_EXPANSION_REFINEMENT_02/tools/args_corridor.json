@@ -1,0 +1,5 @@
+{
+  "description": "Carve a winding pale dirt caravan road through this dense forest map region: the road enters at the left edge at about two-thirds height, winds gently eastward between the trees with a few small grassy clearings beside it, crosses the stream on a tiny log bridge, and joins the existing brown path along the stream's far bank near the lower right. Keep the stream course, the canopy style and colors, and everything far from the road exactly as it is.",
+  "images_base64": ["@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/world/corridor_src_128x75.png"],
+  "seed": 51
+}

@@ -1,0 +1,14 @@
+{
+    "description":  "Corner tile of a top-down pixel art fantasy world map: the last low green foothills of a mountain range easing into open grassland plains, a few scattered trees, calm and open. No text, no borders.",
+    "width":  128,
+    "height":  128,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_passmeadow_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "north-east: the forested foothills this corner extends; continue them",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_sw_diag.png"
+                             }
+                         ],
+    "seed":  78
+}

@@ -1,0 +1,5 @@
+{
+  "description": "Replace all the dark navy water in this map tile with the same pale daylight polar teal sea as the water and ice at the left edge, so the whole tile reads as one bright daytime arctic sea. Keep the white ice floes, the dark rock islet and its steam wisp, and the glacier edge exactly as they are; only the dark night-blue water changes color.",
+  "images_base64": ["@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/world/northfix_src_128.png"],
+  "seed": 52
+}

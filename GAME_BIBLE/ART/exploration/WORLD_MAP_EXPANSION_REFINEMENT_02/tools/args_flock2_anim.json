@@ -1,0 +1,8 @@
+{
+  "action": "a few tiny white birds fly up from the grass, circle once over the pond as small flying specks, and fly away off the top edge; the blue pond water and the green reeds stay exactly as they are",
+  "first_frame_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/env/flock_src_64.png",
+  "last_frame_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/env/flock_src_64.png",
+  "no_background": false,
+  "frame_count": 12,
+  "seed": 69
+}

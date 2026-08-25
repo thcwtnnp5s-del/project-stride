@@ -1,0 +1,5 @@
+{
+  "description": "Along the bottom edge of this arctic sea map tile, the dark rock must recede: make the bottom five rows a band of pale white-blue mist and thin ice matching the pale tones already present, so the tile can sit above a pale misty region. Keep the bright daylight teal sea, the white ice floes, the dark rock islet with its steam wisp, and everything in the upper three quarters exactly as it is.",
+  "images_base64": ["@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/world/northfix_edit_f0.png"],
+  "seed": 54
+}

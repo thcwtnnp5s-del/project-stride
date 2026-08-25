@@ -1,0 +1,14 @@
+{
+    "description":  "Vertical strip of a top-down pixel art fantasy world map: forested western foothills. Rounded green tree clusters in exactly the same greens as the reference canopy, a few grey rocky ridge lines between them, varied silhouettes, tapering to open grass near the bottom. No brown scree, no bare dirt slopes. No text, no borders.",
+    "width":  128,
+    "height":  256,
+    "no_background":  false,
+    "style_image_base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_foothills_64.png",
+    "reference_images":  [
+                             {
+                                 "usage":  "east: the mountain and forest terrain immediately right of this strip; continue its canopy and colors westward",
+                                 "base64":  "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/r2_west_s_right.png"
+                             }
+                         ],
+    "seed":  93
+}

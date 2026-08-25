@@ -1,0 +1,11 @@
+{
+  "description": "Vertical strip of a top-down pixel art fantasy world map: a great western mountain range beside a forest. The reference labelled 'forest' is the terrain immediately to the right of this strip; blend into it seamlessly along the right edge. The strip is a north-south chain of mountains with VARIED snowcapped peak silhouettes, high grey ridges, shaded valleys and conifer forest on the lower slopes - every peak shaped differently, no repeating pattern. Near the vertical middle of the strip the range opens into a broad mountain pass: a winding pale dirt caravan road comes in from the right edge at about half height, climbs gently through the open pass between the peaks and continues toward the left edge, with grassy shoulders and only sparse scattered trees around the road, leaving clear open ground. Snowy peaks continue above and below the pass. No text, no borders.",
+  "width": 128,
+  "height": 512,
+  "no_background": false,
+  "style_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/style_westforest_64.png",
+  "reference_images": [
+    { "base64": "@file:GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/refs/ref_west_column_128x512.png", "usage": "forest: the map terrain immediately east of this strip; blend into its canopy along the right edge" }
+  ],
+  "seed": 44
+}
