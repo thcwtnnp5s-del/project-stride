@@ -1,5 +1,27 @@
 # Project Stride — Project State
 
+**Version:** 2.25
+**Status:** 🚧 **WORLD ATLAS COHERENCE UI 01 — ocean-unification refinement
+(device pass 3) built, awaiting the owner's re-test.** Branch
+`playable-phase-2-multiregion`, on top of the edge-integration pass (`6c1cb88`).
+Record: the "Ocean unification refinement" section of
+`MILESTONES/WORLD_ATLAS_COHERENCE_UI_01.md`.
+
+A full nine-region audit at survey, true phone-FOV and max-zoom found the gross
+rectangles resolved and one **deterministic-only** defect: a faint vertical
+texture-density boundary in the open east sea (~x=832) plus an unconformed far-NE
+corner. Fixed in `ocean_unify.js` with **no PixelLab** — one global source
+distribution across all conform rects, a flat far-east target swatch (flattening
+the authored-side mottling), and the east rect extended over the far-NE corner
+(ice excluded by the guards). East, NE and SE now read as one sea. No terrain
+PixelLab spent: at phone-FOV/max-zoom the NW, north, west, south, SE headland and
+volcano read as continuous geography from the asset. `--check` clean (792 files);
+source-safety clean; World goldens unchanged (sea is outside the default view);
+balance held at **300**. Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11,
+OD-04, OD-06.
+
+---
+
 **Version:** 2.24
 **Status:** 🚧 **WORLD ATLAS COHERENCE UI 01 — edge-integration correction
 (device pass 2) built, awaiting the owner's re-test.** Branch

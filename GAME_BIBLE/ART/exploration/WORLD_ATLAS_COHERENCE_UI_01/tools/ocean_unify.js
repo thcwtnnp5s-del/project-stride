@@ -28,11 +28,16 @@ const isDeep = (r, g, b) => {
   return b >= r + 8 && g >= r + 3; // teal family
 };
 
-// Target dialect: a clean swatch of accepted east-coast open sea.
-const TGT = { x: 820, y: 560, w: 64, h: 140 };
+// Target dialect: a clean swatch of FLAT far-east open sea (moved out from the
+// more mottled east-coast water at 820,560). Snapping the whole sea to the flat
+// palette also flattens the authored-side mottling, so the texture-density
+// boundary at x~832 does not survive as one sea.
+const TGT = { x: 944, y: 380, w: 64, h: 180 };
 // Rectangles of open sea to conform (deep-water edges only). [x,y,w,h]
 const RECTS = [
-  [636, 180, 388, 720], // whole eastern sea (east coast + far-east + SE bridge water)
+  [636, 60, 388, 840], // whole eastern sea incl the far-NE corner above the ice
+                       // (ice/floes are excluded by the guards, so only open
+                       // water in this box is touched)
   [300, 860, 724, 164], // south / bottom deep sea (below the delta shallows)
   [504, 892, 520, 132], // r2_south_e panel: a distinct darker population its own
                         // stats flatten to the target (survived the broad rect)
@@ -72,11 +77,18 @@ function unify(atlas) {
   const palette = [...new Set(tgtPx.map((p) => (p[0] << 16) | (p[1] << 8) | p[2]))]
     .map((v) => [(v >> 16) & 255, (v >> 8) & 255, v & 255]);
 
+  // ONE global source distribution across every rect, so the whole open sea
+  // gets a single mean/std transform and no internal seam can survive between
+  // two deep-water sub-populations (the per-rect version left a vertical tone
+  // division at x~832 where the east bridge's authored sea met the frozen
+  // strip). Deep water everywhere maps from the same `a` to the same target.
+  let srcAll = [];
+  for (const [rx, ry, rw, rh] of RECTS) srcAll = srcAll.concat(collect(rx, ry, rw, rh));
+  if (!srcAll.length) return 0;
+  const a = stats(srcAll);
+
   let changed = 0;
   for (const [rx, ry, rw, rh] of RECTS) {
-    const srcPx = collect(rx, ry, rw, rh);
-    if (!srcPx.length) continue;
-    const a = stats(srcPx);
     for (let y = ry; y < ry + rh; y++) {
       for (let x = rx; x < rx + rw; x++) {
         if (x < 0 || y < 0 || x >= atlas.width || y >= atlas.height) continue;

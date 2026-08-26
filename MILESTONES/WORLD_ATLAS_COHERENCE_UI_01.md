@@ -133,6 +133,27 @@ rectangle; the NE ice/sea and the north ice read as continuous systems. Residual
 faint reads (a subtle north-centre snow-basin tone band; the west forest treeline
 edge) are classified **cosmetic**, and the south-coast whitecap fleck remains.
 
+## 8 · Ocean unification refinement (device pass 3)
+
+The third device review reported remaining rectangular reads across several
+regions. A full nine-region audit of the shipped atlas at survey, true
+phone-FOV (196 atlas px across at opening zoom) and max-zoom scales found the
+gross rectangles resolved, and one **deterministic-only** defect: the open sea
+still carried a faint vertical *texture-density* boundary (~x=832, the authored
+east-bridge sea meeting the flatter strip/far-east sea) and a small unconformed
+far-NE corner. Fixed in `ocean_unify.js` with **no PixelLab**: the conform now
+uses **one global source distribution** across all rects (so no two deep-water
+sub-populations can differ), a **flat far-east target swatch** (so the whole sea
+snaps to the flat palette and the authored-side mottling flattens to match), and
+the east rect extended up to take in the far-NE corner above the ice (ice
+excluded by the luminance/teal guards). The east, NE and SE now read as one sea.
+
+No terrain PixelLab was spent this pass: at phone-FOV and max-zoom the NW, north,
+west, south, SE headland and volcano surroundings read as continuous geography
+from the shipped asset. `--check` clean (792 files); source-safety clean; World
+goldens unchanged (the sea is outside the Haven's-Rest default view). Balance
+held at **300**.
+
 ## 6 · Deferred
 
 - **Label density.** The device brief reports future-landmark labels reading as
