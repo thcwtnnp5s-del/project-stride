@@ -86,19 +86,26 @@ import 'atlas/atlas_place_info.dart';
 import 'atlas/atlas_selection_panel.dart';
 import 'atlas/atlas_viewport.dart';
 
-/// How much of the screen the viewport takes. The rest is the panel, which
-/// scrolls; the atlas never does.
+/// The screen is now **map-first**: the atlas fills the whole World content
+/// area and the info panel floats over its lower third, translucent, so the
+/// painting continues behind the words (the owner's device brief). The panel
+/// scrolls within itself; the atlas never scrolls.
 ///
-/// **0.5, down from 0.56.** The panel grew from a name and a price into an
-/// inspector with two optional sections, and the balance that was right for
-/// three lines is not right for a dozen. The floor went the other way — 200 to
-/// 240 — because the thing the fraction protects is the *map's* usefulness on a
-/// short window, and a 200 dp atlas is a keyhole. Between them the atlas keeps
-/// half the screen on a phone and the panel scrolls for the rest, which is the
-/// arrangement the screen has always had: the atlas never scrolls.
-const double _viewportFraction = 0.5;
-const double _viewportMinHeight = 240;
-const double _viewportMaxHeight = 560;
+/// **~1/3 for the panel, down from the old half-and-half split.** The map used
+/// to take a fixed top slice (0.5, clamped 240–560) with an opaque card
+/// beneath; that gave the map at most half the height and none of it behind the
+/// panel. Now the map dominates at ~2/3 and the panel is a responsive fraction
+/// of the height, clamped so it stays readable on a short phone without eating
+/// the map on a tall one. Fraction + clamp, never a device-tuned constant.
+const double _panelFraction = 0.34;
+const double _panelMinHeight = 220;
+const double _panelMaxHeight = 360;
+
+/// The panel's top edge fades from fully transparent to the dark fill over this
+/// many logical pixels, and that strip lets drags fall through to the atlas
+/// (see [_WorldInfoPanel]). Kept in sync with the camera inset so the current
+/// location centres above the readable body, not behind it.
+const double _panelFadeHeight = 40;
 
 class WorldScreen extends StatefulWidget {
   const WorldScreen({super.key});
@@ -137,58 +144,118 @@ class _WorldScreenState extends State<WorldScreen> {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final double viewportHeight =
-            (constraints.maxHeight * _viewportFraction).clamp(
-              _viewportMinHeight,
-              _viewportMaxHeight,
-            );
-        return Column(
+        final double panelHeight = (constraints.maxHeight * _panelFraction)
+            .clamp(_panelMinHeight, _panelMaxHeight);
+        // The camera centres above the panel's readable body (its solid part,
+        // below the fade), so the you-are-here marker never opens behind glass.
+        final double bottomInset = (panelHeight - _panelFadeHeight).clamp(
+          0.0,
+          constraints.maxHeight,
+        );
+        return Stack(
           children: <Widget>[
-            SizedBox(
-              height: viewportHeight,
-              width: double.infinity,
+            // The atlas fills the whole area and continues behind the panel.
+            Positioned.fill(
               child: AtlasViewport(
                 scene: scene,
                 selected: selected.id,
                 kinds: kinds,
                 way: way,
+                bottomInset: bottomInset,
                 onSelect: (ContentId id) => setState(() => _selected = id),
               ),
             ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  StrideSpace.screenGutter,
-                  StrideSpace.s12,
-                  StrideSpace.screenGutter,
-                  StrideSpace.s16,
-                ),
-                children: <Widget>[
-                  if (s.isStale) ...<Widget>[
-                    StaleBanner(busy: c.busy, onReload: c.reload),
-                    const SizedBox(height: StrideSpace.cardGap),
-                  ],
-                  AtlasSelectionPanel(
-                    scene: scene,
-                    selected: selected,
-                    onTravelled: () => setState(() => _selected = null),
+            // The translucent info panel over the lower third.
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: panelHeight,
+              child: _WorldInfoPanel(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    StrideSpace.screenGutter,
+                    StrideSpace.s10,
+                    StrideSpace.screenGutter,
+                    StrideSpace.s16,
                   ),
-                  const SizedBox(height: StrideSpace.cardGap),
-                  Text(
-                    'Drag to look around; pinch to look closer. '
-                    'Routes run only between neighbours, so some places are '
-                    'reached by way of another. Faint names are landmarks — '
-                    'geography, not destinations.',
-                    style: StrideType.micro.copyWith(
-                      color: StrideColors.textMuted,
+                  children: <Widget>[
+                    if (s.isStale) ...<Widget>[
+                      StaleBanner(busy: c.busy, onReload: c.reload),
+                      const SizedBox(height: StrideSpace.s10),
+                    ],
+                    AtlasSelectionPanel(
+                      scene: scene,
+                      selected: selected,
+                      bare: true,
+                      onTravelled: () => setState(() => _selected = null),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: StrideSpace.s8),
+                    Text(
+                      'Drag to look around; pinch to look closer. '
+                      'Faint names are landmarks, not destinations.',
+                      style: StrideType.micro.copyWith(
+                        color: StrideColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+/// The translucent, warm-brown "smoked parchment" panel the World info sits on,
+/// over the lower third of the atlas.
+///
+/// Two regions stacked: a top fade strip that ramps from fully transparent to
+/// the dark fill — wrapped in [IgnorePointer] so pans and pinches in it reach
+/// the atlas behind — and a solid translucent body that owns its own gestures
+/// (the list scrolls, the Travel button taps) and reads clearly against the
+/// map. No blur: a [BackdropFilter] over nearest-neighbour pixel art turns the
+/// posts to mush and costs a raster every frame; a semi-transparent dark fill
+/// carries the "atlas continues behind" read at no cost.
+class _WorldInfoPanel extends StatelessWidget {
+  const _WorldInfoPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    // The warm-brown ground (StrideColors.surfaceGround is 0xFF14120F), the
+    // same ink the fallback's YOU-ARE-HERE caption fades to.
+    return Column(
+      children: <Widget>[
+        IgnorePointer(
+          child: SizedBox(
+            height: _panelFadeHeight,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[Color(0x0014120F), Color(0xF014120F)],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Color(0xF014120F),
+              border: Border(
+                top: BorderSide(color: StrideColors.borderDefault),
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ],
     );
   }
 }

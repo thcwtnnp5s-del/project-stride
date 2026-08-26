@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/south_src_512x128.png",
+  "description": "Repaint this southern shoreline as one continuous transition from land to sea, seen from above. Green forest and meadow along the top should give way downward through reedy wetland and marsh, braided delta channels and mudflats, then pale sandy shallows into open teal sea at the bottom. Carry the river mouths and the coastline across so they flow naturally. Remove the straight horizontal comb-like row of repeating ticks; no straight line and no speckled band should remain. Keep the same green, brown, sand and teal palette and the same pixel-art style as the surroundings.",
+  "mask_x": 16,
+  "mask_y": 16,
+  "mask_width": 480,
+  "mask_height": 96,
+  "crop_to_mask": true,
+  "seed": 106
+}

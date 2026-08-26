@@ -25,9 +25,9 @@ import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/screen_header.dart' show formatSteps;
-import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layers.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_selection_panel.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -225,8 +225,10 @@ void main() {
     final StrideSession session = await boot(tester, banked: 5000);
     await pumpWorld(tester, session);
 
-    // Before any tap: the panel is on the current location.
-    final Finder panel = find.byType(SectionCard);
+    // Before any tap: the panel is on the current location. The inspector is
+    // now the map-first screen's translucent panel (`bare`, no SectionCard), so
+    // the content is scoped to AtlasSelectionPanel rather than the card.
+    final Finder panel = find.byType(AtlasSelectionPanel);
     expect(
       find.descendant(of: panel, matching: find.textContaining('You are here')),
       findsOneWidget,
@@ -306,8 +308,13 @@ void main() {
     expect(button, findsOneWidget);
     expect((tester.widget(button) as StrideButton).onPressed, isNotNull);
 
-    // The confirmation quotes the whole way's price and what it leaves.
+    // The confirmation quotes the whole way's price and what it leaves. The
+    // map-first panel gives the info a scrolling third of the screen, so the
+    // control can sit below the fold for a rich place — bring it into view the
+    // way a player scrolls to it before tapping.
     final int before = session.usableEnergy;
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(
@@ -635,9 +642,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.currentLocation?.value, 'location.whispering_woods');
 
+    // The map fills the window and the translucent panel overlays its lower
+    // part, so the arrived place centres in the VISIBLE map area above the
+    // panel body — not the full window — or the you-are-here marker would open
+    // behind the glass. The visible area runs from the window top to the panel
+    // body's top (the panel's ListView), and the marker lands at its centre.
     final Rect window = tester.getRect(find.byType(AtlasViewport));
+    final double panelBodyTop = tester.getRect(find.byType(ListView)).top;
+    final Offset visibleCentre = Offset(
+      window.center.dx,
+      (window.top + panelBodyTop) / 2,
+    );
     final Offset here = tester.getCenter(hit('location.whispering_woods'));
-    expect((window.center - here).distance, lessThan(2));
+    expect((visibleCentre - here).distance, lessThan(2));
     expect(find.textContaining('You are here'), findsOneWidget);
 
     // And the destination gets its one beat, on the marker the player now

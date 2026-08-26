@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/se_src_192x192.png",
+  "description": "Repaint this south-eastern corner as one continuous coastline seen from above, where the land's corner meets the open sea. Green land with sandy beaches in the upper-left should give way through pale turquoise shallows into open teal sea filling the lower-right, with any small islands kept. Remove the straight vertical and horizontal boundary lines and the abrupt beach cut-off; no straight line or speckled band should remain. Keep the same green, sand and teal palette and the same pixel-art style as the surroundings.",
+  "mask_x": 24,
+  "mask_y": 24,
+  "mask_width": 144,
+  "mask_height": 144,
+  "crop_to_mask": true,
+  "seed": 108
+}

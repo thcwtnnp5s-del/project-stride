@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/north_west_src_288x288.png",
+  "description": "Repaint this north-western corner as one continuous frozen frontier seen from above: snow-capped grey mountains and glacier in the upper-left flowing down and right into pale snowfields and white pack-ice with a few teal open-water leads toward the lower-right. Remove the straight vertical and horizontal boundary lines and any comb-like row of repeating ticks; nothing straight or speckled should remain. Keep the same white, grey and teal palette and the same pixel-art style as the surrounding terrain.",
+  "mask_x": 24,
+  "mask_y": 24,
+  "mask_width": 208,
+  "mask_height": 208,
+  "crop_to_mask": true,
+  "seed": 103
+}

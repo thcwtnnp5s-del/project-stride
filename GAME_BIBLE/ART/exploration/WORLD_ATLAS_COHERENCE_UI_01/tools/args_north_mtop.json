@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/north_mtop_src_420x96.png",
+  "description": "Repaint this band so the snowy grey mountains at the top settle smoothly into the broad pale snow basin below them. Remove the straight horizontal boundary line running across the middle; the snow should read as one continuous field sweeping down from the peaks with soft drifts, no straight edge and no abrupt change of texture. Keep the same white, pale-blue and grey palette and the same pixel-art style as the surroundings.",
+  "mask_x": 16,
+  "mask_y": 12,
+  "mask_width": 388,
+  "mask_height": 68,
+  "crop_to_mask": true,
+  "seed": 112
+}

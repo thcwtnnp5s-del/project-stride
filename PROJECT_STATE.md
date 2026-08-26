@@ -1,5 +1,43 @@
 # Project Stride — Project State
 
+**Version:** 2.23
+**Status:** 🚧 **WORLD ATLAS COHERENCE UI 01 — the seam-coherence and map-first
+World pass is built, awaiting the owner's review and device test.** Branch
+`playable-phase-2-multiregion`, on top of Expansion Refinement 02 (`559669e`).
+Record: `MILESTONES/WORLD_ATLAS_COHERENCE_UI_01.md`; art round
+`GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/README.md`.
+
+The device verdict — right world, but it does not yet read as one painting —
+answered in one breath: four passes of narrowing seams to a dither band still
+shipped rectangles to the phone because a straight band at ×6 display scale is a
+straight line, so this pass stops **blending** seams and starts **authoring**
+them (`MISTAKES.md` M-14, `RULES.md` A-3). Twelve `inpaint_image` **bridges**,
+each cut from the shipped composite with real terrain from both sides and its
+outer margins frozen so it re-seats, carry the coastline, ridge, road and biome
+*through* every join — the east volcanic coast, the north ice wall/comb/master-
+top/corners, the west Worldspine, the south delta and the SE corner — and the
+open ocean's several teal dialects are unified deterministically to one accepted
+swatch (`ocean_unify.js`, A-2). No visible generated rectangle survives the
+sixteen-boundary contact sheet. The **World tab is map-first**: a `Stack` where
+the atlas fills the area and continues behind a translucent warm-brown panel over
+the lower third (responsive ~1/3, an `IgnorePointer` fade so the map pans at the
+seam, a semi-transparent dark fill, no blur), the inspector rendered `bare`, and
+a new `bottomInset` centring the current/arrived place in the *visible* map above
+the panel. No canvas growth, no ring 3, no new regions, no new easter eggs;
+health, economy, saves, combat, audio and navigation semantics untouched.
+
+Suites: app **658**; analyze clean; guards (source-safety, ui-boundary,
+dependency-policy, core-purity) clean; `package-art.js --check` clean (792 files;
+`atlas_base` reproducible from the twelve tracked bridges + deterministic ocean
+conform, byte-matching the reviewed composite). Goldens: only the two World
+goldens changed, regenerated and reviewed (they show the map-first layout).
+PixelLab: 12 generations of ~28 each = **335**, balance 815 → **480**, no rerolls
+needed. Deferred: label-density judgement (needs the rendered device view, not
+the source PNG) and a 1px-border packaging guard; `seam_review.js` is the interim
+preflight. Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11, OD-04, OD-06.
+
+---
+
 **Version:** 2.22
 **Status:** 🚧 **WORLD MAP EXPANSION REFINEMENT 02 — the second scale-up and
 coherence pass is built, awaiting the owner's review and device test.**

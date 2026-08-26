@@ -1440,6 +1440,48 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
       }
     }
   }
+
+  // ---------------------------- World Atlas Coherence UI 01 (device review)
+  //
+  // The dither above narrows each generation seam to a noisy band; on a
+  // physical iPhone, at the layout's ×6 display scale, those bands and the
+  // straight lattice lines still read as rectangles (`MISTAKES.md` M-14). The
+  // fix is to author the boundaries rather than blend them: for each visible
+  // seam an `inpaint_image` bridge was generated from a wide crop of THIS
+  // composite (real terrain from both sides of the join, the crop's outer
+  // margins frozen so it re-seats), and the open ocean's several teal dialects
+  // are conformed to one accepted swatch (A-2 palette remap). The bridges are
+  // blitted here — after the dither, over the seams — in the order they were
+  // authored (later wins where they overlap); the ocean conform runs last.
+  // Provenance, the review composite and the seam map:
+  // `GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/README.md`.
+  const WACUI = path.join(EXPLORE, 'WORLD_ATLAS_COHERENCE_UI_01');
+  const bridge = (name, w, h) => {
+    const raster = png.load(path.join(WACUI, 'out', 'bridges', `${name}_f0.png`));
+    if (raster.width !== w || raster.height !== h) {
+      throw new Error(`bridge ${name}: expected ${w}x${h}, got ${raster.width}x${raster.height}`);
+    }
+    return raster;
+  };
+  for (const [name, w, h, x, y] of [
+    ['north_west', 288, 288, 0, 0],
+    ['north_center', 512, 288, 256, 0],
+    ['north_east', 256, 288, 768, 0],
+    ['north_master', 512, 80, 256, 224],
+    ['nw_corner', 220, 220, 80, 80],
+    ['north_junction', 512, 84, 256, 188],
+    ['north_mtop', 420, 96, 300, 232],
+    ['west_mid', 256, 512, 48, 256],
+    ['east_x768', 256, 512, 640, 256],
+    ['sw', 272, 304, 0, 592],
+    ['south', 512, 128, 256, 720],
+    ['se', 192, 192, 704, 704],
+  ]) {
+    png.blit(base, bridge(name, w, h), x, y);
+  }
+  // Deterministic open-ocean conform (single source of the water math).
+  require(path.join(WACUI, 'tools', 'ocean_unify.js')).unify(base);
+
   emit('world/atlas_base.png', encode(base));
 }
 

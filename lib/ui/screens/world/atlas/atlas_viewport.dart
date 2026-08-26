@@ -110,10 +110,18 @@ class AtlasViewport extends StatefulWidget {
     required this.kinds,
     required this.onSelect,
     this.way,
+    this.bottomInset = 0,
   });
 
   final AtlasScene scene;
   final ContentId? selected;
+
+  /// Logical height along the bottom that the translucent info panel covers.
+  /// The camera centres the current (and each arrived) location in the map area
+  /// *above* this inset, so the you-are-here marker never opens behind the
+  /// panel. Panning and clamping still use the full window — a curious player
+  /// can pull a lower place up out from behind the glass.
+  final double bottomInset;
 
   /// What kind of place each node is, resolved once by the screen.
   final Map<ContentId, AtlasPlaceKind> kinds;
@@ -243,10 +251,19 @@ class AtlasViewportState extends State<AtlasViewport>
       _lifecycle == AppLifecycleState.resumed &&
       !MediaQuery.disableAnimationsOf(context);
 
-  Offset _centredOn(AtlasNode node) => Offset(
-    node.x - _viewport.width / (2 * _zoom),
-    node.y - _viewport.height / (2 * _zoom),
-  );
+  Offset _centredOn(AtlasNode node) {
+    // Centre in the map area above the info panel, not the full window, so the
+    // current location opens clear of the translucent panel. Guarded so a
+    // pathological inset taller than the window cannot invert the maths.
+    final double visibleHeight = (_viewport.height - widget.bottomInset).clamp(
+      _viewport.height * 0.25,
+      _viewport.height,
+    );
+    return Offset(
+      node.x - _viewport.width / (2 * _zoom),
+      node.y - visibleHeight / (2 * _zoom),
+    );
+  }
 
   /// Keeps the world covering the viewport. When the world is narrower than
   /// the window at this zoom, it is centred instead.

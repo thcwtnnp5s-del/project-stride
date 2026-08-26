@@ -21,6 +21,72 @@ to `M-02` stays valid.
 
 ---
 
+## M-14 — A composed atlas measured as joined, blended and border-clean still shipped rectangles to the phone
+
+**Date:** 2026-08-26 · **Category:** art pipeline / verification (M-12 / M-04
+family) · **Provenance:** World Map Polish 01 / 03, World Map Expansion
+Refinement 02, and World Atlas Coherence UI 01, world-atlas stream
+
+### What happened
+
+M-12 said stop butt-joining separate paintings, and the world stream did. The
+accepted 512² master is byte-preserved; every ring piece is style-referenced
+against a 64² crop of the exact edge it touches; the joins get a deterministic
+dither crossfade that invents no colours; water and snow tints are conformed by
+a mean/std palette match; and each round composited a preview and reviewed seams
+at ×4 on a desktop. `package-art.js --check` passed every time — hundreds of
+files, all reproducible from tracked sources.
+
+And the owner's iPhone still opened, pass after pass, on rectangles: an east
+"torn scan-line" column, a north ice wall and comb, a south delta comb, a
+far-east ocean panel and an SE beach cut-off — straight lattice lines the eye
+read as pasted tiles at the layout's ×6 display scale.
+
+### Root cause
+
+**Pixel-edge continuity is not geographic or artistic continuity, and
+everything the pipeline measured was pixel-edge continuity.** Byte-preservation,
+style-reference chips, the dither crossfade, palette conform and a seam-distance
+metric all answer *do the two sides meet smoothly at the cut line*. None can
+answer *does the coastline continue, does the biome belong, does the drawing
+hand match at the scale a player holds* — which is what the eye reads as a
+rectangle. The dither is a 1-D pixel swap along a perfectly straight lattice
+line: it narrows a seam to a noisy band but authors nothing across it, and a
+straight axis-aligned band at ×6 is a straight axis-aligned band. `--check` is a
+reproducibility gate and cannot see a seam; the desktop composite was viewed
+downscaled-to-fit, where a 22 px band and small hue steps fall below threshold.
+The one instrument that ever caught the defect — a rectangle at phone scale —
+was the one the pipeline did not run before shipping.
+
+### Consequence
+
+No player harm — presentation only, caught on the owner's own device each round
+— but the same class of defect cost four consecutive world passes, each declared
+clean by `--check` and a desktop review before the phone found it.
+
+### Prevention
+
+- **A generated rectangle is a defect until a blind read at iPhone-viewport
+  scale says otherwise. No visible generated boundary may remain in
+  production.** A seam metric, a crossfade and a palette conform are triage,
+  never the verdict.
+- **Grow and repair by transition authoring, not seam blending.** Author each
+  boundary from a wide crop that contains real terrain from *both* sides
+  (inpaint the join, freeze the margins so it re-seats), or regenerate the
+  region whole; carry the coastline, ridge, road and biome *through* the join.
+  Reserve deterministic conform for flat open water, where one palette is the
+  whole answer. This round did exactly that — twelve inpainted bridges over the
+  seams and one ocean conform — and is the worked example (`RULES.md` A-3;
+  `GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/README.md`).
+- **Review every generation boundary at every scale before the device pass:**
+  full composite, high zoom, and representative iPhone-viewport scale — and at
+  each boundary, all four of biome, coastline/waterline, detail-scale (drawing
+  hand) and palette continuity. A join that fails any one at phone scale is not
+  shipped.
+- **Catch mechanical border artefacts with a tool, not memory.** A 1 px uniform
+  generation border is deterministic; packaging should fail on it rather than
+  relying on someone re-running an edge scan.
+
 ## M-13 — Blind QA was staged inside a directory whose path named the intent
 
 **Date:** 2026-08-20 · **Category:** process / visual production (M-04 family) ·

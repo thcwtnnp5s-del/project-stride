@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/nw_corner_src_220x220.png",
+  "description": "Repaint this north-western corner as one continuous frozen landscape seen from above: grey snow-capped mountains and glacier flowing into pale white pack-ice with a few teal open-water leads, easing toward snowy forested slopes at the lower right. Remove the straight vertical and horizontal boundary lines and any speckled noise; nothing straight or stippled should remain. Keep the same white, grey, teal and dark-green palette and the same pixel-art style as the surroundings.",
+  "mask_x": 16,
+  "mask_y": 16,
+  "mask_width": 188,
+  "mask_height": 188,
+  "crop_to_mask": true,
+  "seed": 111
+}

@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/sw_src_272x304.png",
+  "description": "Repaint this south-western frontier as one continuous landscape seen from above: forested hills and a few grey mountains in the upper area easing down into open green plains and scattered woodland toward the bottom. Remove the straight horizontal boundary line where the tone steps, the straight vertical boundary, and any speckled noise; nothing straight or stippled should remain. Keep the same green, grey and brown palette and the same pixel-art style as the surrounding land.",
+  "mask_x": 24,
+  "mask_y": 24,
+  "mask_width": 208,
+  "mask_height": 256,
+  "crop_to_mask": true,
+  "seed": 107
+}

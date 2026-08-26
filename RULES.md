@@ -268,3 +268,10 @@ in code, **provided they invent no new object, silhouette, animation frame, or
 illustrated content.** The nav `_hi` variants are a derivation of this kind and
 stand.
 → owner direction, 2026-08-17
+
+**A-3 — Production atlas expansions are transition-authored across every
+boundary.** Tile-local generation plus seam blending, palette conform, or a seam
+metric is triage, not evidence of visual continuity: no generated boundary ships
+until a blind read at iPhone-viewport scale confirms biome, coastline,
+detail-scale and palette continuity, and no visible generated rectangle remains.
+→ `MISTAKES.md` M-12, M-14

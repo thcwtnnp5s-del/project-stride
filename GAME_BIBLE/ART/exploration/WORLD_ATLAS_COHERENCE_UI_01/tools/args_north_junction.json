@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/north_junction_src_512x84.png",
+  "description": "Repaint this band so the pale ice and snowfield at the top flows smoothly down into the snowy grey mountains below. Remove the straight horizontal boundary line running across the middle; the snow should read as one continuous field draping over the mountain shoulders. Keep the same white, pale-blue and grey palette and the same pixel-art style as the surroundings; no straight line and no speckled band should remain.",
+  "mask_x": 16,
+  "mask_y": 16,
+  "mask_width": 480,
+  "mask_height": 52,
+  "crop_to_mask": true,
+  "seed": 110
+}

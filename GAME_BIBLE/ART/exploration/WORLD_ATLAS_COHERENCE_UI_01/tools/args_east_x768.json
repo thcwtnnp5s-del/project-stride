@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/east_x768_src_256x512.png",
+  "description": "Repaint this coastal strip as one continuous shoreline. On the left is a dark volcanic rocky headland with a few lava veins; on the right is open teal sea with small white whitecaps. Remove the vertical band of stippled blue-and-dark noise running down the middle and replace it with a natural coast: dark rock and small beaches meeting pale turquoise shallows that fade smoothly into the open teal sea. Keep the exact same colors and pixel-art style as the surrounding water and rock; no straight vertical line and no speckled noise column should remain.",
+  "mask_x": 64,
+  "mask_y": 0,
+  "mask_width": 128,
+  "mask_height": 512,
+  "crop_to_mask": true,
+  "seed": 101
+}

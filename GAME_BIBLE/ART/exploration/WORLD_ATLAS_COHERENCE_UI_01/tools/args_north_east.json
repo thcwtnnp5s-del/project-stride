@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/north_east_src_256x288.png",
+  "description": "Repaint this north-eastern arctic sea as one continuous frozen ocean seen from above: pale pack-ice and floes in the upper area breaking up into scattered small dark rocky skerries and open teal sea toward the lower-right. Remove the straight horizontal comb-like row of ticks and the straight vertical boundary; there must be no straight lines and no speckled noise band. Keep the same white, dark-rock and teal palette and the same pixel-art style as the surrounding ice and water.",
+  "mask_x": 16,
+  "mask_y": 24,
+  "mask_width": 216,
+  "mask_height": 208,
+  "crop_to_mask": true,
+  "seed": 104
+}

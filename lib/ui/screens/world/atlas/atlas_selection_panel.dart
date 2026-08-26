@@ -57,9 +57,16 @@ class AtlasSelectionPanel extends StatelessWidget {
     required this.scene,
     required this.selected,
     required this.onTravelled,
+    this.bare = false,
   });
 
   final AtlasScene scene;
+
+  /// When true the inspector renders without its opaque [SectionCard], so it
+  /// can sit directly on the World screen's translucent map-first panel and let
+  /// the atlas show through. The pre-atlas fallback keeps the card (`bare`
+  /// stays false there).
+  final bool bare;
 
   /// The place under discussion. The screen defaults it to the current
   /// location, so the panel is never empty.
@@ -93,6 +100,7 @@ class AtlasSelectionPanel extends StatelessWidget {
       busy: watched.busy,
       ready: watched.session.isReady,
       lastJourney: watched.lastJourney,
+      bare: bare,
       onTravel: legs.isEmpty
           ? null
           : () {
@@ -146,10 +154,15 @@ class AtlasInspector extends StatelessWidget {
     required this.lastJourney,
     required this.onTravel,
     this.onTrackJourney,
+    this.bare = false,
   });
 
   final String name;
   final AtlasPlaceInfo info;
+
+  /// Render without the opaque [SectionCard] wrapper, for the translucent
+  /// map-first panel. See [AtlasSelectionPanel.bare].
+  final bool bare;
 
   /// The walk from here to this place: its hops and its costs. Null when this
   /// *is* here, or when no chain of roads reaches it.
@@ -188,8 +201,7 @@ class AtlasInspector extends StatelessWidget {
     final bool open =
         way != null && refusal == null && !busy && ready && onTravel != null;
 
-    return SectionCard(
-      child: Column(
+    final Widget content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
@@ -326,8 +338,9 @@ class AtlasInspector extends StatelessWidget {
             TravelResultLine(journey: journey),
           ],
         ],
-      ),
-    );
+      );
+
+    return bare ? content : SectionCard(child: content);
   }
 
   /// `You are here · Safe`, `Reached`, `Not yet reached · Safe`.

@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/src/west_mid_src_256x512.png",
+  "description": "Repaint this western frontier as one continuous landscape seen from above. On the left are grey snow-capped mountains; they should descend through rocky foothills into open green plains that meet a darker green forest edge on the right. A pale dirt caravan road winds south through the plains and must be kept continuous. Remove the two straight vertical boundary lines and any speckled noise columns; nothing straight or stippled should remain. Keep the same grey, green and brown palette and the same pixel-art style as the surrounding land, and keep the winding road.",
+  "mask_x": 24,
+  "mask_y": 16,
+  "mask_width": 212,
+  "mask_height": 480,
+  "crop_to_mask": true,
+  "seed": 105
+}
