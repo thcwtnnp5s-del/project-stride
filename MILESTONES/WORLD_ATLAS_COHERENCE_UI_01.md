@@ -96,6 +96,43 @@ and view `out/review/seams/contact_sheet.png` at phone scale; then on the device
 - PixelLab: 12 inpaint bridges, **335** generations, balance 815 → **480**
   (ceiling ~400, reset 2026-09-16); ocean conform deterministic.
 
+## 7 · Edge-integration correction (device pass 2)
+
+The owner's second physical-device test accepted the World UI direction and the
+larger atlas, but found a **second lattice**: several of the twelve bridges had
+removed the original seam yet still shipped their own rectangular footprint,
+because a bridge's repainted interior differs in tone/detail from the terrain
+beyond its frozen margin (and, in one reroll, because a mask edge was placed on
+a tonal boundary rather than in uniform terrain). This is M-14 restated at a
+smaller scale, now on the record as a new prevention bullet there
+(*"a repair has a perimeter too"*).
+
+Fixed by continuing the geography *outward across* each visible perimeter, cut
+from the post-conform composite and blitted last in `package-art.js`:
+`d1_nw`/`d1c_nw` (NW glacier and mountains fray into continuing pack ice — the
+first attempt `d1b` left a flat block with a hard edge and is
+`rejected/`), `d4_west` (the Wayfarer's Pass horizontal cut becomes a
+plain→foothills→valley descent), `d5_se` (the flat SE headland becomes detailed
+forest with a sandy shore), `d2_north`/`d2b_floe` (the northern floe block thins
+into the snow basin), `d3_ne` (the NE ice thins raggedly into the open sea). The
+NE ocean and the SE land patch dissolved; masks were placed so their own edges
+land in uniform terrain. `seam_review.js` was extended to emit each of the twelve
+bridge footprints with a margin, so the perimeter read is reviewable, not only
+the historical tile seams.
+
+PixelLab: 8 inpaint edits (one, `d1b`, rejected and preserved), **180**
+generations, balance 480 → **300** (≤200 ceiling; over the 150 target by the one
+NW-blocker reroll, allowed for a named blocker). No Dart changed; the World
+goldens are **unchanged** because the default view centres on Haven's Rest and
+every edited region is on the frontier, outside that viewport. `--check` clean
+(792 files, atlas reproducible); world/atlas tests and source-safety green.
+
+Acceptance on this pass: the NW glacier no longer reads as an inserted
+illustration; the west pass has no horizontal cut; the SE headland shows no flat
+rectangle; the NE ice/sea and the north ice read as continuous systems. Residual
+faint reads (a subtle north-centre snow-basin tone band; the west forest treeline
+edge) are classified **cosmetic**, and the south-coast whitecap fleck remains.
+
 ## 6 · Deferred
 
 - **Label density.** The device brief reports future-landmark labels reading as

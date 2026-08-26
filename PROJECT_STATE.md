@@ -1,5 +1,36 @@
 # Project Stride — Project State
 
+**Version:** 2.24
+**Status:** 🚧 **WORLD ATLAS COHERENCE UI 01 — edge-integration correction
+(device pass 2) built, awaiting the owner's re-test.** Branch
+`playable-phase-2-multiregion`, on top of the coherence+UI pass (`383846a`).
+Record: the "Edge-integration correction" section of
+`MILESTONES/WORLD_ATLAS_COHERENCE_UI_01.md`.
+
+The second device test accepted the map-first UI and the larger atlas but found a
+**second lattice**: several of the twelve bridges had removed the original seam
+yet still shipped their own rectangular footprint (the repainted interior differs
+in tone/detail from the terrain beyond the frozen margin). Answered in one
+breath: eight `inpaint_image` edits (one rejected, preserved) continue the
+geography *outward across* each perimeter rather than softening it — the NW
+glacier and mountains fray into continuing pack ice, the Wayfarer's Pass
+horizontal cut becomes a plain→foothills→valley descent, the flat SE headland
+becomes detailed forest with a sandy shore, the northern floe block thins into
+the snow basin, and the NE ice thins raggedly into the open sea — with each mask
+placed so its own edges land in uniform terrain (M-14 gains the *"a repair has a
+perimeter too"* prevention bullet; `seam_review.js` now emits the twelve bridge
+footprints). No World UI change, no gameplay change, no new content.
+
+Suites: world/atlas tests green (atlas_screen 14, phase1_ui 41, phase1_golden);
+source-safety clean; `package-art.js --check` clean (792 files, atlas
+reproducible). Goldens **unchanged** — the default World view centres on Haven's
+Rest and every edited region is on the frontier, outside that viewport. PixelLab:
+8 edits, **180** generations, balance 480 → **300** (≤200 ceiling). Residual
+faint reads (a north-centre snow-basin tone band, the west forest treeline) are
+cosmetic. Open: Q-06, Q-07 remainder, Q-08, Q-09, Q-10, Q-11, OD-04, OD-06.
+
+---
+
 **Version:** 2.23
 **Status:** 🚧 **WORLD ATLAS COHERENCE UI 01 — the seam-coherence and map-first
 World pass is built, awaiting the owner's review and device test.** Branch

@@ -1482,6 +1482,32 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
   // Deterministic open-ocean conform (single source of the water math).
   require(path.join(WACUI, 'tools', 'ocean_unify.js')).unify(base);
 
+  // Edge-integration pass (the device found several bridges whose own
+  // rectangular footprint still read once the original seam was gone — the
+  // repair-crop perimeter, M-14). These edits dissolve those perimeters by
+  // continuing the geography outward across them (glacier/mountains fraying
+  // into pack ice, plain descending into valley, a flat headland made detailed
+  // forest, floes thinning into snow and sea). Cut from the post-conform
+  // composite, so blitted last, in authoring order.
+  const edge = (name, w, h) => {
+    const raster = png.load(path.join(WACUI, 'out', 'fix2', 'bridges', `${name}_f0.png`));
+    if (raster.width !== w || raster.height !== h) {
+      throw new Error(`edge ${name}: expected ${w}x${h}, got ${raster.width}x${raster.height}`);
+    }
+    return raster;
+  };
+  for (const [name, w, h, x, y] of [
+    ['d1_nw', 256, 272, 176, 24],
+    ['d1c_nw', 300, 300, 0, 0],
+    ['d4_west', 300, 120, 0, 544],
+    ['d5_se', 200, 152, 684, 684],
+    ['d2_north', 430, 104, 290, 236],
+    ['d2b_floe', 240, 160, 240, 140],
+    ['d3_ne', 160, 260, 740, 40],
+  ]) {
+    png.blit(base, edge(name, w, h), x, y);
+  }
+
   emit('world/atlas_base.png', encode(base));
 }
 

@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d1b_nwleft.png",
+  "description": "A frozen mountain wilderness seen from above, with a glacier and snow-capped grey peaks. Repaint so the glacier and mountains sit naturally in open snowfield — their lower slopes fraying into snow drifts and their extent irregular — with no straight left or top edge and no rectangular boundary anywhere; the snow should read as one continuous field around them. Keep the same white, grey and pale-blue palette and pixel-art style.",
+  "mask_x": 8,
+  "mask_y": 8,
+  "mask_width": 212,
+  "mask_height": 272,
+  "crop_to_mask": true,
+  "seed": 125
+}

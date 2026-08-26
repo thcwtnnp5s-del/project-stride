@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d3_ne.png",
+  "description": "A cold northern sea seen from above: white pack ice and floes on the left, open teal ocean on the right. Repaint so the ice thins gradually into the sea — large floes breaking into smaller scattered ones, then meltwater and open teal water — with an irregular ragged ice edge that follows the water, not a straight line. Remove any rectangular block of ice or straight boundary between ice and ocean. Keep the same white and teal palette and pixel-art style.",
+  "mask_x": 16,
+  "mask_y": 16,
+  "mask_width": 128,
+  "mask_height": 228,
+  "crop_to_mask": true,
+  "seed": 124
+}

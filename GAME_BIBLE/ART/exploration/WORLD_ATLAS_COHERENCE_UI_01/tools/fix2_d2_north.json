@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d2_north.png",
+  "description": "A snowy alpine region seen from above: grey snow-capped peaks toward the top settling into a broad pale snow basin below. Repaint so the snow sweeps down continuously from the peaks into the basin with soft drifts and subtle contour, removing any straight horizontal boundary or abrupt change of snow texture or brightness across the middle. One continuous snowfield. Keep the same white, pale-blue and grey palette and pixel-art style.",
+  "mask_x": 16,
+  "mask_y": 16,
+  "mask_width": 398,
+  "mask_height": 72,
+  "crop_to_mask": true,
+  "seed": 123
+}

@@ -86,6 +86,16 @@ clean by `--check` and a desktop review before the phone found it.
 - **Catch mechanical border artefacts with a tool, not memory.** A 1 px uniform
   generation border is deterministic; packaging should fail on it rather than
   relying on someone re-running an edge scan.
+- **A repair has a perimeter too.** The device found a *second* lattice in the
+  first fix: an authored bridge can remove the original seam and still ship its
+  own rectangular footprint, because its interior tone/detail differs from the
+  terrain beyond its mask, or its mask edge was placed on a tonal boundary
+  rather than in uniform terrain. Review each repair crop's four edges and
+  corners — not only the historical tile seams — and dissolve any that read by
+  **continuing the geography outward across the perimeter** (mountains fraying
+  into snow, plain descending into valley), never by re-cropping a larger
+  rectangle; place a repair mask so its own edges land in uniform terrain.
+  `seam_review.js` now emits the twelve bridge footprints for this.
 
 ## M-13 — Blind QA was staged inside a directory whose path named the intent
 

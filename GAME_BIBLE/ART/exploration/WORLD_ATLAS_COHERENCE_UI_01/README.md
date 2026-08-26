@@ -60,6 +60,22 @@ Bridges are `inpaint_image` (~28 gen each). Start balance **815**, end **480** �
 ocean conform is deterministic (0 generations). No rerolls were needed — every
 bridge was accepted on its first candidate. Resets 2026-09-16.
 
+## Edge-integration pass (device pass 2)
+
+The second device test found a **second lattice**: some bridges removed the
+original seam but their own rectangular footprint still read, because the
+repainted interior differs from the terrain beyond the frozen margin. Fixed with
+`inpaint_image` edits (`tools/fix2_*.json`, results in `out/fix2/bridges/`)
+that continue the geography *outward across* each perimeter, blitted last in
+`package-art.js`: `d1_nw` + `d1c_nw` (NW glacier/mountains fray into pack ice;
+`d1b` rejected — a flat block with a hard edge — in `rejected/`), `d4_west`
+(plain→foothills→valley, killing the horizontal cut), `d5_se` (flat headland →
+detailed forest + shore), `d2_north` + `d2b_floe` (floe block thins into the snow
+basin), `d3_ne` (ice thins raggedly into the sea). Masks were placed so their own
+edges land in **uniform** terrain, not on a tonal boundary. `seam_review.js` now
+also emits each bridge footprint+margin under `out/review/seams/bridges/`. Spend:
+8 edits, **180** generations, balance 480 → **300**.
+
 ## Acceptance (device checklist for the owner)
 Run `node tools/seam_review.js` and view `out/review/seams/contact_sheet.png` at
 phone scale, then on the phone confirm: no cell shows a straight generated

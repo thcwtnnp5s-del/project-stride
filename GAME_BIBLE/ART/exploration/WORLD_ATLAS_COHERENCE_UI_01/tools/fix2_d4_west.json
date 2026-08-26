@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d4_west.png",
+  "description": "Seen from above: at the top is an open green plain with a pale dirt road; at the bottom is a darker forested valley with a few small snow-capped peaks. Repaint the middle so the plain descends gradually into the valley — the open grass giving way to rocky foothills and scattered trees, then the denser forest and low mountains — so elevation and vegetation change like real terrain. Remove the straight horizontal boundary running across; nothing may stop on a flat line. Keep the same green, grey and brown palette and pixel-art style.",
+  "mask_x": 8,
+  "mask_y": 16,
+  "mask_width": 284,
+  "mask_height": 88,
+  "crop_to_mask": true,
+  "seed": 121
+}

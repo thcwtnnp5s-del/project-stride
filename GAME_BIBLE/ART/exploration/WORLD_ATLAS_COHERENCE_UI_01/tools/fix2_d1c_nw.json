@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d1c_nw.png",
+  "description": "A frozen northern wilderness seen from above. Repaint this so grey snow-capped mountains and a glacier sit within a continuous field of white snow and broken pack ice, with the pack-ice floes and cracks carrying on to the right so it matches the broken ice already there at the right side. The mountains' lower slopes should fray into snow and floes; there must be no straight vertical or horizontal edge and no rectangular block — one continuous icy landscape. Keep the same white, grey and pale-teal palette and pixel-art style.",
+  "mask_x": 8,
+  "mask_y": 8,
+  "mask_width": 272,
+  "mask_height": 284,
+  "crop_to_mask": true,
+  "seed": 127
+}

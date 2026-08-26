@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d5_se.png",
+  "description": "A green coastal headland seen from above, meeting teal sea. The upper-left area is too flat and plain; repaint it as detailed woodland matching the surrounding coast — rounded clumped tree canopy in varied greens with shadow, small clearings, and a sandy shoreline where the land meets the water. Blend it seamlessly into the detailed forest and coast around it so no flat patch and no straight rectangular edge remains. Keep the same green, sand and teal palette and pixel-art style.",
+  "mask_x": 16,
+  "mask_y": 16,
+  "mask_width": 168,
+  "mask_height": 120,
+  "crop_to_mask": true,
+  "seed": 122
+}

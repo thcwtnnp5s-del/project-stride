@@ -47,6 +47,39 @@ const JOINS = [
   ['s_outer_y896', 512, 896],
 ];
 
+// The 12 authored bridges, by footprint [name, x, y, w, h]. A bridge can remove
+// the original seam and still leave its OWN rectangular footprint visible if its
+// interior differs from the surrounding terrain (MISTAKES.md M-14, the
+// repair-crop-perimeter lesson). This emits each footprint with a margin of
+// surrounding terrain so a reviewer can ask: could I infer this rectangle?
+const BRIDGES = [
+  ['north_west', 0, 0, 288, 288],
+  ['north_center', 256, 0, 512, 288],
+  ['north_east', 768, 0, 256, 288],
+  ['north_master', 256, 224, 512, 80],
+  ['nw_corner', 80, 80, 220, 220],
+  ['north_junction', 256, 188, 512, 84],
+  ['north_mtop', 300, 232, 420, 96],
+  ['west_mid', 48, 256, 256, 512],
+  ['east_x768', 640, 256, 256, 512],
+  ['sw', 0, 592, 272, 304],
+  ['south', 256, 720, 512, 128],
+  ['se', 704, 704, 192, 192],
+];
+const perimDir = path.join(outDir, 'bridges');
+fs.mkdirSync(perimDir, { recursive: true });
+const M = 40; // margin of surrounding terrain around each footprint
+for (const [name, bx, by, bw, bh] of BRIDGES) {
+  const x = Math.max(0, bx - M);
+  const y = Math.max(0, by - M);
+  const w = Math.min(atlas.width - x, bw + 2 * M);
+  const h = Math.min(atlas.height - y, bh + 2 * M);
+  // Scale so the long side is ~ 520 px for a legible perimeter read.
+  const s = Math.max(1, Math.round(520 / Math.max(w, h)));
+  png.save(path.join(perimDir, `${name}.png`), png.scale(png.crop(atlas, x, y, w, h), s));
+}
+console.log(`seam_review: ${BRIDGES.length} bridge footprints+margin -> ${perimDir}`);
+
 const cells = [];
 for (const [name, cx, cy] of JOINS) {
   const x = Math.max(0, Math.min(atlas.width - W, cx - (W >> 1)));

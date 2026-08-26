@@ -30,8 +30,25 @@ const BRIDGES = [
   ['se', 704, 704],
 ];
 
+// Edge-integration pass (fix2): dissolves the visible perimeters of the bridges
+// above. Cut from the post-conform atlas, so blitted AFTER the ocean conform.
+const FIX2 = [
+  ['d1_nw', 176, 24],
+  ['d1c_nw', 0, 0],
+  ['d4_west', 0, 544],
+  ['d5_se', 684, 684],
+  ['d2_north', 290, 236],
+  ['d2b_floe', 240, 140],
+  ['d3_ne', 740, 40],
+];
+const fix2 = (name) =>
+  png.load(path.join(__dirname, '..', 'out', 'fix2', 'bridges', `${name}_f0.png`));
+
 const atlas = png.load(process.argv[2]);
 for (const [name, x, y] of BRIDGES) png.blit(atlas, bridge(name), x, y);
 const n = unify(atlas);
+for (const [name, x, y] of FIX2) png.blit(atlas, fix2(name), x, y);
 png.save(process.argv[3], atlas);
-console.log(`compose_review: ${BRIDGES.length} bridges + ${n} ocean px -> ${process.argv[3]}`);
+console.log(
+  `compose_review: ${BRIDGES.length} bridges + ${n} ocean px + ${FIX2.length} edge fixes -> ${process.argv[3]}`,
+);

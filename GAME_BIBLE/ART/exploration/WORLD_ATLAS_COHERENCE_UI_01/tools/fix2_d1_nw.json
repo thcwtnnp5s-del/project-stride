@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_COHERENCE_UI_01/out/fix2/src/d1_nw.png",
+  "description": "This is a frozen mountain landscape seen from above. On the left are grey snow-capped mountains and a glacier tongue; on the right is open white snowfield and pale teal pack ice. Repaint so the mountains and glacier taper and break apart gradually as they go right — ridges lowering into foothills, the glacier fraying into snow drifts and ice patches — dissolving naturally into the open snowfield and pack ice. No straight edge, no rectangular block, no abrupt change in snow texture or tone; one continuous frozen wilderness. Keep the same white, grey and pale-teal palette and pixel-art style.",
+  "mask_x": 24,
+  "mask_y": 24,
+  "mask_width": 208,
+  "mask_height": 224,
+  "crop_to_mask": true,
+  "seed": 120
+}
