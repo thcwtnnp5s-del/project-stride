@@ -781,6 +781,35 @@ final class RecipeOption {
     }
     return count == 1 << 30 ? 1 : count;
   }
+
+  /// Which of the Craft planner's bands this recipe belongs to (Fable V2
+  /// Iteration 03). Derived HERE, deliberately: if a widget classified,
+  /// the section counts, the census line, and the engine could each tell a
+  /// different story the first time the definitions drifted (E-2/F-07).
+  /// Order follows the engine's own refusal order: lock, then skill, then
+  /// ingredients. "One away" means exactly one ingredient LINE is short,
+  /// whatever the quantity — a single clear next objective.
+  ReadinessBand get band {
+    if (isLocked) return ReadinessBand.gated;
+    if (!skillMet) return ReadinessBand.skillLocked;
+    if (canCraft) return ReadinessBand.ready;
+    final int short = ingredients
+        .where((RecipeIngredientLine i) => !i.satisfied)
+        .length;
+    return short == 1 ? ReadinessBand.oneAway : ReadinessBand.missing;
+  }
+}
+
+/// The Craft planner's readiness bands, in display order.
+enum ReadinessBand {
+  ready('Ready'),
+  oneAway('One ingredient away'),
+  missing('Missing materials'),
+  skillLocked('Skill locked'),
+  gated('Locked');
+
+  const ReadinessBand(this.label);
+  final String label;
 }
 
 /// One line of a recipe's requirements, with what the player actually holds.
@@ -790,12 +819,20 @@ final class RecipeIngredientLine {
     required this.displayName,
     required this.required,
     required this.held,
+    this.craftedByRecipe,
   });
 
   final ContentId item;
   final String displayName;
   final int required;
   final int held;
+
+  /// The recipe that produces this ingredient, or null when it is not a
+  /// crafted good — the Craft planner's chain link (Fable V2 Iteration 03):
+  /// tapping a short crafted ingredient jumps the bench to the recipe that
+  /// makes it. Where several recipes share an output (the mill's plank
+  /// pair), the projection picks the one the player can currently see.
+  final ContentId? craftedByRecipe;
 
   bool get satisfied => held >= required;
 
@@ -805,6 +842,10 @@ final class RecipeIngredientLine {
   }
 }
 
+/// What kind of thing a [SkillUnlock] opens — the roadmap's row glyph and
+/// the tap-detail's shape both key off it.
+enum SkillUnlockKind { site, milestone, recipe }
+
 /// One thing a skill level gates, and whether the player has it yet.
 final class SkillUnlock {
   const SkillUnlock({
@@ -813,10 +854,27 @@ final class SkillUnlock {
     required this.unlocked,
     required this.where,
     this.gate,
+    this.kind = SkillUnlockKind.site,
+    this.detailLines = const <String>[],
+    this.trackableItem,
   });
 
   final String displayName;
   final int requiredLevel;
+
+  /// Site, milestone, or recipe — see [SkillUnlockKind].
+  final SkillUnlockKind kind;
+
+  /// The expanded row's whole story, pre-capped in the projection (Fable V2
+  /// Iteration 03): a site says what it yields and what that feeds; a
+  /// recipe says what it needs and what it makes possible. At most two
+  /// lines — the roadmap is a plan, not a wiki, and capping HERE is what
+  /// keeps a widget from growing the cap (E-2).
+  final List<String> detailLines;
+
+  /// The item this unlock produces, for the Track-as-Pursuit control, or
+  /// null for a milestone.
+  final ContentId? trackableItem;
 
   /// Actually available — the level **and** every other gate met. It used
   /// to mean "level met" alone, which made the Skills screen say "Level 2
@@ -832,6 +890,54 @@ final class SkillUnlock {
   /// `a contract at Stonefall Mine`, `the Stonefall Lift`, `a tier-2 axe` —
   /// or null when the level is the whole story.
   final String? gate;
+}
+
+/// Where one roadmap level stands relative to the player (Fable V2
+/// Iteration 03): earned, the level they are on, the nearest level that
+/// still holds content, or the road beyond it.
+enum RoadmapLevelState { earned, current, next, future }
+
+/// One level of a profession's roadmap: its number, its standing, and
+/// every unlock authored at it. A level with no entries is a legitimate
+/// breath in the ladder; the screen renders it as one muted line rather
+/// than hiding the number.
+final class RoadmapLevel {
+  const RoadmapLevel({
+    required this.level,
+    required this.state,
+    required this.entries,
+    this.xpAway,
+  });
+
+  final int level;
+  final RoadmapLevelState state;
+  final List<SkillUnlock> entries;
+
+  /// Experience still to go to reach this level — carried ONLY on the
+  /// [RoadmapLevelState.next] band, deliberately: a distance on every
+  /// future row is the spreadsheet this screen exists to not be.
+  final int? xpAway;
+}
+
+/// A profession's whole plannable future: the standing the header restates
+/// and the ladder from level 1 to the last level any content touches —
+/// never padded to the curve's cap, because an empty promise is a lie the
+/// player can walk toward.
+final class SkillRoadmap {
+  const SkillRoadmap({
+    required this.standing,
+    required this.levels,
+    required this.openCount,
+    required this.totalCount,
+  });
+
+  final SkillStanding standing;
+  final List<RoadmapLevel> levels;
+
+  /// How many of the skill's unlocks are open / authored in total — the
+  /// header's "6 of 14 unlocks open" line.
+  final int openCount;
+  final int totalCount;
 }
 
 /// What a journey did.
@@ -4642,6 +4748,22 @@ final class StrideSession {
     final ContentRegistry? content = registry;
     if (active == null || content == null) return const <RecipeOption>[];
 
+    // The chain-link join (Iteration 03): which VISIBLE recipe produces
+    // each item, under exactly the filters below — a link to a hidden or
+    // retired recipe would jump the bench to a row that does not exist.
+    final Map<ContentId, ContentId> producerOf = <ContentId, ContentId>{};
+    for (final RecipeDefinition recipe in content.recipes.values) {
+      final ContentId? gate = recipe.unlockedByProject;
+      if (gate != null && !active.state.progress.isProjectComplete(gate)) {
+        continue;
+      }
+      final ContentId? retired = recipe.retiredByProject;
+      if (retired != null && active.state.progress.isProjectComplete(retired)) {
+        continue;
+      }
+      producerOf.putIfAbsent(recipe.outputItem, () => recipe.id);
+    }
+
     final List<RecipeOption> options = <RecipeOption>[];
     for (final RecipeDefinition recipe in content.recipes.values) {
       final SkillDefinition? skill = content.skills[recipe.skill];
@@ -4681,6 +4803,13 @@ final class StrideSession {
                 displayName: content.items[i.item]?.displayName ?? i.item.value,
                 required: i.quantity,
                 held: active.state.inventory.quantityOf(i.item),
+                // Never self-referential: a recipe consuming another batch
+                // of its own output cannot exist (the loader forbids it),
+                // but an equipment upgrade consuming its base could chain
+                // to itself through a shared output — guard anyway.
+                craftedByRecipe: producerOf[i.item] == recipe.id
+                    ? null
+                    : producerOf[i.item],
               ),
           ],
           outputItem: recipe.outputItem,
@@ -4751,6 +4880,23 @@ final class StrideSession {
     );
 
     final GameState state = active.state;
+    // The expanded row's "what that feeds" line, capped at two consumers —
+    // one join through the same purpose projection the bag reads, so the
+    // roadmap and the item detail cannot disagree.
+    String? feedsLine(ContentId item) {
+      final ItemPurposeView? purpose = itemPurposeOf(item);
+      if (purpose == null) return null;
+      final List<String> consumers = <String>[
+        ...purpose.usedInRecipes,
+        ...purpose.wantedBy,
+      ];
+      if (consumers.isEmpty) return null;
+      final String head = consumers.take(2).join(' · ');
+      final int more = consumers.length - 2;
+      final String name = displayNameOf(item);
+      return more > 0 ? '$name feeds $head · +$more more' : '$name feeds $head';
+    }
+
     final List<SkillUnlock> unlocks = <SkillUnlock>[
       for (final ResourceNodeDefinition node in content.resourceNodes.values)
         if (node.skill == skill)
@@ -4766,12 +4912,20 @@ final class StrideSession {
                 ? 'a tier-${node.minimumToolTier} '
                       '${node.requiredToolKind.name}'
                 : null;
+            final int yieldQty = active.profile.applyYield(node.yieldsQuantity);
             return SkillUnlock(
               displayName: node.displayName,
               requiredLevel: node.requiredLevel,
               unlocked: level >= node.requiredLevel && projectMet,
               where: _hostOf(node.id, content),
               gate: gate,
+              kind: SkillUnlockKind.site,
+              trackableItem: node.yieldsItem,
+              detailLines: <String>[
+                'Yields ${displayNameOf(node.yieldsItem)}'
+                    '${yieldQty > 1 ? ' ×$yieldQty' : ''}',
+                if (feedsLine(node.yieldsItem) case final String feeds) feeds,
+              ],
             );
           }(),
       // The quiet milestones: a level at which a node starts paying bonus
@@ -4787,6 +4941,7 @@ final class StrideSession {
             // The node's name already places it; a host would double the
             // "at" ("…at Meadow Patch at Haven's Rest").
             where: null,
+            kind: SkillUnlockKind.milestone,
           ),
       for (final RecipeDefinition recipe in content.recipes.values)
         if (recipe.skill == skill &&
@@ -4811,12 +4966,22 @@ final class StrideSession {
                         : content.locations[c.location]?.displayName;
                     return at == null ? 'a contract' : 'a contract at $at';
                   }();
+            final ItemDefinition? output = content.items[recipe.outputItem];
             return SkillUnlock(
               displayName: recipe.displayName,
               requiredLevel: recipe.requiredLevel,
               unlocked: level >= recipe.requiredLevel && taught,
               where: null,
               gate: gate,
+              kind: SkillUnlockKind.recipe,
+              trackableItem: recipe.outputItem,
+              detailLines: <String>[
+                'Needs ${recipe.ingredients.map((RecipeIngredient i) => '${displayNameOf(i.item)} ×${i.quantity}').join(', ')}',
+                if ((output?.healing ?? 0) > 0)
+                  'Heals ${output!.healing}'
+                else if (feedsLine(recipe.outputItem) case final String feeds)
+                  feeds,
+              ],
             );
           }(),
     ];
@@ -4831,6 +4996,117 @@ final class StrideSession {
   static String? _hostOf(ContentId node, ContentRegistry content) {
     for (final LocationDefinition location in content.locations.values) {
       if (location.resourceNodes.contains(node)) return location.displayName;
+    }
+    return null;
+  }
+
+  /// A profession's whole plannable future (Fable V2 Iteration 03): the
+  /// standing, and every level from 1 to the last one any content touches,
+  /// each carrying its unlocks and its relation to the player — earned,
+  /// current, the NEXT level that still holds content (with the true XP
+  /// distance, from the same curve the engine gates with), or future.
+  ///
+  /// Derived entirely from [unlocksFor] and [SkillDefinition] — the Skills
+  /// card's three lines and this ladder read one ordering, so they cannot
+  /// disagree about what a level buys (the two-definitions risk the UX
+  /// review named).
+  SkillRoadmap? skillRoadmapFor(ContentId skill) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final SkillDefinition? definition = content?.skills[skill];
+    if (active == null || content == null || definition == null) return null;
+
+    final SkillStanding standing = definition.standingAt(
+      active.state.skills.experienceIn(skill),
+    );
+    final List<SkillUnlock> unlocks = unlocksFor(skill);
+    if (unlocks.isEmpty) {
+      return SkillRoadmap(
+        standing: standing,
+        levels: const <RoadmapLevel>[],
+        openCount: 0,
+        totalCount: 0,
+      );
+    }
+
+    final Map<int, List<SkillUnlock>> byLevel = <int, List<SkillUnlock>>{};
+    int horizon = standing.level;
+    for (final SkillUnlock u in unlocks) {
+      byLevel.putIfAbsent(u.requiredLevel, () => <SkillUnlock>[]).add(u);
+      if (u.requiredLevel > horizon) horizon = u.requiredLevel;
+    }
+    // The nearest level above the player that still holds content — the one
+    // band that carries an XP distance.
+    int? nextWithContent;
+    for (int l = standing.level + 1; l <= horizon; l++) {
+      if (byLevel.containsKey(l)) {
+        nextWithContent = l;
+        break;
+      }
+    }
+
+    return SkillRoadmap(
+      standing: standing,
+      levels: <RoadmapLevel>[
+        for (int l = 1; l <= horizon; l++)
+          RoadmapLevel(
+            level: l,
+            state: l < standing.level
+                ? RoadmapLevelState.earned
+                : l == standing.level
+                ? RoadmapLevelState.current
+                : l == nextWithContent
+                ? RoadmapLevelState.next
+                : RoadmapLevelState.future,
+            entries: byLevel[l] ?? const <SkillUnlock>[],
+            xpAway: l == nextWithContent
+                ? (definition.experienceForLevel(l) - standing.totalExperience)
+                      .clamp(0, 1 << 62)
+                : null,
+          ),
+      ],
+      openCount: unlocks.where((SkillUnlock u) => u.unlocked).length,
+      totalCount: unlocks.length,
+    );
+  }
+
+  /// Where a missing ingredient comes from, as one capped line — the same
+  /// purpose joins the bag reads, so the bench and the bag agree. Null when
+  /// the pack gives the item no source (which the content validator treats
+  /// as its own problem, not this line's).
+  String? ingredientSourceLine(ContentId item) {
+    final ItemPurposeView? purpose = itemPurposeOf(item);
+    if (purpose == null) return null;
+    final List<String> sources = <String>[
+      ...purpose.gatheredAt,
+      ...purpose.droppedBy.map((String enemy) => 'dropped by $enemy'),
+      ...purpose.craftedBy.map((String recipe) => 'crafted: $recipe'),
+    ];
+    if (sources.isEmpty) return null;
+    final String head = sources.take(2).join(' · ');
+    final int more = sources.length - 2;
+    return more > 0 ? '$head · +$more more' : head;
+  }
+
+  /// The one warning the balance review demanded the bench say out loud
+  /// (Fable V2 Iteration 03): this recipe consumes an item an UNCOMPLETED
+  /// `requiresOwned` contract still asks to *see*. Crafting first turns
+  /// that contract into a wait for another drop — a delay the player
+  /// should choose, not discover.
+  String? consumesProverWarning(RecipeOption recipe) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return null;
+    for (final RecipeIngredientLine line in recipe.ingredients) {
+      for (final ContractDefinition contract in content.contracts.values) {
+        if (!contract.requiresOwned.contains(line.item)) continue;
+        if (active.state.progress.completionsOf(contract.id) > 0) continue;
+        final String at =
+            content.locations[contract.location]?.displayName ??
+            contract.location.value;
+        return '${contract.displayName} at $at asks to see '
+            '${line.displayName} first — this craft consumes it';
+      }
     }
     return null;
   }

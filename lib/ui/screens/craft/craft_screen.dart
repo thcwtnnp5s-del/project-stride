@@ -96,6 +96,80 @@ class _CraftScreenState extends State<CraftScreen> {
   /// The selected recipe — ephemeral UI selection (`RULES.md` E-2).
   ContentId? _selected;
 
+  /// The chain-jump breadcrumb (Fable V2 Iteration 03): tapping a short
+  /// crafted ingredient jumps the selection to the recipe that makes it,
+  /// and this remembers the way back. Depth in shipped content is ≤2
+  /// (ore → ingot → sword), so one visible chip covers reality; any
+  /// manual row tap clears it. Ephemeral presentation only.
+  final List<ContentId> _chainStack = <ContentId>[];
+
+  /// Jumps the bench to [recipe]'s row, remembering [from]. Clears the
+  /// category filter — an ingot is Materials while the sword is Gear, and
+  /// jumping inside a filtered list would land on a row that is not there.
+  void _jumpTo(ContentId recipe, {required ContentId from}) {
+    setState(() {
+      _chainStack.add(from);
+      _category = null;
+      _selected = recipe;
+    });
+    _revealRow(recipe);
+  }
+
+  void _jumpBack() {
+    if (_chainStack.isEmpty) return;
+    final ContentId back = _chainStack.removeLast();
+    setState(() => _selected = back);
+    _revealRow(back);
+  }
+
+  /// The list's own controller, so a chain jump can reach a row the lazy
+  /// list has not built yet.
+  final ScrollController _list = ScrollController();
+
+  /// One global key, on the SELECTED row only. A key on every lazy-list
+  /// row caused viewport offset-correction storms ("exceeded its maximum
+  /// number of layout cycles") as keyed children crossed the build range;
+  /// the reveal only ever needs to find the row the jump selected.
+  final GlobalKey _selectedRowKey = GlobalKey();
+
+  @override
+  void dispose() {
+    _list.dispose();
+    super.dispose();
+  }
+
+  /// Scrolls the jumped-to row into view. The list is lazy, so an
+  /// off-screen row has no context yet: sweep a viewport-page at a time —
+  /// upward first (an ingredient is more basic than its consumer, so its
+  /// band sits higher), then downward — until the row builds, then settle
+  /// it near the top. Bounded, instant page hops, one eased final settle
+  /// (Duration.zero under Reduce Motion).
+  Future<void> _revealRow(ContentId recipe) async {
+    final GlobalKey key = _selectedRowKey;
+    final bool reduced = MediaQuery.disableAnimationsOf(context);
+    for (int attempt = 0; attempt < 14; attempt++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final BuildContext? target = key.currentContext;
+      if (target != null) {
+        if (!target.mounted) return;
+        await Scrollable.ensureVisible(
+          target,
+          alignment: 0.15,
+          duration: reduced ? Duration.zero : const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+        );
+        return;
+      }
+      if (!_list.hasClients) return;
+      final ScrollPosition pos = _list.position;
+      final double page = pos.viewportDimension;
+      final double next = (attempt < 7 ? pos.pixels - page : pos.pixels + page)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (next != pos.pixels) _list.jumpTo(next);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final SessionController controller = SessionScope.of(context);
@@ -143,6 +217,7 @@ class _CraftScreenState extends State<CraftScreen> {
           : null,
       onDismiss: CraftScope.read(context).dismissSummary,
       child: ListView(
+        controller: _list,
         padding: const EdgeInsets.fromLTRB(
           StrideSpace.screenGutter,
           StrideSpace.s12,
@@ -186,28 +261,143 @@ class _CraftScreenState extends State<CraftScreen> {
               ),
             ),
 
-          for (final RecipeOption recipe in shown) ...<Widget>[
-            _RecipeRow(
-              recipe: recipe,
-              selected: selectedId == recipe.id,
-              onTap: () {
-                // Opening or closing any row clears a transient result; a
-                // held one has its own Continue.
-                if (!craft.active && !craft.summaryHeld) {
-                  CraftScope.read(context).dismissSummary();
-                }
-                setState(
-                  () => _selected = _selected == recipe.id ? null : recipe.id,
-                );
-              },
-            ),
-            if (selectedId == recipe.id) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              _RecipeDetail(recipe: recipe),
+          // The planner's readiness bands (Fable V2 Iteration 03): the one
+          // list, sectioned by the projection's own classification —
+          // widgets never decide "one away", or the header counts and the
+          // census line would drift apart (E-2). Empty bands are skipped
+          // entirely; the census line above already covers the zero case.
+          for (final (String label, List<RecipeOption> band) in _bands(
+            shown,
+          )) ...<Widget>[
+            if (band.isNotEmpty) ...<Widget>[
+              SectionHeading(
+                label: label,
+                trailing: Text(
+                  '${band.length}',
+                  style: StrideType.microLabel.copyWith(
+                    color: StrideColors.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: StrideSpace.s6),
+              for (final RecipeOption recipe in band) ...<Widget>[
+                KeyedSubtree(
+                  key: selectedId == recipe.id ? _selectedRowKey : null,
+                  child: _RecipeRow(
+                    recipe: recipe,
+                    selected: selectedId == recipe.id,
+                    onTap: () {
+                      // Opening or closing any row clears a transient result;
+                      // a held one has its own Continue. A manual tap also
+                      // clears the chain breadcrumb — the player has walked
+                      // their own way.
+                      if (!craft.active && !craft.summaryHeld) {
+                        CraftScope.read(context).dismissSummary();
+                      }
+                      setState(() {
+                        _chainStack.clear();
+                        _selected = _selected == recipe.id ? null : recipe.id;
+                      });
+                    },
+                  ),
+                ),
+                if (selectedId == recipe.id) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s4),
+                  if (_chainStack.isNotEmpty)
+                    _ChainBackChip(
+                      target: recipes.cast<RecipeOption?>().firstWhere(
+                        (RecipeOption? r) => r!.id == _chainStack.last,
+                        orElse: () => null,
+                      ),
+                      onTap: _jumpBack,
+                    ),
+                  _RecipeDetail(
+                    recipe: recipe,
+                    // The chain link: disabled while a craft pins the
+                    // selection — the pin already wins and must keep
+                    // winning.
+                    onOpenIngredientRecipe: craft.active
+                        ? null
+                        : (ContentId target) =>
+                              _jumpTo(target, from: recipe.id),
+                  ),
+                ],
+                const SizedBox(height: StrideSpace.s6),
+              ],
+              const SizedBox(height: StrideSpace.s6),
             ],
-            const SizedBox(height: StrideSpace.s6),
           ],
         ],
+      ),
+    );
+  }
+
+  /// The display bands, in planning order. Skill-locked and gated rows
+  /// share one LOCKED section — both are "not yet yours", and the row's
+  /// own state chip already says which kind.
+  static List<(String, List<RecipeOption>)> _bands(
+    List<RecipeOption> shown,
+  ) => <(String, List<RecipeOption>)>[
+    (
+      ReadinessBand.ready.label,
+      shown.where((RecipeOption r) => r.band == ReadinessBand.ready).toList(),
+    ),
+    (
+      ReadinessBand.oneAway.label,
+      shown.where((RecipeOption r) => r.band == ReadinessBand.oneAway).toList(),
+    ),
+    (
+      ReadinessBand.missing.label,
+      shown.where((RecipeOption r) => r.band == ReadinessBand.missing).toList(),
+    ),
+    (
+      'Locked',
+      shown
+          .where(
+            (RecipeOption r) =>
+                r.band == ReadinessBand.skillLocked ||
+                r.band == ReadinessBand.gated,
+          )
+          .toList(),
+    ),
+  ];
+}
+
+/// The way back from a chain jump — a full-width chip naming where the
+/// player came from, so the jump is a corridor and never a teleport.
+class _ChainBackChip extends StatelessWidget {
+  const _ChainBackChip({required this.target, required this.onTap});
+
+  final RecipeOption? target;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (target == null) return const SizedBox.shrink();
+    return Semantics(
+      button: true,
+      label: 'Back to ${target!.displayName}',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: StrideSpace.s4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: StrideSpace.s10,
+          ),
+          decoration: BoxDecoration(
+            color: StrideColors.surfaceBlock,
+            border: Border.all(color: StrideColors.borderDefault),
+            borderRadius: StrideRadius.inner,
+          ),
+          child: Text(
+            '◂ Back to ${target!.displayName}',
+            style: StrideType.microLabel.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -352,8 +542,7 @@ class _RecipeRow extends StatelessWidget {
                 opacity: dim && !selected ? 0.55 : 1,
                 child: InsetWell.square(
                   contentSize: 48,
-                  child:
-                      PixelAsset.item(PixelIcons.itemFor(recipe.outputItem)),
+                  child: PixelAsset.item(PixelIcons.itemFor(recipe.outputItem)),
                 ),
               ),
               const SizedBox(width: StrideSpace.s10),
@@ -370,8 +559,17 @@ class _RecipeRow extends StatelessWidget {
                       style: StrideType.itemName,
                     ),
                     Text(
-                      '${recipe.skillName} ${recipe.requiredLevel} · '
-                      '+${recipe.experience} XP',
+                      // A one-away row names its single missing material
+                      // right on the row (Iteration 03) — the planner's
+                      // whole payoff is that this band reads as a to-do
+                      // list; by the band's definition the line always
+                      // fits, because there is exactly one.
+                      recipe.band == ReadinessBand.oneAway
+                          ? '${recipe.skillName} ${recipe.requiredLevel} · '
+                                'needs ${recipe.ingredients.firstWhere((RecipeIngredientLine i) => !i.satisfied).shortfall} more '
+                                '${recipe.ingredients.firstWhere((RecipeIngredientLine i) => !i.satisfied).displayName}'
+                          : '${recipe.skillName} ${recipe.requiredLevel} · '
+                                '+${recipe.experience} XP',
                       style: StrideType.micro.copyWith(
                         color: dim
                             ? StrideColors.textMuted
@@ -403,9 +601,14 @@ class _RecipeRow extends StatelessWidget {
 /// The selected recipe's working surface: ingredients, the reason it cannot
 /// be made when it cannot, the queue, the craft flow, and the Pursuit hook.
 class _RecipeDetail extends StatefulWidget {
-  const _RecipeDetail({required this.recipe});
+  const _RecipeDetail({required this.recipe, this.onOpenIngredientRecipe});
 
   final RecipeOption recipe;
+
+  /// The chain link (Iteration 03): jump the bench to the recipe that
+  /// makes a short crafted ingredient. Null while a running craft pins the
+  /// selection — the pin wins.
+  final void Function(ContentId recipe)? onOpenIngredientRecipe;
 
   @override
   State<_RecipeDetail> createState() => _RecipeDetailState();
@@ -488,32 +691,99 @@ class _RecipeDetailState extends State<_RecipeDetail> {
           ],
 
           // Held over required, always both — how close the player is and
-          // whether they have any at all, in one line per material.
-          for (final RecipeIngredientLine line in recipe.ingredients)
-            Padding(
-              padding: const EdgeInsets.only(bottom: StrideSpace.s4),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: AdaptiveText(
-                      line.displayName,
-                      style: StrideType.sub,
+          // whether they have any at all, in one line per material. A
+          // SHORT line grows its sourcing answer directly beneath it
+          // (Iteration 03) — the same purpose joins the bag reads — and a
+          // short line whose material is itself crafted becomes the chain
+          // link. A ready recipe therefore shows exactly what it always
+          // did: the fast path stays fast.
+          for (final RecipeIngredientLine line
+              in recipe.ingredients) ...<Widget>[
+            () {
+              final bool chain =
+                  !line.satisfied &&
+                  line.craftedByRecipe != null &&
+                  widget.onOpenIngredientRecipe != null;
+              final Widget row = Container(
+                constraints: chain ? const BoxConstraints(minHeight: 40) : null,
+                padding: const EdgeInsets.only(bottom: StrideSpace.s4),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: AdaptiveText(
+                        line.displayName,
+                        style: StrideType.sub,
+                        color: line.satisfied
+                            ? StrideColors.textSecondary
+                            : StrideColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: StrideSpace.s8),
+                    AdaptiveText(
+                      '${line.held} / ${line.required}',
+                      style: StrideType.itemCount,
                       color: line.satisfied
-                          ? StrideColors.textSecondary
+                          ? StrideColors.textPrimary
                           : StrideColors.textMuted,
                     ),
+                    if (chain) ...<Widget>[
+                      const SizedBox(width: StrideSpace.s8),
+                      // Not brass: brass is selection; this is a quiet
+                      // door (L-16).
+                      Text(
+                        'CRAFT ›',
+                        style: StrideType.microLabel.copyWith(
+                          color: StrideColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+              if (!chain) return row;
+              return Semantics(
+                button: true,
+                label: 'Craft ${line.displayName}',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () =>
+                      widget.onOpenIngredientRecipe!(line.craftedByRecipe!),
+                  child: row,
+                ),
+              );
+            }(),
+            if (!line.satisfied)
+              if (SessionScope.of(
+                    context,
+                  ).session.ingredientSourceLine(line.item)
+                  case final String sources)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: StrideSpace.s10,
+                    bottom: StrideSpace.s4,
                   ),
-                  const SizedBox(width: StrideSpace.s8),
-                  AdaptiveText(
-                    '${line.held} / ${line.required}',
-                    style: StrideType.itemCount,
-                    color: line.satisfied
-                        ? StrideColors.textPrimary
-                        : StrideColors.textMuted,
+                  child: Text(
+                    sources,
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textMuted,
+                    ),
                   ),
-                ],
+                ),
+          ],
+
+          // The consumed-prover warning (Iteration 03, balance review): if
+          // an ingredient is the item an uncompleted contract asks to SEE,
+          // say so before the player melts it down.
+          if (SessionScope.of(context).session.consumesProverWarning(recipe)
+              case final String warning) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              warning,
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textSecondary,
               ),
             ),
+          ],
 
           const SizedBox(height: StrideSpace.s8),
           if (activeHere)

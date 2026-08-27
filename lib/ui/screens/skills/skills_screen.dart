@@ -33,6 +33,7 @@ import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
+import 'skill_detail_screen.dart';
 
 class SkillsScreen extends StatelessWidget {
   const SkillsScreen({super.key});
@@ -91,26 +92,49 @@ class _SkillCard extends StatelessWidget {
     // breathes its skill's deep from the top, so five professions stop
     // being five identical brown slabs and the tab reads as a set of
     // trades. The ink itself stays where it always was — name and fill.
-    return SectionCard(
-      wash: StrideColors.forSkillDeep(standing.skill),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _Header(standing: standing),
-          SizedBox(height: StrideSpace.s12),
-          _ProgressBar(standing: standing),
-          SizedBox(height: StrideSpace.s8),
-          _ProgressCaption(standing: standing),
-          SizedBox(height: StrideSpace.s12),
-          _UnlockLines(upcoming: upcoming, openCount: openCount),
-        ],
+    //
+    // The whole card opens the profession's roadmap (Iteration 03): the
+    // card stays the glance, the pushed route is the depth, and the
+    // ROADMAP hint carries the Sync-fold's weight — "there is more"
+    // without adding a control.
+    return Semantics(
+      button: true,
+      label: '${standing.displayName} roadmap',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => SkillDetailScreen.open(context, standing.skill),
+        child: SectionCard(
+          wash: StrideColors.forSkillDeep(standing.skill),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SkillHeaderRow(standing: standing),
+              SizedBox(height: StrideSpace.s12),
+              SkillProgressBar(standing: standing),
+              SizedBox(height: StrideSpace.s8),
+              SkillProgressCaption(standing: standing),
+              SizedBox(height: StrideSpace.s12),
+              _UnlockLines(upcoming: upcoming, openCount: openCount),
+              SizedBox(height: StrideSpace.s6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'ROADMAP',
+                  style: StrideType.microLabel.copyWith(
+                    color: StrideColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.standing});
+class SkillHeaderRow extends StatelessWidget {
+  const SkillHeaderRow({super.key, required this.standing});
 
   final SkillStanding standing;
 
@@ -160,8 +184,8 @@ class _Header extends StatelessWidget {
 /// Drawn with sized boxes rather than a `LinearProgressIndicator` so it inherits
 /// the app's own palette and corner radius rather than Material's, and so it
 /// carries no implicit animation — nothing here is loading.
-class _ProgressBar extends StatelessWidget {
-  const _ProgressBar({required this.standing});
+class SkillProgressBar extends StatelessWidget {
+  const SkillProgressBar({super.key, required this.standing});
 
   final SkillStanding standing;
 
@@ -201,16 +225,15 @@ class _ProgressBar extends StatelessWidget {
                     ? Duration.zero
                     : const Duration(milliseconds: 600),
                 curve: Curves.easeOutCubic,
-                builder:
-                    (BuildContext context, double value, Widget? child) =>
-                        FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: value,
-                          child: ColoredBox(
-                            color: accent,
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
+                builder: (BuildContext context, double value, Widget? child) =>
+                    FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: value,
+                      child: ColoredBox(
+                        color: accent,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
               ),
             ],
           ),
@@ -220,8 +243,8 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
-class _ProgressCaption extends StatelessWidget {
-  const _ProgressCaption({required this.standing});
+class SkillProgressCaption extends StatelessWidget {
+  const SkillProgressCaption({super.key, required this.standing});
 
   final SkillStanding standing;
 
