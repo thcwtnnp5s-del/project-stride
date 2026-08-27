@@ -21,6 +21,58 @@ to `M-02` stays valid.
 
 ---
 
+## M-15 — Seam repair with no enforced boundary repainted the approved interior it was protecting
+
+**Date:** 2026-08-27 · **Category:** art pipeline / content protection (M-12 /
+M-14 family) · **Provenance:** World Atlas Coherence UI 01 bridges and
+edge-integration, found and repaired by World Atlas Restore 01
+
+### What happened
+
+The WACUI passes authored twelve inpaint bridges and seven edge fixes over
+the composite's seams — the right repair method (M-14) — and blitted every
+one with **no boundary against the byte-preserved master** at (256, 256).
+Several reached deep inside it: `east_x768` 128 px, `d2_north` 84 px,
+`north_mtop` 72 px. Measured against the approved 559669e composite,
+**35.3 % of the master interior** had been repainted. The Frostmere frozen
+basin was erased under generic snowfield, the volcano's watchtowers were
+deleted, and the approved east coastline became invented forest and beach.
+Three device passes reviewed the *seams* and never noticed, because the
+reviews looked at the boundaries being fixed, not at what the fix's own
+footprint covered.
+
+### Root cause
+
+**"Byte-preserved master" described the input, not the output, and nothing
+enforced it downstream.** The master was blitted intact — and then repair
+layers wrote over it freely, because a bridge generated from a wide crop
+must land somewhere, and nothing in the pipeline knew which pixels were
+sacred. `--check` cannot catch this: a drifted composite is exactly as
+reproducible as the right one. Protection that lives in intention ("the
+bridges are for the seams") instead of in tooling fails silently the first
+time a crop is drawn generously.
+
+### Consequence
+
+The playable world shipped three device passes with its most distinctive
+northern landmark destroyed and a named landmark's identity (the towers)
+deleted. Restoration cost a full round: a pipeline restore, four surgical
+inpaints (~125 generations), and this entry.
+
+### Prevention
+
+- **Protected zones are code, not memory** (`RULES.md` A-4). The pipeline
+  snapshots the approved interior before any repair layer and restores
+  everything deeper than a narrow rim band; a guard throws on any
+  non-water core pixel drift, so `--check` fails on protected-zone damage.
+- **A repair may write only the transition band it was authored for.**
+  Masks live in or outside the rim band; an intrusion deeper than the band
+  is clipped by construction.
+- **Audit a repair's footprint against the approved baseline, not only its
+  seams.** A pixel diff against the pre-repair composite is one command and
+  would have caught this on day one; the forensic diff is now part of the
+  round record.
+
 ## M-14 — A composed atlas measured as joined, blended and border-clean still shipped rectangles to the phone
 
 **Date:** 2026-08-26 · **Category:** art pipeline / verification (M-12 / M-04

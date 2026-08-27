@@ -1,5 +1,36 @@
 # Project Stride — Project State
 
+**Version:** 2.26
+**Status:** 🚧 **WORLD ATLAS RESTORE 01 — protected-interior restore, seam
+re-authoring and the glass World panel are built, awaiting the owner's device
+test.** Branch `playable-phase-2-multiregion`, on top of `5a34425`. Record:
+`MILESTONES/WORLD_ATLAS_RESTORE_01.md`; art round
+`GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/README.md`; canon
+`MISTAKES.md` M-15, `RULES.md` A-4.
+
+The audit finding, answered in one breath: the WACUI bridges had repainted
+**35.3 % of the byte-preserved master interior** — the Frostmere frozen basin
+erased, the volcano's watchtowers deleted, the east coastline rewritten — so
+the pipeline now snapshots the approved 559669e-era composite and **restores
+everything deeper than a 20 px rim band**, feathered so no clip line reads,
+with a guard that fails packaging on any core drift (A-4, M-15);
+`east_x768` is retired, the ocean conform runs last as one global transform,
+and four surgical inpaints (~125 generations, masks confined to the band)
+re-author the re-exposed east cliff join, the west forest-to-meadow treeline
+and the whole south strand (now dune grass and surf instead of a straight
+sand/green line), with rejects and two pre-existing flotsam artifacts on the
+record and out of the asset. The **World panel is real glass**: gradient
+`0xB4→0xE6` over the atlas instead of the near-opaque `0xF0`, a drag handle,
+and a fold to a 76 px peek strip that leaves the map essentially full-screen
+(selecting a place unfolds it). Suites: app **658** green; analyze clean;
+`--check` clean (792 files, atlas reproducible including the restore); only
+the two World goldens changed, regenerated and reviewed. PixelLab balance
+300 → **~175** (the WMER02 reserve note consciously traded against the
+owner's restoration brief; recorded in the round README). Open: Q-06, Q-07
+remainder, Q-08, Q-09, Q-10, Q-11, OD-04, OD-06.
+
+---
+
 **Version:** 2.25
 **Status:** 🚧 **WORLD ATLAS COHERENCE UI 01 — ocean-unification refinement
 (device pass 3) built, awaiting the owner's re-test.** Branch

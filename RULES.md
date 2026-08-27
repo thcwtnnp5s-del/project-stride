@@ -275,3 +275,12 @@ metric is triage, not evidence of visual continuity: no generated boundary ships
 until a blind read at iPhone-viewport scale confirms biome, coastline,
 detail-scale and palette continuity, and no visible generated rectangle remains.
 → `MISTAKES.md` M-12, M-14
+
+**A-4 — Approved atlas interiors are protected in tooling, and a repair may
+write only its transition band.** The composition pipeline snapshots the
+approved interior before any repair layer, restores every repair pixel deeper
+than the narrow rim band, and fails packaging on any core drift. Repainting
+approved geography to solve a seam is a defect, not a technique; masks are
+authored in or outside the band.
+→ `MISTAKES.md` M-15, `Scripts/art/package-art.js` (protected interior),
+`MILESTONES/WORLD_ATLAS_RESTORE_01.md`
