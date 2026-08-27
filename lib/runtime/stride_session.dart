@@ -1210,6 +1210,8 @@ final class EncounterView {
     required this.telegraph,
     required this.behavior,
     required this.isBoss,
+    this.knowledge = KnowledgeTier.unseen,
+    this.intentLine,
   });
 
   final ContentId enemyId;
@@ -1231,6 +1233,18 @@ final class EncounterView {
   final bool telegraph;
   final EnemyBehavior behavior;
   final bool isBoss;
+
+  /// The player's knowledge of this enemy, for the intent line's depth.
+  final KnowledgeTier knowledge;
+
+  /// What the enemy will do this round, in words earned by knowledge
+  /// (`DECISIONS/0027`, experimental — the Studied tier's felt payoff).
+  ///
+  /// Truthful by construction: the resolver is deterministic, so the strike
+  /// count and the telegraphs this line narrates are the round that will
+  /// actually resolve. Null while the enemy is unseen — an unknown creature
+  /// gives nothing away. Presentation only; no roll changes at any tier.
+  final String? intentLine;
 }
 
 /// One enemy the player could fight where they stand, with the reason it
@@ -1426,6 +1440,13 @@ final class ConsumableUsedBeat extends CombatBeat {
   /// As healed, never the item's raw healing figure.
   final int healed;
   final int playerHpAfter;
+}
+
+/// The player braced (`DECISIONS/0027`, experimental): no strike dealt, and
+/// every enemy strike that follows this beat lands at half damage. The
+/// halved figures ride the [EnemyStruckBeat]s themselves.
+final class BracedBeat extends CombatBeat {
+  const BracedBeat();
 }
 
 /// The enemy hit the player. A flurry produces two per round, [strikeIndex]
@@ -3327,6 +3348,11 @@ final class StrideSession {
   Future<CombatReport> combatEat(ContentId item) =>
       _combat(CombatEat(item: item), engine?.state.encounter?.enemy);
 
+  /// One round: the player braces — deals nothing — and the enemy's reply
+  /// lands at half damage (`DECISIONS/0027`, experimental).
+  Future<CombatReport> combatBrace() =>
+      _combat(const CombatBrace(), engine?.state.encounter?.enemy);
+
   /// Leaves the fight for the nearest safe place. Nothing is lost.
   Future<CombatReport> combatRetreat() =>
       _combat(const CombatRetreat(), engine?.state.encounter?.enemy);
@@ -3423,6 +3449,7 @@ final class StrideSession {
         healed: event.healed,
         playerHpAfter: event.playerHpAfter,
       ),
+      CombatBraced() => const BracedBeat(),
       CombatEnemyStruck() => EnemyStruckBeat(
         damage: event.damage,
         playerHpAfter: event.playerHpAfter,
@@ -3784,7 +3811,44 @@ final class StrideSession {
       telegraph: e.telegraph,
       behavior: enemy?.behavior ?? EnemyBehavior.steady,
       isBoss: enemy?.isBoss ?? false,
+      knowledge: enemy == null
+          ? KnowledgeTier.unseen
+          : knowledgeTierFor(active.state, enemy),
+      intentLine: enemy == null
+          ? null
+          : _intentLineFor(
+              enemy,
+              knowledgeTierFor(active.state, enemy),
+              e.telegraph,
+            ),
     );
+  }
+
+  /// What the enemy will do this round, in words earned by knowledge
+  /// (`DECISIONS/0027`, experimental). A translation of engine facts the
+  /// resolver already guarantees — behaviour's strike count, the guarded
+  /// telegraph — never a new rule (`RULES.md` E-2).
+  ///
+  /// Unseen: nothing. Seen: the strike count, or "something heavy" on a
+  /// telegraph turn — no more than the telegraph itself already shows.
+  /// Studied and Known: the creature's authored tell, and the heavy called
+  /// by name with the brace answer beside it.
+  static String? _intentLineFor(
+    EnemyDefinition enemy,
+    KnowledgeTier tier,
+    bool telegraph,
+  ) {
+    if (tier == KnowledgeTier.unseen) return null;
+    final String count = enemy.behavior == EnemyBehavior.flurry
+        ? 'It will strike twice.'
+        : 'It will strike once.';
+    if (tier == KnowledgeTier.seen) {
+      return telegraph ? 'It is winding up something heavy.' : count;
+    }
+    final String tell = enemy.tellLine.isEmpty ? count : enemy.tellLine;
+    return telegraph
+        ? '$tell The heavy blow comes now — brace to take half.'
+        : tell;
   }
 
   /// The enemies at the player's current location, each with whether it can

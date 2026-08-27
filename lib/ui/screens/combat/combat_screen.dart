@@ -297,6 +297,7 @@ String describeBeat(CombatBeat b, String enemy) => switch (b) {
   ConsumableUsedBeat() =>
     'You eat ${b.itemName} and recover ${b.healed}. '
         'You are at ${b.playerHpAfter}.',
+  BracedBeat() => 'You set your feet and brace behind your guard.',
   EnemyStruckBeat() =>
     '$enemy ${b.heavy
         ? 'lands a heavy blow'
@@ -370,9 +371,32 @@ class _CombatControlsState extends State<_CombatControls> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        // The intent line — what the creature will do this round, in words
+        // earned by knowledge (`DECISIONS/0027`). Absent while unseen; the
+        // projection is truthful because the resolver is deterministic.
+        if (view.intentLine case final String intent) ...<Widget>[
+          Text(
+            intent,
+            style: StrideType.micro.copyWith(
+              color: view.telegraph
+                  ? StrideColors.textPrimary
+                  : StrideColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: StrideSpace.s8),
+        ],
         StrideButton(
           label: held ? 'Fighting…' : 'Attack',
           onPressed: held ? null : c.combatAttack,
+        ),
+        const SizedBox(height: StrideSpace.s8),
+        // Brace (`DECISIONS/0027`, experimental — Q-06's candidate): deal
+        // nothing, take the reply at half. Always offered; reading the
+        // telegraph and spending the round well is the player's craft.
+        StrideButton(
+          label: held ? 'Fighting…' : 'Brace',
+          subLabel: held ? null : 'Take half damage, deal none',
+          onPressed: held ? null : c.combatBrace,
         ),
         const SizedBox(height: StrideSpace.s8),
         StrideButton(

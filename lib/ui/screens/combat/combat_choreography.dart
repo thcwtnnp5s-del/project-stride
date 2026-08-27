@@ -130,6 +130,10 @@ const Duration _wonHold = Duration(milliseconds: 700);
 /// picture must say "overwhelmed", not "dead".
 const Duration _lostSettle = Duration(milliseconds: 500);
 
+/// The planted beat a brace holds before the enemy's halved reply — long
+/// enough to read as a chosen stance, short enough not to slow the round.
+const Duration _bracedHold = Duration(milliseconds: 350);
+
 Duration _frameTime(CombatTrack t, int frame) =>
     Duration(microseconds: (frame / t.track.fps * 1000000).round());
 
@@ -192,6 +196,18 @@ List<StageSegment> choreograph(
             enemyHpTo: b.enemyHpAfter,
             hpTweenStart: lands,
             hpTweenEnd: lands + _hpTween,
+          ),
+        );
+
+      case BracedBeat():
+        // Brace (`DECISIONS/0027`): no authored stance pose exists and the
+        // stage draws no invented art (`RULES.md` A-1), so the stance is a
+        // held, planted idle beat — a moment of stillness before the halved
+        // reply lands, which the halved figures then say out loud.
+        out.add(
+          StageSegment(
+            duration: _bracedHold,
+            travelerTrack: traveler.idle,
           ),
         );
 

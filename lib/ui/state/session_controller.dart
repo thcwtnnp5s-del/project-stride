@@ -543,6 +543,10 @@ class SessionController extends ChangeNotifier {
   Future<void> combatEat(ContentId item) =>
       _combat(() => _session.combatEat(item));
 
+  /// One round: brace — deal nothing, take the reply at half damage
+  /// (`DECISIONS/0027`, experimental).
+  Future<void> combatBrace() => _combat(_session.combatBrace);
+
   /// Leaves the fight for the nearest safe place. Nothing is lost.
   Future<void> combatRetreat() => _combat(_session.combatRetreat);
 
