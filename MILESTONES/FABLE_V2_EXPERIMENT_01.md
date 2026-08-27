@@ -233,12 +233,100 @@ downgrade caveat is owner-accepted; the atlas image stays frozen.
    the base broth is the only option; a generic `supersededBy` belongs to
    a pass that needs it); Stonefall fauna (the 16 px bat reads as a moth
    — withheld verdict respected); atlas props and everything
-   atlas-adjacent; ordinary-arrival reward beat (F2, still bounded out).
+   atlas-adjacent; ordinary-arrival reward beat (F2, still bounded out);
+   the cat-crossing beat (a *crossing* needs a layer that translates over
+   time, and the ambient system deliberately has no moving layers —
+   inventing one mid-sprint is scope; the packaged cat_walk frames wait
+   for it).
 6. **Found and fixed in passing (PERF-A):** `IndexedStack` never disables
    offstage tickers — the Pass-01 shell change left a hidden World tab
    driving its 30-overlay ticker at 120 Hz forever and a hidden Adventure
    still firing audio cues. One `TickerMode` wrap per child restores every
    documented assumption; the stale comments it exposed are corrected.
+
+## Iteration 02 implementation record
+
+Seven commits on top of `e6142a8`, in order:
+
+1. **`8e18fd9` — Health forensics and diagnostics.** Q-08 overlap pinned
+   by 5 tests (`multi_origin_overlap_test.dart` cases incl. the phone
+   1500+1500 / watch 1450+1450 reproduction and the late-batch watermark
+   case; `sync_diagnostics_test.dart` double-sync-adds-zero). New
+   `SyncDiagnosticsView` projection (per-origin today/retained under the
+   same local-day policy the history uses; totals; epoch retirements;
+   cursor presence) and the Step Tracker's collapsed-by-default **Sync
+   details** card. Outcome B: diagnostics sufficient; no semantics
+   touched.
+2. **`4707a2e` — TickerMode P0.** Per-tab `TickerMode` wraps in the
+   shell; hidden tabs stop ticking and cueing; stale comments corrected.
+3. **`efa29ad` — Visual foundations.** The V2 token section in
+   `StrideColors`; region-tinted headers app-wide; ember primary button
+   with 90 ms press dip; `SectionCard` wash primitive; Skills washes +
+   icon plates + eased XP bar; craft readiness colors; combat danger ink
+   and warm reward light (two L-16 drifts repaired, three teal-selection
+   drifts moved to brass); **Sound & feel** haptics switch persisted with
+   audio settings; `AudioController`'s one gated haptic seam.
+4. **`0e07aa2` — The feel kit.** Haptic call sites (reward layer
+   tier-switched at the layer itself so no caller doubles it; granting
+   sync only when steps banked, both buttons; Set out; Start Combat;
+   heavy blow at segment start, silent on skip; watched gather strike —
+   the queue loop deliberately silent; equip success click). The
+   opportunity banner as a moment: reward wash, staggered reveal per
+   granting sync, banked count-up (reduced-motion prints flat), each row
+   a door — journey rows front the World tab through the new `ShellTabs`
+   handle, pursuit/contract rows open the Goal Board. Entrances/settles
+   with explicit reduced-motion branches: fight entrance (stage then
+   controls, once per fight), travel result line, equip stat settle,
+   READY pill. F4 repaired: the you-are-here pulse wears warm arrival ink
+   exactly while the journey result line stands. `ActionReport.bonusYield`
+   (committed quantity vs the session's own profile-scaled `yieldOf`) and
+   the "+N extra — your craft at work" line in strip and layer.
+5. **`d8a9287` — Gameplay depth.** Engine: rotation skips
+   project-gated candidates (fallback to old behaviour when every
+   candidate is gated; replay-safe — slots were always recorded on the
+   event; new engine test cycles Haven's deck twice then stands the mill).
+   `DropPreview.chancePercent` with knowledge-graduated display (nothing
+   below Studied; "usually/often/rarely" at Studied; exact % at Known;
+   zero-chance stays silent — widget-tested). Content only: nine
+   bonus-yield milestones (Duskcap 5, Tin 5, Deep Tin 6, Hardened 7,
+   Rimefrost 7, Frostpine 6, Old-Growth 9, Silkstrand 8, Hollow Thicket
+   12, all 10 %) and the Hornbound Bronze Axe's
+   `toolBonusYieldPercent: 15`. The tracked Journey's gold ring on the
+   atlas (`goalActive`'s first use there; absent at the current place;
+   widget-tested). `ProjectView.opens` + the project card's "Opens:" line
+   (joined over the same gates the engine refuses with).
+6. **`bca48dc` — Asset integration.** RCP01's four accepted fauna stills
+   composed into every solo ambient scene per region via
+   `AmbientAssets.scenesFor(vignette)` (hare/Haven, songbird/Woods,
+   crow/Hollow, ptarmigan/Frostmere; Stonefall empty by QA verdict;
+   `pet_cat` excluded by the soloScenes predicate); composition test
+   extended to hold fauna variants to the same three geometry rules. The
+   Traveler's six-frame west walk packaged (trav_zip source; east
+   rejected — vest vanishes f0–f1; mirroring is PixelLab's call) and the
+   **travel transition card**: ~1.3 s over the destination's alt
+   vignette on committed arrivals, one-shot ticker (the s01a
+   foreground-only guard rejected the Timer draft and held), tap to
+   dismiss, Reduce Motion skips, precache race-bounded. Both source trees
+   tracked so `--check` passes from a clean checkout.
+7. **`cd098e9` — Screen evidence.** The harness's Iteration 02 run: 11
+   captures at 393×852 from one real session (fresh Adventure, World,
+   journey ring, sync banner, gather beat, Sync details open, Skills,
+   travel card mid-play, discovery layer, arrival, Woods-tinted header),
+   all reviewed.
+
+**Game-journey simulation:** 25 commands through the production engine
+(sync → herbs → Herbal Supplies → track Woods → travel → wolf (7
+rounds, HP 40→13) → logs → plank → home (safe-arrival heal 13→40) →
+mill contribution → refusals for a node/enemy not present, each with its
+sentence → forage to 200 XP). Every spend exact, every refusal truthful,
+no defect surfaced.
+
+**Verification at closeout:** stride_core 707, stride_health 143,
+stride_storage 108 (five known lock probes still environment-bound),
+app 713 + 3 evidence, analyze clean, package-art `--check` 830 files
+clean, goldens byte-stable except where reviewed, guards (core purity,
+origin privacy, single-writer, UI boundary, source safety, dependency
+policy, rulekit, guard parsers) all OK.
 
 ## 5b. Known issues, on the record
 
@@ -327,4 +415,88 @@ nothing here migrates anything.
    contributions.
 10. **Header**: a sync counts the banked figure up rather than teleporting;
     sync faults (if any) read as sentences.
+
+### Iteration 02 checklist — HEALTH (the P0, decided on this evidence)
+
+Take these together, within a minute of each other:
+
+1. **Oura app screenshot** — today's step figure.
+2. **Apple Health app** — today's step total at the same timestamp, and
+   open its *Sources* list for steps (note how many contribute).
+3. **Stride** — the header's banked figure and Character → Step Tracker's
+   today figure.
+4. **Source diagnostic** — Step Tracker → Sync details → SHOW. Read the
+   per-source rows: with Oura + iPhone active there should be **two
+   sources**, and their today figures should sum to Stride's today.
+   Compare each against the Health app's own per-source numbers — the
+   labels are anonymous by design (H-7); identify them by matching the
+   figures against the Sources list from item 2.
+5. **Double-sync adds zero** — tap Sync steps twice with no walking in
+   between: the second sync must say "No new steps to bank", the banked
+   figure must not move, and Sync details' "Syncs committed" must count
+   up by exactly one per tap while "Credited, lifetime" stays put.
+6. **No unexpected jumps** — after the pair of syncs, the banked figure
+   equals what it was plus the first sync's banked line, exactly.
+
+If the two-source split matches Health's per-source numbers, the 1.84×
+observation is Q-08's per-origin overlap working as documented, and the
+question of *whether Stride should credit both sources* goes to the
+owner as the Q-08 decision — with real numbers attached.
+
+### Iteration 02 checklist — UI (first-minute freshness)
+
+7. **First minute, unprompted:** open the app and just look. Expected to
+   land without hunting: the header wearing the region's color; the ember
+   primary buttons; the Skills tab's five trade atmospheres; a granting
+   sync's banner counting up with its opportunity rows; the animated XP
+   bar on Skills. Say which (if any) did NOT register.
+8. **Adventure** — region-tinted header; ember Goal Board button; a
+   gather's result strip (with "+1 extra" if a bonus procs at Meadow
+   Patch ≥ Foraging 2).
+9. **Character** — Sound & feel card has the Vibration switch; Step
+   Tracker reachable; Sync details opens/closes.
+10. **Skills** — washes, icon plates, XP bar eases on a gain.
+11. **Inventory** — equip: the "ATK a → b" line settles in; the click
+    haptic fires (if vibration on).
+12. **Craft** — a craftable row wears the moss edge; selection is brass,
+    not teal.
+13. **World** — tracked Journey's gold ring; warm arrival pulse while the
+    arrival line stands; region header changes after travel.
+14. **Combat** — enemy HP in rust, player in parchment; intent line in
+    danger ink on telegraph turns; victory layer in warm gold, not teal.
+
+### Iteration 02 checklist — GAME FEEL (ten moments)
+
+With Vibration ON, each of these should register as one clean beat, and
+none should fire twice or loop:
+
+15. **Sync** that banks — one light tap + the banner's count-up.
+16. **Travel** — Set out: one light tap at the commit.
+17. **Arrival** — the walk card plays ~1.3 s (tap dismisses early); with
+    Reduce Motion ON it must not appear at all.
+18. **Gather** (watched, single) — light tap at the strike; the strip's
+    beat reveals.
+19. **Skill-up** — the level-up layer rises with a medium buzz (heavy if
+    it is a MAJOR moment).
+20. **Craft** — an equipment craft's reward layer: medium buzz, warm
+    light.
+21. **Equip** — the selection click + the stat line settling.
+22. **Discovery** — first visit: the DISCOVERED layer with its picture.
+23. **Combat** — Start Combat medium; the heavy blow lands heavy exactly
+    when it lands on screen; no haptic per ordinary swing.
+24. **Goal progress** — a job flipping READY lands its pill with a small
+    settle; the banner's journey row actually fronts the World tab when
+    tapped.
+
+### Iteration 02 checklist — PERFORMANCE
+
+25. **World tab switching** — Adventure ↔ World ↔ Inventory round trips:
+    no jank on entry, and (the TickerMode fix's point) leaving World
+    parked should NOT warm the phone or drop frames elsewhere.
+26. **Map camera preservation** — pan somewhere, visit the bag, return:
+    camera and selection exactly where they were.
+27. **Scrolling** — the Goal Board and Inventory at full content: smooth.
+28. **Animation smoothness** — the walk card, the fauna stills' scene
+    entrances, the XP bar ease, the count-up: all clean at device
+    refresh; nothing stutters while a sync commits.
 

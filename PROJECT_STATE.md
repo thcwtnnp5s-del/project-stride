@@ -1,5 +1,46 @@
 # Project Stride — Project State
 
+**Version:** 2.28
+**Status:** 🧪 **FABLE V2 ITERATION 02 — health forensics + freshness
+pass, on `fable-v2-experiment`, awaiting the owner's device evaluation.**
+The accepted branch `playable-phase-2-multiregion` remains untouched at
+`5ffba67`; nothing merges without the owner's verdict. Record: the
+"ITERATION 02" half of `MILESTONES/FABLE_V2_EXPERIMENT_01.md` (thesis,
+implementation record, and the four-part device checklist that decides the
+health question).
+
+The owner's two missions, answered in seven commits: the **step
+discrepancy (Oura 3,121 vs Stride 5,732) is forensically attributed** to
+Q-08's per-origin overlap working as documented — not a replay bug, not
+double-granting; pinned by five new tests, ruled **Outcome B** (no
+accounting change is justified on this evidence; a read-only per-source
+**Sync details** card in the Step Tracker now shows the split with H-7
+anonymous labels, so the next device test decides Q-08 with real numbers —
+the semantics stay the owner's call). And the build **feels a generation
+newer**: region-tinted headers that change when you travel; the ember
+primary button; Skills' five trade atmospheres; the granting sync's banner
+counting up, its rows now doors (journey → World tab, contract → Goal
+Board); a ~1.3 s **travel transition card** — the Traveler's own west walk
+over the destination's second framing — on every committed arrival; the
+tracked Journey's **gold ring** on the atlas and a warm arrival pulse while
+the result line stands; RCP01's **fauna** standing quietly in every solo
+ambient scene (hare/Haven, songbird/Woods, crow/Hollow,
+ptarmigan/Frostmere; Stonefall honestly empty); haptics as punctuation
+behind one gated seam with a Sound & feel switch; graduated **loot
+intelligence** (Studied buys frequency words, Known buys exact odds); nine
+bonus-yield milestones + the Hornbound Axe's +15 % with a "+1 extra" line
+that acknowledges every proc; rotation that stops dealing project-gated
+jobs into frozen slots, with the project card advertising what completion
+opens. Found and fixed in passing (P0): hidden `IndexedStack` tabs kept
+ticking at 120 Hz and firing audio offstage — per-tab `TickerMode` wraps.
+**Zero PixelLab generations; state stays v9; no migration; atlas art
+untouched.** Suites: app **713** + evidence, stride_core **707**, health
+143, storage 108, analyze clean, `--check` clean (830 files), all guards
+OK; 11 screen captures reviewed. Open: Q-06 (brace evidence), Q-08 (now
+instrumented for decision), Q-12, and the standing set below.
+
+---
+
 **Version:** 2.27
 **Status:** 🧪 **FABLE V2 EXPERIMENT 01 — an experimental
 autonomous-director build exists on branch `fable-v2-experiment`, awaiting
