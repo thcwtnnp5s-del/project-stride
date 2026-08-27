@@ -1,5 +1,47 @@
 # Project Stride — Project State
 
+**Version:** 2.29
+**Status:** 🧪 **FABLE V2 ITERATION 03 — the depth pass, on
+`fable-v2-experiment`, awaiting the owner's device evaluation.** The
+accepted branch stays untouched at `5ffba67`; nothing merges without the
+owner's verdict. Record: the "ITERATION 03" sections of
+`MILESTONES/FABLE_V2_EXPERIMENT_01.md` (thesis, implementation,
+play-proofs, checklist items 29–33) and the Q-12 addendum in
+`JOURNAL/OPEN_QUESTIONS.md`.
+
+The owner's brief — double down on GAME DEPTH — answered as one
+progression web. The five professions became **readable careers**: tap
+any Skills card and its roadmap runs level by level to the last level
+content touches, the one next level with content carrying its true XP
+distance, every unlock joined to what it yields, what that feeds, and
+what still gates it. The bench became **a planner**: readiness sections
+(READY → ONE INGREDIENT AWAY → MISSING → LOCKED, classified on the
+projection), one-away rows naming their missing material, source lines
+under every shortfall, a chain jump from ingredient to the recipe that
+makes it, and a warning before a craft melts down an item a contract
+asks to *see*. The content web behind them: the six dead signature drops
+became **Masterworks** — strictly optional variants reforging the gear
+they consume (P-10 held by a refined guard; the experiment's Q-12
+evidence); the **Forgotten Hollow got tamed** (Field Ledger board, the
+Hollow Field Camp project, Untamed → Charted, safe after the camp, a
+camp-gated double-silk node); five depth nodes filled the dead levels
+each region owed (Heartwood Oak WC 4, Old Workings Mining 8, Sheltered
+Frost Meadow F 7, Mill Garden F 7); the food ladder was repaired (the
+mill retires base broth for the pair — dominance dead; ration at
+Cooking 4; the four-region Expedition Stew at Cooking 9; pine-plank's
+XP dominance bug fixed); eight contracts and the camp wire it together
+(gear-as-proof, show-don't-consume trophies, post-lift pine). Three
+engine play-proofs quote the walk: Mining 5→8 in 14,860 gather-steps
+then Old Workings opens; the stew's four-region run at 10,500; the camp
+at 3,220 from typical bags. **Zero PixelLab generations** (every icon
+and plate a recorded byte-copy of what the new thing consumes or
+deepens); state stays v9; counts stay 5/5/9; health untouched. Suites:
+core **709**, app **799**, analyze clean, `--check` clean (856 files),
+13 evidence captures reviewed. Open: Q-08 (instrumented), Q-06, Q-12
+(now playable evidence), and the standing set below.
+
+---
+
 **Version:** 2.28
 **Status:** 🧪 **FABLE V2 ITERATION 02 — health forensics + freshness
 pass, on `fable-v2-experiment`, awaiting the owner's device evaluation.**

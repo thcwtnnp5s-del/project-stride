@@ -639,3 +639,104 @@ deterministically, no contract *consumes* a signature (A Hunter's Token
 shows one, `requiresOwned`), and P-10 holds everywhere. This is evidence
 for the owner's Q-12 verdict, not its pre-emption: if the owner rules for
 pure trophies, the six recipes revert cleanly and the items go with them.
+
+## Iteration 03 implementation record
+
+Three commits on top of `63ae0c3` (plus the closeout review commit):
+
+1. **`f39bff1` — the content web.** The Masterwork set (six optional
+   variants consuming all six signature drops — the experiment's Q-12
+   evidence, guard refined not weakened); the Forgotten Hollow expedition
+   layer (Field Ledger, Hollow Field Camp, Untamed → Charted, safe after
+   the camp, camp-gated Veiled Silkstrand); five depth nodes (Heartwood
+   Oak WC 4, Old Workings Mining 8, Sheltered Frost Meadow F 7, Mill
+   Garden F 7, Veiled Silkstrand F 8 — all A-2 byte-copy plates, donors
+   named in `package-art.js`); the food ladder repaired (mill retires
+   base broth for the pair, skewer 1+1, Traveler's Ration C 4,
+   Expedition Stew C 9, pine-plank XP 110 → 40); eight contracts and the
+   camp project; DEPTH-G's four balance fixes applied (hornpoint 20 %,
+   scalewarmed frostGuard 3, old_workings xp 36, the token brief
+   telegraphing show-before-set); two new guards (the refined signature
+   boundary; a consumed `requiresOwned` prover must stay re-obtainable);
+   the two drifted broken-fixtures brought to production parity.
+2. **`8bc15a2` — the two planning surfaces.** The Skill Detail roadmap
+   (pushed route; `SkillRoadmap`/`RoadmapLevel` projections; earned fold,
+   current chip, the ONE next-with-content band carrying the true XP
+   distance, dead runs collapsed; unlocks expand to two pre-capped lines
+   plus Track as Pursuit) and the Craft planner (`ReadinessBand` on the
+   projection; READY → ONE INGREDIENT AWAY → MISSING → LOCKED sections;
+   one-away rows naming their missing material; per-missing-ingredient
+   source lines from the same purpose joins the bag reads; the CRAFT ›
+   chain jump with back chip, filter-clear, reveal scroll, and the
+   running-craft pin always winning; the consumed-prover warning).
+3. **`8ec6c3f` — thirteen screen-evidence captures**, reviewed: the
+   roadmap routes, the banded bench, sourcing, chain, prover warning,
+   the Hollow inspector wearing its Field Ledger.
+
+**Play-proofs (real engine, production content):**
+- *Roadmap chain:* Mining 5 → 8 took 73 hardened-copper gathers /
+  14,860 steps (the pure-gather ceiling; Deep Ore Order XP lowers it),
+  and Old Workings then accepted its first gather.
+- *Cross-region recipe:* Expedition Stew from a Haven standing start —
+  10,500 steps across all four reachable regions, matching the balance
+  review's estimate.
+- *Goal chain:* the Hollow Field Camp from arrival — 3,220 steps with
+  typical banked materials (~11–17 k from empty bags); the Veiled
+  Silkstrand then yields ×2 and the Hollow flips safe.
+
+**Mid-game player test** (the owner's approximate standing, F≈4 M≈5 S≈5
+W≈5): immediately pursuable — the Heartwood Oak's double logs, the
+hardened-copper loop toward Mining 8, any Masterwork whose trophy has
+dropped (four sit at Smithing 4–5), the ration at Cooking 4. One to
+three levels out — Smithing 6's Longsword/Bearhide/Scale-Warmed trio,
+Foraging 6's Silkstrand. Long-term — the camp (and the Hollow's safety),
+Clawguard at Smithing 7, Expedition Stew at Cooking 9, Old Workings at
+Mining 8. Every rung of that ladder is now READABLE on the roadmap
+before it is walked.
+
+**Verification at closeout:** stride_core **709**, app **799**, analyze
+clean, `package-art --check` clean (856 files), goldens regenerated and
+reviewed twice (content pass, then the planner sections).
+
+## Iteration 03 known issues
+
+- **Byte-copy icons are recorded placeholders**: each Masterwork wears
+  the icon of the item it consumes ("the same piece, reforged"), and the
+  two foods wear their base dish's. Coexistence is low by construction
+  but not zero (fanghilt beside a re-crafted training sword is
+  indistinguishable by icon). Distinct authored icons are the recorded
+  future PixelLab round, alongside the five node plates' donors.
+- **The Masterworks consuming training gear are once-per-save** (the
+  training sword and axe are not re-obtainable). Deliberate — the
+  reforging fiction — but a one-way choice on the owner's live save.
+- **Mining 5 → 8 is effectively one loop** (hardened copper +
+  Deep Ore Order). Old Workings is its payoff, not its variety; the Iron
+  tier, when its icon round lands, is the real answer.
+- **Smithing 8+ and Cooking 10+ remain honestly open** on the roadmap
+  ("nothing yet") — the next content frontier, not filler.
+- **A camp-gated silk economy assumes the deck cycles** — the acceptance
+  pass should turn the Field Ledger's rotation over once by hand.
+
+## Iteration 03 device checklist (append to the standing list)
+
+29. **Skills → any card**: the whole card opens its ROADMAP; the ladder
+    starts at your level; exactly one band says "N XP away"; dead runs
+    read "LV a–b · nothing yet"; expanding Tin Seam (or any site) shows
+    "Yields …" and "… feeds …" and Track as Pursuit works.
+30. **Craft**: the four sections in order; a one-away row names its
+    missing material; opening a MISSING recipe shows a source line under
+    each short ingredient; tapping CRAFT › beside a craftable ingredient
+    jumps to its recipe with "◂ Back to …" and back returns; the
+    Fang-Hilted Sword's detail warns that A Hunter's Token asks to see
+    the fang first.
+31. **The Hollow (needs the Bronze Sword)**: the Field Ledger stands with
+    the silk and root orders; the camp project accepts contributions;
+    completing it opens Veiled Silkstrand and Camp Stores and the place
+    reads Charted and safe; the Guardian bounty pays silk repeatably.
+32. **The broth swap**: after the Mill stands, the bench lists Herb Broth
+    (pair) only — 3 herbs → 2 broths at any cooking level — and no
+    craftless window appears.
+33. **New nodes on their roadmaps**: Heartwood Oak at WC 4 (tier-1 axe),
+    Old Workings at Mining 8 post-lift, Sheltered Frost Meadow at F 7
+    post-shelter, Mill Garden at F 7 post-mill — each gate named on the
+    Skills roadmap before it is met.

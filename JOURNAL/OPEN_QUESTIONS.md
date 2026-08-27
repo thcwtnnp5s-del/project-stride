@@ -890,6 +890,25 @@ The Hollow Sigil is deliberately *not* in this question: it is a 100%
 deterministic drop, not a signature, and Fable V2 gave it The Scholar's
 Interest (`DECISIONS/0027`) under the existing rules.
 
+**Addendum (2026-08-27, Fable V2 Iteration 03 — experimental evidence,
+not a resolution.)** The owner's Iteration 03 brief asked for dead
+materials to gain purpose and named "special drop: equipment + contract"
+as a desired item relationship, so the experiment ships a fourth option
+for the owner to judge on-device: **strictly optional consumption** — six
+Masterwork gear variants, each consuming one signature plus the base item
+it reforges (Fang-Hilted Sword, Tuskbound Jerkin, Goblin-Toothed Axe,
+Scale-Warmed Chestplate, Clawguard Coat, Hornpoint Pickaxe). The P-10
+boundary is enforced mechanically now, not by convention: the refined
+guard in `progression_loop_test.dart` asserts a signature-consuming
+recipe's output gates *nothing* (no recipe, contract, project stage, or
+entry requirement) and that equivalent tool capability stays reachable
+without any signature. Option 2 ships beside it (A Hunter's Token shows
+the fang without consuming it), and no contract consumes a signature.
+If the owner rules for pure trophies, the six recipes and their items
+revert cleanly and the guard returns to its blanket form. The question
+**remains the owner's**; what changed is that the verdict can now be
+made by playing the candidate instead of imagining it.
+
 ---
 
 ## A note on Q-06 (2026-08-27)
