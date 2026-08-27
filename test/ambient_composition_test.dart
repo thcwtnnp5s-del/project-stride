@@ -195,6 +195,49 @@ void main() {
           });
         }
       }
+
+      // The fauna variants (Fable V2 Iteration 02): every region's creature,
+      // standing into every scene `scenesFor` composes it into, held to the
+      // same three rules as an authored layer — on the stage, out of the
+      // Traveler beyond the scene's allowance, and off every node's scenery.
+      // One test per layout rather than per combination: the placements are
+      // four constants, and a failure names its scene.
+      test('every fauna variant keeps to the same composition rules', () {
+        for (final AmbientSceneSet set in AmbientAssets.allFaunaSceneSets) {
+          for (final AmbientScene s in set.scenes) {
+            for (final AmbientLayer l in s.layers) {
+              final Rect box = layout.placed(l.placedBounds);
+              expect(
+                _inside(box, layout.stageRect),
+                isTrue,
+                reason:
+                    '${s.id}: layer ${l.track.frames.first} $box leaves '
+                    'the stage',
+              );
+              final int intrusion =
+                  l.placedBounds.overlapY(s.travelerBounds) > 0
+                  ? l.placedBounds.overlapX(s.travelerBounds)
+                  : 0;
+              expect(
+                intrusion,
+                lessThanOrEqualTo(s.companionAllowance),
+                reason:
+                    '${s.id}: layer ${l.track.frames.first} reaches '
+                    '$intrusion px into the Traveler',
+              );
+              for (final StageScenery n in scenery) {
+                expect(
+                  box.overlaps(layout.sceneryOpaque(n)),
+                  isFalse,
+                  reason:
+                      '${s.id}: layer ${l.track.frames.first} lands on '
+                      '${n.assetPath.split('/').last}',
+                );
+              }
+            }
+          }
+        }
+      });
     });
   }
 }

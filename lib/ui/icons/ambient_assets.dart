@@ -216,6 +216,52 @@ const SpriteBounds _bWipeBrow = SpriteBounds(
   bottom: 62,
 );
 
+// The four shipped fauna stills' opaque boxes, from the Regional Content
+// Pack 01 fauna manifest (Fable V2 Iteration 02) — measured there by the
+// same tooling as everything above.
+const SpriteBounds _bFaunaHare = SpriteBounds(
+  left: 3,
+  top: 0,
+  right: 12,
+  bottom: 15,
+);
+const SpriteBounds _bFaunaSongbird = SpriteBounds(
+  left: 1,
+  top: 1,
+  right: 14,
+  bottom: 14,
+);
+const SpriteBounds _bFaunaCrow = SpriteBounds(
+  left: 2,
+  top: 3,
+  right: 13,
+  bottom: 13,
+);
+const SpriteBounds _bFaunaPtarmigan = SpriteBounds(
+  left: 3,
+  top: 2,
+  right: 13,
+  bottom: 12,
+);
+
+/// One region's creature as a companion layer: a 16 px still, standing at
+/// the stage's left edge on the Traveler's own ground line, its bottom
+/// opaque row on row 62. A single-frame `once` track holds it for the whole
+/// scene. `dx` puts each box's left at −21 — one pixel inside the narrow
+/// stage's −22 edge, well clear of every solo scene's Traveler.
+AmbientLayer _faunaStill(
+  String id,
+  SpriteBounds bounds,
+  SpriteFootprint footprint,
+) => AmbientLayer(
+  track: AmbientTrack(frames: _frames(id, 1), fps: 1, loop: AmbientLoop.once),
+  canvas: 16,
+  footprint: footprint,
+  bounds: bounds,
+  dx: -21 - bounds.left,
+  dy: 62 - bounds.bottom,
+);
+
 AmbientTrack _cat(
   String id,
   int frames,
@@ -620,6 +666,72 @@ abstract final class AmbientAssets {
 
   /// Every scenery entry, for the composition test.
   static Iterable<StageScenery> get allScenery => _scenery.values;
+
+  /// The region's ambient creature, keyed by the location's **vignette
+  /// path** — the same key the stage already resolves, so a location cannot
+  /// be wired into one table and forgotten in the other (Fable V2
+  /// Iteration 02; Regional Content Pack 01 fauna).
+  ///
+  /// Stonefall Mine is deliberately absent: its 16 px bat was withheld by
+  /// blind QA ("reads as a moth at ×2"), and no creature is more honest
+  /// than a wrong one. The ptarmigan ships on its accepted stage-scale
+  /// still; its QA note ("concept scale" on the 32) does not apply to it.
+  static final Map<String, AmbientLayer> _faunaByVignette =
+      <String, AmbientLayer>{
+        '$_art/location/havens_rest.png': _faunaStill(
+          'fauna_hare_16',
+          _bFaunaHare,
+          SpriteFootprints.ambientFaunaHare16,
+        ),
+        '$_art/location/whispering_woods.png': _faunaStill(
+          'fauna_songbird_16',
+          _bFaunaSongbird,
+          SpriteFootprints.ambientFaunaSongbird16,
+        ),
+        '$_art/location/forgotten_hollow.png': _faunaStill(
+          'fauna_crow_16',
+          _bFaunaCrow,
+          SpriteFootprints.ambientFaunaCrow16,
+        ),
+        '$_art/location/frostmere.png': _faunaStill(
+          'fauna_ptarmigan_16',
+          _bFaunaPtarmigan,
+          SpriteFootprints.ambientFaunaPtarmigan16,
+        ),
+      };
+
+  /// Every fauna variant scene set, for the composition test — the same
+  /// geometry rules must hold with the creature standing in.
+  static Iterable<AmbientSceneSet> get allFaunaSceneSets =>
+      _faunaByVignette.keys.map(scenesFor);
+
+  static final Map<String, AmbientSceneSet> _scenesByVignette =
+      <String, AmbientSceneSet>{};
+
+  /// The living-location scene set for [vignette]: the full table, with the
+  /// region's creature standing at the stage's left edge in every **solo**
+  /// scene. Companion scenes keep the cat — the left is the cat's room, and
+  /// a hare beside a rolling cat is a zoo, not a location. A vignette with
+  /// no shipped creature (Stonefall, an unknown pack) gets the plain table.
+  static AmbientSceneSet scenesFor(String? vignette) {
+    final AmbientLayer? fauna = vignette == null
+        ? null
+        : _faunaByVignette[vignette];
+    if (fauna == null) return scenes;
+    return _scenesByVignette.putIfAbsent(
+      vignette!,
+      () => AmbientSceneSet(<AmbientScene>[
+        for (final AmbientScene s in scenes.scenes)
+          // Solo scenes only, by the same predicate [soloScenes] filters
+          // with: `pet_cat` carries its cat inside the combined 96-wide
+          // sprite, not as a layer, and the fauna would stand in it.
+          s.layers.isEmpty &&
+                  !s.traveler.frames.any((String f) => f.contains('cat'))
+              ? s.withExtraLayer(fauna)
+              : s,
+      ]),
+    );
+  }
 
   static final AmbientSceneSet scenes = AmbientSceneSet(<AmbientScene>[
     // ---------------------------------------------------------- solo scenes

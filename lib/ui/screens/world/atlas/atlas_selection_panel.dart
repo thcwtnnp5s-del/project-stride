@@ -53,6 +53,7 @@ import '../../../state/session_scope.dart';
 import '../../../theme/stride_colors.dart';
 import '../../../theme/stride_metrics.dart';
 import '../../../theme/stride_typography.dart';
+import '../travel_transition.dart';
 import 'atlas_layout.dart';
 import 'atlas_place_info.dart';
 
@@ -125,13 +126,25 @@ class AtlasSelectionPanel extends StatelessWidget {
               final RegionPlace destination = place;
               await controller.travelJourney(legs);
               onTravelled();
+              final JourneySummary? journey = controller.lastJourney;
+              // The walk, presented (Fable V2 Iteration 02): a committed
+              // arrival plays the ~1.3 s transition card — the Traveler
+              // walking over the destination's second framing — before
+              // anything else speaks. Skipped under Reduce Motion, tappable
+              // through; a refused journey goes straight to its sentence.
+              if (journey != null && journey.succeeded && context.mounted) {
+                await showTravelTransition(
+                  context,
+                  backdrop: PixelIcons.altVignetteFor(destination.id),
+                  destinationName: journey.arrivedName,
+                );
+              }
               // Discovery is the payoff walking most directly buys, and it
               // used to rent half a sentence in a result line. A first
               // arrival now rises in the one reward grammar every other
               // payoff uses — the place's vignette, what stands there, what
               // waits there (Fable V2, `DECISIONS/0027`). Ordinary arrivals
               // stay quiet: the map moving is their acknowledgement.
-              final JourneySummary? journey = controller.lastJourney;
               if (journey != null &&
                   journey.succeeded &&
                   journey.firstVisit &&

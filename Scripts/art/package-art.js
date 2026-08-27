@@ -505,6 +505,65 @@ for (const entry of ambientWrdManifest) {
 }
 
 /**
+ * REGIONAL FAUNA — the four accepted 16 px stills (Regional Content Pack 01,
+ * `REGIONAL_CONTENT_PACK_01/out/fauna/manifest.json`), shipped by Fable V2
+ * Iteration 02 as ambient companion layers: a hare at Haven's Rest, a
+ * songbird in the Woods, a crow in the Hollow, a ptarmigan at Frostmere.
+ * Manifest-guarded: only `status: "accepted"` stills in the ship list are
+ * emitted — `fauna_bat_16` stays out on its own QA line ("reads as a moth at
+ * x2"), which is why Stonefall ships without a creature rather than with a
+ * wrong one. Emitted as one-frame ambient tracks (`_f0`) with measured
+ * footprints, exactly like every other companion.
+ */
+const FAUNA_SRC = path.join(
+  EXPLORE, 'REGIONAL_CONTENT_PACK_01', 'out', 'fauna',
+);
+const FAUNA_SHIPPED = new Set([
+  'fauna_hare_16', 'fauna_songbird_16', 'fauna_crow_16', 'fauna_ptarmigan_16',
+]);
+const faunaManifest = JSON.parse(
+  fs.readFileSync(path.join(FAUNA_SRC, 'manifest.json'), 'utf8'),
+);
+for (const entry of faunaManifest) {
+  if (!FAUNA_SHIPPED.has(entry.id)) continue;
+  if (entry.status !== 'accepted') {
+    throw new Error(`${entry.id}: in the fauna ship list but not accepted`);
+  }
+  const frame = png.load(path.join(FAUNA_SRC, `${entry.id}.png`));
+  if (frame.width !== 16 || frame.height !== 16) {
+    throw new Error(`${entry.id}: expected 16x16, got ${frame.width}x${frame.height}`);
+  }
+  ambientFootprints[`ambient_${entry.id}`] = png.footprint(frame);
+  emit(`ambient/${entry.id}_f0.png`, encode(frame));
+}
+
+/**
+ * TRAVELER WALK WEST — the six-frame west walk from the same trav_zip
+ * character set the combat frames shipped from (PLAYABLE_EXPANSION_01),
+ * adopted by Fable V2 Iteration 02 for the travel transition card. West
+ * only, by review: the east cycle's vest vanishes on frames 0–1, and
+ * mirroring frames is a creative change PixelLab owns (`RULES.md` A-2), so
+ * one clean direction ships and the other waits for art. 64 × 64, feet on
+ * row 62 — the ambient ground convention, verified per frame.
+ */
+const WALK_WEST_SRC = path.join(
+  EXPLORE, 'PLAYABLE_EXPANSION_01', 'combat', 'candidates', 'trav_zip',
+  'Idle', 'animations', 'traveler_walk', 'west',
+);
+for (let i = 0; i < 6; i++) {
+  const frame = png.load(
+    path.join(WALK_WEST_SRC, `frame_${String(i).padStart(3, '0')}.png`),
+  );
+  if (frame.width !== 64 || frame.height !== 64) {
+    throw new Error(`traveler_walk_west f${i}: expected 64x64, got ${frame.width}x${frame.height}`);
+  }
+  if (i === 0) {
+    ambientFootprints['traveler_walk_west'] = png.footprint(frame);
+  }
+  emit(`anim/traveler_walk_west_f${i}.png`, encode(frame));
+}
+
+/**
  * WORLD ATLAS — the base geography, five landmarks, scatter props and the
  * ambient overlays (Transformation Build 01, stream C).
  *

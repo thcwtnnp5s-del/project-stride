@@ -199,6 +199,12 @@ GAME_BIBLE/ART/exploration/**
 !GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/materials/**
 !GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/gear/**
 !GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/vignettes/**
+# Fable V2 Iteration 02 ships the four accepted 16 px fauna stills into the
+# ambient layer, so the fauna out/ tree becomes a packaging source too.
+!GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/fauna/**
+# The Traveler's west walk cycle (trav_zip, the same character set the combat
+# frames shipped from) becomes the travel transition's packaging source.
+!GAME_BIBLE/ART/exploration/PLAYABLE_EXPANSION_01/combat/candidates/trav_zip/Idle/animations/traveler_walk/west/**
 
 # Never, under any exception: third-party reference imagery.
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg

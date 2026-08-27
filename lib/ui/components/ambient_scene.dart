@@ -332,6 +332,25 @@ final class AmbientScene {
     idleWeight: idleWeight,
     idleOnly: idleOnly,
   );
+
+  /// The same scene with [layer] added — how a location's ambient creature
+  /// joins the authored scenes (Fable V2 Iteration 02) without a second
+  /// hand-kept table. Every measured number is carried across, so the fauna
+  /// variant is held to the same composition rules as the original.
+  AmbientScene withExtraLayer(AmbientLayer layer) => AmbientScene(
+    id: id,
+    traveler: traveler,
+    footprint: footprint,
+    canvas: canvas,
+    canvasHeight: canvasHeight,
+    anchorX: anchorX,
+    layers: <AmbientLayer>[...layers, layer],
+    weight: weight,
+    bounds: measuredBounds,
+    companionAllowance: companionAllowance,
+    idleWeight: idleWeight,
+    idleOnly: idleOnly,
+  );
 }
 
 /// The scenes the stage rotates through.

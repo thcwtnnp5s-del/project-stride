@@ -239,6 +239,41 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_fauna_songbird_16` — 9 px of contact, 3..11.
+  static const SpriteFootprint ambientFaunaSongbird16 = SpriteFootprint(
+    left: 3,
+    right: 11,
+    bottom: 14,
+  );
+
+  /// `ambient_fauna_crow_16` — 10 px of contact, 4..13.
+  static const SpriteFootprint ambientFaunaCrow16 = SpriteFootprint(
+    left: 4,
+    right: 13,
+    bottom: 13,
+  );
+
+  /// `ambient_fauna_ptarmigan_16` — 11 px of contact, 3..13.
+  static const SpriteFootprint ambientFaunaPtarmigan16 = SpriteFootprint(
+    left: 3,
+    right: 13,
+    bottom: 12,
+  );
+
+  /// `ambient_fauna_hare_16` — 10 px of contact, 3..12.
+  static const SpriteFootprint ambientFaunaHare16 = SpriteFootprint(
+    left: 3,
+    right: 12,
+    bottom: 15,
+  );
+
+  /// `traveler_walk_west` — 8 px of contact, 22..29.
+  static const SpriteFootprint travelerWalkWest = SpriteFootprint(
+    left: 22,
+    right: 29,
+    bottom: 62,
+  );
+
   /// `ambient_activity_woodcut` — 13 px of contact, 32..44.
   static const SpriteFootprint ambientActivityWoodcut = SpriteFootprint(
     left: 32,

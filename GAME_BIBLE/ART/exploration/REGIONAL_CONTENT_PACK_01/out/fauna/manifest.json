@@ -1,0 +1,328 @@
+[
+ {
+  "id": "fauna_butterfly_24",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   24,
+   24
+  ],
+  "status": "accepted",
+  "note": "concept scale",
+  "bounds": {
+   "left": 3,
+   "top": 2,
+   "right": 20,
+   "bottom": 19
+  },
+  "region": "havens_rest"
+ },
+ {
+  "id": "fauna_songbird_32",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "concept scale",
+  "bounds": {
+   "left": 0,
+   "top": 2,
+   "right": 30,
+   "bottom": 31
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "fauna_bat_32",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "concept scale",
+  "bounds": {
+   "left": 2,
+   "top": 6,
+   "right": 29,
+   "bottom": 26
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "fauna_crow_32",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "concept scale",
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 30,
+   "bottom": 30
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "fauna_ptarmigan_32",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "concept scale",
+  "bounds": {
+   "left": 2,
+   "top": 3,
+   "right": 30,
+   "bottom": 28
+  },
+  "region": "frostmere"
+ },
+ {
+  "id": "fauna_hare_32",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "concept scale",
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 27,
+   "bottom": 29
+  },
+  "region": "havens_rest"
+ },
+ {
+  "id": "fauna_butterfly_16",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   16,
+   16
+  ],
+  "status": "accepted",
+  "note": "stage scale (×2 on the 64-px stage)",
+  "bounds": {
+   "left": 1,
+   "top": 3,
+   "right": 14,
+   "bottom": 12
+  },
+  "region": "havens_rest"
+ },
+ {
+  "id": "fauna_songbird_16",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   16,
+   16
+  ],
+  "status": "accepted",
+  "note": "stage scale",
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 14,
+   "bottom": 14
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "fauna_bat_16",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   16,
+   16
+  ],
+  "status": "withheld",
+  "note": "reads as a moth at x2 (QA_PASS_B zqzx)",
+  "bounds": {
+   "left": 0,
+   "top": 3,
+   "right": 15,
+   "bottom": 12
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "fauna_crow_16",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   16,
+   16
+  ],
+  "status": "accepted",
+  "note": "stage scale",
+  "bounds": {
+   "left": 2,
+   "top": 3,
+   "right": 13,
+   "bottom": 13
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "fauna_ptarmigan_16",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   16,
+   16
+  ],
+  "status": "accepted",
+  "note": "stage scale",
+  "bounds": {
+   "left": 3,
+   "top": 2,
+   "right": 13,
+   "bottom": 12
+  },
+  "region": "frostmere"
+ },
+ {
+  "id": "fauna_hare_16",
+  "kind": "ambient",
+  "frames": 1,
+  "canvas": [
+   16,
+   16
+  ],
+  "status": "accepted",
+  "note": "stage scale",
+  "bounds": {
+   "left": 3,
+   "top": 0,
+   "right": 12,
+   "bottom": 15
+  },
+  "region": "havens_rest"
+ },
+ {
+  "id": "fauna_butterfly_loop",
+  "kind": "ambient",
+  "frames": 5,
+  "canvas": [
+   24,
+   24
+  ],
+  "status": "accepted",
+  "note": "24 px, 5 f flutter (f0 = still)",
+  "fps": 8,
+  "loop": "loop",
+  "anchor": 0,
+  "baseline": 19,
+  "bounds": {
+   "left": 3,
+   "top": 2,
+   "right": 20,
+   "bottom": 19
+  },
+  "region": "havens_rest"
+ },
+ {
+  "id": "fauna_songbird_loop",
+  "kind": "ambient",
+  "frames": 7,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "32 px, 7 f head turn (f0 = still)",
+  "fps": 6,
+  "loop": "once",
+  "anchor": 0,
+  "baseline": 31,
+  "bounds": {
+   "left": 0,
+   "top": 1,
+   "right": 30,
+   "bottom": 31
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "fauna_bat_loop",
+  "kind": "ambient",
+  "frames": 5,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "32 px, 5 f wing flap",
+  "fps": 10,
+  "loop": "loop",
+  "anchor": 0,
+  "baseline": 26,
+  "bounds": {
+   "left": 2,
+   "top": 5,
+   "right": 29,
+   "bottom": 26
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "fauna_crow_loop",
+  "kind": "ambient",
+  "frames": 7,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "32 px, 7 f head turn",
+  "fps": 6,
+  "loop": "once",
+  "anchor": 0,
+  "baseline": 30,
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 30,
+   "bottom": 30
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "fauna_hare_loop",
+  "kind": "ambient",
+  "frames": 7,
+  "canvas": [
+   32,
+   32
+  ],
+  "status": "accepted",
+  "note": "32 px, 7 f ear twitch / head turn",
+  "fps": 6,
+  "loop": "once",
+  "anchor": 0,
+  "baseline": 29,
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 29,
+   "bottom": 29
+  },
+  "region": "havens_rest"
+ }
+]

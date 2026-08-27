@@ -153,8 +153,13 @@ class LocationStage extends StatelessWidget {
       gatherFootprint: SpriteFootprints.gather,
       playToken: playToken,
       // Work mode drops the companion scenes — the cat is a companion, not a
-      // fixture, and a rock face is not where it sits (§6).
-      scenes: working ? AmbientAssets.soloScenes : AmbientAssets.scenes,
+      // fixture, and a rock face is not where it sits (§6). The living
+      // location composes the region's creature in (Fable V2 Iteration 02):
+      // a hare at Haven, a songbird in the Woods — same key the backdrop
+      // resolves by, so the two cannot disagree about where we are.
+      scenes: working
+          ? AmbientAssets.soloScenes
+          : AmbientAssets.scenesFor(vignette),
       restFrame: AmbientAssets.restFrame,
       restFootprint: AmbientAssets.restFootprint,
       // The far scenery slot stays empty in both modes now. It is the slot
