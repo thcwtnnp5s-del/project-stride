@@ -363,6 +363,239 @@ void main() {
     await capture(tester, 'v2_adventure_woods');
   });
 
+  testWidgets('Iteration 03: the depth pass, driven into its surfaces', (
+    WidgetTester tester,
+  ) async {
+    // The depth evidence run (Fable V2 Iteration 03): the Skills roadmap
+    // routes, the Craft planner's bands, sourcing, chain jump and prover
+    // warning, and the item purpose block — each at the reference phone,
+    // from one real session with a few gathers banked.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(3000)],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      for (int i = 0; i < 4; i++) {
+        await s.gather(kNode);
+      }
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+
+    // Adventure first: the activities list is the "worthwhile thing HERE".
+    await capture(tester, 'v3_adventure');
+
+    // Skills overview, then three roadmap routes.
+    await open(tester, 'Skills');
+    await capture(tester, 'v3_skills');
+    for (final String skill in <String>['Mining', 'Foraging', 'Smithing']) {
+      await tester.tap(find.text(skill));
+      await tester.pumpAndSettle();
+      if (skill == 'Mining') {
+        // One expanded unlock row in the mining capture.
+        await tester.tap(find.textContaining('Tin Seam at Stonefall').first);
+        await tester.pumpAndSettle();
+      }
+      await capture(tester, 'v3_skill_${skill.toLowerCase()}_detail');
+      await tester.tap(find.text('CLOSE'));
+      await tester.pumpAndSettle();
+    }
+
+    // Craft: the banded overview, a ready recipe, sourcing on a missing
+    // one, the chain jump, the prover warning, and a locked capstone.
+    await open(tester, 'Craft');
+    await capture(tester, 'v3_craft_overview');
+    await tester.tap(find.text('Herb Broth'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_ready');
+    await tester.tap(find.text('Bronze Ingot'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_sourcing');
+    await tester.tap(find.text('Gear'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bronze Sword'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('CRAFT ›').first, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_chain');
+    await tester.tap(find.textContaining('Back to Bronze Sword'));
+    await tester.pumpAndSettle();
+    // The chain scrolled the list; bring the chips back before filtering.
+    Future<void> toTop() async {
+      for (int i = 0; i < 4; i++) {
+        await tester.drag(find.byType(ListView).first, const Offset(0, 700));
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+    }
+
+    await toTop();
+    await tester.tap(find.text('Gear'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Fang-Hilted Sword'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_prover');
+    await toTop();
+    await tester.tap(find.text('Gear'));
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.text('Bronze Longsword'),
+      find.byType(ListView).first,
+      const Offset(0, -250),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bronze Longsword'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_locked');
+
+    // Inventory: the purpose block under a held material.
+    await open(tester, 'Inventory');
+    await tester.tap(find.text('Meadow Herb'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v3_inventory_purpose');
+  });
+
+  testWidgets('Iteration 03: the Hollow Field Ledger on the inspector', (
+    WidgetTester tester,
+  ) async {
+    // The fabricated-inspector pattern (the same one the destination
+    // golden uses): the Forgotten Hollow as a reached destination now
+    // carries a board, a development word, and the camp project — the
+    // World face of the new expedition layer.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final RegionPlace hollow = RegionPlace(
+      id: ContentId.unchecked('location.forgotten_hollow'),
+      displayName: 'Forgotten Hollow',
+      isCurrent: false,
+      isSafe: false,
+      isUnlocked: true,
+      stepCostFromHere: 2400,
+      resourceCount: 3,
+      terrain: Terrain.forest,
+      kind: LocationKind.wilds,
+    );
+    final AtlasNode node = AtlasNode(place: hollow, x: 100, y: 100);
+    final AtlasWay way = AtlasWay(
+      hops: <AtlasNode>[node],
+      edges: const <AtlasEdge>[],
+      totalCost: 2400,
+      firstLegCost: 2400,
+    );
+    const AtlasPlaceInfo info = AtlasPlaceInfo(
+      kind: AtlasPlaceKind.wilds,
+      terrainWord: 'Forest',
+      isSafe: false,
+      isCurrent: false,
+      isUnlocked: true,
+      developmentWord: 'Untamed',
+      board: (
+        boardName: 'Field Ledger',
+        openContracts: 4,
+        readyToComplete: 1,
+        projectName: 'Raise the Hollow Field Camp',
+        projectHasSomethingToGive: true,
+        carryingSomethingWanted: true,
+      ),
+      gatherSites: <AtlasGatherLine>[
+        (
+          name: 'Silkstrand Thicket',
+          skill: 'Foraging',
+          level: 6,
+          tool: null,
+          eligible: true,
+          gap: null,
+        ),
+        (
+          name: 'Veiled Silkstrand',
+          skill: 'Foraging',
+          level: 8,
+          tool: null,
+          eligible: false,
+          gap: 'opens with Raise the Hollow Field Camp',
+        ),
+        (
+          name: 'Hollow Thicket',
+          skill: 'Foraging',
+          level: 10,
+          tool: null,
+          eligible: false,
+          gap: 'you are Lv 6',
+        ),
+      ],
+      encounters: <AtlasEncounterLine>[
+        (
+          name: 'Hollow Guardian',
+          isBoss: true,
+          behaviorWord: 'Guarded',
+          perVisit: 1,
+          remaining: 1,
+          isCurrentLocation: false,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          color: const Color(0xFF14120F),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: AtlasInspector(
+              name: 'Forgotten Hollow',
+              info: info,
+              way: way,
+              missingEntry: const <String>[],
+              banked: 8000,
+              busy: false,
+              ready: true,
+              lastJourney: null,
+              vignette: 'assets/art/v1/location/alt_forgotten_hollow.png',
+              onTravel: () {},
+              onTrackJourney: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Field Ledger · 4 open · 1 ready to turn in'),
+      findsOneWidget,
+    );
+
+    if (dir != null) {
+      await settleImages(tester);
+      await tester.runAsync(() async {
+        final ui.Image image = await captureImage(
+          find.byType(MaterialApp).evaluate().single,
+        );
+        final ByteData? bytes = await image.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
+        Directory(dir).createSync(recursive: true);
+        File(
+          '$dir/v3_world_hollow_inspector.png',
+        ).writeAsBytesSync(bytes!.buffer.asUint8List());
+      });
+    }
+  });
+
   testWidgets('the World inspector, a reached destination selected', (
     WidgetTester tester,
   ) async {
