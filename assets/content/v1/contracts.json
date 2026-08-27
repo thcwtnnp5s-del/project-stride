@@ -307,6 +307,17 @@
       "rewardCharacterXp": 20
     },
     {
+      "id": "contract.crawler_cull",
+      "displayName": "Crawler Cull",
+      "location": "location.stonefall_mine",
+      "class": "bounty",
+      "brief": "Their plates shear drill bits and their grip cracks props. Turn two out of the galleries and keep whatever metal they were gnawing.",
+      "bountyEnemy": "enemy.scree_crawler",
+      "bountyCount": 2,
+      "rewardItems": [{ "item": "item.scrap_metal", "quantity": 2 }],
+      "rewardCharacterXp": 25
+    },
+    {
       "id": "contract.heat_in_the_deep",
       "displayName": "Heat in the Deep",
       "location": "location.stonefall_mine",

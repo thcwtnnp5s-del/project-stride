@@ -393,7 +393,9 @@ class _CombatControlsState extends State<_CombatControls> {
         // telegraph and spending the round well is the player's craft.
         StrideButton(
           label: held ? 'Fighting…' : 'Brace',
-          subLabel: held ? null : 'Take half damage, deal none',
+          subLabel: held
+              ? null
+              : 'Half damage, deal none — the answer to a heavy blow',
           onPressed: held ? null : c.combatBrace,
         ),
         const SizedBox(height: StrideSpace.s8),

@@ -342,8 +342,7 @@ class _ItemPurposeBlock extends StatelessWidget {
           if (purpose.isTrophy) ...<Widget>[
             const SizedBox(height: StrideSpace.s4),
             Text(
-              'A keepsake — proof of a rare find. Nothing consumes it, '
-              'and nothing ever will without saying so first.',
+              'A keepsake — proof of a rare find.',
               style: StrideType.micro.copyWith(
                 color: StrideColors.textSecondary,
               ),

@@ -185,12 +185,52 @@ is deliberately silent; region music continues).
   sink is the rule owner's question (now `JOURNAL/OPEN_QUESTIONS.md`
   Q-12). V2 labels them honestly instead.
 
+## 5b. Known issues, on the record
+
+- **Herb Broth (pair) strictly dominates the base broth** from Cooking 4
+  (better broth-per-herb and XP-per-herb) and both stay listed: the only
+  retirement mechanism is project-based (`retiredByProject`), and inventing
+  a retire-by-level mechanism mid-sprint was scope. One row of menu noise;
+  a future pass can generalize retirement.
+- **A project-gated deck order can occupy a rotation slot before its
+  project completes**, showing as an unavailable order with its reason — a
+  pre-existing pattern (Haven's mill-gated commission shipped this way and
+  was device-accepted), but V2 adds three more such orders and Whispering
+  Woods has only two slots, so the freeze is more visible there. It reads
+  as an advertisement for the project; whether that is charm or clog is an
+  owner call from the device.
+- **The three Verge nodes reuse their neighbours' scenery byte-for-byte**
+  (A-2 copies), so two rows at one location can show identical thumbnails
+  distinguished by name and level. Honest placeholder; distinct authored
+  node art is a recorded future PixelLab round.
+- **The discovery layer fires only from the atlas travel path** — today the
+  only travel path; a future second one must call it too or first visits
+  there go unacknowledged.
+- **stride_storage: five cross-process lock probes time out on this
+  development machine** (pre-existing, recorded since v2.14; the package is
+  untouched by this experiment).
+
 ## 6. Device acceptance checklist (iPhone, Release via
 `Scripts/ios/build-release-device.sh`)
 
 Existing save expected to load with **banked steps, lifetime figures,
 inventory, equipment, XP, location, goals and encounter state intact** —
 nothing here migrates anything.
+
+> ⚠️ **One-way while evaluating combat:** a braced round writes a
+> `CombatBraced` journal event the accepted build has never heard of. Going
+> *back* to the `playable-phase-2-multiregion` build after bracing makes the
+> older build read the journal from that line on as a torn tail and **quietly
+> discard everything committed after the first brace** (it repairs to the
+> snapshot + prefix; nothing corrupts, but progress from that point is
+> lost). Evaluate the experiment to a verdict before reinstalling the
+> accepted build — or simply don't Brace in a session you intend to carry
+> back.
+
+> Also watch, not just check: **scrolling and tab-switch smoothness.** The
+> shell now keeps all six screens alive so the map camera survives a bag
+> check; the cost on real hardware (memory, rebuild time per sync) is
+> exactly what tests cannot measure. If the World tab janks on sync, say so.
 
 1. **World**: select each place — the panel shows Work counts, development
    word, gather verdicts; a reached destination shows its variant picture;
@@ -206,9 +246,20 @@ nothing here migrates anything.
 5. **Stonefall**: the Scree Crawler stands on the encounter card and
    fights (idle + attack; victory holds the hit pose — no defeat track,
    by QA verdict); at Mining <4 the Deep Tin Seam row explains its gap.
+   **Judge the crawler's identity read** — the pack accepted it READY WITH
+   NOTE against a "rock with legs" risk; if it reads as rubble, its
+   correction round is already recommended in the pack record. Know going
+   in: against a Bronze Sword it is a deliberate slog (≈12 low-risk
+   rounds) — it is authored as the **Longsword's showcase** (6 rounds with
+   real bite); with a Training Sword it is a wall, and retreat is free.
+   The Crawler Cull bounty pays the visit either way.
 6. **Combat**: the intent line appears once an enemy is Seen and deepens
-   at Studied; Brace halves the telegraphed heavy (watch the guardian or
-   salamander); the log narrates the stance.
+   at Studied — a guarded creature's authored tell shows **only on its
+   telegraph turn**, plain rounds say so plainly; Brace halves the
+   telegraphed heavy (watch the guardian or salamander). **Also brace once
+   against a steady enemy** (goblin, ram): it should feel like a
+   deliberately wasted round, which is the Q-06 evidence the owner is
+   collecting — is a situational second action worth its button?
 7. **Craft**: Herb Broth (pair) at Cooking 4; the Verge recipes appear at
    Smithing 5–6 with the RCP icons; a material recipe says what it makes
    possible.

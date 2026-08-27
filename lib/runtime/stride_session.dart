@@ -3747,6 +3747,14 @@ final class StrideSession {
             !(c.contractClass == ContractClass.regional &&
                 state.progress.completionsOf(c.id) > 0))
           '${c.displayName} — ${placeOf(c.location)}',
+      // Shown-and-kept requirements count as wanting too — the Scholar asks
+      // to *see* the Sigil, and a purpose block that missed that would call
+      // this sprint's own flagship a dead keepsake (final review finding).
+      for (final ContractDefinition c in content.contracts.values)
+        if (c.requiresOwned.contains(item) &&
+            !(c.contractClass == ContractClass.regional &&
+                state.progress.completionsOf(c.id) > 0))
+          '${c.displayName} — ${placeOf(c.location)} (shown, kept)',
       for (final ProjectDefinition p in content.projects.values)
         if (!state.progress.isProjectComplete(p.id) &&
             p.stages.any(
@@ -4018,8 +4026,12 @@ final class StrideSession {
   ///
   /// Unseen: nothing. Seen: the strike count, or "something heavy" on a
   /// telegraph turn — no more than the telegraph itself already shows.
-  /// Studied and Known: the creature's authored tell, and the heavy called
-  /// by name with the brace answer beside it.
+  /// Studied and Known: the creature's authored tell — except that a
+  /// *guarded* creature's tell describes its heavy, so it shows only on the
+  /// telegraph turn; the other two turns say the ordinary strike, or the
+  /// line would tell the player to brace against a blow that is not coming
+  /// (the final review's finding — truthfulness is this feature's whole
+  /// point).
   static String? _intentLineFor(
     EnemyDefinition enemy,
     KnowledgeTier tier,
@@ -4033,9 +4045,12 @@ final class StrideSession {
       return telegraph ? 'It is winding up something heavy.' : count;
     }
     final String tell = enemy.tellLine.isEmpty ? count : enemy.tellLine;
-    return telegraph
-        ? '$tell The heavy blow comes now — brace to take half.'
-        : tell;
+    if (enemy.behavior == EnemyBehavior.guarded) {
+      return telegraph
+          ? '$tell The heavy blow comes now — brace to take half.'
+          : 'It strikes plainly this round — the heavy is not yet wound.';
+    }
+    return tell;
   }
 
   /// The enemies at the player's current location, each with whether it can
@@ -4561,7 +4576,9 @@ final class StrideSession {
                 '+${node.bonusYieldPercent}% yield at ${node.displayName}',
             requiredLevel: node.bonusYieldLevel,
             unlocked: level >= node.bonusYieldLevel,
-            where: _hostOf(node.id, content),
+            // The node's name already places it; a host would double the
+            // "at" ("…at Meadow Patch at Haven's Rest").
+            where: null,
           ),
       for (final RecipeDefinition recipe in content.recipes.values)
         if (recipe.skill == skill &&

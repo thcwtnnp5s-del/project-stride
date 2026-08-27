@@ -288,8 +288,13 @@ final class AtlasScene {
       settled.add(here);
       for (final ContentId next in _neighbours[here] ?? const <ContentId>[]) {
         if (settled.contains(next)) continue;
-        final int cost =
-            best[here]! + (_legCost['${here.value}>${next.value}'] ?? 0);
+        final int? leg = _legCost['${here.value}>${next.value}'];
+        // A neighbour with no directed cost is a layout/session
+        // inconsistency; a silent 0 would quote a free road. Loud in debug,
+        // conservative (skip the edge) in release.
+        assert(leg != null, 'no leg cost for ${here.value}>${next.value}');
+        if (leg == null) continue;
+        final int cost = best[here]! + leg;
         final int stops = hops[here]! + 1;
         final int? known = best[next];
         if (known == null ||

@@ -37,7 +37,7 @@ sources had been causing since Exploration & Progression Loop 01):
 
 | Asset | Source | New home |
 |---|---|---|
-| Scree Crawler idle (7f) + attack (9f), 48² | `out/enemies/crawler_*` (accepted; defeat withheld — "no collapse read") | `enemy.scree_crawler`, Stonefall's armoured fight; stage holds the hit pose on victory (guardian precedent) |
+| Scree Crawler idle (7f) + attack (9f), 48² | `out/enemies/crawler_*` (accepted **READY WITH NOTE** — the pack recommends a face/eye correction round against the "rock with legs" risk, `INTEGRATION_MANIFEST.md`; defeat withheld — "no collapse read") | `enemy.scree_crawler`, Stonefall's armoured fight; stage holds the hit pose on victory (guardian precedent); the identity read is an explicit device-checklist item |
 | Bronze Longsword icon | `out/gear/icon_bronze_longsword_48` (accepted) | `item.bronze_longsword` (Epic weapon, Smithing 6) |
 | Bearhide Coat icon | `out/gear/icon_bearhide_coat_48` (accepted, "cloak" note) | `item.bearhide_coat` (Epic armor, Smithing 6) |
 | Hornbound Bronze Axe icon | `out/gear/icon_hornbound_bronze_axe_48` (accepted) | `item.hornbound_bronze_axe` (Epic tier-2 tool) |
@@ -54,9 +54,9 @@ round.**
 
 | Asset | Where | Why not yet | Recommendation |
 |---|---|---|---|
-| Fauna pack — butterfly/songbird/crow/ptarmigan/hare stills (16/24/32 px) + 5 loops, all accepted (`fauna_bat_16` withheld) | `RCP01/out/fauna/` | The ambient runtime has no "fauna beat" slot (RCP handoff §6.6); building one mid-sprint was scope | High-charm, low-cost follow-up: one fauna beat per location stage, absence the default |
+| Fauna pack — butterfly/songbird/**bat**/crow/ptarmigan/hare stills (16/24/32 px) + 5 loops; 17 records accepted, only `fauna_bat_16` withheld ("moth" read — the 32-px bat still and loop are fine; the *enemy* Adit Bat failed separately) | `RCP01/out/fauna/` | The ambient runtime has no "fauna beat" slot (RCP handoff §6.6); building one mid-sprint was scope. **Sources are still gitignored** — track them (`!…/out/fauna/**`) before or with any integration, the same durability fix the enemy sources needed | High-charm, low-cost follow-up: one fauna beat per location stage, absence the default |
 | Ten atlas props — plank bridge, waystone, mine headframe, elder oak, alpine hut, ruined tower, hamlet cluster, ruin corner, cold camp, ore cart (accepted; charcoal clamp & deer group withheld) | `RCP01/out/world/` | Palette-conformed against the **retired** 384×688 base; Reviewer C mandated an in-place ×2 contrast check against the current 1024 composite — atlas-adjacent work this sprint froze by owner order | Revisit only when atlas work reopens; layout-placed layers, never atlas-image edits |
-| Traveler walk cycle, 7 directions × 6f, 64² | `PIXELLAB_PROOF_02/out/animation/` | QA-passed with a backpack-flicker defect and no NW direction; needs frame QA + a use design (travel-in-progress feedback) | The best candidate for a travel-feel round: animate the journey along the route line |
+| Traveler walk cycle, **8 directions** × 6f, 64² (NW was still generating at proof close and landed afterward — all eight exist on disk) | `PIXELLAB_PROOF_02/out/animation/` | QA-passed with a backpack-flicker defect; needs frame QA + a use design (travel-in-progress feedback); sources untracked | The best candidate for a travel-feel round: animate the journey along the route line |
 | Traveler 8-direction stills | `PIXELLAB_PROOF_02/out/character/traveler_*` | No direction-aware staging exists | With the walk cycle, same round |
 | Canvas Backpack icon 48² | `PIXELLAB_STABILIZATION_01/out/icons_full/` | No `item.canvas_backpack` exists; a capacity item contradicts the no-capacity stance (Q-UI-1) unless designed deliberately | Hold until a capacity/storage design exists, if ever |
 | Full 512×384 location scenes | `PIXELLAB_STABILIZATION_01/out/location/*_vignette_512x384` | The shipped 384×176 crops serve; alternative framings had no consumer this sprint | Recrop candidates (A-2) if a larger presentation surface appears |
@@ -75,7 +75,9 @@ round.**
 
 ## 5. Superseded / failed (F/G) — do not integrate
 
-**F:** T01 world base tile + 5 landmark cutouts; WRD01 east/south/southeast
+**F:** the whole of `PIXELLAB_PROOF_01` (nine traveler stills, five 32-px
+icons, an env sample — all superseded by PROOF_02 and the stabilization
+sets); T01 world base tile + 5 landmark cutouts; WRD01 east/south/southeast
 atlas tiles + 7 withheld strip props; AF01/PWRF alternate atlas masters;
 WMP03 strip_east/corner_ne/corner_se; AF01 mine2 loop; PE01
 traveler_combat_idle (replaced by PP02); PWRF 64×48 stations; RCP
