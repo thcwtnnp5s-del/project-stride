@@ -1,0 +1,70 @@
+[
+ {
+  "id": "icon_bronze_longsword_48",
+  "kind": "item.bronze_longsword",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "c2 bronze hue like the shipped sword; c1 came out copper-red. Differs from bronze_sword by length, cord grip, disc pommel",
+  "bounds": {
+   "left": 2,
+   "top": 2,
+   "right": 45,
+   "bottom": 45
+  }
+ },
+ {
+  "id": "icon_bearhide_coat_48",
+  "kind": "item.bearhide_coat",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "c2 brown; c1 came out olive",
+  "bounds": {
+   "left": 10,
+   "top": 2,
+   "right": 37,
+   "bottom": 45
+  }
+ },
+ {
+  "id": "icon_reinforced_bronze_pickaxe_48",
+  "kind": "item.reinforced_bronze_pickaxe",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "withheld",
+  "note": "WITHHELD after three rounds — c1 jumble, c2 read as a polearm (QA_PASS_B rdzq), c3 read as a hammer (QA_PASS_D qrcw); packaged c3 for the record only",
+  "bounds": {
+   "left": 4,
+   "top": 3,
+   "right": 43,
+   "bottom": 44
+  }
+ },
+ {
+  "id": "icon_hornbound_bronze_axe_48",
+  "kind": "item.hornbound_bronze_axe",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "c2; horn ring reads as a pale wrap",
+  "bounds": {
+   "left": 2,
+   "top": 2,
+   "right": 43,
+   "bottom": 43
+  }
+ }
+]

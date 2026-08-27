@@ -24,6 +24,7 @@
       "terrain": "forest",
       "isSafe": false,
       "isStart": false,
+      "developmentState": "Unwatched",
       "boardName": "Ranger Requests",
       "boardSlots": 2,
       "connections": [
@@ -55,6 +56,7 @@
       "resourceNodes": [
         "resource_node.copper_seam",
         "resource_node.tin_seam",
+        "resource_node.deep_tin_seam",
         "resource_node.hardened_copper_seam"
       ]
     },
@@ -74,7 +76,8 @@
       "entryRequirements": [],
       "resourceNodes": [
         "resource_node.rimefrost_hollow",
-        "resource_node.frostpine_stand"
+        "resource_node.frostpine_stand",
+        "resource_node.oldgrowth_frostpine"
       ]
     },
     {
@@ -87,7 +90,10 @@
         { "to": "location.whispering_woods", "stepCost": 2400 }
       ],
       "entryRequirements": ["item.bronze_sword"],
-      "resourceNodes": ["resource_node.hollow_thicket"]
+      "resourceNodes": [
+        "resource_node.silkstrand_thicket",
+        "resource_node.hollow_thicket"
+      ]
     }
   ]
 }

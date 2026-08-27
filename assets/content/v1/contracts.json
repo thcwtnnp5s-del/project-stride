@@ -99,6 +99,16 @@
       "revealRumors": ["rumor.eastern_city"]
     },
     {
+      "id": "contract.scholars_interest",
+      "displayName": "The Scholar's Interest",
+      "location": "location.havens_rest",
+      "class": "regional",
+      "brief": "A visiting scholar has heard what stands in the Forgotten Hollow. Show her the Guardian's sigil — she asks only to see it — and she will tell you what she knows of the barrow beneath.",
+      "requiresOwned": ["item.hollow_sigil"],
+      "rewardCharacterXp": 80,
+      "revealRumors": ["rumor.hollow_depths"]
+    },
+    {
       "id": "contract.woodland_aid",
       "displayName": "Woodland Aid",
       "location": "location.havens_rest",
@@ -155,6 +165,32 @@
       "requires": [{ "item": "item.boar_hide", "quantity": 3 }],
       "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 45 }],
       "rewardItems": [{ "item": "item.herb_broth", "quantity": 2 }]
+    },
+    {
+      "id": "contract.watch_provisions",
+      "displayName": "Watch Provisions",
+      "location": "location.whispering_woods",
+      "class": "local_need",
+      "deckOrder": 5,
+      "brief": "The watchtower keeps eyes on the deep woods now, and eyes need feeding. Hot food, carried up the ladder.",
+      "requiresProject": "project.ranger_watchtower",
+      "requires": [
+        { "item": "item.duskcap_skewer", "quantity": 2 },
+        { "item": "item.herb_broth", "quantity": 2 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 50 }],
+      "rewardCharacterXp": 10
+    },
+    {
+      "id": "contract.bear_watch",
+      "displayName": "Bear Watch",
+      "location": "location.whispering_woods",
+      "class": "bounty",
+      "brief": "The old bear keeps coming back to the deep paths, and the rangers keep a pelt on hand for whoever turns it away.",
+      "bountyEnemy": "enemy.oakback_bear",
+      "bountyCount": 1,
+      "rewardItems": [{ "item": "item.bear_pelt", "quantity": 1 }],
+      "rewardCharacterXp": 30
     },
     {
       "id": "contract.wolf_problem",
@@ -237,6 +273,29 @@
       "rewardCharacterXp": 10
     },
     {
+      "id": "contract.feed_the_forge",
+      "displayName": "Feed the Forge",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 5,
+      "brief": "A salamander's shed scale burns hotter than any coal. The smith pays in clean ore for every one you carry in.",
+      "requires": [{ "item": "item.heat_scale", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 55 }],
+      "rewardItems": [{ "item": "item.copper_ore", "quantity": 2 }]
+    },
+    {
+      "id": "contract.deep_ore_order",
+      "displayName": "Deep Ore Order",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 6,
+      "brief": "With the lift running, the storemaster buys deep-gallery ore by the sack and smelts a share back to you.",
+      "requiresProject": "project.stonefall_lift",
+      "requires": [{ "item": "item.copper_ore", "quantity": 8 }],
+      "rewardSkillXp": [{ "skill": "skill.mining", "xp": 65 }],
+      "rewardItems": [{ "item": "item.bronze_ingot", "quantity": 1 }]
+    },
+    {
       "id": "contract.goblin_bounty",
       "displayName": "Goblin Bounty",
       "location": "location.stonefall_mine",
@@ -307,6 +366,18 @@
       "rewardItems": [{ "item": "item.rime_blossom", "quantity": 1 }]
     },
     {
+      "id": "contract.expedition_teas",
+      "displayName": "Teas for the Expedition",
+      "location": "location.frostmere",
+      "class": "local_need",
+      "deckOrder": 4,
+      "brief": "With the shelter's hearth lit, the expedition asks for the one comfort the cold cannot take: hot frostbloom tea.",
+      "requiresProject": "project.frostmere_shelter",
+      "requires": [{ "item": "item.frostbloom_tea", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 65 }],
+      "rewardCharacterXp": 15
+    },
+    {
       "id": "contract.predator_control",
       "displayName": "Predator Control",
       "location": "location.frostmere",
@@ -325,7 +396,10 @@
       "brief": "The rams own the high ledges the surveyors need. Wool for your trouble.",
       "bountyEnemy": "enemy.mountain_ram",
       "bountyCount": 2,
-      "rewardItems": [{ "item": "item.ram_wool", "quantity": 1 }],
+      "rewardItems": [
+        { "item": "item.ram_wool", "quantity": 1 },
+        { "item": "item.ram_horn", "quantity": 1 }
+      ],
       "rewardCharacterXp": 25
     },
     {

@@ -497,6 +497,13 @@ abstract final class AmbientAssets {
       assetPath: '$_art/work/prop_duskcap_grove.png',
       bounds: SpriteBounds(left: 8, top: 16, right: 88, bottom: 94),
     ),
+    // Fable V2 (`DECISIONS/0027`): the Deep Tin Seam's plate is a byte copy
+    // of the tin seam's (A-2), so the prop and bounds carry over verbatim.
+    '$_art/node/deep_tin_seam.png': StageScenery(
+      assetPath: '$_art/work/prop_tin_seam.png',
+      bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 91),
+      behindFigure: true,
+    ),
   };
 
   static const Map<String, StageScenery> _scenery = <String, StageScenery>{
@@ -536,6 +543,22 @@ abstract final class AmbientAssets {
     ),
     '$_art/node/hollow_thicket.png': StageScenery(
       assetPath: '$_art/node/hollow_thicket.png',
+      bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
+    ),
+    // Fable V2 (`DECISIONS/0027`): the three Verge nodes' plates are byte
+    // copies of the plates named in `package-art.js` (A-2), so each carries
+    // its source's measured bounds verbatim. Distinct authored scenery is a
+    // recorded future PixelLab round.
+    '$_art/node/deep_tin_seam.png': StageScenery(
+      assetPath: '$_art/node/deep_tin_seam.png',
+      bounds: SpriteBounds(left: 2, top: 6, right: 93, bottom: 90),
+    ),
+    '$_art/node/oldgrowth_frostpine.png': StageScenery(
+      assetPath: '$_art/node/oldgrowth_frostpine.png',
+      bounds: SpriteBounds(left: 12, top: 6, right: 83, bottom: 87),
+    ),
+    '$_art/node/silkstrand_thicket.png': StageScenery(
+      assetPath: '$_art/node/silkstrand_thicket.png',
       bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
     ),
   };

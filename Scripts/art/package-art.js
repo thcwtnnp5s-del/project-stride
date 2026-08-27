@@ -889,6 +889,10 @@ const RCP_SELECTED = [
   'ram_idle', 'ram_attack', 'ram_defeat',
   'salamander_idle', 'salamander_attack', 'salamander_defeat',
   'bear_idle', 'bear_attack2', 'bear_defeat',
+  // The Scree Crawler (`DECISIONS/0027`, experimental): idle and attack are
+  // pack-accepted; its defeat stayed withheld after blind QA, and the stage
+  // tolerates a missing defeat exactly as it does the Guardian's.
+  'crawler_idle', 'crawler_attack',
 ];
 const rcpManifest = JSON.parse(
   fs.readFileSync(path.join(RCP_ENEMIES_SRC, 'manifest.json'), 'utf8'),
@@ -925,12 +929,97 @@ for (const [id, file] of Object.entries({
   boar_tusk: 'icon_boar_tusk_48.png',
   bear_pelt: 'icon_bear_pelt_48.png',
   ram_horn: 'icon_ram_horn_48.png',
+  // Gloom Silk joins under `DECISIONS/0027` (Verge tier); pack-accepted.
+  gloom_silk: 'icon_gloom_silk_48.png',
 })) {
   const raster = png.load(path.join(RCP_MATERIALS_SRC, file));
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${file}: expected 48x48, got ${raster.width}x${raster.height}`);
   }
   emit(`item/${id}.png`, encode(raster));
+}
+
+// ------------------------------------------------ Fable V2 Experiment 01
+
+/**
+ * THE VERGE TIER (`DECISIONS/0027`, experimental) — the pack's accepted gear
+ * icons for the three Epic pieces the experiment's content names. Status is
+ * read from the pack's own gear manifest so a withheld icon can never ship:
+ * the Reinforced Bronze Pickaxe's and Granite Chitin's stayed withheld, and
+ * their items were struck from the content rather than shipped blank
+ * (`GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/INTEGRATION_MANIFEST.md`).
+ */
+const RCP_GEAR_SRC = path.join(
+  EXPLORE, 'REGIONAL_CONTENT_PACK_01', 'out', 'gear',
+);
+const rcpGearManifest = JSON.parse(
+  fs.readFileSync(path.join(RCP_GEAR_SRC, 'manifest.json'), 'utf8'),
+);
+for (const [id, srcId] of Object.entries({
+  bronze_longsword: 'icon_bronze_longsword_48',
+  bearhide_coat: 'icon_bearhide_coat_48',
+  hornbound_bronze_axe: 'icon_hornbound_bronze_axe_48',
+})) {
+  const entry = rcpGearManifest.find((e) => e.id === srcId);
+  if (!entry) throw new Error(`${srcId}: not in the gear manifest`);
+  if (entry.status !== 'accepted') {
+    throw new Error(`${srcId}: gear status is "${entry.status}", not accepted`);
+  }
+  const raster = png.load(path.join(RCP_GEAR_SRC, `${srcId}.png`));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(`${srcId}: expected 48x48, got ${raster.width}x${raster.height}`);
+  }
+  emit(`item/${id}.png`, encode(raster));
+}
+
+/**
+ * NODE ART FOR THE VERGE NODES — deterministic copies of shipped node
+ * vignettes (`RULES.md` A-2: a copy invents nothing). Each new node reuses
+ * the scenery of the node whose subject it deepens: the Deep Tin Seam is a
+ * tin seam, the Old-Growth Frostpine is a frostpine stand, and the
+ * Silkstrand Thicket is a thicket. Distinct authored scenery is a recorded
+ * future PixelLab round, not a code job (A-1).
+ */
+for (const [id, sourceId] of Object.entries({
+  deep_tin_seam: 'tin_seam',
+  oldgrowth_frostpine: 'frostpine_stand',
+  silkstrand_thicket: 'hollow_thicket',
+})) {
+  const raster = png.load(path.join(ITEMS_SRC, `node_${sourceId}_96.png`));
+  emit(`node/${id}.png`, encode(raster));
+}
+
+/**
+ * LOCATION VIGNETTE VARIANTS — the pack's five accepted second framings
+ * (`out/vignettes/manifest.json`, all `accepted`), packaged at their
+ * authored 384 × 176 and shipped as `location/alt_<id>.png`. The World
+ * inspector shows a place's variant when one exists, so the atlas panel can
+ * carry a picture of the destination without repeating the Adventure
+ * backdrop pixel for pixel.
+ */
+const RCP_VIGNETTES_SRC = path.join(
+  EXPLORE, 'REGIONAL_CONTENT_PACK_01', 'out', 'vignettes',
+);
+const rcpVignetteManifest = JSON.parse(
+  fs.readFileSync(path.join(RCP_VIGNETTES_SRC, 'manifest.json'), 'utf8'),
+);
+for (const [locationId, srcId] of Object.entries({
+  havens_rest: 'vignette_havens_rest_ford',
+  whispering_woods: 'vignette_whispering_woods_ring',
+  stonefall_mine: 'vignette_stonefall_spoil',
+  forgotten_hollow: 'vignette_hollow_mere',
+  frostmere: 'vignette_frostmere_pass',
+})) {
+  const entry = rcpVignetteManifest.find((e) => e.id === srcId);
+  if (!entry) throw new Error(`${srcId}: not in the vignette manifest`);
+  if (entry.status !== 'accepted') {
+    throw new Error(`${srcId}: status is "${entry.status}", not accepted`);
+  }
+  const raster = png.load(path.join(RCP_VIGNETTES_SRC, `${srcId}.png`));
+  if (raster.width !== 384 || raster.height !== 176) {
+    throw new Error(`${srcId}: expected 384x176, got ${raster.width}x${raster.height}`);
+  }
+  emit(`location/alt_${locationId}.png`, encode(raster));
 }
 
 /**

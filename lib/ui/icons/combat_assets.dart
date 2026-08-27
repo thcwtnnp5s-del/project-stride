@@ -500,6 +500,40 @@ abstract final class CombatAssets {
     impactRise: 16,
   );
 
+  /// The Stonefall scree crawler (Regional Content Pack 01, integrated by
+  /// Fable V2 Experiment 01 — `DECISIONS/0027`). Pack blind QA accepted idle
+  /// and attack ("mandibles gape f3–f6"); `crawler_defeat` stayed withheld
+  /// ("legs curl slightly; no collapse read"), so the stage holds the hit
+  /// pose on victory exactly as it does for the guardian, and the pack
+  /// authored no hit track, so the stage recoils the figure. 48² canvas,
+  /// anchor row 40 — a low armoured arthropod.
+  static final CombatantArt crawler = CombatantArt(
+    idle: _track(
+      'crawler_idle',
+      7,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 48,
+      canvasHeight: 48,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatCrawlerIdle,
+    ),
+    attack: _track(
+      'crawler_attack',
+      9,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 48,
+      canvasHeight: 48,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatCrawlerAttack,
+    ),
+    // The mandibles gape f3–f6; the crushing grip closes on f4.
+    strikeFrame: 4,
+    // Opaque rows 6..40: the plated back's centre is about row 23.
+    impactRise: 17,
+  );
+
   /// The Stonefall deep-gallery salamander (Regional Content Pack 01). The
   /// pack authored no hit track; the stage recoils the figure. 56² canvas,
   /// anchor row 50 — a low-slung creature whose raised head carries the
@@ -648,6 +682,7 @@ abstract final class CombatAssets {
     'enemy.mountain_ram' => ram,
     'enemy.salamander' => salamander,
     'enemy.oakback_bear' => bear,
+    'enemy.scree_crawler' => crawler,
     _ => null,
   };
 

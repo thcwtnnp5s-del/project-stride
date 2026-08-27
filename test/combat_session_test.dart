@@ -404,7 +404,8 @@ void main() {
       );
       expect(
         mine.encounters.map((PlaceEncounterLine e) => e.name),
-        <String>['Cave Goblin', 'Salamander'],
+        // The Scree Crawler is the Mine's armoured third (`DECISIONS/0027`).
+        <String>['Cave Goblin', 'Salamander', 'Scree Crawler'],
       );
       expect(
         mine.encounters

@@ -187,6 +187,18 @@ GAME_BIBLE/ART/exploration/**
 !GAME_BIBLE/ART/exploration/WORLD_REWARD_DEPTH_01/world/out/**
 !GAME_BIBLE/ART/exploration/ACTIVITY_FEEL_01/out/**
 !GAME_BIBLE/ART/exploration/PRESENTATION_WORLD_REWARD_FEEL_01/out/**
+#   * REGIONAL_CONTENT_PACK_01/out/{enemies,materials,gear,vignettes} —
+#     package-art.js packaging sources (enemy frame sets, material and gear
+#     icons, vignette variants). The enemies/materials blocks had read these
+#     since Exploration & Progression Loop 01 with no exception here, so
+#     `--check` could not pass from a clean checkout — found and fixed by
+#     Fable V2 Experiment 01, which also adopts the gear/vignette sets
+#     (DECISIONS/0027). fauna/ and world/ stay local until something ships
+#     from them.
+!GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/enemies/**
+!GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/materials/**
+!GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/gear/**
+!GAME_BIBLE/ART/exploration/REGIONAL_CONTENT_PACK_01/out/vignettes/**
 
 # Never, under any exception: third-party reference imagery.
 GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/*.jpg

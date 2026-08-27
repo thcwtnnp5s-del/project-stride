@@ -23,11 +23,11 @@ void main() {
         productionSource,
       ).requireRegistry;
 
-      // DECISIONS/0004, as amended by DECISIONS/0017, DECISIONS/0021 and
-      // DECISIONS/0023: scope is frozen at five skills, **five** locations,
-      // **eight** enemies. A test that counts is how a freeze stays frozen —
-      // and every count here moved by an ADR, which is the only way one may
-      // move.
+      // DECISIONS/0004, as amended by DECISIONS/0017, DECISIONS/0021,
+      // DECISIONS/0023 and DECISIONS/0027: scope is frozen at five skills,
+      // **five** locations, **nine** enemies. A test that counts is how a
+      // freeze stays frozen — and every count here moved by an ADR, which is
+      // the only way one may move.
       //
       // Five skills are unchanged and re-frozen: fishing was considered for
       // Phase 2 and rejected, and a sixth skill still needs its own decision.
@@ -35,10 +35,13 @@ void main() {
       // (`DECISIONS/0023`; brief §26–31): the Wild Boar and the optional
       // high-danger Oakback Bear in the Woods, the Salamander at Stonefall,
       // and the Mountain Ram at Frostmere — all from REGIONAL_CONTENT_PACK_01
-      // READY art, inside the brief's 6–8 archetype guardrail (§74).
+      // READY art, inside the brief's 6–8 archetype guardrail (§74). The
+      // ninth is the Scree Crawler (`DECISIONS/0027`, **experimental** —
+      // Stonefall's armoured fight, from the same pack's READY art; the count
+      // reverts with the decision if the owner strikes the experiment).
       expect(registry.skills, hasLength(5));
       expect(registry.locations, hasLength(5));
-      expect(registry.enemies, hasLength(8));
+      expect(registry.enemies, hasLength(9));
 
       for (final String id in <String>[
         'skill.woodcutting',
@@ -67,6 +70,7 @@ void main() {
         'enemy.frost_lynx',
         'enemy.mountain_ram',
         'enemy.hollow_guardian',
+        'enemy.scree_crawler',
       ]) {
         expect(registry.enemies, contains(ContentId.unchecked(id)));
       }
@@ -118,6 +122,13 @@ void main() {
       expect(rarityOf('item.reinforced_pickaxe'), Rarity.rare);
       expect(rarityOf('item.frostlined_jerkin'), Rarity.epic);
       expect(rarityOf('item.hollow_sigil'), Rarity.epic);
+      // The Verge tier (`DECISIONS/0027`, experimental): each Epic is the end
+      // of a chain that crosses at least two regions' fights or gathers; the
+      // silk is a Rare part, "Epic is for the made thing, not the part".
+      expect(rarityOf('item.gloom_silk'), Rarity.rare);
+      expect(rarityOf('item.bronze_longsword'), Rarity.epic);
+      expect(rarityOf('item.bearhide_coat'), Rarity.epic);
+      expect(rarityOf('item.hornbound_bronze_axe'), Rarity.epic);
 
       // Legendary is reserved. Nothing carries it yet, and the enum, the
       // style table and the tests cover it before content needs it

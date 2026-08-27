@@ -69,6 +69,18 @@
       "xp": 17
     },
     {
+      "id": "resource_node.deep_tin_seam",
+      "displayName": "Deep Tin Seam",
+      "skill": "skill.mining",
+      "requiredLevel": 4,
+      "requiredToolKind": "pickaxe",
+      "minimumToolTier": 1,
+      "yieldsItem": "item.tin_ore",
+      "yieldsQuantity": 2,
+      "stepCost": 190,
+      "xp": 24
+    },
+    {
       "id": "resource_node.hardened_copper_seam",
       "displayName": "Hardened Copper Seam",
       "skill": "skill.mining",
@@ -104,6 +116,30 @@
       "yieldsQuantity": 1,
       "stepCost": 240,
       "xp": 22
+    },
+    {
+      "id": "resource_node.oldgrowth_frostpine",
+      "displayName": "Old-Growth Frostpine",
+      "skill": "skill.woodcutting",
+      "requiredLevel": 7,
+      "requiredToolKind": "axe",
+      "minimumToolTier": 2,
+      "yieldsItem": "item.pine_log",
+      "yieldsQuantity": 2,
+      "stepCost": 280,
+      "xp": 34
+    },
+    {
+      "id": "resource_node.silkstrand_thicket",
+      "displayName": "Silkstrand Thicket",
+      "skill": "skill.foraging",
+      "requiredLevel": 6,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.gloom_silk",
+      "yieldsQuantity": 1,
+      "stepCost": 260,
+      "xp": 26
     },
     {
       "id": "resource_node.hollow_thicket",

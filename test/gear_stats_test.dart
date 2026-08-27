@@ -106,33 +106,40 @@ void main() {
     // same node fields the engine gates a gather with.
     final StrideSession s = await boot();
 
-    // Tier 0 pick: the two open seams, and the tier-2 site as the gap.
+    // Tier 0 pick: the two open seams, and the tier-1 site as the gap —
+    // the Deep Tin Seam (`DECISIONS/0027`) is the Bronze Pickaxe's first
+    // reason to exist, so the gap line finally names a tier-1 want.
     final GearStats training = s.gearStatsOf(trainingPick)!;
     expect(training.passives, contains('Mines: Copper Seam, Tin Seam'));
-    expect(
-      training.passives,
-      contains('Tier 2 opens Hardened Copper Seam'),
-    );
+    expect(training.passives, contains('Tier 1 opens Deep Tin Seam'));
 
     // Tier 2 pick: every pickaxe site, and no gap line — the pack holds
     // nothing above it.
     final GearStats reinforced = s.gearStatsOf(reinforcedPick)!;
     expect(
       reinforced.passives,
-      contains('Mines: Copper Seam, Tin Seam, Hardened Copper Seam'),
+      contains(
+        'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Hardened Copper Seam',
+      ),
     );
     expect(
       reinforced.passives.where((String p) => p.startsWith('Tier ')),
       isEmpty,
     );
 
-    // Axes read the same way, in their own verb.
+    // Axes read the same way, in their own verb — and the bronze axe now
+    // has a want above it too (`DECISIONS/0027`: the Old-Growth Frostpine
+    // is the Hornbound Bronze Axe's job).
     final GearStats axe = s.gearStatsOf(trainingAxe)!;
     expect(axe.passives, contains('Chops: Oak Stand'));
     expect(axe.passives, contains('Tier 1 opens Frostpine Stand'));
     expect(
       s.gearStatsOf(bronzeAxe)!.passives,
       contains('Chops: Oak Stand, Frostpine Stand'),
+    );
+    expect(
+      s.gearStatsOf(bronzeAxe)!.passives,
+      contains('Tier 2 opens Old-Growth Frostpine'),
     );
   });
 

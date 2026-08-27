@@ -13,6 +13,11 @@
       "hint": "The lift's engineers whisper of galleries below the deepest seam — worked once, sealed, and never mapped."
     },
     {
+      "id": "rumor.hollow_depths",
+      "displayName": "The Hollow's Depths ?",
+      "hint": "Beneath the Guardian's barrow, the scholar insists, older passages wait — sealed, not empty."
+    },
+    {
       "id": "rumor.northern_range",
       "displayName": "Northern Range ?",
       "hint": "Beyond Frostmere the ridge climbs into peaks no ledger names, and something glitters on the far side of the ice."

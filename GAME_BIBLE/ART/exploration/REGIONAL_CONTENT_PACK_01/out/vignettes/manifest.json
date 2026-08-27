@@ -1,0 +1,87 @@
+[
+ {
+  "id": "vignette_havens_rest_ford",
+  "kind": "location.havens_rest",
+  "frames": 1,
+  "canvas": [
+   384,
+   176
+  ],
+  "status": "accepted",
+  "note": "variant: the river, bridge and gate",
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 383,
+   "bottom": 175
+  }
+ },
+ {
+  "id": "vignette_whispering_woods_ring",
+  "kind": "location.whispering_woods",
+  "frames": 1,
+  "canvas": [
+   384,
+   176
+  ],
+  "status": "accepted",
+  "note": "variant: the duskcap ring",
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 383,
+   "bottom": 175
+  }
+ },
+ {
+  "id": "vignette_stonefall_spoil",
+  "kind": "location.stonefall_mine",
+  "frames": 1,
+  "canvas": [
+   384,
+   176
+  ],
+  "status": "accepted",
+  "note": "variant: spoil ground, headframe, cart; more top-down than the shipped adit",
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 383,
+   "bottom": 175
+  }
+ },
+ {
+  "id": "vignette_hollow_mere",
+  "kind": "location.forgotten_hollow",
+  "frames": 1,
+  "canvas": [
+   384,
+   176
+  ],
+  "status": "accepted",
+  "note": "variant: the standing water and drowned arch",
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 383,
+   "bottom": 175
+  }
+ },
+ {
+  "id": "vignette_frostmere_pass",
+  "kind": "location.frostmere",
+  "frames": 1,
+  "canvas": [
+   384,
+   176
+  ],
+  "status": "accepted",
+  "note": "variant: Rimeward Pass track, cairn, hut, tarn below",
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 383,
+   "bottom": 175
+  }
+ }
+]

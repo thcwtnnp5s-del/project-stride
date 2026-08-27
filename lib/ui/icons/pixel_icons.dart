@@ -125,6 +125,23 @@ abstract final class PixelIcons {
   static String? vignetteFor(ContentId location) =>
       _vignetteByLocation[location.value];
 
+  /// A second framing of each location — Regional Content Pack 01's five
+  /// accepted vignette variants (the Ford, the Ring, the Spoil Heaps, the
+  /// Mere, the Pass), integrated by Fable V2 (`DECISIONS/0027`) for the World
+  /// inspector so the atlas panel can show the destination without repeating
+  /// the Adventure backdrop pixel for pixel.
+  static const Map<String, String> _altVignetteByLocation = <String, String>{
+    'location.havens_rest': '$_art/location/alt_havens_rest.png',
+    'location.whispering_woods': '$_art/location/alt_whispering_woods.png',
+    'location.stonefall_mine': '$_art/location/alt_stonefall_mine.png',
+    'location.frostmere': '$_art/location/alt_frostmere.png',
+    'location.forgotten_hollow': '$_art/location/alt_forgotten_hollow.png',
+  };
+
+  /// The variant framing for a location, or null where none is packaged.
+  static String? altVignetteFor(ContentId location) =>
+      _altVignetteByLocation[location.value];
+
   // ----------------------------------------------------------------- skills
 
   /// All five Milestone 01 skills.
@@ -238,6 +255,15 @@ abstract final class PixelIcons {
     'item.ember_core': '$_art/item/ember_core.png',
     'item.frost_claw': '$_art/item/frost_claw.png',
     'item.pristine_horn': '$_art/item/pristine_horn.png',
+
+    // Fable V2 Experiment 01 (`DECISIONS/0027`). The Verge tier's three Epic
+    // pieces and the silk that binds the longsword — all four icons from
+    // Regional Content Pack 01's accepted gear/material sets, integrated at
+    // last instead of sitting unused in the exploration tree.
+    'item.gloom_silk': '$_art/item/gloom_silk.png',
+    'item.bronze_longsword': '$_art/item/bronze_longsword.png',
+    'item.bearhide_coat': '$_art/item/bearhide_coat.png',
+    'item.hornbound_bronze_axe': '$_art/item/hornbound_bronze_axe.png',
   };
 
   // ------------------------------------------------------------------ nodes
@@ -257,6 +283,11 @@ abstract final class PixelIcons {
     'resource_node.rimefrost_hollow': '$_art/node/rimefrost_hollow.png',
     'resource_node.frostpine_stand': '$_art/node/frostpine_stand.png',
     'resource_node.hollow_thicket': '$_art/node/hollow_thicket.png',
+    // Fable V2 (`DECISIONS/0027`): deterministic copies of the scenery each
+    // node deepens (A-2); distinct authored art is a recorded future round.
+    'resource_node.deep_tin_seam': '$_art/node/deep_tin_seam.png',
+    'resource_node.oldgrowth_frostpine': '$_art/node/oldgrowth_frostpine.png',
+    'resource_node.silkstrand_thicket': '$_art/node/silkstrand_thicket.png',
   };
 
   static String? nodeFor(ContentId node) => _nodeArt[node.value];

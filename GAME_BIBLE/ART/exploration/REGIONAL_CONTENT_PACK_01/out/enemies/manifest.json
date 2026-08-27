@@ -1,0 +1,530 @@
+[
+ {
+  "id": "boar_idle",
+  "kind": "enemy.bristleback_boar",
+  "frames": 7,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "v3 west, keep_first_frame; f0 = rotation pose",
+  "fps": 6,
+  "loop": "pingpong",
+  "anchor": 43,
+  "baseline": 43,
+  "bounds": {
+   "left": 4,
+   "top": 8,
+   "right": 52,
+   "bottom": 43
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "boar_attack",
+  "kind": "enemy.bristleback_boar",
+  "frames": 9,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "goring lunge f3-f6",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 43,
+  "baseline": 43,
+  "bounds": {
+   "left": 3,
+   "top": 7,
+   "right": 53,
+   "bottom": 43
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "boar_defeat",
+  "kind": "enemy.bristleback_boar",
+  "frames": 7,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "sinks and lies from f4",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 43,
+  "baseline": 44,
+  "bounds": {
+   "left": 3,
+   "top": 8,
+   "right": 53,
+   "bottom": 44
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "bear_idle",
+  "kind": "enemy.oakback_bear",
+  "frames": 7,
+  "canvas": [
+   76,
+   76
+  ],
+  "status": "accepted",
+  "note": "76 canvas (54 character); slow breathing",
+  "fps": 5,
+  "loop": "pingpong",
+  "anchor": 61,
+  "baseline": 61,
+  "bounds": {
+   "left": 2,
+   "top": 12,
+   "right": 72,
+   "bottom": 61
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "bear_attack",
+  "kind": "enemy.oakback_bear",
+  "frames": 9,
+  "canvas": [
+   76,
+   76
+  ],
+  "status": "withheld",
+  "note": "round 1 — blind QA read it as a walk/lunge, not a swipe (QA_PASS_A gbtr)",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 61,
+  "baseline": 61,
+  "bounds": {
+   "left": 5,
+   "top": 5,
+   "right": 72,
+   "bottom": 61
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "bear_attack2",
+  "kind": "enemy.oakback_bear",
+  "frames": 9,
+  "canvas": [
+   76,
+   76
+  ],
+  "status": "accepted",
+  "note": "round 2 — ACCEPT (QA_PASS_D cwcp: rear-up / roar / swipe, clear); f2-f6",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 61,
+  "baseline": 61,
+  "bounds": {
+   "left": 4,
+   "top": 6,
+   "right": 74,
+   "bottom": 61
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "bear_defeat",
+  "kind": "enemy.oakback_bear",
+  "frames": 7,
+  "canvas": [
+   76,
+   76
+  ],
+  "status": "accepted",
+  "note": "slumps onto belly f3-f6",
+  "fps": 6,
+  "loop": "once",
+  "anchor": 61,
+  "baseline": 61,
+  "bounds": {
+   "left": 2,
+   "top": 12,
+   "right": 74,
+   "bottom": 61
+  },
+  "region": "whispering_woods"
+ },
+ {
+  "id": "ram_idle",
+  "kind": "enemy.frosthorn_ram",
+  "frames": 7,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "horse template; pale wool on snow — contrast carried by the dark face, legs and outline (see ctx plate)",
+  "fps": 6,
+  "loop": "pingpong",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 7,
+   "top": 9,
+   "right": 50,
+   "bottom": 42
+  },
+  "region": "frostmere"
+ },
+ {
+  "id": "ram_attack",
+  "kind": "enemy.frosthorn_ram",
+  "frames": 9,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "head rears f2-f3 then horns drive forward f4-f6",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 5,
+   "top": 9,
+   "right": 48,
+   "bottom": 42
+  },
+  "region": "frostmere"
+ },
+ {
+  "id": "ram_defeat",
+  "kind": "enemy.frosthorn_ram",
+  "frames": 7,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "folds and lies from f3",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 4,
+   "top": 9,
+   "right": 52,
+   "bottom": 42
+  },
+  "region": "frostmere"
+ },
+ {
+  "id": "ram_hit",
+  "kind": "enemy.frosthorn_ram",
+  "frames": 4,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "withheld",
+  "note": "template hit-left: a head turn only — the known quadruped-flinch failure (PE01, WRD lynx); use fx_impact + UI recoil",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 9,
+   "top": 8,
+   "right": 48,
+   "bottom": 42
+  },
+  "region": "frostmere"
+ },
+ {
+  "id": "bat_idle",
+  "kind": "enemy.adit_bat",
+  "frames": 7,
+  "canvas": [
+   40,
+   40
+  ],
+  "status": "withheld",
+  "note": "identity: read as gargoyle / small dragon at x2 (QA_PASS_A plqf, gkbp)",
+  "fps": 6,
+  "loop": "pingpong",
+  "anchor": 38,
+  "baseline": 38,
+  "bounds": {
+   "left": 2,
+   "top": 1,
+   "right": 38,
+   "bottom": 38
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "bat_attack",
+  "kind": "enemy.adit_bat",
+  "frames": 9,
+  "canvas": [
+   40,
+   40
+  ],
+  "status": "withheld",
+  "note": "identity wobble: frontal head reads as an owl (QA_PASS_A nlhr)",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 38,
+  "baseline": 38,
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 38,
+   "bottom": 38
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "bat_defeat",
+  "kind": "enemy.adit_bat",
+  "frames": 7,
+  "canvas": [
+   40,
+   40
+  ],
+  "status": "withheld",
+  "note": "animate_image did not collapse the figure; a pinned dead frame drifted identity (rejected)",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 38,
+  "baseline": 38,
+  "bounds": {
+   "left": 1,
+   "top": 1,
+   "right": 38,
+   "bottom": 38
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "crawler_idle",
+  "kind": "enemy.scree_crawler",
+  "frames": 7,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "pixen 48 canvas + animate_image",
+  "fps": 6,
+  "loop": "pingpong",
+  "anchor": 40,
+  "baseline": 40,
+  "bounds": {
+   "left": 1,
+   "top": 6,
+   "right": 46,
+   "bottom": 40
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "crawler_attack",
+  "kind": "enemy.scree_crawler",
+  "frames": 9,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "mandibles gape f3-f6",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 40,
+  "baseline": 40,
+  "bounds": {
+   "left": 1,
+   "top": 6,
+   "right": 46,
+   "bottom": 40
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "crawler_defeat",
+  "kind": "enemy.scree_crawler",
+  "frames": 7,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "withheld",
+  "note": "legs curl slightly; no collapse read",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 40,
+  "baseline": 40,
+  "bounds": {
+   "left": 1,
+   "top": 6,
+   "right": 46,
+   "bottom": 40
+  },
+  "region": "stonefall_mine"
+ },
+ {
+  "id": "weaver_idle",
+  "kind": "enemy.hollow_weaver",
+  "frames": 7,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "pixen 48 canvas + animate_image; dark figure on the dark Hollow ground band — check in ctx plate",
+  "fps": 6,
+  "loop": "pingpong",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 4,
+   "top": 4,
+   "right": 43,
+   "bottom": 42
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "weaver_attack",
+  "kind": "enemy.hollow_weaver",
+  "frames": 9,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "withheld",
+  "note": "round 1 — indistinguishable from idle at x2 (QA_PASS_A gjkl)",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 4,
+   "top": 4,
+   "right": 43,
+   "bottom": 42
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "weaver_attack2",
+  "kind": "enemy.hollow_weaver",
+  "frames": 9,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "withheld",
+  "note": "round 2 — still reads barely at x2 (QA_PASS_D dlmp); two rounds spent, stop",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 4,
+   "top": 4,
+   "right": 43,
+   "bottom": 42
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "weaver_defeat",
+  "kind": "enemy.hollow_weaver",
+  "frames": 7,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "withheld",
+  "note": "legs curl slightly; no collapse read",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 42,
+  "baseline": 42,
+  "bounds": {
+   "left": 4,
+   "top": 5,
+   "right": 43,
+   "bottom": 42
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "salamander_idle",
+  "kind": "enemy.mire_salamander",
+  "frames": 7,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "pixen 56 canvas + animate_image",
+  "fps": 6,
+  "loop": "pingpong",
+  "anchor": 50,
+  "baseline": 50,
+  "bounds": {
+   "left": 3,
+   "top": 5,
+   "right": 52,
+   "bottom": 50
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "salamander_attack",
+  "kind": "enemy.mire_salamander",
+  "frames": 9,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "mouth gapes with teeth f3-f6; little head travel",
+  "fps": 10,
+  "loop": "once",
+  "anchor": 50,
+  "baseline": 50,
+  "bounds": {
+   "left": 3,
+   "top": 5,
+   "right": 52,
+   "bottom": 50
+  },
+  "region": "forgotten_hollow"
+ },
+ {
+  "id": "salamander_defeat",
+  "kind": "enemy.mire_salamander",
+  "frames": 7,
+  "canvas": [
+   56,
+   56
+  ],
+  "status": "accepted",
+  "note": "MARGINAL — flattens, eyes close; subtle",
+  "fps": 8,
+  "loop": "once",
+  "anchor": 50,
+  "baseline": 50,
+  "bounds": {
+   "left": 3,
+   "top": 5,
+   "right": 52,
+   "bottom": 50
+  },
+  "region": "forgotten_hollow"
+ }
+]

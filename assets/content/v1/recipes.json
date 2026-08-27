@@ -154,6 +154,74 @@
       "craftSeconds": 120
     },
     {
+      "id": "recipe.bronze_longsword",
+      "displayName": "Bronze Longsword",
+      "skill": "skill.smithing",
+      "requiredLevel": 6,
+      "ingredients": [
+        {
+          "item": "item.bronze_ingot",
+          "quantity": 4
+        },
+        {
+          "item": "item.boar_tusk",
+          "quantity": 1
+        },
+        {
+          "item": "item.gloom_silk",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.bronze_longsword",
+      "outputQuantity": 1,
+      "xp": 180,
+      "craftSeconds": 180
+    },
+    {
+      "id": "recipe.hornbound_bronze_axe",
+      "displayName": "Hornbound Bronze Axe",
+      "skill": "skill.smithing",
+      "requiredLevel": 5,
+      "ingredients": [
+        {
+          "item": "item.bronze_axe",
+          "quantity": 1
+        },
+        {
+          "item": "item.ram_horn",
+          "quantity": 2
+        }
+      ],
+      "outputItem": "item.hornbound_bronze_axe",
+      "outputQuantity": 1,
+      "xp": 130,
+      "craftSeconds": 150
+    },
+    {
+      "id": "recipe.bearhide_coat",
+      "displayName": "Bearhide Coat",
+      "skill": "skill.smithing",
+      "requiredLevel": 6,
+      "ingredients": [
+        {
+          "item": "item.bear_pelt",
+          "quantity": 3
+        },
+        {
+          "item": "item.bronze_ingot",
+          "quantity": 2
+        },
+        {
+          "item": "item.oak_handle",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.bearhide_coat",
+      "outputQuantity": 1,
+      "xp": 170,
+      "craftSeconds": 180
+    },
+    {
       "id": "recipe.reinforced_pickaxe",
       "displayName": "Reinforced Pickaxe",
       "skill": "skill.smithing",
@@ -267,6 +335,22 @@
       "outputQuantity": 1,
       "xp": 12,
       "craftSeconds": 45
+    },
+    {
+      "id": "recipe.herb_broth_pair",
+      "displayName": "Herb Broth (pair)",
+      "skill": "skill.cooking",
+      "requiredLevel": 4,
+      "ingredients": [
+        {
+          "item": "item.meadow_herb",
+          "quantity": 3
+        }
+      ],
+      "outputItem": "item.herb_broth",
+      "outputQuantity": 2,
+      "xp": 30,
+      "craftSeconds": 60
     },
     {
       "id": "recipe.duskcap_skewer",

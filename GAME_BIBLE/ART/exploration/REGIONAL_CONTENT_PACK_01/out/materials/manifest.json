@@ -1,0 +1,87 @@
+[
+ {
+  "id": "icon_boar_tusk_48",
+  "kind": "item.boar_tusk",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "c2; c1 read as a drinking horn (rejected)",
+  "bounds": {
+   "left": 4,
+   "top": 5,
+   "right": 42,
+   "bottom": 41
+  }
+ },
+ {
+  "id": "icon_bear_pelt_48",
+  "kind": "item.bear_pelt",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "c2 flat rug; c1 read as a teddy bear (rejected)",
+  "bounds": {
+   "left": 4,
+   "top": 2,
+   "right": 43,
+   "bottom": 45
+  }
+ },
+ {
+  "id": "icon_granite_chitin_48",
+  "kind": "item.granite_chitin",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "withheld",
+  "note": "WITHHELD after four rounds — helmet (c1), seashell (c2), pauldrons (c3, QA_PASS_B qplh), barrel (c4); packaged c3 for the record only",
+  "bounds": {
+   "left": 2,
+   "top": 9,
+   "right": 45,
+   "bottom": 38
+  }
+ },
+ {
+  "id": "icon_gloom_silk_48",
+  "kind": "item.gloom_silk",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "c3 spool of thread on a stick — ACCEPT (QA_PASS_D qbhr: sure); c1 yarn ball, c2 unidentifiable (QA_PASS_B wkwz)",
+  "bounds": {
+   "left": 0,
+   "top": 2,
+   "right": 47,
+   "bottom": 46
+  }
+ },
+ {
+  "id": "icon_ram_horn_48",
+  "kind": "item.ram_horn",
+  "frames": 1,
+  "canvas": [
+   48,
+   48
+  ],
+  "status": "accepted",
+  "note": "first try",
+  "bounds": {
+   "left": 0,
+   "top": 0,
+   "right": 47,
+   "bottom": 47
+  }
+ }
+]

@@ -14,10 +14,24 @@
       "xp": 30,
       "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.wolf_pelt", "quantity": 1, "chancePercent": 60 },
-        { "item": "item.meadow_herb", "quantity": 1, "chancePercent": 40 },
-        { "item": "item.pristine_wolf_fang", "quantity": 1, "chancePercent": 8, "signature": true }
-      ]
+        {
+          "item": "item.wolf_pelt",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.meadow_herb",
+          "quantity": 1,
+          "chancePercent": 40
+        },
+        {
+          "item": "item.pristine_wolf_fang",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ],
+      "tellLine": "It circles low, snapping twice in a rush."
     },
     {
       "id": "enemy.wild_boar",
@@ -31,10 +45,24 @@
       "xp": 45,
       "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.boar_hide", "quantity": 1, "chancePercent": 60 },
-        { "item": "item.boar_tusk", "quantity": 1, "chancePercent": 35 },
-        { "item": "item.great_tusk", "quantity": 1, "chancePercent": 8, "signature": true }
-      ]
+        {
+          "item": "item.boar_hide",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.boar_tusk",
+          "quantity": 1,
+          "chancePercent": 35
+        },
+        {
+          "item": "item.great_tusk",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ],
+      "tellLine": "It paws the ground, then drives in one goring charge."
     },
     {
       "id": "enemy.oakback_bear",
@@ -51,8 +79,13 @@
       "knownAt": 4,
       "knownXp": 40,
       "drops": [
-        { "item": "item.bear_pelt", "quantity": 1, "chancePercent": 70 }
-      ]
+        {
+          "item": "item.bear_pelt",
+          "quantity": 1,
+          "chancePercent": 70
+        }
+      ],
+      "tellLine": "It rises to its full height before the heavy swipe falls."
     },
     {
       "id": "enemy.cave_goblin",
@@ -66,11 +99,29 @@
       "xp": 60,
       "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.scrap_metal", "quantity": 1, "chancePercent": 60 },
-        { "item": "item.copper_ore", "quantity": 1, "chancePercent": 35 },
-        { "item": "item.tin_ore", "quantity": 1, "chancePercent": 20 },
-        { "item": "item.goblin_toolhead", "quantity": 1, "chancePercent": 8, "signature": true }
-      ]
+        {
+          "item": "item.scrap_metal",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.copper_ore",
+          "quantity": 1,
+          "chancePercent": 35
+        },
+        {
+          "item": "item.tin_ore",
+          "quantity": 1,
+          "chancePercent": 20
+        },
+        {
+          "item": "item.goblin_toolhead",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ],
+      "tellLine": "It jabs once a round, quick and mean, eyes on your pack."
     },
     {
       "id": "enemy.salamander",
@@ -84,9 +135,44 @@
       "xp": 70,
       "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.heat_scale", "quantity": 1, "chancePercent": 60 },
-        { "item": "item.ember_core", "quantity": 1, "chancePercent": 8, "signature": true }
-      ]
+        {
+          "item": "item.heat_scale",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.ember_core",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ],
+      "tellLine": "Heat gathers along its back before the scalding lunge."
+    },
+    {
+      "id": "enemy.scree_crawler",
+      "displayName": "Scree Crawler",
+      "location": "location.stonefall_mine",
+      "health": 34,
+      "attack": 6,
+      "defence": 6,
+      "isBoss": false,
+      "behavior": "steady",
+      "xp": 70,
+      "encountersPerVisit": 2,
+      "drops": [
+        {
+          "item": "item.tin_ore",
+          "quantity": 1,
+          "chancePercent": 45
+        },
+        {
+          "item": "item.scrap_metal",
+          "quantity": 1,
+          "chancePercent": 35
+        }
+      ],
+      "tellLine": "Its plates grind shut and it simply keeps coming."
     },
     {
       "id": "enemy.frost_lynx",
@@ -100,10 +186,24 @@
       "xp": 80,
       "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.rime_blossom", "quantity": 1, "chancePercent": 50 },
-        { "item": "item.lynx_pelt", "quantity": 1, "chancePercent": 35 },
-        { "item": "item.frost_claw", "quantity": 1, "chancePercent": 6, "signature": true }
-      ]
+        {
+          "item": "item.rime_blossom",
+          "quantity": 1,
+          "chancePercent": 50
+        },
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 1,
+          "chancePercent": 35
+        },
+        {
+          "item": "item.frost_claw",
+          "quantity": 1,
+          "chancePercent": 6,
+          "signature": true
+        }
+      ],
+      "tellLine": "It feints wide, then strikes twice from the flank."
     },
     {
       "id": "enemy.mountain_ram",
@@ -117,10 +217,24 @@
       "xp": 70,
       "encountersPerVisit": 2,
       "drops": [
-        { "item": "item.ram_wool", "quantity": 1, "chancePercent": 60 },
-        { "item": "item.ram_horn", "quantity": 1, "chancePercent": 35 },
-        { "item": "item.pristine_horn", "quantity": 1, "chancePercent": 8, "signature": true }
-      ]
+        {
+          "item": "item.ram_wool",
+          "quantity": 1,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.ram_horn",
+          "quantity": 1,
+          "chancePercent": 35
+        },
+        {
+          "item": "item.pristine_horn",
+          "quantity": 1,
+          "chancePercent": 8,
+          "signature": true
+        }
+      ],
+      "tellLine": "It lowers its horns and takes one measured, solid blow."
     },
     {
       "id": "enemy.hollow_guardian",
@@ -137,9 +251,18 @@
       "knownAt": 4,
       "knownXp": 40,
       "drops": [
-        { "item": "item.hollow_sigil", "quantity": 1, "chancePercent": 100 },
-        { "item": "item.hollow_root", "quantity": 2, "chancePercent": 70 }
-      ]
+        {
+          "item": "item.hollow_sigil",
+          "quantity": 1,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.hollow_root",
+          "quantity": 2,
+          "chancePercent": 70
+        }
+      ],
+      "tellLine": "Stone grates on stone as it winds up a crushing strike."
     }
   ]
 }

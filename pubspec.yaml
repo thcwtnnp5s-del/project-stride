@@ -159,6 +159,11 @@ flutter:
     - assets/art/v1/item/ember_core.png
     - assets/art/v1/item/frost_claw.png
     - assets/art/v1/item/pristine_horn.png
+    # Fable V2 Experiment 01 (DECISIONS/0027) — the Verge tier's RCP01 icons.
+    - assets/art/v1/item/gloom_silk.png
+    - assets/art/v1/item/bronze_longsword.png
+    - assets/art/v1/item/bearhide_coat.png
+    - assets/art/v1/item/hornbound_bronze_axe.png
     # Transformation Build 01 — whole-directory families. These four are
     # generated in bulk by the packaging script (185 ambient frames, the atlas
     # base + landmarks, 29 env sprites, 8 node vignettes), and the script's
@@ -185,6 +190,13 @@ flutter:
     - assets/art/v1/location/stonefall_mine.png
     - assets/art/v1/location/frostmere.png
     - assets/art/v1/location/forgotten_hollow.png
+    # Fable V2 Experiment 01 — RCP01's five accepted vignette variants, shown
+    # in the World inspector (DECISIONS/0027).
+    - assets/art/v1/location/alt_havens_rest.png
+    - assets/art/v1/location/alt_whispering_woods.png
+    - assets/art/v1/location/alt_stonefall_mine.png
+    - assets/art/v1/location/alt_frostmere.png
+    - assets/art/v1/location/alt_forgotten_hollow.png
 
     # Production audio, v1 (AUDIO_PRESENTATION_01). Same file-by-file rule as
     # content: an undeclared file is audio that does not exist, and a stray one

@@ -470,6 +470,20 @@ abstract final class SpriteFootprints {
     bottom: 42,
   );
 
+  /// `combat_crawler_idle` — 36 px of contact, 2..37.
+  static const SpriteFootprint combatCrawlerIdle = SpriteFootprint(
+    left: 2,
+    right: 37,
+    bottom: 40,
+  );
+
+  /// `combat_crawler_attack` — 36 px of contact, 2..37.
+  static const SpriteFootprint combatCrawlerAttack = SpriteFootprint(
+    left: 2,
+    right: 37,
+    bottom: 40,
+  );
+
   /// `combat_salamander_idle` — 12 px of contact, 23..34.
   static const SpriteFootprint combatSalamanderIdle = SpriteFootprint(
     left: 23,

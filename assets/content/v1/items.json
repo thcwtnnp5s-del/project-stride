@@ -209,6 +209,14 @@
     },
 
     {
+      "id": "item.gloom_silk",
+      "displayName": "Gloom Silk",
+      "category": "material",
+      "rarity": "rare",
+      "tier": 1
+    },
+
+    {
       "id": "item.oak_handle",
       "displayName": "Oak Handle",
       "category": "material",
@@ -248,6 +256,16 @@
       "stackable": false
     },
     {
+      "id": "item.bronze_longsword",
+      "displayName": "Bronze Longsword",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "weapon",
+      "tier": 1,
+      "power": 12,
+      "stackable": false
+    },
+    {
       "id": "item.bronze_axe",
       "displayName": "Bronze Axe",
       "category": "equipment",
@@ -267,6 +285,17 @@
       "toolKind": "pickaxe",
       "tier": 1,
       "power": 4,
+      "stackable": false
+    },
+    {
+      "id": "item.hornbound_bronze_axe",
+      "displayName": "Hornbound Bronze Axe",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "tool",
+      "toolKind": "axe",
+      "tier": 2,
+      "power": 6,
       "stackable": false
     },
     {
@@ -313,6 +342,16 @@
       "frostGuard": 2,
       "stackable": false
     },
+    {
+      "id": "item.bearhide_coat",
+      "displayName": "Bearhide Coat",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "armor",
+      "tier": 2,
+      "power": 9,
+      "stackable": false
+    },
 
     {
       "id": "item.herb_broth",
@@ -344,7 +383,7 @@
       "category": "consumable",
       "rarity": "uncommon",
       "tier": 1,
-      "healing": 30
+      "healing": 48
     },
 
     {

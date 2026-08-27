@@ -33,6 +33,40 @@
       "developmentRank": 1
     },
     {
+      "id": "project.ranger_watchtower",
+      "displayName": "Raise the Ranger Watchtower",
+      "location": "location.whispering_woods",
+      "brief": "The rangers patrol blind — the deep woods swallow every trail an hour after it is cut. A watchtower above the canopy would let them see trouble coming instead of finding it.",
+      "stages": [
+        {
+          "name": "Frame and Platform",
+          "requires": [{ "item": "item.oak_plank", "quantity": 10 }],
+          "characterXp": 40
+        },
+        {
+          "name": "Hide Weatherproofing",
+          "requires": [
+            { "item": "item.boar_hide", "quantity": 4 },
+            { "item": "item.oak_handle", "quantity": 2 }
+          ],
+          "characterXp": 45
+        },
+        {
+          "name": "The Watch Takes Post",
+          "requires": [
+            { "item": "item.bear_pelt", "quantity": 1 },
+            { "item": "item.pine_plank", "quantity": 2 },
+            { "item": "item.herb_broth", "quantity": 3 }
+          ],
+          "characterXp": 50
+        }
+      ],
+      "completionCharacterXp": 70,
+      "completionHeadline": "THE RANGER WATCHTOWER STANDS",
+      "developmentTo": "Watched",
+      "developmentRank": 1
+    },
+    {
       "id": "project.stonefall_lift",
       "displayName": "Reopen the Stonefall Lift",
       "location": "location.stonefall_mine",

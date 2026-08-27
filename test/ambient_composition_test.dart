@@ -76,9 +76,10 @@ void main() {
       }
     }
     // 9 since PRESENTATION_WORLD_REWARD_FEEL_01 B-3 added the Hardened
-    // Copper Seam; `node_art_resolution_test` holds the count to the content
-    // pack, so this stays a plain census.
-    expect(scenery, hasLength(9), reason: 'one entry per node vignette');
+    // Copper Seam; 12 since Fable V2 (`DECISIONS/0027`) added the three
+    // Verge nodes as byte-copy plates; `node_art_resolution_test` holds the
+    // count to the content pack, so this stays a plain census.
+    expect(scenery, hasLength(12), reason: 'one entry per node vignette');
   });
 
   test(
