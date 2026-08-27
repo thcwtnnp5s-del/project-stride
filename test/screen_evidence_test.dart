@@ -10,6 +10,7 @@
 // Usage:
 //   SCREEN_EVIDENCE_DIR=/tmp/screens flutter test test/screen_evidence_test.dart
 
+import 'dart:async' show unawaited;
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -21,6 +22,11 @@ import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_place_info.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_selection_panel.dart';
+import 'package:stride/ui/icons/pixel_icons.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
+import 'package:stride/ui/screens/world/travel_transition.dart';
+import 'package:stride/ui/state/session_controller.dart';
+import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -60,6 +66,33 @@ SyncFetch page(int steps) => SyncFetch(
   ),
 );
 
+/// A second hour of walking, for the in-app sync that raises the
+/// opportunity banner (Iteration 02 evidence).
+SyncFetch laterPage(int steps) => SyncFetch(
+  IncrementalSync(
+    observations: <StepObservation>[
+      StepObservation(
+        key: ObservationKey(
+          origin: phone,
+          bucket: TimeBucket(startMillis: t0 + hour, endMillis: t0 + 2 * hour),
+        ),
+        steps: steps,
+      ),
+    ],
+    nextCursor: SyncCursor.ofString('c2'),
+    completeness: CompleteThrough(
+      throughMillis: t0 + 2 * hour,
+      scope: CompletenessScope(
+        dataType: HealthDataType.steps,
+        origins: SomeOrigins(<StepOriginKey>{phone}),
+        intervalStartMillis: t0 + hour,
+        intervalEndMillis: t0 + 2 * hour,
+        queryGeneration: 1,
+      ),
+    ),
+  ),
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(loadRealFont);
@@ -86,9 +119,26 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> capture(WidgetTester tester, String name) async {
+  Future<void> capture(
+    WidgetTester tester,
+    String name, {
+    bool settle = true,
+  }) async {
     if (dir == null) return;
-    await settleImages(tester);
+    if (settle) {
+      await settleImages(tester);
+    } else {
+      // A transient surface (the travel card) dismisses itself on its own
+      // clock — settling would capture the frame after it is gone. Precache
+      // whatever images are up and take the frame as it stands.
+      await tester.runAsync(() async {
+        for (final Element e in find.byType(Image).evaluate()) {
+          final Image image = e.widget as Image;
+          await precacheImage(image.image, e);
+        }
+      });
+      await tester.pump();
+    }
     await tester.runAsync(() async {
       final ui.Image image = await captureImage(
         find.byType(StrideApp).evaluate().single,
@@ -167,6 +217,150 @@ void main() {
 
     await open(tester, 'Skills');
     await capture(tester, 'skills');
+  });
+
+  testWidgets('Iteration 02: the freshness pass, driven into its moments', (
+    WidgetTester tester,
+  ) async {
+    // The V2 evidence run (Fable V2 Iteration 02): region-tinted headers,
+    // the ember button, the sync banner with its opportunity doors, the
+    // Sync details diagnostics, the Skills washes, the journey ring, the
+    // travel card mid-play, and the discovery layer — each at the reference
+    // phone, from one real session.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[
+            SyncFetch(const NoChangeSync()),
+            // Below the Woods' 500-step road, so the in-app sync below is
+            // the one that crosses it and raises the banner.
+            page(300),
+            laterPage(2600),
+          ],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+    // First minute, unprompted: Haven-green header band, ember Goal Board
+    // button, the walking band.
+    await capture(tester, 'v2_adventure_fresh');
+
+    // Track the Woods as the Journey first — the opportunity banner speaks
+    // about tracked goals, so the walk has to have somewhere to point.
+    // Tracked through the controller (the same command the panel's button
+    // dispatches) so the evidence run does not depend on the fold state of
+    // the glass panel; the map's gold ring is what the capture is for.
+    await open(tester, 'World');
+    await capture(tester, 'v2_world');
+    final SessionController c = SessionScope.read(
+      tester.element(find.byType(StrideTabBar)),
+    );
+    await tester.runAsync<GoalReport?>(
+      () async =>
+          c.trackGoalJourney(ContentId.unchecked('location.whispering_woods')),
+    );
+    await tester.pumpAndSettle();
+    // Select it on the map too, so the panel below offers the journey.
+    final Finder woods = find.byKey(
+      const ValueKey<String>('atlas-hit:location.whispering_woods'),
+    );
+    final Offset centre = tester.getCenter(find.byType(AtlasViewport));
+    await tester.dragFrom(centre, centre - tester.getCenter(woods));
+    await tester.pumpAndSettle();
+    await tester.tap(woods, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    await capture(tester, 'v2_world_journey_ring');
+
+    // The granting sync: banner with the count-up's final figure and the
+    // journey row that is now a door to the World tab. Driven through the
+    // controller inside `runAsync` — a tap-dispatched command's file IO
+    // never completes under the harness's fake async, the same reason the
+    // original harness syncs pre-mount.
+    await open(tester, 'Adventure');
+    await tester.runAsync(() => c.syncSteps());
+    await tester.pumpAndSettle();
+    expect(find.textContaining('STEPS BANKED'), findsOneWidget);
+    expect(find.text('Journey Ready'), findsOneWidget);
+    await capture(tester, 'v2_adventure_sync_banner');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // A watched single gather: the result strip's minor beat, captured
+    // before the result timer sweeps it.
+    await tester.tap(find.text('Meadow Patch'));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() => c.gather(kNode));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(find.text('GATHERED'), findsOneWidget);
+    await capture(tester, 'v2_gather_result', settle: false);
+    await tester.pumpAndSettle();
+
+    // The per-source diagnostics, open (HEALTH outcome B's instrument).
+    await open(tester, 'Character');
+    await tester.tap(find.text('Step Tracker'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('SHOW'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v2_step_tracker_sync_details');
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pumpAndSettle();
+
+    // Five trades, five atmospheres.
+    await open(tester, 'Skills');
+    await capture(tester, 'v2_skills');
+
+    // The journey commits through the controller; the card and the
+    // discovery layer are then driven exactly as the Set-out closure
+    // drives them, so the captures show the shipped presentation.
+    await open(tester, 'World');
+    final ContentId woodsId = ContentId.unchecked('location.whispering_woods');
+    await tester.runAsync(() => c.travelJourney(<ContentId>[woodsId]));
+    await tester.pumpAndSettle();
+    final BuildContext ctx = tester.element(find.byType(StrideTabBar));
+    unawaited(
+      showTravelTransition(
+        ctx,
+        backdrop: PixelIcons.altVignetteFor(woodsId),
+        destinationName: 'Whispering Woods',
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.textContaining('On the road to'), findsOneWidget);
+    await capture(tester, 'v2_travel_card', settle: false);
+    await tester.pumpAndSettle();
+    final AtlasScene scene = AtlasScene.build(c.session)!;
+    unawaited(
+      showDiscoveryLayer(
+        tester.element(find.byType(StrideTabBar)),
+        session: c.session,
+        place: scene.nodeFor(woodsId)!.place,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await capture(tester, 'v2_discovery_layer');
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'v2_world_arrived');
+
+    // The header now wears the Woods' ink — travel changed the whole app's
+    // colour of place.
+    await open(tester, 'Adventure');
+    await capture(tester, 'v2_adventure_woods');
   });
 
   testWidgets('the World inspector, a reached destination selected', (
