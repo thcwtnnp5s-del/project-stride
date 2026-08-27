@@ -1027,6 +1027,83 @@ final class StepHistory {
   int get week => days.fold(0, (int a, StepDayLine d) => a + d.granted);
 }
 
+/// One pseudonymous source's share of what the ledger credited (Fable V2
+/// Iteration 02, the Q-08 forensic split). [label] is positional — `Source
+/// A` — assigned in stable key order; no identifier is ever shown (H-7).
+final class OriginDiagnosticsLine {
+  const OriginDiagnosticsLine({
+    required this.label,
+    required this.todayGranted,
+    required this.retainedGranted,
+    required this.settledToWatermark,
+  });
+
+  final String label;
+
+  /// Credited today (local day, same attribution as the Step Tracker).
+  final int todayGranted;
+
+  /// Credited across the whole retained window (~7 days).
+  final int retainedGranted;
+
+  /// Whether this source has a completeness watermark — i.e. the adapter
+  /// has vouched for it at least once.
+  final bool settledToWatermark;
+}
+
+/// Everything the ledger already persists that explains today's figure —
+/// see [StrideSession.syncDiagnostics]. Read-only; no accounting change.
+final class SyncDiagnosticsView {
+  const SyncDiagnosticsView({
+    required this.todayTotal,
+    required this.perOrigin,
+    required this.totalObserved,
+    required this.totalGranted,
+    required this.totalSpent,
+    required this.banked,
+    required this.grantedAheadOfObserved,
+    required this.retiredSteps,
+    required this.syncCount,
+    required this.cursorPresent,
+    required this.lateDiscardedSlices,
+    required this.correctionsObserved,
+    required this.unreachableGapEvents,
+    required this.lastSyncAtMillis,
+  });
+
+  /// Today's credited total — by construction the sum of [perOrigin]'s
+  /// today figures, and the same figure the Step Tracker's Today shows.
+  final int todayTotal;
+
+  /// One line per source holding credit in the retained window, stable
+  /// order. Length is the source count the Character tab already shows.
+  final List<OriginDiagnosticsLine> perOrigin;
+
+  /// Lifetime observed vs granted vs spent, and the spendable remainder.
+  final int totalObserved;
+  final int totalGranted;
+  final int totalSpent;
+  final int banked;
+
+  /// The getter that exists "so 'why does the game say more than Health
+  /// does?' has an answer" — granted credit whose observations were later
+  /// revised downward. Zero in the ordinary course.
+  final int grantedAheadOfObserved;
+
+  /// Steps retired by economy epochs — walked, remembered, not spendable.
+  final int retiredSteps;
+
+  final int syncCount;
+  final bool cursorPresent;
+  final int lateDiscardedSlices;
+  final int correctionsObserved;
+  final int unreachableGapEvents;
+  final int? lastSyncAtMillis;
+
+  /// The one-sentence explanation of a multi-source day, ready for the UI.
+  bool get multiSource => perOrigin.length > 1;
+}
+
 final class SkillSummary {
   const SkillSummary({
     required this.id,
@@ -2204,6 +2281,113 @@ final class StrideSession {
       originCount: ledgerOriginCount,
       lifetimeGranted: ledger.totalGranted,
       nowMillis: nowMillis,
+    );
+  }
+
+  /// The sync-forensics projection (Fable V2 Iteration 02, Q-08 evidence):
+  /// everything the ledger already persists that explains "why is today's
+  /// figure what it is", per pseudonymous source — with zero accounting
+  /// change.
+  ///
+  /// ## Why this exists
+  ///
+  /// On the owner's phone the Oura app showed 3,121 while Stride showed
+  /// 5,732. The ledger credits per `(origin, bucket)` and sums origins
+  /// (`RULES.md` H-1); Apple Health's own headline de-duplicates the
+  /// overlap between sources, and Oura's app shows only the ring's share.
+  /// Three arithmetics, three numbers — and until this projection, only
+  /// Stride's total was visible. The per-source split turns the next
+  /// device test into proof instead of comparison-shopping.
+  ///
+  /// ## H-7, honored not bent
+  ///
+  /// Origins are pseudonymous keys and stay that way: sources are labeled
+  /// positionally — `Source A`, `Source B` — in stable key order, and no
+  /// identifier, name, or key byte is ever displayed. The owner identifies
+  /// a source by comparing its figure against the app that wrote it, which
+  /// is a comparison Stride enables without ever naming anyone.
+  ///
+  /// Same read-time fold and local-day policy as [stepHistory]; the two can
+  /// never disagree because both sum the same committed `grantedSlices`.
+  SyncDiagnosticsView syncDiagnostics() {
+    final StepLedger? ledger = engine?.state.steps;
+    if (ledger == null) {
+      return const SyncDiagnosticsView(
+        todayTotal: 0,
+        perOrigin: <OriginDiagnosticsLine>[],
+        totalObserved: 0,
+        totalGranted: 0,
+        totalSpent: 0,
+        banked: 0,
+        grantedAheadOfObserved: 0,
+        retiredSteps: 0,
+        syncCount: 0,
+        cursorPresent: false,
+        lateDiscardedSlices: 0,
+        correctionsObserved: 0,
+        unreachableGapEvents: 0,
+        lastSyncAtMillis: null,
+      );
+    }
+
+    final int nowMillis = activityWallClock();
+    final DateTime now = DateTime.fromMillisecondsSinceEpoch(nowMillis);
+    final DateTime todayStart = DateTime(now.year, now.month, now.day);
+
+    // Per-origin folds over the same slices the bank and tracker sum.
+    final Map<StepOriginKey, int> todayByOrigin = <StepOriginKey, int>{};
+    final Map<StepOriginKey, int> retainedByOrigin = <StepOriginKey, int>{};
+    for (final MapEntry<ObservationKey, int> slice
+        in ledger.grantedSlices.entries) {
+      if (slice.value <= 0) continue;
+      final StepOriginKey origin = slice.key.origin;
+      retainedByOrigin[origin] =
+          (retainedByOrigin[origin] ?? 0) + slice.value;
+      final DateTime start = DateTime.fromMillisecondsSinceEpoch(
+        slice.key.bucket.startMillis,
+      );
+      if (DateTime(start.year, start.month, start.day) == todayStart) {
+        todayByOrigin[origin] = (todayByOrigin[origin] ?? 0) + slice.value;
+      }
+    }
+
+    // Stable positional labels: sorted by the pseudonymous key so `Source A`
+    // is the same source every time this save is opened. The key itself is
+    // never surfaced (H-7).
+    final List<StepOriginKey> origins = retainedByOrigin.keys.toList()
+      ..sort((StepOriginKey a, StepOriginKey b) => a.value.compareTo(b.value));
+    String labelFor(int index) =>
+        'Source ${String.fromCharCode(0x41 + (index % 26))}';
+
+    int todayTotal = 0;
+    for (final int granted in todayByOrigin.values) {
+      todayTotal += granted;
+    }
+
+    return SyncDiagnosticsView(
+      todayTotal: todayTotal,
+      perOrigin: <OriginDiagnosticsLine>[
+        for (final (int i, StepOriginKey origin) in origins.indexed)
+          OriginDiagnosticsLine(
+            label: labelFor(i),
+            todayGranted: todayByOrigin[origin] ?? 0,
+            retainedGranted: retainedByOrigin[origin] ?? 0,
+            settledToWatermark:
+                ledger.checkpoint.originWatermarks.containsKey(origin),
+          ),
+      ],
+      totalObserved: ledger.totalObserved,
+      totalGranted: ledger.totalGranted,
+      totalSpent: ledger.totalSpent,
+      banked: ledger.banked,
+      grantedAheadOfObserved: ledger.grantedAheadOfObserved,
+      retiredSteps: ledger.epoch.retiredSteps,
+      syncCount: ledger.checkpoint.syncCount,
+      cursorPresent: ledger.checkpoint.cursor != null,
+      lateDiscardedSlices: ledger.lateDiscardedSlices,
+      correctionsObserved: ledger.correctionsObserved,
+      unreachableGapEvents: ledger.unreachableGapEvents,
+      lastSyncAtMillis: _lastSyncAtMillis,
     );
   }
 

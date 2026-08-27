@@ -185,6 +185,61 @@ is deliberately silent; region music continues).
   sink is the rule owner's question (now `JOURNAL/OPEN_QUESTIONS.md`
   Q-12). V2 labels them honestly instead.
 
+---
+
+# ITERATION 02 — Health forensics + freshness pass
+
+**Started:** 2026-08-27, from `e6142a8`, on the owner's verdict that Pass 01
+is directionally successful and everything ships forward. Brace's
+downgrade caveat is owner-accepted; the atlas image stays frozen.
+
+## Iteration 02 thesis
+
+1. **Health hypothesis — confirmed by forensics:** the Oura/Stride gap
+   (3,121 vs 5,732) is Q-08's per-origin overlap by design, not a replay
+   bug. The adapter reads per-source statistics and never Apple's merge;
+   the ledger sums origins (H-1); Oura's app shows one origin's share.
+   Reproduction pinned in `multi_origin_overlap_test.dart` and
+   `sync_diagnostics_test.dart`.
+2. **Missing evidence:** the on-device split. Provided by the new
+   read-only **Sync details** card (Step Tracker): today per pseudonymous
+   source, last-sync read/credited, lifetime ledger. H-7 honored — labels
+   are positional, no identity ever shown. **Outcome B** of the P0 brief:
+   no accounting change is justified yet; the next device test decides
+   Q-08 on evidence. Grant semantics remain the owner's decision.
+3. **Visual direction:** *dark fantasy travel journal, rich biome color,
+   warm reward light* — a token extension of the existing palette (region
+   inks/deeps per place, `danger` for combat threat, `rewardLight`
+   replacing the off-canon teal victory frame, `positiveReady` readiness,
+   ember primary-button treatment), landed structurally on Adventure,
+   Skills, Craft, Combat, World and Character.
+4. **Major changes selected:** (a) the visual system above; (b) travel as
+   an event — a walk-cycle journey card on Set out, arrival flow, haptic
+   punctuation; (c) ambient life — fauna beats at four locations plus a
+   cat-crossing beat, from already-accepted art; (d) a game-feel kit —
+   haptics behind one gated seam with a settings toggle, animated XP
+   bars, tappable opportunity rows with count-up, encounter entrance,
+   bonus-yield acknowledgment, READY-flip settle, banner-lifetime marker
+   pulse; (e) gameplay — deterministic rotation eligibility (a
+   project-gated order never freezes a slot) with the project card
+   advertising what completion opens, graduated loot intelligence
+   (Studied buys frequency words, Known buys exact odds), bonus-yield
+   milestones lighting the dead skill levels plus the Hornbound Axe's
+   missing +15%, and the tracked-Journey marker on the atlas;
+   (f) the health diagnostics card.
+5. **Deliberately deferred:** Q-08 semantics (owner); the merged-total
+   adapter query (Swift change, its own decision); broth-pair
+   supersession mechanism (the dominance is asymptotic — with two herbs
+   the base broth is the only option; a generic `supersededBy` belongs to
+   a pass that needs it); Stonefall fauna (the 16 px bat reads as a moth
+   — withheld verdict respected); atlas props and everything
+   atlas-adjacent; ordinary-arrival reward beat (F2, still bounded out).
+6. **Found and fixed in passing (PERF-A):** `IndexedStack` never disables
+   offstage tickers — the Pass-01 shell change left a hidden World tab
+   driving its 30-overlay ticker at 120 Hz forever and a hidden Adventure
+   still firing audio cues. One `TickerMode` wrap per child restores every
+   documented assumption; the stale comments it exposed are corrected.
+
 ## 5b. Known issues, on the record
 
 - **Herb Broth (pair) strictly dominates the base broth** from Cooking 4

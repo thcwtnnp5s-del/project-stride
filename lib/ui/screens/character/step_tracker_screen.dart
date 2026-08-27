@@ -126,6 +126,12 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
                   _WeekCard(history: history),
                 const SizedBox(height: StrideSpace.cardGap),
 
+                // The forensic surface (Fable V2 Iteration 02, Q-08): why
+                // today's figure is what it is, per pseudonymous source —
+                // collapsed by default so the tracker stays a tracker.
+                _DiagnosticsCard(controller: c),
+                const SizedBox(height: StrideSpace.cardGap),
+
                 // Freshness, and the one control that changes it. The
                 // tracker exists to make step state trustworthy, and
                 // "trustworthy" is a timestamp plus the button that moves
@@ -183,6 +189,184 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
       ),
     );
   }
+}
+
+/// The expandable sync-forensics card (Fable V2 Iteration 02).
+///
+/// Everything here is [StrideSession.syncDiagnostics] — data the ledger
+/// already persists, folded read-only. Sources are positional labels in
+/// stable order; no identifier is ever shown (`RULES.md` H-7). The owner
+/// identifies a source by holding its figure against the app that wrote it
+/// — the comparison this card exists to enable.
+class _DiagnosticsCard extends StatefulWidget {
+  const _DiagnosticsCard({required this.controller});
+
+  final SessionController controller;
+
+  @override
+  State<_DiagnosticsCard> createState() => _DiagnosticsCardState();
+}
+
+class _DiagnosticsCardState extends State<_DiagnosticsCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final SyncDiagnosticsView d = widget.controller.session.syncDiagnostics();
+    final SyncReport? last = widget.controller.lastSync;
+
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Semantics(
+            button: true,
+            label: _open ? 'Hide sync details' : 'Show sync details',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _open = !_open),
+              child: SectionHeading(
+                label: 'Sync details',
+                trailing: Text(
+                  _open ? 'HIDE' : 'SHOW',
+                  style: StrideType.microLabel.copyWith(
+                    color: StrideColors.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (!_open) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              d.multiSource
+                  ? '${d.perOrigin.length} sources credited today — open '
+                        'for the split.'
+                  : 'What was read, what was credited, and why.',
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 2,
+            ),
+          ] else ...<Widget>[
+            const SizedBox(height: StrideSpace.s8),
+
+            // TODAY, per source — the forensic headline.
+            Text('TODAY CREDITED', style: StrideType.microLabel, maxLines: 1),
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              formatSteps(d.todayTotal),
+              style: StrideType.numericValue.copyWith(
+                color: StrideColors.accentSteps,
+              ),
+            ),
+            if (d.perOrigin.isNotEmpty) ...<Widget>[
+              const SizedBox(height: StrideSpace.s6),
+              for (final OriginDiagnosticsLine line in d.perOrigin)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: StrideSpace.s2),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          '${line.label}'
+                          '${line.settledToWatermark ? '' : ' · not yet vouched complete'}',
+                          style: StrideType.micro.copyWith(
+                            color: StrideColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                        ),
+                      ),
+                      Text(
+                        '${formatSteps(line.todayGranted)} today · '
+                        '${formatSteps(line.retainedGranted)} this week',
+                        style: StrideType.micro.copyWith(
+                          color: StrideColors.textPrimary,
+                          fontFeatures: const <FontFeature>[
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
+                        maxLines: 1,
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            if (d.multiSource) ...<Widget>[
+              const SizedBox(height: StrideSpace.s4),
+              Text(
+                'Two apps recorded the same walking. Apple Health merges '
+                'them into one headline; Stride credits each source\'s own '
+                'record, so its total can be higher. Compare each figure '
+                'against Health\'s Sources list to see who is who.',
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.textMuted,
+                ),
+                maxLines: 5,
+              ),
+            ],
+
+            // The last sync, as it reported itself.
+            if (last != null) ...<Widget>[
+              const SizedBox(height: StrideSpace.s10),
+              Text('LAST SYNC', style: StrideType.microLabel, maxLines: 1),
+              const SizedBox(height: StrideSpace.s4),
+              _factRow('Read from Health', formatSteps(last.observedSteps)),
+              _factRow('Newly credited', formatSteps(last.newlyGranted)),
+              _factRow('Sources seen', '${last.originCount}'),
+            ],
+
+            // The ledger, lifetime.
+            const SizedBox(height: StrideSpace.s10),
+            Text('LEDGER', style: StrideType.microLabel, maxLines: 1),
+            const SizedBox(height: StrideSpace.s4),
+            _factRow('Observed, lifetime', formatSteps(d.totalObserved)),
+            _factRow('Credited, lifetime', formatSteps(d.totalGranted)),
+            _factRow('Spent, lifetime', formatSteps(d.totalSpent)),
+            _factRow('Banked now', formatSteps(d.banked)),
+            if (d.retiredSteps > 0)
+              _factRow('Retired by playtest epochs', formatSteps(d.retiredSteps)),
+            _factRow('Syncs committed', '${d.syncCount}'),
+            _factRow('Resume bookmark', d.cursorPresent ? 'held' : 'none'),
+            if (d.grantedAheadOfObserved > 0)
+              _factRow(
+                'Credited ahead of observed',
+                formatSteps(d.grantedAheadOfObserved),
+              ),
+            if (d.lateDiscardedSlices > 0)
+              _factRow('Too-late records set aside', '${d.lateDiscardedSlices}'),
+            if (d.correctionsObserved > 0)
+              _factRow('Downward revisions seen', '${d.correctionsObserved}'),
+            if (d.unreachableGapEvents > 0)
+              _factRow('Unreachable gaps', '${d.unreachableGapEvents}'),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static Widget _factRow(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: StrideSpace.s2),
+    child: Row(
+      children: <Widget>[
+        Expanded(
+          child: Text(
+            label,
+            style: StrideType.micro.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+            maxLines: 1,
+          ),
+        ),
+        Text(
+          value,
+          style: StrideType.micro.copyWith(
+            color: StrideColors.textPrimary,
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+          ),
+          maxLines: 1,
+        ),
+      ],
+    ),
+  );
 }
 
 /// Today: the headline figure, then the hours that earned it.

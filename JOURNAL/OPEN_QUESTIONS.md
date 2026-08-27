@@ -723,6 +723,40 @@ Recommendation: 3, as a `stride_health` adapter change under its own
 decision, after the owner confirms on device that two sources are present.
 Not a refinement-milestone change: it touches the H-1/H-3 boundary.
 
+### 2026-08-27 — new device evidence, and the forensics that answer it
+
+The owner's phone at ~3:33 PM: **Oura app 3,121 · Stride 5,732** (~1.84×).
+Fable V2 Iteration 02 ran the full forensic pass (two read-only agents over
+the adapter, ledger, projections and tests) and the finding is this
+question's own scenario, now with arithmetic: the iOS adapter reads
+**per-source statistics** (`HKStatisticsCollectionQuery` with
+`.separateBySource`) and never Apple's de-duplicated merge, so
+5,732 ≈ Oura's 3,121 + the iPhone's ≈2,611 for the same walking hours.
+Three different arithmetics are in play — Oura's app (its own sensor),
+Apple Health's headline (priority-merged), Stride's (all origins summed) —
+and no two of them should be expected to agree. A replay bug is ruled out
+by design and by test (`packages/stride_core/test/multi_origin_overlap_test.dart`
+now pins the exact reproduction: 3,000 + 2,900 over the same hours banks
+5,900, replays bank 0, a late second source is credited in full, a
+post-reset upward restatement banks only its delta;
+`test/sync_diagnostics_test.dart` pins that the bank, the Step Tracker and
+the diagnostics fold can never disagree).
+
+**What the build now shows** (Iteration 02, read-only, no accounting
+change): Step Tracker → *Sync details* — today's credited total split per
+pseudonymous source (`Source A / Source B`, stable order, no identity —
+H-7 honored, not bent), what the last sync read vs newly credited, and the
+lifetime ledger figures. The next device test compares that split against
+Apple Health → Steps → Data Sources; if the two sources' figures match the
+Health app's per-source numbers, this question's option table is finally
+decidable on evidence.
+
+**Still the owner's decision**, unchanged: whether the spendable grant
+should move to a merged-total semantics (option 3 remains the
+recommendation; it needs a read-only adapter addition for the merged
+statistic and its own decision record). Nothing in Iteration 02 changed
+grant semantics.
+
 ## Q-09 — Combat variability: widen the roll, or roll a visible die?
 
 **Raised:** 2026-08-23, Playable Polish 01 (`MILESTONES/PLAYABLE_POLISH_01.md`
