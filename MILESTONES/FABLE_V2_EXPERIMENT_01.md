@@ -577,10 +577,12 @@ variants, each reforging an existing piece around one signature drop
 (Fang-Hilted Sword, Tuskbound Jerkin, Goblin-Toothed Axe, Scale-Warmed
 Chestplate, Clawguard Coat, Hornpoint Pickaxe). Every base capability
 keeps its deterministic path (P-10); every variant consumes its base item
-(so the byte-copied icon never sits beside its donor); three genuine
-equip decisions appear (gatherer-identity armor that survives upgrading,
-early-10% vs later-15% tools, a three-way alpine loadout). This is the
-experiment's answer to Q-12, recorded below.
+(so the byte-copied icon never sits beside its donor); genuine equip
+decisions appear (gatherer-identity armor that survives upgrading,
+early-10% vs later-15% tools, and an alpine choice between warmth —
+Scale-Warmed, frost-guard 3 — and power — Clawguard, P9; the review
+correctly notes Frost-lined is the rung below that choice, not a third
+contender). This is the experiment's answer to Q-12, recorded below.
 (d) **The Forgotten Hollow expedition layer** — the Field Ledger board
 (2 slots, 4 local needs + a Guardian bounty), the Hollow Field Camp
 project (3 stages, materials from four regions), development
@@ -694,9 +696,12 @@ Clawguard at Smithing 7, Expedition Stew at Cooking 9, Old Workings at
 Mining 8. Every rung of that ladder is now READABLE on the roadmap
 before it is walked.
 
-**Verification at closeout:** stride_core **709**, app **799**, analyze
-clean, `package-art --check` clean (856 files), goldens regenerated and
-reviewed twice (content pass, then the planner sections).
+**Verification at closeout:** after the review commit, stride_core
+**712**, app **802**, analyze clean, `package-art --check` clean (843
+files — the earlier 856 was a miscount; 843 is the tree's actual PNG
+census, all thirteen Iteration 03 byte-copies among them), goldens
+regenerated and reviewed twice (content pass, then the planner
+sections).
 
 ## Iteration 03 known issues
 
@@ -716,6 +721,38 @@ reviewed twice (content pass, then the planner sections).
   ("nothing yet") — the next content frontier, not filler.
 - **A camp-gated silk economy assumes the deck cycles** — the acceptance
   pass should turn the Field Ledger's rotation over once by hand.
+
+### After the FINAL-A review (round 2)
+
+The review's two MUST-FIXes are landed in the closing commit: (1) a
+craft that consumes worn gear now emits `ItemUnequipped` before
+`ItemCrafted` — previously the bag lost the item while `equipment` kept
+naming it, and the reforges made that ghost the mainline flow; the bench
+warns "… is worn right now — crafting this takes it off" beforehand,
+and a spare copy suppresses both. Contract/project turn-in would share
+the defect class if content ever consumed an equippable — today none
+does; crafting is the only consumer of equippables. (2) Mill Garden was
+re-costed 150 → 120 steps, making it a genuine improvement over the
+Meadow Patch on both yield/step and XP/step instead of a decorative
+unlock. Deferred, on the record:
+
+- **Expedition Stew is XP and a name, not yet a role** — heal 75 exceeds
+  any reachable max HP until character level 18, its heal-per-step loses
+  to Hearty Stew, and nothing external wants it. It needs a sink (a
+  Northern-Expedition-class contract) or a distinct effect next pass.
+- **The two food byte-copies are the icon round's first priority** —
+  unlike gear donors, broth/stew sit *beside* their copies routinely; the
+  "coexistence low by construction" note above is true for gear only.
+  Second priority: four of five node plates duplicate a sibling plate in
+  the same location list (only Veiled Silkstrand chose a cross-donor).
+- **The prover warning can over-fire**: it ignores spare copies and
+  contract visibility. Polish, not correctness.
+- **Track as Pursuit gives no visible confirmation** on the roadmap.
+- **Traveler Tunic is the last starter item with no later life.**
+- **Screen-evidence captures are run artifacts**, written where
+  `SCREEN_EVIDENCE_DIR` points and reviewed at generation; the repo
+  carries the harness, not the PNGs. Re-run the two Iteration 03 tests
+  with that variable set to regenerate all thirteen.
 
 ## Iteration 03 device checklist (append to the standing list)
 
@@ -740,3 +777,8 @@ reviewed twice (content pass, then the planner sections).
     Old Workings at Mining 8 post-lift, Sheltered Frost Meadow at F 7
     post-shelter, Mill Garden at F 7 post-mill — each gate named on the
     Skills roadmap before it is met.
+34. **The worn-gear reforge**: with the Bronze Pickaxe equipped and no
+    spare, the Hornpoint detail says "Bronze Pickaxe is worn right now —
+    crafting this takes it off"; crafting it empties the tool slot (the
+    Character sheet shows the slot open, not a ghost), and equipping the
+    Hornpoint completes the swap.

@@ -959,9 +959,28 @@ final class GameEngine {
       );
     }
 
-    return _Decision.accept(<GameEvent>[
+    // A craft may consume the very item the player is wearing — the
+    // Masterwork reforges make that the mainline flow, not a corner. Equip
+    // is inventory-preserving, so consuming the worn copy out of the bag
+    // while `equipment` still named it would leave tool checks and the
+    // Character sheet honoring a ghost until the next re-equip. Any slot
+    // whose item this craft takes below one remaining copy is emptied
+    // first, as its own journal fact — the same `ItemUnequipped` the
+    // Character sheet's own control writes, so replay needs nothing new.
+    int sequence = state.eventSequence;
+    final List<GameEvent> events = <GameEvent>[];
+    for (final MapEntry<EquipmentSlot, ContentId> worn
+        in state.equipment.bySlot.entries) {
+      final int taken = required[worn.value] ?? 0;
+      if (taken == 0) continue;
+      if (state.inventory.quantityOf(worn.value) - taken >= 1) continue;
+      events.add(
+        ItemUnequipped(sequence: sequence++, item: worn.value, slot: worn.key),
+      );
+    }
+    events.add(
       ItemCrafted(
-        sequence: state.eventSequence,
+        sequence: sequence,
         recipe: command.recipe,
         consumed: required,
         item: recipe.outputItem,
@@ -969,7 +988,8 @@ final class GameEngine {
         skill: recipe.skill,
         experience: profile.applyXp(recipe.xp),
       ),
-    ]);
+    );
+    return _Decision.accept(events);
   }
 
   /// Reconciles a normalized provider response.

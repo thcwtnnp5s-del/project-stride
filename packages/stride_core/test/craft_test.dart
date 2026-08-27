@@ -23,6 +23,13 @@ final ContentId bronzeAxe = ContentId.unchecked('item.bronze_axe');
 final ContentId meadowHerb = ContentId.unchecked('item.meadow_herb');
 final ContentId herbBroth = ContentId.unchecked('item.herb_broth');
 
+final ContentId bronzePickaxe = ContentId.unchecked('item.bronze_pickaxe');
+final ContentId pristineHorn = ContentId.unchecked('item.pristine_horn');
+final ContentId pinePlank = ContentId.unchecked('item.pine_plank');
+final ContentId hornpointPickaxe = ContentId.unchecked(
+  'item.hornpoint_pickaxe',
+);
+
 final ContentId smithing = ContentId.unchecked('skill.smithing');
 final ContentId cooking = ContentId.unchecked('skill.cooking');
 
@@ -30,6 +37,9 @@ final ContentId recipeOakHandle = ContentId.unchecked('recipe.oak_handle');
 final ContentId recipeBronzeIngot = ContentId.unchecked('recipe.bronze_ingot');
 final ContentId recipeBronzeAxe = ContentId.unchecked('recipe.bronze_axe');
 final ContentId recipeHerbBroth = ContentId.unchecked('recipe.herb_broth');
+final ContentId recipeHornpoint = ContentId.unchecked(
+  'recipe.hornpoint_pickaxe',
+);
 
 /// An engine holding [items] and [experience], without walking there first.
 ///
@@ -405,6 +415,75 @@ void main() {
       };
 
       expect(decodeEvent(encoded), isNull);
+    });
+  });
+
+  group('5 — a reforge and the worn slot', () {
+    test(
+      'a reforge that consumes worn gear unequips it in the same commit',
+      () {
+        // The Iteration 03 review's must-fix. Equip is inventory-preserving,
+        // so consuming the worn copy out of the bag while `equipment` still
+        // named it would leave tool checks and the Character sheet honoring
+        // a ghost. The Masterwork reforges make this the mainline flow:
+        // Hornpoint Pickaxe consumes the Bronze Pickaxe the player is
+        // probably wearing.
+        final GameEngine engine = engineHolding(
+          <ContentId, int>{bronzePickaxe: 1, pristineHorn: 1, pinePlank: 1},
+          experience: <ContentId, int>{smithing: 1200},
+        );
+        expect(
+          engine.execute(EquipItem(item: bronzePickaxe)).isAccepted,
+          isTrue,
+        );
+
+        final EngineResult result = engine.execute(
+          CraftItem(recipe: recipeHornpoint),
+        );
+
+        expect(result.isAccepted, isTrue, reason: '${result.rejection}');
+        expect(
+          result.events.map((GameEvent e) => e.name).toList(),
+          <String>['ItemUnequipped', 'ItemCrafted'],
+          reason: 'the slot empties before the bag loses its backing',
+        );
+        expect(engine.state.equipment.inSlot(EquipmentSlot.tool), isNull);
+        expect(engine.state.equipment.isEquipped(bronzePickaxe), isFalse);
+        expect(engine.state.inventory.quantityOf(bronzePickaxe), 0);
+        expect(engine.state.inventory.quantityOf(hornpointPickaxe), 1);
+      },
+    );
+
+    test('a spare copy keeps the worn one on', () {
+      final GameEngine engine = engineHolding(
+        <ContentId, int>{bronzePickaxe: 2, pristineHorn: 1, pinePlank: 1},
+        experience: <ContentId, int>{smithing: 1200},
+      );
+      expect(engine.execute(EquipItem(item: bronzePickaxe)).isAccepted, isTrue);
+
+      final EngineResult result = engine.execute(
+        CraftItem(recipe: recipeHornpoint),
+      );
+
+      expect(result.isAccepted, isTrue, reason: '${result.rejection}');
+      expect(result.events.single, isA<ItemCrafted>());
+      expect(engine.state.equipment.isEquipped(bronzePickaxe), isTrue);
+      expect(engine.state.inventory.quantityOf(bronzePickaxe), 1);
+    });
+
+    test('a craft touching none of the worn gear unequips nothing', () {
+      final GameEngine engine = engineHolding(
+        <ContentId, int>{bronzePickaxe: 1, oakLog: 2},
+        experience: <ContentId, int>{smithing: 1200},
+      );
+      expect(engine.execute(EquipItem(item: bronzePickaxe)).isAccepted, isTrue);
+
+      final EngineResult result = engine.execute(
+        CraftItem(recipe: recipeOakHandle),
+      );
+
+      expect(result.events.single, isA<ItemCrafted>());
+      expect(engine.state.equipment.isEquipped(bronzePickaxe), isTrue);
     });
   });
 }

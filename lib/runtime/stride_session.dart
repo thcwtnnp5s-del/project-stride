@@ -5111,6 +5111,24 @@ final class StrideSession {
     return null;
   }
 
+  /// The bench's other quiet-surprise warning (Iteration 03 review): this
+  /// recipe consumes gear the player is wearing right now, with no spare
+  /// copy to keep the slot backed. The engine takes it off as part of the
+  /// craft; the bench says so before the tap rather than after.
+  String? consumesWornGearWarning(RecipeOption recipe) {
+    final GameEngine? active = engine;
+    if (active == null) return null;
+    for (final RecipeIngredientLine line in recipe.ingredients) {
+      if (!active.state.equipment.isEquipped(line.item)) continue;
+      if (active.state.inventory.quantityOf(line.item) - line.required >= 1) {
+        continue; // A spare copy keeps the worn one on.
+      }
+      return '${line.displayName} is worn right now — '
+          'crafting this takes it off';
+    }
+    return null;
+  }
+
   /// Steps that were banked before the current playable economy began and are
   /// not spendable — the whole retired body, across the Phase 2 cutover and the
   /// Transformation playtest epoch.

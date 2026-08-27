@@ -213,7 +213,7 @@
       "minimumToolTier": 0,
       "yieldsItem": "item.meadow_herb",
       "yieldsQuantity": 2,
-      "stepCost": 150,
+      "stepCost": 120,
       "xp": 18,
       "unlockedByProject": "project.havens_rest_mill"
     }

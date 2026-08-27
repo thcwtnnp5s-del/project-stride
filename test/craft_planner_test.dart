@@ -86,6 +86,34 @@ void main() {
     expect(s.consumesProverWarning(broth), isNull);
   });
 
+  test(
+    'the worn-gear warning fires only while the donor is worn spare-less',
+    () async {
+      // The Iteration 03 review's must-fix, seen from the bench: a reforge
+      // that consumes what the player is wearing announces the unequip
+      // before the tap. The fresh Traveler's only Training Sword is the
+      // fanghilt's donor.
+      final StrideSession s = await boot();
+      RecipeOption fanghilt() => s.recipeOptions.firstWhere(
+        (RecipeOption r) =>
+            r.id == ContentId.unchecked('recipe.fanghilt_sword'),
+      );
+
+      expect(s.consumesWornGearWarning(fanghilt()), isNull);
+
+      expect(
+        (await s.equip(ContentId.unchecked('item.training_sword'))).succeeded,
+        isTrue,
+      );
+      final String warning = s.consumesWornGearWarning(fanghilt())!;
+      expect(warning, contains('Training Sword'));
+      expect(warning, contains('takes it off'));
+
+      expect((await s.unequip(EquipmentSlot.weapon)).succeeded, isTrue);
+      expect(s.consumesWornGearWarning(fanghilt()), isNull);
+    },
+  );
+
   testWidgets('bands render as sections and the chain jump goes and comes '
       'back', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(393 * 3, 852 * 3);

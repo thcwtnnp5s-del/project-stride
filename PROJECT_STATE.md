@@ -36,9 +36,18 @@ then Old Workings opens; the stew's four-region run at 10,500; the camp
 at 3,220 from typical bags. **Zero PixelLab generations** (every icon
 and plate a recorded byte-copy of what the new thing consumes or
 deepens); state stays v9; counts stay 5/5/9; health untouched. Suites:
-core **709**, app **799**, analyze clean, `--check` clean (856 files),
-13 evidence captures reviewed. Open: Q-08 (instrumented), Q-06, Q-12
-(now playable evidence), and the standing set below.
+core **712**, app **802**, analyze clean, `--check` clean (843 files),
+13 evidence captures reviewed. The closing FINAL-A review approved the
+pass for device evaluation with two must-fixes, both landed: a craft
+consuming worn spare-less gear now unequips it as its own journal fact
+(with a bench warning beforehand) instead of leaving the Character sheet
+naming a ghost, and Mill Garden was re-costed 150 → 120 so the
+project-gated node actually beats the starter patch. Its deferrables
+(Expedition Stew's missing sink, food-icon byte-copy priority, plate
+duplication, prover-warning polish) are in the milestone's known
+issues, and checklist item 34 covers the reforge swap on device. Open:
+Q-08 (instrumented), Q-06, Q-12 (now playable evidence), and the
+standing set below.
 
 ---
 

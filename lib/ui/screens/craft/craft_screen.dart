@@ -785,6 +785,20 @@ class _RecipeDetailState extends State<_RecipeDetail> {
             ),
           ],
 
+          // And the worn-gear one (Iteration 03 review): a reforge that
+          // consumes what the player is wearing unequips it as part of the
+          // craft — announced here, not discovered on the Character sheet.
+          if (SessionScope.of(context).session.consumesWornGearWarning(recipe)
+              case final String wornWarning) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              wornWarning,
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textSecondary,
+              ),
+            ),
+          ],
+
           const SizedBox(height: StrideSpace.s8),
           if (activeHere)
             _ActiveCraftPanel(recipe: recipe)
