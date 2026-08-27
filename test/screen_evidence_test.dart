@@ -18,6 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_place_info.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_selection_panel.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
@@ -164,5 +167,137 @@ void main() {
 
     await open(tester, 'Skills');
     await capture(tester, 'skills');
+  });
+
+  testWidgets('the World inspector, a reached destination selected', (
+    WidgetTester tester,
+  ) async {
+    // The Fable V2 inspector states the default golden cannot show — a
+    // *destination* with its vignette variant, its Work line, the
+    // carry-wanted sentence, an out-of-reach gather line's gap, and the
+    // journey controls — over a fabricated place, which is exactly what
+    // `AtlasInspector` being a pure widget is for.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final RegionPlace stonefall = RegionPlace(
+      id: ContentId.unchecked('location.stonefall_mine'),
+      displayName: 'Stonefall Mine',
+      isCurrent: false,
+      isSafe: false,
+      isUnlocked: true,
+      stepCostFromHere: 1400,
+      resourceCount: 4,
+      terrain: Terrain.foothills,
+      kind: LocationKind.worksite,
+    );
+    final AtlasNode node = AtlasNode(place: stonefall, x: 100, y: 100);
+    final AtlasWay way = AtlasWay(
+      hops: <AtlasNode>[node],
+      edges: const <AtlasEdge>[],
+      totalCost: 1400,
+      firstLegCost: 1400,
+    );
+    const AtlasPlaceInfo info = AtlasPlaceInfo(
+      kind: AtlasPlaceKind.worksite,
+      terrainWord: 'Foothills',
+      isSafe: false,
+      isCurrent: false,
+      isUnlocked: true,
+      developmentWord: 'Strained',
+      board: (
+        boardName: 'Mine Ledger',
+        openContracts: 6,
+        readyToComplete: 1,
+        projectName: 'Reopen the Stonefall Lift',
+        projectHasSomethingToGive: true,
+        carryingSomethingWanted: true,
+      ),
+      gatherSites: <AtlasGatherLine>[
+        (
+          name: 'Copper Seam',
+          skill: 'Mining',
+          level: 1,
+          tool: 'Pickaxe',
+          eligible: true,
+          gap: null,
+        ),
+        (
+          name: 'Deep Tin Seam',
+          skill: 'Mining',
+          level: 4,
+          tool: 'Pickaxe',
+          eligible: false,
+          gap: 'you are Lv 2',
+        ),
+        (
+          name: 'Hardened Copper Seam',
+          skill: 'Mining',
+          level: 5,
+          tool: 'Pickaxe',
+          eligible: false,
+          gap: 'opens with Reopen the Stonefall Lift',
+        ),
+      ],
+      encounters: <AtlasEncounterLine>[
+        (
+          name: 'Scree Crawler',
+          isBoss: false,
+          behaviorWord: 'Steady',
+          perVisit: 2,
+          remaining: 2,
+          isCurrentLocation: false,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Material(
+          color: const Color(0xFF14120F),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: AtlasInspector(
+              name: 'Stonefall Mine',
+              info: info,
+              way: way,
+              missingEntry: const <String>[],
+              banked: 12320,
+              busy: false,
+              ready: true,
+              lastJourney: null,
+              vignette:
+                  'assets/art/v1/location/alt_stonefall_mine.png',
+              onTravel: () {},
+              onTrackJourney: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mine Ledger · 6 open · 1 ready to turn in'),
+        findsOneWidget);
+    expect(
+      find.textContaining('Deep Tin Seam · Mining Lv 4 · Pickaxe — you are'),
+      findsOneWidget,
+    );
+
+    if (dir != null) {
+      await settleImages(tester);
+      await tester.runAsync(() async {
+        final ui.Image image = await captureImage(
+          find.byType(MaterialApp).evaluate().single,
+        );
+        final ByteData? bytes = await image.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
+        Directory(dir).createSync(recursive: true);
+        File('$dir/world_inspector_destination.png')
+            .writeAsBytesSync(bytes!.buffer.asUint8List());
+      });
+    }
   });
 }

@@ -69,6 +69,25 @@ class _InventoryScreenState extends State<InventoryScreen> {
   /// indistinguishable in purpose from the grid.
   ContentId? _itemDetail;
 
+  /// The open detail block, whichever kind, so a selection can scroll it
+  /// into view: with two grid rows of equipment the block used to land
+  /// ~300 dp below the tapped tile — often below the fold, where a tap
+  /// looked like it did nothing (Fable V2 UX audit S5).
+  final GlobalKey _detailKey = GlobalKey();
+
+  void _reveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final BuildContext? detail = _detailKey.currentContext;
+      if (detail == null || !mounted) return;
+      Scrollable.ensureVisible(
+        detail,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        alignment: 0.2,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
@@ -162,13 +181,24 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     equipment: group.equipment,
                     consumable: group.consumable,
                     selected: group.equipment ? _gearDetail : _itemDetail,
+                    // One detail open at a time, whichever kind: two blocks
+                    // at once would be two answers to one tap, and the one
+                    // reveal key must be unique in the tree.
                     onSelect: group.equipment
-                        ? (ContentId id) => setState(
-                            () => _gearDetail = _gearDetail == id ? null : id,
-                          )
-                        : (ContentId id) => setState(
-                            () => _itemDetail = _itemDetail == id ? null : id,
-                          ),
+                        ? (ContentId id) {
+                            setState(() {
+                              _itemDetail = null;
+                              _gearDetail = _gearDetail == id ? null : id;
+                            });
+                            if (_gearDetail != null) _reveal();
+                          }
+                        : (ContentId id) {
+                            setState(() {
+                              _gearDetail = null;
+                              _itemDetail = _itemDetail == id ? null : id;
+                            });
+                            if (_itemDetail != null) _reveal();
+                          },
                   ),
                   // The opened piece's full evaluation — the same
                   // `GearStatsBlock` the craft bench shows, under the grid
@@ -179,7 +209,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     if (c.session.gearStatsOf(_gearDetail!)
                         case final GearStats g) ...<Widget>[
                       const SizedBox(height: StrideSpace.s8),
-                      GearStatsBlock(stats: g),
+                      KeyedSubtree(
+                        key: _detailKey,
+                        child: GearStatsBlock(stats: g),
+                      ),
                     ],
                   // The opened item's purpose — what it is for, where it
                   // comes from, what it makes possible (Fable V2). Only in
@@ -191,9 +224,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         ) &&
                         c.session.itemPurposeOf(_itemDetail!) != null) ...<Widget>[
                       const SizedBox(height: StrideSpace.s8),
-                      _ItemPurposeBlock(
-                        name: c.session.displayNameOf(_itemDetail!),
-                        purpose: c.session.itemPurposeOf(_itemDetail!)!,
+                      KeyedSubtree(
+                        key: _detailKey,
+                        child: _ItemPurposeBlock(
+                          name: c.session.displayNameOf(_itemDetail!),
+                          purpose: c.session.itemPurposeOf(_itemDetail!)!,
+                        ),
                       ),
                     ],
                 ],

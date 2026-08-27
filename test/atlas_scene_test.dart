@@ -207,6 +207,57 @@ void main() {
       expect(way.via.single.id.value, 'location.b');
     });
 
+    test('quotes the cheapest route, not the fewest-hop route', () {
+      // Fable V2 (`DECISIONS/0027`): `wayTo` is Dijkstra over the session's
+      // own leg costs, because the Travel button charges what the preview
+      // quotes and `JourneyGoalView` promises "the cheapest route". This
+      // graph is the case fewest-hops gets wrong: a direct a—c road at
+      // 3,000 against a—b—c at 2,300.
+      final AtlasScene scene = AtlasScene.join(
+        layout: AtlasLayout.parse(_bigWorld),
+        places: <RegionPlace>[
+          _place('a', current: true, safe: true),
+          _place('b'),
+          _place('c'),
+          _place('d'),
+        ],
+        routes: <RegionRoute>[
+          ..._routes(),
+          RegionRoute(from: id('a'), to: id('c'), stepCost: 3000),
+          RegionRoute(from: id('c'), to: id('a'), stepCost: 3000),
+        ],
+        options: const <TravelOption>[],
+      )!;
+
+      final AtlasWay way = scene.routeSummary(id('c'))!;
+      expect(way.totalCost, 2300, reason: 'a—b—c beats the 3,000 direct road');
+      expect(way.hops.map((AtlasNode n) => n.id.value), <String>[
+        'location.b',
+        'location.c',
+      ]);
+
+      // And at equal cost, fewer hops win — the direct road at exactly the
+      // two-leg price is the simpler journey.
+      final AtlasScene tied = AtlasScene.join(
+        layout: AtlasLayout.parse(_bigWorld),
+        places: <RegionPlace>[
+          _place('a', current: true, safe: true),
+          _place('b'),
+          _place('c'),
+          _place('d'),
+        ],
+        routes: <RegionRoute>[
+          ..._routes(),
+          RegionRoute(from: id('a'), to: id('c'), stepCost: 2300),
+          RegionRoute(from: id('c'), to: id('a'), stepCost: 2300),
+        ],
+        options: const <TravelOption>[],
+      )!;
+      final AtlasWay direct = tied.routeSummary(id('c'))!;
+      expect(direct.totalCost, 2300);
+      expect(direct.isDirect, isTrue, reason: 'ties break on fewer hops');
+    });
+
     test('highlights exactly the edges of the walk, and no spur', () {
       final AtlasScene scene = _scene();
       final AtlasWay way = scene.routeSummary(id('c'))!;

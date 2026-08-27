@@ -244,7 +244,7 @@ final class AtlasScene {
   /// route". Fewest-hops happened to agree on every shipped graph, and the
   /// first future edge where it did not would have had the button quoting a
   /// dearer walk than the map allows (Fable V2 audit; regression-pinned in
-  /// `atlas_screen_test`). Ties break on fewer hops, then on stable id
+  /// `atlas_scene_test`). Ties break on fewer hops, then on stable id
   /// order, so two runs never disagree about the same map.
   List<ContentId>? wayTo(ContentId target) {
     final ContentId start = current.id;
