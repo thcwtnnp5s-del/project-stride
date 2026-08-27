@@ -399,9 +399,7 @@ class _PanelPeekRow extends StatelessWidget {
             if (!affordable) ...<Widget>[
               Text(
                 'walk ${formatSteps(way!.totalCost - banked)} more · ',
-                style: StrideType.micro.copyWith(
-                  color: StrideColors.textMuted,
-                ),
+                style: StrideType.micro.copyWith(color: StrideColors.textMuted),
               ),
             ],
             const WalkingGlyph(role: WalkingRole.unit),

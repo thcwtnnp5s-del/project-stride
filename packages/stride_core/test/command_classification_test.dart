@@ -49,9 +49,7 @@ List<GameCommand> allCommands() => <GameCommand>[
   CompleteContract(contract: ContentId.unchecked('contract.herbal_supplies')),
   ContributeToProject(
     project: ContentId.unchecked('project.havens_rest_mill'),
-    contributions: <ContentId, int>{
-      ContentId.unchecked('item.oak_plank'): 1,
-    },
+    contributions: <ContentId, int>{ContentId.unchecked('item.oak_plank'): 1},
   ),
   const ResetPlaytest(freshStart: false, stateVersion: 9),
 ];

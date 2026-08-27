@@ -135,75 +135,79 @@ class _CraftScreenState extends State<CraftScreen> {
       token: held ? craft.lastReport : null,
       tier: RewardTier.medium,
       accent: held ? _CraftSummary.heldAccent(craft, pinnedRecipe) : null,
-      beats: held ? _CraftSummary.heldBeats(context, craft, pinnedRecipe) : const <Widget>[],
-      trailing: held ? _CraftSummary.equipControl(context, craft, pinnedRecipe) : null,
+      beats: held
+          ? _CraftSummary.heldBeats(context, craft, pinnedRecipe)
+          : const <Widget>[],
+      trailing: held
+          ? _CraftSummary.equipControl(context, craft, pinnedRecipe)
+          : null,
       onDismiss: CraftScope.read(context).dismissSummary,
       child: ListView(
-      padding: const EdgeInsets.fromLTRB(
-        StrideSpace.screenGutter,
-        StrideSpace.s12,
-        StrideSpace.screenGutter,
-        StrideSpace.s16,
-      ),
-      children: <Widget>[
-        if (session.isStale) ...<Widget>[
-          StaleBanner(busy: controller.busy, onReload: controller.reload),
-          const SizedBox(height: StrideSpace.cardGap),
-        ],
-
-        // The filter, then the honest census of what it shows.
-        //
-        // Two figures in one shape, whatever the numbers are. The line read
-        // "Nothing here can be made yet — 15 known" at zero and "5 of 15 can
-        // be made now" otherwise: two different sentences, two different
-        // lengths, and the empty case phrased as an apology. The owner asked
-        // for the compact state instead (§8), and the same words at zero as
-        // at five is also the honest presentation — nothing craftable is a
-        // fact about the bag, not a disappointment to soften.
-        _CategoryChips(
-          selected: _category,
-          onSelect: (CraftCategory? c) => setState(() => _category = c),
+        padding: const EdgeInsets.fromLTRB(
+          StrideSpace.screenGutter,
+          StrideSpace.s12,
+          StrideSpace.screenGutter,
+          StrideSpace.s16,
         ),
-        const SizedBox(height: StrideSpace.s8),
-        AdaptiveText(
-          '$ready craftable · ${shown.length} known',
-          style: StrideType.sub,
-          color: ready == 0
-              ? StrideColors.textMuted
-              : StrideColors.textSecondary,
-        ),
-        const SizedBox(height: StrideSpace.cardGap),
-
-        if (shown.isEmpty)
-          const SectionCard(
-            child: AdaptiveText(
-              'Nothing in this category yet.',
-              style: StrideType.body,
-            ),
-          ),
-
-        for (final RecipeOption recipe in shown) ...<Widget>[
-          _RecipeRow(
-            recipe: recipe,
-            selected: selectedId == recipe.id,
-            onTap: () {
-              // Opening or closing any row clears a transient result; a
-              // held one has its own Continue.
-              if (!craft.active && !craft.summaryHeld) {
-                CraftScope.read(context).dismissSummary();
-              }
-              setState(
-                () => _selected = _selected == recipe.id ? null : recipe.id,
-              );
-            },
-          ),
-          if (selectedId == recipe.id) ...<Widget>[
-            const SizedBox(height: StrideSpace.s4),
-            _RecipeDetail(recipe: recipe),
+        children: <Widget>[
+          if (session.isStale) ...<Widget>[
+            StaleBanner(busy: controller.busy, onReload: controller.reload),
+            const SizedBox(height: StrideSpace.cardGap),
           ],
-          const SizedBox(height: StrideSpace.s6),
+
+          // The filter, then the honest census of what it shows.
+          //
+          // Two figures in one shape, whatever the numbers are. The line read
+          // "Nothing here can be made yet — 15 known" at zero and "5 of 15 can
+          // be made now" otherwise: two different sentences, two different
+          // lengths, and the empty case phrased as an apology. The owner asked
+          // for the compact state instead (§8), and the same words at zero as
+          // at five is also the honest presentation — nothing craftable is a
+          // fact about the bag, not a disappointment to soften.
+          _CategoryChips(
+            selected: _category,
+            onSelect: (CraftCategory? c) => setState(() => _category = c),
+          ),
+          const SizedBox(height: StrideSpace.s8),
+          AdaptiveText(
+            '$ready craftable · ${shown.length} known',
+            style: StrideType.sub,
+            color: ready == 0
+                ? StrideColors.textMuted
+                : StrideColors.textSecondary,
+          ),
+          const SizedBox(height: StrideSpace.cardGap),
+
+          if (shown.isEmpty)
+            const SectionCard(
+              child: AdaptiveText(
+                'Nothing in this category yet.',
+                style: StrideType.body,
+              ),
+            ),
+
+          for (final RecipeOption recipe in shown) ...<Widget>[
+            _RecipeRow(
+              recipe: recipe,
+              selected: selectedId == recipe.id,
+              onTap: () {
+                // Opening or closing any row clears a transient result; a
+                // held one has its own Continue.
+                if (!craft.active && !craft.summaryHeld) {
+                  CraftScope.read(context).dismissSummary();
+                }
+                setState(
+                  () => _selected = _selected == recipe.id ? null : recipe.id,
+                );
+              },
+            ),
+            if (selectedId == recipe.id) ...<Widget>[
+              const SizedBox(height: StrideSpace.s4),
+              _RecipeDetail(recipe: recipe),
+            ],
+            const SizedBox(height: StrideSpace.s6),
+          ],
         ],
-      ],
       ),
     );
   }
@@ -237,7 +241,11 @@ class _CategoryChips extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onTap});
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -397,8 +405,7 @@ class _RecipeDetailState extends State<_RecipeDetail> {
 
     final bool activeHere = craft.active && craft.activeRecipe == recipe.id;
     final bool activeElsewhere = craft.active && !activeHere;
-    final bool summaryHere =
-        !craft.active && craft.summaryRecipe == recipe.id;
+    final bool summaryHere = !craft.active && craft.summaryRecipe == recipe.id;
 
     final int maxCount = recipe.craftableCount.clamp(
       0,
@@ -513,7 +520,9 @@ class _RecipeDetailState extends State<_RecipeDetail> {
                   ? 'Finish or cancel your current craft'
                   : _reason(recipe),
               onPressed:
-                  !recipe.canCraft || controller.busy || activeElsewhere ||
+                  !recipe.canCraft ||
+                      controller.busy ||
+                      activeElsewhere ||
                       !controller.session.isReady
                   ? null
                   : () => CraftScope.read(context).start(recipe, count),
@@ -526,8 +535,9 @@ class _RecipeDetailState extends State<_RecipeDetail> {
               label: 'Track as Pursuit',
               onPressed: controller.busy
                   ? null
-                  : () => SessionScope.read(context)
-                        .trackGoalPursuit(recipe.outputItem),
+                  : () => SessionScope.read(
+                      context,
+                    ).trackGoalPursuit(recipe.outputItem),
             ),
             if (summaryHere) ...<Widget>[
               const SizedBox(height: StrideSpace.s8),
@@ -575,7 +585,8 @@ class _QueueChips extends StatelessWidget {
       for (final int preset in const <int>[1, 5, 10])
         _Chip(
           label: '×$preset',
-          selected: count == preset ||
+          selected:
+              count == preset ||
               (preset > maxCount && count == maxCount && preset == 10),
           onTap: () => onChanged(preset),
         ),
@@ -684,8 +695,9 @@ class _ActiveCraftPanel extends StatelessWidget {
                         restFootprint: AmbientAssets.restFootprint,
                         prop: AmbientAssets.stationFor(station),
                         activityFrames: loop,
-                        activityFootprint:
-                            AmbientAssets.activityFootprintFor(skill),
+                        activityFootprint: AmbientAssets.activityFootprintFor(
+                          skill,
+                        ),
                         activityCanvas: AmbientAssets.activityCanvasFor(skill),
                         activityActive: true,
                         // The craft beats (AUDIO_PRESENTATION_01): the hammer
@@ -693,8 +705,9 @@ class _ActiveCraftPanel extends StatelessWidget {
                         // profession, on the visible strike frame, only while
                         // this stage is mounted. Leaving the screen stops the
                         // sound; the craft queue itself never sonifies.
-                        activityStrikeFrame:
-                            AmbientAssets.strikeFrameFor(skill),
+                        activityStrikeFrame: AmbientAssets.strikeFrameFor(
+                          skill,
+                        ),
                         onActivityBeat: () =>
                             AudioScope.read(context).playSkillCue(skill),
                       ),
@@ -711,9 +724,7 @@ class _ActiveCraftPanel extends StatelessWidget {
             Expanded(
               child: Text(
                 'Crafting ${craft.completed} / ${craft.queued}',
-                style: StrideType.sub.copyWith(
-                  color: StrideColors.textPrimary,
-                ),
+                style: StrideType.sub.copyWith(color: StrideColors.textPrimary),
               ),
             ),
             _CraftSecondsRemaining(craft: craft),

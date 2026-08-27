@@ -31,7 +31,8 @@ class GoalSummaryCard extends StatelessWidget {
     final SessionController c = SessionScope.of(context);
     final TrackedGoalsView goals = c.session.trackedGoals;
     final bool empty =
-        goals.journey == null && goals.pursuit == null &&
+        goals.journey == null &&
+        goals.pursuit == null &&
         goals.contract == null;
 
     return SectionCard(
@@ -68,8 +69,7 @@ class GoalSummaryCard extends StatelessWidget {
                 label: 'PURSUIT',
                 name: p.itemName,
                 status: _pursuitStatus(p),
-                emphasised: p.owned ||
-                    (!p.owned && p.needs.isEmpty),
+                emphasised: p.owned || (!p.owned && p.needs.isEmpty),
               ),
             if (goals.contract case final ContractGoalView k)
               _SummaryLine(
@@ -135,10 +135,7 @@ class _SummaryLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: <Widget>[
-        SizedBox(
-          width: 76,
-          child: Text(label, style: StrideType.microLabel),
-        ),
+        SizedBox(width: 76, child: Text(label, style: StrideType.microLabel)),
         Expanded(
           child: AdaptiveText(
             '$name — $status',

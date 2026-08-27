@@ -190,9 +190,7 @@ void main() {
 
     // The sword that opens the Hollow's door.
     spentAt('Craft: Bronze Sword (no steps)', () {
-      if (!engine.state.inventory.has(
-        ContentId.unchecked('item.oak_handle'),
-      )) {
+      if (!engine.state.inventory.has(ContentId.unchecked('item.oak_handle'))) {
         must(CraftItem(recipe: ContentId.unchecked('recipe.oak_handle')));
       }
       while (engine.state.inventory.quantityOf(
@@ -266,7 +264,11 @@ void main() {
     // of walking is the ceiling before the chase stops producing feedback;
     // two days is the floor before it stops being a chase.
     expect(total, lessThan(7000 * 10), reason: 'the Verge costs $total steps');
-    expect(total, greaterThan(7000 * 2), reason: 'the Verge costs $total steps');
+    expect(
+      total,
+      greaterThan(7000 * 2),
+      reason: 'the Verge costs $total steps',
+    );
     expect(
       forage + toWoods + chop + toMine + grind + toBounty + toSilk,
       total,

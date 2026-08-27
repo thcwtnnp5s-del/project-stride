@@ -205,10 +205,7 @@ List<StageSegment> choreograph(
         // held, planted idle beat — a moment of stillness before the halved
         // reply lands, which the halved figures then say out loud.
         out.add(
-          StageSegment(
-            duration: _bracedHold,
-            travelerTrack: traveler.idle,
-          ),
+          StageSegment(duration: _bracedHold, travelerTrack: traveler.idle),
         );
 
       case EnemyStruckBeat():

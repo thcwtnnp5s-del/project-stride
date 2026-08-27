@@ -1769,7 +1769,8 @@ final class GameEngine {
       );
     }
     final ContentId? prerequisite = contract.requiresContract;
-    if (prerequisite != null && state.progress.completionsOf(prerequisite) == 0) {
+    if (prerequisite != null &&
+        state.progress.completionsOf(prerequisite) == 0) {
       return CommandRejection(
         code: RejectionCode.contractNotAvailable,
         command: command.name,
@@ -1791,8 +1792,7 @@ final class GameEngine {
       );
     }
     final ContentId? projectGate = contract.requiresProject;
-    if (projectGate != null &&
-        !state.progress.isProjectComplete(projectGate)) {
+    if (projectGate != null && !state.progress.isProjectComplete(projectGate)) {
       return CommandRejection(
         code: RejectionCode.contractNotAvailable,
         command: command.name,
@@ -1932,8 +1932,7 @@ final class GameEngine {
           subject: command.contract.value,
         );
       }
-      final int counted =
-          state.progress.bountyProgress[command.contract] ?? 0;
+      final int counted = state.progress.bountyProgress[command.contract] ?? 0;
       if (counted < contract.bountyCount) {
         return _Decision.reject(
           RejectionCode.bountyUnmet,
@@ -2011,8 +2010,7 @@ final class GameEngine {
       // The first undealt deck index — `window` on a virgin board, wrapped
       // when the whole deck is already showing.
       int next =
-          state.progress.localNext[contract.location] ??
-          (window % deck.length);
+          state.progress.localNext[contract.location] ?? (window % deck.length);
       final Set<ContentId> staying = slots.toSet()..remove(contract.id);
       ContentId? replacement;
       for (int i = 0; i < deck.length; i++) {
@@ -2107,7 +2105,8 @@ final class GameEngine {
     // same receipt.
     final Map<ContentId, int> requiredTotal = <ContentId, int>{};
     for (final ItemQuantity need in stage.requires) {
-      requiredTotal[need.item] = (requiredTotal[need.item] ?? 0) + need.quantity;
+      requiredTotal[need.item] =
+          (requiredTotal[need.item] ?? 0) + need.quantity;
     }
     final Map<ContentId, int> remaining = <ContentId, int>{
       for (final MapEntry<ContentId, int> need in requiredTotal.entries)
@@ -2160,9 +2159,7 @@ final class GameEngine {
     }
 
     // The stage's receipt after this contribution, and whether it fills.
-    final Map<ContentId, int> after = <ContentId, int>{
-      ...progress.contributed,
-    };
+    final Map<ContentId, int> after = <ContentId, int>{...progress.contributed};
     for (final MapEntry<ContentId, int> offer
         in command.contributions.entries) {
       after[offer.key] = (after[offer.key] ?? 0) + offer.value;

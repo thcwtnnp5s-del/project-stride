@@ -299,7 +299,14 @@ final class EquippedSummary {
 /// [toolSwap] is a tool of another profession going into the one tool
 /// slot — an axe over a pickaxe. It is neither an upgrade nor a sidegrade:
 /// the two do different work, and the only honest word is "swap".
-enum GearVerdict { upgrade, downgrade, sidegrade, firstInSlot, equipped, toolSwap }
+enum GearVerdict {
+  upgrade,
+  downgrade,
+  sidegrade,
+  firstInSlot,
+  equipped,
+  toolSwap,
+}
 
 /// The profession a tool kind serves, in the player's word.
 String toolProfessionOf(ToolKind kind) => switch (kind) {
@@ -2055,8 +2062,7 @@ final class StrideSession {
   /// The walked figure the player is shown: everything credited since the
   /// last playtest reset, or the lifetime counter when there has been none
   /// (`DECISIONS/0025`). [totalGranted] stays the lifetime figure.
-  int get walkedSinceBaseline =>
-      engine?.state.steps.walkedSinceBaseline ?? 0;
+  int get walkedSinceBaseline => engine?.state.steps.walkedSinceBaseline ?? 0;
 
   /// Whether a playtest reset has ever moved the walked baseline — when it
   /// has, the Character tab names the lifetime figure beside the reset one,
@@ -3787,8 +3793,7 @@ final class StrideSession {
       // nothing consumes is a keepsake by design (`DECISIONS/0023` §5),
       // and saying so is what stops it reading as a recipe not yet found.
       isTrophy:
-          !hasConsumer &&
-          (signature || def.category == ItemCategory.quest),
+          !hasConsumer && (signature || def.category == ItemCategory.quest),
     );
   }
 
@@ -3879,16 +3884,17 @@ final class StrideSession {
         .toList();
     if (ofKind.isEmpty) return const <String>[];
 
-    final List<ResourceNodeDefinition> works = ofKind
-        .where((ResourceNodeDefinition n) => n.minimumToolTier <= def.tier)
-        .toList()
-      // Tier order, so the sentence reads as the progression: the sites a
-      // training tool opens first, the ones a better one added after. The
-      // id is the tie-break because `List.sort` is not stable.
-      ..sort((ResourceNodeDefinition a, ResourceNodeDefinition b) {
-        final int byTier = a.minimumToolTier.compareTo(b.minimumToolTier);
-        return byTier != 0 ? byTier : a.id.value.compareTo(b.id.value);
-      });
+    final List<ResourceNodeDefinition> works =
+        ofKind
+            .where((ResourceNodeDefinition n) => n.minimumToolTier <= def.tier)
+            .toList()
+          // Tier order, so the sentence reads as the progression: the sites a
+          // training tool opens first, the ones a better one added after. The
+          // id is the tie-break because `List.sort` is not stable.
+          ..sort((ResourceNodeDefinition a, ResourceNodeDefinition b) {
+            final int byTier = a.minimumToolTier.compareTo(b.minimumToolTier);
+            return byTier != 0 ? byTier : a.id.value.compareTo(b.id.value);
+          });
     final List<ResourceNodeDefinition> beyond = ofKind
         .where((ResourceNodeDefinition n) => n.minimumToolTier > def.tier)
         .toList();
@@ -4081,8 +4087,7 @@ final class StrideSession {
                     // A signature drop's existence is concealed until the
                     // enemy is Known (`DECISIONS/0023` §5). Presentation
                     // only: the roll is unchanged.
-                    revealed:
-                        !drop.signature || tier == KnowledgeTier.known,
+                    revealed: !drop.signature || tier == KnowledgeTier.known,
                   ),
               ],
               encountersPerVisit: enemy.encountersPerVisit,
@@ -4450,8 +4455,7 @@ final class StrideSession {
             for (final RecipeIngredient i in recipe.ingredients)
               RecipeIngredientLine(
                 item: i.item,
-                displayName:
-                    content.items[i.item]?.displayName ?? i.item.value,
+                displayName: content.items[i.item]?.displayName ?? i.item.value,
                 required: i.quantity,
                 held: active.state.inventory.quantityOf(i.item),
               ),
@@ -4566,16 +4570,13 @@ final class StrideSession {
             // listing both "Oak Plank"s would be a duplicate promising
             // nothing.
             !(recipe.unlockedByProject != null &&
-                !state.progress.isProjectComplete(
-                  recipe.unlockedByProject!,
-                )) &&
+                !state.progress.isProjectComplete(recipe.unlockedByProject!)) &&
             !(recipe.retiredByProject != null &&
                 state.progress.isProjectComplete(recipe.retiredByProject!)))
           () {
             final ContentId? contract = recipe.unlockedByContract;
             final bool taught =
-                contract == null ||
-                state.progress.completionsOf(contract) > 0;
+                contract == null || state.progress.completionsOf(contract) > 0;
             final String? gate = taught
                 ? null
                 : () {
@@ -4810,11 +4811,14 @@ final class StrideSession {
     PursuitGoalView? pursuit;
     final ContentId? pursuitItem = tracked.pursuit;
     if (pursuitItem != null) {
-      final PursuitPlan plan = pursuitPlanFor(content, active.state, pursuitItem);
+      final PursuitPlan plan = pursuitPlanFor(
+        content,
+        active.state,
+        pursuitItem,
+      );
       pursuit = PursuitGoalView(
         item: pursuitItem,
-        itemName:
-            content.items[pursuitItem]?.displayName ?? pursuitItem.value,
+        itemName: content.items[pursuitItem]?.displayName ?? pursuitItem.value,
         rarity: content.items[pursuitItem]?.rarity,
         recipeName: plan.recipe == null
             ? null
@@ -5060,7 +5064,8 @@ final class StrideSession {
         requires.every((RequirementLine l) => l.satisfied) &&
         requiresOwned.every((RequirementLine l) => l.satisfied);
     final bool bountyMet =
-        bounty == null || (bounty.accepted && bounty.progress >= bounty.required);
+        bounty == null ||
+        (bounty.accepted && bounty.progress >= bounty.required);
 
     return ContractView(
       id: contract.id,
@@ -5258,8 +5263,7 @@ final class StrideSession {
             for (final ItemQuantity need in stage.requires)
               RequirementLine(
                 item: need.item,
-                name:
-                    content.items[need.item]?.displayName ?? need.item.value,
+                name: content.items[need.item]?.displayName ?? need.item.value,
                 rarity: content.items[need.item]?.rarity,
                 required: need.quantity,
                 progress: stageDone

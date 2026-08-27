@@ -217,8 +217,7 @@ class SessionController extends ChangeNotifier {
           ? _session
                 .syncOpportunities()
                 .where(
-                  (SyncOpportunity o) =>
-                      !before.contains(_opportunityKey(o)),
+                  (SyncOpportunity o) => !before.contains(_opportunityKey(o)),
                 )
                 .toList(growable: false)
           : const <SyncOpportunity>[];

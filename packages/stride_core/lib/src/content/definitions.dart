@@ -843,12 +843,14 @@ final class RecipeDefinition {
           ? reader.requireInt('craftSeconds', min: 1, max: 3600)
           : null,
       station: reader.map.containsKey('station')
-          ? reader.requireEnum<CraftStation>('station', const <String,
-              CraftStation>{
-              'forge': CraftStation.forge,
-              'woodbench': CraftStation.woodbench,
-              'cookfire': CraftStation.cookfire,
-            })
+          ? reader.requireEnum<CraftStation>(
+              'station',
+              const <String, CraftStation>{
+                'forge': CraftStation.forge,
+                'woodbench': CraftStation.woodbench,
+                'cookfire': CraftStation.cookfire,
+              },
+            )
           : null,
       unlockedByProject: reader.map.containsKey('unlockedByProject')
           ? reader.requireId('unlockedByProject', ContentNamespace.project)

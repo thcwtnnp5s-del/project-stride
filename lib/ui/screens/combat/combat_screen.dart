@@ -173,15 +173,15 @@ class _CombatScreenState extends State<CombatScreen> {
           : const <Widget>[],
       onDismiss: c.acknowledgeCombat,
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        CombatStage(
-          view: view,
-          report: report,
-          ended: ended,
-          onPlayingChanged: _onPlayingChanged,
-        ),
-        const SizedBox(height: StrideSpace.cardGap),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          CombatStage(
+            view: view,
+            report: report,
+            ended: ended,
+            onPlayingChanged: _onPlayingChanged,
+          ),
+          const SizedBox(height: StrideSpace.cardGap),
           SectionCard(
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
             child: Column(
@@ -201,7 +201,7 @@ class _CombatScreenState extends State<CombatScreen> {
               ],
             ),
           ),
-      ],
+        ],
       ),
     );
   }
@@ -299,13 +299,11 @@ String describeBeat(CombatBeat b, String enemy) => switch (b) {
         'You are at ${b.playerHpAfter}.',
   BracedBeat() => 'You set your feet and brace behind your guard.',
   EnemyStruckBeat() =>
-    '$enemy ${b.heavy
-        ? 'lands a heavy blow'
-        : switch (b.quality) {
-            StrikeQuality.strong => 'hits hard',
-            StrikeQuality.weak => 'grazes you',
-            StrikeQuality.even => 'strikes',
-          }} for ${b.damage}. '
+    '$enemy ${b.heavy ? 'lands a heavy blow' : switch (b.quality) {
+                StrikeQuality.strong => 'hits hard',
+                StrikeQuality.weak => 'grazes you',
+                StrikeQuality.even => 'strikes',
+              }} for ${b.damage}. '
         'You are at ${b.playerHpAfter}.',
   RoundEndedBeat() =>
     b.telegraph
@@ -625,4 +623,3 @@ class _ResultPanel {
     ),
   ];
 }
-

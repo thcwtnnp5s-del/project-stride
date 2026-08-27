@@ -622,7 +622,10 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         for (final MapEntry<String, Object?> e in wornRaw.entries) {
           final EquipmentSlot? slot = EquipmentSlot.values
               .cast<EquipmentSlot?>()
-              .firstWhere((EquipmentSlot? s) => s!.name == e.key, orElse: () => null);
+              .firstWhere(
+                (EquipmentSlot? s) => s!.name == e.key,
+                orElse: () => null,
+              );
           final Object? v = e.value;
           if (slot == null || v is! String) return null;
           equippedItems[slot] = ContentId.unchecked(v);

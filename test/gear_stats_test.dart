@@ -97,79 +97,88 @@ void main() {
     );
     final GearStats pick = s.gearStatsOf(reinforcedPick)!;
     expect(pick.passives, contains('Works mining sites up to tier 2'));
-    expect(pick.passives, contains('15% chance of +1 yield at sites this tool works'));
-  });
-
-  test('a tool names the sites it opens, and the site the next tier would', () async {
-    // The physical-device polish pass, item 5: "Tier 1" is functional;
-    // naming the sites is a reason to want the tool. Both lines read the
-    // same node fields the engine gates a gather with.
-    final StrideSession s = await boot();
-
-    // Tier 0 pick: the two open seams, and the tier-1 site as the gap —
-    // the Deep Tin Seam (`DECISIONS/0027`) is the Bronze Pickaxe's first
-    // reason to exist, so the gap line finally names a tier-1 want.
-    final GearStats training = s.gearStatsOf(trainingPick)!;
-    expect(training.passives, contains('Mines: Copper Seam, Tin Seam'));
-    expect(training.passives, contains('Tier 1 opens Deep Tin Seam'));
-
-    // Tier 2 pick: every pickaxe site, and no gap line — the pack holds
-    // nothing above it.
-    final GearStats reinforced = s.gearStatsOf(reinforcedPick)!;
     expect(
-      reinforced.passives,
-      contains(
-        'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Hardened Copper Seam',
-      ),
-    );
-    expect(
-      reinforced.passives.where((String p) => p.startsWith('Tier ')),
-      isEmpty,
-    );
-
-    // Axes read the same way, in their own verb — and the bronze axe now
-    // has a want above it too (`DECISIONS/0027`: the Old-Growth Frostpine
-    // is the Hornbound Bronze Axe's job).
-    final GearStats axe = s.gearStatsOf(trainingAxe)!;
-    expect(axe.passives, contains('Chops: Oak Stand'));
-    expect(axe.passives, contains('Tier 1 opens Frostpine Stand'));
-    expect(
-      s.gearStatsOf(bronzeAxe)!.passives,
-      contains('Chops: Oak Stand, Frostpine Stand'),
-    );
-    expect(
-      s.gearStatsOf(bronzeAxe)!.passives,
-      contains('Tier 2 opens Old-Growth Frostpine'),
+      pick.passives,
+      contains('15% chance of +1 yield at sites this tool works'),
     );
   });
 
-  test('an axe over a pickaxe is a TOOL SWAP, never a power comparison', () async {
-    final StrideSession s = await boot();
-    expect((await s.equip(trainingPick)).succeeded, isTrue);
+  test(
+    'a tool names the sites it opens, and the site the next tier would',
+    () async {
+      // The physical-device polish pass, item 5: "Tier 1" is functional;
+      // naming the sites is a reason to want the tool. Both lines read the
+      // same node fields the engine gates a gather with.
+      final StrideSession s = await boot();
 
-    // The device case: Bronze Axe crafted while a pickaxe is worn. It is
-    // not a sidegrade and there is no "Tool power 4 → 4".
-    final GearStats axe = s.gearStatsOf(bronzeAxe)!;
-    expect(axe.verdict, GearVerdict.toolSwap);
-    expect(axe.verdictLabel, 'TOOL SWAP');
-    expect(axe.profession, 'Woodcutting');
-    expect(axe.tier, 1);
-    expect(axe.wornName, 'Training Pickaxe');
-    expect(axe.wornToolKind, ToolKind.pickaxe);
-    expect(axe.wornTier, 0);
-    expect(axe.deltaLabel, isNull, reason: 'no figure is compared');
-    expect(GearStatLine.textOf(axe), 'TIER 1');
+      // Tier 0 pick: the two open seams, and the tier-1 site as the gap —
+      // the Deep Tin Seam (`DECISIONS/0027`) is the Bronze Pickaxe's first
+      // reason to exist, so the gap line finally names a tier-1 want.
+      final GearStats training = s.gearStatsOf(trainingPick)!;
+      expect(training.passives, contains('Mines: Copper Seam, Tin Seam'));
+      expect(training.passives, contains('Tier 1 opens Deep Tin Seam'));
 
-    // The same profession compares by tier: a bronze pickaxe over the
-    // training pickaxe is an upgrade; the training pickaxe over bronze a
-    // downgrade; worn is worn.
-    expect(s.gearStatsOf(bronzePick)!.verdict, GearVerdict.upgrade);
-    expect(s.gearStatsOf(trainingPick)!.verdict, GearVerdict.equipped);
-    // Nothing is worn in the tool slot once the pickaxe comes off: the axe
-    // is then first in an empty slot, not a swap.
-    expect((await s.unequip(EquipmentSlot.tool)).succeeded, isTrue);
-    expect(s.gearStatsOf(trainingAxe)!.verdict, GearVerdict.firstInSlot);
-  });
+      // Tier 2 pick: every pickaxe site, and no gap line — the pack holds
+      // nothing above it.
+      final GearStats reinforced = s.gearStatsOf(reinforcedPick)!;
+      expect(
+        reinforced.passives,
+        contains(
+          'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Hardened Copper Seam',
+        ),
+      );
+      expect(
+        reinforced.passives.where((String p) => p.startsWith('Tier ')),
+        isEmpty,
+      );
+
+      // Axes read the same way, in their own verb — and the bronze axe now
+      // has a want above it too (`DECISIONS/0027`: the Old-Growth Frostpine
+      // is the Hornbound Bronze Axe's job).
+      final GearStats axe = s.gearStatsOf(trainingAxe)!;
+      expect(axe.passives, contains('Chops: Oak Stand'));
+      expect(axe.passives, contains('Tier 1 opens Frostpine Stand'));
+      expect(
+        s.gearStatsOf(bronzeAxe)!.passives,
+        contains('Chops: Oak Stand, Frostpine Stand'),
+      );
+      expect(
+        s.gearStatsOf(bronzeAxe)!.passives,
+        contains('Tier 2 opens Old-Growth Frostpine'),
+      );
+    },
+  );
+
+  test(
+    'an axe over a pickaxe is a TOOL SWAP, never a power comparison',
+    () async {
+      final StrideSession s = await boot();
+      expect((await s.equip(trainingPick)).succeeded, isTrue);
+
+      // The device case: Bronze Axe crafted while a pickaxe is worn. It is
+      // not a sidegrade and there is no "Tool power 4 → 4".
+      final GearStats axe = s.gearStatsOf(bronzeAxe)!;
+      expect(axe.verdict, GearVerdict.toolSwap);
+      expect(axe.verdictLabel, 'TOOL SWAP');
+      expect(axe.profession, 'Woodcutting');
+      expect(axe.tier, 1);
+      expect(axe.wornName, 'Training Pickaxe');
+      expect(axe.wornToolKind, ToolKind.pickaxe);
+      expect(axe.wornTier, 0);
+      expect(axe.deltaLabel, isNull, reason: 'no figure is compared');
+      expect(GearStatLine.textOf(axe), 'TIER 1');
+
+      // The same profession compares by tier: a bronze pickaxe over the
+      // training pickaxe is an upgrade; the training pickaxe over bronze a
+      // downgrade; worn is worn.
+      expect(s.gearStatsOf(bronzePick)!.verdict, GearVerdict.upgrade);
+      expect(s.gearStatsOf(trainingPick)!.verdict, GearVerdict.equipped);
+      // Nothing is worn in the tool slot once the pickaxe comes off: the axe
+      // is then first in an empty slot, not a swap.
+      expect((await s.unequip(EquipmentSlot.tool)).succeeded, isTrue);
+      expect(s.gearStatsOf(trainingAxe)!.verdict, GearVerdict.firstInSlot);
+    },
+  );
 
   test('a tool is described by what it opens, not by a figure', () async {
     final StrideSession s = await boot();

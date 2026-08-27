@@ -822,3 +822,47 @@ event)` before `Travelled`, presented by the existing encounter card on
 arrival. Content-declared per route, deterministic per journey, never
 time-triggered. Needs a World Designer pass on what the road can offer
 before any code.
+
+---
+
+## Q-12 — What are signature drops *for*?
+
+**Raised:** 2026-08-27, Fable V2 Experiment 01 (audit finding).
+**UNRESOLVED** — the owner's rule to change, if it changes.
+
+Six signature drops (Pristine Wolf Fang, Great Tusk, Goblin Toolhead,
+Ember Core, Frost Claw, Pristine Horn) are the Known tier's headline
+reveal, and nothing in the game consumes, displays, or reacts to any of
+them. `DECISIONS/0023` §5 frames them as **trophies, never ingredients**
+(the anti-grind rule, `RULES.md` P-10), and that framing is deliberate —
+but its corollary, "so what are they?", is unanswered on every surface.
+
+The experiment's interim answer is presentation only: the inventory's
+item-purpose block says a signature is *"a keepsake — proof of a rare
+find"*, so dead-by-design stops reading as a recipe not yet found. The
+open design options, all P-10-compatible:
+
+1. **Trophies, presented** — a bestiary/collection surface where Known
+   enemies and their signatures accumulate. Pure presentation; no rule
+   change.
+2. **Strictly voluntary one-time turn-ins** — a contract that *reacts to*
+   possession the way `cold_weather_kit`'s `requiresOwned` already does
+   (show, never consume), paying character XP or a rumor once. Needs the
+   rule owner to bless "a signature may gate an optional reward" as
+   distinct from "a signature is required".
+3. **Leave them pure** — mystery as identity.
+
+The Hollow Sigil is deliberately *not* in this question: it is a 100%
+deterministic drop, not a signature, and Fable V2 gave it The Scholar's
+Interest (`DECISIONS/0027`) under the existing rules.
+
+---
+
+## A note on Q-06 (2026-08-27)
+
+Fable V2 Experiment 01 implemented the **brace** candidate exactly as this
+question phrased it — "halve the next hit, deal none" — experimentally on
+`fable-v2-experiment` (`DECISIONS/0027`), so the owner's device play can
+answer whether a second tactical action earns its place with evidence
+rather than argument. Q-06's bullet stays open until that verdict; the
+persistent-HP bullet was answered by `DECISIONS/0023` §4 (state v7).

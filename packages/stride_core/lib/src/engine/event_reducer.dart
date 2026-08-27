@@ -537,8 +537,8 @@ final class EventReducer {
     // (PRESENTATION_WORLD_REWARD_FEEL_01 B-1). Clearing is information-only:
     // tracking never reserves or spends anything (`RULES.md` P-9), and the
     // completion's own presentation is the board's held result panel.
-    final TrackedGoals tracked = state.progress.tracked.contract ==
-            event.contract
+    final TrackedGoals tracked =
+        state.progress.tracked.contract == event.contract
         ? state.progress.tracked.setting(GoalSlot.contract, null)
         : state.progress.tracked;
 
@@ -613,8 +613,8 @@ final class EventReducer {
     // held panel. A stage completion keeps the tracking — the project is
     // still live work.
     final TrackedGoals tracked =
-        event.projectCompleted && state.progress.tracked.contract ==
-            event.project
+        event.projectCompleted &&
+            state.progress.tracked.contract == event.project
         ? state.progress.tracked.setting(GoalSlot.contract, null)
         : state.progress.tracked;
 

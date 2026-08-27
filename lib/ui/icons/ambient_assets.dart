@@ -399,8 +399,7 @@ abstract final class AmbientAssets {
   /// with the eight companion scenes filtered out by the layer they draw
   /// rather than by a hand-kept second list that could drift.
   static final AmbientSceneSet soloScenes = AmbientSceneSet(
-    scenes
-        .scenes
+    scenes.scenes
         .where(
           (AmbientScene s) => !s.layers.any(
             (AmbientLayer l) =>
@@ -576,8 +575,7 @@ abstract final class AmbientAssets {
   /// carpenter's bench room, the hearth — same 384 × 176 family as the
   /// profession work backdrops above (this pass, item 2). Null while a
   /// station has no authored scene; the stage then keeps its plain ground.
-  static String? craftBackdropFor(String station) =>
-      _craftBackdrops[station];
+  static String? craftBackdropFor(String station) => _craftBackdrops[station];
 
   static const Map<String, String> _craftBackdrops = <String, String>{
     'forge': '$_art/work/bg_smithing.png',

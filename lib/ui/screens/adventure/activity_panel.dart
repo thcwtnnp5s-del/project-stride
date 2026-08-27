@@ -60,10 +60,7 @@ class ActivityPanel extends StatelessWidget {
 
     if (nodes.isEmpty) {
       return const SectionCard(
-        child: Text(
-          'There is nothing to gather here.',
-          style: StrideType.body,
-        ),
+        child: Text('There is nothing to gather here.', style: StrideType.body),
       );
     }
 
@@ -495,38 +492,39 @@ class _GatherControl extends StatelessWidget {
           : reportHeld
           ? _ResultStrip.heldBeats(report, node.skill)
           : const <Widget>[],
-      onDismiss: queueHeld
-          ? ActivityScope.read(context).dismissSummary
-          : () {},
+      onDismiss: queueHeld ? ActivityScope.read(context).dismissSummary : () {},
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        StrideButton(
-          label: c.busy
-              ? 'Gathering…'
-              : 'Gather ×$count — ${formatSteps(cost * count)} steps',
-          subLabel: activeElsewhere
-              ? 'Finish or stop your current activity'
-              : blockedReason ??
-                    (!c.busy && !affordable && shortfall > 0
-                        ? 'Walk ${formatSteps(shortfall)} more steps'
-                        : null),
-          onPressed:
-              c.busy || !affordable || activeElsewhere || blockedReason != null
-              ? null
-              : () => ActivityScope.read(context).start(node, count),
-        ),
-        // The finished queue's summary takes the strip while it lives; a lone
-        // report (the last repetition's) only shows when no summary does, so
-        // the same fact is never printed twice.
-        if (summaryHere && !queueHeld) ...<Widget>[
-          const SizedBox(height: StrideSpace.s8),
-          _QueueSummaryStrip(activity: activity, skill: node.skill),
-        ] else if (report != null && !reportHeld) ...<Widget>[
-          const SizedBox(height: StrideSpace.s8),
-          _ResultStrip(report: report, skill: node.skill),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          StrideButton(
+            label: c.busy
+                ? 'Gathering…'
+                : 'Gather ×$count — ${formatSteps(cost * count)} steps',
+            subLabel: activeElsewhere
+                ? 'Finish or stop your current activity'
+                : blockedReason ??
+                      (!c.busy && !affordable && shortfall > 0
+                          ? 'Walk ${formatSteps(shortfall)} more steps'
+                          : null),
+            onPressed:
+                c.busy ||
+                    !affordable ||
+                    activeElsewhere ||
+                    blockedReason != null
+                ? null
+                : () => ActivityScope.read(context).start(node, count),
+          ),
+          // The finished queue's summary takes the strip while it lives; a lone
+          // report (the last repetition's) only shows when no summary does, so
+          // the same fact is never printed twice.
+          if (summaryHere && !queueHeld) ...<Widget>[
+            const SizedBox(height: StrideSpace.s8),
+            _QueueSummaryStrip(activity: activity, skill: node.skill),
+          ] else if (report != null && !reportHeld) ...<Widget>[
+            const SizedBox(height: StrideSpace.s8),
+            _ResultStrip(report: report, skill: node.skill),
+          ],
         ],
-      ],
       ),
     );
   }

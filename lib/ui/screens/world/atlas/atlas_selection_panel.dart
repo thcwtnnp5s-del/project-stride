@@ -35,8 +35,7 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart'
-    show ContentId, GoalSlot, Terrain;
+import 'package:stride_core/stride_core.dart' show ContentId, GoalSlot, Terrain;
 
 import '../../../../runtime/stride_session.dart';
 import '../../../components/adaptive_text.dart';
@@ -252,178 +251,175 @@ class AtlasInspector extends StatelessWidget {
         way != null && refusal == null && !busy && ready && onTravel != null;
 
     final Widget content = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // The destination's second framing — a picture of where the walk
-          // ends, cropped to a slim band so the panel stays an inspector.
-          if (vignette case final String art) ...<Widget>[
-            ClipRRect(
-              borderRadius: StrideRadius.card,
-              child: PixelScene.vignette(art, viewportHeight: 88),
-            ),
-            const SizedBox(height: StrideSpace.s8),
-          ],
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    AdaptiveText(name, style: StrideType.cardTitle),
-                    const SizedBox(height: StrideSpace.s2),
-                    AdaptiveText(
-                      '${info.kindWord} · ${info.terrainWord}',
-                      style: StrideType.micro,
-                      color: StrideColors.textSecondary,
-                    ),
-                  ],
-                ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        // The destination's second framing — a picture of where the walk
+        // ends, cropped to a slim band so the panel stays an inspector.
+        if (vignette case final String art) ...<Widget>[
+          ClipRRect(
+            borderRadius: StrideRadius.card,
+            child: PixelScene.vignette(art, viewportHeight: 88),
+          ),
+          const SizedBox(height: StrideSpace.s8),
+        ],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  AdaptiveText(name, style: StrideType.cardTitle),
+                  const SizedBox(height: StrideSpace.s2),
+                  AdaptiveText(
+                    '${info.kindWord} · ${info.terrainWord}',
+                    style: StrideType.micro,
+                    color: StrideColors.textSecondary,
+                  ),
+                ],
               ),
-              if (way case final AtlasWay w) ...<Widget>[
-                const SizedBox(width: StrideSpace.s8),
-                // The step figure keeps the muted "steps as a unit" glyph. It
-                // is a price, still a quantity of steps rather than the
-                // player's own balance, and L-16's two-tone rule turns on
-                // exactly that distinction. The figure is the WHOLE way's
-                // cost — the journey the button now walks (B-2) — never the
-                // first leg presented as the trip.
-                const WalkingGlyph(role: WalkingRole.unit),
-                const SizedBox(width: StrideSpace.s4),
-                AdaptiveText(
-                  formatSteps(w.totalCost),
-                  style: StrideType.itemCount,
-                  color: w.totalCost <= banked
-                      ? StrideColors.textPrimary
-                      : StrideColors.textMuted,
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: StrideSpace.s4),
-          AdaptiveText(
-            statusLine(info),
-            style: StrideType.micro,
-            color: StrideColors.textMuted,
-          ),
-
-          // The board at a glance — the reason the walk exists. One line of
-          // counts, and one sentence when the bag already answers a need.
-          if (info.board case final AtlasBoardLine board) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            const SectionHeading(label: 'Work'),
-            const SizedBox(height: StrideSpace.s6),
-            _Sentence(
-              boardLine(board),
-              style: StrideType.sub,
-              color: StrideColors.textSecondary,
             ),
-            if (carryLine(board) case final String carrying) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              _Sentence(
-                carrying,
-                style: StrideType.micro,
-                color: StrideColors.textPrimary,
+            if (way case final AtlasWay w) ...<Widget>[
+              const SizedBox(width: StrideSpace.s8),
+              // The step figure keeps the muted "steps as a unit" glyph. It
+              // is a price, still a quantity of steps rather than the
+              // player's own balance, and L-16's two-tone rule turns on
+              // exactly that distinction. The figure is the WHOLE way's
+              // cost — the journey the button now walks (B-2) — never the
+              // first leg presented as the trip.
+              const WalkingGlyph(role: WalkingRole.unit),
+              const SizedBox(width: StrideSpace.s4),
+              AdaptiveText(
+                formatSteps(w.totalCost),
+                style: StrideType.itemCount,
+                color: w.totalCost <= banked
+                    ? StrideColors.textPrimary
+                    : StrideColors.textMuted,
               ),
             ],
           ],
+        ),
+        const SizedBox(height: StrideSpace.s4),
+        AdaptiveText(
+          statusLine(info),
+          style: StrideType.micro,
+          color: StrideColors.textMuted,
+        ),
 
-          if (info.gatherSites.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            const SectionHeading(label: 'Gathering'),
-            const SizedBox(height: StrideSpace.s6),
-            for (final AtlasGatherLine site in info.gatherSites)
-              Padding(
-                padding: const EdgeInsets.only(bottom: StrideSpace.s4),
-                child: _Sentence(
-                  gatherLine(site),
-                  style: StrideType.sub,
-                  // A site out of reach reads muted, with its gap in the
-                  // same sentence — the wasted-journey preventer, asked on
-                  // the map where the journey is being planned.
-                  color: site.eligible
-                      ? StrideColors.textSecondary
-                      : StrideColors.textMuted,
-                ),
-              ),
-          ],
-
-          if (info.encounters.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            const SectionHeading(label: 'Encounters'),
-            const SizedBox(height: StrideSpace.s6),
-            for (final AtlasEncounterLine e in info.encounters)
-              Padding(
-                padding: const EdgeInsets.only(bottom: StrideSpace.s6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Flexible(
-                          child: AdaptiveText(
-                            e.name,
-                            style: StrideType.itemName,
-                          ),
-                        ),
-                        if (e.isBoss) ...<Widget>[
-                          const SizedBox(width: StrideSpace.s6),
-                          const _BossBadge(),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: StrideSpace.s2),
-                    _Sentence(
-                      encounterLine(e),
-                      style: StrideType.micro,
-                      color: StrideColors.textMuted,
-                    ),
-                  ],
-                ),
-              ),
-          ],
-
+        // The board at a glance — the reason the walk exists. One line of
+        // counts, and one sentence when the bag already answers a need.
+        if (info.board case final AtlasBoardLine board) ...<Widget>[
           const SizedBox(height: StrideSpace.s10),
+          const SectionHeading(label: 'Work'),
+          const SizedBox(height: StrideSpace.s6),
           _Sentence(
-            routeLine(info: info, way: way),
-            style: StrideType.micro,
+            boardLine(board),
+            style: StrideType.sub,
             color: StrideColors.textSecondary,
           ),
-
-          if (way != null && onTravel != null) ...<Widget>[
-            if (refusal case final String reason) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              AdaptiveText(
-                reason,
-                style: StrideType.micro,
-                color: StrideColors.textMuted,
-              ),
-            ],
-            const SizedBox(height: StrideSpace.s10),
-            _TravelControls(
-              destinationName: name,
-              way: way!,
-              banked: banked,
-              busy: busy,
-              open: open,
-              onTravel: onTravel,
+          if (carryLine(board) case final String carrying) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            _Sentence(
+              carrying,
+              style: StrideType.micro,
+              color: StrideColors.textPrimary,
             ),
-          ],
-
-          if (onTrackJourney != null) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
-            StrideButton.secondary(
-              label: journeyTracked ? 'Journey set — clear' : 'Set as Journey',
-              onPressed: busy ? null : onTrackJourney,
-            ),
-          ],
-
-          if (lastJourney case final JourneySummary journey) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            TravelResultLine(journey: journey),
           ],
         ],
-      );
+
+        if (info.gatherSites.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.s10),
+          const SectionHeading(label: 'Gathering'),
+          const SizedBox(height: StrideSpace.s6),
+          for (final AtlasGatherLine site in info.gatherSites)
+            Padding(
+              padding: const EdgeInsets.only(bottom: StrideSpace.s4),
+              child: _Sentence(
+                gatherLine(site),
+                style: StrideType.sub,
+                // A site out of reach reads muted, with its gap in the
+                // same sentence — the wasted-journey preventer, asked on
+                // the map where the journey is being planned.
+                color: site.eligible
+                    ? StrideColors.textSecondary
+                    : StrideColors.textMuted,
+              ),
+            ),
+        ],
+
+        if (info.encounters.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.s10),
+          const SectionHeading(label: 'Encounters'),
+          const SizedBox(height: StrideSpace.s6),
+          for (final AtlasEncounterLine e in info.encounters)
+            Padding(
+              padding: const EdgeInsets.only(bottom: StrideSpace.s6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: AdaptiveText(e.name, style: StrideType.itemName),
+                      ),
+                      if (e.isBoss) ...<Widget>[
+                        const SizedBox(width: StrideSpace.s6),
+                        const _BossBadge(),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: StrideSpace.s2),
+                  _Sentence(
+                    encounterLine(e),
+                    style: StrideType.micro,
+                    color: StrideColors.textMuted,
+                  ),
+                ],
+              ),
+            ),
+        ],
+
+        const SizedBox(height: StrideSpace.s10),
+        _Sentence(
+          routeLine(info: info, way: way),
+          style: StrideType.micro,
+          color: StrideColors.textSecondary,
+        ),
+
+        if (way != null && onTravel != null) ...<Widget>[
+          if (refusal case final String reason) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            AdaptiveText(
+              reason,
+              style: StrideType.micro,
+              color: StrideColors.textMuted,
+            ),
+          ],
+          const SizedBox(height: StrideSpace.s10),
+          _TravelControls(
+            destinationName: name,
+            way: way!,
+            banked: banked,
+            busy: busy,
+            open: open,
+            onTravel: onTravel,
+          ),
+        ],
+
+        if (onTrackJourney != null) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          StrideButton.secondary(
+            label: journeyTracked ? 'Journey set — clear' : 'Set as Journey',
+            onPressed: busy ? null : onTrackJourney,
+          ),
+        ],
+
+        if (lastJourney case final JourneySummary journey) ...<Widget>[
+          const SizedBox(height: StrideSpace.s10),
+          TravelResultLine(journey: journey),
+        ],
+      ],
+    );
 
     return bare ? content : SectionCard(child: content);
   }
@@ -645,9 +641,7 @@ class _TravelControlsState extends State<_TravelControls> {
                 : 'By way of $via · ${formatSteps(way.totalCost)} steps '
                       'in all · leaves ${formatSteps(after < 0 ? 0 : after)} '
                       'banked',
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
           ),
           const SizedBox(height: StrideSpace.s8),
           // "Set out" is the biggest spend in the game and takes the

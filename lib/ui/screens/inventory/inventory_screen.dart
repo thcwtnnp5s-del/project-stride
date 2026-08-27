@@ -222,7 +222,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     if (group.entries.any(
                           (InventoryEntry e) => e.id == _itemDetail,
                         ) &&
-                        c.session.itemPurposeOf(_itemDetail!) != null) ...<Widget>[
+                        c.session.itemPurposeOf(_itemDetail!) !=
+                            null) ...<Widget>[
                       const SizedBox(height: StrideSpace.s8),
                       KeyedSubtree(
                         key: _detailKey,
@@ -363,9 +364,7 @@ class _ItemPurposeBlock extends StatelessWidget {
             const SizedBox(height: StrideSpace.s4),
             Text(
               'Nothing in the world asks for this yet.',
-              style: StrideType.micro.copyWith(
-                color: StrideColors.textMuted,
-              ),
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
             ),
           ],
         ],
@@ -464,7 +463,8 @@ class _EquippedSummary extends StatelessWidget {
                   // same line the tile carries, so the summary and the grid
                   // never disagree about a piece.
                   if (worn[slot] case final EquippedSummary e)
-                    if (session.gearStatsOf(e.itemId) case final GearStats g) ...<Widget>[
+                    if (session.gearStatsOf(e.itemId)
+                        case final GearStats g) ...<Widget>[
                       const SizedBox(height: StrideSpace.s2),
                       Text(
                         GearStatLine.textOf(g),
@@ -714,9 +714,7 @@ class _ItemTile extends StatelessWidget {
     decoration: BoxDecoration(
       color: selected ? StrideColors.surfaceRaised : StrideColors.surfaceCard,
       border: Border.all(
-        color: selected
-            ? StrideColors.accentSteps
-            : StrideColors.borderDefault,
+        color: selected ? StrideColors.accentSteps : StrideColors.borderDefault,
       ),
       borderRadius: StrideRadius.inner,
     ),

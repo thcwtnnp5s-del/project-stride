@@ -121,7 +121,8 @@ class _AdventureScreenState extends State<AdventureScreen> {
     final ContentId? stagedId = active ?? _selected;
     final ResourceNodeDefinition? staged = stagedId == null
         ? null
-        : nodes.where((ResourceNodeDefinition n) => n.id == stagedId)
+        : nodes
+              .where((ResourceNodeDefinition n) => n.id == stagedId)
               .firstOrNull;
 
     // The selection's gate, projected once from the same rules the engine
@@ -139,8 +140,9 @@ class _AdventureScreenState extends State<AdventureScreen> {
     // The identity of a *successful* gather at the staged node, and nothing
     // else — the one-shot plays on the shared stage now. Suppressed while a
     // queue runs: the working loop already has the stage.
-    final ActionReport? report =
-        staged != null && c.lastActionNode == staged.id ? c.lastAction : null;
+    final ActionReport? report = staged != null && c.lastActionNode == staged.id
+        ? c.lastAction
+        : null;
     final Object? playToken =
         active == null && report != null && report.succeeded ? report : null;
 
@@ -259,8 +261,8 @@ class _OpportunityBanner extends StatelessWidget {
               ),
             ],
           ),
-          for (final SyncOpportunity o in controller.lastOpportunities) ...<
-              Widget>[
+          for (final SyncOpportunity o
+              in controller.lastOpportunities) ...<Widget>[
             const SizedBox(height: StrideSpace.s6),
             Text(o.headline, style: StrideType.itemName),
             Text(o.detail, style: StrideType.micro),

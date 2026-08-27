@@ -136,4 +136,89 @@ Deliberately deferred with reasons: atlas props, fauna pack, walk cycle
 
 ## 5. Implementation record
 
-(Filled in as commits land; final report in the closing section.)
+Commits, on `fable-v2-experiment` over `5ffba67`:
+
+1. `70434ed` — **Brace** (Q-06's candidate, `DECISIONS/0027`): CombatBrace
+   command, CombatBraced event, halved-reply arithmetic pinned from the
+   events' own rolls; `tellLine` content field; no state-shape change.
+2. `041e3d4` — **The Verge content pack + asset recovery**: the gear tier,
+   the Scree Crawler, three mid-ladder nodes, the Sigil contract, the
+   Ranger Watchtower, post-project orders, P-10 backstops, the healing
+   inversion fix; RCP01 icons/vignettes/crawler frames integrated and the
+   pack's packaging sources tracked (fixing the latent clean-checkout
+   `--check` failure the untracked boar/ram/salamander/bear sources had
+   carried since EPL01). Proven by play: `verge_tier_loop_test` — 35,730
+   steps, 5.1 ordinary days, to the Bronze Longsword.
+3. `dd848e5` — **Combat surface**: the knowledge-gated intent line
+   (Studied finally pays) and the Brace button; stage plays the stance as
+   a planted idle beat (A-1: no invented art).
+4. `e0c3d01` — **World command center, progression truth, item purpose,
+   game feel**: board summary + carry-wanted on the inspector; vignette
+   variants as destination previews; tracked-Journey toggle; Dijkstra;
+   primary Set out; IndexedStack shell; truthful unlock gates + next-three
+   unlocks + bonus milestones; eligibility project-gate/tier fixes; item
+   purpose blocks; "makes possible" at the bench; DISCOVERED beat;
+   banked count-up; equip stat story; fault sentences; empty-goal nudge.
+5. `c4259c7` — cheapest-route regression pin, the destination-inspector
+   evidence capture (M-06), details scroll into view.
+
+**Save:** v9 unchanged, no migration, existing saves load as-is.
+**Content:** schema 1, additive; enemy count 8 → 9 under `DECISIONS/0027`.
+**PixelLab generations: zero.** Audio: zero new assets (the discovery beat
+is deliberately silent; region music continues).
+
+### Deliberately deferred (each with its reason on the record)
+
+- **Fauna beats, atlas props, walk cycle, 8-direction stills, canvas
+  backpack, full-scene recrops, WRD01 landmarks** — see
+  `GAME_BIBLE/ART/PIXELLAB_ASSET_INVENTORY.md` §3.
+- **A bestiary/journal screen** — trophy labeling in the item purpose
+  block covers the near need; a collection surface is its own design.
+- **Character-tab regrouping (UX audit S4)** — the current arrangement is
+  owner-accepted from device passes; relitigating presentation the owner
+  ruled on is not an experiment's call. Recommendation stands in the audit.
+- **Ready-transition lines mid-play (feel audit F6), ordinary-arrival
+  beat (F2), newly-affordable marker pulse (F4), tracked-goal marker on
+  the map itself** — bounded out; the sync banner and the panel state
+  carry the near need.
+- **Signature-drop sinks** — D0023 §5 frames signatures as trophies; a
+  sink is the rule owner's question (now `JOURNAL/OPEN_QUESTIONS.md`
+  Q-12). V2 labels them honestly instead.
+
+## 6. Device acceptance checklist (iPhone, Release via
+`Scripts/ios/build-release-device.sh`)
+
+Existing save expected to load with **banked steps, lifetime figures,
+inventory, equipment, XP, location, goals and encounter state intact** —
+nothing here migrates anything.
+
+1. **World**: select each place — the panel shows Work counts, development
+   word, gather verdicts; a reached destination shows its variant picture;
+   the folded strip mutes an unaffordable cost and quotes the shortfall;
+   "Set as Journey" reads "Journey set — clear" once tracked; the travel
+   confirm's Set out is the big button.
+2. **Tab flow**: World → Inventory → World; the camera and selection must
+   survive the round trip.
+3. **First visit** (any place not yet reached on the save, or a fresh
+   playtest): the DISCOVERED layer rises with the place's picture.
+4. **Skills**: each card lists its next unlocks with real gates ("+ a
+   contract at…", "+ a tier-1 pickaxe"); the +10% yield milestones show.
+5. **Stonefall**: the Scree Crawler stands on the encounter card and
+   fights (idle + attack; victory holds the hit pose — no defeat track,
+   by QA verdict); at Mining <4 the Deep Tin Seam row explains its gap.
+6. **Combat**: the intent line appears once an enemy is Seen and deepens
+   at Studied; Brace halves the telegraphed heavy (watch the guardian or
+   salamander); the log narrates the stance.
+7. **Craft**: Herb Broth (pair) at Cooking 4; the Verge recipes appear at
+   Smithing 5–6 with the RCP icons; a material recipe says what it makes
+   possible.
+8. **Inventory**: tap a material — the purpose block opens and scrolls
+   into view; a signature drop says it is a keepsake; equipping a weapon
+   says "ATK a → b".
+9. **Boards**: The Scholar's Interest at Haven once the Sigil is held
+   (shows, never consumes); Feed the Forge in the Mine deck; Bear Watch
+   among the Woods bounties; the Ranger Watchtower project accepts
+   contributions.
+10. **Header**: a sync counts the banked figure up rather than teleporting;
+    sync faults (if any) read as sentences.
+

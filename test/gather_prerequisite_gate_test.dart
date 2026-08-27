@@ -172,10 +172,7 @@ void main() {
     // activities stay visible and aspirational).
     expect(find.text('Duskcap Grove'), findsOneWidget);
     expect(find.text('LOCKED'), findsOneWidget);
-    expect(
-      find.text('Requires Foraging 3 — you are 1'),
-      findsOneWidget,
-    );
+    expect(find.text('Requires Foraging 3 — you are 1'), findsOneWidget);
 
     await select(tester, 'Duskcap Grove');
 
@@ -200,10 +197,7 @@ void main() {
     await tester.tap(preset);
     await tester.pump();
     expect(gatherButton(tester).label, 'Gather ×1 — 130 steps');
-    expect(
-      find.textContaining('1 × 130 = 130 steps'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('1 × 130 = 130 steps'), findsOneWidget);
   });
 
   testWidgets('missing required tool: controls disabled, equip reason, '

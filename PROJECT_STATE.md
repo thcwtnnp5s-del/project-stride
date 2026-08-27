@@ -1,5 +1,47 @@
 # Project Stride — Project State
 
+**Version:** 2.27
+**Status:** 🧪 **FABLE V2 EXPERIMENT 01 — an experimental
+autonomous-director build exists on branch `fable-v2-experiment`, awaiting
+the owner's play.** The accepted playable branch
+`playable-phase-2-multiregion` is **unchanged** at `5ffba67`; nothing merges
+without the owner's verdict. Records: `MILESTONES/FABLE_V2_EXPERIMENT_01.md`
+(thesis, implementation, device checklist),
+`DECISIONS/0027_FABLE_V2_EXPERIMENT_SCOPE.md` (experimental),
+`GAME_BIBLE/ART/PIXELLAB_ASSET_INVENTORY.md` (new, authoritative).
+
+The owner's brief — one sprint of creative ownership, maximal reuse of
+existing PixelLab art, atlas image frozen, health/economy untouchable —
+answered in one breath: the game stops hiding its own reasons. The **World
+inspector is a command center** (board counts, "you carry what work here
+needs", development words, gather verdicts with their gaps, destination
+vignettes, a Journey toggle, Dijkstra-cheapest routes, a primary Set out,
+and a shell that keeps the map's camera alive across tabs); **skill cards
+name their next three unlocks with their true gates** (contract, project,
+tool tier — the old single line promised levels alone, falsely) and the
+bonus-yield milestones; **every item answers "what am I for"** (used in /
+wanted by / sources / heals, trophies say they are keepsakes, material
+recipes say what they make possible); **combat gains its first decision** —
+Brace, Q-06's own candidate, halving the telegraphed heavy — and a
+knowledge-gated intent line that finally pays Studied; the **Verge tier**
+gives the bronze age its second beat (Bronze Longsword · Bearhide Coat ·
+Hornbound Bronze Axe · Gloom Silk, RCP01's accepted icons at last shipped,
+the Scree Crawler as Stonefall's armoured fight, three mid-ladder nodes
+filling dead levels, the Hollow Sigil's Scholar contract, the Woods'
+Ranger Watchtower, post-project orders, P-10 backstops) — proven by play
+at 35,730 steps ≈ 5.1 days to the Longsword; and the game **acknowledges**
+(DISCOVERED beats with the destination's picture, a header that counts up,
+equips that say ATK a → b, sync faults as sentences, an empty goal card
+that points somewhere). **Zero new PixelLab generations; zero audio
+generations; state stays v9; no migration.** Found and fixed in passing:
+RCP01's packaging sources were never tracked, so `--check` could not pass
+from a clean checkout since EPL01. Suites: app **709**, stride_core
+**702**, analyze clean, `--check` clean (820 files). Open: Q-06 (brace now
+has evidence to collect), **Q-12 (new — what are signature drops for?)**,
+and the standing set below.
+
+---
+
 **Version:** 2.26
 **Status:** 🚧 **WORLD ATLAS RESTORE 01 — protected-interior restore, seam
 re-authoring and the glass World panel are built, awaiting the owner's device

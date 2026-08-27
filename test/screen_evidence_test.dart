@@ -268,8 +268,7 @@ void main() {
               busy: false,
               ready: true,
               lastJourney: null,
-              vignette:
-                  'assets/art/v1/location/alt_stonefall_mine.png',
+              vignette: 'assets/art/v1/location/alt_stonefall_mine.png',
               onTravel: () {},
               onTrackJourney: () {},
             ),
@@ -278,8 +277,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Mine Ledger · 6 open · 1 ready to turn in'),
-        findsOneWidget);
+    expect(
+      find.text('Mine Ledger · 6 open · 1 ready to turn in'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Deep Tin Seam · Mining Lv 4 · Pickaxe — you are'),
       findsOneWidget,
@@ -295,8 +296,9 @@ void main() {
           format: ui.ImageByteFormat.png,
         );
         Directory(dir).createSync(recursive: true);
-        File('$dir/world_inspector_destination.png')
-            .writeAsBytesSync(bytes!.buffer.asUint8List());
+        File(
+          '$dir/world_inspector_destination.png',
+        ).writeAsBytesSync(bytes!.buffer.asUint8List());
       });
     }
   });

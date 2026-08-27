@@ -616,8 +616,10 @@ final class CompleteContract extends GameCommand {
 /// the stage.
 @immutable
 final class ContributeToProject extends GameCommand {
-  ContributeToProject({required this.project, required Map<ContentId, int> contributions})
-    : contributions = Map<ContentId, int>.unmodifiable(contributions);
+  ContributeToProject({
+    required this.project,
+    required Map<ContentId, int> contributions,
+  }) : contributions = Map<ContentId, int>.unmodifiable(contributions);
 
   final ContentId project;
 
