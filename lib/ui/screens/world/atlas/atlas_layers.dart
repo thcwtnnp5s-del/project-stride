@@ -356,8 +356,12 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
   @override
   void initState() {
     super.initState();
-    // No ticker at all for a layout with nothing to animate. The current pass
-    // ships no overlays; the layer must cost nothing until it has work.
+    // No ticker at all for a layout with nothing to animate. The shipped
+    // layout carries ~30 overlays (flurries, mist, birds, smoke, the
+    // volcano), so this ticker runs whenever the World tab is frontmost —
+    // and ONLY then: the shell's per-tab [TickerMode] (Iteration 02,
+    // PERF-A) is what stops it scheduling 120 Hz frames from a hidden tab
+    // now that screens stay alive across tab switches.
     if (widget.scene.layout.overlays.isNotEmpty) {
       _ticker = createTicker(_onTick)..start();
     }
@@ -394,8 +398,11 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
       // is a repaint even when its frame index happens to match.
       key = key * 31 + (overlay.visibleAt(t) ? 1 : 0);
       key = key * 31 + overlay.frameIndexAt(t);
-      key = key * 31 + _driftPosition(overlay, t).dx.floor();
-      key = key * 31 + _driftPosition(overlay, t).dy.floor();
+      // One position computation per overlay per tick, not two — this runs
+      // every vsync while the tab is frontmost (PERF-A cheap win).
+      final Offset at = _driftPosition(overlay, t);
+      key = key * 31 + at.dx.floor();
+      key = key * 31 + at.dy.floor();
     }
     return key;
   }

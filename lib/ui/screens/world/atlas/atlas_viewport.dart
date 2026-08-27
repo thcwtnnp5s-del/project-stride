@@ -23,8 +23,11 @@
 /// The pulse under the current location and the drifting overlays run only
 /// while the app is resumed, through a single [TickerMode] here — so one
 /// lifecycle observer covers every animated thing on the atlas, and a widget
-/// added later cannot forget to pause. The tab's screen is unmounted when
-/// another tab is selected, which is what stops it when it is offscreen.
+/// added later cannot forget to pause. Since the shell keeps every tab's
+/// screen alive (Fable V2), what stops the atlas when its tab is hidden is
+/// the shell's own per-tab [TickerMode] wrap (`stride_shell.dart`), not an
+/// unmount — the two TickerModes nest, and either being disabled silences
+/// everything here.
 library;
 
 import 'package:flutter/widgets.dart';

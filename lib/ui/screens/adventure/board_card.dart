@@ -1141,8 +1141,10 @@ class _StagePill extends StatelessWidget {
 /// The animation is presentation over committed figures: the target fraction
 /// is always the projected line the session returned, and
 /// `TweenAnimationBuilder` merely eases the bar from wherever it last drew.
-/// Reduced motion collapses the ease to its end state by the framework's own
-/// duration handling.
+/// **Reduced motion branches explicitly** — the framework does NOT collapse
+/// `TweenAnimationBuilder` on its own (a doc claim Iteration 02's feel
+/// audit found false), so both tweens here drop to zero duration when
+/// animations are disabled.
 class _MaterialProgressRow extends StatelessWidget {
   const _MaterialProgressRow({required this.line});
 
@@ -1150,6 +1152,7 @@ class _MaterialProgressRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool reduced = MediaQuery.disableAnimationsOf(context);
     final double fraction = line.required == 0
         ? 1
         : (line.progress / line.required).clamp(0.0, 1.0);
@@ -1175,8 +1178,10 @@ class _MaterialProgressRow extends StatelessWidget {
             // nothing.
             TweenAnimationBuilder<double>(
               key: ValueKey<int>(line.progress),
-              tween: Tween<double>(begin: 1.3, end: 1),
-              duration: const Duration(milliseconds: 320),
+              tween: Tween<double>(begin: reduced ? 1 : 1.3, end: 1),
+              duration: reduced
+                  ? Duration.zero
+                  : const Duration(milliseconds: 320),
               curve: Curves.easeOutBack,
               builder: (BuildContext context, double scale, Widget? child) =>
                   Transform.scale(
@@ -1202,7 +1207,8 @@ class _MaterialProgressRow extends StatelessWidget {
         const SizedBox(height: 2),
         TweenAnimationBuilder<double>(
           tween: Tween<double>(end: fraction),
-          duration: const Duration(milliseconds: 600),
+          duration:
+              reduced ? Duration.zero : const Duration(milliseconds: 600),
           curve: Curves.easeOutCubic,
           builder: (BuildContext context, double value, Widget? child) =>
               Container(

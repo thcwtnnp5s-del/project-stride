@@ -79,10 +79,18 @@ class _StrideShellState extends State<StrideShell> {
       // atlas, check the bag or the bench, come back — used to snap the
       // World camera home and drop the selected destination on every hop;
       // now camera, selection, scroll and open detail survive the round
-      // trip. Inactive children sit under [TickerMode] disabled, so no
-      // offstage stage animates and no offstage cue fires; the reward and
-      // result layers live in session/controller state, which this changes
-      // nothing about.
+      // trip. The reward and result layers live in session/controller
+      // state, which this changes nothing about.
+      //
+      // **The explicit [TickerMode] wraps are load-bearing** (Iteration 02,
+      // PERF-A): `IndexedStack` builds hidden children with
+      // `maintainAnimation: true`, so the framework inserts NO TickerMode
+      // of its own — without these wraps a visited World tab kept its
+      // atlas overlay ticker scheduling 120 Hz frames from any tab, and a
+      // hidden Adventure stage kept looping and firing its audio cues,
+      // breaking `audio_controller.dart`'s "the beats stop with the
+      // screen" contract. The wrap silences tickers offstage while
+      // preserving every screen's state, which is the whole bargain.
       //
       // The list is ordered by [StrideDestination.index] and every
       // destination has a screen; a seventh without one is still a compile
@@ -96,18 +104,36 @@ class _StrideShellState extends State<StrideShell> {
       body: IndexedStack(
         index: _selected.index,
         children: <Widget>[
-          // ignore: prefer_const_constructors
-          AdventureScreen(),
-          // ignore: prefer_const_constructors
-          CharacterScreen(),
-          // ignore: prefer_const_constructors
-          SkillsScreen(),
-          // ignore: prefer_const_constructors
-          InventoryScreen(),
-          // ignore: prefer_const_constructors
-          CraftScreen(),
-          // ignore: prefer_const_constructors
-          WorldScreen(),
+          TickerMode(
+            enabled: _selected == StrideDestination.adventure,
+            // ignore: prefer_const_constructors
+            child: AdventureScreen(),
+          ),
+          TickerMode(
+            enabled: _selected == StrideDestination.character,
+            // ignore: prefer_const_constructors
+            child: CharacterScreen(),
+          ),
+          TickerMode(
+            enabled: _selected == StrideDestination.skills,
+            // ignore: prefer_const_constructors
+            child: SkillsScreen(),
+          ),
+          TickerMode(
+            enabled: _selected == StrideDestination.inventory,
+            // ignore: prefer_const_constructors
+            child: InventoryScreen(),
+          ),
+          TickerMode(
+            enabled: _selected == StrideDestination.craft,
+            // ignore: prefer_const_constructors
+            child: CraftScreen(),
+          ),
+          TickerMode(
+            enabled: _selected == StrideDestination.world,
+            // ignore: prefer_const_constructors
+            child: WorldScreen(),
+          ),
         ],
       ),
       bottomBar: StrideTabBar(
