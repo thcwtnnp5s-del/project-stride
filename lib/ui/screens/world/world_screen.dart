@@ -138,6 +138,10 @@ class _WorldScreenState extends State<WorldScreen> {
   /// player's own gesture, never the screen's opening move.
   bool _collapsed = false;
 
+  /// Whether the player has panned or pinched the atlas this app run — the
+  /// moment the how-to-look-around hint stops earning its row.
+  bool _hasPanned = false;
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
@@ -185,6 +189,9 @@ class _WorldScreenState extends State<WorldScreen> {
                 kinds: kinds,
                 way: way,
                 bottomInset: bottomInset,
+                onExplored: _hasPanned
+                    ? null
+                    : () => setState(() => _hasPanned = true),
                 // A tap on the map is a question; the panel is the answer, so
                 // selecting always unfolds it.
                 onSelect: (ContentId id) => setState(() {
@@ -228,14 +235,21 @@ class _WorldScreenState extends State<WorldScreen> {
                       bare: true,
                       onTravelled: () => setState(() => _selected = null),
                     ),
-                    const SizedBox(height: StrideSpace.s8),
-                    Text(
-                      'Drag to look around; pinch to look closer. '
-                      'Faint names are landmarks, not destinations.',
-                      style: StrideType.micro.copyWith(
-                        color: StrideColors.textMuted,
+                    // The pan/pinch tutorial line earns its place exactly
+                    // once; after the first pan or pinch it stops renting a
+                    // row of the panel (Fable V2 UX audit S8). Ephemeral by
+                    // design — a fresh app start shows it again, which is
+                    // the right cost for a hint.
+                    if (!_hasPanned) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s8),
+                      Text(
+                        'Drag to look around; pinch to look closer. '
+                        'Faint names are landmarks, not destinations.',
+                        style: StrideType.micro.copyWith(
+                          color: StrideColors.textMuted,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -363,6 +377,11 @@ class _PanelPeekRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool here = selected.id == scene.current.id;
+    // The folded strip is exactly the map-browsing mode where "can I afford
+    // this" matters, so the peek carries the panel's own affordability rule:
+    // the figure mutes when the bank falls short, with the shortfall said.
+    final int banked = SessionScope.of(context).session.usableEnergy;
+    final bool affordable = way != null && way!.totalCost <= banked;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: StrideSpace.screenGutter),
       child: Row(
@@ -377,9 +396,24 @@ class _PanelPeekRow extends StatelessWidget {
           if (here)
             Text('You are here', style: StrideType.micro)
           else if (way != null) ...<Widget>[
+            if (!affordable) ...<Widget>[
+              Text(
+                'walk ${formatSteps(way!.totalCost - banked)} more · ',
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.textMuted,
+                ),
+              ),
+            ],
             const WalkingGlyph(role: WalkingRole.unit),
             const SizedBox(width: StrideSpace.s4),
-            Text(formatSteps(way!.totalCost), style: StrideType.itemCount),
+            Text(
+              formatSteps(way!.totalCost),
+              style: StrideType.itemCount.copyWith(
+                color: affordable
+                    ? StrideColors.textPrimary
+                    : StrideColors.textMuted,
+              ),
+            ),
           ],
         ],
       ),

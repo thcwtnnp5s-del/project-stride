@@ -42,8 +42,17 @@ class GoalSummaryCard extends StatelessWidget {
           const SectionHeading(label: 'Current goals'),
           const SizedBox(height: StrideSpace.s6),
           if (empty)
+            // The empty slot is the new player's one natural signpost, and
+            // it used to point at nothing (Fable V2, `DECISIONS/0027`). One
+            // sentence of direction, phrased as invitation, never as a task:
+            // nothing here expires, counts down, or nags (`RULES.md` P-5).
             Text(
-              'Nothing tracked yet.',
+              c.session.usableEnergy > 0
+                  ? 'Nothing tracked yet. The Goal Board below has work '
+                        'wanting doing, and the World tab shows where a walk '
+                        'could take you.'
+                  : 'Nothing tracked yet. Steps you walk bank here — '
+                        'come back after a stroll and see what they open.',
               style: StrideType.micro.copyWith(color: StrideColors.textMuted),
             )
           else ...<Widget>[

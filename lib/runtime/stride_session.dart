@@ -528,6 +528,9 @@ final class GatherEligibility {
     required this.requiredLevel,
     required this.currentLevel,
     required this.toolMet,
+    this.requiredToolTier = 0,
+    this.equippedToolTier,
+    this.lockedByProjectName,
   });
 
   /// The player's level in the node's skill clears [requiredLevel].
@@ -544,8 +547,25 @@ final class GatherEligibility {
   /// A tool of the required kind and tier is equipped, or none is required.
   final bool toolMet;
 
+  /// The node's minimum tool tier, restated so a gate sentence can say
+  /// "Needs a tier-2 pickaxe — yours is tier 1" instead of the flat
+  /// "not equipped" a device pass found misleading when a pickaxe *was*
+  /// equipped, just under-tier (Fable V2, `DECISIONS/0027`).
+  final int requiredToolTier;
+
+  /// The highest equipped tier of the required kind, or null when nothing
+  /// of that kind is equipped at all — the two halves of the same sentence.
+  final int? equippedToolTier;
+
+  /// The project standing between the player and this node, by display
+  /// name — the engine's `nodeLocked` refusal mirrored ahead of time so the
+  /// Gather button is never enabled for a node the engine must refuse
+  /// (found by Fable V2's audit: pre-Lift, the Hardened Copper Seam's
+  /// button could enable and then be refused).
+  final String? lockedByProjectName;
+
   /// Every known static prerequisite is met.
-  bool get eligible => skillMet && toolMet;
+  bool get eligible => skillMet && toolMet && lockedByProjectName == null;
 }
 
 /// One enemy at a place, with how much of this visit it has left.
@@ -777,15 +797,26 @@ final class SkillUnlock {
     required this.requiredLevel,
     required this.unlocked,
     required this.where,
+    this.gate,
   });
 
   final String displayName;
   final int requiredLevel;
+
+  /// Actually available — the level **and** every other gate met. It used
+  /// to mean "level met" alone, which made the Skills screen say "Level 2
+  /// opens Wolfhide Jerkin" about a recipe a contract teaches — a promise
+  /// the bench then broke (Fable V2 audit, `DECISIONS/0027`).
   final bool unlocked;
 
   /// The location that hosts it, for a gathering node. Null for a recipe, which
   /// can be made anywhere.
   final String? where;
+
+  /// What else the unlock needs beyond the level, as a short phrase —
+  /// `a contract at Stonefall Mine`, `the Stonefall Lift`, `a tier-2 axe` —
+  /// or null when the level is the whole story.
+  final String? gate;
 }
 
 /// What a journey did.
@@ -1643,6 +1674,9 @@ final class EquipReport {
     required this.itemName,
     this.rejection,
     this.detail,
+    this.statLabel,
+    this.statBefore,
+    this.statAfter,
   });
 
   final bool succeeded;
@@ -1651,6 +1685,19 @@ final class EquipReport {
   /// The stable [RejectionCode.wire] value, or null on success.
   final String? rejection;
   final String? detail;
+
+  /// The stat story of a successful weapon or armor swap — `ATK` / `DEF`
+  /// with the figure before and after, from the same `loadoutFor` the
+  /// engine fights with (Fable V2, `DECISIONS/0027`). Null for tool swaps
+  /// (never power-compared, by owner ruling) and refusals.
+  final String? statLabel;
+  final int? statBefore;
+  final int? statAfter;
+
+  /// Whether the swap moved the figure at all — equipping the same tier
+  /// twice tells no story.
+  bool get statChanged =>
+      statLabel != null && statBefore != null && statBefore != statAfter;
 }
 
 /// A running game, with the health source opened if one could be.
@@ -2605,16 +2652,27 @@ final class StrideSession {
     );
 
     bool toolMet = definition.requiredToolKind == ToolKind.none;
+    int? equippedTier;
     if (!toolMet) {
       for (final ContentId equipped in active.state.equipment.bySlot.values) {
         final ItemDefinition? item = content.items[equipped];
         if (item == null) continue;
         if (item.toolKind != definition.requiredToolKind) continue;
+        if (equippedTier == null || item.tier > equippedTier) {
+          equippedTier = item.tier;
+        }
         if (item.tier >= definition.minimumToolTier) {
           toolMet = true;
-          break;
         }
       }
+    }
+
+    // The project gate, mirrored from the engine's own `nodeLocked` refusal
+    // so a control is never enabled for a gather the engine must refuse.
+    String? lockedBy;
+    final ContentId? gate = definition.unlockedByProject;
+    if (gate != null && !active.state.progress.isProjectComplete(gate)) {
+      lockedBy = content.projects[gate]?.displayName ?? gate.value;
     }
 
     return GatherEligibility(
@@ -2622,6 +2680,9 @@ final class StrideSession {
       requiredLevel: definition.requiredLevel,
       currentLevel: level,
       toolMet: toolMet,
+      requiredToolTier: definition.minimumToolTier,
+      equippedToolTier: equippedTier,
+      lockedByProjectName: lockedBy,
     );
   }
 
@@ -3293,7 +3354,8 @@ final class StrideSession {
     _inFlight = true;
     try {
       final GameEngine? active = engine;
-      if (active == null || registry == null || _stale || migrationPending) {
+      final ContentRegistry? content = registry;
+      if (active == null || content == null || _stale || migrationPending) {
         return EquipReport(
           succeeded: false,
           itemName: name,
@@ -3301,6 +3363,14 @@ final class StrideSession {
           detail: _notReadyDetail,
         );
       }
+      // The combat figures before, so a successful swap can say its story —
+      // "ATK 7 → 9" — from the same `loadoutFor` the engine snapshots
+      // fights with (Fable V2, `DECISIONS/0027`). Weapon and armor only:
+      // profession tools are never power-compared, by owner ruling.
+      final PlayerCombatLoadout before = CombatRules.loadoutFor(
+        active.state,
+        content,
+      );
       final EngineResult result = active.execute(command);
       if (result case RejectedResult(:final CommandRejection rejection)) {
         return EquipReport(
@@ -3320,7 +3390,32 @@ final class StrideSession {
           detail: commit.reason.name,
         );
       }
-      return EquipReport(succeeded: true, itemName: name);
+      final PlayerCombatLoadout after = CombatRules.loadoutFor(
+        active.state,
+        content,
+      );
+      final EquipmentSlot? slot = item == null
+          ? null
+          : content.items[item]?.slot;
+      return EquipReport(
+        succeeded: true,
+        itemName: name,
+        statLabel: switch (slot) {
+          EquipmentSlot.weapon => 'ATK',
+          EquipmentSlot.armor => 'DEF',
+          _ => null,
+        },
+        statBefore: switch (slot) {
+          EquipmentSlot.weapon => before.attack,
+          EquipmentSlot.armor => before.defence,
+          _ => null,
+        },
+        statAfter: switch (slot) {
+          EquipmentSlot.weapon => after.attack,
+          EquipmentSlot.armor => after.defence,
+          _ => null,
+        },
+      );
     } finally {
       _inFlight = false;
     }
@@ -3609,6 +3704,92 @@ final class StrideSession {
           power: content.items[e.value]?.power ?? 0,
         ),
     ];
+  }
+
+  /// What [item] is *for* — every consumer and source the content pack
+  /// names, as display strings (Fable V2, `DECISIONS/0027`). Null for an
+  /// item the pack does not define.
+  ///
+  /// A fold over the registry and current progress, computed on demand for
+  /// the one tapped tile; nothing here decides a rule (`RULES.md` E-2).
+  /// Built because a Boar Tusk, an Ember Core and a Bronze Ingot were
+  /// indistinguishable in purpose from the grid — and a signature trophy
+  /// looked like a craft material whose recipe the player had not found.
+  ItemPurposeView? itemPurposeOf(ContentId item) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    final ItemDefinition? def = content?.items[item];
+    if (active == null || content == null || def == null) return null;
+    final GameState state = active.state;
+
+    String placeOf(ContentId location) =>
+        content.locations[location]?.displayName ?? location.value;
+
+    final List<String> usedInRecipes = <String>[
+      for (final RecipeDefinition r in content.recipes.values)
+        if (r.ingredients.any((RecipeIngredient i) => i.item == item) &&
+            // A retired recipe is not a live use.
+            !(r.retiredByProject != null &&
+                state.progress.isProjectComplete(r.retiredByProject!)))
+          r.displayName,
+    ]..sort();
+
+    final List<String> wantedBy = <String>[
+      for (final ContractDefinition c in content.contracts.values)
+        if (c.requires.any((ItemQuantity q) => q.item == item) &&
+            // A one-time contract already completed wants nothing now.
+            !(c.contractClass == ContractClass.regional &&
+                state.progress.completionsOf(c.id) > 0))
+          '${c.displayName} — ${placeOf(c.location)}',
+      for (final ProjectDefinition p in content.projects.values)
+        if (!state.progress.isProjectComplete(p.id) &&
+            p.stages.any(
+              (ProjectStage s) =>
+                  s.requires.any((ItemQuantity q) => q.item == item),
+            ))
+          '${p.displayName} — ${placeOf(p.location)}',
+    ]..sort();
+
+    final List<String> gatheredAt = <String>[
+      for (final ResourceNodeDefinition n in content.resourceNodes.values)
+        if (n.yieldsItem == item)
+          '${n.displayName}${_hostOf(n.id, content) == null ? '' : ', ${_hostOf(n.id, content)}'}',
+    ]..sort();
+
+    final List<String> droppedBy = <String>[
+      for (final EnemyDefinition e in content.enemies.values)
+        if (e.drops.any((EnemyDrop d) => d.item == item))
+          '${e.displayName} — ${placeOf(e.location)}',
+    ]..sort();
+
+    final List<String> craftedBy = <String>[
+      for (final RecipeDefinition r in content.recipes.values)
+        if (r.outputItem == item &&
+            !(r.retiredByProject != null &&
+                state.progress.isProjectComplete(r.retiredByProject!)))
+          r.displayName,
+    ]..sort();
+
+    final bool signature = content.enemies.values.any(
+      (EnemyDefinition e) =>
+          e.drops.any((EnemyDrop d) => d.item == item && d.signature),
+    );
+    final bool hasConsumer = usedInRecipes.isNotEmpty || wantedBy.isNotEmpty;
+
+    return ItemPurposeView(
+      usedInRecipes: usedInRecipes,
+      wantedBy: wantedBy,
+      gatheredAt: gatheredAt,
+      droppedBy: droppedBy,
+      craftedBy: craftedBy,
+      healing: def.healing,
+      // A hunter's proof: a signature (or the boss's quest token) that
+      // nothing consumes is a keepsake by design (`DECISIONS/0023` §5),
+      // and saying so is what stops it reading as a recipe not yet found.
+      isTrophy:
+          !hasConsumer &&
+          (signature || def.category == ItemCategory.quest),
+    );
   }
 
   /// What [item] does as equipment, against what is worn in its slot — or
@@ -4342,23 +4523,76 @@ final class StrideSession {
       active.state.skills.experienceIn(skill),
     );
 
+    final GameState state = active.state;
     final List<SkillUnlock> unlocks = <SkillUnlock>[
       for (final ResourceNodeDefinition node in content.resourceNodes.values)
         if (node.skill == skill)
+          () {
+            // The node's other gates, named truthfully: the project that
+            // must stand first, and the tool tier the work asks for.
+            final ContentId? project = node.unlockedByProject;
+            final bool projectMet =
+                project == null || state.progress.isProjectComplete(project);
+            final String? gate = !projectMet
+                ? (content.projects[project]?.displayName ?? project.value)
+                : node.minimumToolTier > 0
+                ? 'a tier-${node.minimumToolTier} '
+                      '${node.requiredToolKind.name}'
+                : null;
+            return SkillUnlock(
+              displayName: node.displayName,
+              requiredLevel: node.requiredLevel,
+              unlocked: level >= node.requiredLevel && projectMet,
+              where: _hostOf(node.id, content),
+              gate: gate,
+            );
+          }(),
+      // The quiet milestones: a level at which a node starts paying bonus
+      // yield used to look dead on the Skills screen — it wasn't, the screen
+      // just never said so (Fable V2 audit).
+      for (final ResourceNodeDefinition node in content.resourceNodes.values)
+        if (node.skill == skill && node.bonusYieldLevel > 0)
           SkillUnlock(
-            displayName: node.displayName,
-            requiredLevel: node.requiredLevel,
-            unlocked: level >= node.requiredLevel,
+            displayName:
+                '+${node.bonusYieldPercent}% yield at ${node.displayName}',
+            requiredLevel: node.bonusYieldLevel,
+            unlocked: level >= node.bonusYieldLevel,
             where: _hostOf(node.id, content),
           ),
       for (final RecipeDefinition recipe in content.recipes.values)
-        if (recipe.skill == skill)
-          SkillUnlock(
-            displayName: recipe.displayName,
-            requiredLevel: recipe.requiredLevel,
-            unlocked: level >= recipe.requiredLevel,
-            where: null,
-          ),
+        if (recipe.skill == skill &&
+            // A recipe an incomplete project would add, or a completed one
+            // has retired, is that project's story, not this ladder's — and
+            // listing both "Oak Plank"s would be a duplicate promising
+            // nothing.
+            !(recipe.unlockedByProject != null &&
+                !state.progress.isProjectComplete(
+                  recipe.unlockedByProject!,
+                )) &&
+            !(recipe.retiredByProject != null &&
+                state.progress.isProjectComplete(recipe.retiredByProject!)))
+          () {
+            final ContentId? contract = recipe.unlockedByContract;
+            final bool taught =
+                contract == null ||
+                state.progress.completionsOf(contract) > 0;
+            final String? gate = taught
+                ? null
+                : () {
+                    final ContractDefinition? c = content.contracts[contract];
+                    final String? at = c == null
+                        ? null
+                        : content.locations[c.location]?.displayName;
+                    return at == null ? 'a contract' : 'a contract at $at';
+                  }();
+            return SkillUnlock(
+              displayName: recipe.displayName,
+              requiredLevel: recipe.requiredLevel,
+              unlocked: level >= recipe.requiredLevel && taught,
+              where: null,
+              gate: gate,
+            );
+          }(),
     ];
 
     unlocks.sort((SkillUnlock a, SkillUnlock b) {
@@ -4733,6 +4967,39 @@ final class StrideSession {
       bounties: bounties,
       regionals: regionals,
       projects: projectsAt(location),
+    );
+  }
+
+  /// One location's board folded to a glance, for the World inspector
+  /// (Fable V2, `DECISIONS/0027`). Null where the location keeps no board.
+  ///
+  /// A restatement of [boardFor] and [projectsAt] — same projections, same
+  /// availability and readiness rules — so the map line and the Goal Board
+  /// cannot disagree.
+  BoardSummaryView? boardSummaryFor(ContentId location) {
+    final BoardView? board = boardFor(location);
+    if (board == null) return null;
+
+    final List<ContractView> open = <ContractView>[
+      ...board.localNeeds.where((ContractView c) => c.available),
+      ...board.bounties.where((ContractView c) => c.available),
+      ...board.regionals.where(
+        (ContractView c) => c.available && !c.isCompletedOneTime,
+      ),
+    ];
+    ProjectView? underway;
+    for (final ProjectView p in board.projects) {
+      if (!p.isComplete) {
+        underway = p;
+        break;
+      }
+    }
+    return BoardSummaryView(
+      boardName: board.boardName,
+      openContracts: open.length,
+      readyToComplete: open.where((ContractView c) => c.canComplete).length,
+      projectName: underway?.name,
+      projectHasSomethingToGive: underway?.hasSomethingToGive ?? false,
     );
   }
 
@@ -5511,6 +5778,84 @@ final class BoardView {
 
   /// Community projects hosted here.
   final List<ProjectView> projects;
+}
+
+/// What one item is for, as the inventory's detail block says it
+/// (Fable V2, `DECISIONS/0027`). Every list is display strings; see
+/// [StrideSession.itemPurposeOf].
+final class ItemPurposeView {
+  const ItemPurposeView({
+    required this.usedInRecipes,
+    required this.wantedBy,
+    required this.gatheredAt,
+    required this.droppedBy,
+    required this.craftedBy,
+    required this.healing,
+    required this.isTrophy,
+  });
+
+  final List<String> usedInRecipes;
+
+  /// Contracts and projects that want it now, with their places.
+  final List<String> wantedBy;
+
+  final List<String> gatheredAt;
+  final List<String> droppedBy;
+  final List<String> craftedBy;
+
+  /// HP restored on eating; zero for anything that is not food.
+  final int healing;
+
+  /// A signature or quest keepsake nothing consumes — dead-by-design, and
+  /// said so.
+  final bool isTrophy;
+
+  bool get isEmpty =>
+      usedInRecipes.isEmpty &&
+      wantedBy.isEmpty &&
+      gatheredAt.isEmpty &&
+      droppedBy.isEmpty &&
+      craftedBy.isEmpty &&
+      healing == 0 &&
+      !isTrophy;
+}
+
+/// One location's board, folded to the glance the World inspector shows
+/// (Fable V2, `DECISIONS/0027`) — the map answers "is there work for me
+/// there?" without building the whole board UI into a panel.
+///
+/// Derived entirely from [StrideSession.boardFor] and
+/// [StrideSession.projectsAt]; every count restates a `ContractView` or
+/// `ProjectView` fact and decides nothing of its own (`RULES.md` E-2).
+final class BoardSummaryView {
+  const BoardSummaryView({
+    required this.boardName,
+    required this.openContracts,
+    required this.readyToComplete,
+    required this.projectName,
+    required this.projectHasSomethingToGive,
+  });
+
+  /// The board's fiction — "Notice Board", "Mine Ledger", …
+  final String boardName;
+
+  /// Contracts the board offers right now (rotation window, standing
+  /// bounties, un-completed regionals).
+  final int openContracts;
+
+  /// Of those, how many the player could turn in this instant.
+  final int readyToComplete;
+
+  /// The location's community project still under way, or null.
+  final String? projectName;
+
+  /// Whether anything in the bag would advance that project now.
+  final bool projectHasSomethingToGive;
+
+  /// The one fact that turns a map into a plan: the player is carrying
+  /// something this place wants.
+  bool get carryingSomethingWanted =>
+      readyToComplete > 0 || projectHasSomethingToGive;
 }
 
 /// One project stage, with its requirement lines.

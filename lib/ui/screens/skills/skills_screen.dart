@@ -76,11 +76,15 @@ class _SkillCard extends StatelessWidget {
       standing.skill,
     );
 
-    // The next thing this skill opens, not all of them. A card listing every
-    // gate would answer "what exists" when the player asked "what next".
-    final SkillUnlock? next = unlocks
+    // The next few things this skill opens — not one, and not all of them.
+    // One line hid the level-10 Hollow Thicket from a Foraging-4 player,
+    // which is exactly the long walk this screen exists to motivate; every
+    // gate would answer "what exists" when the player asked "what next"
+    // (Fable V2, `DECISIONS/0027`).
+    final List<SkillUnlock> upcoming = unlocks
         .where((SkillUnlock u) => !u.unlocked)
-        .firstOrNull;
+        .take(3)
+        .toList();
     final int openCount = unlocks.where((SkillUnlock u) => u.unlocked).length;
 
     return SectionCard(
@@ -93,7 +97,7 @@ class _SkillCard extends StatelessWidget {
           SizedBox(height: StrideSpace.s8),
           _ProgressCaption(standing: standing),
           SizedBox(height: StrideSpace.s12),
-          _UnlockLine(next: next, openCount: openCount),
+          _UnlockLines(upcoming: upcoming, openCount: openCount),
         ],
       ),
     );
@@ -229,19 +233,29 @@ class _ProgressCaption extends StatelessWidget {
   }
 }
 
-class _UnlockLine extends StatelessWidget {
-  const _UnlockLine({required this.next, required this.openCount});
+class _UnlockLines extends StatelessWidget {
+  const _UnlockLines({required this.upcoming, required this.openCount});
 
-  final SkillUnlock? next;
+  final List<SkillUnlock> upcoming;
   final int openCount;
+
+  /// `Level 3 opens Duskcap Grove at Whispering Woods`, with the extra gate
+  /// said where one exists — `Level 2 + a contract at Haven's Rest opens
+  /// Wolfhide Jerkin` — so the screen never promises what the level alone
+  /// cannot deliver.
+  static String lineFor(SkillUnlock u) {
+    final String level = u.gate == null
+        ? 'Level ${u.requiredLevel}'
+        : 'Level ${u.requiredLevel} + ${u.gate}';
+    final String where = u.where == null ? '' : ' at ${u.where}';
+    return '$level opens ${u.displayName}$where';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final SkillUnlock? upcoming = next;
-
     // "Everything open" is a real and satisfying state, and it needs its own
     // sentence rather than an empty space where a goal used to be.
-    if (upcoming == null) {
+    if (upcoming.isEmpty) {
       return AdaptiveText(
         openCount == 0
             ? 'Nothing in this content pack uses it yet.'
@@ -251,11 +265,24 @@ class _UnlockLine extends StatelessWidget {
       );
     }
 
-    final String where = upcoming.where == null ? '' : ' at ${upcoming.where}';
-    return AdaptiveText(
-      'Level ${upcoming.requiredLevel} opens ${upcoming.displayName}$where',
-      style: StrideType.micro,
-      color: StrideColors.textMuted,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final (int i, SkillUnlock u) in upcoming.indexed)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : StrideSpace.s4),
+            child: Text(
+              lineFor(u),
+              style: StrideType.micro.copyWith(
+                // The nearest rung carries the emphasis; the ones behind it
+                // are the road ahead, quieter.
+                color: i == 0
+                    ? StrideColors.textSecondary
+                    : StrideColors.textMuted,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

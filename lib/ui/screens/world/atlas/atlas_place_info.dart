@@ -59,11 +59,30 @@ enum AtlasPlaceKind {
 }
 
 /// One gatherable node standing at a place.
+///
+/// [eligible] and [gap] are the same `GatherEligibility` verdict the
+/// Adventure card disables its button with, asked here so a 2,400-step
+/// journey is never planned toward a node the player cannot work (Fable V2,
+/// `DECISIONS/0027`). [gap] is the one short reason — the level, the tool
+/// tier, or the project — in the engine's own refusal order.
 typedef AtlasGatherLine = ({
   String name,
   String skill,
   int level,
   String? tool,
+  bool eligible,
+  String? gap,
+});
+
+/// One location's board, at a glance — the World inspector's restatement of
+/// `BoardSummaryView` (Fable V2, `DECISIONS/0027`).
+typedef AtlasBoardLine = ({
+  String boardName,
+  int openContracts,
+  int readyToComplete,
+  String? projectName,
+  bool projectHasSomethingToGive,
+  bool carryingSomethingWanted,
 });
 
 /// One encounter waiting at a place.
@@ -90,6 +109,8 @@ final class AtlasPlaceInfo {
     required this.isUnlocked,
     required this.gatherSites,
     required this.encounters,
+    this.developmentWord,
+    this.board,
   });
 
   final AtlasPlaceKind kind;
@@ -104,6 +125,13 @@ final class AtlasPlaceInfo {
   final List<AtlasGatherLine> gatherSites;
   final List<AtlasEncounterLine> encounters;
 
+  /// The settlement's named development state — `Struggling`, `Watched` —
+  /// or null where none is authored. The word community projects change.
+  final String? developmentWord;
+
+  /// The place's board at a glance, or null where it keeps none.
+  final AtlasBoardLine? board;
+
   /// The word for [kind] — `Settlement`, `Wilds`, `Worksite`, `Perilous`.
   String get kindWord => kind.word;
 
@@ -116,21 +144,38 @@ final class AtlasPlaceInfo {
   /// rather than an invented row.
   static AtlasPlaceInfo from(StrideSession session, RegionPlace place) {
     final PlaceDetails? d = session.placeDetailsFor(place.id);
+    final BoardSummaryView? board = session.boardSummaryFor(place.id);
     return AtlasPlaceInfo(
       kind: kindOf(session, place),
       terrainWord: terrainWordFor(place.terrain),
       isSafe: place.isSafe,
       isCurrent: place.isCurrent,
       isUnlocked: place.isUnlocked,
+      developmentWord: session.developmentStateOf(place.id),
+      board: board == null
+          ? null
+          : (
+              boardName: board.boardName,
+              openContracts: board.openContracts,
+              readyToComplete: board.readyToComplete,
+              projectName: board.projectName,
+              projectHasSomethingToGive: board.projectHasSomethingToGive,
+              carryingSomethingWanted: board.carryingSomethingWanted,
+            ),
       gatherSites: <AtlasGatherLine>[
         if (d != null)
           for (final GatherSiteLine g in d.gatherSites)
-            (
-              name: g.name,
-              skill: g.skillName,
-              level: g.requiredLevel,
-              tool: g.toolWord,
-            ),
+            () {
+              final GatherEligibility e = session.gatherEligibilityOf(g.id);
+              return (
+                name: g.name,
+                skill: g.skillName,
+                level: g.requiredLevel,
+                tool: g.toolWord,
+                eligible: e.eligible,
+                gap: gapWordFor(e),
+              );
+            }(),
       ],
       encounters: <AtlasEncounterLine>[
         if (d != null)
@@ -165,6 +210,23 @@ final class AtlasPlaceInfo {
     EnemyBehavior.flurry => 'Quick',
     EnemyBehavior.guarded => 'Guarded',
   };
+
+  /// The one short reason a gather line is out of reach, in the engine's
+  /// own refusal order — level first, then tool, then the project gate —
+  /// or null when every static prerequisite is met.
+  static String? gapWordFor(GatherEligibility e) {
+    if (!e.skillMet) return 'you are Lv ${e.currentLevel}';
+    if (!e.toolMet) {
+      final int? held = e.equippedToolTier;
+      return held == null
+          ? 'no tool equipped'
+          : 'needs tier ${e.requiredToolTier} — yours is tier $held';
+    }
+    if (e.lockedByProjectName case final String project) {
+      return 'opens with $project';
+    }
+    return null;
+  }
 
   /// The terrain, as a word a player would use rather than an enum name.
   static String terrainWordFor(Terrain terrain) => switch (terrain) {

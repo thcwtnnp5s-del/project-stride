@@ -176,8 +176,22 @@ void main() {
         tester,
         info: _info(
           gather: const <AtlasGatherLine>[
-            (name: 'Copper Seam', skill: 'Mining', level: 1, tool: 'Pickaxe'),
-            (name: 'Meadow Herbs', skill: 'Foraging', level: 1, tool: null),
+            (
+              name: 'Copper Seam',
+              skill: 'Mining',
+              level: 1,
+              tool: 'Pickaxe',
+              eligible: true,
+              gap: null,
+            ),
+            (
+              name: 'Meadow Herbs',
+              skill: 'Foraging',
+              level: 1,
+              tool: null,
+              eligible: true,
+              gap: null,
+            ),
           ],
         ),
       );

@@ -13,8 +13,6 @@
 /// content graph the engine validates against. `TravelTo` re-checks all of it.
 library;
 
-import 'dart:collection' show Queue;
-
 import 'package:stride_core/stride_core.dart' show ContentId;
 
 // Landmark types are packaging data the session does not re-export; the rumor
@@ -240,34 +238,69 @@ final class AtlasScene {
   /// Mine*. Empty when [target] is adjacent or is [current]; null when no
   /// chain of roads reaches it at all.
   ///
-  /// Breadth-first over content adjacency, fewest hops. Not a route the engine
-  /// will walk for the player — travel is one road at a time — and not a cost
-  /// estimate; it is the answer to "which way".
+  /// **Cheapest-in-steps over content adjacency** (Dijkstra on the session's
+  /// own profile-scaled leg costs), because the Travel button charges the
+  /// route this preview quotes and `JourneyGoalView` promises "the cheapest
+  /// route". Fewest-hops happened to agree on every shipped graph, and the
+  /// first future edge where it did not would have had the button quoting a
+  /// dearer walk than the map allows (Fable V2 audit; regression-pinned in
+  /// `atlas_screen_test`). Ties break on fewer hops, then on stable id
+  /// order, so two runs never disagree about the same map.
   List<ContentId>? wayTo(ContentId target) {
     final ContentId start = current.id;
     if (target == start) return const <ContentId>[];
+
+    final Map<ContentId, int> best = <ContentId, int>{start: 0};
+    final Map<ContentId, int> hops = <ContentId, int>{start: 0};
     final Map<ContentId, ContentId?> cameFrom = <ContentId, ContentId?>{
       start: null,
     };
-    final Queue<ContentId> frontier = Queue<ContentId>()..add(start);
-    while (frontier.isNotEmpty) {
-      final ContentId here = frontier.removeFirst();
-      for (final ContentId next in _neighbours[here] ?? const <ContentId>[]) {
-        if (cameFrom.containsKey(next)) continue;
-        cameFrom[next] = here;
-        if (next == target) {
-          final List<ContentId> path = <ContentId>[];
-          ContentId? step = cameFrom[target];
-          while (step != null && step != start) {
-            path.add(step);
-            step = cameFrom[step];
-          }
-          return path.reversed.toList(growable: false);
+    final Set<ContentId> settled = <ContentId>{};
+
+    while (true) {
+      // The unsettled node with the lowest cost; hops then id break ties.
+      ContentId? here;
+      for (final MapEntry<ContentId, int> e in best.entries) {
+        if (settled.contains(e.key)) continue;
+        if (here == null) {
+          here = e.key;
+          continue;
         }
-        frontier.add(next);
+        final int against = best[here]!;
+        if (e.value < against ||
+            (e.value == against &&
+                (hops[e.key]! < hops[here]! ||
+                    (hops[e.key] == hops[here] &&
+                        e.key.value.compareTo(here.value) < 0)))) {
+          here = e.key;
+        }
+      }
+      if (here == null) return null;
+      if (here == target) {
+        final List<ContentId> path = <ContentId>[];
+        ContentId? step = cameFrom[target];
+        while (step != null && step != start) {
+          path.add(step);
+          step = cameFrom[step];
+        }
+        return path.reversed.toList(growable: false);
+      }
+      settled.add(here);
+      for (final ContentId next in _neighbours[here] ?? const <ContentId>[]) {
+        if (settled.contains(next)) continue;
+        final int cost =
+            best[here]! + (_legCost['${here.value}>${next.value}'] ?? 0);
+        final int stops = hops[here]! + 1;
+        final int? known = best[next];
+        if (known == null ||
+            cost < known ||
+            (cost == known && stops < hops[next]!)) {
+          best[next] = cost;
+          hops[next] = stops;
+          cameFrom[next] = here;
+        }
       }
     }
-    return null;
   }
 
   /// The whole walk from [current] to [target] — its legs, the edges it uses,

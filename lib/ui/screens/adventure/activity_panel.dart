@@ -255,31 +255,11 @@ class _ActivityDetailState extends State<ActivityDetail> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        // The gates, only when something actually gates: a met requirement
-        // is stated on the row's sub-line, and restating it here as a chip
-        // costs a row the fold no longer has to spend (§44 hierarchy).
-        if (!eligibility.skillMet || !eligibility.toolMet) ...<Widget>[
-          Wrap(
-            spacing: StrideSpace.s6,
-            runSpacing: StrideSpace.s6,
-            children: <Widget>[
-              if (!eligibility.skillMet)
-                RequirementGate(
-                  label:
-                      'Requires $skillName ${node.requiredLevel} — '
-                      'you are ${eligibility.currentLevel}',
-                  unmet: true,
-                ),
-              if (!eligibility.toolMet)
-                RequirementGate(
-                  label: 'Needs a ${node.requiredToolKind.name} — not equipped',
-                  unmet: true,
-                ),
-            ],
-          ),
-          const SizedBox(height: StrideSpace.s8),
-        ],
-
+        // No gate chip here any more: a locked activity used to state its
+        // requirement three times inside ~120 dp — the row's sub-line, a
+        // chip here, and the button's own sub-label. The button's sentence
+        // is the one beside the action, so it is the one that stays
+        // (Fable V2 UX audit S3).
         if (!activeHere) ...<Widget>[
           _QuantitySelector(
             count: count,
@@ -470,11 +450,22 @@ class _GatherControl extends StatelessWidget {
     final bool affordable = s.canGather(node.id);
     final int shortfall = cost - s.usableEnergy;
 
+    // Tier-aware and project-aware (Fable V2, `DECISIONS/0027`): "not
+    // equipped" was the old answer even when a pickaxe *was* equipped, just
+    // under-tier, and a project-locked node's button could enable and then
+    // be refused by the engine — the projection now mirrors the same
+    // `nodeLocked` gate the engine enforces.
     final String? blockedReason = !eligibility.skillMet
         ? 'Requires ${s.displayNameOf(node.skill)} ${eligibility.requiredLevel}'
               ' — you are ${eligibility.currentLevel}'
         : !eligibility.toolMet
-        ? 'Equip a ${node.requiredToolKind.name} first'
+        ? (eligibility.equippedToolTier == null
+              ? 'Equip a ${node.requiredToolKind.name} first'
+              : 'Needs a tier-${eligibility.requiredToolTier} '
+                    '${node.requiredToolKind.name} — yours is '
+                    'tier ${eligibility.equippedToolTier}')
+        : eligibility.lockedByProjectName != null
+        ? 'Opens with ${eligibility.lockedByProjectName}'
         : null;
 
     final ActionReport? report = c.lastActionNode == node.id
@@ -904,5 +895,6 @@ String gatherRefusalText(ActionReport r) => switch (r.rejection) {
   'skill_level_too_low' => 'Your skill level is too low here',
   'tool_required' => 'You need the right tool for this',
   'resource_node_not_here' => 'That is not available at this location',
+  'node_locked' => 'A community project opens this site — see the Goal Board',
   _ => r.detail ?? 'That action was refused',
 };

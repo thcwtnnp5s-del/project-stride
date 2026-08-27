@@ -111,6 +111,7 @@ class AtlasViewport extends StatefulWidget {
     required this.onSelect,
     this.way,
     this.bottomInset = 0,
+    this.onExplored,
   });
 
   final AtlasScene scene;
@@ -131,6 +132,11 @@ class AtlasViewport extends StatefulWidget {
   final AtlasWay? way;
 
   final ValueChanged<ContentId> onSelect;
+
+  /// Fired on the player's first pan or pinch, so the screen can retire the
+  /// how-to-look-around hint the moment it has been learned. Presentation
+  /// only; nothing durable.
+  final VoidCallback? onExplored;
 
   @override
   State<AtlasViewport> createState() => AtlasViewportState();
@@ -287,6 +293,7 @@ class AtlasViewportState extends State<AtlasViewport>
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
+    widget.onExplored?.call();
     final double zoom = (_gestureZoom * details.scale).clamp(
       minZoom,
       zooms.max,

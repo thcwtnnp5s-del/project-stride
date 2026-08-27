@@ -692,11 +692,14 @@ void main() {
     testWidgets('the equipped summary spells the rank out', (
       WidgetTester tester,
     ) async {
+      // Equipped through the product's own control rather than a direct
+      // session call: since the shell keeps screens alive (Fable V2), only
+      // a controller-notified change rebuilds a mounted screen — which is
+      // exactly the product path, so the test walks it.
       final StrideSession session = await app(tester);
-      await tester.runAsync(
-        () => session.equip(ContentId.unchecked('item.training_sword')),
-      );
       await tab(tester, 'Inventory');
+      await tester.tap(find.text('Equip').first);
+      await tester.pumpAndSettle();
 
       final EquippedSummary worn = session.equippedSummary.single;
       expect(worn.rarity, isNotNull);
@@ -737,10 +740,15 @@ void main() {
     testWidgets('the character sheet names the rank of what is worn', (
       WidgetTester tester,
     ) async {
+      // Through the product's own Equip control (see the summary test above
+      // for why a direct session call no longer repaints a kept-alive
+      // screen). The tunic's tile is the last equipment tile.
       final StrideSession session = await app(tester);
-      await tester.runAsync(
-        () => session.equip(ContentId.unchecked('item.traveler_tunic')),
-      );
+      await tab(tester, 'Inventory');
+      await tester.ensureVisible(find.text('Traveler Tunic'));
+      await tester.pump();
+      await tester.tap(find.text('Equip').last);
+      await tester.pumpAndSettle();
       await tab(tester, 'Character');
 
       // The Combat card sits below the fold since the Steps card joined

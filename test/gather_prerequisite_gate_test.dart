@@ -184,11 +184,11 @@ void main() {
     expect(button.onPressed, isNull);
     expect(button.subLabel, 'Requires Foraging 3 — you are 1');
 
-    // The failing gate carries the unmet state; met gates are not restated.
-    final List<RequirementGate> shown = gates(tester);
-    expect(shown, hasLength(1));
-    expect(shown[0].unmet, isTrue);
-    expect(shown[0].label, 'Requires Foraging 3 — you are 1');
+    // No gate chip any more: a locked activity used to state its
+    // requirement three times — row sub-line, chip, button sub-label — and
+    // the button's sentence is the one beside the action, so it is the one
+    // that stays (Fable V2 UX audit S3).
+    expect(gates(tester), isEmpty);
 
     // The quantity presets are dead: tapping ×5 must not change the offer.
     final Finder preset = find.descendant(
@@ -216,12 +216,9 @@ void main() {
     expect(button.onPressed, isNull);
     expect(button.subLabel, 'Equip a axe first');
 
-    // Skill is met (Oak Stand asks Woodcutting 1) and is not restated; the
-    // tool gate fails and shows.
-    final List<RequirementGate> shown = gates(tester);
-    expect(shown, hasLength(1));
-    expect(shown[0].unmet, isTrue);
-    expect(shown[0].label, 'Needs a axe — not equipped');
+    // Skill is met (Oak Stand asks Woodcutting 1) and is not restated, and
+    // the tool gate lives on the button's own sentence (S3 — no chip).
+    expect(gates(tester), isEmpty);
 
     // The stepper is dead too.
     final Finder plus = find.descendant(

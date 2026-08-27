@@ -35,14 +35,19 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show ContentId, Terrain;
+import 'package:stride_core/stride_core.dart'
+    show ContentId, GoalSlot, Terrain;
 
 import '../../../../runtime/stride_session.dart';
 import '../../../components/adaptive_text.dart';
 import '../../../components/data_display.dart';
+import '../../../components/pixel_asset.dart';
+import '../../../components/reward_beat.dart';
+import '../../../components/reward_layer.dart';
 import '../../../components/screen_header.dart' show formatSteps;
 import '../../../components/surfaces.dart';
 import '../../../components/walking_glyph.dart';
+import '../../../icons/pixel_icons.dart';
 import '../../../state/session_controller.dart';
 import '../../../state/session_scope.dart';
 import '../../../theme/stride_colors.dart';
@@ -91,6 +96,9 @@ class AtlasSelectionPanel extends StatelessWidget {
         ? const <ContentId>[]
         : <ContentId>[for (final AtlasNode hop in way.hops) hop.place.id];
 
+    final JourneyGoalView? journey = watched.session.trackedGoals.journey;
+    final bool journeyHere = journey?.destination == place.id;
+
     return AtlasInspector(
       name: place.displayName,
       info: AtlasPlaceInfo.from(watched.session, place),
@@ -101,17 +109,50 @@ class AtlasSelectionPanel extends StatelessWidget {
       ready: watched.session.isReady,
       lastJourney: watched.lastJourney,
       bare: bare,
+      // The destination's second framing (RCP01's vignette variants,
+      // integrated by Fable V2) — shown for a *reached* place the player is
+      // not standing in, so the panel carries a picture of where the walk
+      // would end. An unreached place keeps its mystery, and *here* is
+      // already on the screen behind the glass.
+      vignette: !place.isCurrent && place.isUnlocked
+          ? PixelIcons.altVignetteFor(place.id)
+          : null,
       onTravel: legs.isEmpty
           ? null
-          : () {
-              controller.travelJourney(legs);
+          : () async {
+              // Kept for the discovery check below: the panel rebuilds on
+              // arrival and `place` then follows the selection home.
+              final RegionPlace destination = place;
+              await controller.travelJourney(legs);
               onTravelled();
+              // Discovery is the payoff walking most directly buys, and it
+              // used to rent half a sentence in a result line. A first
+              // arrival now rises in the one reward grammar every other
+              // payoff uses — the place's vignette, what stands there, what
+              // waits there (Fable V2, `DECISIONS/0027`). Ordinary arrivals
+              // stay quiet: the map moving is their acknowledgement.
+              final JourneySummary? journey = controller.lastJourney;
+              if (journey != null &&
+                  journey.succeeded &&
+                  journey.firstVisit &&
+                  context.mounted) {
+                await showDiscoveryLayer(
+                  context,
+                  session: watched.session,
+                  place: destination,
+                );
+              }
             },
       // The Journey slot (`DECISIONS/0023` §1): any place but *here* can be
       // tracked. Reserves nothing; the tracker restates this panel's own
-      // figures on the Adventure screen.
+      // figures on the Adventure screen. When this place *is* the tracked
+      // Journey, the same control clears it — a set goal the screen that
+      // set it could not see was Fable V2's audit finding.
+      journeyTracked: journeyHere,
       onTrackJourney: place.isCurrent
           ? null
+          : journeyHere
+          ? () => controller.trackGoal(GoalSlot.journey, null)
           : () => controller.trackGoalJourney(place.id),
     );
   }
@@ -154,6 +195,8 @@ class AtlasInspector extends StatelessWidget {
     required this.lastJourney,
     required this.onTravel,
     this.onTrackJourney,
+    this.journeyTracked = false,
+    this.vignette,
     this.bare = false,
   });
 
@@ -181,8 +224,15 @@ class AtlasInspector extends StatelessWidget {
   /// Dispatches the journey. Null when there is nothing to dispatch.
   final VoidCallback? onTravel;
 
-  /// Tracks this place in the Journey slot. Null for *here*.
+  /// Tracks this place in the Journey slot — or clears it, when
+  /// [journeyTracked]. Null for *here*.
   final VoidCallback? onTrackJourney;
+
+  /// Whether this place is the tracked Journey right now.
+  final bool journeyTracked;
+
+  /// The destination's vignette variant, or null where none is shown.
+  final String? vignette;
 
   /// The one sentence explaining a closed journey, in the engine's own
   /// refusal order: the requirement first, then the price.
@@ -204,6 +254,15 @@ class AtlasInspector extends StatelessWidget {
     final Widget content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // The destination's second framing — a picture of where the walk
+          // ends, cropped to a slim band so the panel stays an inspector.
+          if (vignette case final String art) ...<Widget>[
+            ClipRRect(
+              borderRadius: StrideRadius.card,
+              child: PixelScene.vignette(art, viewportHeight: 88),
+            ),
+            const SizedBox(height: StrideSpace.s8),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -248,6 +307,27 @@ class AtlasInspector extends StatelessWidget {
             color: StrideColors.textMuted,
           ),
 
+          // The board at a glance — the reason the walk exists. One line of
+          // counts, and one sentence when the bag already answers a need.
+          if (info.board case final AtlasBoardLine board) ...<Widget>[
+            const SizedBox(height: StrideSpace.s10),
+            const SectionHeading(label: 'Work'),
+            const SizedBox(height: StrideSpace.s6),
+            _Sentence(
+              boardLine(board),
+              style: StrideType.sub,
+              color: StrideColors.textSecondary,
+            ),
+            if (carryLine(board) case final String carrying) ...<Widget>[
+              const SizedBox(height: StrideSpace.s4),
+              _Sentence(
+                carrying,
+                style: StrideType.micro,
+                color: StrideColors.textPrimary,
+              ),
+            ],
+          ],
+
           if (info.gatherSites.isNotEmpty) ...<Widget>[
             const SizedBox(height: StrideSpace.s10),
             const SectionHeading(label: 'Gathering'),
@@ -258,7 +338,12 @@ class AtlasInspector extends StatelessWidget {
                 child: _Sentence(
                   gatherLine(site),
                   style: StrideType.sub,
-                  color: StrideColors.textSecondary,
+                  // A site out of reach reads muted, with its gap in the
+                  // same sentence — the wasted-journey preventer, asked on
+                  // the map where the journey is being planned.
+                  color: site.eligible
+                      ? StrideColors.textSecondary
+                      : StrideColors.textMuted,
                 ),
               ),
           ],
@@ -328,7 +413,7 @@ class AtlasInspector extends StatelessWidget {
           if (onTrackJourney != null) ...<Widget>[
             const SizedBox(height: StrideSpace.s8),
             StrideButton.secondary(
-              label: 'Set as Journey',
+              label: journeyTracked ? 'Journey set — clear' : 'Set as Journey',
               onPressed: busy ? null : onTrackJourney,
             ),
           ],
@@ -343,7 +428,10 @@ class AtlasInspector extends StatelessWidget {
     return bare ? content : SectionCard(child: content);
   }
 
-  /// `You are here · Safe`, `Reached`, `Not yet reached · Safe`.
+  /// `You are here · Safe`, `Reached · Struggling`, `Not yet reached`.
+  /// The development word is the settlement's named state — the thing
+  /// community projects permanently change — so a place's trajectory reads
+  /// from the map (Fable V2, `DECISIONS/0027`).
   static String statusLine(AtlasPlaceInfo info) => <String>[
     if (info.isCurrent)
       'You are here'
@@ -352,15 +440,47 @@ class AtlasInspector extends StatelessWidget {
     else
       'Not yet reached',
     if (info.isSafe) 'Safe',
+    ?info.developmentWord,
   ].join(' · ');
 
-  /// `Oak Stand · Woodcutting Lv 1 · Axe`. The tool is dropped when the node
-  /// needs none, rather than printed as "none".
-  static String gatherLine(AtlasGatherLine site) => <String>[
-    site.name,
-    '${site.skill} Lv ${site.level}',
-    ?site.tool,
+  /// `Oak Stand · Woodcutting Lv 1 · Axe`, with the gap appended where one
+  /// stands — `— you are Lv 1` — so the map never plans a journey toward a
+  /// node the engine would refuse. The tool is dropped when the node needs
+  /// none, rather than printed as "none".
+  static String gatherLine(AtlasGatherLine site) {
+    final String line = <String>[
+      site.name,
+      '${site.skill} Lv ${site.level}',
+      ?site.tool,
+    ].join(' · ');
+    return site.gap == null ? line : '$line — ${site.gap}';
+  }
+
+  /// `Notice Board · 3 open` / `Mine Ledger · 4 open · 1 ready to turn in`.
+  static String boardLine(AtlasBoardLine board) => <String>[
+    board.boardName,
+    board.openContracts == 1 ? '1 open' : '${board.openContracts} open',
+    if (board.readyToComplete > 0)
+      board.readyToComplete == 1
+          ? '1 ready to turn in'
+          : '${board.readyToComplete} ready to turn in',
   ].join(' · ');
+
+  /// The sentence that turns the map into a plan — what the bag already
+  /// answers at this place — or null when it answers nothing.
+  static String? carryLine(AtlasBoardLine board) {
+    if (board.readyToComplete > 0 && board.projectHasSomethingToGive) {
+      return 'You carry what work here needs — a delivery, and materials '
+          'for ${board.projectName}.';
+    }
+    if (board.readyToComplete > 0) {
+      return 'You carry what a contract here needs.';
+    }
+    if (board.projectHasSomethingToGive) {
+      return 'You carry materials ${board.projectName} needs.';
+    }
+    return null;
+  }
 
   /// `Cautious · 2 of 2 this visit`, or `Wary · 2 per visit`.
   ///
@@ -402,6 +522,53 @@ class AtlasInspector extends StatelessWidget {
         .join(', then ');
     return 'By way of $via · ${formatSteps(way.totalCost)} steps in all';
   }
+}
+
+/// A first arrival, raised in the one reward grammar every other payoff
+/// uses (Fable V2, `DECISIONS/0027`): `DISCOVERED`, the place's name, its
+/// vignette variant where one is packaged, and what actually stands and
+/// waits there — every line a projection the inspector already shows.
+///
+/// MEDIUM, once, only on the arrival that opened the place. No XP, no
+/// resource, no burst: discovery's reward is the place itself, said out
+/// loud for the walk that earned it.
+Future<void> showDiscoveryLayer(
+  BuildContext context, {
+  required StrideSession session,
+  required RegionPlace place,
+}) {
+  final AtlasPlaceInfo info = AtlasPlaceInfo.from(session, place);
+  final String? vignette = PixelIcons.altVignetteFor(place.id);
+  return showRewardLayer(
+    context,
+    tier: RewardTier.medium,
+    beats: <Widget>[
+      RewardBeat(
+        tier: RewardTier.medium,
+        eyebrow: 'DISCOVERED',
+        title: place.displayName,
+        lines: <String>[
+          '${info.kindWord} · ${info.terrainWord}'
+              '${info.isSafe ? ' · Safe' : ''}',
+          if (info.gatherSites.isNotEmpty)
+            'Gathering: '
+                '${info.gatherSites.map((AtlasGatherLine g) => g.name).join(', ')}',
+          if (info.encounters.isNotEmpty)
+            'Encounters: '
+                '${info.encounters.map((AtlasEncounterLine e) => e.name).join(', ')}',
+          if (info.board case final AtlasBoardLine board)
+            '${board.boardName} · ${board.openContracts} open',
+        ],
+      ),
+      if (vignette != null) ...<Widget>[
+        const SizedBox(height: StrideSpace.s10),
+        ClipRRect(
+          borderRadius: StrideRadius.card,
+          child: PixelScene.vignette(vignette, viewportHeight: 120),
+        ),
+      ],
+    ],
+  );
 }
 
 /// The travel control, with its confirmation step (brief §53).
@@ -483,26 +650,26 @@ class _TravelControlsState extends State<_TravelControls> {
             ),
           ),
           const SizedBox(height: StrideSpace.s8),
-          Wrap(
-            spacing: StrideSpace.s8,
-            runSpacing: StrideSpace.s4,
-            children: <Widget>[
-              StrideButton.secondary(
-                label: widget.busy ? 'Travelling…' : 'Set out',
-                onPressed: widget.busy || !widget.open
-                    ? null
-                    : () {
-                        setState(() => _confirming = false);
-                        widget.onTravel?.call();
-                      },
-              ),
-              StrideButton.secondary(
-                label: 'Stay',
-                onPressed: widget.busy
-                    ? null
-                    : () => setState(() => _confirming = false),
-              ),
-            ],
+          // "Set out" is the biggest spend in the game and takes the
+          // primary button; "Stay" keeps the utility class. Both were
+          // secondary — 34 dp yes/no on a 2,000-step decision — until the
+          // Fable V2 UX audit named the inversion (the metrics file itself
+          // calls that height "nothing on the gameplay path").
+          StrideButton(
+            label: widget.busy ? 'Travelling…' : 'Set out',
+            onPressed: widget.busy || !widget.open
+                ? null
+                : () {
+                    setState(() => _confirming = false);
+                    widget.onTravel?.call();
+                  },
+          ),
+          const SizedBox(height: StrideSpace.s6),
+          StrideButton.secondary(
+            label: 'Stay',
+            onPressed: widget.busy
+                ? null
+                : () => setState(() => _confirming = false),
           ),
         ],
       ),

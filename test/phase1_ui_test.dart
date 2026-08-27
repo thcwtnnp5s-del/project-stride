@@ -991,7 +991,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // All five, from content.
+      // All five, from content. `skipOffstage: false`, because the richer
+      // cards (each now lists its next few unlocks — Fable V2) scroll: the
+      // fifth card sits below the fold at 852 dp, which is the cost of
+      // cards that answer "what next" instead of one line.
       for (final String skill in <String>[
         'Foraging',
         'Woodcutting',
@@ -999,14 +1002,18 @@ void main() {
         'Smithing',
         'Cooking',
       ]) {
-        expect(find.text(skill), findsWidgets, reason: '$skill is missing');
+        expect(
+          find.text(skill, skipOffstage: false),
+          findsWidgets,
+          reason: '$skill is missing',
+        );
       }
 
       // A fresh save is level 1 in everything, and Foraging's second threshold
       // is 100 — the figure that proves the span came from the curve rather
       // than from a placeholder.
-      expect(find.text('LV 1'), findsNWidgets(5));
-      expect(find.text('0 / 100 XP'), findsWidgets);
+      expect(find.text('LV 1', skipOffstage: false), findsNWidgets(5));
+      expect(find.text('0 / 100 XP', skipOffstage: false), findsWidgets);
       expect(
         find.textContaining('to level 2'),
         findsWidgets,

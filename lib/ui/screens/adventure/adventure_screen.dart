@@ -563,18 +563,44 @@ class _SyncResult extends StatelessWidget {
           Text(_describe(r), style: StrideType.micro),
           // Faults are rendered, never filtered. `RULES.md` H-4 names
           // `cursorOfferedWhenProhibited` specifically: it "must never be
-          // weakened, suppressed in UI, or accommodated". A product UI naturally
-          // maps a sync onto a friendly line, and faults are the field with no
-          // friendly rendering — so they are the field that gets dropped.
+          // weakened, suppressed in UI, or accommodated". Every fault still
+          // renders — as a player sentence now, not a wire enum name; H-4
+          // mandates the fault's presence, not its format (Fable V2 UX
+          // audit S7 — the one genuinely debug-looking line a player could
+          // meet).
           if (r.faults.isNotEmpty)
             Text(
-              'faults: ${r.faults.map((SyncFault f) => f.name).join(', ')}',
+              'Step data issues: '
+              '${r.faults.map(_faultWord).toSet().join('; ')} — '
+              'nothing was double-counted',
               style: StrideType.micro.copyWith(color: StrideColors.textMuted),
             ),
         ],
       ],
     );
   }
+
+  /// Each fault as a short player phrase. One mapping per enum value so a
+  /// new fault fails compilation here rather than shipping as its raw name;
+  /// the phrases stay deliberately dull — a fault channel is a diagnostic,
+  /// not drama.
+  static String _faultWord(SyncFault f) => switch (f) {
+    SyncFault.malformedObservation => 'an unreadable step record was set aside',
+    SyncFault.malformedOriginKey => 'an unreadable source tag was set aside',
+    SyncFault.originKeyingUnconfigured =>
+      'the device key is not ready — reading was refused',
+    SyncFault.completenessOnNonFinalPage =>
+      'a partial answer overclaimed and was checked',
+    SyncFault.contradictoryOriginScope =>
+      'a contradictory answer was read cautiously',
+    SyncFault.invalidatedWithoutRescan => 'a revision arrived without detail',
+    SyncFault.unavailableWithoutReason => 'the source went quiet mid-read',
+    SyncFault.cursorOfferedWhenProhibited =>
+      'an early bookmark was refused, correctly',
+    SyncFault.observationsOnNoChange => 'an unexpected payload was set aside',
+    SyncFault.noChangeWithPayload => 'an unexpected payload was set aside',
+    SyncFault.mismatchedCompleteness => 'an inconsistent claim was checked',
+  };
 
   static String _describe(SyncReport r) => switch (r.status) {
     // Access first. On iOS a read the player has not allowed comes back

@@ -73,17 +73,43 @@ class _StrideShellState extends State<StrideShell> {
           ),
         ),
       ),
-      // Exhaustive, with no `_` arm, deliberately. Every destination now has a
-      // screen; a seventh added without one would be a compile error here
-      // rather than a silently blank tab.
-      body: switch (_selected) {
-        StrideDestination.adventure => const AdventureScreen(),
-        StrideDestination.character => const CharacterScreen(),
-        StrideDestination.skills => const SkillsScreen(),
-        StrideDestination.inventory => const InventoryScreen(),
-        StrideDestination.craft => const CraftScreen(),
-        StrideDestination.world => const WorldScreen(),
-      },
+      // An [IndexedStack] rather than a bare switch, so a tab change no
+      // longer destroys every screen's ephemeral state (Fable V2 UX audit
+      // S2). The planning loop this app is built around — look at the
+      // atlas, check the bag or the bench, come back — used to snap the
+      // World camera home and drop the selected destination on every hop;
+      // now camera, selection, scroll and open detail survive the round
+      // trip. Inactive children sit under [TickerMode] disabled, so no
+      // offstage stage animates and no offstage cue fires; the reward and
+      // result layers live in session/controller state, which this changes
+      // nothing about.
+      //
+      // The list is ordered by [StrideDestination.index] and every
+      // destination has a screen; a seventh without one is still a compile
+      // error — here, at the exhaustive index list.
+      // Deliberately non-const children: a const list would short-circuit
+      // the child rebuild on a tab switch, so the incoming screen could show
+      // the state it was last built with. Fresh instances rebuild every
+      // child on every shell build — the *elements* (and so each screen's
+      // camera, selection and scroll) are preserved either way.
+      // ignore: prefer_const_constructors
+      body: IndexedStack(
+        index: _selected.index,
+        children: <Widget>[
+          // ignore: prefer_const_constructors
+          AdventureScreen(),
+          // ignore: prefer_const_constructors
+          CharacterScreen(),
+          // ignore: prefer_const_constructors
+          SkillsScreen(),
+          // ignore: prefer_const_constructors
+          InventoryScreen(),
+          // ignore: prefer_const_constructors
+          CraftScreen(),
+          // ignore: prefer_const_constructors
+          WorldScreen(),
+        ],
+      ),
       bottomBar: StrideTabBar(
         selected: _selected,
         onSelect: (StrideDestination d) => setState(() => _selected = d),

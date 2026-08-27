@@ -63,6 +63,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
   /// `TIER 1`; what that tier *opens* needs the room of a block.
   ContentId? _gearDetail;
 
+  /// The material / consumable / quest tile whose purpose block is open —
+  /// the same pattern for the other three groups (Fable V2,
+  /// `DECISIONS/0027`): a Boar Tusk and a Bronze Ingot used to be
+  /// indistinguishable in purpose from the grid.
+  ContentId? _itemDetail;
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
@@ -155,12 +161,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     entries: group.entries,
                     equipment: group.equipment,
                     consumable: group.consumable,
-                    selected: group.equipment ? _gearDetail : null,
+                    selected: group.equipment ? _gearDetail : _itemDetail,
                     onSelect: group.equipment
                         ? (ContentId id) => setState(
                             () => _gearDetail = _gearDetail == id ? null : id,
                           )
-                        : null,
+                        : (ContentId id) => setState(
+                            () => _itemDetail = _itemDetail == id ? null : id,
+                          ),
                   ),
                   // The opened piece's full evaluation — the same
                   // `GearStatsBlock` the craft bench shows, under the grid
@@ -172,6 +180,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         case final GearStats g) ...<Widget>[
                       const SizedBox(height: StrideSpace.s8),
                       GearStatsBlock(stats: g),
+                    ],
+                  // The opened item's purpose — what it is for, where it
+                  // comes from, what it makes possible (Fable V2). Only in
+                  // the group that owns the selected tile, so the block
+                  // opens beside its trigger.
+                  if (!group.equipment && _itemDetail != null)
+                    if (group.entries.any(
+                          (InventoryEntry e) => e.id == _itemDetail,
+                        ) &&
+                        c.session.itemPurposeOf(_itemDetail!) != null) ...<Widget>[
+                      const SizedBox(height: StrideSpace.s8),
+                      _ItemPurposeBlock(
+                        name: c.session.displayNameOf(_itemDetail!),
+                        purpose: c.session.itemPurposeOf(_itemDetail!)!,
+                      ),
                     ],
                 ],
               ],
@@ -243,6 +266,76 @@ class _Group {
   /// Whether these tiles carry the eat control (`DECISIONS/0023` §4).
   final bool consumable;
   final List<InventoryEntry> entries;
+}
+
+/// What one item is *for* — sources above uses, uses above trivia — under
+/// the grid the tile was tapped in (Fable V2, `DECISIONS/0027`).
+///
+/// Progressive disclosure by construction: nothing renders until a tile is
+/// tapped, and each line renders only when the content pack has something
+/// to say. A trophy says it is one, so dead-by-design stops reading as a
+/// recipe the player has not found.
+class _ItemPurposeBlock extends StatelessWidget {
+  const _ItemPurposeBlock({required this.name, required this.purpose});
+
+  final String name;
+  final ItemPurposeView purpose;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<(String, String)> lines = <(String, String)>[
+      if (purpose.healing > 0) ('EATS AS', '+${purpose.healing} HP'),
+      if (purpose.usedInRecipes.isNotEmpty)
+        ('USED IN', purpose.usedInRecipes.join(', ')),
+      if (purpose.wantedBy.isNotEmpty)
+        ('WANTED BY', purpose.wantedBy.join('\n')),
+      if (purpose.craftedBy.isNotEmpty)
+        ('CRAFTED BY', purpose.craftedBy.join(', ')),
+      if (purpose.gatheredAt.isNotEmpty)
+        ('GATHERED AT', purpose.gatheredAt.join('\n')),
+      if (purpose.droppedBy.isNotEmpty)
+        ('DROPPED BY', purpose.droppedBy.join('\n')),
+    ];
+
+    return SurfaceBlock(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          AdaptiveText(name, style: StrideType.itemName),
+          if (purpose.isTrophy) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              'A keepsake — proof of a rare find. Nothing consumes it, '
+              'and nothing ever will without saying so first.',
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textSecondary,
+              ),
+            ),
+          ],
+          for (final (String label, String value) in lines) ...<Widget>[
+            const SizedBox(height: StrideSpace.s6),
+            Text(label, style: StrideType.microLabel, maxLines: 1),
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              value,
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textSecondary,
+              ),
+            ),
+          ],
+          if (!purpose.isTrophy && lines.isEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              'Nothing in the world asks for this yet.',
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textMuted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 /// What the last out-of-combat meal did.
@@ -366,6 +459,11 @@ class _EquipResult extends StatelessWidget {
       report.succeeded
           ? removed
                 ? 'Set ${report.itemName} aside.'
+                : report.statChanged
+                // The swap's story, not just its fact — "ATK 7 → 9" from
+                // the same loadout the engine fights with (Fable V2).
+                ? 'Equipped ${report.itemName} — ${report.statLabel} '
+                      '${report.statBefore} → ${report.statAfter}.'
                 : 'Equipped ${report.itemName}.'
           : _refusalText(report),
       style: StrideType.sub,

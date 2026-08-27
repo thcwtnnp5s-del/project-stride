@@ -125,11 +125,29 @@ class BankedStepsReadout extends StatelessWidget {
               constraints: const BoxConstraints(
                 minWidth: StrideGeometry.bankedFigureMinWidth,
               ),
-              child: AdaptiveText(
-                formatSteps(bankedSteps),
-                style: StrideType.headerValue,
-                textAlign: TextAlign.right,
-              ),
+              // The figure counts to its new value instead of teleporting —
+              // a sync visibly *pays into* the header, which is the one
+              // moment the whole game is about (Fable V2, `DECISIONS/0027`).
+              // ~400 ms, tabular figures so nothing jitters; reduced motion
+              // jumps, as everywhere else. Presentation only: the tween's
+              // endpoints are the committed value.
+              child: MediaQuery.disableAnimationsOf(context)
+                  ? AdaptiveText(
+                      formatSteps(bankedSteps),
+                      style: StrideType.headerValue,
+                      textAlign: TextAlign.right,
+                    )
+                  : TweenAnimationBuilder<int>(
+                      tween: IntTween(begin: bankedSteps, end: bankedSteps),
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      builder: (BuildContext context, int shown, Widget? _) =>
+                          AdaptiveText(
+                            formatSteps(shown),
+                            style: StrideType.headerValue,
+                            textAlign: TextAlign.right,
+                          ),
+                    ),
             ),
           ),
         ],

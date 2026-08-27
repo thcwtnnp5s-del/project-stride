@@ -435,6 +435,32 @@ class _RecipeDetailState extends State<_RecipeDetail> {
               case final GearStats g) ...<Widget>[
             GearStatsBlock(stats: g),
             const SizedBox(height: StrideSpace.s8),
+          ]
+          // A material recipe's why-chain used to stop one hop short: the
+          // bench said what a plank costs and never what a plank is *for*.
+          // One sentence closes it, from the same projection the bag's
+          // detail reads (Fable V2, `DECISIONS/0027`).
+          else if (controller.session.itemPurposeOf(recipe.outputItem)
+              case final ItemPurposeView purpose) ...<Widget>[
+            if (purpose.usedInRecipes.isNotEmpty ||
+                purpose.wantedBy.isNotEmpty) ...<Widget>[
+              Text(
+                <String>[
+                  if (purpose.usedInRecipes.isNotEmpty)
+                    'Makes possible: ${purpose.usedInRecipes.join(', ')}',
+                  // Capped: a staple like broth is wanted half the world
+                  // over, and eight lines of admirers is card overload.
+                  // Two names carry the point; the count says the rest.
+                  if (purpose.wantedBy.isNotEmpty)
+                    'Wanted by: ${purpose.wantedBy.take(2).join(' · ')}'
+                        '${purpose.wantedBy.length > 2 ? ' · +${purpose.wantedBy.length - 2} more' : ''}',
+                ].join('\n'),
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: StrideSpace.s8),
+            ],
           ],
 
           // Held over required, always both — how close the player is and
