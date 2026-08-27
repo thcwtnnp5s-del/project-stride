@@ -20,11 +20,21 @@ class ScreenHeader extends StatelessWidget {
     required this.eyebrow,
     required this.title,
     this.trailing,
+    this.regionInk,
+    this.regionDeep,
   });
 
   final String eyebrow;
   final String title;
   final Widget? trailing;
+
+  /// The region's biome colour (Fable V2 Iteration 02): [regionInk] tints
+  /// the eyebrow — the place's name wears the place's colour — and
+  /// [regionDeep] breathes a short vertical wash down from the top of the
+  /// bar. Both null keeps the header exactly as it always was; the banked
+  /// readout stays the brightest thing either way (L-16 composition).
+  final Color? regionInk;
+  final Color? regionDeep;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -39,6 +49,15 @@ class ScreenHeader extends StatelessWidget {
       vertical: StrideSpace.s6,
     ),
     alignment: Alignment.center,
+    decoration: regionDeep == null
+        ? null
+        : BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[regionDeep!, StrideColors.surfaceGround],
+            ),
+          ),
     child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) => Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -55,6 +74,7 @@ class ScreenHeader extends StatelessWidget {
                 AdaptiveText(
                   eyebrow.toUpperCase(),
                   style: StrideType.screenEyebrow,
+                  color: regionInk,
                 ),
                 AdaptiveText(title, style: StrideType.screenTitle),
               ],

@@ -36,6 +36,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart';
 
 import 'audio_cues.dart';
@@ -304,6 +305,40 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
     _settings = _settings.copyWith(sfxVolume: volume);
     _scheduleSave();
     notifyListeners();
+  }
+
+  void setHapticsEnabled(bool enabled) {
+    if (enabled == _settings.hapticsEnabled) return;
+    _settings = _settings.copyWith(hapticsEnabled: enabled);
+    _scheduleSave();
+    notifyListeners();
+  }
+
+  // -- Haptic punctuation (Fable V2 Iteration 02) ---------------------------
+  //
+  // The one seam every haptic in the app fires through, so the toggle and
+  // the scarcity discipline live in one place a grep can audit. Haptics are
+  // punctuation for commits and payoffs — a reward layer rising, a journey
+  // set out on, a heavy blow landing — never loop beats: a ten-minute
+  // gather queue pulsing the wrist would numb the channel and turn feedback
+  // into upkeep. Fire-and-forget platform calls; nothing here blocks.
+  // Deliberately independent of Reduce Motion — separate accessibility
+  // axes — and beneath the OS's own System Haptics switch either way.
+
+  void hapticLight() {
+    if (_settings.hapticsEnabled) unawaited(HapticFeedback.lightImpact());
+  }
+
+  void hapticMedium() {
+    if (_settings.hapticsEnabled) unawaited(HapticFeedback.mediumImpact());
+  }
+
+  void hapticHeavy() {
+    if (_settings.hapticsEnabled) unawaited(HapticFeedback.heavyImpact());
+  }
+
+  void hapticSelection() {
+    if (_settings.hapticsEnabled) unawaited(HapticFeedback.selectionClick());
   }
 
   /// Brings the assigned track back after enable/resume: resumes the held

@@ -39,11 +39,13 @@ class AudioBlock extends StatelessWidget {
     final settings = scope.notifier!.settings;
     final bool on = settings.enabled;
 
+    final bool haptics = settings.hapticsEnabled;
+
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const SectionHeading(label: 'Audio'),
+          const SectionHeading(label: 'Sound & feel'),
           const SizedBox(height: StrideSpace.s10),
           Row(
             children: <Widget>[
@@ -79,6 +81,30 @@ class AudioBlock extends StatelessWidget {
             value: settings.sfxVolume,
             enabled: on,
             onChanged: (double v) => AudioScope.read(context).setSfxVolume(v),
+          ),
+          const SizedBox(height: StrideSpace.s10),
+          // Haptic punctuation (Fable V2 Iteration 02): its own switch,
+          // independent of the sound master — a silent commute still wants
+          // the tap of a level-up, and vice versa.
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  haptics ? 'Vibration is on' : 'Vibration is off',
+                  style: StrideType.sub.copyWith(
+                    color: haptics
+                        ? StrideColors.textPrimary
+                        : StrideColors.textMuted,
+                  ),
+                  maxLines: 1,
+                ),
+              ),
+              StrideButton.secondary(
+                label: haptics ? 'Turn off' : 'Turn on',
+                onPressed: () =>
+                    AudioScope.read(context).setHapticsEnabled(!haptics),
+              ),
+            ],
           ),
         ],
       ),

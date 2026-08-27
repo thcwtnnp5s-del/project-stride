@@ -183,4 +183,148 @@ abstract final class StrideColors {
   // states in this surface area — no capacity warning, no expiry, no decay, no
   // upkeep (`RULES.md` P-5). Adding a warning hue before a screen needs one is
   // how an unrequested pressure system acquires a colour.
+
+  // =================================================================
+  // V2 EXPERIMENTAL ART DIRECTION (Fable V2 Iteration 02, on
+  // `fable-v2-experiment` under the owner's freshness brief; graduates
+  // to canon only with the branch). "Dark fantasy travel journal, rich
+  // biome colour, warm reward light." Everything above is unchanged;
+  // everything below extends it. L-16 stays absolute — nothing here is
+  // teal, and two prior drifts (the teal victory frames) move OFF the
+  // accent onto [rewardLightInk].
+  // =================================================================
+
+  // ------------------------------------------------------- action ember
+  //
+  // The primary button's material: a warm brass edge and sheen over the
+  // raised surface, with one soft warm glow. One hue family app-wide
+  // (the amber of [rarityLegendary]) so "warm light" is a single
+  // statement wherever it appears.
+
+  /// Top stop of the enabled primary button's vertical gradient.
+  static const Color actionSheen = Color(0xFF4A4034);
+
+  /// The enabled primary button's 1 px border — brass-shifted
+  /// [surfaceRaised]; material, not type (below text contrast on purpose).
+  static const Color actionEdge = Color(0xFF6B5A3E);
+
+  /// The enabled primary button's outer glow. Alpha baked in so the token
+  /// stays const-able and there is exactly one warm-glow value.
+  static const Color actionGlow = Color(0x24E0A63F);
+
+  // ---------------------------------------------------------- readiness
+  //
+  // "You can do this now": a craftable recipe, a met gate, an Equip that
+  // upgrades. Deliberately the same moss hex as [rarityUncommon] — that
+  // green already means "good, ordinary gain", and a sixth green would
+  // collide with [skillForaging]. Named separately because the SEMANTIC
+  // is different, and a future retune of either must be a decision.
+
+  static const Color positiveReady = Color(0xFF86B06A);
+  static const Color positiveReadyDim = Color(0xFF3E4F32);
+
+  // -------------------------------------------------------- active goal
+  //
+  // The tracked goal's rail, chip and eyebrow. The hex is
+  // [categoryQuest]'s — authored as the quest hue, never used; a tracked
+  // goal is a quest, so the value finally has its job. This is a NEW
+  // semantic token, not a revival of the category-bar affordance the
+  // Round 03 note above retires.
+
+  static const Color goalActive = Color(0xFFC9A63C);
+  static const Color goalActiveDim = Color(0xFF4E4018);
+
+  // ------------------------------------------------------------- danger
+  //
+  // Combat threat ONLY: the enemy's HP fill, its intent line on a
+  // telegraph turn, a boss mark. The "no warning colour" rule above is
+  // about PRESSURE systems — capacity, expiry, decay, costs — and this
+  // token may never touch any of those: never on a price, a gate, a
+  // shortfall, or anything outside an encounter. Rust, pushed off
+  // [skillCooking]'s pink and [skillSmithing]'s orange.
+
+  static const Color danger = Color(0xFFC0504A);
+  static const Color dangerDim = Color(0xFF542420);
+
+  // ------------------------------------------------------- reward light
+  //
+  // The warm candle-light of a payoff: the DISCOVERED/VICTORY layer's
+  // frame and eyebrow, the glow behind a major reward's icon. Ink for
+  // words, glow for radiance, wash for the panel's top breath. Replaces
+  // the teal the victory layer wrongly wore (L-16 repair) — reward light
+  // is warm, walking stays teal.
+
+  static const Color rewardLightInk = Color(0xFFE8C883);
+  static const Color rewardGlow = Color(0x29E0A63F);
+  static const Color rewardWashTop = Color(0xFF2A2118);
+
+  // -------------------------------------------------------- region hues
+  //
+  // One ink and one deep per region — the journal's biome colour. The ink
+  // tints an eyebrow or a place name; the deep is an atmosphere wash
+  // (header band, panel breath) within ~6 L* of [surfaceCard], so region
+  // reads as air, not as a fifth surface rung. Keyed by place id first
+  // (Forgotten Hollow is `forest` but must not wear the Woods' colour),
+  // terrain second, [textSecondary]/[surfaceCard] for a place this table
+  // does not know — content is data (`RULES.md` E-5).
+  //
+  // None is teal (L-16); Frostmere's ice leans blue (218°), far off the
+  // accent's 170°, and is banded, never chip-sized beside a step figure.
+
+  static const Color regionHaven = Color(0xFF93A968);
+  static const Color regionHavenDeep = Color(0xFF20261A);
+  static const Color regionWoods = Color(0xFF5F9070);
+  static const Color regionWoodsDeep = Color(0xFF182A20);
+  static const Color regionStonefall = Color(0xFFB3906B);
+  static const Color regionStonefallDeep = Color(0xFF292019);
+  static const Color regionFrostmere = Color(0xFF9FB6D8);
+  static const Color regionFrostmereDeep = Color(0xFF1C222E);
+  static const Color regionHollow = Color(0xFF8F87B5);
+  static const Color regionHollowDeep = Color(0xFF211E2B);
+
+  /// The region ink for [place], by id.
+  static Color forRegion(ContentId place) => switch (place.value) {
+    'location.havens_rest' => regionHaven,
+    'location.whispering_woods' => regionWoods,
+    'location.stonefall_mine' => regionStonefall,
+    'location.frostmere' => regionFrostmere,
+    'location.forgotten_hollow' => regionHollow,
+    _ => textSecondary,
+  };
+
+  /// The region deep for [place], by id.
+  static Color forRegionDeep(ContentId place) => switch (place.value) {
+    'location.havens_rest' => regionHavenDeep,
+    'location.whispering_woods' => regionWoodsDeep,
+    'location.stonefall_mine' => regionStonefallDeep,
+    'location.frostmere' => regionFrostmereDeep,
+    'location.forgotten_hollow' => regionHollowDeep,
+    _ => surfaceCard,
+  };
+
+  // --------------------------------------------------------- skill deeps
+  //
+  // Each skill hue's atmosphere companion — icon plates and card-top
+  // washes, never type. Same derivation discipline as the rarity dims.
+
+  static const Color skillForagingDeep = Color(0xFF454F22);
+  static const Color skillWoodcuttingDeep = Color(0xFF1F4531);
+  static const Color skillMiningDeep = Color(0xFF2C405A);
+  static const Color skillSmithingDeep = Color(0xFF5A3019);
+  static const Color skillCookingDeep = Color(0xFF5A2530);
+
+  /// The deep companion of [forSkill], same fallback discipline.
+  static Color forSkillDeep(ContentId skill) => switch (skill.value) {
+    'skill.foraging' => skillForagingDeep,
+    'skill.woodcutting' => skillWoodcuttingDeep,
+    'skill.mining' => skillMiningDeep,
+    'skill.smithing' => skillSmithingDeep,
+    'skill.cooking' => skillCookingDeep,
+    _ => surfaceBlock,
+  };
+
+  /// The scrim a locked/ineligible composition sits under — promoted from
+  /// `LocationStage`'s local constant so "locked looks like this" has one
+  /// home.
+  static const Color lockedScrim = Color(0x5A14120F);
 }

@@ -87,7 +87,12 @@ class _SkillCard extends StatelessWidget {
         .toList();
     final int openCount = unlocks.where((SkillUnlock u) => u.unlocked).length;
 
+    // The profession's own atmosphere (Fable V2 Iteration 02): each card
+    // breathes its skill's deep from the top, so five professions stop
+    // being five identical brown slabs and the tab reads as a set of
+    // trades. The ink itself stays where it always was — name and fill.
     return SectionCard(
+      wash: StrideColors.forSkillDeep(standing.skill),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -117,13 +122,19 @@ class _Header extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        // The rail is reserved whether or not the icon resolves. A null icon
-        // must not shift the name of every other skill out of alignment —
-        // `PixelIcons.skillFor` returns null by design and the caller carries
-        // the layout.
-        SizedBox(
-          width: 26,
-          height: 26,
+        // The icon on a plate of its trade's deep with a hairline in its
+        // ink (Fable V2 Iteration 02) — the profession's crest, not a
+        // floating glyph. The rail is reserved whether or not the icon
+        // resolves: a null icon must not shift the name of every other
+        // skill out of alignment.
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: StrideColors.forSkillDeep(standing.skill),
+            border: Border.all(color: accent),
+            borderRadius: StrideRadius.inner,
+          ),
           child: icon == null ? null : Center(child: PixelAsset.skill(icon)),
         ),
         SizedBox(width: StrideSpace.iconLabelGap),
@@ -157,42 +168,54 @@ class _ProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color accent = StrideColors.forSkill(standing.skill);
+    // The fill eases to its committed fraction (Fable V2 Iteration 02):
+    // opening Skills after a session of gathering shows the bar *arriving*
+    // where the work put it instead of teleporting. Keyed by level so a
+    // level-up snaps to the new ladder rather than rewinding through it;
+    // reduced motion branches explicitly — TweenAnimationBuilder does not
+    // honor it on its own (feel-audit finding).
+    final bool reduced = MediaQuery.disableAnimationsOf(context);
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double width = constraints.maxWidth;
-        final double filled = width * standing.progress;
-        return Semantics(
-          // Read aloud as a sentence, because a bar with no label is a shape.
-          label: standing.isMaxLevel
-              ? '${standing.displayName} at maximum level'
-              : '${standing.displayName} level ${standing.level}, '
-                    '${standing.experienceIntoLevel} of '
-                    '${standing.experienceForLevel} experience into the level',
-          child: ClipRRect(
-            borderRadius: StrideRadius.chip,
-            child: SizedBox(
-              height: 8,
-              width: width,
-              child: Stack(
-                children: <Widget>[
-                  ColoredBox(
-                    color: StrideColors.surfaceBlock,
-                    child: const SizedBox.expand(),
-                  ),
-                  SizedBox(
-                    width: filled,
-                    child: ColoredBox(
-                      color: accent,
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                ],
+    return Semantics(
+      // Read aloud as a sentence, because a bar with no label is a shape.
+      label: standing.isMaxLevel
+          ? '${standing.displayName} at maximum level'
+          : '${standing.displayName} level ${standing.level}, '
+                '${standing.experienceIntoLevel} of '
+                '${standing.experienceForLevel} experience into the level',
+      child: ClipRRect(
+        borderRadius: StrideRadius.chip,
+        child: SizedBox(
+          height: 8,
+          width: double.infinity,
+          child: Stack(
+            children: <Widget>[
+              ColoredBox(
+                color: StrideColors.surfaceBlock,
+                child: const SizedBox.expand(),
               ),
-            ),
+              TweenAnimationBuilder<double>(
+                key: ValueKey<int>(standing.level),
+                tween: Tween<double>(end: standing.progress.clamp(0.0, 1.0)),
+                duration: reduced
+                    ? Duration.zero
+                    : const Duration(milliseconds: 600),
+                curve: Curves.easeOutCubic,
+                builder:
+                    (BuildContext context, double value, Widget? child) =>
+                        FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: value,
+                          child: ColoredBox(
+                            color: accent,
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -582,9 +582,11 @@ class _SpanChip extends StatelessWidget {
           color: selected
               ? StrideColors.surfaceRaised
               : StrideColors.surfaceBlock,
+          // Brass, not teal: a selected chip is a chosen thing, not a
+          // walking quantity (L-16 repair, Fable V2 Iteration 02).
           border: Border.all(
             color: selected
-                ? StrideColors.accentSteps
+                ? StrideColors.actionEdge
                 : StrideColors.borderDefault,
           ),
           borderRadius: StrideRadius.chip,

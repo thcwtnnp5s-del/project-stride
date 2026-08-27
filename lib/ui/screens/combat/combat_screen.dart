@@ -373,11 +373,14 @@ class _CombatControlsState extends State<_CombatControls> {
         // earned by knowledge (`DECISIONS/0027`). Absent while unseen; the
         // projection is truthful because the resolver is deterministic.
         if (view.intentLine case final String intent) ...<Widget>[
+          // A telegraph turn speaks in the danger rust (Fable V2 Iteration
+          // 02) — the one hue combat threat owns — so the round to brace
+          // against is unmissable without reading a word.
           Text(
             intent,
             style: StrideType.micro.copyWith(
               color: view.telegraph
-                  ? StrideColors.textPrimary
+                  ? StrideColors.danger
                   : StrideColors.textSecondary,
             ),
           ),
@@ -484,11 +487,13 @@ class _ResultPanel {
     };
   }
 
-  /// A win takes the step accent — the ink every universal payoff wears;
-  /// being driven back or retreating takes the plain frame, because losing
-  /// nothing is not an event to celebrate and not one to punish.
+  /// A win takes the **reward light** — the warm ink every payoff wears
+  /// (Fable V2 Iteration 02, an L-16 repair: this used to be the step
+  /// accent, and teal belongs to walking alone). Being driven back or
+  /// retreating takes the plain frame, because losing nothing is not an
+  /// event to celebrate and not one to punish.
   static Color? accentOf(CombatBeat outcome) =>
-      outcome is WonBeat ? StrideColors.accentSteps : null;
+      outcome is WonBeat ? StrideColors.rewardLightInk : null;
 
   List<Widget> _victory(WonBeat o) => <Widget>[
     // The headline, with the fall beneath it — the card title weight a win
@@ -497,7 +502,7 @@ class _ResultPanel {
       tier: RewardTier.major,
       eyebrow: 'VICTORY',
       title: '${report.enemyName} falls',
-      accent: StrideColors.accentSteps,
+      accent: StrideColors.rewardLightInk,
     ),
     // The experience, on its own ground: MINOR unless a level landed, which
     // the LevelUpCard below says.
@@ -554,7 +559,9 @@ class _ResultPanel {
           KnowledgeTier.studied => 'STUDIED',
           _ => 'SEEN',
         },
-        accent: StrideColors.accentSteps,
+        // Reward light, not teal (L-16 repair): understanding earned is a
+        // payoff, not a walking quantity.
+        accent: StrideColors.rewardLightInk,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

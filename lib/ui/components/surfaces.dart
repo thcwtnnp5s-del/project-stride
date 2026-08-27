@@ -13,18 +13,36 @@ import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 
 /// The universal content container.
+///
+/// [wash] (Fable V2 Iteration 02) breathes an identity colour down from the
+/// card's top — a skill's deep on its Skills card, a region's deep on a
+/// place card — fading into the ordinary card surface by mid-height. The
+/// deeps are authored within ~6 L* of the card colour, so a washed card
+/// reads as *atmosphere on the same surface*, never as a fifth surface
+/// rung; type contrast is measured against [StrideColors.surfaceCard]
+/// either way. One primitive, so identity washes cannot become per-screen
+/// one-offs.
 class SectionCard extends StatelessWidget {
-  const SectionCard({super.key, required this.child, this.padding});
+  const SectionCard({super.key, required this.child, this.padding, this.wash});
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
+  final Color? wash;
 
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
     padding: padding ?? const EdgeInsets.all(StrideSpace.cardPadding),
     decoration: BoxDecoration(
-      color: StrideColors.surfaceCard,
+      color: wash == null ? StrideColors.surfaceCard : null,
+      gradient: wash == null
+          ? null
+          : LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[wash!, StrideColors.surfaceCard],
+              stops: const <double>[0, 0.45],
+            ),
       border: Border.all(color: StrideColors.borderDefault),
       borderRadius: StrideRadius.card,
     ),

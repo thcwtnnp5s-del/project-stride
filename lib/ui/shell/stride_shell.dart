@@ -3,9 +3,11 @@ library;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:stride_core/stride_core.dart' show ContentId;
 
 import '../../debug/dev_harness.dart';
 import '../components/screen_header.dart';
+import '../theme/stride_colors.dart';
 import '../components/stride_scaffold.dart';
 import '../components/stride_tab_bar.dart';
 import '../screens/adventure/adventure_screen.dart';
@@ -65,13 +67,25 @@ class _StrideShellState extends State<StrideShell> {
                 ),
               )
             : null,
-        child: ScreenHeader(
-          eyebrow: controller.session.locationName,
-          title: _selected.label,
-          trailing: BankedStepsReadout(
-            bankedSteps: controller.session.usableEnergy,
-          ),
-        ),
+        child: () {
+          // The region's biome colour on every screen's header (Fable V2
+          // Iteration 02): the eyebrow — the place's name — wears the
+          // place's ink, and the bar breathes the region deep. The app now
+          // tells you where you are before a word is read, and it changes
+          // when you travel.
+          final ContentId? here = controller.session.currentLocation;
+          return ScreenHeader(
+            eyebrow: controller.session.locationName,
+            title: _selected.label,
+            regionInk: here == null ? null : StrideColors.forRegion(here),
+            regionDeep: here == null
+                ? null
+                : StrideColors.forRegionDeep(here),
+            trailing: BankedStepsReadout(
+              bankedSteps: controller.session.usableEnergy,
+            ),
+          );
+        }(),
       ),
       // An [IndexedStack] rather than a bare switch, so a tab change no
       // longer destroys every screen's ephemeral state (Fable V2 UX audit

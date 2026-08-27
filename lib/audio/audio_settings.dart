@@ -19,6 +19,7 @@ final class AudioSettings {
     this.musicVolume = defaultMusicVolume,
     this.sfxVolume = defaultSfxVolume,
     this.ambienceVolume = defaultAmbienceVolume,
+    this.hapticsEnabled = true,
   });
 
   /// Audio defaults ON (the owner's acceptance target), with music seated
@@ -38,16 +39,24 @@ final class AudioSettings {
   final double sfxVolume;
   final double ambienceVolume;
 
+  /// Whether haptic punctuation fires (Fable V2 Iteration 02). Its own
+  /// switch beside audio's, deliberately not coupled to Reduce Motion —
+  /// they are separate accessibility axes. The OS-level System Haptics
+  /// setting still sits beneath this one.
+  final bool hapticsEnabled;
+
   AudioSettings copyWith({
     bool? enabled,
     double? musicVolume,
     double? sfxVolume,
     double? ambienceVolume,
+    bool? hapticsEnabled,
   }) => AudioSettings(
     enabled: enabled ?? this.enabled,
     musicVolume: _clamp(musicVolume ?? this.musicVolume),
     sfxVolume: _clamp(sfxVolume ?? this.sfxVolume),
     ambienceVolume: _clamp(ambienceVolume ?? this.ambienceVolume),
+    hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
   );
 
   Map<String, Object> toJson() => <String, Object>{
@@ -55,6 +64,7 @@ final class AudioSettings {
     'musicVolume': musicVolume,
     'sfxVolume': sfxVolume,
     'ambienceVolume': ambienceVolume,
+    'hapticsEnabled': hapticsEnabled,
   };
 
   /// Tolerant by design: a missing or malformed field takes its default
@@ -66,6 +76,9 @@ final class AudioSettings {
     musicVolume: _readVolume(json['musicVolume'], defaultMusicVolume),
     sfxVolume: _readVolume(json['sfxVolume'], defaultSfxVolume),
     ambienceVolume: _readVolume(json['ambienceVolume'], defaultAmbienceVolume),
+    hapticsEnabled: json['hapticsEnabled'] is bool
+        ? json['hapticsEnabled']! as bool
+        : true,
   );
 
   static double _readVolume(Object? value, double fallback) =>
@@ -79,9 +92,15 @@ final class AudioSettings {
       other.enabled == enabled &&
       other.musicVolume == musicVolume &&
       other.sfxVolume == sfxVolume &&
-      other.ambienceVolume == ambienceVolume;
+      other.ambienceVolume == ambienceVolume &&
+      other.hapticsEnabled == hapticsEnabled;
 
   @override
-  int get hashCode =>
-      Object.hash(enabled, musicVolume, sfxVolume, ambienceVolume);
+  int get hashCode => Object.hash(
+    enabled,
+    musicVolume,
+    sfxVolume,
+    ambienceVolume,
+    hapticsEnabled,
+  );
 }

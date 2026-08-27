@@ -830,6 +830,7 @@ class _Hud extends StatelessWidget {
                 hp: enemyHp,
                 maxHp: view.enemyMaxHp,
                 alignEnd: true,
+                threat: true,
               ),
             ),
           ],
@@ -863,12 +864,18 @@ class _Combatant extends StatelessWidget {
     required this.hp,
     required this.maxHp,
     required this.alignEnd,
+    this.threat = false,
   });
 
   final String name;
   final int hp;
   final int maxHp;
   final bool alignEnd;
+
+  /// True for the enemy's readout (Fable V2 Iteration 02): its bar fills in
+  /// the danger rust, so the two sides of the stage stop wearing the same
+  /// parchment and the fight reads as a fight at a glance.
+  final bool threat;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -884,7 +891,10 @@ class _Combatant extends StatelessWidget {
         textAlign: alignEnd ? TextAlign.right : TextAlign.left,
       ),
       const SizedBox(height: StrideSpace.s4),
-      _HpBar(fraction: maxHp <= 0 ? 0 : (hp / maxHp).clamp(0, 1)),
+      _HpBar(
+        fraction: maxHp <= 0 ? 0 : (hp / maxHp).clamp(0, 1),
+        threat: threat,
+      ),
       const SizedBox(height: StrideSpace.s2),
       Text(
         '$hp / $maxHp',
@@ -896,12 +906,15 @@ class _Combatant extends StatelessWidget {
   );
 }
 
-/// A 6 dp bar. Fill on the text ladder, never the teal: teal is walking and
-/// banked steps only (`ART_DIRECTION.md` L-16), and health is neither.
+/// A 6 dp bar. The player's fill stays on the text ladder — never the teal:
+/// teal is walking and banked steps only (`ART_DIRECTION.md` L-16), and
+/// health is neither. The enemy's fill is [StrideColors.danger] — combat
+/// threat is the one place that hue may appear.
 class _HpBar extends StatelessWidget {
-  const _HpBar({required this.fraction});
+  const _HpBar({required this.fraction, this.threat = false});
 
   final double fraction;
+  final bool threat;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -930,10 +943,12 @@ class _HpBar extends StatelessWidget {
               top: 0,
               bottom: 0,
               width: fill,
-              child: const DecoratedBox(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: StrideColors.textSecondary,
-                  borderRadius: BorderRadius.all(Radius.circular(3)),
+                  color: threat
+                      ? StrideColors.danger
+                      : StrideColors.textSecondary,
+                  borderRadius: const BorderRadius.all(Radius.circular(3)),
                 ),
               ),
             ),

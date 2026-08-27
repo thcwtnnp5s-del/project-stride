@@ -268,9 +268,11 @@ class _Chip extends StatelessWidget {
           color: selected
               ? StrideColors.surfaceRaised
               : StrideColors.surfaceBlock,
+          // Brass, not teal: selection is a chosen thing, not a walking
+          // quantity (L-16 repair, Fable V2 Iteration 02).
           border: Border.all(
             color: selected
-                ? StrideColors.accentSteps
+                ? StrideColors.actionEdge
                 : StrideColors.borderDefault,
           ),
           borderRadius: StrideRadius.chip,
@@ -328,18 +330,31 @@ class _RecipeRow extends StatelessWidget {
             color: selected
                 ? StrideColors.surfaceRaised
                 : StrideColors.surfaceCard,
+            // The readiness system (Fable V2 Iteration 02): a selected row
+            // wears the brass bookmark (L-16 repair — selection was teal);
+            // a craftable-but-unselected row wears the quiet moss edge, so
+            // "make this now" is scannable down the whole list without
+            // reading a single state chip.
             border: Border.all(
               color: selected
-                  ? StrideColors.accentSteps
+                  ? StrideColors.actionEdge
+                  : recipe.canCraft
+                  ? StrideColors.positiveReadyDim
                   : StrideColors.borderDefault,
             ),
             borderRadius: StrideRadius.inner,
           ),
           child: Row(
             children: <Widget>[
-              InsetWell.square(
-                contentSize: 48,
-                child: PixelAsset.item(PixelIcons.itemFor(recipe.outputItem)),
+              // A locked recipe's icon recedes; identity stays readable,
+              // availability reads at a glance.
+              Opacity(
+                opacity: dim && !selected ? 0.55 : 1,
+                child: InsetWell.square(
+                  contentSize: 48,
+                  child:
+                      PixelAsset.item(PixelIcons.itemFor(recipe.outputItem)),
+                ),
               ),
               const SizedBox(width: StrideSpace.s10),
               Expanded(
@@ -367,11 +382,13 @@ class _RecipeRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: StrideSpace.s8),
+              // Moss, not teal: "you can make N" is readiness, not a step
+              // quantity (L-16 repair).
               Text(
                 state,
                 style: StrideType.microLabel.copyWith(
                   color: recipe.canCraft
-                      ? StrideColors.accentSteps
+                      ? StrideColors.positiveReady
                       : StrideColors.textMuted,
                 ),
               ),
