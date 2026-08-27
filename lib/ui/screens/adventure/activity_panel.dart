@@ -847,6 +847,11 @@ class _ResultStrip extends StatelessWidget {
           eyebrow: 'GATHERED',
           title: '$item ×${report.quantity ?? 0}',
           lines: <String>[
+            // The proc, acknowledged (Fable V2 Iteration 02): the committed
+            // quantity already includes it; this line says the extra was an
+            // extra, so the tool and the level visibly pay off.
+            if (report.bonusYield > 0)
+              '+${report.bonusYield} extra — your craft at work',
             if (skillName != null && xp != null) '+$xp $skillName XP',
           ],
         ),
@@ -865,6 +870,8 @@ class _ResultStrip extends StatelessWidget {
         eyebrow: 'GATHERED',
         title: '$item ×${report.quantity ?? 0}',
         lines: <String>[
+          if (report.bonusYield > 0)
+            '+${report.bonusYield} extra — your craft at work',
           if (skillName != null && xp != null) '+$xp $skillName XP',
         ],
       ),

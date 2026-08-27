@@ -47,6 +47,7 @@ import '../../../components/screen_header.dart' show formatSteps;
 import '../../../components/surfaces.dart';
 import '../../../components/walking_glyph.dart';
 import '../../../icons/pixel_icons.dart';
+import '../../../state/audio_scope.dart';
 import '../../../state/session_controller.dart';
 import '../../../state/session_scope.dart';
 import '../../../theme/stride_colors.dart';
@@ -654,6 +655,10 @@ class _TravelControlsState extends State<_TravelControls> {
             onPressed: widget.busy || !widget.open
                 ? null
                 : () {
+                    // The commit of the game's biggest spend — one light
+                    // tap as the boots go on. Fired here, not on arrival:
+                    // the decision is the moment.
+                    AudioScope.maybeRead(context)?.hapticLight();
                     setState(() => _confirming = false);
                     widget.onTravel?.call();
                   },
@@ -747,15 +752,35 @@ class TravelResultLine extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => SurfaceBlock(
-    child: AdaptiveText(
-      _sentence,
-      style: StrideType.sub,
-      color: journey.succeeded
-          ? StrideColors.textPrimary
-          : StrideColors.textSecondary,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final Widget line = SurfaceBlock(
+      child: AdaptiveText(
+        _sentence,
+        style: StrideType.sub,
+        color: journey.succeeded
+            ? StrideColors.textPrimary
+            : StrideColors.textSecondary,
+      ),
+    );
+    // The arrival line steps in once — keyed by the report, so it plays per
+    // journey, not per rebuild. `TweenAnimationBuilder` does not honor
+    // Reduce Motion on its own; the explicit branch does.
+    if (MediaQuery.disableAnimationsOf(context)) return line;
+    return TweenAnimationBuilder<double>(
+      key: ObjectKey(journey),
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      child: line,
+      builder: (BuildContext context, double t, Widget? child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 6 * (1 - t)),
+          child: child,
+        ),
+      ),
+    );
+  }
 
   /// Keyed on the stable wire code, never on the explanation sentence.
   static String refusalText(TravelReport report) => switch (report.rejection) {

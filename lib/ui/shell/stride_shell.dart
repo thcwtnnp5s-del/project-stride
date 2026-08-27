@@ -18,6 +18,7 @@ import '../screens/skills/skills_screen.dart';
 import '../screens/world/world_screen.dart';
 import '../state/session_controller.dart';
 import '../state/session_scope.dart';
+import 'shell_tabs.dart';
 import 'stride_destination.dart';
 
 class StrideShell extends StatefulWidget {
@@ -78,9 +79,7 @@ class _StrideShellState extends State<StrideShell> {
             eyebrow: controller.session.locationName,
             title: _selected.label,
             regionInk: here == null ? null : StrideColors.forRegion(here),
-            regionDeep: here == null
-                ? null
-                : StrideColors.forRegionDeep(here),
+            regionDeep: here == null ? null : StrideColors.forRegionDeep(here),
             trailing: BankedStepsReadout(
               bankedSteps: controller.session.usableEnergy,
             ),
@@ -114,41 +113,49 @@ class _StrideShellState extends State<StrideShell> {
       // the state it was last built with. Fresh instances rebuild every
       // child on every shell build — the *elements* (and so each screen's
       // camera, selection and scroll) are preserved either way.
+      // `ShellTabs` hands the screens the same switch the tab bar uses, so
+      // a moment that points at another tab (the opportunity banner's
+      // journey line) can take the player there instead of describing the
+      // way.
       // ignore: prefer_const_constructors
-      body: IndexedStack(
-        index: _selected.index,
-        children: <Widget>[
-          TickerMode(
-            enabled: _selected == StrideDestination.adventure,
-            // ignore: prefer_const_constructors
-            child: AdventureScreen(),
-          ),
-          TickerMode(
-            enabled: _selected == StrideDestination.character,
-            // ignore: prefer_const_constructors
-            child: CharacterScreen(),
-          ),
-          TickerMode(
-            enabled: _selected == StrideDestination.skills,
-            // ignore: prefer_const_constructors
-            child: SkillsScreen(),
-          ),
-          TickerMode(
-            enabled: _selected == StrideDestination.inventory,
-            // ignore: prefer_const_constructors
-            child: InventoryScreen(),
-          ),
-          TickerMode(
-            enabled: _selected == StrideDestination.craft,
-            // ignore: prefer_const_constructors
-            child: CraftScreen(),
-          ),
-          TickerMode(
-            enabled: _selected == StrideDestination.world,
-            // ignore: prefer_const_constructors
-            child: WorldScreen(),
-          ),
-        ],
+      body: ShellTabs(
+        select: (StrideDestination d) => setState(() => _selected = d),
+        // ignore: prefer_const_constructors
+        child: IndexedStack(
+          index: _selected.index,
+          children: <Widget>[
+            TickerMode(
+              enabled: _selected == StrideDestination.adventure,
+              // ignore: prefer_const_constructors
+              child: AdventureScreen(),
+            ),
+            TickerMode(
+              enabled: _selected == StrideDestination.character,
+              // ignore: prefer_const_constructors
+              child: CharacterScreen(),
+            ),
+            TickerMode(
+              enabled: _selected == StrideDestination.skills,
+              // ignore: prefer_const_constructors
+              child: SkillsScreen(),
+            ),
+            TickerMode(
+              enabled: _selected == StrideDestination.inventory,
+              // ignore: prefer_const_constructors
+              child: InventoryScreen(),
+            ),
+            TickerMode(
+              enabled: _selected == StrideDestination.craft,
+              // ignore: prefer_const_constructors
+              child: CraftScreen(),
+            ),
+            TickerMode(
+              enabled: _selected == StrideDestination.world,
+              // ignore: prefer_const_constructors
+              child: WorldScreen(),
+            ),
+          ],
+        ),
       ),
       bottomBar: StrideTabBar(
         selected: _selected,

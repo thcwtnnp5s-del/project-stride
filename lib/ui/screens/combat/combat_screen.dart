@@ -80,6 +80,10 @@ class _CombatScreenState extends State<CombatScreen> {
   /// on the frame it arrives.
   CombatReport? _seenReport;
 
+  /// Counts fights beginning on screen; keys the entrance reveal so it
+  /// plays once per fight. Presentation memory only.
+  int _fightArrival = 0;
+
   void _onPlayingChanged(bool playing) {
     if (playing == _playing) return;
     setState(() => _playing = playing);
@@ -122,6 +126,10 @@ class _CombatScreenState extends State<CombatScreen> {
       _lastView = live;
     }
     final EncounterView? view = _lastView;
+    // A null→non-null adoption is a fight beginning on screen — the token
+    // that keys the entrance reveal below, so the stage steps in once per
+    // fight and never on a mid-fight rebuild.
+    if (!stageWasUp && view != null) _fightArrival++;
 
     // A report that will be replayed locks the controls and holds the outcome
     // panel back on the frame it arrives. The stage confirms through
@@ -172,8 +180,15 @@ class _CombatScreenState extends State<CombatScreen> {
           ? _ResultPanel.beatsOf(report, outcome)
           : const <Widget>[],
       onDismiss: c.acknowledgeCombat,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      // The fight's entrance (Fable V2 Iteration 02): the stage resolves
+      // first, the controls follow a beat later — the same reveal grammar
+      // as a reward layer, played once per fight (see `_fightArrival`).
+      // `StaggeredReveal` renders everything at full value under Reduce
+      // Motion, and a mid-fight rebuild keeps the element, so nothing
+      // re-plays.
+      child: StaggeredReveal(
+        key: ValueKey<int>(_fightArrival),
+        gap: StrideSpace.cardGap,
         children: <Widget>[
           CombatStage(
             view: view,
@@ -181,7 +196,6 @@ class _CombatScreenState extends State<CombatScreen> {
             ended: ended,
             onPlayingChanged: _onPlayingChanged,
           ),
-          const SizedBox(height: StrideSpace.cardGap),
           SectionCard(
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
             child: Column(

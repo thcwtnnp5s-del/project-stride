@@ -28,9 +28,11 @@ import 'package:stride_core/stride_core.dart'
 import 'package:stride_health/stride_health.dart'
     show HealthAuthorization, SyncFault;
 
+import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/reward_beat.dart' show StaggeredReveal;
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
@@ -39,6 +41,8 @@ import '../../state/activity_controller.dart';
 import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
+import '../../shell/shell_tabs.dart';
+import '../../shell/stride_destination.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
@@ -46,6 +50,7 @@ import '../combat/combat_screen.dart';
 import '../system/stale_banner.dart';
 import 'activity_panel.dart';
 import 'encounter_card.dart';
+import 'goal_board_screen.dart';
 import 'goal_summary_card.dart';
 import 'location_stage.dart';
 
@@ -168,12 +173,21 @@ class _AdventureScreenState extends State<AdventureScreen> {
           // accepted cue, fired by the stage when the work is visibly
           // happening — the loop's strike frame, or the one-shot beginning.
           // `read`, not `of`: a beat must not subscribe this screen.
+          //
+          // The watched single gather also lands one light tap under the
+          // finger. The queue loop's beat (`onActivityBeat`) deliberately
+          // does not: a haptic per loop strike is exactly the "loop beat"
+          // the seam's contract forbids.
           onActivityBeat: staged == null
               ? null
               : () => AudioScope.read(context).playSkillCue(staged.skill.value),
           onGatherCue: staged == null
               ? null
-              : () => AudioScope.read(context).playSkillCue(staged.skill.value),
+              : () {
+                  final AudioController audio = AudioScope.read(context);
+                  audio.playSkillCue(staged.skill.value);
+                  audio.hapticLight();
+                },
         ),
 
         _Gutter(child: _WalkingStrip(controller: c)),
@@ -232,6 +246,14 @@ class _AdventureScreenState extends State<AdventureScreen> {
 /// The step-sync motivation moment: what was banked, and the few true
 /// sentences about what it makes possible (brief §5). Dismissed by the
 /// player, displaced by the next command — never swept away by a timer.
+///
+/// Iteration 02 makes the moment feel like one: the card wears the warm
+/// reward wash, the beats resolve top-to-bottom once, the banked figure
+/// counts up to its committed value, and each opportunity row is the door
+/// to the thing it names — a journey line fronts the World tab, a pursuit
+/// or contract line opens the Goal Board. The figures themselves are
+/// untouched: the count-up ends at the committed number and the reduced-
+/// motion branch renders it directly.
 class _OpportunityBanner extends StatelessWidget {
   const _OpportunityBanner({required this.controller});
 
@@ -243,37 +265,115 @@ class _OpportunityBanner extends StatelessWidget {
     // while this banner waits for a tap, and reading it here is what put
     // "+0 STEPS BANKED" on the owner's device.
     final int banked = controller.lastOpportunityBanked;
+    final List<SyncOpportunity> opportunities = controller.lastOpportunities;
     return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      wash: StrideColors.rewardWashTop,
+      child: StaggeredReveal(
+        // Keyed by the list identity so the next granting sync replays the
+        // reveal; rebuilds while this banner waits do not.
+        key: ObjectKey(opportunities),
+        gap: StrideSpace.s6,
         children: <Widget>[
           Row(
             children: <Widget>[
               const WalkingGlyph(role: WalkingRole.stock),
               const SizedBox(width: StrideSpace.iconLabelGap),
-              Expanded(
-                child: Text(
-                  '+${formatSteps(banked)} STEPS BANKED',
-                  style: StrideType.sectionHeading.copyWith(
-                    color: StrideColors.accentSteps,
-                  ),
-                ),
-              ),
+              Expanded(child: _BankedCountUp(banked: banked)),
             ],
           ),
-          for (final SyncOpportunity o
-              in controller.lastOpportunities) ...<Widget>[
-            const SizedBox(height: StrideSpace.s6),
-            Text(o.headline, style: StrideType.itemName),
-            Text(o.detail, style: StrideType.micro),
-          ],
-          const SizedBox(height: StrideSpace.s8),
-          StrideButton.secondary(
-            label: 'OK',
-            onPressed: controller.acknowledgeOpportunities,
+          for (final SyncOpportunity o in opportunities)
+            _OpportunityRow(opportunity: o),
+          Padding(
+            padding: const EdgeInsets.only(top: StrideSpace.s2),
+            child: StrideButton.secondary(
+              label: 'OK',
+              onPressed: controller.acknowledgeOpportunities,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The banked headline, counting up to the committed figure.
+///
+/// Presentation only: the tween ends at the exact committed value, restarts
+/// only when that value changes, and the reduced-motion branch prints the
+/// figure with no intermediate frames. `RepaintBoundary` + tabular figures
+/// keep the per-frame repaint to this one line (Iteration 02, PERF-A).
+class _BankedCountUp extends StatelessWidget {
+  const _BankedCountUp({required this.banked});
+
+  final int banked;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool reduced = MediaQuery.disableAnimationsOf(context);
+    final TextStyle style = StrideType.sectionHeading.copyWith(
+      color: StrideColors.accentSteps,
+      fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+    );
+    if (reduced) {
+      return Text('+${formatSteps(banked)} STEPS BANKED', style: style);
+    }
+    return RepaintBoundary(
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey<int>(banked),
+        tween: Tween<double>(begin: 0, end: banked.toDouble()),
+        duration: const Duration(milliseconds: 700),
+        curve: Curves.easeOutCubic,
+        builder: (BuildContext context, double value, Widget? child) =>
+            Text('+${formatSteps(value.round())} STEPS BANKED', style: style),
+      ),
+    );
+  }
+}
+
+/// One opportunity, as the door to the thing it announces.
+class _OpportunityRow extends StatelessWidget {
+  const _OpportunityRow({required this.opportunity});
+
+  final SyncOpportunity opportunity;
+
+  @override
+  Widget build(BuildContext context) {
+    // A journey is answered on the World tab; a pursuit or contract on the
+    // Goal Board. Outside the shell (component tests) there is no tab bar
+    // to front, so the journey row degrades to plain text.
+    final ShellTabs? tabs = ShellTabs.maybeOf(context);
+    final VoidCallback? go = switch (opportunity.kind) {
+      SyncOpportunityKind.journeyReady =>
+        tabs == null ? null : () => tabs.select(StrideDestination.world),
+      SyncOpportunityKind.pursuit ||
+      SyncOpportunityKind.contract => () => GoalBoardScreen.open(context),
+    };
+    final Widget body = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(opportunity.headline, style: StrideType.itemName),
+              Text(opportunity.detail, style: StrideType.micro),
+            ],
+          ),
+        ),
+        if (go != null) ...<Widget>[
+          const SizedBox(width: StrideSpace.s6),
+          Text(
+            '›',
+            style: StrideType.sub.copyWith(color: StrideColors.textMuted),
+          ),
+        ],
+      ],
+    );
+    if (go == null) return body;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: go,
+      child: body,
     );
   }
 }
@@ -376,11 +476,20 @@ class _WalkingStrip extends StatelessWidget {
     // Demoted to a utility control beside the facts it refreshes, rather than a
     // full-width filled button under them. It is the only thing on this screen
     // that is not the game action, and it was reading as the game action.
+    //
+    // The one haptic fires only when the sync actually banked — the walk
+    // paying off is the punctuation moment; a no-change check stays silent.
     final Widget sync = StrideButton.secondary(
       label: controller.busy ? 'Checking…' : 'Sync steps',
       onPressed: controller.busy || !controller.session.isReady
           ? null
-          : controller.syncSteps,
+          : () async {
+              final AudioController audio = AudioScope.read(context);
+              await controller.syncSteps();
+              if ((controller.lastSync?.newlyGranted ?? 0) > 0) {
+                audio.hapticLight();
+              }
+            },
     );
 
     final Widget factRow = Wrap(

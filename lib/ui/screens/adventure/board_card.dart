@@ -54,8 +54,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
   /// selection, never a game figure (`RULES.md` E-2).
   ContentId? _open;
 
-  void _toggle(ContentId id) =>
-      setState(() => _open = _open == id ? null : id);
+  void _toggle(ContentId id) => setState(() => _open = _open == id ? null : id);
 
   Future<void> _complete(SessionController c, ContractView job) async {
     final ContractReport? report = await c.completeContract(job.id);
@@ -153,8 +152,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
     final String standing = <String>[
       if (ready > 0) '$ready READY',
       if (accepted > 0) '$accepted ACCEPTED',
-      if (board.developmentState != null)
-        board.developmentState!.toUpperCase(),
+      if (board.developmentState != null) board.developmentState!.toUpperCase(),
     ].join(' · ');
 
     return SectionCard(
@@ -543,20 +541,25 @@ class _ContractRow extends StatelessWidget {
               children: <Widget>[
                 // READY is the one state worth finding at a glance, so it
                 // alone is a filled pill in the step accent's dim form; the
-                // other states stay a word (finding D).
+                // other states stay a word (finding D). The pill settles in
+                // with one small scale when it enters the tree — the flip
+                // to finishable is a moment, and the settle is its
+                // punctuation (Fable V2 Iteration 02).
                 if (c.canComplete && !done)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: StrideSpace.s6,
-                      vertical: 2,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: StrideColors.accentStepsDim,
-                      borderRadius: StrideRadius.chip,
-                    ),
-                    child: Text(
-                      word,
-                      style: StrideType.microLabel.copyWith(color: ink),
+                  _SettleIn(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: StrideSpace.s6,
+                        vertical: 2,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: StrideColors.accentStepsDim,
+                        borderRadius: StrideRadius.chip,
+                      ),
+                      child: Text(
+                        word,
+                        style: StrideType.microLabel.copyWith(color: ink),
+                      ),
                     ),
                   )
                 else
@@ -590,11 +593,35 @@ class _ContractRow extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            head,
-            if (detail case final Widget d) d,
-          ],
+          children: <Widget>[head, if (detail case final Widget d) d],
         ),
+      ),
+    );
+  }
+}
+
+/// One small scale-and-fade as a child enters the tree, then stillness.
+///
+/// Runs once per element lifetime — a row flipping to READY plays it, a
+/// rebuild of a standing row does not — and the reduced-motion branch
+/// renders the child directly. `TweenAnimationBuilder` restarts only when
+/// its tween changes, which here is never, so "once" needs no state.
+class _SettleIn extends StatelessWidget {
+  const _SettleIn({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      child: child,
+      builder: (BuildContext context, double t, Widget? inner) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 1.12 - 0.12 * t, child: inner),
       ),
     );
   }
@@ -630,9 +657,7 @@ class _RewardStrip extends StatelessWidget {
         Text(
           '+${line.xp} ${line.skillName}',
           style: StrideType.micro.copyWith(
-            color: dimmed
-                ? StrideColors.textMuted
-                : StrideColors.textSecondary,
+            color: dimmed ? StrideColors.textMuted : StrideColors.textSecondary,
           ),
           maxLines: 1,
         ),
@@ -640,9 +665,7 @@ class _RewardStrip extends StatelessWidget {
         Text(
           '+${c.rewardCharacterXp} XP',
           style: StrideType.micro.copyWith(
-            color: dimmed
-                ? StrideColors.textMuted
-                : StrideColors.textSecondary,
+            color: dimmed ? StrideColors.textMuted : StrideColors.textSecondary,
           ),
           maxLines: 1,
         ),
@@ -650,9 +673,7 @@ class _RewardStrip extends StatelessWidget {
         Text(
           'teaches a recipe',
           style: StrideType.micro.copyWith(
-            color: dimmed
-                ? StrideColors.textMuted
-                : StrideColors.categoryQuest,
+            color: dimmed ? StrideColors.textMuted : StrideColors.categoryQuest,
           ),
           maxLines: 1,
         ),
@@ -706,7 +727,10 @@ class _TypeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color ink = done ? StrideColors.textMuted : inkOf(contractClass);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s6, vertical: 1),
+      padding: const EdgeInsets.symmetric(
+        horizontal: StrideSpace.s6,
+        vertical: 1,
+      ),
       decoration: BoxDecoration(
         border: Border.all(color: ink.withValues(alpha: 0.55)),
         borderRadius: StrideRadius.chip,
@@ -717,7 +741,10 @@ class _TypeChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(color: ink, borderRadius: StrideRadius.gate),
+            decoration: BoxDecoration(
+              color: ink,
+              borderRadius: StrideRadius.gate,
+            ),
           ),
           const SizedBox(width: StrideSpace.s4),
           Text(
@@ -778,9 +805,7 @@ class _ContractDetail extends StatelessWidget {
         children: <Widget>[
           Text(
             c.brief,
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
             maxLines: 4,
           ),
           if (!c.available && c.unavailableReason != null) ...<Widget>[
@@ -870,9 +895,7 @@ class _ContractDetail extends StatelessWidget {
                               : c.contractClass == ContractClass.bounty
                               ? 'Claim'
                               : 'Deliver',
-                          onPressed: busy || !c.canComplete
-                              ? null
-                              : onComplete,
+                          onPressed: busy || !c.canComplete ? null : onComplete,
                         ),
                 ),
                 const SizedBox(width: StrideSpace.s8),
@@ -1039,10 +1062,7 @@ class _ProjectTileState extends State<_ProjectTile> {
           ),
           if (!project.isComplete) ...<Widget>[
             const SizedBox(height: StrideSpace.s6),
-            Text(
-              current.name.toUpperCase(),
-              style: StrideType.microLabel,
-            ),
+            Text(current.name.toUpperCase(), style: StrideType.microLabel),
             const SizedBox(height: StrideSpace.s4),
             for (final RequirementLine line in current.lines) ...<Widget>[
               _MaterialProgressRow(line: line),
@@ -1054,11 +1074,7 @@ class _ProjectTileState extends State<_ProjectTile> {
                 project.developmentTo != null) ...<Widget>[
               const SizedBox(height: StrideSpace.s4),
               Text(
-                'On completion: ${<String>[
-                  ?project.completionHeadline,
-                  if (project.developmentTo != null)
-                    'the settlement becomes ${project.developmentTo}',
-                ].join(' · ')}',
+                'On completion: ${<String>[?project.completionHeadline, if (project.developmentTo != null) 'the settlement becomes ${project.developmentTo}'].join(' · ')}',
                 style: StrideType.micro.copyWith(
                   color: StrideColors.textSecondary,
                 ),
@@ -1207,27 +1223,26 @@ class _MaterialProgressRow extends StatelessWidget {
         const SizedBox(height: 2),
         TweenAnimationBuilder<double>(
           tween: Tween<double>(end: fraction),
-          duration:
-              reduced ? Duration.zero : const Duration(milliseconds: 600),
+          duration: reduced ? Duration.zero : const Duration(milliseconds: 600),
           curve: Curves.easeOutCubic,
           builder: (BuildContext context, double value, Widget? child) =>
               Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: StrideColors.surfaceGround,
-              borderRadius: StrideRadius.gate,
-            ),
-            child: FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: value,
-              child: DecoratedBox(
+                height: 6,
                 decoration: BoxDecoration(
-                  color: StrideColors.accentSteps,
+                  color: StrideColors.surfaceGround,
                   borderRadius: StrideRadius.gate,
                 ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: value,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: StrideColors.accentSteps,
+                      borderRadius: StrideRadius.gate,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
         ),
       ],
     );
@@ -1280,7 +1295,9 @@ class _ProgressChip extends StatelessWidget {
       '$label ${formatSteps(progress)} / ${formatSteps(required)}'
       '${satisfied ? ' ✓' : ''}${note == null ? '' : ' · $note'}',
       style: StrideType.micro.copyWith(
-        color: satisfied ? StrideColors.textPrimary : StrideColors.textSecondary,
+        color: satisfied
+            ? StrideColors.textPrimary
+            : StrideColors.textSecondary,
       ),
     ),
   );
@@ -1358,9 +1375,7 @@ class _InlineNotice extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
             maxLines: 3,
           ),
         ),

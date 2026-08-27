@@ -31,6 +31,7 @@ import '../../components/grounded_sprite.dart';
 import '../../components/rarity_item_title.dart';
 import '../../components/surfaces.dart';
 import '../../icons/combat_assets.dart';
+import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -217,80 +218,85 @@ class EncounterCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-          if (art != null) ...<Widget>[
-            _EnemyStage(art: art),
-            const SizedBox(height: StrideSpace.s10),
-          ],
-          Text(o.name, style: StrideType.cardTitle, maxLines: 2),
-          Text(
-            o.isBoss ? 'Guards this place' : 'Roams here',
-            style: StrideType.sub,
-            maxLines: 1,
-          ),
+        if (art != null) ...<Widget>[
+          _EnemyStage(art: art),
           const SizedBox(height: StrideSpace.s10),
+        ],
+        Text(o.name, style: StrideType.cardTitle, maxLines: 2),
+        Text(
+          o.isBoss ? 'Guards this place' : 'Roams here',
+          style: StrideType.sub,
+          maxLines: 1,
+        ),
+        const SizedBox(height: StrideSpace.s10),
+        Wrap(
+          spacing: StrideSpace.s6,
+          runSpacing: StrideSpace.s6,
+          children: <Widget>[
+            if (o.isBoss) const RequirementGate(label: 'Boss'),
+            RequirementGate(label: _behaviorLabel(o.behavior)),
+            // The compact knowledge tier (`DECISIONS/0023` §5): Seen,
+            // Studied, Known — and then it stops. Presentation only.
+            RequirementGate(label: knowledgeLabel(o)),
+          ],
+        ),
+        const SizedBox(height: StrideSpace.s10),
+        ValueTileRow(
+          tiles: <LabeledValueTile>[
+            LabeledValueTile(label: 'Health', value: '${o.maxHealth}'),
+            LabeledValueTile(label: 'Attack', value: '${o.attack}'),
+            LabeledValueTile(label: 'Defence', value: '${o.defence}'),
+          ],
+        ),
+        // WHAT I KNOW ABOUT THIS CREATURE — learning the ecology
+        // (PRESENTATION_WORLD_REWARD_FEEL_01 §24). The tier chip above says
+        // how far along the study is; this says what the study has bought:
+        // each known drop in its own rarity's ink, and the signature as
+        // `???` until the enemy is Known. Presentation only — the roll is
+        // identical at every tier (`DECISIONS/0023` §5), and every value
+        // here is the session's own projection.
+        const SizedBox(height: StrideSpace.s10),
+        Text(
+          '+${o.xp} XP',
+          style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+        ),
+        if (o.drops.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.s6),
+          const Text('KNOWN DROPS', style: StrideType.microLabel),
+          const SizedBox(height: StrideSpace.s4),
           Wrap(
-            spacing: StrideSpace.s6,
-            runSpacing: StrideSpace.s6,
+            spacing: StrideSpace.s8,
+            runSpacing: StrideSpace.s4,
             children: <Widget>[
-              if (o.isBoss) const RequirementGate(label: 'Boss'),
-              RequirementGate(label: _behaviorLabel(o.behavior)),
-              // The compact knowledge tier (`DECISIONS/0023` §5): Seen,
-              // Studied, Known — and then it stops. Presentation only.
-              RequirementGate(label: knowledgeLabel(o)),
-            ],
-          ),
-          const SizedBox(height: StrideSpace.s10),
-          ValueTileRow(
-            tiles: <LabeledValueTile>[
-              LabeledValueTile(label: 'Health', value: '${o.maxHealth}'),
-              LabeledValueTile(label: 'Attack', value: '${o.attack}'),
-              LabeledValueTile(label: 'Defence', value: '${o.defence}'),
-            ],
-          ),
-          // WHAT I KNOW ABOUT THIS CREATURE — learning the ecology
-          // (PRESENTATION_WORLD_REWARD_FEEL_01 §24). The tier chip above says
-          // how far along the study is; this says what the study has bought:
-          // each known drop in its own rarity's ink, and the signature as
-          // `???` until the enemy is Known. Presentation only — the roll is
-          // identical at every tier (`DECISIONS/0023` §5), and every value
-          // here is the session's own projection.
-          const SizedBox(height: StrideSpace.s10),
-          Text(
-            '+${o.xp} XP',
-            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
-          ),
-          if (o.drops.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s6),
-            const Text('KNOWN DROPS', style: StrideType.microLabel),
-            const SizedBox(height: StrideSpace.s4),
-            Wrap(
-              spacing: StrideSpace.s8,
-              runSpacing: StrideSpace.s4,
-              children: <Widget>[
-                for (final DropPreview d in o.drops)
-                  d.revealed
-                      ? RarityName(
-                          name: d.signature ? '${d.name} ★' : d.name,
-                          rarity: d.rarity,
-                          style: StrideType.micro,
-                        )
-                      : Text(
-                          '???',
-                          style: StrideType.micro.copyWith(
-                            color: StrideColors.textMuted,
-                          ),
+              for (final DropPreview d in o.drops)
+                d.revealed
+                    ? RarityName(
+                        name: d.signature ? '${d.name} ★' : d.name,
+                        rarity: d.rarity,
+                        style: StrideType.micro,
+                      )
+                    : Text(
+                        '???',
+                        style: StrideType.micro.copyWith(
+                          color: StrideColors.textMuted,
                         ),
-              ],
-            ),
-          ],
-          const SizedBox(height: StrideSpace.s12),
-          StrideButton(
-            label: c.busy ? 'Starting…' : 'Start Combat',
-            subLabel: c.busy ? null : _subLabel(o),
-            onPressed: c.busy || !o.available
-                ? null
-                : () => c.startEncounter(o.enemyId),
+                      ),
+            ],
           ),
+        ],
+        const SizedBox(height: StrideSpace.s12),
+        StrideButton(
+          label: c.busy ? 'Starting…' : 'Start Combat',
+          subLabel: c.busy ? null : _subLabel(o),
+          onPressed: c.busy || !o.available
+              ? null
+              : () {
+                  // The commit into danger — one medium tap as the fight
+                  // begins, the punctuation between planning and combat.
+                  AudioScope.maybeRead(context)?.hapticMedium();
+                  c.startEncounter(o.enemyId);
+                },
+        ),
       ],
     );
   }

@@ -24,11 +24,13 @@ library;
 import 'package:flutter/material.dart' show MaterialPageRoute;
 import 'package:flutter/widgets.dart';
 
+import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
 import '../../components/screen_header.dart';
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
+import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -44,10 +46,8 @@ class StepTrackerScreen extends StatefulWidget {
     final SessionController session = SessionScope.read(context);
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => SessionScope(
-          controller: session,
-          child: const StepTrackerScreen(),
-        ),
+        builder: (_) =>
+            SessionScope(controller: session, child: const StepTrackerScreen()),
       ),
     );
   }
@@ -175,9 +175,19 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
                       const SizedBox(height: StrideSpace.s8),
                       StrideButton.secondary(
                         label: c.busy ? 'Checking…' : 'Sync steps',
+                        // Same rule as the Adventure band's sync: one light
+                        // tap only when the walk actually banked.
                         onPressed: c.busy || !c.session.isReady
                             ? null
-                            : c.syncSteps,
+                            : () async {
+                                final AudioController audio = AudioScope.read(
+                                  context,
+                                );
+                                await c.syncSteps();
+                                if ((c.lastSync?.newlyGranted ?? 0) > 0) {
+                                  audio.hapticLight();
+                                }
+                              },
                       ),
                     ],
                   ),
@@ -297,9 +307,7 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                 'them into one headline; Stride credits each source\'s own '
                 'record, so its total can be higher. Compare each figure '
                 'against Health\'s Sources list to see who is who.',
-                style: StrideType.micro.copyWith(
-                  color: StrideColors.textMuted,
-                ),
+                style: StrideType.micro.copyWith(color: StrideColors.textMuted),
                 maxLines: 5,
               ),
             ],
@@ -323,7 +331,10 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
             _factRow('Spent, lifetime', formatSteps(d.totalSpent)),
             _factRow('Banked now', formatSteps(d.banked)),
             if (d.retiredSteps > 0)
-              _factRow('Retired by playtest epochs', formatSteps(d.retiredSteps)),
+              _factRow(
+                'Retired by playtest epochs',
+                formatSteps(d.retiredSteps),
+              ),
             _factRow('Syncs committed', '${d.syncCount}'),
             _factRow('Resume bookmark', d.cursorPresent ? 'held' : 'none'),
             if (d.grantedAheadOfObserved > 0)
@@ -332,7 +343,10 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                 formatSteps(d.grantedAheadOfObserved),
               ),
             if (d.lateDiscardedSlices > 0)
-              _factRow('Too-late records set aside', '${d.lateDiscardedSlices}'),
+              _factRow(
+                'Too-late records set aside',
+                '${d.lateDiscardedSlices}',
+              ),
             if (d.correctionsObserved > 0)
               _factRow('Downward revisions seen', '${d.correctionsObserved}'),
             if (d.unreachableGapEvents > 0)
@@ -350,9 +364,7 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
         Expanded(
           child: Text(
             label,
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
             maxLines: 1,
           ),
         ),

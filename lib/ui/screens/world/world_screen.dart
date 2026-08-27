@@ -189,6 +189,10 @@ class _WorldScreenState extends State<WorldScreen> {
                 kinds: kinds,
                 way: way,
                 bottomInset: bottomInset,
+                // The pulse wears the warm arrival ink for as long as the
+                // journey's result line stands in the panel (F4) — the same
+                // held report, so the two cannot disagree.
+                arrivalStanding: c.lastJourney?.succeeded ?? false,
                 onExplored: _hasPanned
                     ? null
                     : () => setState(() => _hasPanned = true),

@@ -35,6 +35,8 @@ library;
 
 import 'package:flutter/widgets.dart';
 
+import '../../audio/audio_controller.dart';
+import '../state/audio_scope.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
@@ -59,6 +61,14 @@ Future<void> showRewardLayer(
   Widget? trailing,
 }) {
   final bool reduced = MediaQuery.disableAnimationsOf(context);
+  // The one haptic per payoff, scaled to the layer's own tier — here, so no
+  // caller can double it and no beat inside the layer can add its own.
+  final AudioController? audio = AudioScope.maybeRead(context);
+  if (tier == RewardTier.major) {
+    audio?.hapticHeavy();
+  } else {
+    audio?.hapticMedium();
+  }
   return showGeneralDialog<void>(
     context: context,
     barrierDismissible: false,
@@ -210,9 +220,7 @@ class RewardLayer extends StatelessWidget {
                             gap: StrideSpace.s10,
                             children: <Widget>[
                               for (int i = 0; i < beats.length; i++)
-                                i == 0
-                                    ? beats[i]
-                                    : _Ruled(child: beats[i]),
+                                i == 0 ? beats[i] : _Ruled(child: beats[i]),
                             ],
                           ),
                         ),

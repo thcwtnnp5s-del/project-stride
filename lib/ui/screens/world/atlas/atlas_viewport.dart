@@ -115,10 +115,16 @@ class AtlasViewport extends StatefulWidget {
     this.way,
     this.bottomInset = 0,
     this.onExplored,
+    this.arrivalStanding = false,
   });
 
   final AtlasScene scene;
   final ContentId? selected;
+
+  /// Whether the last journey's result line is still on screen — handed to
+  /// the marker layer so the you-are-here pulse wears the warm arrival ink
+  /// for exactly as long as the panel announces the arrival (F4).
+  final bool arrivalStanding;
 
   /// Logical height along the bottom that the translucent info panel covers.
   /// The camera centres the current (and each arrived) location in the map area
@@ -427,6 +433,7 @@ class AtlasViewportState extends State<AtlasViewport>
                         overview: overview,
                         arrivalToken: _arrivals,
                         travelFrom: _travelFrom,
+                        arrivalStanding: widget.arrivalStanding,
                         onSelect: widget.onSelect,
                       ),
                     ],

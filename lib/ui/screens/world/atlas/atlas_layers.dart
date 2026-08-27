@@ -506,6 +506,7 @@ class AtlasMarkerLayer extends StatelessWidget {
     required this.arrivalToken,
     required this.onSelect,
     this.travelFrom,
+    this.arrivalStanding = false,
   });
 
   final AtlasScene scene;
@@ -535,6 +536,12 @@ class AtlasMarkerLayer extends StatelessWidget {
   /// Where the last journey set out from, for the travel trace. Null before
   /// any journey this session.
   final AtlasNode? travelFrom;
+
+  /// Whether the journey's result line is still on screen — the pulse wears
+  /// the warm arrival ink exactly as long as the panel is announcing the
+  /// arrival, and not a frame longer (F4). Presentation state, read from the
+  /// controller's held report.
+  final bool arrivalStanding;
 
   final ValueChanged<ContentId> onSelect;
 
@@ -569,15 +576,16 @@ class AtlasMarkerLayer extends StatelessWidget {
                     // The layout's named geography, plus every rumor the
                     // player has heard (`DECISIONS/0023` §8) — the scene
                     // joins the two so this layer needs no opinion.
-                    for (final AtlasNamedLandmark named in (overview
-                        ? <AtlasNamedLandmark>[
-                            ...scene.rumorLandmarks,
-                            ...scene.namedLandmarks.where(
-                              (AtlasNamedLandmark l) =>
-                                  l.tier == AtlasLandmarkTier.future,
-                            ),
-                          ]
-                        : scene.namedLandmarks))
+                    for (final AtlasNamedLandmark named
+                        in (overview
+                            ? <AtlasNamedLandmark>[
+                                ...scene.rumorLandmarks,
+                                ...scene.namedLandmarks.where(
+                                  (AtlasNamedLandmark l) =>
+                                      l.tier == AtlasLandmarkTier.future,
+                                ),
+                              ]
+                            : scene.namedLandmarks))
                       _LandmarkLabel(landmark: named, zoom: zoom),
                   ],
                 ),
@@ -640,7 +648,9 @@ class AtlasMarkerLayer extends StatelessWidget {
               child: IgnorePointer(
                 child: Transform.scale(
                   scale: chrome,
-                  child: const AtlasPulse(),
+                  child: AtlasPulse(
+                    arrival: arrivalStanding && arrivalToken > 0,
+                  ),
                 ),
               ),
             ),
@@ -844,11 +854,17 @@ class _StaticRingPainter extends CustomPainter {
 /// the viewport disables it whenever the app is not in the foreground — and it
 /// is disposed with the layer, so leaving the tab stops it.
 class AtlasPulse extends StatefulWidget {
-  const AtlasPulse({super.key});
+  const AtlasPulse({super.key, this.arrival = false});
 
   /// One breath. Slow, so it reads as a place being pointed at rather than an
   /// alert.
   static const Duration period = Duration(milliseconds: 1800);
+
+  /// While the arrival banner still stands (Fable V2 Iteration 02, F4), the
+  /// breath wears the warm reward light instead of parchment — "you just got
+  /// here" for as long as the panel is saying so. Colour only: no extra
+  /// ticker, and under reduced motion the pulse stays as still as ever.
+  final bool arrival;
 
   @override
   State<AtlasPulse> createState() => _AtlasPulseState();
@@ -871,14 +887,18 @@ class _AtlasPulseState extends State<AtlasPulse>
   Widget build(BuildContext context) => SizedBox(
     width: AtlasMarkerSpec.pulseRadius * 2,
     height: AtlasMarkerSpec.pulseRadius * 2,
-    child: CustomPaint(painter: _PulsePainter(_controller)),
+    child: CustomPaint(
+      painter: _PulsePainter(_controller, arrival: widget.arrival),
+    ),
   );
 }
 
 class _PulsePainter extends CustomPainter {
-  _PulsePainter(this.progress) : super(repaint: progress);
+  _PulsePainter(this.progress, {required this.arrival})
+    : super(repaint: progress);
 
   final Animation<double> progress;
+  final bool arrival;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -906,12 +926,15 @@ class _PulsePainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = StrideColors.textPrimary.withValues(alpha: alpha),
+        ..color =
+            (arrival ? StrideColors.rewardLightInk : StrideColors.textPrimary)
+                .withValues(alpha: alpha),
     );
   }
 
   @override
-  bool shouldRepaint(_PulsePainter old) => old.progress != progress;
+  bool shouldRepaint(_PulsePainter old) =>
+      old.progress != progress || old.arrival != arrival;
 }
 
 /// The place's name under its marker, on a compact plate that takes exactly
@@ -1318,9 +1341,7 @@ class _AtlasTravelTraceState extends State<AtlasTravelTrace>
   /// The walked course: the drawn track where the layout has one, else the
   /// straight line — the route painter's own rule.
   List<Offset> _course() {
-    final List<Offset> points = <Offset>[
-      Offset(widget.from.x, widget.from.y),
-    ];
+    final List<Offset> points = <Offset>[Offset(widget.from.x, widget.from.y)];
     final AtlasRoute? drawn = widget.scene.layout.routeBetween(
       widget.from.id,
       widget.to.id,

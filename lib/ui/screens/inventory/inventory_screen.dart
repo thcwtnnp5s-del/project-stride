@@ -41,6 +41,7 @@ import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
+import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/rarity_style.dart';
@@ -489,24 +490,43 @@ class _EquipResult extends StatelessWidget {
   final bool removed;
 
   @override
-  Widget build(BuildContext context) => SurfaceBlock(
-    child: AdaptiveText(
-      report.succeeded
-          ? removed
-                ? 'Set ${report.itemName} aside.'
-                : report.statChanged
-                // The swap's story, not just its fact — "ATK 7 → 9" from
-                // the same loadout the engine fights with (Fable V2).
-                ? 'Equipped ${report.itemName} — ${report.statLabel} '
-                      '${report.statBefore} → ${report.statAfter}.'
-                : 'Equipped ${report.itemName}.'
-          : _refusalText(report),
-      style: StrideType.sub,
-      color: report.succeeded
-          ? StrideColors.textPrimary
-          : StrideColors.textSecondary,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final Widget line = SurfaceBlock(
+      child: AdaptiveText(
+        report.succeeded
+            ? removed
+                  ? 'Set ${report.itemName} aside.'
+                  : report.statChanged
+                  // The swap's story, not just its fact — "ATK 7 → 9" from
+                  // the same loadout the engine fights with (Fable V2).
+                  ? 'Equipped ${report.itemName} — ${report.statLabel} '
+                        '${report.statBefore} → ${report.statAfter}.'
+                  : 'Equipped ${report.itemName}.'
+            : _refusalText(report),
+        style: StrideType.sub,
+        color: report.succeeded
+            ? StrideColors.textPrimary
+            : StrideColors.textSecondary,
+      ),
+    );
+    // A successful swap settles into place — one small scale-and-fade, per
+    // report, so "ATK 7 → 9" lands as a change rather than appearing as
+    // standing text. Refusals arrive flat; an error is not a moment.
+    if (!report.succeeded || MediaQuery.disableAnimationsOf(context)) {
+      return line;
+    }
+    return TweenAnimationBuilder<double>(
+      key: ObjectKey(report),
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      child: line,
+      builder: (BuildContext context, double t, Widget? child) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 1.04 - 0.04 * t, child: child),
+      ),
+    );
+  }
 
   /// Refusals are keyed on the stable wire code, never on the explanation
   /// string — the code is the contract and the sentence is free to change.
@@ -847,7 +867,16 @@ class _EquipControl extends StatelessWidget {
                     final EquipmentSlot? slot = slotOf();
                     if (slot != null) controller.unequip(slot);
                   }
-                : () => controller.equip(item),
+                : () async {
+                    // A successful equip clicks into place — the selection
+                    // haptic, only when the engine accepted. A refusal
+                    // renders its sentence and stays silent.
+                    await controller.equip(item);
+                    if (context.mounted &&
+                        (controller.lastEquip?.succeeded ?? false)) {
+                      AudioScope.maybeRead(context)?.hapticSelection();
+                    }
+                  },
           ),
         ),
       ],

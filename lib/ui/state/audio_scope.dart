@@ -35,4 +35,10 @@ class AudioScope extends InheritedNotifier<AudioController> {
     assert(scope != null, 'No AudioScope above this widget.');
     return scope!.notifier!;
   }
+
+  /// [read], but null when no scope is above — for shared presentation code
+  /// (the reward layer) that component tests pump without the app shell. A
+  /// missing scope silences the cue; it never crashes the payoff.
+  static AudioController? maybeRead(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<AudioScope>()?.notifier;
 }

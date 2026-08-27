@@ -1144,6 +1144,7 @@ final class ActionReport {
     required this.cost,
     this.itemName,
     this.quantity,
+    this.bonusYield = 0,
     this.skillName,
     this.experience,
     this.skillLevelBefore,
@@ -1162,6 +1163,13 @@ final class ActionReport {
 
   final String? itemName;
   final int? quantity;
+
+  /// How much of [quantity] a yield bonus contributed — the committed
+  /// quantity against the node's authored base, so the result strip can say
+  /// "+1 extra" when the tool or the level paid off instead of leaving the
+  /// proc invisible (Fable V2 Iteration 02, feel-audit item 5). A
+  /// restatement of the committed event's own figure; no roll re-derived.
+  final int bonusYield;
 
   /// The skill the experience went to, by display name, and the amount awarded
   /// — both profile-scaled, as awarded, and both null unless [succeeded].
@@ -2341,8 +2349,7 @@ final class StrideSession {
         in ledger.grantedSlices.entries) {
       if (slice.value <= 0) continue;
       final StepOriginKey origin = slice.key.origin;
-      retainedByOrigin[origin] =
-          (retainedByOrigin[origin] ?? 0) + slice.value;
+      retainedByOrigin[origin] = (retainedByOrigin[origin] ?? 0) + slice.value;
       final DateTime start = DateTime.fromMillisecondsSinceEpoch(
         slice.key.bucket.startMillis,
       );
@@ -2372,8 +2379,9 @@ final class StrideSession {
             label: labelFor(i),
             todayGranted: todayByOrigin[origin] ?? 0,
             retainedGranted: retainedByOrigin[origin] ?? 0,
-            settledToWatermark:
-                ledger.checkpoint.originWatermarks.containsKey(origin),
+            settledToWatermark: ledger.checkpoint.originWatermarks.containsKey(
+              origin,
+            ),
           ),
       ],
       totalObserved: ledger.totalObserved,
@@ -2960,6 +2968,10 @@ final class StrideSession {
         .whereType<ResourceGathered>()
         .first;
     final int? levelAfter = _skillLevelOf(gathered.skill);
+    // The committed quantity against [yieldOf] — the same profile-scaled
+    // base the engine granted from — so "+1 extra" is a restatement of the
+    // event's own figure, never a re-roll and never widget arithmetic.
+    final int baseYield = yieldOf(node) ?? gathered.quantity;
     return ActionReport(
       succeeded: true,
       nodeName: name,
@@ -2967,6 +2979,9 @@ final class StrideSession {
       itemName:
           content.items[gathered.item]?.displayName ?? gathered.item.value,
       quantity: gathered.quantity,
+      bonusYield: gathered.quantity > baseYield
+          ? gathered.quantity - baseYield
+          : 0,
       // Both taken from the event rather than from the node definition, for the
       // reason on the type: the definition's figures are unscaled base values.
       skillName:

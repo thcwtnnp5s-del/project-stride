@@ -66,6 +66,7 @@ import '../../components/adaptive_text.dart';
 import '../../components/grounded_sprite.dart';
 import '../../components/pixel_asset.dart';
 import '../../icons/combat_assets.dart';
+import '../../state/audio_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
@@ -329,6 +330,10 @@ class _CombatStageState extends State<CombatStage>
     _playerHpFrom = _playerHp;
     if (s.turn case final int t) _turn = t;
     if (s.telegraph case final bool t) _telegraph = t;
+    // The heavy blow lands in the hand as it lands on screen — once, at the
+    // segment's start, never per frame. The skip path (`_applyRemaining`)
+    // deliberately stays silent: a fast-forwarded round is not a moment.
+    if (s.heavyFlash) AudioScope.maybeRead(context)?.hapticHeavy();
     _controller
       ..duration = s.duration
       ..forward(from: 0);
