@@ -507,10 +507,15 @@ class AtlasMarkerLayer extends StatelessWidget {
     required this.onSelect,
     this.travelFrom,
     this.arrivalStanding = false,
+    this.journey,
   });
 
   final AtlasScene scene;
   final ContentId? selected;
+
+  /// The tracked Journey goal's destination, for its gold ring. Null when
+  /// no journey is set.
+  final ContentId? journey;
 
   /// What kind of place each node is, resolved once per build by the screen
   /// through `AtlasPlaceInfo.kindOf` — the single seam this stream reads place
@@ -633,6 +638,7 @@ class AtlasMarkerLayer extends StatelessWidget {
                     scene: scene,
                     selected: selected,
                     chrome: chrome,
+                    journey: journey,
                   ),
                 ),
               ),
@@ -778,10 +784,18 @@ class _StaticRingPainter extends CustomPainter {
     required this.scene,
     required this.selected,
     required this.chrome,
+    this.journey,
   });
 
   final AtlasScene scene;
   final ContentId? selected;
+
+  /// The tracked Journey goal's destination, or null when none is set — it
+  /// wears a gold ring so the place the player committed to walking toward
+  /// is findable at a glance (Fable V2 Iteration 02, GAME-A #4). The gold
+  /// is `goalActive`, the goal hue, and nothing else on the atlas uses it;
+  /// chrome, not art, exactly as every ring here.
+  final ContentId? journey;
 
   /// [AtlasMarkerSpec.chromeScale] for the current zoom: every radius and
   /// stroke is multiplied by it so the rings hold their authored dp size when
@@ -839,12 +853,36 @@ class _StaticRingPainter extends CustomPainter {
           ink..strokeWidth = AtlasMarkerSpec.selectedStroke * chrome,
         );
       }
+
+      // The Journey ring: gold, outside the place's own ring and inside a
+      // selection's — visible together with either. Not drawn on the
+      // current place: an arrived journey's marker is the you-are-here
+      // bullseye, and two rings would say two things.
+      if (node.id == journey && !current) {
+        final double jr = (AtlasMarkerSpec.ringRadius + 3) * chrome;
+        canvas.drawCircle(
+          c,
+          jr,
+          outline..strokeWidth = (AtlasMarkerSpec.ringStroke + 2) * chrome,
+        );
+        canvas.drawCircle(
+          c,
+          jr,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..color = StrideColors.goalActive
+            ..strokeWidth = AtlasMarkerSpec.ringStroke * chrome,
+        );
+      }
     }
   }
 
   @override
   bool shouldRepaint(_StaticRingPainter old) =>
-      old.selected != selected || old.scene != scene || old.chrome != chrome;
+      old.selected != selected ||
+      old.scene != scene ||
+      old.chrome != chrome ||
+      old.journey != journey;
 }
 
 /// The expanding, fading ring under the player's location.

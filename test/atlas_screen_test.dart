@@ -513,7 +513,7 @@ void main() {
     await pinch(tester, 100, 133);
     final double settled = state.zoom;
     expect(settled, inExclusiveRange(state.minZoom, zooms.max));
-    final int unit = shippedAtlasScale * 3;   // art scale × dpr
+    final int unit = shippedAtlasScale * 3; // art scale × dpr
     expect(
       (settled * unit).roundToDouble(),
       settled * unit,
@@ -699,5 +699,30 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
     expect(tester.hasRunningAnimations, isTrue);
+  });
+
+  testWidgets('the tracked Journey\'s destination reaches the marker layer, '
+      'and an untracked one does not', (WidgetTester tester) async {
+    final StrideSession session = await boot(tester);
+    final SessionController controller = await pumpWorld(tester, session);
+
+    AtlasMarkerLayer markers() =>
+        tester.widget<AtlasMarkerLayer>(find.byType(AtlasMarkerLayer));
+
+    // No journey set: no gold ring parameter.
+    expect(markers().journey, isNull);
+
+    // Track the Woods as the Journey — the same command the panel's
+    // "Set as Journey" button dispatches — and the marker layer reads the
+    // destination from the same projection the tracker card renders.
+    final ContentId woods = ContentId.unchecked('location.whispering_woods');
+    await tester.runAsync(() => controller.trackGoal(GoalSlot.journey, woods));
+    await tester.pumpAndSettle();
+    expect(markers().journey, woods);
+
+    // Cleared: the ring goes with it.
+    await tester.runAsync(() => controller.trackGoal(GoalSlot.journey, null));
+    await tester.pumpAndSettle();
+    expect(markers().journey, isNull);
   });
 }

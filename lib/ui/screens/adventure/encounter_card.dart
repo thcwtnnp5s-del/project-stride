@@ -270,10 +270,27 @@ class EncounterCard extends StatelessWidget {
             children: <Widget>[
               for (final DropPreview d in o.drops)
                 d.revealed
-                    ? RarityName(
-                        name: d.signature ? '${d.name} ★' : d.name,
-                        rarity: d.rarity,
-                        style: StrideType.micro,
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          RarityName(
+                            name: d.signature ? '${d.name} ★' : d.name,
+                            rarity: d.rarity,
+                            style: StrideType.micro,
+                          ),
+                          // Studying pays off in words, knowing in figures
+                          // (Fable V2 Iteration 02): the qualifier is the
+                          // authored chance the engine rolls, graduated by
+                          // tier — nothing below Studied, a frequency word
+                          // at Studied, the exact percent at Known.
+                          if (_chanceLabel(o, d) case final String chance)
+                            Text(
+                              ' · $chance',
+                              style: StrideType.micro.copyWith(
+                                color: StrideColors.textSecondary,
+                              ),
+                            ),
+                        ],
                       )
                     : Text(
                         '???',
@@ -306,6 +323,24 @@ class EncounterCard extends StatelessWidget {
     EnemyBehavior.flurry => 'Two light strikes a turn',
     EnemyBehavior.guarded => 'Heavy strike every third turn',
   };
+
+  /// What the card may say about a drop's chance, by knowledge tier. The
+  /// projection always carries the true figure; this decides how much of it
+  /// the player has earned. Word boundaries: half the fights or better is
+  /// "usually", a fifth or better "often", the rest "rarely".
+  static String? _chanceLabel(EncounterOption o, DropPreview d) {
+    if (!d.revealed || d.chancePercent <= 0) return null;
+    return switch (o.knowledge) {
+      KnowledgeTier.known => '${d.chancePercent}%',
+      KnowledgeTier.studied =>
+        d.chancePercent >= 50
+            ? 'usually'
+            : d.chancePercent >= 20
+            ? 'often'
+            : 'rarely',
+      KnowledgeTier.unseen || KnowledgeTier.seen => null,
+    };
+  }
 
   /// The tier, with the distance to the next one while one exists. Shared
   /// with the collapsed row, so the two cannot describe one study

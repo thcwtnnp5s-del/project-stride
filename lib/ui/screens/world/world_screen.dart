@@ -193,6 +193,10 @@ class _WorldScreenState extends State<WorldScreen> {
                 // journey's result line stands in the panel (F4) — the same
                 // held report, so the two cannot disagree.
                 arrivalStanding: c.lastJourney?.succeeded ?? false,
+                // The tracked Journey's destination wears its gold ring —
+                // read from the same goal projection the tracker card
+                // renders, so the map and the card cannot disagree.
+                journey: s.trackedGoals.journey?.destination,
                 onExplored: _hasPanned
                     ? null
                     : () => setState(() => _hasPanned = true),

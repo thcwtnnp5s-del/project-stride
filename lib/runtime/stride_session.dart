@@ -229,6 +229,7 @@ final class DropPreview {
     required this.id,
     required this.name,
     required this.rarity,
+    this.chancePercent = 0,
     this.signature = false,
     this.revealed = true,
   });
@@ -238,6 +239,13 @@ final class DropPreview {
 
   /// Null only when the content pack has no definition for [id].
   final Rarity? rarity;
+
+  /// The authored whole-percent drop chance, exactly as the engine rolls it
+  /// (Fable V2 Iteration 02, loot intelligence). What the card may *say*
+  /// about it is graduated by knowledge tier in the presentation — a
+  /// frequency word at Studied, the figure at Known — but the projection
+  /// always carries the true number; the tiering is display, never data.
+  final int chancePercent;
 
   /// A signature rare drop (`DECISIONS/0023` §5).
   final bool signature;
@@ -4297,6 +4305,7 @@ final class StrideSession {
                         content.items[drop.item]?.displayName ??
                         drop.item.value,
                     rarity: content.items[drop.item]?.rarity,
+                    chancePercent: drop.chancePercent,
                     signature: drop.signature,
                     // A signature drop's existence is concealed until the
                     // enemy is Known (`DECISIONS/0023` §5). Presentation
@@ -5524,6 +5533,21 @@ final class StrideSession {
             (RequirementLine l) =>
                 (contributable[l.item] ?? 0) + l.progress >= l.required,
           ),
+      // The join over the gates the engine itself refuses with — a node's
+      // `unlockedByProject`, a recipe's, and an order's `requiresProject` —
+      // so the card can say why the mill is worth building.
+      opens: complete
+          ? const <String>[]
+          : <String>[
+              for (final ResourceNodeDefinition node
+                  in content.resourceNodes.values)
+                if (node.unlockedByProject == id) node.displayName,
+              for (final RecipeDefinition recipe in content.recipes.values)
+                if (recipe.unlockedByProject == id) recipe.displayName,
+              for (final ContractDefinition contract
+                  in content.contracts.values)
+                if (contract.requiresProject == id) contract.displayName,
+            ],
     );
   }
 
@@ -6105,6 +6129,7 @@ final class ProjectView {
     required this.developmentTo,
     required this.contributable,
     required this.canAdvanceNow,
+    this.opens = const <String>[],
   });
 
   final ContentId id;
@@ -6112,6 +6137,14 @@ final class ProjectView {
   final String brief;
   final ContentId location;
   final List<ProjectStageView> stages;
+
+  /// What completing this project opens, by display name — the nodes,
+  /// recipes and orders content gates behind it (Fable V2 Iteration 02).
+  /// The join is over the same `unlockedByProject` / `requiresProject`
+  /// fields the engine refuses with, so the card's promise and the
+  /// engine's gate cannot disagree. Empty once complete: a standing mill
+  /// does not advertise what it already opened.
+  final List<String> opens;
 
   /// 0-based; the last stage when complete.
   final int currentStage;

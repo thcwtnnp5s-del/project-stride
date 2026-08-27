@@ -296,6 +296,7 @@
       "toolKind": "axe",
       "tier": 2,
       "power": 6,
+      "toolBonusYieldPercent": 15,
       "stackable": false
     },
     {

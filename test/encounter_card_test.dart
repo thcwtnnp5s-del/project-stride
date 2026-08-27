@@ -28,6 +28,8 @@ EncounterOption option({
   bool boss = false,
   EnemyBehavior behavior = EnemyBehavior.flurry,
   int remaining = 2,
+  KnowledgeTier knowledge = KnowledgeTier.unseen,
+  int dropChance = 0,
 }) => EncounterOption(
   enemyId: ContentId.unchecked(enemy),
   name: name,
@@ -42,12 +44,14 @@ EncounterOption option({
       id: ContentId.unchecked('item.meadow_herb'),
       name: 'Meadow Herb',
       rarity: Rarity.common,
+      chancePercent: dropChance,
     ),
   ],
   encountersPerVisit: 2,
   remainingThisVisit: remaining,
   available: remaining > 0,
   reason: remaining > 0 ? null : 'enemy_driven_off',
+  knowledge: knowledge,
 );
 
 void main() {
@@ -202,6 +206,54 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(enemySprite(tester), endsWith('wolf_idle_f0.png'));
     // Nothing is scheduled: it settles immediately.
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('drop chances graduate by knowledge: nothing below Studied, a '
+      'frequency word at Studied, the figure at Known', (
+    WidgetTester tester,
+  ) async {
+    final SessionController c = await boot(tester);
+
+    // Seen: the drop's name alone — the chance has not been earned.
+    await tester.pumpWidget(
+      shell(c, option(knowledge: KnowledgeTier.seen, dropChance: 65)),
+    );
+    await tester.pump();
+    expect(find.text('Meadow Herb'), findsOneWidget);
+    expect(find.textContaining('usually'), findsNothing);
+    expect(find.textContaining('%'), findsNothing);
+
+    // Studied: a frequency word, banded by the authored chance.
+    await tester.pumpWidget(
+      shell(c, option(knowledge: KnowledgeTier.studied, dropChance: 65)),
+    );
+    await tester.pump();
+    expect(find.text(' · usually'), findsOneWidget);
+    await tester.pumpWidget(
+      shell(c, option(knowledge: KnowledgeTier.studied, dropChance: 30)),
+    );
+    await tester.pump();
+    expect(find.text(' · often'), findsOneWidget);
+    await tester.pumpWidget(
+      shell(c, option(knowledge: KnowledgeTier.studied, dropChance: 10)),
+    );
+    await tester.pump();
+    expect(find.text(' · rarely'), findsOneWidget);
+
+    // Known: the exact figure the engine rolls.
+    await tester.pumpWidget(
+      shell(c, option(knowledge: KnowledgeTier.known, dropChance: 65)),
+    );
+    await tester.pump();
+    expect(find.text(' · 65%'), findsOneWidget);
+
+    // A zero chance says nothing at any tier — no invented figure.
+    await tester.pumpWidget(
+      shell(c, option(knowledge: KnowledgeTier.known, dropChance: 0)),
+    );
+    await tester.pump();
+    expect(find.textContaining('%'), findsNothing);
     await tester.pumpAndSettle();
   });
 

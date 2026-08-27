@@ -74,9 +74,7 @@ final ContentId mill = ContentId.unchecked('project.havens_rest_mill');
 final ContentId lift = ContentId.unchecked('project.stonefall_lift');
 final ContentId shelter = ContentId.unchecked('project.frostmere_shelter');
 
-final ContentId meadowPatch = ContentId.unchecked(
-  'resource_node.meadow_patch',
-);
+final ContentId meadowPatch = ContentId.unchecked('resource_node.meadow_patch');
 final ContentId oakStand = ContentId.unchecked('resource_node.oak_stand');
 final ContentId hardenedSeam = ContentId.unchecked(
   'resource_node.hardened_copper_seam',
@@ -182,9 +180,7 @@ void main() {
     test('travel to a safe place heals fully and freely; unsafe does not', () {
       final GameEngine engine = playerAt(woods, banked: 5000, hp: 12);
       // Woods → Haven's Rest (safe): full heal on the same event as the move.
-      final EngineResult toHaven = engine.execute(
-        TravelTo(destination: haven),
-      );
+      final EngineResult toHaven = engine.execute(TravelTo(destination: haven));
       final LocationTravelled arrived =
           toHaven.events.single as LocationTravelled;
       expect(arrived.restoredHp, 40);
@@ -222,21 +218,16 @@ void main() {
       expect(CombatRules.isSafeNow(place, sheltered), isTrue);
       // And retreat now finds Frostmere itself rather than walking the whole
       // graph home.
-      expect(
-        CombatRules.retreatDestination(sheltered, registry),
-        frostmere,
-      );
+      expect(CombatRules.retreatDestination(sheltered, registry), frostmere);
     });
 
-    test('defeat retreats to safety, restores HP there, and loses nothing',
-        () {
+    test('defeat retreats to safety, restores HP there, and loses nothing', () {
       // Bare-handed against the lynx: the defeat is the point.
       final GameEngine engine = playerAt(frostmere, hp: 8);
       final GameState before = engine.state;
       engine.execute(StartEncounter(enemy: lynx));
       final EngineResult last = fightOut(engine);
-      final EncounterLost lost =
-          last.events.whereType<EncounterLost>().single;
+      final EncounterLost lost = last.events.whereType<EncounterLost>().single;
       expect(lost.retreatTo, haven);
       expect(lost.restoredHp, 40, reason: 'the safe retreat heals fully');
       expect(engine.state.player.hp, 40);
@@ -312,10 +303,10 @@ void main() {
       expect(toFrostmere.totalCost, 4400);
       expect(toFrostmere.shortfall, 2400);
       expect(toFrostmere.ready, isFalse);
-      expect(
-        toFrostmere.legs.map((JourneyLeg l) => l.to),
-        <ContentId>[mine, frostmere],
-      );
+      expect(toFrostmere.legs.map((JourneyLeg l) => l.to), <ContentId>[
+        mine,
+        frostmere,
+      ]);
 
       // Spend elsewhere: the shortfall grows; nothing was reserved.
       engine.execute(TravelTo(destination: woods));
@@ -488,9 +479,7 @@ void main() {
       expect(engine.state.inventory.quantityOf(meadowHerb), 2);
       expect(engine.state.inventory.quantityOf(herbBroth), 2);
       expect(
-        engine.state.skills.experienceIn(
-          ContentId.unchecked('skill.foraging'),
-        ),
+        engine.state.skills.experienceIn(ContentId.unchecked('skill.foraging')),
         30,
       );
       expect(engine.state.progress.completionsOf(herbalSupplies), 1);
@@ -574,9 +563,7 @@ void main() {
         kitchenStores,
         ContentId.unchecked('contract.workshop_delivery'),
       ]) {
-        final EngineResult r = engine.execute(
-          CompleteContract(contract: next),
-        );
+        final EngineResult r = engine.execute(CompleteContract(contract: next));
         expect(r.isAccepted, isTrue, reason: '$next: ${r.rejection}');
       }
       // The deck has wrapped: the first order is back on the board.
@@ -585,6 +572,89 @@ void main() {
         later,
         contains(herbalSupplies),
         reason: 'after the deck cycles, earlier orders return (brief §7)',
+      );
+    });
+
+    test('a project-gated order is not dealt until its project completes', () {
+      // Carpenter's Commission (deck order 7) requires the mill. Before the
+      // mill stands, rotation must skip it: dealt, it froze a slot as a job
+      // the engine itself would refuse (Fable V2 Iteration 02). Replay
+      // safety is untouched — the dealt slots are recorded on the event.
+      final ContentId commission = ContentId.unchecked(
+        'contract.carpenters_commission',
+      );
+      final ContentId bearPelt = ContentId.unchecked('item.bear_pelt');
+      final GameEngine engine = playerAt(
+        haven,
+        items: <ContentId, int>{
+          meadowHerb: 400,
+          oakLog: 400,
+          oakPlank: 400,
+          duskcap: 200,
+          bronzeIngot: 100,
+          herbBroth: 50,
+          bearPelt: 20,
+          scrapMetal: 100,
+        },
+      );
+
+      // Two full deck cycles of completions: the gated order never deals.
+      for (int i = 0; i < 14; i++) {
+        final List<ContentId> slots = engine.localNeedSlots(
+          engine.state,
+          haven,
+        );
+        expect(
+          slots,
+          isNot(contains(commission)),
+          reason: 'gated order dealt before its project (round $i)',
+        );
+        final EngineResult r = engine.execute(
+          CompleteContract(contract: slots.first),
+        );
+        expect(r.isAccepted, isTrue, reason: '${slots.first}: ${r.rejection}');
+      }
+
+      // The mill completes; the commission becomes dealable and arrives as
+      // the deck reaches it.
+      engine.execute(
+        ContributeToProject(
+          project: mill,
+          contributions: <ContentId, int>{oakPlank: 12},
+        ),
+      );
+      engine.execute(
+        ContributeToProject(
+          project: mill,
+          contributions: <ContentId, int>{bronzeIngot: 4},
+        ),
+      );
+      engine.execute(
+        ContributeToProject(
+          project: mill,
+          contributions: <ContentId, int>{oakLog: 6, herbBroth: 3},
+        ),
+      );
+      expect(engine.state.progress.isProjectComplete(mill), isTrue);
+
+      bool dealt = false;
+      for (int i = 0; i < 7 && !dealt; i++) {
+        final List<ContentId> slots = engine.localNeedSlots(
+          engine.state,
+          haven,
+        );
+        dealt = slots.contains(commission);
+        if (dealt) break;
+        final EngineResult r = engine.execute(
+          CompleteContract(contract: slots.first),
+        );
+        expect(r.isAccepted, isTrue, reason: '${slots.first}: ${r.rejection}');
+        dealt = engine.localNeedSlots(engine.state, haven).contains(commission);
+      }
+      expect(
+        dealt,
+        isTrue,
+        reason: 'once the mill stands, the commission is dealt in turn',
       );
     });
 
@@ -607,10 +677,7 @@ void main() {
 
       // Completing now is refused: nothing counted yet.
       expect(
-        engine
-            .execute(CompleteContract(contract: wolfProblem))
-            .rejection!
-            .code,
+        engine.execute(CompleteContract(contract: wolfProblem)).rejection!.code,
         RejectionCode.bountyUnmet,
       );
 
@@ -668,19 +735,14 @@ void main() {
         banked: 5000,
       );
       expect(
-        engine
-            .execute(CompleteContract(contract: woodlandAid))
-            .rejection!
-            .code,
+        engine.execute(CompleteContract(contract: woodlandAid)).rejection!.code,
         RejectionCode.contractNotAvailable,
       );
 
       // Help at the woods: Trail Clearing takes 8 oak logs.
       engine.execute(TravelTo(destination: woods));
       expect(
-        engine
-            .execute(CompleteContract(contract: trailClearing))
-            .isAccepted,
+        engine.execute(CompleteContract(contract: trailClearing)).isAccepted,
         isTrue,
       );
       engine.execute(TravelTo(destination: haven));
@@ -702,10 +764,7 @@ void main() {
       );
       // One-time: a second completion is refused.
       expect(
-        engine
-            .execute(CompleteContract(contract: woodlandAid))
-            .rejection!
-            .code,
+        engine.execute(CompleteContract(contract: woodlandAid)).rejection!.code,
         RejectionCode.contractNotAvailable,
       );
       // And the recipe is now merely progression away, not locked: the next
@@ -723,11 +782,7 @@ void main() {
     test('requiresOwned shows the item and keeps it', () {
       final GameEngine engine = playerAt(
         frostmere,
-        items: <ContentId, int>{
-          wolfhide: 1,
-          rimeBlossom: 2,
-          ramWool: 1,
-        },
+        items: <ContentId, int>{wolfhide: 1, rimeBlossom: 2, ramWool: 1},
       );
       final EngineResult r = engine.execute(
         CompleteContract(contract: coldWeatherKit),
@@ -753,8 +808,7 @@ void main() {
       );
     });
 
-    test('contract state survives the journal codec and a save round trip',
-        () {
+    test('contract state survives the journal codec and a save round trip', () {
       final GameEngine engine = playerAt(
         haven,
         items: <ContentId, int>{meadowHerb: 7},
@@ -806,10 +860,7 @@ void main() {
       expect(given.stageCompleted, isFalse);
       expect(given.stageContributedAfter, <ContentId, int>{oakPlank: 5});
       expect(engine.state.inventory.quantityOf(oakPlank), 0);
-      expect(
-        engine.state.progress.projects[mill]!.contributedOf(oakPlank),
-        5,
-      );
+      expect(engine.state.progress.projects[mill]!.contributedOf(oakPlank), 5);
       expect(
         given.characterXp,
         0,
@@ -817,55 +868,57 @@ void main() {
       );
     });
 
-    test('over-contribution, unneeded items and shortfalls all refuse whole',
-        () {
-      final GameEngine engine = playerAt(
-        haven,
-        items: <ContentId, int>{oakPlank: 20, meadowHerb: 5},
-      );
-      final GameState before = engine.state;
-      // More than the stage needs.
-      expect(
-        engine
-            .execute(
-              ContributeToProject(
-                project: mill,
-                contributions: <ContentId, int>{oakPlank: 13},
-              ),
-            )
-            .rejection!
-            .code,
-        RejectionCode.invalidContribution,
-      );
-      // An item the stage does not want.
-      expect(
-        engine
-            .execute(
-              ContributeToProject(
-                project: mill,
-                contributions: <ContentId, int>{meadowHerb: 1},
-              ),
-            )
-            .rejection!
-            .code,
-        RejectionCode.invalidContribution,
-      );
-      // More than is held.
-      expect(
-        engine
-            .execute(
-              ContributeToProject(
-                project: lift,
-                contributions: <ContentId, int>{oakPlank: 30},
-              ),
-            )
-            .rejection!
-            .code,
-        RejectionCode.projectNotHere,
-        reason: 'the Lift is at Stonefall; contributions are made in person',
-      );
-      expect(identical(engine.state, before), isTrue);
-    });
+    test(
+      'over-contribution, unneeded items and shortfalls all refuse whole',
+      () {
+        final GameEngine engine = playerAt(
+          haven,
+          items: <ContentId, int>{oakPlank: 20, meadowHerb: 5},
+        );
+        final GameState before = engine.state;
+        // More than the stage needs.
+        expect(
+          engine
+              .execute(
+                ContributeToProject(
+                  project: mill,
+                  contributions: <ContentId, int>{oakPlank: 13},
+                ),
+              )
+              .rejection!
+              .code,
+          RejectionCode.invalidContribution,
+        );
+        // An item the stage does not want.
+        expect(
+          engine
+              .execute(
+                ContributeToProject(
+                  project: mill,
+                  contributions: <ContentId, int>{meadowHerb: 1},
+                ),
+              )
+              .rejection!
+              .code,
+          RejectionCode.invalidContribution,
+        );
+        // More than is held.
+        expect(
+          engine
+              .execute(
+                ContributeToProject(
+                  project: lift,
+                  contributions: <ContentId, int>{oakPlank: 30},
+                ),
+              )
+              .rejection!
+              .code,
+          RejectionCode.projectNotHere,
+          reason: 'the Lift is at Stonefall; contributions are made in person',
+        );
+        expect(identical(engine.state, before), isTrue);
+      },
+    );
 
     test(
       'the Mill completes exactly once, and its effects hold from then on',
@@ -878,15 +931,14 @@ void main() {
             oakLog: 30,
             herbBroth: 3,
           },
-          skillXp: <ContentId, int>{
-            ContentId.unchecked('skill.smithing'): 0,
-          },
+          skillXp: <ContentId, int>{ContentId.unchecked('skill.smithing'): 0},
         );
 
         // Before the Mill: planks cost three logs, and the improved recipe
         // is not offered.
         expect(
-          registry.recipes[ContentId.unchecked('recipe.oak_plank')]!
+          registry
+              .recipes[ContentId.unchecked('recipe.oak_plank')]!
               .ingredients
               .single
               .quantity,
@@ -1003,15 +1055,12 @@ void main() {
       },
     );
 
-    test('the Lift unlocks the hardened seam; the Shelter opens contracts',
-        () {
+    test('the Lift unlocks the hardened seam; the Shelter opens contracts', () {
       final GameEngine engine = playerAt(
         mine,
         tool: reinforcedPickaxe,
         items: <ContentId, int>{reinforcedPickaxe: 1},
-        skillXp: <ContentId, int>{
-          ContentId.unchecked('skill.mining'): 1000,
-        },
+        skillXp: <ContentId, int>{ContentId.unchecked('skill.mining'): 1000},
         banked: 1000,
       );
       // Locked before the Lift, even with the tool and the level.
@@ -1060,84 +1109,86 @@ void main() {
   });
 
   group('§84 — enemy knowledge', () {
-    test('Seen on the first encounter, Studied and Known at the thresholds',
-        () {
-      final EnemyDefinition wolfDef = registry.enemies[wolf]!;
-      expect((wolfDef.studiedAt, wolfDef.knownAt), (3, 6));
+    test(
+      'Seen on the first encounter, Studied and Known at the thresholds',
+      () {
+        final EnemyDefinition wolfDef = registry.enemies[wolf]!;
+        expect((wolfDef.studiedAt, wolfDef.knownAt), (3, 6));
 
-      final GameEngine engine = playerAt(
-        woods,
-        weapon: bronzeSword,
-        armor: chestplate,
-        items: <ContentId, int>{herbBroth: 40},
-      );
-      expect(knowledgeTierFor(engine.state, wolfDef), KnowledgeTier.unseen);
+        final GameEngine engine = playerAt(
+          woods,
+          weapon: bronzeSword,
+          armor: chestplate,
+          items: <ContentId, int>{herbBroth: 40},
+        );
+        expect(knowledgeTierFor(engine.state, wolfDef), KnowledgeTier.unseen);
 
-      engine.execute(StartEncounter(enemy: wolf));
-      expect(
-        knowledgeTierFor(engine.state, wolfDef),
-        KnowledgeTier.seen,
-        reason: 'starting the fight is what makes an enemy Seen',
-      );
+        engine.execute(StartEncounter(enemy: wolf));
+        expect(
+          knowledgeTierFor(engine.state, wolfDef),
+          KnowledgeTier.seen,
+          reason: 'starting the fight is what makes an enemy Seen',
+        );
 
-      int knowledgeXpAwards = 0;
-      for (int wins = 0; wins < 7;) {
-        if (engine.state.encounter == null) {
-          if (!engine.state.world.isAvailable(
-            wolf,
-            wolfDef.encountersPerVisit,
-          )) {
-            engine.execute(EnterLocation(location: haven));
+        int knowledgeXpAwards = 0;
+        for (int wins = 0; wins < 7;) {
+          if (engine.state.encounter == null) {
+            if (!engine.state.world.isAvailable(
+              wolf,
+              wolfDef.encountersPerVisit,
+            )) {
+              engine.execute(EnterLocation(location: haven));
+              engine.execute(EnterLocation(location: woods));
+            }
+            engine.execute(StartEncounter(enemy: wolf));
+          }
+          final EngineResult last = fightOut(engine);
+          final EncounterWon? won = last.events
+              .whereType<EncounterWon>()
+              .firstOrNull;
+          if (won != null) {
+            wins = won.victoriesAfter!;
+            if (won.knowledgeXp > 0) {
+              knowledgeXpAwards++;
+              expect(
+                wins,
+                wolfDef.knownAt,
+                reason: 'the one-time award rides exactly the crossing victory',
+              );
+              expect(won.knowledgeXp, wolfDef.knownXp);
+            }
+            if (wins == 2) {
+              expect(
+                knowledgeTierFor(engine.state, wolfDef),
+                KnowledgeTier.seen,
+              );
+            }
+            if (wins == 3) {
+              expect(
+                knowledgeTierFor(engine.state, wolfDef),
+                KnowledgeTier.studied,
+              );
+            }
+          }
+          while (engine.state.player.hp <
+              CombatRules.maxHpFor(engine.state.player.level)) {
+            if (engine.execute(EatFood(item: herbBroth)).isRejected) break;
+          }
+          if (engine.state.world.currentLocation != woods) {
             engine.execute(EnterLocation(location: woods));
           }
-          engine.execute(StartEncounter(enemy: wolf));
         }
-        final EngineResult last = fightOut(engine);
-        final EncounterWon? won =
-            last.events.whereType<EncounterWon>().firstOrNull;
-        if (won != null) {
-          wins = won.victoriesAfter!;
-          if (won.knowledgeXp > 0) {
-            knowledgeXpAwards++;
-            expect(
-              wins,
-              wolfDef.knownAt,
-              reason: 'the one-time award rides exactly the crossing victory',
-            );
-            expect(won.knowledgeXp, wolfDef.knownXp);
-          }
-          if (wins == 2) {
-            expect(
-              knowledgeTierFor(engine.state, wolfDef),
-              KnowledgeTier.seen,
-            );
-          }
-          if (wins == 3) {
-            expect(
-              knowledgeTierFor(engine.state, wolfDef),
-              KnowledgeTier.studied,
-            );
-          }
-        }
-        while (engine.state.player.hp <
-            CombatRules.maxHpFor(engine.state.player.level)) {
-          if (engine.execute(EatFood(item: herbBroth)).isRejected) break;
-        }
-        if (engine.state.world.currentLocation != woods) {
-          engine.execute(EnterLocation(location: woods));
-        }
-      }
-      expect(knowledgeTierFor(engine.state, wolfDef), KnowledgeTier.known);
-      expect(
-        knowledgeXpAwards,
-        1,
-        reason: 'the Known award is exactly once — then it stops',
-      );
-      expect(engine.state.progress.victoriesOf(wolf), 7);
-    });
+        expect(knowledgeTierFor(engine.state, wolfDef), KnowledgeTier.known);
+        expect(
+          knowledgeXpAwards,
+          1,
+          reason: 'the Known award is exactly once — then it stops',
+        );
+        expect(engine.state.progress.victoriesOf(wolf), 7);
+      },
+    );
 
-    test('lifetime victories persist across travel and a save round trip',
-        () {
+    test('lifetime victories persist across travel and a save round trip', () {
       final GameEngine engine = playerAt(
         woods,
         weapon: bronzeSword,
@@ -1193,11 +1244,7 @@ void main() {
         }
       }
       expect(signatures, greaterThan(0), reason: 'an 8% roll lands in 400');
-      expect(
-        signatures,
-        lessThan(100),
-        reason: 'and it is rare, not routine',
-      );
+      expect(signatures, lessThan(100), reason: 'and it is rare, not routine');
     });
 
     test('no critical recipe requires a signature drop', () {
@@ -1257,9 +1304,7 @@ void main() {
 
       final GameEngine high = playerAt(
         haven,
-        skillXp: <ContentId, int>{
-          ContentId.unchecked('skill.foraging'): 150,
-        },
+        skillXp: <ContentId, int>{ContentId.unchecked('skill.foraging'): 150},
         banked: 100000,
       );
       int bonuses = 0;
@@ -1270,10 +1315,7 @@ void main() {
         final int expected =
             1 +
             (CombatRules.percentRoll(
-                      CombatRules.gatherSeed(
-                        before.eventSequence,
-                        meadowPatch,
-                      ),
+                      CombatRules.gatherSeed(before.eventSequence, meadowPatch),
                       0,
                       CombatRules.nodeBonusSalt,
                     ) <
@@ -1286,96 +1328,96 @@ void main() {
       expect(bonuses, greaterThan(0), reason: '10% lands within 60 gathers');
     });
 
-    test('Wilderness Ready applies to Woodcutting/Foraging and never Mining',
-        () {
-      // The jerkin's 10% rolls on the wilderness salt; on a mining node it
-      // must contribute nothing at any seed.
-      final GameEngine miner = gatherer(
-        mine,
-        armor: wolfhide,
-        tool: trainingPickaxe,
-      );
-      for (int i = 0; i < 40; i++) {
-        final EngineResult r = miner.execute(
-          GatherResource(node: ContentId.unchecked('resource_node.tin_seam')),
+    test(
+      'Wilderness Ready applies to Woodcutting/Foraging and never Mining',
+      () {
+        // The jerkin's 10% rolls on the wilderness salt; on a mining node it
+        // must contribute nothing at any seed.
+        final GameEngine miner = gatherer(
+          mine,
+          armor: wolfhide,
+          tool: trainingPickaxe,
         );
-        // Tin needs Mining 3 — refused; use copper instead.
-        if (r.isRejected) break;
-      }
-      final GameEngine copperMiner = gatherer(
-        mine,
-        armor: wolfhide,
-        tool: trainingPickaxe,
-      );
-      // Eight gathers: the ninth would reach Mining 2 (120 XP), where the
-      // seam's own level bonus legitimately begins and would confound the
-      // jerkin claim.
-      for (int i = 0; i < 8; i++) {
-        final GameState before = copperMiner.state;
-        final ResourceGathered g =
-            copperMiner
-                    .execute(
-                      GatherResource(
-                        node: ContentId.unchecked(
-                          'resource_node.copper_seam',
+        for (int i = 0; i < 40; i++) {
+          final EngineResult r = miner.execute(
+            GatherResource(node: ContentId.unchecked('resource_node.tin_seam')),
+          );
+          // Tin needs Mining 3 — refused; use copper instead.
+          if (r.isRejected) break;
+        }
+        final GameEngine copperMiner = gatherer(
+          mine,
+          armor: wolfhide,
+          tool: trainingPickaxe,
+        );
+        // Eight gathers: the ninth would reach Mining 2 (120 XP), where the
+        // seam's own level bonus legitimately begins and would confound the
+        // jerkin claim.
+        for (int i = 0; i < 8; i++) {
+          final GameState before = copperMiner.state;
+          final ResourceGathered g =
+              copperMiner
+                      .execute(
+                        GatherResource(
+                          node: ContentId.unchecked(
+                            'resource_node.copper_seam',
+                          ),
                         ),
-                      ),
-                    )
-                    .events
-                    .single
-                as ResourceGathered;
-        // At Mining 1 the node bonus is gated off, so any +1 could only be
-        // the jerkin misapplying — and none may appear.
-        expect(
-          g.quantity,
-          1,
-          reason:
-              'seed ${before.eventSequence}: the jerkin must not touch mining',
-        );
-      }
+                      )
+                      .events
+                      .single
+                  as ResourceGathered;
+          // At Mining 1 the node bonus is gated off, so any +1 could only be
+          // the jerkin misapplying — and none may appear.
+          expect(
+            g.quantity,
+            1,
+            reason:
+                'seed ${before.eventSequence}: the jerkin must not touch mining',
+          );
+        }
 
-      // On oak, the jerkin's roll applies — deterministically, stacking
-      // independently with the node's own Woodcutting-3 bonus once the
-      // accruing XP reaches it. Both rolls are recomputed here from the same
-      // seed the engine used, so the yield is pinned exactly at every level.
-      final GameEngine lumberjack = gatherer(woods, armor: wolfhide);
-      final ContentId woodcutting = ContentId.unchecked('skill.woodcutting');
-      int bonuses = 0;
-      for (int i = 0; i < 60; i++) {
-        final GameState before = lumberjack.state;
-        final ResourceGathered g =
-            lumberjack.execute(GatherResource(node: oakStand)).events.single
-                as ResourceGathered;
-        final int seed = CombatRules.gatherSeed(
-          before.eventSequence,
-          oakStand,
-        );
-        final bool jerkin =
-            CombatRules.percentRoll(
-              seed,
-              0,
-              CombatRules.wildernessBonusSalt,
-            ) <
-            10;
-        final int level = registry.skills[woodcutting]!.levelAt(
-          before.skills.experienceIn(woodcutting),
-        );
-        final bool nodeBonus =
-            level >= 3 &&
-            CombatRules.percentRoll(seed, 0, CombatRules.nodeBonusSalt) < 10;
-        expect(g.quantity, 1 + (jerkin ? 1 : 0) + (nodeBonus ? 1 : 0));
-        if (jerkin) bonuses++;
-      }
-      expect(bonuses, greaterThan(0));
-    });
+        // On oak, the jerkin's roll applies — deterministically, stacking
+        // independently with the node's own Woodcutting-3 bonus once the
+        // accruing XP reaches it. Both rolls are recomputed here from the same
+        // seed the engine used, so the yield is pinned exactly at every level.
+        final GameEngine lumberjack = gatherer(woods, armor: wolfhide);
+        final ContentId woodcutting = ContentId.unchecked('skill.woodcutting');
+        int bonuses = 0;
+        for (int i = 0; i < 60; i++) {
+          final GameState before = lumberjack.state;
+          final ResourceGathered g =
+              lumberjack.execute(GatherResource(node: oakStand)).events.single
+                  as ResourceGathered;
+          final int seed = CombatRules.gatherSeed(
+            before.eventSequence,
+            oakStand,
+          );
+          final bool jerkin =
+              CombatRules.percentRoll(
+                seed,
+                0,
+                CombatRules.wildernessBonusSalt,
+              ) <
+              10;
+          final int level = registry.skills[woodcutting]!.levelAt(
+            before.skills.experienceIn(woodcutting),
+          );
+          final bool nodeBonus =
+              level >= 3 &&
+              CombatRules.percentRoll(seed, 0, CombatRules.nodeBonusSalt) < 10;
+          expect(g.quantity, 1 + (jerkin ? 1 : 0) + (nodeBonus ? 1 : 0));
+          if (jerkin) bonuses++;
+        }
+        expect(bonuses, greaterThan(0));
+      },
+    );
 
     test('the Reinforced Pickaxe bonus rolls on mining nodes it serves', () {
       final GameEngine miner = playerAt(
         mine,
         tool: reinforcedPickaxe,
-        skillXp: <ContentId, int>{
-          ContentId.unchecked('skill.mining'): 1000,
-        },
+        skillXp: <ContentId, int>{ContentId.unchecked('skill.mining'): 1000},
         banked: 100000,
       );
       final GameState lifted = miner.state.copyWith(
@@ -1403,71 +1445,75 @@ void main() {
       expect(bonuses, greaterThan(0), reason: '15% lands within 40');
     });
 
-    test('Cold Weather reduces incoming damage in alpine fights only, min 1',
-        () {
-      // Frost-lined jerkin: defence 6, frostGuard 2. Against the lynx
-      // (attack 9, alpine): every strike is reduced by 2 more, floored at 1.
-      final GameEngine north = playerAt(
-        frostmere,
-        weapon: bronzeSword,
-        armor: frostlined,
-      );
-      north.execute(StartEncounter(enemy: lynx));
-      expect(north.state.encounter!.playerFrostGuard, 2);
-      final EngineResult round = north.execute(const CombatAttack());
-      for (final CombatEnemyStruck hit
-          in round.events.whereType<CombatEnemyStruck>()) {
-        final int unguarded = CombatRules.strike(
-          9,
-          6,
-          CombatRules.roll(
-            north.state.encounter?.seed ??
-                (round.events.first as CombatPlayerStruck).turn,
-            hit.turn,
-            CombatRules.enemyStrikeSalt + hit.strikeIndex,
-          ),
+    test(
+      'Cold Weather reduces incoming damage in alpine fights only, min 1',
+      () {
+        // Frost-lined jerkin: defence 6, frostGuard 2. Against the lynx
+        // (attack 9, alpine): every strike is reduced by 2 more, floored at 1.
+        final GameEngine north = playerAt(
+          frostmere,
+          weapon: bronzeSword,
+          armor: frostlined,
         );
-        expect(
-          hit.damage,
-          unguarded - 2 < 1 ? 1 : unguarded - 2,
-          reason: 'reduced by exactly the guard, floored at 1',
-        );
-      }
+        north.execute(StartEncounter(enemy: lynx));
+        expect(north.state.encounter!.playerFrostGuard, 2);
+        final EngineResult round = north.execute(const CombatAttack());
+        for (final CombatEnemyStruck hit
+            in round.events.whereType<CombatEnemyStruck>()) {
+          final int unguarded = CombatRules.strike(
+            9,
+            6,
+            CombatRules.roll(
+              north.state.encounter?.seed ??
+                  (round.events.first as CombatPlayerStruck).turn,
+              hit.turn,
+              CombatRules.enemyStrikeSalt + hit.strikeIndex,
+            ),
+          );
+          expect(
+            hit.damage,
+            unguarded - 2 < 1 ? 1 : unguarded - 2,
+            reason: 'reduced by exactly the guard, floored at 1',
+          );
+        }
 
-      // The same armour in the woods (forest): no reduction anywhere.
-      final GameEngine south = playerAt(
-        woods,
-        weapon: bronzeSword,
-        armor: frostlined,
-      );
-      south.execute(StartEncounter(enemy: wolf));
-      expect(
-        south.state.encounter!.playerFrostGuard,
-        2,
-        reason: 'snapshotted; the terrain gate applies at strike time',
-      );
-      final EngineResult wolfRound = south.execute(const CombatAttack());
-      for (final CombatEnemyStruck hit
-          in wolfRound.events.whereType<CombatEnemyStruck>()) {
-        final int unguarded = CombatRules.strike(
-          4,
-          6,
-          CombatRules.roll(
-            south.state.encounter?.seed ?? 0,
-            hit.turn,
-            CombatRules.enemyStrikeSalt + hit.strikeIndex,
-          ),
+        // The same armour in the woods (forest): no reduction anywhere.
+        final GameEngine south = playerAt(
+          woods,
+          weapon: bronzeSword,
+          armor: frostlined,
         );
-        expect(hit.damage, unguarded, reason: 'no frost guard off the alpine');
-      }
-    });
+        south.execute(StartEncounter(enemy: wolf));
+        expect(
+          south.state.encounter!.playerFrostGuard,
+          2,
+          reason: 'snapshotted; the terrain gate applies at strike time',
+        );
+        final EngineResult wolfRound = south.execute(const CombatAttack());
+        for (final CombatEnemyStruck hit
+            in wolfRound.events.whereType<CombatEnemyStruck>()) {
+          final int unguarded = CombatRules.strike(
+            4,
+            6,
+            CombatRules.roll(
+              south.state.encounter?.seed ?? 0,
+              hit.turn,
+              CombatRules.enemyStrikeSalt + hit.strikeIndex,
+            ),
+          );
+          expect(
+            hit.damage,
+            unguarded,
+            reason: 'no frost guard off the alpine',
+          );
+        }
+      },
+    );
 
     test('queue completions roll their own bonuses per completion index', () {
       final GameEngine engine = playerAt(
         haven,
-        skillXp: <ContentId, int>{
-          ContentId.unchecked('skill.foraging'): 150,
-        },
+        skillXp: <ContentId, int>{ContentId.unchecked('skill.foraging'): 150},
         banked: 100000,
       );
       final int seq = engine.state.eventSequence;

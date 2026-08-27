@@ -116,7 +116,12 @@ class AtlasViewport extends StatefulWidget {
     this.bottomInset = 0,
     this.onExplored,
     this.arrivalStanding = false,
+    this.journey,
   });
+
+  /// The tracked Journey goal's destination, for the marker layer's gold
+  /// ring. Null when no journey is set.
+  final ContentId? journey;
 
   final AtlasScene scene;
   final ContentId? selected;
@@ -434,6 +439,7 @@ class AtlasViewportState extends State<AtlasViewport>
                         arrivalToken: _arrivals,
                         travelFrom: _travelFrom,
                         arrivalStanding: widget.arrivalStanding,
+                        journey: widget.journey,
                         onSelect: widget.onSelect,
                       ),
                     ],

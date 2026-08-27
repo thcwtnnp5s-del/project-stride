@@ -2013,12 +2013,36 @@ final class GameEngine {
           state.progress.localNext[contract.location] ?? (window % deck.length);
       final Set<ContentId> staying = slots.toSet()..remove(contract.id);
       ContentId? replacement;
+      // A candidate gated behind an incomplete project is not dealt (Fable
+      // V2 Iteration 02): dealing it froze the slot as a job the player
+      // could neither take nor rotate away — the board offering work it
+      // will refuse. The gate is the same rule [contractUnavailability]
+      // rejects with, read once here.
+      bool dealable(ContentId id) {
+        final ContentId? gate = registry.contracts[id]?.requiresProject;
+        return gate == null || state.progress.isProjectComplete(gate);
+      }
+
       for (int i = 0; i < deck.length; i++) {
         final ContentId candidate = deck[(next + i) % deck.length];
         if (staying.contains(candidate)) continue;
+        if (!dealable(candidate)) continue;
         replacement = candidate;
         next = (next + i + 1) % deck.length;
         break;
+      }
+      // Every undealt candidate is gated: deal exactly as before rather
+      // than freezing the cursor — the pre-existing behaviour, kept as the
+      // fallback so a fully gated deck degrades to the old board, never to
+      // an emptying one.
+      if (replacement == null) {
+        for (int i = 0; i < deck.length; i++) {
+          final ContentId candidate = deck[(next + i) % deck.length];
+          if (staying.contains(candidate)) continue;
+          replacement = candidate;
+          next = (next + i + 1) % deck.length;
+          break;
+        }
       }
       final int completedAt = slots.indexOf(contract.id);
       if (replacement != null && completedAt >= 0) {

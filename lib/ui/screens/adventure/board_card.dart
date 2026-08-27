@@ -1080,6 +1080,18 @@ class _ProjectTileState extends State<_ProjectTile> {
                 ),
               ),
             ],
+            // What the finished work opens, by name — the same gates the
+            // engine refuses with, joined in the session (Fable V2
+            // Iteration 02), so the reason to haul planks is on the card.
+            if (project.opens.isNotEmpty) ...<Widget>[
+              const SizedBox(height: StrideSpace.s4),
+              Text(
+                'Opens: ${project.opens.join(' · ')}',
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.textSecondary,
+                ),
+              ),
+            ],
             const SizedBox(height: StrideSpace.s10),
             Row(
               children: <Widget>[
