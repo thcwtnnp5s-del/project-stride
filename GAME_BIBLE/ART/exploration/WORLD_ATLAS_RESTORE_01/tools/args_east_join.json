@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/src/east_join_src_256x288.png",
+  "description": "Repaint the narrow vertical band so the coast reads as one continuous painting. On the left is a dark volcanic headland with lava veins ending at the sea; on the right is open teal sea with small white whitecaps; at the top a pale icy shelf meets the water. Remove the column of stippled dark-and-blue noise and any straight vertical edge, and replace it with a natural eastern cliff line of the volcano: dark rock dropping to small rocky coves and pale turquoise shallows that fade into the open teal sea, and at the top the icy shelf thinning raggedly into the water. Match the exact palette and pixel-art hand of the surrounding rock, ice and sea. No straight vertical line, no speckled noise column, no new towers or buildings.",
+  "mask_x": 96,
+  "mask_y": 8,
+  "mask_width": 68,
+  "mask_height": 264,
+  "crop_to_mask": true,
+  "seed": 210
+}

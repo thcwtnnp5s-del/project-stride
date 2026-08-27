@@ -230,3 +230,12 @@ ios/Flutter/Local.xcconfig
 !GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/out/**
 !GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/rejected/**
 !GAME_BIBLE/ART/exploration/WORLD_MAP_EXPANSION_REFINEMENT_02/tools/**
+
+# World Atlas Restore 01 — the four adopted inpaint frames `package-art.js`
+# composes the protected-interior atlas from (`--check` cannot pass on a
+# clean checkout without them), the source crops and job args as provenance,
+# and the round's review artifacts and tools (M-14/M-15 review protocol).
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/out/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/src/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/tools/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/review/**

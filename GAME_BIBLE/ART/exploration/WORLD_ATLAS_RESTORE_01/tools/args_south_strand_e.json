@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/src/south_strand_e_src_448x128.png",
+  "description": "Make the boundary between the pale sandy strand and the flat green band below it read as one coastline painting. Remove the straight horizontal edge and the flat featureless green, and replace them with a natural transition: sand thinning into dune grass, patches of scrub, driftwood and low coastal meadow, uneven and hand-drawn, matching the dune-grass shore that already exists to the left of this stretch. Keep the existing sand and grass palettes and the same pixel-art hand. No straight horizontal line, no new buildings, roads or rivers.",
+  "mask_x": 32,
+  "mask_y": 58,
+  "mask_width": 288,
+  "mask_height": 62,
+  "crop_to_mask": true,
+  "seed": 517
+}

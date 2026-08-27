@@ -1,0 +1,10 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/src/west_join_src_160x224.png",
+  "description": "Make the vertical join between the pale open meadow on the left and the dark dense forest on the right read as one painting. Remove the dotted, speckled straight column where they meet and replace it with a natural forest edge: scattered single trees and small clumps stepping out from the dark treeline into the lighter grass, with undergrowth and shadow at their feet, the way a real woodland thins into a meadow. Keep both existing palettes — pale grass to the left, dark canopy to the right — and the same pixel-art hand. No straight vertical line, no dotted column, no new roads, buildings or rivers.",
+  "mask_x": 60,
+  "mask_y": 0,
+  "mask_width": 40,
+  "mask_height": 224,
+  "crop_to_mask": true,
+  "seed": 331
+}
