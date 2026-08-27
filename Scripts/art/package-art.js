@@ -1441,6 +1441,27 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     }
   }
 
+  // ------------------------------------- Protected interior (World Atlas
+  // Restore 01). Everything composed up to this point — the byte-preserved
+  // master, the approved static patches and the dither — is the approved
+  // interior of record (the 559669e state). The repair layers below may not
+  // repaint it: bridge and edge blits are restored/clipped against this
+  // snapshot outside a narrow rim band, and a guard at the end of the block
+  // throws if any non-water pixel of the protected core drifts. This exists
+  // because the WACUI bridge passes intruded up to 128 px into the master and
+  // erased the Frostmere frozen basin and the volcano's watchtowers
+  // (`MISTAKES.md` M-15).
+  const PROT = { x0: 256, y0: 256, x1: 768, y1: 768, band: 20 };
+  const approved = base.clone();
+  // Depth inside the protected rect (0 = outside; 1 = rim pixel).
+  const protDepth = (x, y) => {
+    if (x < PROT.x0 || x >= PROT.x1 || y < PROT.y0 || y >= PROT.y1) return 0;
+    return Math.min(x - PROT.x0, y - PROT.y0, PROT.x1 - 1 - x, PROT.y1 - 1 - y) + 1;
+  };
+  // In the rim band a hash dither keeps repair pixels near the perimeter and
+  // approved pixels toward the core, so the clip line is never straight.
+  const keepRepair = (x, y, d) => d <= PROT.band && hash(x, y, 5) >= d / (PROT.band + 1);
+
   // ---------------------------- World Atlas Coherence UI 01 (device review)
   //
   // The dither above narrows each generation seam to a noisy band; on a
@@ -1472,15 +1493,87 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     ['north_junction', 512, 84, 256, 188],
     ['north_mtop', 420, 96, 300, 232],
     ['west_mid', 256, 512, 48, 256],
-    ['east_x768', 256, 512, 640, 256],
+    // east_x768 is retired (World Atlas Restore 01): it reached 128 px into
+    // the master, rewrote the approved east coastline into invented
+    // forest/beach and deleted the volcano's watchtowers. Its water seam is
+    // owned by the global ocean conform below; its land join is reviewed in
+    // `GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/`.
     ['sw', 272, 304, 0, 592],
     ['south', 512, 128, 256, 720],
     ['se', 192, 192, 704, 704],
   ]) {
     png.blit(base, bridge(name, w, h), x, y);
   }
-  // Deterministic open-ocean conform (single source of the water math).
-  require(path.join(WACUI, 'tools', 'ocean_unify.js')).unify(base);
+
+  // Protected-interior restore: undo every bridge pixel that landed deeper
+  // than the rim band, feathering across the band so no straight clip line
+  // can read (World Atlas Restore 01). This brings back the Frostmere frozen
+  // basin, the volcano watchtowers and the approved east coastline.
+  for (let y = PROT.y0; y < PROT.y1; y++) {
+    for (let x = PROT.x0; x < PROT.x1; x++) {
+      const d = protDepth(x, y);
+      if (keepRepair(x, y, d)) continue;
+      const ai = base.idx(x, y);
+      for (let k = 0; k < 4; k++) base.data[ai + k] = approved.data[ai + k];
+    }
+  }
+
+  const oceanTool = require(path.join(WACUI, 'tools', 'ocean_unify.js'));
+
+  // ---------------------------- World Atlas Restore 01 (east-join inpaint)
+  //
+  // Retiring east_x768 re-exposed the master-east seam where the volcano's
+  // dark slope met the strip sea as a mechanical dither column. One surgical
+  // inpaint (crop (656,224) 256×288, mask x 752..819) re-authors that join as
+  // the volcano's eastern cliff dropping to rocky coves and pale shallows.
+  // Only the cliff-and-cove band of the result is adopted — the generation's
+  // top and bottom thirds invented red haze over the sea and debris on the
+  // ice shelf and are rejected on the record
+  // (`GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/README.md`). The
+  // band's horizontal edges are hash-feathered so no straight cut reads, and
+  // its west edge obeys the protected-interior rule like every repair.
+  {
+    const WAR01 = path.join(EXPLORE, 'WORLD_ATLAS_RESTORE_01');
+    // Adopt a band of an inpaint result. `cropX/cropY` place the source crop
+    // on the atlas; `ad` is the adopted rect in atlas coordinates (the mask
+    // band, trimmed of any rejected stretch). All four edges are
+    // hash-feathered over `feather` px so no straight cut reads, and the
+    // protected-interior depth guard applies at full strength — an adoption
+    // may enter the permitted rim band (that is what the band is for) but
+    // never the core.
+    const adopt = (file, w, h, cropX, cropY, ad) => {
+      const rast = png.load(path.join(WAR01, 'out', `${file}_f0.png`));
+      if (rast.width !== w || rast.height !== h) {
+        throw new Error(`${file}: expected ${w}x${h}, got ${rast.width}x${rast.height}`);
+      }
+      const feather = 8;
+      for (let ty = ad.y0; ty < ad.y1; ty++) {
+        for (let tx = ad.x0; tx < ad.x1; tx++) {
+          if (protDepth(tx, ty) > PROT.band) continue;
+          const e = Math.min(ty - ad.y0, ad.y1 - 1 - ty, tx - ad.x0, ad.x1 - 1 - tx);
+          if (e < feather && hash(tx, ty, 6) >= (e + 1) / (feather + 1)) continue;
+          const si = rast.idx(tx - cropX, ty - cropY);
+          const ai = base.idx(tx, ty);
+          for (let k = 0; k < 4; k++) base.data[ai + k] = rast.data[si + k];
+        }
+      }
+    };
+    // East join: the volcano's eastern cliff dropping to rocky coves. Only
+    // the cliff-and-cove band is adopted — the generation's top and bottom
+    // thirds invented red haze and ice debris, rejected on the record.
+    adopt('east_join', 256, 288, 656, 224, { x0: 752, y0: 272, x1: 820, y1: 436 });
+    // West join: the dark forest thinning into the pale western meadow as
+    // scattered trees, replacing the dotted crossfade column at x≈256.
+    adopt('west_join', 160, 224, 176, 360, { x0: 236, y0: 360, x1: 276, y1: 584 });
+    // South strand: the beach fading into dune grass, scrub and driftwood,
+    // replacing the straight sand-to-green line at y≈830.
+    adopt('south_strand', 448, 128, 120, 752, { x0: 128, y0: 810, x1: 528, y1: 870 });
+    // Eastern strand: the flat green filler band east of the delta becomes
+    // the sea meeting the beach — surf, shallows and dune grass continuing
+    // the western strand's language. One invented ghost sail is removed by
+    // the flotsam cleanup below.
+    adopt('south_strand_e', 448, 128, 480, 752, { x0: 512, y0: 810, x1: 800, y1: 870 });
+  }
 
   // Edge-integration pass (the device found several bridges whose own
   // rectangular footprint still read once the original seam was gone — the
@@ -1505,7 +1598,73 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     ['d2b_floe', 240, 160, 240, 140],
     ['d3_ne', 160, 260, 740, 40],
   ]) {
-    png.blit(base, edge(name, w, h), x, y);
+    // Clipped against the protected interior: an edge fix may write the rim
+    // band (feathered) but never the core, whose post-conform pixels stand.
+    const raster = edge(name, w, h);
+    for (let sy = 0; sy < h; sy++) {
+      for (let sx = 0; sx < w; sx++) {
+        const tx = x + sx, ty = y + sy;
+        if (tx < 0 || ty < 0 || tx >= 1024 || ty >= 1024) continue;
+        const d = protDepth(tx, ty);
+        if (d > 0 && !keepRepair(tx, ty, d)) continue;
+        const ai = base.idx(tx, ty), si = raster.idx(sx, sy);
+        for (let k = 0; k < 4; k++) base.data[ai + k] = raster.data[si + k];
+      }
+    }
+  }
+
+  // Flotsam cleanup (deterministic, A-2): two pre-existing generation
+  // artifacts sit in open water — a dark scribble blob at (886..910, 622..662)
+  // and whitecap marks at (866..906, 760..784) that read as tiny printed text
+  // at zoom. Each pixel is replaced with the open water a fixed offset away,
+  // so nothing is invented; the conform below then folds the fill into the
+  // one sea. Both rects are far outside the protected interior.
+  for (const [x0, y0, x1, y1, dx, dy] of [
+    [886, 622, 910, 662, -40, 0],
+    [866, 760, 906, 784, 36, 0],
+    // The eastern-strand inpaint's one invention: a ghost sail in open water
+    // (its faint rigging trails to y≈905). Filled from the deep sea below.
+    [748, 844, 796, 906, 0, 66],
+  ]) {
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const ai = base.idx(x, y), si = base.idx(x + dx, y + dy);
+        for (let k = 0; k < 4; k++) base.data[ai + k] = base.data[si + k];
+      }
+    }
+  }
+
+  // Deterministic open-ocean conform (single source of the water math). Runs
+  // LAST — after the restore and the edge fixes — so every layer's deep water
+  // (strip, bridge, master coast, edge pieces with older conforms baked in)
+  // maps through ONE global transform and no tonal panel edge can survive
+  // between layers. The guards touch only teal deep water — never ice, land
+  // or shallows.
+  oceanTool.unify(base);
+
+  // Protected-interior guard: beyond the rim band, every pixel that is not
+  // conformable open water must be byte-identical to the approved snapshot.
+  // Any future repair layer that repaints the master interior fails packaging
+  // (and therefore `--check`) rather than shipping drift (`MISTAKES.md` M-15).
+  {
+    let drift = 0;
+    for (let y = PROT.y0; y < PROT.y1; y++) {
+      for (let x = PROT.x0; x < PROT.x1; x++) {
+        if (protDepth(x, y) <= PROT.band) continue;
+        const i = base.idx(x, y);
+        const same = base.data[i] === approved.data[i] &&
+          base.data[i + 1] === approved.data[i + 1] &&
+          base.data[i + 2] === approved.data[i + 2];
+        if (same) continue;
+        // The ocean conform legitimately remaps teal deep water in place.
+        if (oceanTool.isDeep(approved.data[i], approved.data[i + 1], approved.data[i + 2])) continue;
+        drift++;
+      }
+    }
+    if (drift > 0) {
+      throw new Error(`world/atlas_base: protected interior drift — ${drift} px ` +
+        `of the approved master core were repainted by a repair layer (M-15)`);
+    }
   }
 
   emit('world/atlas_base.png', encode(base));
