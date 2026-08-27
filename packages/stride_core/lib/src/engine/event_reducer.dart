@@ -176,6 +176,9 @@ final class EventReducer {
         inventory: state.inventory.removing(event.item, 1),
         encounter: _encounterOf(state).copyWith(playerHp: event.playerHpAfter),
       ),
+      // Narration only: the halved strikes that follow carry the figures, so
+      // the stance changes no state of its own (`DECISIONS/0027`).
+      CombatBraced() => state,
       CombatEnemyStruck() => state.copyWith(
         encounter: _encounterOf(state).copyWith(playerHp: event.playerHpAfter),
       ),

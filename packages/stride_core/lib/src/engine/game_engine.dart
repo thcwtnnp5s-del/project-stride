@@ -181,6 +181,7 @@ final class GameEngine {
         StartEncounter() => _startEncounter(command, state),
         CombatAttack() => _combatAttack(command, state),
         CombatEat() => _combatEat(command, state),
+        CombatBrace() => _combatBrace(command, state),
         CombatRetreat() => _combatRetreat(command, state),
         EatFood() => _eatFood(command, state),
         TrackGoal() => _trackGoal(command, state),
@@ -424,6 +425,46 @@ final class GameEngine {
     return _Decision.accept(events);
   }
 
+  /// One round: the player braces — deals nothing — and the enemy's reply
+  /// lands at half damage (`DECISIONS/0027`, experimental; Q-06's candidate).
+  ///
+  /// No encounter → enemy loaded. Bracing is never refused for being
+  /// pointless: reading the telegraph is the player's job, and a wasted
+  /// brace against a light round is the cost of misreading it.
+  _Decision _combatBrace(CombatBrace command, GameState state) {
+    final EncounterState? encounter = state.encounter;
+    if (encounter == null) {
+      return _Decision.reject(
+        RejectionCode.noEncounter,
+        command,
+        'no encounter is active',
+      );
+    }
+    final EnemyDefinition? enemy = registry.enemies[encounter.enemy];
+    if (enemy == null) {
+      return _Decision.reject(
+        RejectionCode.contentNotLoaded,
+        command,
+        'the enemy in the active encounter is not loaded',
+        subject: encounter.enemy.value,
+      );
+    }
+
+    final List<GameEvent> events = <GameEvent>[
+      CombatBraced(sequence: state.eventSequence, turn: encounter.turn),
+    ];
+    _enemyReply(
+      events,
+      state.eventSequence + 1,
+      state,
+      encounter,
+      enemy,
+      encounter.playerHp,
+      braced: true,
+    );
+    return _Decision.accept(events);
+  }
+
   /// Leaves the fight. Nothing is lost; the safe destination restores HP.
   _Decision _combatRetreat(CombatRetreat command, GameState state) {
     final EncounterState? encounter = state.encounter;
@@ -539,8 +580,9 @@ final class GameEngine {
     GameState state,
     EncounterState encounter,
     EnemyDefinition enemy,
-    int playerHp,
-  ) {
+    int playerHp, {
+    bool braced = false,
+  }) {
     final int turn = encounter.turn;
     final bool heavy =
         enemy.behavior == EnemyBehavior.guarded &&
@@ -566,6 +608,12 @@ final class GameEngine {
       int damage = heavy
           ? CombatRules.heavyStrike(enemy.attack, encounter.playerDefence)
           : CombatRules.strike(enemy.attack, encounter.playerDefence, roll);
+      // Braced (`DECISIONS/0027`): every strike of the reply is halved,
+      // floored at 1, before frost guard — the stance and the coat stack,
+      // because both were choices.
+      if (braced) {
+        damage = damage ~/ 2 < 1 ? 1 : damage ~/ 2;
+      }
       if (frostGuard > 0) {
         damage = damage - frostGuard < 1 ? 1 : damage - frostGuard;
       }

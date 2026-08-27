@@ -41,6 +41,7 @@ List<GameCommand> allCommands() => <GameCommand>[
   StartEncounter(enemy: ContentId.unchecked('enemy.forest_wolf')),
   const CombatAttack(),
   CombatEat(item: ContentId.unchecked('item.herb_broth')),
+  const CombatBrace(),
   const CombatRetreat(),
   EatFood(item: ContentId.unchecked('item.herb_broth')),
   const TrackGoal(slot: GoalSlot.journey),
@@ -108,6 +109,7 @@ const Map<String, bool> expectedPlayerFacing = <String, bool>{
   'StartEncounter': true,
   'CombatAttack': true,
   'CombatEat': true,
+  'CombatBrace': true,
   'CombatRetreat': true,
   // Player-facing, all five (`DECISIONS/0023`). Eating heals a figure the
   // engine clamps; tracking a goal moves no economy figure at all; and every
@@ -150,6 +152,7 @@ String classify(GameCommand command) => switch (command) {
   StartEncounter() => 'StartEncounter',
   CombatAttack() => 'CombatAttack',
   CombatEat() => 'CombatEat',
+  CombatBrace() => 'CombatBrace',
   CombatRetreat() => 'CombatRetreat',
   EatFood() => 'EatFood',
   TrackGoal() => 'TrackGoal',

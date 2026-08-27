@@ -269,6 +269,11 @@ Map<String, Object?> encodeEvent(GameEvent event) => switch (event) {
     'playerHpAfter': event.playerHpAfter,
     'turn': event.turn,
   },
+  CombatBraced() => <String, Object?>{
+    't': 'CombatBraced',
+    'seq': event.sequence,
+    'turn': event.turn,
+  },
   CombatEnemyStruck() => <String, Object?>{
     't': 'CombatEnemyStruck',
     'seq': event.sequence,
@@ -908,6 +913,11 @@ GameEvent? decodeEvent(Map<String, Object?> json) {
         playerHpAfter: after,
         turn: turn,
       );
+
+    case 'CombatBraced':
+      final int? turn = i('turn');
+      if (turn == null || turn < 1) return null;
+      return CombatBraced(sequence: seq, turn: turn);
 
     case 'CombatEnemyStruck':
       final int? damage = i('damage');

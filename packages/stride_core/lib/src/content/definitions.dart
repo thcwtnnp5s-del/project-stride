@@ -915,6 +915,7 @@ final class EnemyDefinition {
     this.studiedAt = 3,
     this.knownAt = 6,
     this.knownXp = 25,
+    this.tellLine = '',
   });
 
   final ContentId id;
@@ -967,6 +968,12 @@ final class EnemyDefinition {
   /// exactly-once by the same construction as the victory reward.
   final int knownXp;
 
+  /// One authored sentence of how this creature signals its next move —
+  /// presentation content for the Studied intent line (`DECISIONS/0027`,
+  /// experimental). Empty means the behaviour's generic wording is used;
+  /// nothing in the engine reads it.
+  final String tellLine;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -982,6 +989,7 @@ final class EnemyDefinition {
     'studiedAt',
     'knownAt',
     'knownXp',
+    'tellLine',
   };
 
   static EnemyDefinition? read(JsonReader reader) {
@@ -1025,6 +1033,7 @@ final class EnemyDefinition {
         min: 0,
         max: 1000000,
       ),
+      tellLine: reader.optionalString('tellLine'),
     );
     return reader.isComplete ? definition : null;
   }

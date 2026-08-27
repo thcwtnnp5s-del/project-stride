@@ -103,6 +103,11 @@ final class JsonReader {
     return requireInt(field, min: min, max: max);
   }
 
+  String optionalString(String field, {String fallback = ''}) {
+    if (!map.containsKey(field)) return fallback;
+    return requireString(field);
+  }
+
   bool optionalBool(String field, {bool fallback = false}) {
     final Object? raw = map[field];
     if (raw == null) return fallback;

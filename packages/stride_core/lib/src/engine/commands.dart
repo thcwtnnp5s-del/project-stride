@@ -520,6 +520,25 @@ final class CombatEat extends GameCommand {
   String get name => 'CombatEat';
 }
 
+/// Brace for the enemy's reply, dealing nothing and halving every strike of
+/// it — Q-06's own candidate ("halve the next hit, deal none"), delivered
+/// experimentally under `DECISIONS/0027` so device play can answer the open
+/// question with evidence.
+///
+/// One round, one command, one commit, exactly as [CombatAttack]: the player
+/// braces, the enemy replies at half damage (floored at 1, before frost
+/// guard), and the turn advances. The choice it creates is real only because
+/// the telegraph is: a guarded enemy announces its heavy strike a round
+/// ahead, and bracing is finally an answer to the announcement that is not
+/// "eat or flee".
+@immutable
+final class CombatBrace extends GameCommand {
+  const CombatBrace();
+
+  @override
+  String get name => 'CombatBrace';
+}
+
 /// Leave the fight. The player is moved to the nearest safe location and
 /// nothing else changes; the enemy is *not* driven off (`DECISIONS/0020` §4).
 @immutable

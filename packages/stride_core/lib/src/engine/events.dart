@@ -795,6 +795,21 @@ final class CombatConsumableUsed extends GameEvent {
   String get name => 'CombatConsumableUsed';
 }
 
+/// The player braced (`DECISIONS/0027`, experimental): no strike was dealt,
+/// and every enemy strike this round lands at half damage. The strikes
+/// themselves follow as ordinary [CombatEnemyStruck] events whose `damage`
+/// is already halved — this event is the narration of the stance, so the
+/// stage and the log can say what the player chose without diffing figures.
+@immutable
+final class CombatBraced extends GameEvent {
+  const CombatBraced({required super.sequence, required this.turn});
+
+  final int turn;
+
+  @override
+  String get name => 'CombatBraced';
+}
+
 /// The enemy hit the player. A flurry emits two per round, [strikeIndex] 0
 /// and 1; a guarded enemy's every-third-turn blow carries [heavy].
 @immutable
