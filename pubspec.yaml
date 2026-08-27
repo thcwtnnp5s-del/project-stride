@@ -164,6 +164,16 @@ flutter:
     - assets/art/v1/item/bronze_longsword.png
     - assets/art/v1/item/bearhide_coat.png
     - assets/art/v1/item/hornbound_bronze_axe.png
+    # Fable V2 Iteration 03 — the Masterwork variants and the two foods
+    # (recorded byte-copy icons of the items each consumes).
+    - assets/art/v1/item/fanghilt_sword.png
+    - assets/art/v1/item/tuskbound_jerkin.png
+    - assets/art/v1/item/goblin_toothed_axe.png
+    - assets/art/v1/item/scalewarmed_chestplate.png
+    - assets/art/v1/item/clawguard_coat.png
+    - assets/art/v1/item/hornpoint_pickaxe.png
+    - assets/art/v1/item/traveler_ration.png
+    - assets/art/v1/item/expedition_stew.png
     # Transformation Build 01 — whole-directory families. These four are
     # generated in bulk by the packaging script (185 ambient frames, the atlas
     # base + landmarks, 29 env sprites, 8 node vignettes), and the script's

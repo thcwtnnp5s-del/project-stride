@@ -2034,6 +2034,53 @@ for (const [id, spec] of Object.entries(WMP03_CREATURES)) {
   console.log(`  ${id}: ${frames.length} frames at ${x1 - x0 + 1}x${y1 - y0 + 1} (crop ${x0},${y0})`);
 }
 
+// ------------------------------------------------ Fable V2 Iteration 03
+
+/**
+ * THE DEPTH PASS — recorded placeholder art, all A-2 byte copies, zero
+ * generations (`MILESTONES/FABLE_V2_EXPERIMENT_01.md`, Iteration 03).
+ *
+ * Item icons: every Masterwork variant CONSUMES the item whose icon it
+ * copies (the fiction is the same piece, reforged around a trophy), so the
+ * copy and its donor almost never share a bag; the two foods copy the dish
+ * they are cooked from. Distinct authored icons are the recorded future
+ * PixelLab round. Copied from the emitted bytes so the copy can never
+ * drift from what actually shipped.
+ */
+for (const [id, donor] of Object.entries({
+  fanghilt_sword: 'training_sword',
+  tuskbound_jerkin: 'wolfhide_jerkin',
+  goblin_toothed_axe: 'training_axe',
+  scalewarmed_chestplate: 'bronze_chestplate',
+  clawguard_coat: 'bearhide_coat',
+  hornpoint_pickaxe: 'bronze_pickaxe',
+  traveler_ration: 'herb_broth',
+  expedition_stew: 'hearty_stew',
+})) {
+  const bytes = emitted.get(`item/${donor}.png`);
+  if (!bytes) throw new Error(`iteration 03 icon donor missing: item/${donor}.png`);
+  emit(`item/${id}.png`, bytes);
+}
+
+/**
+ * Node plates for the five depth nodes — the same deterministic-copy rule
+ * as the Verge nodes: each reuses the scenery of the node whose subject it
+ * deepens (a heartwood oak is an oak stand; the old workings are a worked
+ * seam; the veiled silkstrand is a thicket; the sheltered meadow is the
+ * rimefrost hollow behind a windbreak; the mill garden is the meadow,
+ * cultivated). Distinct authored scenery is a recorded future round (A-1).
+ */
+for (const [id, sourceId] of Object.entries({
+  heartwood_oak: 'oak_stand',
+  old_workings: 'copper_seam',
+  veiled_silkstrand: 'hollow_thicket',
+  sheltered_frost_meadow: 'rimefrost_hollow',
+  mill_garden: 'meadow_patch',
+})) {
+  const raster = png.load(path.join(ITEMS_SRC, `node_${sourceId}_96.png`));
+  emit(`node/${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

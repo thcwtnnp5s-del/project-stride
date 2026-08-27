@@ -363,6 +363,8 @@ void main() {
         <(String, String, int, String?)>[
           ('Oak Stand', 'Woodcutting', 1, 'Axe'),
           ('Duskcap Grove', 'Foraging', 3, null),
+          // Iteration 03: the WC 4 depth node beside the starter stand.
+          ('Heartwood Oak', 'Woodcutting', 4, 'Axe'),
         ],
       );
       expect(

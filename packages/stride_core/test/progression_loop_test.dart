@@ -1272,20 +1272,79 @@ void main() {
     });
 
     test('no critical recipe requires a signature drop', () {
+      // The rule this pins is `DECISIONS/0023` §6: a signature is optional
+      // excitement, **never on the critical path**. Until Fable V2
+      // Iteration 03 the cheapest sufficient check was "no recipe consumes
+      // one at all"; the iteration's Masterwork set (the experiment's
+      // Q-12 evidence, recorded in `MILESTONES/FABLE_V2_EXPERIMENT_01.md`)
+      // consumes signatures in strictly optional variants, so the check now
+      // enforces the rule's actual boundary: a signature-consuming recipe's
+      // output may gate NOTHING — not a recipe, a contract, a project
+      // stage, or a location's entry — and, when the output is a tool, an
+      // equivalent tool (same kind, at least the same tier) must remain
+      // reachable without any signature. Reverts to the blanket form with
+      // the recipes if the owner rules for pure trophies.
       final Set<ContentId> signatureItems = <ContentId>{
         for (final EnemyDefinition enemy in registry.enemies.values)
           for (final EnemyDrop drop in enemy.drops)
             if (drop.signature) drop.item,
       };
       expect(signatureItems, isNotEmpty);
+
+      final Set<ContentId> requiredSomewhere = <ContentId>{
+        for (final RecipeDefinition r in registry.recipes.values)
+          for (final RecipeIngredient i in r.ingredients) i.item,
+        for (final ContractDefinition c
+            in registry.contracts.values) ...<ContentId>[
+          for (final ItemQuantity q in c.requires) q.item,
+          ...c.requiresOwned,
+        ],
+        for (final ProjectDefinition p in registry.projects.values)
+          for (final ProjectStage s in p.stages)
+            for (final ItemQuantity q in s.requires) q.item,
+        for (final LocationDefinition l in registry.locations.values)
+          ...l.entryRequirements,
+      };
+
+      // Tool capability reachable without signatures: kind → best tier from
+      // starting-loadout tools and non-signature-recipe outputs.
+      bool consumesSignature(RecipeDefinition r) => r.ingredients.any(
+        (RecipeIngredient i) => signatureItems.contains(i.item),
+      );
+      final Map<ToolKind, int> cleanTiers = <ToolKind, int>{};
+      void offer(ContentId item) {
+        final ItemDefinition? d = registry.items[item];
+        if (d == null || d.toolKind == ToolKind.none) return;
+        final int best = cleanTiers[d.toolKind] ?? -1;
+        if (d.tier > best) cleanTiers[d.toolKind] = d.tier;
+      }
+
+      // The starting loadout's tools are always clean.
+      offer(ContentId.unchecked('item.training_axe'));
+      offer(ContentId.unchecked('item.training_pickaxe'));
+      for (final RecipeDefinition r in registry.recipes.values) {
+        if (!consumesSignature(r)) offer(r.outputItem);
+      }
+
       for (final RecipeDefinition recipe in registry.recipes.values) {
-        for (final RecipeIngredient ingredient in recipe.ingredients) {
+        if (!consumesSignature(recipe)) continue;
+        expect(
+          requiredSomewhere,
+          isNot(contains(recipe.outputItem)),
+          reason:
+              '${recipe.id} consumes a signature and its output '
+              '${recipe.outputItem} is required somewhere — a signature '
+              'drop must never gate progression (`DECISIONS/0023` §6)',
+        );
+        final ItemDefinition? output = registry.items[recipe.outputItem];
+        if (output != null && output.toolKind != ToolKind.none) {
           expect(
-            signatureItems,
-            isNot(contains(ingredient.item)),
+            cleanTiers[output.toolKind] ?? -1,
+            greaterThanOrEqualTo(output.tier),
             reason:
-                '${recipe.id} requires ${ingredient.item} — a signature drop '
-                'must never gate progression (`DECISIONS/0023` §6)',
+                '${recipe.id}: a tier-${output.tier} ${output.toolKind.name} '
+                'would exist only through a signature drop — the '
+                'deterministic path must reach the same capability',
           );
         }
       }
@@ -1294,6 +1353,41 @@ void main() {
       for (final ContractDefinition contract in registry.contracts.values) {
         for (final ItemQuantity reward in contract.rewardItems) {
           expect(signatureItems, isNot(contains(reward.item)));
+        }
+      }
+    });
+
+    test('a consumed requiresOwned prover stays re-obtainable', () {
+      // Iteration 03's balance review named the class: a recipe that
+      // consumes the item an uncompleted `requiresOwned` contract asks to
+      // *see* can silently strand that contract. The durable rule pinned
+      // here: any such item must remain re-obtainable — craftable again,
+      // or still on a drop table — so the strand is a delay, never a
+      // dead end. (The UI's job — warning at the bench before the consume
+      // — is presentation on top of this floor, not a substitute for it.)
+      final Set<ContentId> provers = <ContentId>{
+        for (final ContractDefinition c in registry.contracts.values)
+          ...c.requiresOwned,
+      };
+      final Set<ContentId> craftable = <ContentId>{
+        for (final RecipeDefinition r in registry.recipes.values) r.outputItem,
+      };
+      final Set<ContentId> droppable = <ContentId>{
+        for (final EnemyDefinition e in registry.enemies.values)
+          for (final EnemyDrop d in e.drops) d.item,
+      };
+      for (final RecipeDefinition recipe in registry.recipes.values) {
+        for (final RecipeIngredient ingredient in recipe.ingredients) {
+          if (!provers.contains(ingredient.item)) continue;
+          expect(
+            craftable.contains(ingredient.item) ||
+                droppable.contains(ingredient.item),
+            isTrue,
+            reason:
+                '${recipe.id} consumes ${ingredient.item}, which a '
+                'requiresOwned contract asks to see, and nothing can '
+                'produce it again',
+          );
         }
       }
     });

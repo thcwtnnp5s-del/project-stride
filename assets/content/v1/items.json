@@ -355,12 +355,96 @@
     },
 
     {
+      "id": "item.fanghilt_sword",
+      "displayName": "Fang-Hilted Sword",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "weapon",
+      "tier": 1,
+      "power": 10,
+      "stackable": false
+    },
+    {
+      "id": "item.tuskbound_jerkin",
+      "displayName": "Tuskbound Jerkin",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "armor",
+      "tier": 1,
+      "power": 6,
+      "wildernessYieldPercent": 10,
+      "stackable": false
+    },
+    {
+      "id": "item.goblin_toothed_axe",
+      "displayName": "Goblin-Toothed Axe",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "tool",
+      "toolKind": "axe",
+      "tier": 2,
+      "power": 6,
+      "toolBonusYieldPercent": 10,
+      "stackable": false
+    },
+    {
+      "id": "item.scalewarmed_chestplate",
+      "displayName": "Scale-Warmed Chestplate",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "armor",
+      "tier": 2,
+      "power": 7,
+      "frostGuard": 3,
+      "stackable": false
+    },
+    {
+      "id": "item.clawguard_coat",
+      "displayName": "Clawguard Coat",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "armor",
+      "tier": 2,
+      "power": 9,
+      "frostGuard": 2,
+      "stackable": false
+    },
+    {
+      "id": "item.hornpoint_pickaxe",
+      "displayName": "Hornpoint Pickaxe",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "tool",
+      "toolKind": "pickaxe",
+      "tier": 2,
+      "power": 6,
+      "toolBonusYieldPercent": 20,
+      "stackable": false
+    },
+
+    {
       "id": "item.herb_broth",
       "displayName": "Herb Broth",
       "category": "consumable",
       "rarity": "common",
       "tier": 0,
       "healing": 8
+    },
+    {
+      "id": "item.traveler_ration",
+      "displayName": "Traveler's Ration",
+      "category": "consumable",
+      "rarity": "common",
+      "tier": 0,
+      "healing": 22
+    },
+    {
+      "id": "item.expedition_stew",
+      "displayName": "Expedition Stew",
+      "category": "consumable",
+      "rarity": "rare",
+      "tier": 1,
+      "healing": 75
     },
     {
       "id": "item.duskcap_skewer",

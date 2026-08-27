@@ -118,13 +118,14 @@ void main() {
       expect(training.passives, contains('Mines: Copper Seam, Tin Seam'));
       expect(training.passives, contains('Tier 1 opens Deep Tin Seam'));
 
-      // Tier 2 pick: every pickaxe site, and no gap line — the pack holds
-      // nothing above it.
+      // Tier 2 pick: every pickaxe site — Iteration 03's Old Workings
+      // included — and no gap line; the pack holds nothing above tier 2.
       final GearStats reinforced = s.gearStatsOf(reinforcedPick)!;
       expect(
         reinforced.passives,
         contains(
-          'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Hardened Copper Seam',
+          'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Hardened Copper '
+          'Seam, Old Workings',
         ),
       );
       expect(
@@ -140,7 +141,7 @@ void main() {
       expect(axe.passives, contains('Tier 1 opens Frostpine Stand'));
       expect(
         s.gearStatsOf(bronzeAxe)!.passives,
-        contains('Chops: Oak Stand, Frostpine Stand'),
+        contains('Chops: Oak Stand, Frostpine Stand, Heartwood Oak'),
       );
       expect(
         s.gearStatsOf(bronzeAxe)!.passives,

@@ -515,3 +515,127 @@ none should fire twice or loop:
     entrances, the XP bar ease, the count-up: all clean at device
     refresh; nothing stutters while a sync commits.
 
+
+---
+
+# ITERATION 03 — Depth: professions, crafting, goals
+
+**Started:** 2026-08-27, from `63ae0c3`, on the owner's positive device
+verdict on Iteration 02's presentation direction and the explicit brief:
+double down on GAME DEPTH — more to understand, pursue, unlock, gather,
+craft, equip, complete, plan, revisit, level.
+
+## Iteration 03 design thesis
+
+**1. What is shallow about profession progression.** 19 of the 60
+level-slots (levels 1–12 × 5 skills) are dead and *visibly* dead — the
+Skills screen honestly shows where each ladder ends. Smithing stops at 6,
+Cooking at 7, Mining at 5 (bonuses to 7), Woodcutting has a genuine early
+cliff (levels 2–4 are one node ground ~52 times). The XP thresholds
+themselves are sound; the cliffs are purpose-cliffs.
+
+**2. What is shallow about Craft.** The screen is an honest vertical list:
+readiness is scannable (Iteration 02) but not *organized* — no
+ready-first ordering, no "one ingredient away", no "where do I get the
+missing material", no chain navigation, no goal relevance. It answers
+"can I?" and not "what should I plan?"
+
+**3. Dead or underused items.** All six signature drops (Pristine Wolf
+Fang, Great Tusk, Goblin Toolhead, Ember Core, Frost Claw, Pristine Horn)
+have zero consumers and zero reactions — the Known tier's headline reveal
+pays nothing (Q-12). Three of four starting items are permanent fossils
+(the Reinforced Pickaxe consumed the fourth). boar_hide and heat_scale
+never touch a recipe; gloom_silk and boar_tusk have one lifetime use
+each; hearty_stew — the Cooking capstone — has zero external demand while
+level-1 broth has eight sinks and the best heal-per-step in the game.
+`recipe.pine_plank` at 110 XP is a smithing-XP dominance bug (~2.2× any
+alternative per step).
+
+**4. Dead skill levels.** Foraging 9/11; Woodcutting 2/4/8/10–12;
+Mining 8–12; Smithing 7–12; Cooking 2/5/8–12.
+
+**5. Regions needing progression purpose.** Forgotten Hollow above all:
+no board, no project, no development state — one boss kill and two forage
+nodes behind a 4,800-step round trip, dead after the Longsword. Frostmere
+and Haven lack the lift's "project deepens the terrain" payoff; the Woods
+cap Woodcutting at a level-1 node; Stonefall needs its trophies to matter
+at the forge, not new terrain.
+
+**6. The 4–7 major depth improvements implemented.**
+(a) **The Skill Detail roadmap** — tap a Skills card → a per-profession
+roadmap of every level with content, past/current/next/future, each
+unlock joined to what it yields, what that feeds, and what still gates it.
+Entirely derived from content projections; survives future packs.
+(b) **The Craft planner** — readiness-first organization (READY → ONE
+INGREDIENT AWAY → MISSING MATERIALS → LOCKED), missing-ingredient
+sourcing ("Gloom Silk → Silkstrand Thicket, Forgotten Hollow · dropped by
+…"), chain navigation (an ingredient that is itself crafted links to its
+recipe), and goal relevance — the recipe list becomes a progression
+planner.
+(c) **The signature Masterwork set** — six strictly optional gear
+variants, each reforging an existing piece around one signature drop
+(Fang-Hilted Sword, Tuskbound Jerkin, Goblin-Toothed Axe, Scale-Warmed
+Chestplate, Clawguard Coat, Hornpoint Pickaxe). Every base capability
+keeps its deterministic path (P-10); every variant consumes its base item
+(so the byte-copied icon never sits beside its donor); three genuine
+equip decisions appear (gatherer-identity armor that survives upgrading,
+early-10% vs later-15% tools, a three-way alpine loadout). This is the
+experiment's answer to Q-12, recorded below.
+(d) **The Forgotten Hollow expedition layer** — the Field Ledger board
+(2 slots, 4 local needs + a Guardian bounty), the Hollow Field Camp
+project (3 stages, materials from four regions), development
+Untamed → Charted, safe-after-camp, and the camp-gated Veiled Silkstrand
+(Foraging 8, silk ×2). The Hollow becomes the dangerous mastery-foraging
+region you *tame*, not a one-and-done trophy stop.
+(e) **The food ladder repair** — the Mill retires base Herb Broth in
+favour of the pair (they never coexist; dominance ends), the skewer is
+re-costed, and two new cooked-item-as-ingredient recipes extend Cooking
+to 9 (Traveler's Ration at 4, Expedition Stew at 9 — the first recipes
+that consume other cooked food, giving broth and stew downstream lives).
+(f) **Regional depth nodes** — Heartwood Oak (Woods, WC 4: kills the
+early cliff), Old Workings (Stonefall, Mining 8, lift-gated: mined scrap,
+the lift's second payoff), Sheltered Frost Meadow (Frostmere, F 7,
+shelter-gated: blossom ×2), Mill Garden (Haven, F 7, mill-gated: the
+start region visibly blooms from the player's own project).
+(g) **Goal chains** — 8 new contracts and the camp project wire the above
+together: gear-as-proof (The Smith's Measure shows the Longsword),
+show-don't-consume trophy goals (A Hunter's Token), the Hollow chain
+(silk → crates → camp → stores), and a post-lift pine sink (Gallery
+Props).
+
+**7. How they connect.** One loop, stated once: walking powers travel to
+region-specific nodes and enemies → gathering and fighting fill skills
+and bags → skills unlock deeper nodes and recipes the roadmap *shows in
+advance* → crafting turns materials (now including trophies) into
+capability the planner *organizes* → contracts and the camp project spend
+that capability and permanently open more terrain → the new terrain is
+the next thing the roadmap shows. Every new item has ≥2 relationships;
+every region keeps a revisit engine.
+
+**8. Content added.** 8 items (6 Masterwork gear + 2 foods), 8 recipes,
+5 nodes, 8 contracts, 1 project, 4 content edits (broth/handle
+retirement, skewer re-cost, pine-plank XP 110→40, Hollow location
+fields). Zero engine changes for content; zero new PixelLab generations —
+all icons and plates are recorded A-2 byte-copies of items/plates the new
+things consume or deepen.
+
+**9. Deliberately deferred.** The Iron tier (its ore/ingot icons would be
+pixel-identical twins of copper/bronze in the same bag — it waits for an
+icon round and its own decision note; Mining 8 gets Old Workings
+instead, Smithing 8+ stays honestly open); the meat/hunting cooking line
+(game meat needs from-scratch icons); the Tusk Spear (same); a bestiary
+surface (Q-12 option 1 — presentation, another pass); retire-by-level
+engine mechanism (the project pattern covered the only real case);
+gloomshade moss and any new gathered material (icon-blocked); a sixth
+enemy/location/skill (frozen counts).
+
+**Q-12, addressed on the experiment's terms:** D0023 §5 framed signatures
+as trophies-never-ingredients and D0027 authorized no sinks; the owner's
+Iteration 03 brief explicitly asks for dead materials to gain purpose and
+names "special drop: equipment + contract" as a desired item
+relationship. The experiment therefore ships **strictly optional
+consumption** — every Masterwork is a sidegrade/variant of gear obtainable
+deterministically, no contract *consumes* a signature (A Hunter's Token
+shows one, `requiresOwned`), and P-10 holds everywhere. This is evidence
+for the owner's Q-12 verdict, not its pre-emption: if the owner rules for
+pure trophies, the six recipes revert cleanly and the items go with them.

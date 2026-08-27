@@ -120,6 +120,17 @@
     },
 
     {
+      "id": "contract.a_hunters_token",
+      "displayName": "A Hunter's Token",
+      "location": "location.whispering_woods",
+      "class": "regional",
+      "brief": "Every ranger has a story about the fang that came out whole. None of them has one. Show the wardens a pristine wolf fang before any smith sets it in a hilt — the seeing is the point, and you keep the fang.",
+      "requiresOwned": ["item.pristine_wolf_fang"],
+      "requiresCompletedNeedAt": "location.whispering_woods",
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 60 }],
+      "rewardCharacterXp": 70
+    },
+    {
       "id": "contract.trail_clearing",
       "displayName": "Trail Clearing",
       "location": "location.whispering_woods",
@@ -330,6 +341,28 @@
       "rewardCharacterXp": 25
     },
     {
+      "id": "contract.gallery_props",
+      "displayName": "Gallery Props",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 7,
+      "brief": "Oak props crush flat in the deep galleries the lift reopened. Pine holds. The storemaster will take every plank of it.",
+      "requiresProject": "project.stonefall_lift",
+      "requires": [{ "item": "item.pine_plank", "quantity": 3 }],
+      "rewardSkillXp": [{ "skill": "skill.mining", "xp": 70 }],
+      "rewardCharacterXp": 15
+    },
+    {
+      "id": "contract.smiths_measure",
+      "displayName": "The Smith's Measure",
+      "location": "location.stonefall_mine",
+      "class": "regional",
+      "brief": "Bronze from her seams, tusk from the Woods, silk from the Hollow — the smith has heard what a longsword takes and does not believe anyone here has made one. Show her yours, and she will treat you as a peer.",
+      "requiresOwned": ["item.bronze_longsword"],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 140 }],
+      "rewardCharacterXp": 50
+    },
+    {
       "id": "contract.mine_hardware",
       "displayName": "Replace the Mine Hardware",
       "location": "location.stonefall_mine",
@@ -440,6 +473,66 @@
       ],
       "rewardItems": [{ "item": "item.frostbloom_tea", "quantity": 2 }],
       "rewardCharacterXp": 60
+    },
+
+    {
+      "id": "contract.silk_for_the_study",
+      "displayName": "Silk for the Study",
+      "location": "location.forgotten_hollow",
+      "class": "local_need",
+      "deckOrder": 1,
+      "brief": "The scholar wants gloom silk unbroken, strand by strand. She pays in what she has: her attention, and her notes on where the best thickets stand.",
+      "requires": [{ "item": "item.gloom_silk", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 60 }],
+      "rewardCharacterXp": 15
+    },
+    {
+      "id": "contract.root_and_stem",
+      "displayName": "Root and Stem",
+      "location": "location.forgotten_hollow",
+      "class": "local_need",
+      "deckOrder": 2,
+      "brief": "Hollow root, whole if you can manage it. She keeps one for the shelf and cooks the rest — and the stew is better than anything the inn makes.",
+      "requires": [{ "item": "item.hollow_root", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 55 }],
+      "rewardItems": [{ "item": "item.hearty_stew", "quantity": 1 }]
+    },
+    {
+      "id": "contract.specimen_crates",
+      "displayName": "Specimen Crates",
+      "location": "location.forgotten_hollow",
+      "class": "local_need",
+      "deckOrder": 3,
+      "brief": "Pine boards for crates that will not warp, silk for the packing. What leaves the Hollow has to survive the road out.",
+      "requires": [
+        { "item": "item.pine_plank", "quantity": 2 },
+        { "item": "item.gloom_silk", "quantity": 1 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 70 }],
+      "rewardCharacterXp": 15
+    },
+    {
+      "id": "contract.camp_stores",
+      "displayName": "Camp Stores",
+      "location": "location.forgotten_hollow",
+      "class": "local_need",
+      "deckOrder": 4,
+      "brief": "The camp stands, and standing camps eat. Hearty stew, made properly — she will know the difference.",
+      "requiresProject": "project.hollow_field_camp",
+      "requires": [{ "item": "item.hearty_stew", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 75 }],
+      "rewardCharacterXp": 15
+    },
+    {
+      "id": "contract.the_wardens_round",
+      "displayName": "The Warden's Round",
+      "location": "location.forgotten_hollow",
+      "class": "bounty",
+      "brief": "It reassembles. She has watched it do it. Face the Guardian again and tell her exactly what it did first — the notes matter more to her than the victory.",
+      "bountyEnemy": "enemy.hollow_guardian",
+      "bountyCount": 1,
+      "rewardItems": [{ "item": "item.gloom_silk", "quantity": 1 }],
+      "rewardCharacterXp": 45
     }
   ]
 }

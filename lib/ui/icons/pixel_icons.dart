@@ -264,6 +264,21 @@ abstract final class PixelIcons {
     'item.bronze_longsword': '$_art/item/bronze_longsword.png',
     'item.bearhide_coat': '$_art/item/bearhide_coat.png',
     'item.hornbound_bronze_axe': '$_art/item/hornbound_bronze_axe.png',
+
+    // Fable V2 Iteration 03. The Masterwork variants and the two foods wear
+    // recorded byte-copies of the icon of the item each one CONSUMES — the
+    // same piece, reforged around a trophy (or the dish it is cooked from),
+    // so the copy and its donor almost never share a bag. Distinct authored
+    // icons are the recorded future PixelLab round
+    // (`MILESTONES/FABLE_V2_EXPERIMENT_01.md`, Iteration 03).
+    'item.fanghilt_sword': '$_art/item/fanghilt_sword.png',
+    'item.tuskbound_jerkin': '$_art/item/tuskbound_jerkin.png',
+    'item.goblin_toothed_axe': '$_art/item/goblin_toothed_axe.png',
+    'item.scalewarmed_chestplate': '$_art/item/scalewarmed_chestplate.png',
+    'item.clawguard_coat': '$_art/item/clawguard_coat.png',
+    'item.hornpoint_pickaxe': '$_art/item/hornpoint_pickaxe.png',
+    'item.traveler_ration': '$_art/item/traveler_ration.png',
+    'item.expedition_stew': '$_art/item/expedition_stew.png',
   };
 
   // ------------------------------------------------------------------ nodes
@@ -287,6 +302,14 @@ abstract final class PixelIcons {
     'resource_node.deep_tin_seam': '$_art/node/deep_tin_seam.png',
     'resource_node.oldgrowth_frostpine': '$_art/node/oldgrowth_frostpine.png',
     'resource_node.silkstrand_thicket': '$_art/node/silkstrand_thicket.png',
+    // Fable V2 Iteration 03: the five depth nodes, same deterministic-copy
+    // rule — each reuses the scenery of the node whose subject it deepens.
+    'resource_node.heartwood_oak': '$_art/node/heartwood_oak.png',
+    'resource_node.old_workings': '$_art/node/old_workings.png',
+    'resource_node.veiled_silkstrand': '$_art/node/veiled_silkstrand.png',
+    'resource_node.sheltered_frost_meadow':
+        '$_art/node/sheltered_frost_meadow.png',
+    'resource_node.mill_garden': '$_art/node/mill_garden.png',
   };
 
   static String? nodeFor(ContentId node) => _nodeArt[node.value];

@@ -169,9 +169,10 @@ void main() {
     await pumpApp(tester, steps: 2000, atWoods: true);
 
     // The compact row states the gap before anything is tapped (§7: locked
-    // activities stay visible and aspirational).
+    // activities stay visible and aspirational). Two locked rows since
+    // Iteration 03 added the Heartwood Oak (WC 4) beside the grove.
     expect(find.text('Duskcap Grove'), findsOneWidget);
-    expect(find.text('LOCKED'), findsOneWidget);
+    expect(find.text('LOCKED'), findsNWidgets(2));
     expect(find.text('Requires Foraging 3 — you are 1'), findsOneWidget);
 
     await select(tester, 'Duskcap Grove');

@@ -549,6 +549,24 @@ abstract final class AmbientAssets {
       bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 91),
       behindFigure: true,
     ),
+    // Fable V2 Iteration 03: the same donor rule as the plates — each new
+    // node borrows the work prop of the node it deepens, where one exists.
+    // The two silk/frost forage nodes fall back to their vignettes, exactly
+    // as their donors do.
+    '$_art/node/heartwood_oak.png': StageScenery(
+      assetPath: '$_art/work/prop_oak_stand.png',
+      bounds: SpriteBounds(left: 2, top: 5, right: 90, bottom: 90),
+      behindFigure: true,
+    ),
+    '$_art/node/old_workings.png': StageScenery(
+      assetPath: '$_art/work/prop_copper_seam.png',
+      bounds: SpriteBounds(left: 4, top: 3, right: 91, bottom: 92),
+      behindFigure: true,
+    ),
+    '$_art/node/mill_garden.png': StageScenery(
+      assetPath: '$_art/work/prop_meadow_patch.png',
+      bounds: SpriteBounds(left: 15, top: 37, right: 91, bottom: 91),
+    ),
   };
 
   static const Map<String, StageScenery> _scenery = <String, StageScenery>{
@@ -605,6 +623,30 @@ abstract final class AmbientAssets {
     '$_art/node/silkstrand_thicket.png': StageScenery(
       assetPath: '$_art/node/silkstrand_thicket.png',
       bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
+    ),
+    // Fable V2 Iteration 03: the five depth nodes' plates are byte copies
+    // of the plates named in `package-art.js` (A-2), so each carries its
+    // donor's measured bounds verbatim. Distinct authored scenery is the
+    // recorded future PixelLab round.
+    '$_art/node/heartwood_oak.png': StageScenery(
+      assetPath: '$_art/node/heartwood_oak.png',
+      bounds: SpriteBounds(left: 2, top: 4, right: 95, bottom: 94),
+    ),
+    '$_art/node/old_workings.png': StageScenery(
+      assetPath: '$_art/node/old_workings.png',
+      bounds: SpriteBounds(left: 10, top: 11, right: 79, bottom: 90),
+    ),
+    '$_art/node/veiled_silkstrand.png': StageScenery(
+      assetPath: '$_art/node/veiled_silkstrand.png',
+      bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
+    ),
+    '$_art/node/sheltered_frost_meadow.png': StageScenery(
+      assetPath: '$_art/node/sheltered_frost_meadow.png',
+      bounds: SpriteBounds(left: 2, top: 5, right: 93, bottom: 91),
+    ),
+    '$_art/node/mill_garden.png': StageScenery(
+      assetPath: '$_art/node/mill_garden.png',
+      bounds: SpriteBounds(left: 15, top: 16, right: 88, bottom: 85),
     ),
   };
 

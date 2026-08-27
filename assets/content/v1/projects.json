@@ -134,6 +134,43 @@
       "developmentTo": "Outpost",
       "developmentRank": 1,
       "revealRumors": ["rumor.northern_range"]
+    },
+    {
+      "id": "project.hollow_field_camp",
+      "displayName": "Raise the Hollow Field Camp",
+      "location": "location.forgotten_hollow",
+      "brief": "The scholar works from a cracked waystone and loses half of every day to the walk back. A fenced camp with a roof and a fire would let the study — and anyone gathering here — work the Hollow instead of surviving it.",
+      "stages": [
+        {
+          "name": "Clear the Ground",
+          "requires": [
+            { "item": "item.oak_plank", "quantity": 8 },
+            { "item": "item.oak_log", "quantity": 4 }
+          ],
+          "characterXp": 45
+        },
+        {
+          "name": "Fence and Frame",
+          "requires": [
+            { "item": "item.bronze_ingot", "quantity": 3 },
+            { "item": "item.pine_plank", "quantity": 2 }
+          ],
+          "characterXp": 55
+        },
+        {
+          "name": "The Study Moves In",
+          "requires": [
+            { "item": "item.gloom_silk", "quantity": 2 },
+            { "item": "item.boar_hide", "quantity": 3 },
+            { "item": "item.hearty_stew", "quantity": 2 }
+          ],
+          "characterXp": 60
+        }
+      ],
+      "completionCharacterXp": 90,
+      "completionHeadline": "THE HOLLOW FIELD CAMP STANDS",
+      "developmentTo": "Charted",
+      "developmentRank": 1
     }
   ]
 }

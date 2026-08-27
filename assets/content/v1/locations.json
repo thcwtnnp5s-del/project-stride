@@ -16,7 +16,10 @@
         { "to": "location.stonefall_mine", "stepCost": 1400 }
       ],
       "entryRequirements": [],
-      "resourceNodes": ["resource_node.meadow_patch"]
+      "resourceNodes": [
+        "resource_node.meadow_patch",
+        "resource_node.mill_garden"
+      ]
     },
     {
       "id": "location.whispering_woods",
@@ -35,7 +38,8 @@
       "entryRequirements": [],
       "resourceNodes": [
         "resource_node.oak_stand",
-        "resource_node.duskcap_grove"
+        "resource_node.duskcap_grove",
+        "resource_node.heartwood_oak"
       ]
     },
     {
@@ -57,7 +61,8 @@
         "resource_node.copper_seam",
         "resource_node.tin_seam",
         "resource_node.deep_tin_seam",
-        "resource_node.hardened_copper_seam"
+        "resource_node.hardened_copper_seam",
+        "resource_node.old_workings"
       ]
     },
     {
@@ -77,7 +82,8 @@
       "resourceNodes": [
         "resource_node.rimefrost_hollow",
         "resource_node.frostpine_stand",
-        "resource_node.oldgrowth_frostpine"
+        "resource_node.oldgrowth_frostpine",
+        "resource_node.sheltered_frost_meadow"
       ]
     },
     {
@@ -86,13 +92,18 @@
       "terrain": "forest",
       "isSafe": false,
       "isStart": false,
+      "safeAfterProject": "project.hollow_field_camp",
+      "developmentState": "Untamed",
+      "boardName": "Field Ledger",
+      "boardSlots": 2,
       "connections": [
         { "to": "location.whispering_woods", "stepCost": 2400 }
       ],
       "entryRequirements": ["item.bronze_sword"],
       "resourceNodes": [
         "resource_node.silkstrand_thicket",
-        "resource_node.hollow_thicket"
+        "resource_node.hollow_thicket",
+        "resource_node.veiled_silkstrand"
       ]
     }
   ]
