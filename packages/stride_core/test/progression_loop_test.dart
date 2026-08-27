@@ -575,6 +575,30 @@ void main() {
       );
     });
 
+    test('no project-gated order sits inside any virgin board window', () {
+      // The rotation filter (Iteration 02) governs *deals*; a virgin
+      // board's opening window is `deck.sublist(0, boardSlots)`,
+      // unfiltered. Today every gated order is authored outside its
+      // window — this pins that as a content rule, so the next author
+      // cannot open a fresh save onto a job the engine refuses
+      // (FINAL-A Iteration 02, MUST-FIX 1).
+      for (final LocationDefinition location in registry.locations.values) {
+        final List<ContentId> deck = registry.localNeedDeck(location.id);
+        final int window = location.boardSlots < deck.length
+            ? location.boardSlots
+            : deck.length;
+        for (final ContentId id in deck.take(window)) {
+          expect(
+            registry.contracts[id]?.requiresProject,
+            isNull,
+            reason:
+                '${id.value} is project-gated but opens inside '
+                '${location.id.value}\'s virgin board window',
+          );
+        }
+      }
+    });
+
     test('a project-gated order is not dealt until its project completes', () {
       // Carpenter's Commission (deck order 7) requires the mill. Before the
       // mill stands, rotation must skip it: dealt, it froze a slot as a job

@@ -220,8 +220,9 @@ downgrade caveat is owner-accepted; the atlas image stays frozen.
    haptics behind one gated seam with a settings toggle, animated XP
    bars, tappable opportunity rows with count-up, encounter entrance,
    bonus-yield acknowledgment, READY-flip settle, banner-lifetime marker
-   pulse; (e) gameplay — deterministic rotation eligibility (a
-   project-gated order never freezes a slot) with the project card
+   pulse; (e) gameplay — deterministic rotation eligibility (rotation
+   stops *dealing* project-gated orders into slots; 5b records the two
+   paths the filter does not reach) with the project card
    advertising what completion opens, graduated loot intelligence
    (Studied buys frequency words, Known buys exact odds), bonus-yield
    milestones lighting the dead skill levels plus the Hornbound Axe's
@@ -335,13 +336,19 @@ policy, rulekit, guard parsers) all OK.
   retirement mechanism is project-based (`retiredByProject`), and inventing
   a retire-by-level mechanism mid-sprint was scope. One row of menu noise;
   a future pass can generalize retirement.
-- **A project-gated deck order can occupy a rotation slot before its
-  project completes**, showing as an unavailable order with its reason — a
-  pre-existing pattern (Haven's mill-gated commission shipped this way and
-  was device-accepted), but V2 adds three more such orders and Whispering
-  Woods has only two slots, so the freeze is more visible there. It reads
-  as an advertisement for the project; whether that is charm or clog is an
-  owner call from the device.
+- **A project-gated deck order can still occupy a slot on two paths the
+  Iteration 02 rotation filter does not reach** (the filter governs
+  *deals* only): (a) a virgin board's opening window is the deck's first
+  `boardSlots` entries, unfiltered — today every gated order is authored
+  outside its window, and the new content-guard test in
+  `progression_loop_test.dart` ("no project-gated order sits inside any
+  virgin board window") now pins that as a rule; (b) **the owner's
+  existing on-device save**, whose recorded slots may already hold a
+  gated order dealt under the old rules — rotation replaces only a
+  completed contract's own slot, and a gated order cannot be completed,
+  so it sits until its project stands. On that save it reads as an
+  advertisement for the project; whether that is charm or clog is an
+  owner call from the device. Fresh playtests never see it.
 - **The three Verge nodes reuse their neighbours' scenery byte-for-byte**
   (A-2 copies), so two rows at one location can show identical thumbnails
   distinguished by name and level. Honest placeholder; distinct authored
@@ -430,11 +437,19 @@ Take these together, within a minute of each other:
    sources**, and their today figures should sum to Stride's today.
    Compare each against the Health app's own per-source numbers — the
    labels are anonymous by design (H-7); identify them by matching the
-   figures against the Sources list from item 2.
+   figures against the Sources list from item 2. **The letters are
+   positional, not stable identities:** if a new step-writing app ever
+   joins, "Source A" can silently name a different physical source than
+   it did last session — always re-identify by figures, never by
+   remembered letter.
 5. **Double-sync adds zero** — tap Sync steps twice with no walking in
-   between: the second sync must say "No new steps to bank", the banked
-   figure must not move, and Sync details' "Syncs committed" must count
-   up by exactly one per tap while "Credited, lifetime" stays put.
+   between: the second sync must say "No new steps to bank" (or "No new
+   steps since the last check"), the banked figure must not move, and
+   "Credited, lifetime" must stay put. "Syncs committed" counts
+   **committed checkpoints**, not taps: it rises when a sync commits one
+   and a no-change read may legitimately leave it unchanged — either
+   behaviour is correct and neither is a fault. The defect signals are
+   the banked or credited figures moving.
 6. **No unexpected jumps** — after the pair of syncs, the banked figure
    equals what it was plus the first sync's banked line, exactly.
 
