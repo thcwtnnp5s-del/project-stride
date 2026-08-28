@@ -1,5 +1,45 @@
 # Project Stride — Project State
 
+**Version:** 2.31
+**Status:** 🚧 **WORLD ATLAS REMASTER 01, ITERATION 02 — the device-defect
+pass, on `world-atlas-remaster-01`, awaiting the owner's next
+physical-device verdict.** Records:
+`GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/` —
+`WORLD_ATLAS_REMASTER_01_DEVICE_DEFECT_REGISTER.md` (26 mapped defects
+from the owner's seven iPhone screenshots of 2026-08-26, screenshot ↔
+atlas-coordinate correspondence, treatments, severities),
+`ITERATION_02_THESIS.md` (the five-agent pass), and
+`POST_RESET_GENERATION_PLAN.md` (stage 2).
+
+The owner's device review found the atlas still reading as assembled
+pieces — hard biome cutoffs, tile-like density blocks — and authorized
+broader repaints of non-protected areas. The balance check found exactly
+the **25-generation untouchable reserve** (one inpaint bills 20–40, so no
+M-12-compliant two-roll region fits): generation stayed **closed** and the
+iteration executed the deterministic half the brief authorized
+("composited from existing assets"). Shipped, all scoped and guard-green:
+the treeline-confetti despeckle (owner-marked, solved), the green-cliff
+smear cleanup (owner-marked; in-golden residue escalated), the red-dash
+trail removal, the ghost-sail fill correction (the old blanket fill had
+deleted the strand's beach toe along with the sail — the beach and surf
+are restored, the sail is gone, two strand goldens re-authorized on the
+R3b pattern), and **five density-ladder stamp belts** (whole approved tree
+sprites harvested from the composite, substrate-matched and hash-jittered:
+treeline stragglers, west-verge taper, SW-block fringes) so the worst
+"dense block → empty field" edges now taper. The register marks the two
+big P0s honestly as **stage 1 of 2**: the frozen A-4 canopy faces, the
+south latitude layer-cake (owner decision Q-13 in
+`JOURNAL/OPEN_QUESTIONS.md`), the ice-character split and the delta's
+dead-end braids wait for the post-reset plan (8 regions, ~310 gens with
+two-roll capacity, three owner sign-offs listed). Independent **FINAL-B
+review: PASS / INSTALL** — every deterministic claim perceptible at target
+scale, zero visible new damage, expectations for what still fails set in
+writing. Full diff vs `6375851` confined to the nine scoped rects. Suites:
+**802/802**, analyze clean, atlas tests green, `--check` clean, World
+goldens unchanged. Balance still exactly 25; reset 2026-09-16.
+
+---
+
 **Version:** 2.30
 **Status:** 🚧 **WORLD ATLAS REMASTER 01 — regional recomposition of the
 atlas, on `world-atlas-remaster-01` (from `fable-v2-experiment` @
