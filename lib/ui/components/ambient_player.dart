@@ -72,6 +72,12 @@
 /// behaviour sends `resumed` (and resets it in a tear-down); a caller that
 /// wants a visit and nothing after passes `cadence: null`.
 ///
+/// The **scene dwell** (GAME_FEEL_CHARACTER_PRESENTATION_01, item 3) rides
+/// the same seam: a full scene with a [ScenePhasing] holds its loopable
+/// middle for a drawn 20–28 s only under `resumed` — on a device, always —
+/// while the harness's visits keep their short straight-through scenes and
+/// settle exactly as before. One seam, extended; not a second one.
+///
 /// Reduced motion is honoured on the same footing, via
 /// `MediaQuery.disableAnimationsOf` — the convention the atlas set. With it on,
 /// the stage is the standing figure and stays that way.
@@ -162,6 +168,12 @@ enum _Phase {
   held,
 }
 
+/// Which stretch of a **phased** scene the controller is currently running
+/// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 3). [whole] is the legacy
+/// straight-through playback — every unphased scene, every micro-idle, and
+/// the entire widget-test harness.
+enum _ScenePart { whole, intro, hold, outro }
+
 class _AmbientPlayerState extends State<AmbientPlayer>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   /// Built in `initState`, not lazily. A lazy field is only created by its
@@ -190,6 +202,18 @@ class _AmbientPlayerState extends State<AmbientPlayer>
   _Phase _phase = _Phase.held;
   AmbientScene? _scene;
   int _played = 0;
+
+  /// Which stretch of a phased scene is running; [_ScenePart.whole] for the
+  /// legacy straight-through playback.
+  _ScenePart _part = _ScenePart.whole;
+
+  /// Scene time already spent in earlier parts, so the companion layers'
+  /// sustained tracks see one continuous clock across intro → hold → outro.
+  Duration _partsBefore = Duration.zero;
+
+  /// True while the scene on stage is a phased long dwell — what decides
+  /// the drawn neutral rest that follows it.
+  bool _sceneHeld = false;
 
   /// True once the visit is spent and the idle cadence has the stage.
   bool _idling = false;
@@ -353,13 +377,57 @@ class _AmbientPlayerState extends State<AmbientPlayer>
     _run(d);
   }
 
+  /// Whether a full scene may dwell — the same "in front of the player"
+  /// rule the idle cadence runs under, asked fresh at every scene. In the
+  /// widget-test harness the lifecycle stays null, so every scene keeps its
+  /// short straight-through playback and `pumpAndSettle` settles exactly as
+  /// before — the documented test seam, extended, not a second one.
+  bool get _dwellRuns =>
+      widget.cadence != null &&
+      _lifecycle == AppLifecycleState.resumed &&
+      !_reduceMotion;
+
+  /// The dwell drawn for the scene now holding.
+  Duration _holdDuration = Duration.zero;
+
   void _startScene({required bool micro}) {
     final AmbientSceneSet pool = micro ? _microPool : _visitPool;
+    final String? avoid = _scene?.id ?? _lastId;
     final AmbientScene next = pool.pick(
       _rng.nextDouble(),
-      avoidId: _scene?.id ?? _lastId,
+      avoidId: avoid,
+      alsoAvoidId: identical(avoid, _lastId) || avoid == _lastId
+          ? _secondLastId
+          : _lastId,
     );
     if (!_idling) _played += 1;
+    // A micro-idle never dwells — the cadence's whole promise is that its
+    // small beats stay small. A full scene with phasing settles in:
+    // intro once, the loop held for the drawn dwell, outro once
+    // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 3).
+    final ScenePhasing? phasing = micro ? null : next.phasing;
+    if (phasing != null && _dwellRuns) {
+      final AmbientCadence c = widget.cadence!;
+      _sceneHeld = true;
+      _holdDuration = phasing.quantizedHold(
+        _between(c.sceneHoldShortest, c.sceneHoldLongest),
+        next.traveler.fps,
+      );
+      _partsBefore = Duration.zero;
+      if (phasing.hasIntro) {
+        _part = _ScenePart.intro;
+        _setScene(next, _Phase.scene);
+        _run(phasing.introDuration(next.traveler.fps));
+      } else {
+        _part = _ScenePart.hold;
+        _setScene(next, _Phase.scene);
+        _run(_holdDuration);
+      }
+      return;
+    }
+    _sceneHeld = false;
+    _part = _ScenePart.whole;
+    _partsBefore = Duration.zero;
     _setScene(next, _Phase.scene);
     _run(next.duration);
   }
@@ -403,12 +471,23 @@ class _AmbientPlayerState extends State<AmbientPlayer>
     );
   }
 
-  /// The last scene shown, so a rest between two scenes does not forget what
-  /// preceded it and let it repeat.
+  /// The last two scenes shown, so a rest between scenes does not forget
+  /// what preceded it — and so the pick can refuse both, killing the A-B-A
+  /// rotation a long session otherwise falls into.
   String? _lastId;
+  String? _secondLastId;
 
   void _setScene(AmbientScene? scene, _Phase phase) {
-    if (_scene != null) _lastId = _scene!.id;
+    if (_scene != null) {
+      _secondLastId = _lastId;
+      _lastId = _scene!.id;
+    }
+    if (scene == null) {
+      // Rest, hold, or suspension: whatever part a dwelling scene was in,
+      // it is over.
+      _part = _ScenePart.whole;
+      _partsBefore = Duration.zero;
+    }
     final bool changed = scene != _scene;
     setState(() {
       _scene = scene;
@@ -430,23 +509,57 @@ class _AmbientPlayerState extends State<AmbientPlayer>
         }
         _startScene(micro: false);
       case _Phase.scene:
-        if (_idling) {
-          _startIdleRest();
+        // A dwelling scene advances through its parts before it is over.
+        if (_part == _ScenePart.intro) {
+          _partsBefore += _controller.duration ?? Duration.zero;
+          _part = _ScenePart.hold;
+          setState(() => _frames = _framesAt(Duration.zero));
+          _run(_holdDuration);
           return;
         }
-        // The hand-over is decided here rather than after one more visit rest,
-        // so the visit's 1.6 s rest and the cadence's first 2–4 s one do not
-        // stack into a single very long hold at exactly the moment the stage
-        // is meant to start feeling alive.
-        final int? limit = widget.scenesPerVisit;
-        if (limit != null && _played >= limit) {
-          _beginIdle();
-        } else {
-          _startRest(widget.restBetween);
+        if (_part == _ScenePart.hold && _scene!.phasing!.hasOutro) {
+          final AmbientScene s = _scene!;
+          _partsBefore += _controller.duration ?? Duration.zero;
+          _part = _ScenePart.outro;
+          setState(() => _frames = _framesAt(Duration.zero));
+          _run(s.phasing!.outroDuration(s.traveler.fps));
+          return;
         }
+        _sceneFinished();
       case _Phase.held:
         break;
     }
+  }
+
+  /// The scene is over — outro done, hold with no outro spent, or a legacy
+  /// straight-through track complete.
+  void _sceneFinished() {
+    final bool held = _sceneHeld;
+    _sceneHeld = false;
+    _part = _ScenePart.whole;
+    _partsBefore = Duration.zero;
+    if (_idling) {
+      _startIdleRest();
+      return;
+    }
+    // The hand-over is decided here rather than after one more visit rest,
+    // so the visit's rest and the cadence's first one do not stack into a
+    // single very long hold at exactly the moment the stage is meant to
+    // start feeling alive.
+    final int? limit = widget.scenesPerVisit;
+    if (limit != null && _played >= limit) {
+      _beginIdle();
+      return;
+    }
+    // After a long dwell the gap is a drawn neutral interval, so the
+    // rotation breathes instead of ticking; the harness's short visits
+    // keep the fixed rest every settling test depends on.
+    final AmbientCadence? c = widget.cadence;
+    _startRest(
+      held && c != null
+          ? _between(c.neutralRestShortest, c.neutralRestLongest)
+          : widget.restBetween,
+    );
   }
 
   Duration get _elapsed {
@@ -457,9 +570,30 @@ class _AmbientPlayerState extends State<AmbientPlayer>
   List<int> _framesAt(Duration elapsed) {
     final AmbientScene? s = _scene;
     if (s == null) return const <int>[0];
+    if (_part == _ScenePart.whole) {
+      return <int>[
+        s.traveler.frameAt(elapsed),
+        for (final AmbientLayer l in s.layers) l.track.frameAt(elapsed),
+      ];
+    }
+    // A dwelling scene: the Traveler's frame comes from the phasing's part
+    // mapping, and every companion layer runs **sustained** on one clock
+    // spanning the whole scene — the cat keeps breathing and the fire keeps
+    // flickering through the long middle instead of clamping on a last slot
+    // a few seconds in.
+    final ScenePhasing p = s.phasing!;
+    final double fps = s.traveler.fps;
+    final int frame = switch (_part) {
+      _ScenePart.intro => p.introFrameAt(elapsed, fps),
+      _ScenePart.hold => p.holdFrameAt(elapsed, fps),
+      _ScenePart.outro => p.outroFrameAt(elapsed, fps),
+      _ScenePart.whole => 0, // handled above
+    };
+    final Duration sceneClock = _partsBefore + elapsed;
     return <int>[
-      s.traveler.frameAt(elapsed),
-      for (final AmbientLayer l in s.layers) l.track.frameAt(elapsed),
+      frame,
+      for (final AmbientLayer l in s.layers)
+        l.track.frameAtSustained(sceneClock),
     ];
   }
 

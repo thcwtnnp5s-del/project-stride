@@ -97,6 +97,154 @@ final class AmbientTrack {
     }
     return inPass;
   }
+
+  /// The frame at [elapsed] with the track **sustained** — looping past its
+  /// authored [repeats] for as long as a held scene needs it
+  /// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 3). A `once` track still
+  /// clamps: the cat that sat down stays seated; the fire that loops keeps
+  /// flickering. This is what lets a companion layer live through a 20–30 s
+  /// hold instead of freezing on its last slot a few seconds in.
+  int frameAtSustained(Duration elapsed) {
+    if (frames.isEmpty) return 0;
+    if (loop == AmbientLoop.once) return frameAt(elapsed);
+    final int slot = (elapsed.inMicroseconds / 1000000 * fps).floor();
+    final int inPass = (slot < 0 ? 0 : slot) % _passLength;
+    if (loop == AmbientLoop.pingpong && inPass >= frames.length) {
+      return _passLength - inPass;
+    }
+    return inPass;
+  }
+}
+
+/// How a held ambient scene traverses its one frame strip: an entry arc
+/// played once, a loopable middle held for the scene's long dwell, and a
+/// closing arc (GAME_FEEL_CHARACTER_PRESENTATION_01, item 3 — "let the
+/// scenes breathe").
+///
+/// This is playback authoring over the existing strips, not new art (the
+/// same precedent as the stretch four-frame cut): the owner's finding was
+/// that the Traveler sits and immediately stands, opens the book and closes
+/// it — because playback ran each strip through once. The phasing names
+/// which frames are the *being there* and holds them.
+///
+/// All indices are into the scene's Traveler frame list. Durations are
+/// resolved against the track's own fps, so a scene's authored tempo is
+/// never changed — the hold is more time on the middle frames, not slower
+/// frames. The hold's length itself is drawn by the player from
+/// [AmbientCadence] bounds; a scene with `phasing: null` plays exactly as
+/// it always did (the micro-idles keep this deliberately).
+final class ScenePhasing {
+  const ScenePhasing({
+    required this.loopStart,
+    required this.loopEnd,
+    this.introEnd,
+    this.outroStart,
+    this.outroEnd,
+    this.wrap = false,
+  }) : assert(loopEnd >= loopStart, 'a loop range runs forward'),
+       assert(
+         (outroStart == null) == (outroEnd == null),
+         'an explicit outro names both ends',
+       );
+
+  /// The whole strip is the loop: no entry, no exit — for a strip whose
+  /// pass is already cyclic (a drink, a stretch, a batted string).
+  /// [wrap] plays 0..n-1 and repeats; without it the pass ping-pongs.
+  const ScenePhasing.cyclic({required int frames, bool wrap = false})
+    : this(loopStart: 0, loopEnd: frames - 1, wrap: wrap);
+
+  /// The last frame of the entry arc (0..introEnd plays once), or null when
+  /// the scene opens directly in its loop.
+  final int? introEnd;
+
+  /// The held middle, inclusive.
+  final int loopStart;
+  final int loopEnd;
+
+  /// True to wrap the loop range (…end, start…); false to ping-pong it —
+  /// right for a middle whose last frame does not meet its first.
+  final bool wrap;
+
+  /// An explicit closing arc, forward. When absent and an intro exists, the
+  /// outro is the intro reversed — sitting down, played backward, is
+  /// standing up.
+  final int? outroStart;
+  final int? outroEnd;
+
+  bool get hasIntro => introEnd != null;
+  bool get hasOutro => outroStart != null || introEnd != null;
+
+  int get _introSlots => hasIntro ? introEnd! + 1 : 0;
+  int get _outroSlots => outroStart != null
+      ? outroEnd! - outroStart! + 1
+      : hasIntro
+      ? introEnd! + 1
+      : 0;
+
+  Duration _slots(int count, double fps) =>
+      Duration(microseconds: (count / fps * 1000000).round());
+
+  Duration introDuration(double fps) => _slots(_introSlots, fps);
+  Duration outroDuration(double fps) => _slots(_outroSlots, fps);
+
+  int _slotAt(Duration elapsed, double fps) {
+    final int slot = (elapsed.inMicroseconds / 1000000 * fps).floor();
+    return slot < 0 ? 0 : slot;
+  }
+
+  /// The intro's frame at [elapsed], clamped on its last frame.
+  int introFrameAt(Duration elapsed, double fps) {
+    final int end = introEnd ?? 0;
+    final int slot = _slotAt(elapsed, fps);
+    return slot > end ? end : slot;
+  }
+
+  /// The held middle's frame at [elapsed] into the hold.
+  int holdFrameAt(Duration elapsed, double fps) {
+    final int len = loopEnd - loopStart + 1;
+    if (len <= 1) return loopStart;
+    final int slot = _slotAt(elapsed, fps);
+    if (wrap) return loopStart + slot % len;
+    final int period = 2 * len - 2;
+    final int p = slot % period;
+    return loopStart + (p < len ? p : period - p);
+  }
+
+  /// [drawn] rounded so the hold's **final displayed frame** meets the part
+  /// that follows — an explicit outro is entered from the loop's last frame,
+  /// a reverse-intro from its first, a cyclic hold from its own natural pass
+  /// end. Without this the hold could cut anywhere in the loop and the next
+  /// part would pop several frames in one step.
+  Duration quantizedHold(Duration drawn, double fps) {
+    final int len = loopEnd - loopStart + 1;
+    final int period = len <= 1 ? 1 : (wrap ? len : 2 * len - 2);
+    // Extra slots past whole periods, chosen so the final slot lands where
+    // the next part picks up.
+    final int tail = outroStart != null
+        ? len // last slot shows loopEnd, adjacent to an explicit outro
+        : hasIntro
+        ? 1 // last slot shows loopStart, adjacent to the reverse-intro
+        : 0; // cyclic: whole passes, ending as the strip always ended
+    final double slotMicros = 1000000 / fps;
+    final int drawnSlots = (drawn.inMicroseconds / slotMicros).round();
+    int periods = ((drawnSlots - tail) / period).round();
+    if (periods < 1) periods = 1;
+    return Duration(
+      microseconds: ((periods * period + tail) * slotMicros).round(),
+    );
+  }
+
+  /// The outro's frame at [elapsed], clamped on its final frame.
+  int outroFrameAt(Duration elapsed, double fps) {
+    final int slot = _slotAt(elapsed, fps);
+    if (outroStart case final int start) {
+      final int frame = start + slot;
+      return frame > outroEnd! ? outroEnd! : frame;
+    }
+    final int end = introEnd ?? 0;
+    final int frame = end - slot;
+    return frame < 0 ? 0 : frame;
+  }
 }
 
 /// An opaque bounding box in sprite-native pixels, inclusive on all four
@@ -223,6 +371,7 @@ final class AmbientScene {
     this.companionAllowance = 0,
     this.idleWeight = 0,
     this.idleOnly = false,
+    this.phasing,
   }) : canvasHeight = canvasHeight ?? 64,
        anchorX = anchorX ?? (canvas - 64) ~/ 2,
        measuredBounds = bounds,
@@ -311,6 +460,14 @@ final class AmbientScene {
   /// it is still measured and still held to the composition rules.
   final bool idleOnly;
 
+  /// How the scene dwells when it plays as a **full scene** — intro, held
+  /// loop, outro (see [ScenePhasing]). Null plays the track straight
+  /// through, which is what every micro-idle keeps and what every scene did
+  /// before GAME_FEEL_CHARACTER_PRESENTATION_01. The player applies phasing
+  /// only under the same lifecycle seam the idle cadence runs under, so the
+  /// widget-test harness settles exactly as before.
+  final ScenePhasing? phasing;
+
   /// The scene lasts as long as its Traveler track. Layers longer than that are
   /// cut; shorter ones hold their last frame.
   Duration get duration => traveler.duration;
@@ -331,6 +488,7 @@ final class AmbientScene {
     companionAllowance: companionAllowance,
     idleWeight: idleWeight,
     idleOnly: idleOnly,
+    phasing: phasing,
   );
 
   /// The same scene with [layer] added — how a location's ambient creature
@@ -350,6 +508,7 @@ final class AmbientScene {
     companionAllowance: companionAllowance,
     idleWeight: idleWeight,
     idleOnly: idleOnly,
+    phasing: phasing,
   );
 }
 
@@ -362,12 +521,21 @@ final class AmbientSceneSet {
   bool get isEmpty => scenes.isEmpty;
 
   /// Weighted choice, never the same scene twice in a row when there is more
-  /// than one to choose from. `roll` is a uniform draw in `[0, 1)`.
-  AmbientScene pick(double roll, {String? avoidId}) {
+  /// than one to choose from — and, where the table is big enough, never
+  /// either of the last **two** ([alsoAvoidId]), which kills the A-B-A
+  /// ping-pong a long session otherwise falls into. `roll` is a uniform
+  /// draw in `[0, 1)`.
+  AmbientScene pick(double roll, {String? avoidId, String? alsoAvoidId}) {
     assert(scenes.isNotEmpty, 'nothing to pick from');
-    final List<AmbientScene> pool = scenes.length > 1
+    List<AmbientScene> pool = scenes.length > 1
         ? scenes.where((AmbientScene s) => s.id != avoidId).toList()
         : scenes;
+    if (scenes.length > 2 && alsoAvoidId != null) {
+      final List<AmbientScene> wider = pool
+          .where((AmbientScene s) => s.id != alsoAvoidId)
+          .toList();
+      if (wider.isNotEmpty) pool = wider;
+    }
     final double total = pool.fold(
       0,
       (double a, AmbientScene s) => a + s.weight,
@@ -433,6 +601,10 @@ final class AmbientCadence {
     this.sceneRestShortest = const Duration(seconds: 4),
     this.sceneRestLongest = const Duration(seconds: 8),
     this.fullSceneEvery = 3,
+    this.sceneHoldShortest = const Duration(seconds: 20),
+    this.sceneHoldLongest = const Duration(seconds: 28),
+    this.neutralRestShortest = const Duration(seconds: 3),
+    this.neutralRestLongest = const Duration(seconds: 6),
   }) : assert(fullSceneEvery > 0, 'a full scene has to come round eventually');
 
   /// The bounds on the hold before a micro-idle. Varied inside them from the
@@ -446,6 +618,21 @@ final class AmbientCadence {
 
   /// Every n-th idle beat is a full scene rather than a micro-idle.
   final int fullSceneEvery;
+
+  /// The bounds on a **held full scene's** dwell — the loop segment a
+  /// [ScenePhasing] scene sustains, drawn per scene so no two holds are the
+  /// same length. With intro and outro on top, a held scene lands in the
+  /// owner's 20–30 s window (GAME_FEEL_CHARACTER_PRESENTATION_01, item 3).
+  /// Micro-idles never hold; the micro-rest ceiling above still bounds them.
+  final Duration sceneHoldShortest;
+  final Duration sceneHoldLongest;
+
+  /// The neutral interval after a held scene, before the next — drawn, so
+  /// the rotation stops being a metronome. Applies only after a scene that
+  /// actually held; the harness's short visits keep the fixed
+  /// `restBetween`, which is what every settling test depends on.
+  final Duration neutralRestShortest;
+  final Duration neutralRestLongest;
 
   /// What the app runs. Named so a reader of the player sees a decision rather
   /// than four literals.

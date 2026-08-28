@@ -793,6 +793,10 @@ abstract final class AmbientAssets {
       footprint: SpriteFootprints.ambientTravelerStretch,
       canvas: 80,
       bounds: _bStretch,
+      // Phasing (GAME_FEEL_CHARACTER_PRESENTATION_01 §3): the pass is
+      // already cyclic — shoulders rolling out and back — so the whole
+      // strip is the held loop.
+      phasing: ScenePhasing.cyclic(frames: 4),
     ),
     AmbientScene(
       id: 'drink',
@@ -803,6 +807,7 @@ abstract final class AmbientAssets {
       ),
       footprint: SpriteFootprints.ambientTravelerDrink,
       bounds: _bDrink,
+      phasing: ScenePhasing.cyclic(frames: 9, wrap: true),
     ),
     // World & Reward Depth 01: the read scene re-rolled at book scale after the
     // owner saw the PE01 book "huge" on the phone — blind Visual QA read the
@@ -823,6 +828,11 @@ abstract final class AmbientAssets {
       ),
       footprint: SpriteFootprints.ambientTravelerRead,
       bounds: _bRead,
+      // The owner's finding, verbatim: "opens the book then closes it
+      // immediately." Frames 0–4 take the book out; 5–8 are the reading
+      // itself — held, page bobbing, for the drawn dwell; the reverse of
+      // the intro puts the book away.
+      phasing: const ScenePhasing(introEnd: 4, loopStart: 5, loopEnd: 8),
     ),
     // The idle-cadence micro-idles (World & Reward Depth 01, blind QA PASS /
     // PASS-WITH-NOTE). `idleOnly`: never one of a visit's scenes; `idleWeight`
@@ -865,8 +875,10 @@ abstract final class AmbientAssets {
       ),
       footprint: SpriteFootprints.ambientTravelerPackCheck,
       bounds: _bPackCheck,
-      // Micro-idle stand-in — see the class doc.
+      // Micro-idle stand-in — see the class doc. The phasing applies only
+      // to its plays as a **full** scene; a micro-idle beat stays short.
       idleWeight: 0.8,
+      phasing: ScenePhasing.cyclic(frames: 6),
     ),
     AmbientScene(
       id: 'wipe_brow',
@@ -880,6 +892,7 @@ abstract final class AmbientAssets {
       // Micro-idle stand-in — see the class doc. The shortest solo scene in
       // the table (2.0 s) and the least eventful, so it carries the pool.
       idleWeight: 1.2,
+      phasing: ScenePhasing.cyclic(frames: 7, wrap: true),
     ),
 
     // ----------------------------------------------- scenes with the cat
@@ -900,6 +913,16 @@ abstract final class AmbientAssets {
       anchorX: 32,
       bounds: _bPairPetCat,
       weight: 2,
+      // "Pets the cat for a split second" — the owner's exact complaint.
+      // 0–3 approach and crouch; 4–8 the stroking, held; 9–10 the strip's
+      // own rise back to standing.
+      phasing: const ScenePhasing(
+        introEnd: 3,
+        loopStart: 4,
+        loopEnd: 8,
+        outroStart: 9,
+        outroEnd: 10,
+      ),
     ),
     AmbientScene(
       id: 'dangle_string',
@@ -927,6 +950,9 @@ abstract final class AmbientAssets {
       ],
       companionAllowance: 12,
       weight: 1.5,
+      // The dangling string is cyclic — the cat keeps batting for as long
+      // as the string hangs.
+      phasing: ScenePhasing.cyclic(frames: 9),
     ),
     AmbientScene(
       id: 'crouch_pet',
@@ -943,6 +969,15 @@ abstract final class AmbientAssets {
       layers: <AmbientLayer>[_catSitsAt(-8)],
       companionAllowance: 10,
       weight: 1.5,
+      // Frame-inspected 2026-08-28: f0 standing, f3–f8 crouched stroking,
+      // f10 standing again. The crouch holds; the strip's own end stands.
+      phasing: const ScenePhasing(
+        introEnd: 3,
+        loopStart: 4,
+        loopEnd: 8,
+        outroStart: 9,
+        outroEnd: 10,
+      ),
     ),
     AmbientScene(
       id: 'sit_by_fire',
@@ -984,6 +1019,10 @@ abstract final class AmbientAssets {
       ],
       companionAllowance: 9,
       weight: 1.5,
+      // "Sits by the fire briefly then leaves." 0–4 sitting down; 5–10 the
+      // seated rest, held while the fire loops and the cat sleeps on
+      // sustained tracks; sitting down reversed is standing up.
+      phasing: const ScenePhasing(introEnd: 4, loopStart: 5, loopEnd: 10),
     ),
     AmbientScene(
       id: 'eat',
@@ -997,6 +1036,7 @@ abstract final class AmbientAssets {
       bounds: _bEat,
       // Sitting at −13..12, three pixels short of him.
       layers: <AmbientLayer>[_catSitsAt(-18)],
+      phasing: ScenePhasing.cyclic(frames: 9),
     ),
     AmbientScene(
       id: 'head_scratch',
@@ -1023,6 +1063,7 @@ abstract final class AmbientAssets {
       // rolling is the most eventful thing in the pool, so it comes round
       // least often.
       idleWeight: 0.5,
+      phasing: ScenePhasing.cyclic(frames: 9, wrap: true),
     ),
     AmbientScene(
       id: 'pushups',
@@ -1049,6 +1090,7 @@ abstract final class AmbientAssets {
         ),
       ],
       companionAllowance: 6,
+      phasing: ScenePhasing.cyclic(frames: 11),
     ),
     AmbientScene(
       id: 'stretch_with_cat',
@@ -1083,6 +1125,7 @@ abstract final class AmbientAssets {
       ],
       companionAllowance: 16,
       weight: 0.8,
+      phasing: ScenePhasing.cyclic(frames: 4),
     ),
   ]);
 }
