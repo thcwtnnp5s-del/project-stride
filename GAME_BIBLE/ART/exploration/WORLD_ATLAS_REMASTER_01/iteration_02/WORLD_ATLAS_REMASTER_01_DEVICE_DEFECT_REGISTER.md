@@ -112,4 +112,20 @@ needs a clean re-shot before judging.
   floe coarsening, D-18; plus carried D7-floe and mint remnant.
 - **Owner decisions needed:** A-4 exceptions for in-core defects (D-13 farm join, D-17
   corduroy, D-04 banding, Longwood interior); strand-golden re-extractions beyond the
-  D-05 fill fix; C4 interior glades in the SW block.
+  D-05 fill fix; C4 interior glades in the SW block. (Recorded as Q-13 in
+  `JOURNAL/OPEN_QUESTIONS.md` together with the lime-identity question.)
+
+---
+
+## Iteration 02 outcome (2026-08-28)
+
+**Shipped (stage 1, deterministic, 0 generations):** D-06 despeckle · D-14 cleanup
+(in-golden residue remains) · D-04 removal (strand_w re-authorized) · D-05/D-15
+fill fix (beach toe + surf restored, sail gone, strand_e re-authorized) · stamp
+belts B1 (15 stragglers), A1 (14), C1/C2/C5 (6/7/3) for D-01/D-12's meadow sides.
+
+**Explicitly NOT fixed this iteration (stage 2, post-reset plan):** the frozen
+canopy faces of D-01/D-12, D-02 latitude break (blocked on Q-13), D-26 ice-character
+split, D-25 dead-end braids, D-07, D-08, D-09/D-19, D-10, D-11/D-16, D-18, and every
+in-core owner-marked defect (needs A-4 decision). See
+`POST_RESET_GENERATION_PLAN.md` for regions, budgets and order.

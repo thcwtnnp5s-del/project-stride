@@ -919,3 +919,33 @@ question phrased it — "halve the next hit, deal none" — experimentally on
 answer whether a second tactical action earns its place with evidence
 rather than argument. Q-06's bullet stays open until that verdict; the
 persistent-HP bullet was answered by `DECISIONS/0023` §4 (state v7).
+
+---
+
+## Q-13 — The south coast's two greens: does the lime band stay?
+
+**Raised:** 2026-08-28, World Atlas Remaster 01 Iteration 02 (ATLAS-K
+hydrology audit, G-3 escalation).
+
+Everything north of the south strand is the olive/sage interior sward;
+the far-south coastal plain is a distinctly brighter lime — a hard
+latitude step at y≈850 (atlas px) that the owner's device screenshots
+read as a "layer-cake" (register D-02). As an *identity*, bright coastal
+machair behind a barrier strand is real geography; what breaks it is the
+level, terrain-ignoring boundary. Two fixes exist, and choosing between
+them is a world-design decision, not a paint decision:
+
+1. **Keep the lime band** as the south's coastal identity → author a
+   terrain-following transition (graded remix band, ~0 generations, but
+   crossing the protected strand goldens → re-extraction sign-offs).
+2. **One green wins** → whole-plain palette conform pulling lime toward
+   olive (~0 generations, recolors a large approved area).
+
+Iteration 02 deliberately fixed only the band's *edges* (the SW block
+fringes) and left the identity question open. The post-reset plan's Z1
+item is blocked on this answer. Related smaller sign-offs riding on the
+same visit: A-4 core exceptions (if any) for the owner-marked in-core
+defects (farm/forest join, canopy corduroy/banding, Longwood interior),
+and strand-golden re-extractions for the SE terrace and SW block top
+edge (`GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/
+POST_RESET_GENERATION_PLAN.md`).

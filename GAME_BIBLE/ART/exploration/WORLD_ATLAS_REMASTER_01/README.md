@@ -508,3 +508,58 @@ green; `--check` clean; review set regenerated.
 **FINAL BUDGET: 205 → 25.** 180 spent across seven accepted generations
 and one recorded rejection; the reserve is exactly intact. Generation is
 closed for this round.
+
+---
+
+## Iteration 02 — the device-defect pass (2026-08-28)
+
+The owner's physical-iPhone review (seven screenshots, 2026-08-26 —
+`iteration_02/device_screens/`) found the atlas still reading as assembled
+pieces: hard biome cutoffs, tile-like density blocks, composited
+transitions. The full audit, mapping and treatment record live in
+`iteration_02/WORLD_ATLAS_REMASTER_01_DEVICE_DEFECT_REGISTER.md` (26
+defects, three P0 families) and `iteration_02/ITERATION_02_THESIS.md`
+(five-agent pass: device critic, forest ecotone, hydrology/coast,
+protection, budget).
+
+**Budget verdict (ATLAS-M):** balance queried at exactly 25 = the
+untouchable reserve; one inpaint bills 20–40, so no M-12-compliant region
+fits — generation stayed CLOSED and the balance was treated as zero. The
+authored repaints are sized and ordered in
+`iteration_02/POST_RESET_GENERATION_PLAN.md` (~310 gens with two-roll
+capacity, post 2026-09-16).
+
+**Shipped deterministically (all scoped, all guards green):**
+
+- **D-06** treeline-confetti despeckle (owner-marked): the flying-dirt
+  band above the Longwood canopy removed (254 px, 257–374 × 257–272, all
+  rim-band).
+- **D-14** green-cliff smear cleanup (owner-marked): 886 px of green/dark
+  debris over the ice cliff at (705–761, 235–303) eroded to ice, with the
+  corrected registry clips (cliff golden 752–824 × 260–470; watchtower
+  excluded). In-golden residue logged for the reset round.
+- **D-04** red-dash trail despeckle (54 px, 275–404 × 758–815); the 12
+  in-golden px re-authorized via
+  `iteration_02/tools/reauthorize_strand_dots.js` (R3b pattern).
+- **D-05/D-15** ghost-sail fill corrected: the old blanket fill had
+  deleted the strand's beach toe along with the sail, shipping an L-shaped
+  razor cut at x=748/y=844. The fill now restores the generation's own
+  beach/surf and scopes the sea fill to the measured sail box
+  (760–787 × 853–880). south_strand_e re-extracted in the same commit.
+- **Tier 2 — density-ladder stamp belts**
+  (`iteration_02/tools/stamp_belts.js`, salt 15): whole approved tree
+  sprites harvested from the composite itself, stamped onto open ground in
+  five graded belts — B1 treeline stragglers (15), A1 west-verge taper
+  (14), C1/C2/C5 SW-block fringes (6/7/3). Substrate-matched,
+  hash-jittered, mirrored, occupancy-spaced, hard-clipped off every golden
+  and the A-4 core; each belt reverts whole via its `enabled` flag.
+  The owner's brief explicitly authorized this composited-from-existing-
+  assets path. **D-01 and D-12 are stage 1 of 2** — the frozen canopy
+  faces themselves wait for the post-reset inpaints, on the record.
+
+Golden re-extraction also trued up five goldens for water-only conform
+re-snap (stale exempt drift; 0 non-water px). Full atlas diff vs
+`6375851`: every changed pixel inside the nine scoped rects. Escalations
+recorded, not settled (G-3): lime-band identity, A-4 exceptions for
+owner-marked in-core defects, further strand-golden re-extractions —
+listed in the register and the post-reset plan.

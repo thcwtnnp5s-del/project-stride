@@ -47,12 +47,16 @@ const SPRITES = [
   { id: 'heath_pairfir', x: 186, y: 389, w: 12, h: 17, kind: 'conifer' },
   { id: 'heath_fir_c',  x: 197, y: 389, w: 10, h: 16, kind: 'conifer' },
   { id: 'heath_broad',  x: 203, y: 349, w: 11, h: 14, kind: 'broad' },
-  // lime substrate (the coastal plain's own singles)
-  { id: 'lime_big',     x: 267, y: 974, w: 25, h: 29, kind: 'broad' },
-  { id: 'lime_twin',    x: 363, y: 957, w: 29, h: 35, kind: 'broad' },
-  { id: 'lime_bush',    x: 299, y: 919, w: 21, h: 17, kind: 'bush' },
-  { id: 'lime_teal',    x: 377, y: 892, w: 27, h: 38, kind: 'broad' },
-  { id: 'lime_small',   x: 301, y: 871, w: 18, h: 14, kind: 'bush' },
+  // lime substrate (the coastal plain's own singles). stripBlue: these
+  // sources sit beside dune-slack puddles, and the border flood keeps a few
+  // cyan puddle pixels inside the mask — FINAL-B caught the stamped copies
+  // carrying cyan flecks foreign to dry ground, so blue-dominant pixels are
+  // dropped from these masks (pines keep their bluish snow shadows).
+  { id: 'lime_big',     x: 267, y: 974, w: 25, h: 29, kind: 'broad', stripBlue: true },
+  { id: 'lime_twin',    x: 363, y: 957, w: 29, h: 35, kind: 'broad', stripBlue: true },
+  { id: 'lime_bush',    x: 299, y: 919, w: 21, h: 17, kind: 'bush', stripBlue: true },
+  { id: 'lime_teal',    x: 377, y: 892, w: 27, h: 38, kind: 'broad', stripBlue: true },
+  { id: 'lime_small',   x: 301, y: 871, w: 18, h: 14, kind: 'bush', stripBlue: true },
   // snow substrate: the only two pristine snow-ringed stragglers in the
   // north (component scan of the pre-stamp composite) — mirroring gives four
   // silhouettes, legitimate for stunted treeline pines
@@ -151,7 +155,16 @@ function harvest(base, s) {
   }
   const mask = new Uint8Array(w * h);
   let n = 0;
-  for (let p = 0; p < w * h; p++) { if (!visited[p]) { mask[p] = 1; n++; } }
+  for (let p = 0; p < w * h; p++) {
+    if (visited[p]) continue;
+    if (s.stripBlue) {
+      const i = p * 4;
+      // cyan/teal puddle pixel: blue near or above green, and bright enough
+      // that it cannot be a crown outline or trunk
+      if (data[i + 2] > data[i + 1] - 8 && data[i + 2] > 110) continue;
+    }
+    mask[p] = 1; n++;
+  }
   if (n < 20) throw new Error(`stamp sprite ${s.id}: mask degenerate (${n} px)`);
   return { w, h, data, mask, ground };
 }
