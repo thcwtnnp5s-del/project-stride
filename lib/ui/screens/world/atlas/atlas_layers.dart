@@ -22,7 +22,8 @@
 /// beneath, and it exists only because `TravelTo` does.
 library;
 
-import 'package:flutter/scheduler.dart' show Ticker;
+import 'package:flutter/scheduler.dart'
+    show SchedulerBinding, SchedulerPhase, Ticker;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ContentId;
 
@@ -38,6 +39,7 @@ import '../../../icons/atlas_assets.dart';
 import '../../../theme/stride_colors.dart';
 import '../../../theme/stride_metrics.dart';
 import '../../../theme/stride_typography.dart';
+import '../travel_pacing.dart';
 import 'atlas_layout.dart';
 import 'atlas_place_info.dart';
 
@@ -506,6 +508,7 @@ class AtlasMarkerLayer extends StatelessWidget {
     required this.arrivalToken,
     required this.onSelect,
     this.travelFrom,
+    this.travelLegPlaces,
     this.arrivalStanding = false,
     this.journey,
   });
@@ -541,6 +544,12 @@ class AtlasMarkerLayer extends StatelessWidget {
   /// Where the last journey set out from, for the travel trace. Null before
   /// any journey this session.
   final AtlasNode? travelFrom;
+
+  /// The last journey's committed legs, in order — the places walked
+  /// through. The trace rides the drawn road of every hop instead of the
+  /// straight line the single from→to pair used to fall back to on
+  /// multi-leg journeys. Null keeps the pair behavior.
+  final List<ContentId>? travelLegPlaces;
 
   /// Whether the journey's result line is still on screen — the pulse wears
   /// the warm arrival ink exactly as long as the panel is announcing the
@@ -673,6 +682,7 @@ class AtlasMarkerLayer extends StatelessWidget {
                   scene: scene,
                   from: travelFrom!,
                   to: scene.current,
+                  legPlaces: travelLegPlaces,
                   chrome: chrome,
                 ),
               ),
@@ -1189,14 +1199,89 @@ class AtlasArrivalBurst extends StatefulWidget {
 }
 
 class _AtlasArrivalBurstState extends State<AtlasArrivalBurst>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: AtlasArrivalBurst.period,
-  )..forward();
+  );
+
+  /// While the travel card plays, the burst waits for its **arrival
+  /// anticipation** phase instead of firing at commit — where the old
+  /// timing spent the ring entirely behind the card's barrier
+  /// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 2). The card registers its
+  /// clock only after its bounded precache, so the burst grants a short
+  /// ticker-driven grace before concluding no card is coming; with none, it
+  /// fires as it always did.
+  late final AnimationController _grace = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  );
+
+  TravelPresentationHandle? _waitingOn;
+  bool _fired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    TravelPresentationLink.active.addListener(_onLink);
+    _grace.addStatusListener((AnimationStatus status) {
+      if (status == AnimationStatus.completed && _waitingOn == null) _fire();
+    });
+    final TravelPresentationHandle? handle =
+        TravelPresentationLink.active.value;
+    if (handle == null) {
+      _grace.forward();
+    } else {
+      _adopt(handle);
+    }
+  }
+
+  void _adopt(TravelPresentationHandle handle) {
+    _grace.stop();
+    _waitingOn = handle;
+    handle.clock.addListener(_onCardClock);
+    _onCardClock();
+  }
+
+  void _fire() {
+    if (_fired) return;
+    _fired = true;
+    _detach();
+    if (mounted) _controller.forward();
+  }
+
+  void _onCardClock() {
+    final TravelPresentationHandle? handle = _waitingOn;
+    if (handle == null) return;
+    if (handle.clock.value >=
+        TravelPacing.anticipationFractionForLegs(handle.legs)) {
+      _fire();
+    }
+  }
+
+  /// A card arrived during the grace, or the card left before its
+  /// anticipation phase (popped by the system) — fire now rather than never.
+  void _onLink() {
+    if (_fired) return;
+    final TravelPresentationHandle? handle =
+        TravelPresentationLink.active.value;
+    if (handle != null && _waitingOn == null) {
+      _adopt(handle);
+    } else if (handle == null && _waitingOn != null) {
+      _fire();
+    }
+  }
+
+  void _detach() {
+    TravelPresentationLink.active.removeListener(_onLink);
+    _waitingOn?.clock.removeListener(_onCardClock);
+    _waitingOn = null;
+  }
 
   @override
   void dispose() {
+    _detach();
+    _grace.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -1316,14 +1401,25 @@ class _HitTarget extends StatelessWidget {
 
 // -------------------------------------------------------------- travel trace
 
-/// A spark running the road just walked, once, over about two and a half
-/// seconds — the journey made visible on the map (brief §53), then gone.
+/// A spark running the road just walked — the journey made visible on the
+/// map, then gone.
 ///
 /// Chrome, not art (`RULES.md` A-2): a bright square with the route dots'
 /// own contour, riding the same polyline course the route layer draws — the
-/// drawn track where the layout gives one, the straight line otherwise.
-/// One bounded `AnimationController`, no clock read, holds at nothing when
-/// complete, and reduced motion skips it entirely.
+/// drawn track where the layout gives one, the straight line otherwise, and
+/// on a multi-leg journey the **concatenation of every walked hop's course**
+/// (the old single from→to pair fell back to a straight line cross-country
+/// the moment the journey had a middle).
+///
+/// ## One trip, one clock (GAME_FEEL_CHARACTER_PRESENTATION_01, item 2)
+///
+/// While the travel card plays, this spark mirrors the card's own controller
+/// through [TravelPresentationLink] — the walking figure and the dot are two
+/// views of one clock, so a skip on the card snaps the dot home with it and
+/// the two can never disagree. When no card runs (it failed to open, or was
+/// popped by the system) the spark falls back to its own controller at the
+/// identical `TravelPacing` duration. Reduced motion skips it entirely —
+/// the arrival burst and the recentred camera already say what happened.
 class AtlasTravelTrace extends StatefulWidget {
   const AtlasTravelTrace({
     super.key,
@@ -1331,11 +1427,16 @@ class AtlasTravelTrace extends StatefulWidget {
     required this.from,
     required this.to,
     required this.chrome,
+    this.legPlaces,
   });
 
   final AtlasScene scene;
   final AtlasNode from;
   final AtlasNode to;
+
+  /// The committed legs' places in walked order, or null for the plain
+  /// from→to pair.
+  final List<ContentId>? legPlaces;
 
   /// The marker chrome counter-scale at the current zoom.
   final double chrome;
@@ -1346,17 +1447,78 @@ class AtlasTravelTrace extends StatefulWidget {
 
 class _AtlasTravelTraceState extends State<AtlasTravelTrace>
     with SingleTickerProviderStateMixin {
-  static const Duration _run = Duration(milliseconds: 2400);
-
   late final AnimationController _controller;
   bool _started = false;
   bool _skipped = false;
 
+  /// The legs as they stood at mount. Snapshotted: the controller's result
+  /// timer clears the journey summary after ~5 s, well inside the longer
+  /// presentation, and a course that collapses to the straight pair
+  /// mid-flight would make the dot jump roads.
+  late final List<ContentId>? _legPlaces = widget.legPlaces == null
+      ? null
+      : List<ContentId>.of(widget.legPlaces!);
+
+  /// The card's clock, while one is registered — the mirror source.
+  TravelPresentationHandle? _handle;
+
+  /// Set once the mirrored card has left; the spark is then done whatever
+  /// its last mirrored value was — a popped card must not strand a dot
+  /// mid-road pointing at a walk that is already over.
+  bool _finished = false;
+
+  int get _legCount {
+    final int? legs = _legPlaces?.length;
+    return legs == null || legs < 1 ? 1 : legs;
+  }
+
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: _run)
-      ..addListener(() => setState(() {}));
+    _controller = AnimationController(
+      vsync: this,
+      duration: TravelPacing.durationForLegs(_legCount),
+    )..addListener(() => setState(() {}));
+    TravelPresentationLink.active.addListener(_onLink);
+  }
+
+  void _onLink() {
+    final TravelPresentationHandle? handle =
+        TravelPresentationLink.active.value;
+    if (handle != null) {
+      // Adopt the card's clock; the fallback stops where it is. Both run
+      // the same pacing table, so the hand-over jump is at most the card's
+      // precache head start.
+      _controller.stop();
+      _handle?.clock.removeListener(_onClock);
+      _handle = handle;
+      handle.clock.addListener(_onClock);
+      _rebuildSafely();
+      return;
+    }
+    if (_handle != null) {
+      _handle!.clock.removeListener(_onClock);
+      _handle = null;
+      _finished = true;
+      _rebuildSafely();
+    }
+  }
+
+  void _onClock() => _rebuildSafely();
+
+  /// The link can notify from another route's build (the card mounting or
+  /// leaving); a setState then is a framework assertion, so it waits for
+  /// the end of the frame — the `AmbientStage._rebuild` pattern.
+  void _rebuildSafely() {
+    if (!mounted) return;
+    final SchedulerBinding binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      binding.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+      return;
+    }
+    setState(() {});
   }
 
   @override
@@ -1367,39 +1529,74 @@ class _AtlasTravelTraceState extends State<AtlasTravelTrace>
     // Reduced motion: the arrival burst and the recentred camera already say
     // what happened; a moving spark is exactly the motion being declined.
     _skipped = MediaQuery.disableAnimationsOf(context);
-    if (!_skipped) _controller.forward();
+    if (_skipped) return;
+    // A card may already be playing when this arrival's trace mounts.
+    _onLink();
+    if (_handle == null) _controller.forward();
   }
 
   @override
   void dispose() {
+    TravelPresentationLink.active.removeListener(_onLink);
+    _handle?.clock.removeListener(_onClock);
     _controller.dispose();
     super.dispose();
   }
 
-  /// The walked course: the drawn track where the layout has one, else the
-  /// straight line — the route painter's own rule.
+  /// The walked course: every committed hop's drawn track where the layout
+  /// has one, the straight line otherwise — the route painter's own rule,
+  /// applied per leg.
   List<Offset> _course() {
-    final List<Offset> points = <Offset>[Offset(widget.from.x, widget.from.y)];
-    final AtlasRoute? drawn = widget.scene.layout.routeBetween(
-      widget.from.id,
-      widget.to.id,
-    );
-    if (drawn != null) {
-      final bool forward = drawn.from == widget.from.id;
-      final Iterable<({double x, double y})> mids = forward
-          ? drawn.points
-          : drawn.points.reversed;
-      for (final ({double x, double y}) p in mids) {
-        points.add(Offset(p.x, p.y));
+    final List<AtlasNode> chain = _chain();
+    final List<Offset> points = <Offset>[
+      Offset(chain.first.x, chain.first.y),
+    ];
+    for (int i = 1; i < chain.length; i++) {
+      final AtlasNode a = chain[i - 1];
+      final AtlasNode b = chain[i];
+      final AtlasRoute? drawn = widget.scene.layout.routeBetween(a.id, b.id);
+      if (drawn != null) {
+        final bool forward = drawn.from == a.id;
+        final Iterable<({double x, double y})> mids = forward
+            ? drawn.points
+            : drawn.points.reversed;
+        for (final ({double x, double y}) p in mids) {
+          points.add(Offset(p.x, p.y));
+        }
+      }
+      points.add(Offset(b.x, b.y));
+    }
+    return points;
+  }
+
+  /// The nodes walked, in order: origin, then every leg's place the scene
+  /// knows. An id the scene cannot resolve is skipped rather than guessed;
+  /// the final node is always [AtlasTravelTrace.to], so a fully unresolved
+  /// list degrades to the plain pair.
+  List<AtlasNode> _chain() {
+    final List<AtlasNode> chain = <AtlasNode>[widget.from];
+    final List<ContentId>? legs = _legPlaces;
+    if (legs != null && legs.isNotEmpty) {
+      for (final ContentId id in legs) {
+        for (final AtlasNode node in widget.scene.nodes) {
+          if (node.id == id) {
+            chain.add(node);
+            break;
+          }
+        }
       }
     }
-    points.add(Offset(widget.to.x, widget.to.y));
-    return points;
+    if (chain.last.id != widget.to.id) chain.add(widget.to);
+    return chain;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_skipped || _controller.isCompleted) return const SizedBox.shrink();
+    final double raw = _handle?.clock.value ?? _controller.value;
+    final int legs = _handle?.legs ?? _legCount;
+    if (_skipped || _finished || raw >= 1 || _controller.isCompleted) {
+      return const SizedBox.shrink();
+    }
     final List<Offset> course = _course();
     double total = 0;
     for (int i = 1; i < course.length; i++) {
@@ -1407,9 +1604,10 @@ class _AtlasTravelTraceState extends State<AtlasTravelTrace>
     }
     if (total == 0) return const SizedBox.shrink();
 
-    // Ease-in-out along the course, so the spark leaves and arrives rather
-    // than teleporting at both ends.
-    final double t = Curves.easeInOut.transform(_controller.value);
+    // The shared course mapping: holds at the origin through the card's
+    // departure window, eases along the road with the travel loop, and is
+    // home before the arrival rest.
+    final double t = TravelPacing.courseProgress(raw, legs);
     double remaining = total * t;
     Offset at = course.first;
     for (int i = 1; i < course.length; i++) {

@@ -193,6 +193,11 @@ class _WorldScreenState extends State<WorldScreen> {
                 // journey's result line stands in the panel (F4) — the same
                 // held report, so the two cannot disagree.
                 arrivalStanding: c.lastJourney?.succeeded ?? false,
+                // The walked legs, for the trace's multi-leg course — only a
+                // committed journey's, so a refused walk draws nothing new.
+                travelLegPlaces: c.lastJourney?.succeeded == true
+                    ? c.lastJourney!.legPlaces
+                    : null,
                 // The tracked Journey's destination wears its gold ring —
                 // read from the same goal projection the tracker card
                 // renders, so the map and the card cannot disagree.
@@ -649,7 +654,10 @@ class _DestinationRow extends StatelessWidget {
             color: StrideColors.textMuted,
           ),
           const SizedBox(height: StrideSpace.s8),
-          StrideButton.secondary(
+          // Promoted to the commit register: this row's Travel is the same
+          // spend the atlas panel's Set out is, and the two read as one
+          // action now (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+          StrideButton(
             label: watched.busy ? 'Travelling…' : 'Travel',
             onPressed: enabled ? () => controller.travel(option.id) : null,
           ),

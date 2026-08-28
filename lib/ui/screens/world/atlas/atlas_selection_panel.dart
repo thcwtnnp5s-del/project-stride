@@ -124,19 +124,30 @@ class AtlasSelectionPanel extends StatelessWidget {
               // Kept for the discovery check below: the panel rebuilds on
               // arrival and `place` then follows the selection home.
               final RegionPlace destination = place;
+              // The origin, captured before the engine moves the player —
+              // the departure beat's framing.
+              final RegionPlace origin = scene.current.place;
               await controller.travelJourney(legs);
               onTravelled();
               final JourneySummary? journey = controller.lastJourney;
-              // The walk, presented (Fable V2 Iteration 02): a committed
-              // arrival plays the ~1.3 s transition card — the Traveler
-              // walking over the destination's second framing — before
-              // anything else speaks. Skipped under Reduce Motion, tappable
-              // through; a refused journey goes straight to its sentence.
+              // The walk, presented (Fable V2 Iteration 02; re-paced by
+              // GAME_FEEL_CHARACTER_PRESENTATION_01): a committed arrival
+              // plays the journey card — departure, the walk over the
+              // destination's second framing, arrival — before anything
+              // else speaks. Its length answers to `TravelPacing`; the map
+              // trace mirrors its clock. Skipped under Reduce Motion,
+              // skippable to its arrival after the departure window; a
+              // refused journey goes straight to its sentence.
               if (journey != null && journey.succeeded && context.mounted) {
                 await showTravelTransition(
                   context,
                   backdrop: PixelIcons.altVignetteFor(destination.id),
                   destinationName: journey.arrivedName,
+                  originBackdrop: PixelIcons.altVignetteFor(origin.id),
+                  originName: journey.originName,
+                  legs: journey.legsCompleted,
+                  stepsSpent: journey.totalSpent,
+                  equipment: watched.session.equipmentVisualState,
                 );
               }
               // Discovery is the payoff walking most directly buys, and it
@@ -665,6 +676,10 @@ class _TravelControlsState extends State<_TravelControls> {
           // calls that height "nothing on the gameplay path").
           StrideButton(
             label: widget.busy ? 'Travelling…' : 'Set out',
+            // The one warm glow in the system: the game's weightiest
+            // commit spends its central real-world currency
+            // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+            glow: true,
             onPressed: widget.busy || !widget.open
                 ? null
                 : () {

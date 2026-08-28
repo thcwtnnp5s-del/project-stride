@@ -48,6 +48,8 @@ final class JourneySummary {
     required this.legsCompleted,
     required this.legsPlanned,
     required this.firstVisit,
+    this.originName,
+    this.legPlaces = const <ContentId>[],
     this.failure,
   });
 
@@ -74,6 +76,16 @@ final class JourneySummary {
 
   /// Whether the final arrival opened the destination.
   final bool firstVisit;
+
+  /// Where the journey set out from — presentation only, for the travel
+  /// card's departure beat.
+  final String? originName;
+
+  /// The places actually walked through, in order — the committed legs'
+  /// destinations. Presentation only: the travel trace draws its course
+  /// along these so a multi-leg journey's dot rides the roads it took
+  /// rather than a straight line cross-country.
+  final List<ContentId> legPlaces;
 
   /// The refusing leg's report, or null on success.
   final TravelReport? failure;
@@ -460,6 +472,8 @@ class SessionController extends ChangeNotifier {
         legsCompleted: completed,
         legsPlanned: legs.length,
         firstVisit: firstVisit,
+        originName: origin,
+        legPlaces: List<ContentId>.unmodifiable(legs.sublist(0, completed)),
         failure: failure,
       );
       _armResultTimer();

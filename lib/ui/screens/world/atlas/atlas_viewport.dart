@@ -117,7 +117,12 @@ class AtlasViewport extends StatefulWidget {
     this.onExplored,
     this.arrivalStanding = false,
     this.journey,
+    this.travelLegPlaces,
   });
+
+  /// The last committed journey's legs in walked order, for the travel
+  /// trace's multi-leg course. Null before any journey.
+  final List<ContentId>? travelLegPlaces;
 
   /// The tracked Journey goal's destination, for the marker layer's gold
   /// ring. Null when no journey is set.
@@ -438,6 +443,7 @@ class AtlasViewportState extends State<AtlasViewport>
                         overview: overview,
                         arrivalToken: _arrivals,
                         travelFrom: _travelFrom,
+                        travelLegPlaces: widget.travelLegPlaces,
                         arrivalStanding: widget.arrivalStanding,
                         journey: widget.journey,
                         onSelect: widget.onSelect,

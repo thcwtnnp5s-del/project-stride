@@ -873,7 +873,12 @@ void main() {
         reason: 'the burst starts on its own',
       );
 
-      await tester.pump(AtlasArrivalBurst.period + const Duration(seconds: 1));
+      // With no travel card registered, the card-adoption grace
+      // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 2 — the burst waits a
+      // beat for the presentation clock before concluding none is coming)
+      // elapses first, then the one-shot ring plays and stops. A repeating
+      // animation would hang this settle, which is the assertion.
+      await tester.pumpAndSettle();
       expect(
         tester.hasRunningAnimations,
         isFalse,
