@@ -1,5 +1,46 @@
 # Project Stride — Project State
 
+**Version:** 2.30
+**Status:** 🚧 **WORLD ATLAS REMASTER 01 — regional recomposition of the
+atlas, on `world-atlas-remaster-01` (from `fable-v2-experiment` @
+`3aabfae`), awaiting the owner's physical-device acceptance.** Records:
+`MILESTONES/WORLD_ATLAS_REMASTER_01.md` (milestone + device checklist);
+`GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/README.md` (Design
+Thesis, production log, budget ledger, residuals) and `PROTECTION_PLAN.md`.
+
+The owner's brief — stop patching tile edges, make the atlas read as one
+world — answered by method change: a seven-agent audit (provenance,
+geography, protection, production strategy, phone-scale critique,
+compositor design, interaction constraints) preceded any generation and
+found the shipped composite had **never been device-reviewed** (the last
+device-seen atlas still carried the M-15 damage) and six phone-scale P0
+paste/tile reads. All six are resolved: the east-bay ruler waterline
+(deterministic shoaling ramp at the conform-rect edge, 0 gens); the NE
+two-dialect ice seam + truncated black wedge (R1 — one shelf→floes→brash→
+sea gradient); the half-map forest wall's worst stretch + half-ghost peak
+(R2 — a wandering forest edge, the peak completed); the SW line-art
+sketchlands + checker column (R3+R3b, with one recorded 220 px golden
+re-authorization); the SE x=512 shoreline cut (R4 — one continuous coastal
+arc); the NW crackle-ice paste rectangle (R5 — roll 1 rejected on the
+record for deleting the nunatak row, roll 2 narrowed and accepted). The
+pipeline gained a **regional layer** (tracked manifest, status gate,
+dither-select masks, A-4 untouched) and a **landmark-registry guard** (15
+golden-crop-held features outside the master core — volcano cliff and
+watchtower flanks, caravan road, south strand, island clusters, overlay
+grounds — any drift fails `--check`). The independent ATLAS-H review ruled
+**"install"** — its own per-pixel diff found zero landmark drift and no
+P0s — and its one perimeter finding (R3's own straight top edge) was
+corrected (R3c) and re-verified before commit. PixelLab 205 → **25** (180
+spent; the 25-gen reserve exactly intact; P1/P2 residuals deferred to the
+2026-09-16 reset, listed in the round record). Suites: app **802**, analyze clean, atlas
+tests green, `--check` clean (843 files, atlas byte-reproducible including
+all five regions), **World goldens unchanged and passing** (every region
+outside the default viewport). No layout, save, health, audio or gameplay
+change. Nothing merges without the owner's verdict; the remaster rides the
+full V2 build for evaluation.
+
+---
+
 **Version:** 2.29
 **Status:** 🧪 **FABLE V2 ITERATION 03 — the depth pass, on
 `fable-v2-experiment`, awaiting the owner's device evaluation.** The
