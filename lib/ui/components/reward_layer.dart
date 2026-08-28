@@ -33,6 +33,7 @@
 /// (`RULES.md` E-2).
 library;
 
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../audio/audio_controller.dart';
@@ -59,6 +60,7 @@ Future<void> showRewardLayer(
   String continueLabel = 'Continue',
   VoidCallback? onContinue,
   Widget? trailing,
+  String? announcement,
 }) {
   final bool reduced = MediaQuery.disableAnimationsOf(context);
   // The one haptic per payoff, scaled to the layer's own tier — here, so no
@@ -68,6 +70,16 @@ Future<void> showRewardLayer(
     audio?.hapticHeavy();
   } else {
     audio?.hapticMedium();
+  }
+  // The one announcement per payoff, on the same single-home rule as the
+  // haptic: a held layer a sighted player must acknowledge is a moment a
+  // screen-reader user must hear (GAME_FEEL_CHARACTER_PRESENTATION_01).
+  if (announcement != null) {
+    SemanticsService.sendAnnouncement(
+      View.of(context),
+      announcement,
+      Directionality.of(context),
+    );
   }
   return showGeneralDialog<void>(
     context: context,
@@ -284,6 +296,7 @@ class RewardRaise extends StatefulWidget {
     this.accent,
     this.continueLabel = 'Continue',
     this.trailing,
+    this.announcement,
   });
 
   final Object? token;
@@ -294,6 +307,9 @@ class RewardRaise extends StatefulWidget {
   final Color? accent;
   final String continueLabel;
   final Widget? trailing;
+
+  /// Announced once when the layer rises — see [showRewardLayer].
+  final String? announcement;
 
   @override
   State<RewardRaise> createState() => _RewardRaiseState();
@@ -338,6 +354,7 @@ class _RewardRaiseState extends State<RewardRaise> {
         accent: widget.accent,
         continueLabel: widget.continueLabel,
         trailing: widget.trailing,
+        announcement: widget.announcement,
         onContinue: widget.onDismiss,
       );
       _showing = false;

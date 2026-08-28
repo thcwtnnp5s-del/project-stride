@@ -249,6 +249,13 @@ or a held MEDIUM result does), clears on its timer (now 4 s), and clears
 at once when the player opens any row. A held result keeps its Continue.
 (`craft_flow_test`: "a MINOR result is transient".)
 
+*Refined by GAME_FEEL_CHARACTER_PRESENTATION_01 (owner brief, 2026-08-28:
+"if they come back after a finite queue: summarize what completed"): the
+4 s decay now starts at the summary's **first sighting** on the Craft
+screen rather than at queue finish, so a queue that ends while the player
+is elsewhere keeps its summary until they return. Everything else here
+stands — never pins, clears on row-open, held results acknowledge.*
+
 ## D — Goal Board, one more pass
 
 READY is the one filled pill (dim step accent); a row or project holding

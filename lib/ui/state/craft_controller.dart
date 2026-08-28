@@ -68,6 +68,8 @@ import 'package:stride_core/stride_core.dart' show ContentId, ItemCategory;
 import '../../runtime/stride_session.dart'
     show CraftReport, RecipeOption, StrideSession;
 import 'activity_controller.dart' show ActivityTiming;
+import 'craft_memory.dart';
+import 'craft_significance.dart';
 import 'session_controller.dart';
 
 /// How long one crafted repetition takes at the bench.
@@ -110,7 +112,12 @@ const Duration _summaryLifetime = Duration(seconds: 4);
 const Duration _busyRetry = Duration(milliseconds: 250);
 
 class CraftController extends ChangeNotifier with WidgetsBindingObserver {
-  CraftController(this._sessions, {ActivityTiming? timing}) {
+  CraftController(
+    this._sessions, {
+    ActivityTiming? timing,
+    CraftMemory? memory,
+    // ignore: prefer_initializing_formals — the public name is `memory`.
+  }) : _memory = memory {
     _timing =
         timing ??
         ActivityTiming.real(
@@ -124,6 +131,11 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
 
   final SessionController _sessions;
   late final ActivityTiming _timing;
+
+  /// The presentation memory behind first-craft elevation, or null when the
+  /// host runs without one (tests, the bare harness) — significance then
+  /// simply never sees a first craft.
+  final CraftMemory? _memory;
 
   StrideSession get _session => _sessions.session;
 
@@ -153,6 +165,22 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
   /// The last completed craft's full report — the completion feedback panel
   /// reads it for the equipment reveal (stat delta, rarity, level-up).
   CraftReport? _lastReport;
+
+  /// Queue-level facts, accumulated across every committed repetition.
+  ///
+  /// `_lastReport` alone is not enough: a level gained on repetition k < N
+  /// was overwritten by the reports after it, so a mid-queue level-up
+  /// produced no LevelUpCard and its unlock names vanished — the game
+  /// under-reporting a real accomplishment (found by this workstream's
+  /// craft review; pinned by regression test).
+  bool _levelledUpAny = false;
+  CraftReport? _levelReport;
+  final List<String> _unlockedNamesAll = <String>[];
+
+  /// Whether this queue's recipe had never completed before it started —
+  /// read from the presentation memory at start, so the answer cannot
+  /// change under the queue as it commits.
+  bool _firstCraft = false;
 
   /// The refusal that stopped the queue, when one did.
   CraftReport? _stopReport;
@@ -186,6 +214,32 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
   CraftReport? get lastReport => _lastReport;
   CraftReport? get stopReport => _stopReport;
 
+  /// Whether any repetition in the finished queue gained a level.
+  bool get levelledUpAny => _levelledUpAny;
+
+  /// The report of the **last** repetition that levelled — its
+  /// `skillLevelAfter` is the run's final level.
+  CraftReport? get levelReport => _levelReport;
+
+  /// Every unlock name any repetition earned, in order, without repeats.
+  List<String> get unlockedNamesAll => List<String>.unmodifiable(
+    _unlockedNamesAll,
+  );
+
+  /// How much the finished queue matters — derived, never per-item
+  /// (`craft_significance.dart`). Minor until anything commits.
+  CraftSignificance get significance {
+    if (_completed == 0 || _lastReport == null) {
+      return CraftSignificance.minor;
+    }
+    return craftSignificanceOf(
+      outputRarity: _lastReport!.outputRarity,
+      isEquipment: _lastReport!.equipDelta != null,
+      levelledUp: _levelledUpAny,
+      firstCraft: _firstCraft,
+    );
+  }
+
   // -- Commands ---------------------------------------------------------------
 
   /// Begins a presentation queue of [count] crafts of [recipe].
@@ -193,6 +247,10 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     if (_running) return;
     _clearSummary();
     _recipe = recipe.id;
+    // Asked once, before anything commits, so the answer cannot change
+    // under the queue. No memory means never-first, which only forgoes an
+    // elevation — the honest fallback.
+    _firstCraft = _memory != null && !_memory.crafted(recipe.id);
     _requested = count.clamp(1, maxQueue);
     _completed = 0;
     _running = true;
@@ -332,11 +390,24 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     }
     _completed += 1;
     _lastReport = report;
+    _accumulate(report);
+    return true;
+  }
+
+  /// Queue-level accumulation, shared by the boundary dispatch and the
+  /// stop settle so the two paths cannot drift.
+  void _accumulate(CraftReport report) {
     _outputName = report.outputName ?? _outputName;
     _quantity += report.quantity ?? 0;
     _xp += report.experience ?? 0;
     _skillName = report.skillName ?? _skillName;
-    return true;
+    if (report.levelledUp) {
+      _levelledUpAny = true;
+      _levelReport = report;
+    }
+    for (final String name in report.unlockedNames) {
+      if (!_unlockedNamesAll.contains(name)) _unlockedNamesAll.add(name);
+    }
   }
 
   /// Stop's settle (`DECISIONS/0022` §7): every repetition that had **fully
@@ -356,10 +427,7 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
       _anchor += _durationMillis;
       _completed += 1;
       _lastReport = report;
-      _outputName = report.outputName ?? _outputName;
-      _quantity += report.quantity ?? 0;
-      _xp += report.experience ?? 0;
-      _skillName = report.skillName ?? _skillName;
+      _accumulate(report);
       due -= 1;
     }
     _finish();
@@ -373,13 +441,13 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     });
   }
 
-  /// Whether the finished summary is a MEDIUM beat — equipment, or a level
-  /// gained — and therefore held for acknowledgement rather than timed out
-  /// (PLAYABLE_EXPERIENCE_REFINEMENT_01 §12, §13, §32).
-  bool get summaryHeld {
-    final CraftReport? last = _lastReport;
-    return last != null && (last.levelledUp || last.equipDelta != null);
-  }
+  /// Whether the finished summary is held for acknowledgement rather than
+  /// timed out (PLAYABLE_EXPERIENCE_REFINEMENT_01 §12, §13, §32) — now the
+  /// derived significance's call: MEDIUM and MAJOR hold, MINOR stays
+  /// transient. This also repairs the mid-queue level-up loss: a level on
+  /// any repetition holds the summary, not only one on the last.
+  bool get summaryHeld =>
+      !_running && significance != CraftSignificance.minor;
 
   /// Dismisses a held summary. Idempotent; a no-op while a queue runs.
   void dismissSummary() {
@@ -391,20 +459,40 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
   void _finish() {
     _running = false;
     _stopRequested = false;
+    if (_completed > 0) {
+      // The recipe has now been made at least once — recorded whatever the
+      // presentation does next. Monotonic presentation memory only.
+      if (_recipe case final ContentId made) _memory?.markCrafted(made);
+    }
     if (_completed > 0 && summaryHeld) {
       _summaryTimer?.cancel();
       _summaryTimer = null;
     } else if (_completed > 0 || _stopReport != null) {
+      // A transient summary decays only once it has been **seen** — the
+      // owner's brief: a player who returns to a finished queue finds its
+      // summary waiting, not a card that evaporated at some earlier tick
+      // ("if they come back after a finite queue: summarize what
+      // completed"). The Craft screen reports the sighting; the timer runs
+      // from there. Opening another recipe still clears it immediately.
       _summaryTimer?.cancel();
-      _summaryTimer = _timing.startTimer(_summaryLifetime, () {
-        _summaryTimer = null;
-        _clearSummary();
-        notifyListeners();
-      });
+      _summaryTimer = null;
     } else {
       _clearSummary();
     }
     notifyListeners();
+  }
+
+  /// The Craft screen saw the transient summary — its decay starts now.
+  /// Idempotent; a no-op for held summaries, running queues, and a summary
+  /// already decaying.
+  void noteSummarySeen() {
+    if (_running || _recipe == null || summaryHeld) return;
+    if (_summaryTimer != null) return;
+    _summaryTimer = _timing.startTimer(_summaryLifetime, () {
+      _summaryTimer = null;
+      _clearSummary();
+      notifyListeners();
+    });
   }
 
   void _clearSummary() {
@@ -419,6 +507,10 @@ class CraftController extends ChangeNotifier with WidgetsBindingObserver {
     _skillName = null;
     _lastReport = null;
     _stopReport = null;
+    _levelledUpAny = false;
+    _levelReport = null;
+    _unlockedNamesAll.clear();
+    _firstCraft = false;
   }
 
   void _cancelTimer() {

@@ -188,8 +188,18 @@ void main() {
     expect(craft.quantity, 1);
     expect(craft.summaryHeld, isFalse, reason: 'a meal with no level is MINOR');
 
-    // The timer clears it (finding C of the correction pass): the card
+    // The decay is **seen-gated** (GAME_FEEL_CHARACTER_PRESENTATION_01,
+    // item 1 — the owner's brief: a player who comes back to a finished
+    // queue finds its summary waiting). Unseen, the timer never starts:
+    fake.advance(const Duration(seconds: 30));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(craft.summaryRecipe, kBrothRecipe,
+        reason: 'an unseen summary waits');
+
+    // The Craft screen reports the sighting; the 4 s decay runs from there
+    // (finding C of the correction pass, its lifetime unchanged): the card
     // returns to the clean detail on its own.
+    craft.noteSummarySeen();
     fake.advance(const Duration(seconds: 4));
     await until(() => craft.summaryRecipe == null);
     expect(craft.quantity, 0);
@@ -204,6 +214,37 @@ void main() {
     craft.dismissSummary();
     expect(craft.summaryRecipe, isNull);
     expect(craft.quantity, 0);
+  });
+
+  test('a level gained mid-queue holds the summary (regression)', () async {
+    // Broth pays +12 Cooking XP and level 2 costs 100, so repetition nine
+    // of a full ×10 queue crosses the level and repetition ten does not —
+    // exactly the shape whose LevelUpCard used to vanish: `_lastReport`
+    // was overwritten by every later success and `summaryHeld` read only
+    // the last (GAME_FEEL_CHARACTER_PRESENTATION_01, item 1 — a truth
+    // bug, not polish).
+    final (
+      StrideSession session,
+      _,
+      CraftController craft,
+      FakeTiming fake,
+    ) = await boot(herbs: 20);
+
+    craft.start(brothOf(session), 10);
+    for (int i = 1; i <= 10; i++) {
+      fake.advance(CraftDurations.of(brothOf(session)));
+      await until(() => craft.completed >= i || !craft.active);
+    }
+    await until(() => !craft.active);
+    expect(craft.completed, 10);
+    expect(
+      craft.lastReport!.levelledUp,
+      isFalse,
+      reason: 'precondition: the level landed mid-run, not on the last rep',
+    );
+    expect(craft.levelledUpAny, isTrue);
+    expect(craft.summaryHeld, isTrue, reason: 'a mid-queue level is not lost');
+    expect(craft.levelReport?.skillLevelAfter, 2);
   });
 
   test('cancel keeps what completed and dispatches nothing more', () async {

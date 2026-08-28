@@ -75,6 +75,7 @@ class RewardBeat extends StatelessWidget {
     this.lines = const <String>[],
     this.rarity,
     this.accent,
+    this.icon,
     this.child,
     this.onContinue,
     this.continueLabel = 'OK',
@@ -98,6 +99,12 @@ class RewardBeat extends StatelessWidget {
   /// belongs to something — a skill, the step accent. Ignored when [rarity]
   /// is set. Null falls back to the default border.
   final Color? accent;
+
+  /// The thing's picture, leading the title — a crafted item's approved
+  /// 48 px icon (GAME_FEEL_CHARACTER_PRESENTATION_01, item 1: a completion
+  /// that shows the thing beats one that only names it). Carries no motion
+  /// of its own, so pixel art lands on whole pixels (`RULES.md` A-2).
+  final Widget? icon;
 
   /// Anything structured beneath the lines — reward rows, an Equip button.
   final Widget? child;
@@ -142,7 +149,19 @@ class RewardBeat extends StatelessWidget {
           ],
         ),
         const SizedBox(height: StrideSpace.s2),
-        AdaptiveText(title, style: titleStyle, color: titleInk),
+        if (icon case final Widget leading)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              leading,
+              const SizedBox(width: StrideSpace.s10),
+              Expanded(
+                child: AdaptiveText(title, style: titleStyle, color: titleInk),
+              ),
+            ],
+          )
+        else
+          AdaptiveText(title, style: titleStyle, color: titleInk),
         // Prose wraps; it is never shrunk to fit. A fact line can be a
         // sentence ("+2 Max HP · harder fights are within reach"), and the
         // narrowest phone at the largest text scale is the case that decides.

@@ -25,7 +25,8 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show ContentId, ItemCategory;
+import 'package:stride_core/stride_core.dart'
+    show ContentId, ItemCategory, Rarity;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
@@ -43,6 +44,7 @@ import '../../icons/sprite_footprints.dart';
 import '../../components/ambient_stage.dart';
 import '../../state/audio_scope.dart';
 import '../../state/craft_controller.dart';
+import '../../state/craft_significance.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/rarity_style.dart';
@@ -207,8 +209,15 @@ class _CraftScreenState extends State<CraftScreen> {
 
     return RewardRaise(
       token: held ? craft.lastReport : null,
-      tier: RewardTier.medium,
+      // The layer's weight is the derived significance's call
+      // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 1): an Epic or better
+      // output takes the MAJOR frame and its heavier haptic; everything
+      // else held is MEDIUM. Never per-item.
+      tier: craft.significance == CraftSignificance.major
+          ? RewardTier.major
+          : RewardTier.medium,
       accent: held ? _CraftSummary.heldAccent(craft, pinnedRecipe) : null,
+      announcement: held ? 'Crafted ${pinnedRecipe.outputName}' : null,
       beats: held
           ? _CraftSummary.heldBeats(context, craft, pinnedRecipe)
           : const <Widget>[],
@@ -817,6 +826,11 @@ class _RecipeDetailState extends State<_RecipeDetail> {
                   : count > 1
                   ? 'Craft ×$count'
                   : 'Craft',
+              // READY TO MAKE: a craftable recipe's button joins the moss
+              // language its own row already speaks — enticing when the
+              // bag funds it, strongly receded when it does not (the
+              // disabled plate is flat and ledge-less by construction).
+              variant: StrideButtonVariant.ready,
               subLabel: activeElsewhere
                   ? 'Finish or cancel your current craft'
                   : _reason(recipe),
@@ -826,7 +840,12 @@ class _RecipeDetailState extends State<_RecipeDetail> {
                       activeElsewhere ||
                       !controller.session.isReady
                   ? null
-                  : () => CraftScope.read(context).start(recipe, count),
+                  : () {
+                      // One light pulse per commitment, as Gather and
+                      // Set out — never per repetition loop beat.
+                      AudioScope.read(context).hapticLight();
+                      CraftScope.read(context).start(recipe, count);
+                    },
             ),
             const SizedBox(height: StrideSpace.s6),
             // The Pursuit hook (`DECISIONS/0023` §1): any recipe's output can
@@ -1032,7 +1051,11 @@ class _ActiveCraftPanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: StrideSpace.s6),
-        CraftRepetitionBar(craft: craft, skill: recipe.skill),
+        _CompletionPulse(
+          craft: craft,
+          skill: recipe.skill,
+          child: CraftRepetitionBar(craft: craft, skill: recipe.skill),
+        ),
         if (craft.completed > 0) ...<Widget>[
           const SizedBox(height: StrideSpace.s8),
           Row(
@@ -1056,7 +1079,9 @@ class _ActiveCraftPanel extends StatelessWidget {
           ),
         ],
         const SizedBox(height: StrideSpace.s8),
-        StrideButton(
+        // An exit, not a commit — the neutral register
+        // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+        StrideButton.secondary(
           label: 'Cancel',
           onPressed: () => CraftScope.read(context).stop(),
         ),
@@ -1081,6 +1106,96 @@ class _CraftSecondsRemaining extends StatelessWidget {
       ),
     );
   }
+}
+
+/// One completed repetition's **boundary beat**
+/// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 1): a light haptic through the
+/// audited seam and one brief flash over the repetition bar in the skill's
+/// hue — a sensory event that says "one finished, one landed in the bag",
+/// where before the bar simply snapped empty.
+///
+/// Restraint, by construction: one pulse per *increment observed while
+/// watching* — a resume that reconciles five repetitions at once is one
+/// pulse, not five; an unwatched queue pulses nothing because the widget is
+/// not mounted; every card per item stays banned (the batch summary is the
+/// queue's one card). The haptic rides `AudioController`'s own toggle gate;
+/// reduced motion skips the flash and keeps the haptic, which is not motion.
+class _CompletionPulse extends StatefulWidget {
+  const _CompletionPulse({
+    required this.craft,
+    required this.skill,
+    required this.child,
+  });
+
+  final CraftController craft;
+  final ContentId skill;
+  final Widget child;
+
+  @override
+  State<_CompletionPulse> createState() => _CompletionPulseState();
+}
+
+class _CompletionPulseState extends State<_CompletionPulse>
+    with SingleTickerProviderStateMixin {
+  // Rests at 1, where the tween below is fully transparent; a pulse runs
+  // it 0 → 1, fading the wash out. Resting at 0 would paint the wash
+  // permanently — the tween's loud end is its start.
+  late final AnimationController _flash = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  )..value = 1;
+  late int _seen = widget.craft.completed;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.craft.addListener(_onChange);
+  }
+
+  void _onChange() {
+    if (!mounted) return;
+    final int now = widget.craft.completed;
+    if (now > _seen) {
+      _seen = now;
+      AudioScope.read(context).hapticLight();
+      if (!MediaQuery.disableAnimationsOf(context)) _flash.forward(from: 0);
+    } else if (now < _seen) {
+      // A fresh queue started; nothing to celebrate yet.
+      _seen = now;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.craft.removeListener(_onChange);
+    _flash.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: <Widget>[
+      widget.child,
+      Positioned.fill(
+        child: IgnorePointer(
+          child: FadeTransition(
+            opacity: _flash.drive(
+              Tween<double>(
+                begin: 0.55,
+                end: 0,
+              ).chain(CurveTween(curve: Curves.easeOut)),
+            ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: StrideColors.forSkill(widget.skill),
+                borderRadius: StrideRadius.gate,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 /// The craft flow's smooth per-repetition bar — the same widget-side ticker
@@ -1182,6 +1297,15 @@ class _CraftSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final CraftReport? refusal = craft.stopReport;
 
+    // Whatever transient form renders below, its decay clock starts at the
+    // first sighting — a queue that finished while the player was on
+    // another tab keeps its summary until they come back (the owner's
+    // brief: "if they come back after a finite queue: summarize what
+    // completed"). Idempotent on the controller.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) CraftScope.read(context).noteSummarySeen();
+    });
+
     if (craft.quantity == 0 && refusal != null) {
       return SurfaceBlock(
         child: AdaptiveText(
@@ -1201,13 +1325,22 @@ class _CraftSummary extends StatelessWidget {
     final String skillName = craft.skillName ?? recipe.skillName;
     final String xpLine = '+${craft.xp} $skillName XP';
 
-    // MINOR — components and food: the brief, truthful beat, on the timer.
+    // MINOR — components and food: the brief, truthful beat, on the
+    // seen-started timer — now with the thing itself: the approved 48 px
+    // icon and the rarity ink, so a completion shows what was made instead
+    // of only logging it (GAME_FEEL_CHARACTER_PRESENTATION_01, item 1).
     return StaggeredReveal(
       children: <Widget>[
         RewardBeat(
           tier: RewardTier.minor,
           eyebrow: 'CRAFTED',
           title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
+          // Common stays low-key everywhere — the row rule RewardItemRow
+          // already keeps; ink and badge start at Uncommon.
+          rarity: recipe.outputRarity == Rarity.common
+              ? null
+              : recipe.outputRarity,
+          icon: PixelAsset.item(PixelIcons.itemFor(recipe.outputItem)),
           lines: <String>[
             xpLine,
             if (refusal != null) 'Stopped: ${_refusalText(refusal)}',
@@ -1217,18 +1350,21 @@ class _CraftSummary extends StatelessWidget {
     );
   }
 
-  /// The layer's frame: the item's rarity for finished equipment, the
-  /// skill's hue for a level gained on a component run.
+  /// The layer's frame: the item's rarity ink for finished equipment and
+  /// for anything significant enough to take the MAJOR frame; the skill's
+  /// hue for a level gained on a component run.
   static Color heldAccent(CraftController craft, RecipeOption recipe) =>
-      craft.lastReport?.equipDelta != null
+      craft.lastReport?.equipDelta != null ||
+          craft.significance == CraftSignificance.major
       ? (RarityStyle.maybe(recipe.outputRarity)?.accent ??
             StrideColors.forSkill(recipe.skill))
       : StrideColors.forSkill(recipe.skill);
 
-  /// The beats a held craft summary raises: MEDIUM for finished equipment
-  /// — the name in its rarity, the stat story against what is worn — or the
-  /// MINOR crafted line when only the level-up made it held, and the
-  /// universal [LevelUpCard] beneath when a level landed.
+  /// The beats a held craft summary raises: the crafted thing — its icon,
+  /// its rarity, its stat story where it is equipment — and the universal
+  /// [LevelUpCard] beneath when a level landed **anywhere in the queue**
+  /// (the accumulated facts, not the last report's: a level on repetition
+  /// three of ten used to vanish under the seven reports after it).
   static List<Widget> heldBeats(
     BuildContext context,
     CraftController craft,
@@ -1238,6 +1374,7 @@ class _CraftSummary extends StatelessWidget {
     final EquipDelta? delta = last?.equipDelta;
     final String skillName = craft.skillName ?? recipe.skillName;
     final String xpLine = '+${craft.xp} $skillName XP';
+    final Widget icon = PixelAsset.item(PixelIcons.itemFor(recipe.outputItem));
     return <Widget>[
       if (delta != null && last != null)
         RewardBeat(
@@ -1245,6 +1382,7 @@ class _CraftSummary extends StatelessWidget {
           eyebrow: 'CRAFTED',
           title: last.outputName ?? recipe.outputName,
           rarity: recipe.outputRarity,
+          icon: icon,
           lines: <String>[
             // A tool says what it is and what it would replace; a weapon or
             // armour says the stat delta. No "Tool power 4 → 4".
@@ -1262,15 +1400,19 @@ class _CraftSummary extends StatelessWidget {
           tier: RewardTier.minor,
           eyebrow: 'CRAFTED',
           title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
+          rarity: recipe.outputRarity == Rarity.common
+              ? null
+              : recipe.outputRarity,
+          icon: icon,
           lines: <String>[xpLine],
         ),
-      if (last != null && last.levelledUp)
+      if (craft.levelledUpAny)
         LevelUpCard(
-          name: last.skillName ?? skillName,
-          level: last.skillLevelAfter ?? 0,
+          name: craft.levelReport?.skillName ?? skillName,
+          level: craft.levelReport?.skillLevelAfter ?? 0,
           skill: recipe.skill,
-          unlocked: last.unlockedNames,
-          why: last.unlockedNames.isEmpty
+          unlocked: craft.unlockedNamesAll,
+          why: craft.unlockedNamesAll.isEmpty
               ? null
               : 'New work is ready at the bench',
         ),

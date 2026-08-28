@@ -33,6 +33,7 @@ import 'shell/stride_shell.dart';
 import 'state/activity_controller.dart';
 import 'state/audio_scope.dart';
 import 'state/craft_controller.dart';
+import 'state/craft_memory.dart';
 import 'state/session_controller.dart';
 import 'state/session_scope.dart';
 import 'theme/stride_theme.dart';
@@ -44,6 +45,7 @@ class StrideApp extends StatefulWidget {
     this.audio,
     this.syncOnStart = true,
     this.activityTiming,
+    this.craftMemory,
   });
 
   final StrideSession session;
@@ -62,6 +64,11 @@ class StrideApp extends StatefulWidget {
   /// general switch — it changes when the presentation timer fires and
   /// nothing else.
   final ActivityTiming? activityTiming;
+
+  /// The craft presentation memory behind first-craft significance.
+  /// `main.dart` passes the opened one; null — every widget test — means
+  /// no craft ever reads as a first, which only forgoes an elevation.
+  final CraftMemory? craftMemory;
 
   /// Whether to reconcile new foreground health data once, after the first
   /// frame. True in the app; `main.dart` never passes it.
@@ -107,6 +114,7 @@ class _StrideAppState extends State<StrideApp> {
   late final CraftController _craft = CraftController(
     _controller,
     timing: widget.activityTiming,
+    memory: widget.craftMemory,
   );
 
   /// The audio layer. Exactly one instance, beside the other app-scoped

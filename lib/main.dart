@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 
 import 'audio/audio_controller.dart';
 import 'runtime/stride_session.dart';
+import 'ui/state/craft_memory.dart';
 import 'ui/stride_app.dart';
 
 Future<void> main() async {
@@ -44,5 +45,11 @@ Future<void> main() async {
   // failure path inside degrades to defaults or silence.
   final AudioController audio = await AudioController.start();
 
-  runApp(StrideApp(session: session, audio: audio));
+  // The craft presentation memory (GAME_FEEL_CHARACTER_PRESENTATION_01):
+  // one tiny JSON read on the audio-settings seam, so first-craft
+  // significance is known before the first queue. Unreadable means empty;
+  // it cannot block a launch and touches no game state.
+  final CraftMemory craftMemory = await CraftMemory.open();
+
+  runApp(StrideApp(session: session, audio: audio, craftMemory: craftMemory));
 }
