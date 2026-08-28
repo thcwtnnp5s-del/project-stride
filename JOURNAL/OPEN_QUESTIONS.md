@@ -949,3 +949,35 @@ defects (farm/forest join, canopy corduroy/banding, Longwood interior),
 and strand-golden re-extractions for the SE terrace and SW block top
 edge (`GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/
 POST_RESET_GENERATION_PLAN.md`).
+
+## Q-14 — Visible-equipment art: which gear, on which surfaces, first?
+
+**Raised:** 2026-08-28, Game Feel & Character Presentation 01 (FEEL-E
+architecture review, R1).
+
+The visible-equipment foundation shipped (`TravelerArt`,
+`EquipmentVisualState`): equipped gear can become visible on the Traveler
+the moment PixelLab variant strips exist, with zero rendering-code
+changes. But the coverage matrix is large — ~19 Traveler sequences ×
+weapon/armor/tool classes × five-plus surfaces — and the **priority
+order is a design decision the owner must make** before any art round is
+scoped:
+
+1. **Weapon-in-combat first?** (4 weapon classes × the four combat
+   tracks ≈ 28 frames each; the first round must also include an
+   *unarmed* set, because the baked generic sword currently contradicts
+   an empty weapon slot.)
+2. **Tool-in-work first?** (axe/pick classes × the woodcut/mine loops —
+   the surfaces the player watches longest.)
+3. **Armor everywhere?** (the largest set by far: combat + 16 ambient
+   scenes + 5 work loops + walk + sprite + portrait; batch by sequence
+   family so partial delivery degrades to base per-sequence.)
+
+Related sub-question, deliberately not built: a deterministic palette
+remap of the baked blade/tool-head pixels (steel → bronze) is marginal
+under A-2 — it communicates material tier only, needs per-frame masks of
+moving pixels, and is a creative call. UNRESOLVED until the owner rules.
+
+Nothing is blocked in the product: every surface renders the base
+Traveler until this is answered. The 25-generation atlas reserve is
+unrelated and untouched.

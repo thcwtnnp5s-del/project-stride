@@ -1,5 +1,57 @@
 # Project Stride — Project State
 
+**Version:** 2.32
+**Status:** 🚧 **GAME FEEL & CHARACTER PRESENTATION 01 — the pacing,
+reward-feel, button and visible-equipment pass, on
+`game-feel-character-presentation-01` (from `world-atlas-remaster-01` @
+`5bc2c46`, which already contains all of `fable-v2-experiment`), awaiting
+the owner's device acceptance.** Records:
+`MILESTONES/GAME_FEEL_CHARACTER_PRESENTATION_01.md` (thesis, the
+thirteen questions, implementation record, iPhone checklist); evidence
+`GAME_BIBLE/ART/exploration/GAME_FEEL_CHARACTER_PRESENTATION_01/evidence/`;
+new owner question `JOURNAL/OPEN_QUESTIONS.md` Q-14.
+
+The owner's five complaints, answered in one breath: **the game stops
+rushing its own good moments.** Travel grows from a ~1.3 s flash to a
+hop-scaled 9.9–14.5 s journey built of whole walk passes — departure over
+the origin, the road with the committed cost, arrival — with the map's
+trace dot riding the **same clock** as the card (skip snaps both), the
+multi-leg trace finally following the actual roads, and skip-to-arrival
+after a 1.98 s window; Reduce Motion still gets no card at all. **Ambient
+scenes breathe**: every full scene gained intro/loop/outro phasing over
+its existing frames — the reading holds ~20–28 s with the page bobbing,
+the fire scene rests while the cat's own track keeps living, sitting down
+reversed is standing up — under the same lifecycle seam the idle cadence
+runs on, with drawn 3–6 s neutral gaps and an avoid-last-two rotation;
+2.0–6.7 s scenes are now a pinned 20–30 s. **Craft completion celebrates
+what was earned**: significance derived from real content (equipment,
+level, Rare+, first-craft via a presentation-side memory that never makes
+a lifetime claim), the beat shows the item's own 48 px icon, boundaries
+pulse a light haptic and a bar flash, Epic+ takes the MAJOR frame — and a
+truth bug died on the way: a level-up mid-queue used to vanish under the
+reports after it. **Buttons became pixel plates**: drawn thickness (lit
+top edge, hard under-ledge, 2 px press travel) with a small semantic
+family — Attack warm/danger-accented, Brace cool steel, Craft moss-READY,
+Set out the one glow — while Cancel, Stop and Goal Board receded to the
+secondary register, whose hit region now meets a 44 dp floor. **Visible
+equipment got its foundation**: `EquipmentVisualState` +the `TravelerArt`
+resolver (coarse classes, total fallback, consumed by the combat stage
+and travel card, behaviorally inert until art exists), the Character
+sheet showing each worn piece's icon today, and the honest record that
+**no on-body variant art exists** — the production matrix and its
+priority order are the owner's Q-14.
+
+**Zero PixelLab generations** (balance verified 25 → exactly 25; the
+atlas reserve untouched; reset 2026-09-16). No save change, no health
+change, no economy change, no atlas change. FINAL-A review: **INSTALL**,
+its one must-fix (the 44 dp hit floor) landed. Suites: app **836**
+(+34: six new suites and the mid-queue regression), `stride_core`
+**712**, analyze clean, `--check` clean, nine goldens regenerated and
+reviewed. Nothing merges without the owner's verdict; the pass rides the
+full V2 + atlas build for evaluation.
+
+---
+
 **Version:** 2.31
 **Status:** 🚧 **WORLD ATLAS REMASTER 01, ITERATION 02 — the device-defect
 pass, on `world-atlas-remaster-01`, awaiting the owner's next

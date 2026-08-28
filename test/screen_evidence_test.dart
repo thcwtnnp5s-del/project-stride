@@ -25,12 +25,14 @@ import 'package:stride/ui/screens/world/atlas/atlas_selection_panel.dart';
 import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/travel_transition.dart';
+import 'package:stride/ui/state/craft_controller.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
 
+import 'support/fake_activity_timing.dart';
 import 'support/real_font.dart';
 
 final ContentId kNode = ContentId.unchecked('resource_node.meadow_patch');
@@ -335,11 +337,21 @@ void main() {
         ctx,
         backdrop: PixelIcons.altVignetteFor(woodsId),
         destinationName: 'Whispering Woods',
+        originName: "Haven's Rest",
+        legs: 1,
+        stepsSpent: 1000,
       ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 120));
+    // The journey now opens on its departure beat
+    // (GAME_FEEL_CHARACTER_PRESENTATION_01: ~10 s paced presentation).
+    expect(find.textContaining('Leaving'), findsOneWidget);
+    await capture(tester, 'v2_travel_card_departure', settle: false);
+    // Past the unskippable window, into the travel loop — the shipped
+    // mid-journey read, with the cost line and the skip affordance.
+    await tester.pump(const Duration(seconds: 3));
     expect(find.textContaining('On the road to'), findsOneWidget);
     await capture(tester, 'v2_travel_card', settle: false);
     await tester.pumpAndSettle();
@@ -728,5 +740,115 @@ void main() {
         ).writeAsBytesSync(bytes!.buffer.asUint8List());
       });
     }
+  });
+
+  testWidgets('Game Feel & Character Presentation 01, driven into its moments',
+      (WidgetTester tester) async {
+    // The pacing pass's evidence (GAME_FEEL_CHARACTER_PRESENTATION_01):
+    // the craft completion beat with the thing itself on it, the Gather
+    // commit plate, and the ambient dwell actually dwelling. The travel
+    // card's departure and road are captured by the Iteration 02 run
+    // above; Attack/Brace and the held equipment layer are the combat and
+    // craft goldens' subjects.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final FakeTiming fake = FakeTiming();
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(12480)],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      for (int i = 0; i < 2; i++) {
+        await s.gather(kNode);
+      }
+      return s;
+    }))!;
+    session.activityWallClock = fake.wallClock;
+
+    await tester.pumpWidget(
+      StrideApp(
+        session: session,
+        syncOnStart: false,
+        activityTiming: fake.timing,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The Gather commit plate on the activity panel.
+    await tester.tap(find.text('Meadow Patch'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Gather'), findsWidgets);
+    await capture(tester, 'gfcp_gather_plate');
+
+    // A completed craft's MINOR beat: the icon, the name, the XP — a
+    // completion that shows the thing instead of only logging it. The
+    // decay is seen-gated on the injected timing, so the capture is calm.
+    await open(tester, 'Craft');
+    await tester.tap(find.text('Herb Broth').first);
+    await tester.pumpAndSettle();
+    final CraftController craft = CraftScope.read(
+      tester.element(find.byType(StrideTabBar)),
+    );
+    final RecipeOption broth = session.recipeOptions.singleWhere(
+      (RecipeOption r) => r.id.value == 'recipe.herb_broth',
+    );
+    await tester.runAsync(() async {
+      craft.start(broth, 1);
+      fake.advance(const Duration(seconds: 46));
+      final DateTime deadline = DateTime.now().add(
+        const Duration(seconds: 10),
+      );
+      while (craft.active && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('CRAFTED'), findsOneWidget);
+    await capture(tester, 'gfcp_craft_minor_beat');
+
+    // The ambient dwell, mid-scene: the lifecycle seam on, ~9 s in — deep
+    // inside the first full scene's held loop, the Traveler actually
+    // being there. Captured without settling (the cadence is endless by
+    // design while resumed).
+    // The equipped loadout, visible as its own art: the worn pieces' 48 px
+    // icons on the Character sheet's combat block — equipment made real
+    // with existing assets while the on-figure variants wait for their
+    // PixelLab rounds (item 5).
+    final SessionController sessions = SessionScope.read(
+      tester.element(find.byType(StrideTabBar)),
+    );
+    await tester.runAsync(() async {
+      await sessions.equip(trainingSword);
+      await sessions.equip(tunic);
+    });
+    await tester.pumpAndSettle();
+    await open(tester, 'Character');
+    await tester.dragUntilVisible(
+      find.text('WEAPON'),
+      find.byType(ListView).first,
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    await capture(tester, 'gfcp_equipped_icons');
+
+    await open(tester, 'Adventure');
+    // Deselect the node: the dwell belongs to the living location — the
+    // full painting, the companions — not the tighter work composition.
+    await tester.tap(find.text('Meadow Patch'));
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    addTearDown(tester.binding.resetInternalState);
+    for (int i = 0; i < 90; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await capture(tester, 'gfcp_ambient_dwell', settle: false);
   });
 }
