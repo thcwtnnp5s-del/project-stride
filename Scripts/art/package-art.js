@@ -1829,6 +1829,133 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     }
   }
 
+  // Treeline confetti despeckle (deterministic, A-2, WAR Remaster 01
+  // Iteration 02, register D-06 — owner-marked on device): a band of isolated
+  // 1–2 px dark flecks hovers on the open snow ABOVE the Longwood treeline
+  // canopy (measured: 74 px, all inside 257–374 × 257–272 — the writable A-4
+  // rim band). A fleck is a dark pixel with ≥5 pale-snow neighbours; a real
+  // conifer tip never qualifies (its lower neighbours are canopy-dark). Each
+  // fleck takes the nearest pale neighbour's snow, first match from a fixed
+  // offset list. Clipped to y ≤ 275 / x ≤ 399 and to the rim band
+  // (ATLAS-L constraints — Frostmere north-wall golden starts at x 400,
+  // the frozen core at depth > band).
+  {
+    const pale = (x, y) => {
+      const i = base.idx(x, y);
+      return base.data[i] > 185 && base.data[i + 1] > 200 && base.data[i + 2] > 200;
+    };
+    // A fleck is canopy-dark OR mid-green debris; teal crack lines (b ≥ g)
+    // and snow shading are excluded by construction.
+    const fleck = (x, y) => {
+      const i = base.idx(x, y);
+      const r = base.data[i], g = base.data[i + 1], b = base.data[i + 2];
+      if (r < 110 && g < 130 && b < 130) return true;
+      return g > 60 && g < 185 && g > r + 10 && g > b + 15;
+    };
+    // Three erosion passes: removing a cluster's rim exposes its interior to
+    // the ≥5-pale-neighbour test on the next pass; a conifer tip never erodes
+    // because the canopy column beneath it is never pale.
+    for (let pass = 0; pass < 3; pass++) {
+      const fills = [];
+      for (let y = 240; y <= 275; y++) {
+        for (let x = 245; x <= 399; x++) {
+          if (protDepth(x, y) > PROT.band) continue;
+          if (!fleck(x, y)) continue;
+          let paleN = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (!dx && !dy) continue;
+              if (pale(x + dx, y + dy)) paleN++;
+            }
+          }
+          if (paleN < 5) continue;
+          for (const [ox, oy] of [[0, -3], [-3, 0], [3, 0], [0, -5], [-5, -3], [5, -3]]) {
+            if (pale(x + ox, y + oy)) { fills.push([x, y, x + ox, y + oy]); break; }
+          }
+        }
+      }
+      if (!fills.length) break;
+      // Two-phase (collect, then write) so one fill never feeds another
+      // within a pass.
+      for (const [x, y, sx, sy] of fills) {
+        const ai = base.idx(x, y), si = base.idx(sx, sy);
+        for (let k = 0; k < 4; k++) base.data[ai + k] = base.data[si + k];
+      }
+    }
+  }
+
+  // Green-confetti cliff cleanup (deterministic, A-2, WAR Remaster 01
+  // Iteration 02, register D-14 — owner-marked on device; ATLAS-H called it
+  // the north's ugliest remaining patch): a smear of green debris with drip
+  // trails hangs over the ice cliff NW of the volcano cape (~705–761 ×
+  // 235–303). Nothing legitimate is green there — the cape's real vegetation
+  // sits east of the two registry exclusions below. Greens erode rim-first
+  // over up to twelve passes, each pixel taking its nearest non-green
+  // neighbour (ice, sea or rock). Clips (ATLAS-L): the volcano_east_cliff
+  // golden (752–824 × 260–470 — the registry rect, not the adoption band),
+  // the east_watchtower_flank golden (744–751 × 273–322), and the A-4 core
+  // beyond the rim band, defensively.
+  {
+    const green = (x, y) => {
+      const i = base.idx(x, y);
+      const r = base.data[i], g = base.data[i + 1], b = base.data[i + 2];
+      return g > 60 && g > r + 15 && !(b > g + 10);
+    };
+    // Dark scribble remains of the same smear (the green sat on top of it).
+    // Every legitimate dark pixel in the rect — the watchtower, the volcano
+    // ridge, the cape rock — lives inside an exclusion below, so 'dark in
+    // the writable remainder' is debris by construction.
+    const darkDebris = (x, y) => {
+      const i = base.idx(x, y);
+      return base.data[i] < 150 && base.data[i + 1] < 150 && base.data[i + 2] < 150;
+    };
+    const excluded = (x, y) =>
+      (x >= 752 && y >= 260) ||
+      (x >= 727 && x <= 751 && y >= 270 && y <= 323) ||
+      protDepth(x, y) > PROT.band;
+    const debris = (x, y) => green(x, y) || darkDebris(x, y);
+    for (let pass = 0; pass < 12; pass++) {
+      const fills = [];
+      for (let y = 235; y <= 303; y++) {
+        for (let x = 705; x <= 761; x++) {
+          if (excluded(x, y) || !debris(x, y)) continue;
+          for (const [ox, oy] of [[-3, 0], [0, -3], [3, 0], [0, 3], [-6, 0],
+            [0, -6], [-3, -3], [3, -3], [-9, 0], [0, -9]]) {
+            if (!debris(x + ox, y + oy) && !excluded(x + ox, y + oy)) {
+              fills.push([x, y, x + ox, y + oy]); break;
+            }
+          }
+        }
+      }
+      if (!fills.length) break;
+      for (const [x, y, sx, sy] of fills) {
+        const ai = base.idx(x, y), si = base.idx(sx, sy);
+        for (let k = 0; k < 4; k++) base.data[ai + k] = base.data[si + k];
+      }
+    }
+  }
+
+  // Red-dash trail despeckle (deterministic, A-2, WAR Remaster 01
+  // Iteration 02, register D-04): a 54-px dotted rust-red trail runs from the
+  // canopy's south cut onto the strand (275–404 × 758–815) — old master
+  // debris with no route data behind it (no polyline exists there), reading
+  // as speck noise at phone FOV. Same predicate as the NW red-fleck pass;
+  // each dot takes the pixel three rows below (five if that is also red).
+  // The trail's last 12 px sit inside the south_strand_w golden — that
+  // golden is deliberately re-authorized in the same commit
+  // (`iteration_02/tools/reauthorize_strand_dots.js`, the R3b pattern).
+  for (let y = 758; y <= 816; y++) {
+    for (let x = 275; x <= 404; x++) {
+      const i = base.idx(x, y);
+      const isRed = (j) => base.data[j] > 150 &&
+        base.data[j] > base.data[j + 1] + 60 && base.data[j] > base.data[j + 2] + 60;
+      if (!isRed(i)) continue;
+      let si = base.idx(x, y + 3);
+      if (isRed(si)) si = base.idx(x, y + 5);
+      for (let k = 0; k < 4; k++) base.data[i + k] = base.data[si + k];
+    }
+  }
+
   // Flotsam cleanup (deterministic, A-2): two pre-existing generation
   // artifacts sit in open water — a dark scribble blob at (886..910, 622..662)
   // and whitecap marks at (866..906, 760..784) that read as tiny printed text
@@ -1838,14 +1965,43 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
   for (const [x0, y0, x1, y1, dx, dy] of [
     [886, 622, 910, 662, -40, 0],
     [866, 760, 906, 784, 36, 0],
-    // The eastern-strand inpaint's one invention: a ghost sail in open water
-    // (its faint rigging trails to y≈905). Filled from the deep sea below.
-    [748, 844, 796, 906, 0, 66],
   ]) {
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
         const ai = base.idx(x, y), si = base.idx(x + dx, y + dy);
         for (let k = 0; k < 4; k++) base.data[ai + k] = base.data[si + k];
+      }
+    }
+  }
+
+  // Ghost-sail removal, corrected (WAR Remaster 01 Iteration 02, register
+  // D-05/D-15): the original blanket fill [748,844)–(796,906) ← (0,+66)
+  // deleted the eastern-strand inpaint's ghost sail — but also the strand's
+  // own tapering beach toe and surf in rows 844–851, leaving an L-shaped
+  // razor cut at x=748 / y=844 that the owner's device screenshots exposed.
+  // The sail is a measured cluster at (760–787 × 853–880): mast column
+  // x 765–767, boom and rigging tans to x 784. This pass restores the
+  // adopted generation's own pixels across the old fill rect down to the
+  // generation's last row (879) and applies the sea fill ONLY to the sail
+  // box and the rows below 880 (which also erases any rigging remnant to
+  // y≈905). The strand_e golden held conformed deep sea over this sub-rect,
+  // so the water exemption covers the restore; the golden is re-extracted in
+  // the same commit to record the restored beach (R3b authorization trail).
+  {
+    const gen = png.load(path.join(
+      EXPLORE, 'WORLD_ATLAS_RESTORE_01', 'out', 'south_strand_e_f0.png'));
+    const GX = 480, GY = 752;
+    const inSail = (x, y) => x >= 760 && x <= 787 && y >= 853 && y <= 880;
+    for (let y = 844; y < 906; y++) {
+      for (let x = 748; x < 796; x++) {
+        const ai = base.idx(x, y);
+        if (y <= 879 && !inSail(x, y)) {
+          const si = gen.idx(x - GX, y - GY);
+          for (let k = 0; k < 4; k++) base.data[ai + k] = gen.data[si + k];
+        } else {
+          const si = base.idx(x, y + 66);
+          for (let k = 0; k < 4; k++) base.data[ai + k] = base.data[si + k];
+        }
       }
     }
   }

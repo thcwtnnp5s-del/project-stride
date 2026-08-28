@@ -271,3 +271,10 @@ ios/Flutter/Local.xcconfig
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/rejected/**
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/regions_manifest.json
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/landmark_registry.json
+#   * WORLD_ATLAS_REMASTER_01/iteration_02 — the device-defect pass: the
+#     owner's iPhone screenshots (the round's visual authority), the
+#     re-authorization tools, and the review evidence. maps/ (regenerable
+#     survey crops of the shipped atlas) stays local.
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/tools/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/review/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/device_screens/**
