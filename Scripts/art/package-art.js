@@ -1956,6 +1956,22 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     }
   }
 
+  // Density-ladder stamp belts (deterministic composite, WAR Remaster 01
+  // Iteration 02 Tier 2 — owner-authorized "composited from existing
+  // assets"): whole approved tree sprites harvested from this composite are
+  // stamped onto open ground in graded transition belts so forest masses
+  // taper instead of ending at a wall (register D-01/D-06/D-12, ATLAS-J's
+  // density ladder). Substrate-matched, hash-jittered, mirrored, A-4- and
+  // occupancy-checked; each belt is revertable whole via its `enabled` flag.
+  // Module: GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/
+  // tools/stamp_belts.js (salt 15).
+  {
+    const stamps = require(path.join(
+      EXPLORE, 'WORLD_ATLAS_REMASTER_01', 'iteration_02', 'tools', 'stamp_belts.js'));
+    const counts = stamps.apply(base, hash, protDepth, PROT);
+    console.log(`  atlas stamp belts: ${JSON.stringify(counts)}`);
+  }
+
   // Flotsam cleanup (deterministic, A-2): two pre-existing generation
   // artifacts sit in open water — a dark scribble blob at (886..910, 622..662)
   // and whitecap marks at (866..906, 760..784) that read as tiny printed text
