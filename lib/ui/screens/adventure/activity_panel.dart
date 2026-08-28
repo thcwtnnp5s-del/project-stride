@@ -29,6 +29,7 @@ import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
 import '../../state/activity_controller.dart';
+import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -512,7 +513,13 @@ class _GatherControl extends StatelessWidget {
                     activeElsewhere ||
                     blockedReason != null
                 ? null
-                : () => ActivityScope.read(context).start(node, count),
+                : () {
+                    // One light pulse per step-spending commitment — never
+                    // per loop beat (GAME_FEEL_CHARACTER_PRESENTATION_01,
+                    // item 4; gated on the Sound & feel toggle inside).
+                    AudioScope.read(context).hapticLight();
+                    ActivityScope.read(context).start(node, count);
+                  },
           ),
           // The finished queue's summary takes the strip while it lives; a lone
           // report (the last repetition's) only shows when no summary does, so
@@ -603,7 +610,10 @@ class _ActiveQueuePanel extends StatelessWidget {
           ),
         ],
         const SizedBox(height: StrideSpace.s8),
-        StrideButton(
+        // An exit, not a commit — the neutral register, so stopping never
+        // wears the same material as the action that spends steps
+        // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+        StrideButton.secondary(
           label: 'Stop gathering',
           onPressed: () => ActivityScope.read(context).stop(),
         ),

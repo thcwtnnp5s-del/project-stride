@@ -195,6 +195,9 @@ class _CombatScreenState extends State<CombatScreen> {
             report: report,
             ended: ended,
             onPlayingChanged: _onPlayingChanged,
+            // The loadout's visual facts, snapshotted by the stage at its
+            // first bell (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5).
+            equipment: c.session.equipmentVisualState,
           ),
           SectionCard(
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
@@ -402,6 +405,10 @@ class _CombatControlsState extends State<_CombatControls> {
         ],
         StrideButton(
           label: held ? 'Fighting…' : 'Attack',
+          // Offense wears the danger accent inside the encounter —
+          // scope-amended on the token by the owner's brief
+          // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+          variant: StrideButtonVariant.attack,
           onPressed: held ? null : c.combatAttack,
         ),
         const SizedBox(height: StrideSpace.s8),
@@ -410,6 +417,10 @@ class _CombatControlsState extends State<_CombatControls> {
         // telegraph and spending the round well is the player's craft.
         StrideButton(
           label: held ? 'Fighting…' : 'Brace',
+          // Defense at the opposite temperature — cool steel line and
+          // edge, so offense and defense read apart at a glance without a
+          // rainbow.
+          variant: StrideButtonVariant.defense,
           subLabel: held
               ? null
               : 'Half damage, deal none — the answer to a heavy blow',

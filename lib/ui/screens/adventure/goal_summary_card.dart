@@ -80,7 +80,10 @@ class GoalSummaryCard extends StatelessWidget {
               ),
           ],
           const SizedBox(height: StrideSpace.s8),
-          StrideButton(
+          // Navigation, not a commit — the neutral register, so opening a
+          // board never outranks the screen's game action
+          // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+          StrideButton.secondary(
             label: 'Goal Board',
             onPressed: () => GoalBoardScreen.open(context),
           ),

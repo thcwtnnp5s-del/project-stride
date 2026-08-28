@@ -66,6 +66,7 @@ import '../../components/adaptive_text.dart';
 import '../../components/grounded_sprite.dart';
 import '../../components/pixel_asset.dart';
 import '../../icons/combat_assets.dart';
+import '../../icons/traveler_art.dart';
 import '../../state/audio_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
@@ -82,7 +83,14 @@ class CombatStage extends StatefulWidget {
     this.onPlayingChanged,
     this.idleVisit = const Duration(seconds: 8),
     this.scale = 2,
+    this.equipment = EquipmentVisualState.none,
   });
+
+  /// The loadout's visual facts at encounter start, resolved through
+  /// `TravelerArt` when the art binds (GAME_FEEL_CHARACTER_PRESENTATION_01,
+  /// item 5). A fight's loadout is fixed at its first bell, so this is a
+  /// snapshot by design. Base Traveler until variant strips exist.
+  final EquipmentVisualState equipment;
 
   /// The committed figures. While [ended], this is the last view the parent
   /// saw before the encounter cleared, kept so the outcome can be staged; the
@@ -232,7 +240,9 @@ class _CombatStageState extends State<CombatStage>
   }
 
   void _bindArt() {
-    _traveler = CombatAssets.traveler;
+    // Through the visible-equipment seam: base art today, and the seam is
+    // where a weapon-variant round will land without touching this file.
+    _traveler = TravelerArt.combatantFor(widget.equipment);
     _enemy = CombatAssets.enemyFor(widget.view.enemyId);
     _strikeEffect = CombatAssets.strikeEffectOf(widget.view.enemyId);
   }

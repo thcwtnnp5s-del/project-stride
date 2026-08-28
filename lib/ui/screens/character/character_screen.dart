@@ -373,6 +373,13 @@ class _EquippedLine extends StatelessWidget {
         ),
       ),
       const SizedBox(width: StrideSpace.s6),
+      // The worn piece's own approved icon
+      // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5): equipment made
+      // visible with existing art — swap the sword and the picture here
+      // swaps with it. The full on-figure rendering waits for the
+      // PixelLab gear rounds the milestone's gap register scopes.
+      PixelAsset.item(PixelIcons.itemFor(worn.itemId)),
+      const SizedBox(width: StrideSpace.s8),
       Expanded(
         child: RarityName(
           name: worn.displayName,
