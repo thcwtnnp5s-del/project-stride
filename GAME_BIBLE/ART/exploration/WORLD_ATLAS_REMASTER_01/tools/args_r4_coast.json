@@ -1,0 +1,7 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r4_coast_src_192x204.png",
+  "mask_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r4_coast_mask_192x204.png",
+  "description": "Aerial fantasy world-map pixel art of a coastline. The masked area contains a broken shoreline: green land and a sandy beach currently end against a straight vertical edge in the sea. Re-author it as one continuous natural shoreline: the sandy beach with its pale surf line curving up from the lower left sweeps northeast through the masked area and joins the sandy beach at the top, one smooth unbroken coastal arc; green coastal plain with a little scrub inside the curve, open flat teal sea outside. Remove the straight vertical land-sea edge and all checkerboard speckle noise completely. Match the exact palette and pixel-art hand of the surrounding green plain, sand, pale surf and teal sea. No straight vertical or horizontal boundaries, no rectangles, no islands, no buildings, no boats, no text.",
+  "crop_to_mask": true,
+  "seed": 605
+}

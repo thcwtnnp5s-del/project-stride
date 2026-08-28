@@ -1,0 +1,82 @@
+{
+  "comment": "World Atlas Remaster 01 — regional recompositions. A region ships only with status 'accepted' (the packaging layer throws on anything else). Coordinates are 1024^2 atlas px; file is the accepted generation in out/, mask is the graded authorization mask in src/ (white=region, black=base, gray=dither feather). salt feeds the shared integer hash; salts 1-7 are taken (crossfade, rim band, adoption feather, shoal ramp).",
+  "regions": [
+    {
+      "id": "r1_ice",
+      "x": 560, "y": 0, "w": 464, "h": 320,
+      "file": "r1_ice_f0.png",
+      "mask": "r1_ice_mask_464x320.png",
+      "salt": 8,
+      "status": "accepted",
+      "job": "990e11d6-cbdb-4dda-803c-cd621965e7d4",
+      "seed": 601,
+      "review": "README.md — Production log, R1"
+    },
+    {
+      "id": "r2_verge",
+      "x": 152, "y": 528, "w": 184, "h": 328,
+      "file": "r2_verge_f0.png",
+      "mask": "r2_verge_mask_184x328.png",
+      "salt": 9,
+      "status": "accepted",
+      "job": "52930f0c-9dc8-4a82-9c85-fe2318b50f1d",
+      "seed": 602,
+      "review": "README.md — Production log, R2"
+    },
+    {
+      "id": "r3_sketch",
+      "x": 0, "y": 720, "w": 200, "h": 304,
+      "file": "r3_sketch_f0.png",
+      "mask": "r3_sketch_mask_200x304.png",
+      "salt": 10,
+      "status": "accepted",
+      "job": "03c3cabe-04a7-4f1c-b8e7-8d55e06da6e4",
+      "seed": 603,
+      "review": "README.md — Production log, R3"
+    },
+    {
+      "id": "r3b_band",
+      "x": 72, "y": 800, "w": 112, "h": 224,
+      "file": "r3b_band_f0.png",
+      "mask": "r3b_band_mask_112x224.png",
+      "salt": 11,
+      "status": "accepted",
+      "job": "82887e67-c143-4ac6-b27a-ae8ff7871b95",
+      "seed": 604,
+      "review": "README.md — Production log, R3b (strand_w golden reauthorized)"
+    },
+    {
+      "id": "r4_coast",
+      "x": 420, "y": 820, "w": 192, "h": 204,
+      "file": "r4_coast_f0.png",
+      "mask": "r4_coast_mask_192x204.png",
+      "salt": 12,
+      "status": "accepted",
+      "job": "d96e37cf-5a06-47a5-ad57-c2671f0ca037",
+      "seed": 605,
+      "review": "README.md — Production log, R4"
+    },
+    {
+      "id": "r5_nwice",
+      "x": 166, "y": 124, "w": 230, "h": 176,
+      "file": "r5b_nwice_f0.png",
+      "mask": "r5_nwice_mask_230x176.png",
+      "salt": 13,
+      "status": "accepted",
+      "job": "267bd852-c302-4133-b04d-2f72004bb81c",
+      "seed": 616,
+      "review": "README.md — Production log, R5 (roll 1 rejected, roll 2 accepted)"
+    },
+    {
+      "id": "r3c_topedge",
+      "x": 0, "y": 780, "w": 176, "h": 156,
+      "file": "r3c_topedge_f0.png",
+      "mask": "r3c_topedge_mask_176x156.png",
+      "salt": 14,
+      "status": "accepted",
+      "job": "7278ae61-a3c8-456b-a6fd-a08a7d99a49f",
+      "seed": 607,
+      "review": "README.md — Production log, R3c (ATLAS-H F1 correction)"
+    }
+  ]
+}

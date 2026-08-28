@@ -1,0 +1,20 @@
+{
+  "comment": "World Atlas Remaster 01 — protected landmarks OUTSIDE the A-4 master-core guard (or in its writable rim band). Each entry has a committed golden crop in goldens/<id>.png extracted from the accepted composite post-ocean-conform; packaging compares the shipped composite byte-wise against every golden (deep-teal water in the golden is exempt, the same exemption as the A-4 guard, because the global conform's statistics legitimately shift). Deliberate re-authoring of a landmark = re-extracting its golden in the same commit; the golden's git diff is the authorization. Derivation: PROTECTION_PLAN.md (ATLAS-C audit).",
+  "landmarks": [
+    { "id": "frostmere_north_wall", "x": 400, "y": 256, "w": 160, "h": 20 },
+    { "id": "east_watchtower_flank", "x": 744, "y": 273, "w": 8, "h": 50 },
+    { "id": "volcano_east_cliff", "x": 752, "y": 260, "w": 72, "h": 210 },
+    { "id": "roadjoin_corridor_west", "x": 216, "y": 480, "w": 60, "h": 78 },
+    { "id": "west_caravan_road", "x": 128, "y": 495, "w": 128, "h": 80 },
+    { "id": "caravan_corridor", "x": 199, "y": 506, "w": 46, "h": 26 },
+    { "id": "stag_box", "x": 156, "y": 493, "w": 28, "h": 22 },
+    { "id": "flock_south", "x": 456, "y": 748, "w": 64, "h": 27 },
+    { "id": "south_strand_w", "x": 128, "y": 810, "w": 400, "h": 60 },
+    { "id": "south_strand_e", "x": 512, "y": 810, "w": 288, "h": 60 },
+    { "id": "wanderers_isles_w", "x": 785, "y": 490, "w": 80, "h": 47 },
+    { "id": "wanderers_isles_e", "x": 920, "y": 503, "w": 85, "h": 34 },
+    { "id": "cinder_skerries", "x": 920, "y": 175, "w": 80, "h": 75 },
+    { "id": "far_isles", "x": 940, "y": 205, "w": 55, "h": 80 },
+    { "id": "ne_iceberg", "x": 974, "y": 210, "w": 17, "h": 15 }
+  ]
+}

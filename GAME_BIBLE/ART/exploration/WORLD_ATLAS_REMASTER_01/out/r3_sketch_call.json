@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: 03c3cabe-04a7-4f1c-b8e7-8d55e06da6e4\nsize: 200x304px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art. The masked area is unfinished black line-art - outline-only hills, pen-stroke pines and halftone dither on flat green. Replace it entirely with finished painted terrain in the same language as the painted land above and to the right: low gray rocky foothills with stepped ledges descending from the mountains above, mossy green plain with scattered boulders and small dark conifer groves, coastal scrub, and at the bottom the land meets a sandy beach with a pale teal surf line and teal sea that continues naturally from the painted beach and surf at the right edge, curving around the southwest corner of the map. Match the exact palette and pixel-art hand of the surrounding painted plain, gray rock, dark green forest, sand and sea. No black outline-only shapes, no halftone dither, no straight vertical or horizontal boundaries, no buildings, no towers, no roads, no text.\ntransparent: False — auto (input is opaque)\nseed: 603\ncost: ~25 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"03c3cabe-04a7-4f1c-b8e7-8d55e06da6e4\")"
+    }
+  ],
+  "isError": false
+}

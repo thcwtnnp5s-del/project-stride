@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: d96e37cf-5a06-47a5-ad57-c2671f0ca037\nsize: 192x204px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art of a coastline. The masked area contains a broken shoreline: green land and a sandy beach currently end against a straight vertical edge in the sea. Re-author it as one continuous natural shoreline: the sandy beach with its pale surf line curving up from the lower left sweeps northeast through the masked area and joins the sandy beach at the top, one smooth unbroken coastal arc; green coastal plain with a little scrub inside the curve, open flat teal sea outside. Remove the straight vertical land-sea edge and all checkerboard speckle noise completely. Match the exact palette and pixel-art hand of the surrounding green plain, sand, pale surf and teal sea. No straight vertical or horizontal boundaries, no rectangles, no islands, no buildings, no boats, no text.\ntransparent: False — auto (input is opaque)\nseed: 605\ncost: ~20 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"d96e37cf-5a06-47a5-ad57-c2671f0ca037\")"
+    }
+  ],
+  "isError": false
+}

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: 267bd852-c302-4133-b04d-2f72004bb81c\nsize: 230x176px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art of a polar icefield. The masked area is where a block of finely crackled pack ice meets smooth white snowfield along an artificial straight vertical edge. Repaint the masked area so the smooth snowfield on the left grades naturally into the crackled pack ice on the right - large soft plates breaking gradually into finer crackle, the transition wandering organically. Plain icefield only. Match the exact palette and pixel-art hand of the surrounding snow and ice crackle. No straight vertical or horizontal boundaries, no rectangles, no mountains, no rocks, no water, no lakes, no trees, no buildings, no red pixels, no text.\ntransparent: False — auto (input is opaque)\nseed: 616\ncost: ~20 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"267bd852-c302-4133-b04d-2f72004bb81c\")"
+    }
+  ],
+  "isError": false
+}

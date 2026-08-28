@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: 82887e67-c143-4ac6-b27a-ae8ff7871b95\nsize: 112x224px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art. The masked area is a narrow vertical strip containing a column of checkerboard speckle noise where two paintings meet. Remove the speckle column entirely and paint the terrain continuing seamlessly across the strip: green plain at the top flowing into the dark conifer forest edge, then the sandy beach, pale surf line and teal sea at the bottom, each continuing naturally from both the left and right sides with no visible join. Match the exact palette and pixel-art hand of the surrounding plain, forest canopy, sand, surf and sea. No checkerboard pattern, no speckle noise, no straight vertical boundary, no new objects, no text.\ntransparent: False — auto (input is opaque)\nseed: 604\ncost: ~20 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"82887e67-c143-4ac6-b27a-ae8ff7871b95\")"
+    }
+  ],
+  "isError": false
+}

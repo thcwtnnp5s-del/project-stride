@@ -257,3 +257,17 @@ ios/Flutter/Local.xcconfig
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/src/**
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/tools/**
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_RESTORE_01/review/**
+
+# World Atlas Remaster 01 — the regional recomposition frames, masks,
+# manifest, landmark registry and goldens `package-art.js` composes and
+# guards the atlas with (`--check` cannot pass on a clean checkout without
+# them), plus source crops, job args, review artifacts and rejected rolls
+# as provenance.
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/out/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/tools/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/review/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/goldens/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/rejected/**
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/regions_manifest.json
+!GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/landmark_registry.json

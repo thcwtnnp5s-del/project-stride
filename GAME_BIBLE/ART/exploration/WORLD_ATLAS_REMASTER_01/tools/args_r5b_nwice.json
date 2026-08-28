@@ -1,0 +1,7 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r5_nwice_src_230x176.png",
+  "mask_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r5_nwice_mask_230x176.png",
+  "description": "Aerial fantasy world-map pixel art of a polar icefield. The masked area is where a block of finely crackled pack ice meets smooth white snowfield along an artificial straight vertical edge. Repaint the masked area so the smooth snowfield on the left grades naturally into the crackled pack ice on the right - large soft plates breaking gradually into finer crackle, the transition wandering organically. Plain icefield only. Match the exact palette and pixel-art hand of the surrounding snow and ice crackle. No straight vertical or horizontal boundaries, no rectangles, no mountains, no rocks, no water, no lakes, no trees, no buildings, no red pixels, no text.",
+  "crop_to_mask": true,
+  "seed": 616
+}

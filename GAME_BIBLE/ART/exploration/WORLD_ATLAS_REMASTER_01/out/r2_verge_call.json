@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: 52930f0c-9dc8-4a82-9c85-fe2318b50f1d\nsize: 184x328px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art. The masked area is the western edge of a dense deciduous forest meeting an open pale meadow plain. Re-author the transition so the dark saturated canopy thins westward into forest fingers, small groves, scattered single trees and grassy clearings over a wide natural gradient - the forest edge must wander, with no straight vertical boundary between forest and meadow anywhere. Near the top of the masked area, the broken snowy mountain must be resolved: complete it as one small finished rocky outlier peak with snow on its summit, natural rock foothills and a few conifers at its base, standing in the meadow at the forest edge - remove all smeared gray streaks below it. Match the exact palette and pixel-art hand of the surrounding forest canopy, pale meadow grass and gray rock. Keep pale meadow west and dense canopy east. No straight vertical or horizontal boundaries, no rectangles, no roads, no rivers, no buildings, no towers, no text.\ntransparent: False — auto (input is opaque)\nseed: 602\ncost: ~25 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"52930f0c-9dc8-4a82-9c85-fe2318b50f1d\")"
+    }
+  ],
+  "isError": false
+}

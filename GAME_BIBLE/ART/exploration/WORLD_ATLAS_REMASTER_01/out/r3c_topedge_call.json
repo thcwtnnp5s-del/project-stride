@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: 7278ae61-a3c8-456b-a6fd-a08a7d99a49f\nsize: 176x156px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art. The masked area is a narrow horizontal band where two paintings of the same green plain meet along an artificial straight horizontal line. Repaint the band so the mossy olive-green plain flows smoothly and continuously from top to bottom with no horizontal tone step anywhere. Repair the gray boulder near the left edge so it sits whole and naturally shaded on the grass. Replace any half-and-half hybrid trees with a few complete small trees in the same single style as the trees above and below the band. Match the exact palette and pixel-art hand of the surrounding plain, boulders and trees. No straight horizontal or vertical boundaries, no rectangles, no new water, no buildings, no text.\ntransparent: False — auto (input is opaque)\nseed: 607\ncost: ~20 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"7278ae61-a3c8-456b-a6fd-a08a7d99a49f\")"
+    }
+  ],
+  "isError": false
+}

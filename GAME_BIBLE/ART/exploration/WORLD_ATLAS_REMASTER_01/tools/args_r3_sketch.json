@@ -1,0 +1,7 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r3_sketch_src_200x304.png",
+  "mask_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r3_sketch_mask_200x304.png",
+  "description": "Aerial fantasy world-map pixel art. The masked area is unfinished black line-art - outline-only hills, pen-stroke pines and halftone dither on flat green. Replace it entirely with finished painted terrain in the same language as the painted land above and to the right: low gray rocky foothills with stepped ledges descending from the mountains above, mossy green plain with scattered boulders and small dark conifer groves, coastal scrub, and at the bottom the land meets a sandy beach with a pale teal surf line and teal sea that continues naturally from the painted beach and surf at the right edge, curving around the southwest corner of the map. Match the exact palette and pixel-art hand of the surrounding painted plain, gray rock, dark green forest, sand and sea. No black outline-only shapes, no halftone dither, no straight vertical or horizontal boundaries, no buildings, no towers, no roads, no text.",
+  "crop_to_mask": true,
+  "seed": 603
+}

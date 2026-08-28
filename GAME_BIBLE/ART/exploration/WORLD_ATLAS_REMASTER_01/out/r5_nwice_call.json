@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "id: 45982efd-9ac9-4f43-a859-77638e9a827c\nsize: 254x222px\nmask: custom mask\nfill: Aerial fantasy world-map pixel art of a polar icefield. The masked area contains a block of finely crackled pack ice whose straight vertical left edge meets smooth snowfield like a pasted rectangle, and a row of small gray mountains sitting on its shelf. Re-author it as one continuous icefield: the smooth white snowfield on the left grades naturally into crackled pack ice with scattered pressure ridges - the transition wanders organically with no straight vertical or horizontal boundary anywhere. The small gray mountain row becomes a natural nunatak chain: complete rocky peaks with snow on their flanks poking up through the icefield, their bases blending softly into snow and ice. Match the exact palette and pixel-art hand of the surrounding snow, ice crackle and gray rock. No straight boundaries, no rectangles, no buildings, no towers, no trees, no text.\ntransparent: False — auto (input is opaque)\nseed: 606\ncost: ~20 generations\nstatus: processing (~30-90s)\n\nhint: get_image(job_id=\"45982efd-9ac9-4f43-a859-77638e9a827c\")"
+    }
+  ],
+  "isError": false
+}

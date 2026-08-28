@@ -1,0 +1,7 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r1_ice_src_464x320.png",
+  "mask_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r1_ice_mask_464x320.png",
+  "description": "Aerial fantasy world-map pixel art of an arctic sea, top-down. The masked area is a frozen shelf breaking into the sea: continue the large pale ice floes and snow shelf from the left edge eastward, breaking gradually into smaller drifting floes, then scattered brash ice, then open flat teal sea toward the lower right, as one continuous climatic gradient. Remove the vertical boundary between the two ice styles and unify them into one consistent pale blue-white pack-ice language with thin dark meltwater cracks. Remove every trace of green-mint tint from the ice - ice is white, pale blue and snow only. Replace the truncated black shape near the bottom of the masked area with a small dark volcanic rock skerry with a snow cap, in the same style as the small rocky islets in the open sea to the east, sitting naturally among the floes. In the top-right, the pale ice sheet thins raggedly into floes and open sea with no straight edges anywhere. Match the exact palette and pixel-art hand of the surrounding ice, snow and flat teal sea. No straight vertical or horizontal boundaries, no rectangles, no new large landmasses, no buildings, no towers, no roads, no ships, no text.",
+  "crop_to_mask": true,
+  "seed": 601
+}

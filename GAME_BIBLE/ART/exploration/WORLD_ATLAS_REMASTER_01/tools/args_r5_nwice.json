@@ -1,0 +1,7 @@
+{
+  "image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r5_nwice_src_254x222.png",
+  "mask_image_base64": "@file:GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/src/r5_nwice_mask_254x222.png",
+  "description": "Aerial fantasy world-map pixel art of a polar icefield. The masked area contains a block of finely crackled pack ice whose straight vertical left edge meets smooth snowfield like a pasted rectangle, and a row of small gray mountains sitting on its shelf. Re-author it as one continuous icefield: the smooth white snowfield on the left grades naturally into crackled pack ice with scattered pressure ridges - the transition wanders organically with no straight vertical or horizontal boundary anywhere. The small gray mountain row becomes a natural nunatak chain: complete rocky peaks with snow on their flanks poking up through the icefield, their bases blending softly into snow and ice. Match the exact palette and pixel-art hand of the surrounding snow, ice crackle and gray rock. No straight boundaries, no rectangles, no buildings, no towers, no trees, no text.",
+  "crop_to_mask": true,
+  "seed": 606
+}

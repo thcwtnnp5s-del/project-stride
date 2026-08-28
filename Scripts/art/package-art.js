@@ -1761,6 +1761,74 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     }
   }
 
+  // ---------------------------- World Atlas Remaster 01 (regional layers)
+  //
+  // Regional recompositions: coherent geographic regions re-authored whole
+  // through PixelLab (inpaint over a wide crop of THIS composite with frozen
+  // margins) rather than seam-patched (`MISTAKES.md` M-14's lesson at
+  // regional grain). Each region is a tracked manifest entry: the accepted
+  // generation, a graded grayscale mask (white = region, black = base, gray =
+  // hash-dither feather — selection, never averaging, so every output pixel
+  // is one of the two approved images' own pixels, A-2), and a status gate
+  // (anything but 'accepted' throws, the RCP pattern). Regions blit after
+  // every legacy repair layer — a region deliberately supersedes any bridge
+  // or edge fix under its mask — and before the flotsam fills and the global
+  // ocean conform, so generated deep water folds into the one sea. The A-4
+  // protected-interior machinery applies unchanged: region pixels clip
+  // against the rim band exactly like any repair, and the drift guard below
+  // still holds. Landmarks outside the core are held by the landmark
+  // registry guard at the end of this block. Round record:
+  // `GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/README.md`.
+  const REM01 = path.join(EXPLORE, 'WORLD_ATLAS_REMASTER_01');
+  {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(REM01, 'regions_manifest.json'), 'utf8'));
+    for (const region of manifest.regions) {
+      if (region.status !== 'accepted') {
+        throw new Error(`atlas region ${region.id}: status '${region.status}' — ` +
+          `only accepted regions may ship`);
+      }
+      const gen = png.load(path.join(REM01, 'out', region.file));
+      const mask = png.load(path.join(REM01, 'src', region.mask));
+      if (gen.width !== region.w || gen.height !== region.h ||
+          mask.width !== region.w || mask.height !== region.h) {
+        throw new Error(`atlas region ${region.id}: expected ${region.w}x${region.h}, ` +
+          `got gen ${gen.width}x${gen.height}, mask ${mask.width}x${mask.height}`);
+      }
+      for (let sy = 0; sy < region.h; sy++) {
+        for (let sx = 0; sx < region.w; sx++) {
+          const m = mask.data[mask.idx(sx, sy)];
+          if (m === 0) continue;
+          const tx = region.x + sx, ty = region.y + sy;
+          if (tx < 0 || ty < 0 || tx >= 1024 || ty >= 1024) continue;
+          if (m < 255 && hash(tx, ty, region.salt) >= m / 255) continue;
+          const d = protDepth(tx, ty);
+          if (d > 0 && !keepRepair(tx, ty, d)) continue;
+          const ai = base.idx(tx, ty), si = gen.idx(sx, sy);
+          for (let k = 0; k < 4; k++) base.data[ai + k] = gen.data[si + k];
+        }
+      }
+    }
+  }
+
+  // NW-ice red-fleck despeckle (deterministic, A-2, World Atlas Remaster
+  // 01): eleven isolated bright-red artifact pixels sit on the nunatak row
+  // and pond rim (281..406, 128..153) — pre-existing generation debris on
+  // snow/rock where nothing legitimate is red (the volcano is at x 580+).
+  // Each is replaced with the pixel two rows below it, exactly like the
+  // flotsam fills; scoped to the one rect so no legitimate warm pixel
+  // elsewhere can match.
+  for (let y = 120; y < 160; y++) {
+    for (let x = 270; x < 410; x++) {
+      const i = base.idx(x, y);
+      const r = base.data[i], g = base.data[i + 1], b = base.data[i + 2];
+      if (r > 150 && r > g + 60 && r > b + 60) {
+        const si = base.idx(x, y + 2);
+        for (let k = 0; k < 4; k++) base.data[i + k] = base.data[si + k];
+      }
+    }
+  }
+
   // Flotsam cleanup (deterministic, A-2): two pre-existing generation
   // artifacts sit in open water — a dark scribble blob at (886..910, 622..662)
   // and whitecap marks at (866..906, 760..784) that read as tiny printed text
@@ -1788,7 +1856,19 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
   // maps through ONE global transform and no tonal panel edge can survive
   // between layers. The guards touch only teal deep water — never ice, land
   // or shallows.
-  oceanTool.unify(base);
+  //
+  // World Atlas Remaster 01, Phase 0: two conform-rect edges read as straight
+  // lines in flat water on the phone (the east-bay waterline at x=636 and the
+  // far-NE corner above y=60). The remaster's water_join tool adds those two
+  // strips to the SAME global transform, then dissolves the bay edge into a
+  // hash-dithered shoaling ramp (salt 7) between the bright master-painted
+  // bay water and the one sea. Provenance:
+  // `GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/README.md`.
+  const remWater = require(path.join(
+    EXPLORE, 'WORLD_ATLAS_REMASTER_01', 'tools', 'water_join.js'));
+  const preConform = base.clone();
+  oceanTool.unify(base, remWater.EXTRA_RECTS);
+  remWater.shoalRamp(base, preConform, hash);
 
   // Protected-interior guard: beyond the rim band, every pixel that is not
   // conformable open water must be byte-identical to the approved snapshot.
@@ -1812,6 +1892,45 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     if (drift > 0) {
       throw new Error(`world/atlas_base: protected interior drift — ${drift} px ` +
         `of the approved master core were repainted by a repair layer (M-15)`);
+    }
+  }
+
+  // Landmark-registry guard (World Atlas Remaster 01): protected features
+  // OUTSIDE the master core — the volcano's east cliff, the caravan road,
+  // the south strand, the island clusters, overlay grounds in the rim band —
+  // are held against committed golden crops extracted from the accepted
+  // composite post-conform. Any layer that touches one fails packaging and
+  // `--check`. Deliberate re-authoring of a landmark = re-extracting its
+  // golden in the same commit (the golden's git diff is the authorization).
+  // Deep-teal water in a golden is exempt, exactly like the A-4 guard: the
+  // global conform's statistics legitimately shift when any layer changes
+  // any water anywhere.
+  {
+    const reg = JSON.parse(
+      fs.readFileSync(path.join(REM01, 'landmark_registry.json'), 'utf8'));
+    for (const lm of reg.landmarks) {
+      const golden = png.load(path.join(REM01, 'goldens', `${lm.id}.png`));
+      if (golden.width !== lm.w || golden.height !== lm.h) {
+        throw new Error(`landmark ${lm.id}: golden is ${golden.width}x${golden.height}, ` +
+          `registry says ${lm.w}x${lm.h}`);
+      }
+      let drift = 0;
+      for (let sy = 0; sy < lm.h; sy++) {
+        for (let sx = 0; sx < lm.w; sx++) {
+          const gi = golden.idx(sx, sy), ai = base.idx(lm.x + sx, lm.y + sy);
+          const same = base.data[ai] === golden.data[gi] &&
+            base.data[ai + 1] === golden.data[gi + 1] &&
+            base.data[ai + 2] === golden.data[gi + 2];
+          if (same) continue;
+          if (oceanTool.isDeep(golden.data[gi], golden.data[gi + 1], golden.data[gi + 2])) continue;
+          drift++;
+        }
+      }
+      if (drift > 0) {
+        throw new Error(`world/atlas_base: protected landmark '${lm.id}' drifted ` +
+          `(${drift} px vs its golden) — a layer repainted a registry feature ` +
+          `(A-4 extension, World Atlas Remaster 01)`);
+      }
     }
   }
 

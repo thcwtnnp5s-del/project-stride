@@ -53,11 +53,17 @@ const stats = (px) => {
   return { m, s };
 };
 
-function unify(atlas) {
+function unify(atlas, extraRects = []) {
   // All source statistics are measured from a snapshot taken before any pixel
   // is rewritten, so overlapping rects do not compound and a later broad rect
   // cannot dilute an earlier tight one (each rect maps from the ORIGINAL water
   // distribution, exactly once). Writes land on `atlas`.
+  //
+  // `extraRects` (World Atlas Remaster 01) joins additional deep-water rects
+  // to the SAME single global transform — both the source statistics and the
+  // write loop — so an added area cannot introduce its own dialect. With no
+  // argument the behaviour is byte-identical to the original.
+  const rects = RECTS.concat(extraRects);
   const before = atlas.clone();
   const collect = (x0, y0, w, h) => {
     const px = [];
@@ -83,12 +89,12 @@ function unify(atlas) {
   // division at x~832 where the east bridge's authored sea met the frozen
   // strip). Deep water everywhere maps from the same `a` to the same target.
   let srcAll = [];
-  for (const [rx, ry, rw, rh] of RECTS) srcAll = srcAll.concat(collect(rx, ry, rw, rh));
+  for (const [rx, ry, rw, rh] of rects) srcAll = srcAll.concat(collect(rx, ry, rw, rh));
   if (!srcAll.length) return 0;
   const a = stats(srcAll);
 
   let changed = 0;
-  for (const [rx, ry, rw, rh] of RECTS) {
+  for (const [rx, ry, rw, rh] of rects) {
     for (let y = ry; y < ry + rh; y++) {
       for (let x = rx; x < rx + rw; x++) {
         if (x < 0 || y < 0 || x >= atlas.width || y >= atlas.height) continue;
