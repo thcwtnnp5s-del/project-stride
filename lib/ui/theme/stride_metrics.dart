@@ -156,14 +156,23 @@ abstract final class StrideGeometry {
   /// deliberate rather than as another pill.
   static const double buttonHeight = 48;
 
-  /// A utility control's minimum height — `Sync steps`, and nothing on the
-  /// gameplay path.
+  /// A utility control's **visual** minimum height — `Sync steps`, `Track`,
+  /// and, since GAME_FEEL_CHARACTER_PRESENTATION_01's register demotions,
+  /// the gameplay-path exits (`Cancel`, `Stop gathering`, `Retreat`).
   ///
   /// 34, which is deliberately **below** the 44 dp touch minimum for a primary
   /// control and above the 32 dp a compact secondary conventionally gets. The
   /// gap between 34 and the primary's 48 is the demotion; making them equal is
   /// what let a utility action read as the game action on the owner's phone.
+  ///
+  /// Visual only: every secondary control's **hit region** is padded up to
+  /// [buttonHitFloor] inside the widget (FINAL-A M-1), so a demoted exit
+  /// stays quiet without becoming missable.
   static const double buttonHeightSecondary = 34;
+
+  /// The touch-target floor every control's hit region meets, whatever its
+  /// visual height — the platform's 44 pt minimum.
+  static const double buttonHitFloor = 44;
 
   /// A floor, not a fixed height — a wrapped two-line item name grows the row
   /// rather than clipping.

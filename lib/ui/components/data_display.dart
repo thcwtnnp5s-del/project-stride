@@ -319,26 +319,55 @@ class RequirementGate extends StatelessWidget {
   );
 }
 
+/// The semantic register a primary action speaks in
+/// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4). A small family, not a
+/// rainbow: every colour is an existing token, and the differences are
+/// construction and temperature, never a new hue per action.
+enum StrideButtonVariant {
+  /// The screen's meaningful commit — Gather, Set out, Deliver, Continue.
+  commit,
+
+  /// The player's offense inside an encounter — the [StrideColors.danger]
+  /// accent (its scope amendment is recorded on the token).
+  attack,
+
+  /// The guarded action — Brace. The same plate at the opposite
+  /// temperature: cool steel line and edge, so offense and defense read
+  /// apart at a glance.
+  defense,
+
+  /// "You can do this now" — Craft with the materials in the bag, an Equip
+  /// that upgrades. Joins the moss language the recipe rows already speak.
+  ready,
+}
+
 /// The primary action control.
 ///
 /// Disabled rather than hidden when the action cannot run: the cost stays
 /// visible, so the player can see what they are walking toward.
 ///
-/// ## The ember treatment (Fable V2 Iteration 02)
+/// ## The pixel plate (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4)
 ///
-/// An enabled primary wears the action-ember material: a brass edge, a
-/// warm top sheen, and one soft glow — the "warm reward light" family, so
-/// the screen's one game action visibly outranks every utility control
-/// without spending a new hue. Disabled and secondary keep the old flat
-/// surfaces, which widens the demotion gap for free. A press dips the
-/// button 3% for ~90 ms — game-like acknowledgment under the finger —
-/// and reduced motion skips the dip.
+/// The Fable V2 ember was a shine — a ~6 L* gradient and a 14 %-alpha glow,
+/// both sub-perceptual at phone brightness — and every register wore it,
+/// Cancel included. The plate replaces shine with **construction**, in the
+/// language the panels already speak: a flat raised fill, a 2 px lit top
+/// edge, a 1 px outline, and a hard 2 px under-ledge — drawn thickness,
+/// like a key. A press translates the plate down onto its ledge and puts
+/// the top light out: mechanical acknowledgment under the finger, state
+/// not motion, so reduced motion loses nothing. Disabled is flat,
+/// line-less and ledge-less — an unpressable thing has no thickness.
+///
+/// One warm glow remains in the system and exactly one control carries it:
+/// `Set out`, the game's weightiest commit ([glow]).
 class StrideButton extends StatefulWidget {
   const StrideButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.subLabel,
+    this.variant = StrideButtonVariant.commit,
+    this.glow = false,
   }) : secondary = false;
 
   /// A **utility** control, not the screen's game action.
@@ -358,7 +387,9 @@ class StrideButton extends StatefulWidget {
     required this.label,
     required this.onPressed,
   }) : subLabel = null,
-       secondary = true;
+       secondary = true,
+       variant = StrideButtonVariant.commit,
+       glow = false;
 
   final String label;
 
@@ -369,6 +400,14 @@ class StrideButton extends StatefulWidget {
   final String? subLabel;
 
   final bool secondary;
+
+  /// The action's register — see [StrideButtonVariant]. Presentation only;
+  /// nothing announced changes with it.
+  final StrideButtonVariant variant;
+
+  /// The one warm glow. Reserved for the screen-level commit that spends
+  /// the game's central currency — `Set out` — and nothing else.
+  final bool glow;
 
   @override
   State<StrideButton> createState() => _StrideButtonState();
@@ -385,8 +424,37 @@ class _StrideButtonState extends State<StrideButton> {
   @override
   Widget build(BuildContext context) {
     final bool enabled = onPressed != null;
-    final bool ember = enabled && !secondary;
-    final bool reduced = MediaQuery.disableAnimationsOf(context);
+    final bool plate = enabled && !secondary;
+    final bool down = plate && _pressed;
+
+    // The variant's construction tokens: the lit top edge, the outline,
+    // and the under-ledge. Attack warms the ledge with the danger dim;
+    // defense flips the temperature; ready wears the moss the recipe rows
+    // already mean "can do" with.
+    final (Color topLight, Color outline, Color ledge) =
+        switch (widget.variant) {
+      StrideButtonVariant.commit => (
+        StrideColors.actionSheen,
+        StrideColors.actionEdge,
+        StrideColors.surfaceGround,
+      ),
+      StrideButtonVariant.attack => (
+        StrideColors.actionSheen,
+        StrideColors.dangerDim,
+        StrideColors.dangerDim,
+      ),
+      StrideButtonVariant.defense => (
+        StrideColors.defenseSheen,
+        StrideColors.defenseEdge,
+        StrideColors.surfaceGround,
+      ),
+      StrideButtonVariant.ready => (
+        StrideColors.actionSheen,
+        StrideColors.positiveReady,
+        StrideColors.positiveReadyDim,
+      ),
+    };
+
     final Widget body = Container(
       // Minimums. The label is composed — `Gather — 9,999,999 steps` at an
       // enlarged text scale is a real string — so a fixed box is the D-01
@@ -404,44 +472,6 @@ class _StrideButtonState extends State<StrideButton> {
         vertical: secondary ? StrideSpace.s4 : StrideSpace.s6,
       ),
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: ember
-            ? null
-            : !enabled
-            ? StrideColors.surfaceBlock
-            // One rung down the surface ladder from the primary control, which
-            // is the only level that reads as *raised*.
-            : secondary
-            ? StrideColors.surfaceBlock
-            : StrideColors.surfaceRaised,
-        // The ember material: sheen falling into the raised surface, so
-        // the button reads as catching warm light from above.
-        gradient: ember
-            ? const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[
-                  StrideColors.actionSheen,
-                  StrideColors.surfaceRaised,
-                ],
-              )
-            : null,
-        border: ember
-            ? Border.all(color: StrideColors.actionEdge)
-            : secondary
-            ? Border.all(color: StrideColors.borderDefault)
-            : null,
-        boxShadow: ember
-            ? const <BoxShadow>[
-                BoxShadow(
-                  color: StrideColors.actionGlow,
-                  blurRadius: 12,
-                  offset: Offset(0, 2),
-                ),
-              ]
-            : null,
-        borderRadius: StrideRadius.inner,
-      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -465,23 +495,72 @@ class _StrideButtonState extends State<StrideButton> {
       ),
     );
 
-    // The press dip: scale to 0.97 while a finger is down on an enabled
-    // control. Presentation only, and skipped entirely under reduced
-    // motion; the AnimatedScale is a no-op at scale 1 either way.
-    final Widget pressable = AnimatedScale(
-      scale: !reduced && _pressed && enabled ? 0.97 : 1,
-      duration: const Duration(milliseconds: 90),
-      curve: Curves.easeOut,
-      child: body,
+    // The plate: flat raised fill, outline, lit top edge, hard under-ledge.
+    // Pressed, it sits down onto the ledge and the light goes out — a state
+    // swap, not a motion, so reduced motion loses nothing. Disabled and
+    // secondary keep their flat surfaces; an unpressable thing has no
+    // thickness.
+    final Widget surfaced = plate
+        ? Container(
+            decoration: BoxDecoration(
+              color: StrideColors.surfaceRaised,
+              border: Border.all(color: outline),
+              borderRadius: StrideRadius.gate,
+              boxShadow: <BoxShadow>[
+                if (!down) BoxShadow(color: ledge, offset: const Offset(0, 2)),
+                if (widget.glow && !down)
+                  const BoxShadow(
+                    color: StrideColors.actionGlow,
+                    blurRadius: 12,
+                    offset: Offset(0, 2),
+                  ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: <Widget>[
+                if (!down)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    child: ColoredBox(color: topLight),
+                  ),
+                body,
+              ],
+            ),
+          )
+        : Container(
+            decoration: BoxDecoration(
+              color: StrideColors.surfaceBlock,
+              border: secondary && enabled
+                  ? Border.all(color: StrideColors.borderDefault)
+                  : null,
+              borderRadius: secondary ? StrideRadius.inner : StrideRadius.gate,
+            ),
+            child: body,
+          );
+
+    // The 2 px press travel — the plate onto its ledge.
+    final Widget pressable = Transform.translate(
+      offset: Offset(0, down ? 2 : 0),
+      child: surfaced,
     );
 
     // Semantics carries the button role and its enabled state, because the
     // control is a plain GestureDetector — there is no Material widget here to
-    // supply either, and a screen reader would otherwise announce a bare label.
+    // supply either, and a screen reader would otherwise announce a bare
+    // label. The child text is excluded: the composed label already says it
+    // once, and merging would announce every string twice.
     return Semantics(
       button: true,
       enabled: enabled,
       label: subLabel == null ? label : '$label. $subLabel',
+      excludeSemantics: true,
+      // Excluding the descendants also excludes the GestureDetector's tap,
+      // so the action lives here, on the one announced node.
+      onTap: onPressed,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onPressed,
@@ -490,11 +569,24 @@ class _StrideButtonState extends State<StrideButton> {
         onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
         // A secondary control shrink-wraps; a primary one fills its column.
         // Width is half of what makes the primary action read as primary.
+        //
+        // The shrink-wrapped plate stays its quiet 34 dp, but the **hit
+        // region** it sits in meets the 44 dp platform floor (FINAL-A M-1,
+        // GAME_FEEL_CHARACTER_PRESENTATION_01): `Cancel`, `Stop gathering`
+        // and `Retreat` are gameplay-path escapes, and an escape a thumb
+        // can miss is not quieter, it is worse. The demotion is visual;
+        // the target is not.
         child: secondary
             ? Align(
                 alignment: Alignment.centerLeft,
                 widthFactor: 1,
-                child: pressable,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minHeight: StrideGeometry.buttonHitFloor,
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: pressable,
+                ),
               )
             : pressable,
       ),

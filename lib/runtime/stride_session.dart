@@ -302,6 +302,58 @@ final class EquippedSummary {
   final int power;
 }
 
+/// One equipped slot's **visual facts**
+/// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5): what the presentation
+/// layer's art tables need to choose a Traveler strip, and nothing else.
+/// String-keyed (`ContentId.value`, `ToolKind.name`) on the same deliberate
+/// boundary `AmbientAssets.activityLoopFor` keeps — the art tables name no
+/// `stride_core` type.
+final class EquippedVisualFact {
+  const EquippedVisualFact({
+    required this.itemId,
+    required this.tier,
+    required this.toolKind,
+  });
+
+  final String itemId;
+  final int tier;
+  final String toolKind;
+
+  @override
+  bool operator ==(Object other) =>
+      other is EquippedVisualFact &&
+      other.itemId == itemId &&
+      other.tier == tier &&
+      other.toolKind == toolKind;
+
+  @override
+  int get hashCode => Object.hash(itemId, tier, toolKind);
+}
+
+/// The whole loadout as visual facts — the value `TravelerArt` resolves
+/// strips against. Value-equal, so a surface can cheaply see that an
+/// unchanged loadout selects unchanged art. A null slot is empty.
+final class EquipmentVisualState {
+  const EquipmentVisualState({this.weapon, this.armor, this.tool});
+
+  final EquippedVisualFact? weapon;
+  final EquippedVisualFact? armor;
+  final EquippedVisualFact? tool;
+
+  /// The empty loadout — also every surface's safe default.
+  static const EquipmentVisualState none = EquipmentVisualState();
+
+  @override
+  bool operator ==(Object other) =>
+      other is EquipmentVisualState &&
+      other.weapon == weapon &&
+      other.armor == armor &&
+      other.tool == tool;
+
+  @override
+  int get hashCode => Object.hash(weapon, armor, tool);
+}
+
 /// How a piece of equipment compares with what is worn in its slot.
 ///
 /// [toolSwap] is a tool of another profession going into the one tool
@@ -4023,6 +4075,40 @@ final class StrideSession {
           power: content.items[e.value]?.power ?? 0,
         ),
     ];
+  }
+
+  /// The equipped loadout as **visual facts** — the projection every
+  /// Traveler-drawing surface resolves its art through
+  /// (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5; `TravelerArt`).
+  ///
+  /// Read straight off the same `Equipment.bySlot` the engine consults, on
+  /// demand, holding nothing (`RULES.md` E-2) — and deliberately **facts,
+  /// not art keys**: which strip a fact selects is the presentation
+  /// layer's table, so an art round changes no session code. Lives here
+  /// beside [gearStatsOf] rather than in `stride_core` because variant
+  /// vocabulary is art-coupled packaging fact, not engine content.
+  EquipmentVisualState get equipmentVisualState {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) {
+      return const EquipmentVisualState();
+    }
+    EquippedVisualFact? factFor(EquipmentSlot slot) {
+      final ContentId? worn = active.state.equipment.bySlot[slot];
+      if (worn == null) return null;
+      final ItemDefinition? def = content.items[worn];
+      return EquippedVisualFact(
+        itemId: worn.value,
+        tier: def?.tier ?? 0,
+        toolKind: (def?.toolKind ?? ToolKind.none).name,
+      );
+    }
+
+    return EquipmentVisualState(
+      weapon: factFor(EquipmentSlot.weapon),
+      armor: factFor(EquipmentSlot.armor),
+      tool: factFor(EquipmentSlot.tool),
+    );
   }
 
   /// What [item] is *for* — every consumer and source the content pack

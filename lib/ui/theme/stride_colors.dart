@@ -236,15 +236,30 @@ abstract final class StrideColors {
 
   // ------------------------------------------------------------- danger
   //
-  // Combat threat ONLY: the enemy's HP fill, its intent line on a
-  // telegraph turn, a boss mark. The "no warning colour" rule above is
-  // about PRESSURE systems — capacity, expiry, decay, costs — and this
-  // token may never touch any of those: never on a price, a gate, a
-  // shortfall, or anything outside an encounter. Rust, pushed off
-  // [skillCooking]'s pink and [skillSmithing]'s orange.
+  // Combat threat, and the player's own offense **inside an encounter**:
+  // the enemy's HP fill, its intent line on a telegraph turn, a boss mark
+  // — and, since GAME_FEEL_CHARACTER_PRESENTATION_01 (the owner's brief
+  // asked for a danger-accent Attack treatment by name, 2026-08-28), the
+  // Attack control's accent. The "no warning colour" rule above is about
+  // PRESSURE systems — capacity, expiry, decay, costs — and this token may
+  // never touch any of those: never on a price, a gate, a shortfall, or
+  // anything outside an encounter. Rust, pushed off [skillCooking]'s pink
+  // and [skillSmithing]'s orange.
 
   static const Color danger = Color(0xFFC0504A);
   static const Color dangerDim = Color(0xFF542420);
+
+  // ---------------------------------------------------- defensive steel
+  //
+  // Brace and its family: the guarded, cooler temperature that separates
+  // defense from offense at a glance without a rainbow
+  // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4). Both alias the existing
+  // cobalt-dim hex — the exact precedent [positiveReady] set by aliasing
+  // [rarityUncommon]: no new hex enters the palette, and the two names
+  // exist so a future retune of either is a decision, not a side effect.
+
+  static const Color defenseSheen = Color(0xFF3A4268);
+  static const Color defenseEdge = Color(0xFF3A4268);
 
   // ------------------------------------------------------- reward light
   //
