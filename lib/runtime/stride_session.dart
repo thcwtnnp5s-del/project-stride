@@ -1308,6 +1308,7 @@ final class ActionReport {
     required this.succeeded,
     required this.nodeName,
     required this.cost,
+    this.itemId,
     this.itemName,
     this.quantity,
     this.bonusYield = 0,
@@ -1326,6 +1327,10 @@ final class ActionReport {
   /// Profile-scaled, as it would be charged. Shown before the action is taken,
   /// which is why it is on the report rather than only on the event.
   final int cost;
+
+  /// The yielded item's id, copied from the committed event — the activity
+  /// result card's icon key (GFCP01 device correction). Null on refusal.
+  final ContentId? itemId;
 
   final String? itemName;
   final int? quantity;
@@ -3142,6 +3147,7 @@ final class StrideSession {
       succeeded: true,
       nodeName: name,
       cost: gathered.stepsSpent,
+      itemId: gathered.item,
       itemName:
           content.items[gathered.item]?.displayName ?? gathered.item.value,
       quantity: gathered.quantity,

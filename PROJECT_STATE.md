@@ -1,5 +1,33 @@
 # Project Stride — Project State
 
+**Version:** 2.33
+**Status:** 🚧 **GFCP01 DEVICE CORRECTION 01 — the universal activity
+result, on `game-feel-character-presentation-01`, awaiting the owner's
+device re-test.** Record: the "Device Correction 01" section of
+`MILESTONES/GAME_FEEL_CHARACTER_PRESENTATION_01.md`.
+
+The device verdict: travel PASS, buttons PASS, ambient PASS with
+recorded animation-content debt — and craft/activity completion **FAIL**
+("nothing happened after crafting"), because ordinary completions were a
+small in-row beat inside whichever card was expanded. The correction is
+one universal answer: **every completed activity lands a visible result
+card** — the item's 48 px icon, the profession's verb, name ×quantity,
+bonus line, +XP in the skill's hue — floating at the gameplay surface's
+foot, snapshotted from the session's own reports, merging rapid repeats,
+restating a watched queue's totals in place, summarizing a reconciled
+batch as one card, holding a readable ~3.2 s (notable results take the
+reward-light frame, ~4 s, one light haptic), and **waiting, frozen,
+while its tab is hidden** so a finished queue greets the returning
+player. Held MEDIUM/MAJOR results keep the reward layer, level-ups still
+composed beside their result. Found and killed while wiring: the
+single-gather result was gated on the *selected* row. Zero PixelLab
+(balance stays exactly 25); no schema, cost, queue, travel, ambient or
+button change. Suites: app **848** (+11 `activity_result_test` and the
+evidence drives for every profession's card), analyze clean. Nothing
+merges without the owner's verdict.
+
+---
+
 **Version:** 2.32
 **Status:** 🚧 **GAME FEEL & CHARACTER PRESENTATION 01 — the pacing,
 reward-feel, button and visible-equipment pass, on

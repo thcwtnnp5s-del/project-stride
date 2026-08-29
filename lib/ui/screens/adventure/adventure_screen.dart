@@ -30,6 +30,7 @@ import 'package:stride_health/stride_health.dart'
 
 import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
+import '../../components/activity_result.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/reward_beat.dart' show StaggeredReveal;
@@ -151,7 +152,60 @@ class _AdventureScreenState extends State<AdventureScreen> {
     final Object? playToken =
         active == null && report != null && report.succeeded ? report : null;
 
-    return ListView(
+    // The universal activity result (GFCP01 device correction): every
+    // completed gather answers on this surface — a floating card at the
+    // screen's foot, not a line inside whichever node card is expanded.
+    // Two sources: a finished queue's summary (a **running** watched
+    // queue's live feedback is the working panel's own counter and gains,
+    // right under the bar — a card too would say everything twice; a
+    // level-up instead takes the held reward layer, which composes the
+    // same facts larger), and a single gather's report (incremental, so
+    // rapid taps merge into one card).
+    ActivityResult? activityResult;
+    Object? activityToken;
+    if (activity.summaryNode != null &&
+        activity.completed > 0 &&
+        !activity.levelledUp) {
+      activityResult = ActivityResult(
+        verb: 'GATHERING COMPLETE',
+        itemId: activity.gainedItemId,
+        itemName: activity.gainedItemName ?? 'Items',
+        // The controller's accumulated totals already include what
+        // reconciled while away — one figure, the committed one.
+        quantity: activity.gainedQuantity,
+        skill: activity.skill,
+        skillName: activity.gainedSkillName,
+        xp: activity.gainedXp,
+      );
+      activityToken =
+          'qdone:${activity.summaryNode?.value}:${activity.completed}';
+    } else if (c.lastAction case final ActionReport gathered
+        when gathered.succeeded && !gathered.levelledUp) {
+      // Deliberately NOT the staged-gated `report` above: the card answers
+      // the completion wherever it happened, selected row or not — "did
+      // anything happen?" must never depend on what is expanded.
+      final ContentId? node = c.lastActionNode;
+      final ContentId? skill = node == null
+          ? null
+          : s.nodeDefinitionOf(node)?.skill;
+      activityResult = ActivityResult(
+        verb: activityVerbFor(skill?.value),
+        itemId: gathered.itemId,
+        itemName: gathered.itemName ?? 'Items',
+        quantity: gathered.quantity ?? 0,
+        bonusQuantity: gathered.bonusYield,
+        skill: skill,
+        skillName: gathered.skillName,
+        xp: gathered.experience ?? 0,
+        incremental: true,
+      );
+      activityToken = gathered;
+    }
+
+    return ActivityResultHost(
+      result: activityResult,
+      resultToken: activityToken,
+      child: ListView(
       // Zero horizontal padding: the stage is full-bleed, and every other
       // child re-applies the gutter itself.
       padding: const EdgeInsets.only(bottom: StrideSpace.s16),
@@ -239,6 +293,7 @@ class _AdventureScreenState extends State<AdventureScreen> {
           ),
         ),
       ],
+      ),
     );
   }
 }

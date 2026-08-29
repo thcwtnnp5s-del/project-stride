@@ -334,7 +334,12 @@ void main() {
       isFalse,
       reason: 'the ×1 queue should have finished',
     );
-    await tester.pumpAndSettle();
+    // Bounded pumps, not a settle: the finish lands on the universal
+    // activity result card (GFCP01 device correction), and a settle here
+    // would run its readable decay out before the caller can look at it.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
   }
 
   // =========================================================================

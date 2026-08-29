@@ -521,13 +521,17 @@ class _GatherControl extends StatelessWidget {
                     ActivityScope.read(context).start(node, count);
                   },
           ),
-          // The finished queue's summary takes the strip while it lives; a lone
-          // report (the last repetition's) only shows when no summary does, so
-          // the same fact is never printed twice.
-          if (summaryHere && !queueHeld) ...<Widget>[
+          // Completions now land on the screen's universal activity result
+          // card (GFCP01 device correction) — one home, visible whatever
+          // row is expanded. What stays in the panel is what belongs to
+          // this node specifically: the refusal sentence, and a stopped
+          // queue's reason.
+          if (summaryHere && !queueHeld && activity.stopReport != null)
+            ...<Widget>[
             const SizedBox(height: StrideSpace.s8),
             _QueueSummaryStrip(activity: activity, skill: node.skill),
-          ] else if (report != null && !reportHeld) ...<Widget>[
+          ] else if (report != null && !reportHeld && !report.succeeded)
+            ...<Widget>[
             const SizedBox(height: StrideSpace.s8),
             _ResultStrip(report: report, skill: node.skill),
           ],

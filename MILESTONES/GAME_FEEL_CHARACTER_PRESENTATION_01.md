@@ -1,5 +1,88 @@
 # Game Feel & Character Presentation 01
 
+## Device Correction 01 — the universal activity result (2026-08-28)
+
+**Device verdict on the first pass:** travel PASS (do not touch), buttons
+PASS (stop polishing), ambient PASS with minor debt (the short repeated
+middle-frame gestures — cat pats especially — read mechanical; recorded
+below as animation-content debt for a future PixelLab ambient round, not
+fixed by generation now), **craft/activity completion FAIL** — "nothing
+happened after crafting."
+
+**Root cause:** the first pass interpreted the ask too narrowly. Ordinary
+completions rendered as a small text beat *inside whichever recipe or
+node card happened to be expanded* — below the button, off-screen when
+scrolled, gone on a timer, no icon — and gathering said even less. The
+owner's actual requirement: **every completed activity gets a visible
+result. The strength may vary; the existence may not.**
+
+**What shipped** (`lib/ui/components/activity_result.dart`):
+
+- **`ActivityResult`** — one presentation snapshot for any completed
+  activity, built from the session's own reports (`ActionReport` gained
+  an `itemId` for the icon; `ActivityController` a `gainedItemId`);
+  nothing recomputed (E-2).
+- **`ActivityResultCard`** — one visual language: the item's 48 px icon,
+  the profession's verb (`MINED` / `CHOPPED` / `FORAGED` / `COOKED` /
+  `FORGED` / `CRAFTED`, `… COMPLETE` for batches), name ×quantity in
+  rarity ink, `+N bonus yield` in moss, `+XP` in the skill's hue.
+  Tier 1 is compact but unmistakable; tier 2 (bonus proc, Uncommon+)
+  takes the warm reward-light frame and one light haptic; tier 3
+  (MEDIUM/MAJOR significance) still holds the reward layer — the same
+  language, larger, with the level-up composed beside the result.
+- **`ActivityResultHost`** — the floating result surface at the foot of
+  the Adventure and Craft screens: snapshots each result (a session
+  result-timer clearing its report cannot blank a card mid-read), merges
+  rapid same-item repeats instead of stacking popups, restates a watched
+  queue's committed totals in place per boundary, summarizes a finished
+  batch as one card, holds a readable ~3.2 s (notable ~4 s) then fades —
+  and a hidden tab's card **waits, its clock frozen**, so a queue that
+  ends while the player is elsewhere greets them with its summary. Tap
+  to dismiss; nothing blocks the surface.
+- The old in-row minor beats were **removed** (one home, not two): the
+  panel strips now carry only what belongs to the row — refusal
+  sentences. Found and fixed while wiring: the single-gather result was
+  gated on the *selected* row, so a gather at an unselected node showed
+  nothing — the exact failure mode this correction exists to kill.
+
+Unchanged, deliberately: held MEDIUM/MAJOR reward layers (equipment,
+level-ups — the mid-queue level truth-fix stands), travel, ambient
+timing, buttons, costs, queue mechanics, save schema. Zero PixelLab.
+
+**Ambient animation-content debt (recorded, not actioned):** the dwell
+holds expose that several loop segments are very short gestures (the cat
+pat, the head scratch); a future PixelLab ambient-animation round should
+author longer loop middles (6–10 frame variants) for: pet_cat,
+crouch_pet, head_scratch, dangle_string. Not fundable now; the atlas
+reserve is untouchable.
+
+**Correction evidence** (same directory): `gfcp_craft_minor_beat`,
+`gfcp_batch_craft_summary`, `gfcp_levelup_with_result`,
+`gfcp_woodcut_result`, `gfcp_mining_result`, `gfcp_bonus_yield`,
+`v2_gather_result` (now the FORAGED card). Tests:
+`test/activity_result_test.dart` (11 — visibility, readable timing,
+merge, replace, snapshot immunity, tap dismiss, reduced motion,
+hidden-tab wait, verbs) plus the evidence drives asserting every verb's
+card on the real screens.
+
+### iPhone acceptance checklist — Device Correction 01
+
+1. Craft one plank/broth: does a card with the item's picture, name,
+   count and XP appear immediately, readable for ~3 s?
+2. Craft ×5: one updating card while watching; leave the tab mid-queue,
+   return after it finishes — the summary card must be waiting.
+3. Gather at each profession: MINED / CHOPPED / FORAGED cards with the
+   right item and skill colour.
+4. Rapid-tap gathers: one card that counts up, never a stack.
+5. A bonus proc: its own line, warmer frame, one light tap.
+6. Gear craft / level-up: the held panel still rises with BOTH the
+   crafted item and the level.
+7. The question after every action: can you say what you just got
+   without opening the Inventory?
+
+---
+
+
 **Branch:** `game-feel-character-presentation-01` (from `world-atlas-remaster-01` @
 `5bc2c46`, which already contains all of `fable-v2-experiment` @ `3aabfae`)
 **Status:** in progress

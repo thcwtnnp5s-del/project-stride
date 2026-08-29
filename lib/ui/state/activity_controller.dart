@@ -269,6 +269,10 @@ class ActivityController extends ChangeNotifier with WidgetsBindingObserver {
   String? get gainedSkillName => _gainSkillName;
   int get gainedXp => _gainXp;
 
+  /// The queue's yielded item, for the activity result card's icon — the
+  /// node's own declared yield, the same id every completion granted.
+  ContentId? get gainedItemId => _node?.yieldsItem;
+
   /// What committed while the player was away — surfaced once, compactly, in
   /// the card's active/summary panel; null when nothing did.
   AwaySummary? get awaySummary => _awaySummary;

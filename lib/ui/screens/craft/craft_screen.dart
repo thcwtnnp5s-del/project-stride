@@ -42,6 +42,7 @@ import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
 import '../../components/ambient_stage.dart';
+import '../../components/activity_result.dart';
 import '../../state/audio_scope.dart';
 import '../../state/craft_controller.dart';
 import '../../state/craft_significance.dart';
@@ -207,6 +208,36 @@ class _CraftScreenState extends State<CraftScreen> {
           );
     final bool held = craft.summaryHeld && pinnedRecipe != null;
 
+    // The universal activity result (GFCP01 device correction): "nothing
+    // happened after crafting" was the device verdict on the in-row beat —
+    // a small text block inside whichever recipe was expanded, easy to
+    // miss entirely. Every completion now lands a floating card at the
+    // screen's foot: the running queue's committed totals update it in
+    // place per boundary, and a finished MINOR summary stands on it until
+    // read (the card's clock pauses while this tab is hidden, so a queue
+    // that ends elsewhere waits with its summary). Held MEDIUM/MAJOR
+    // results keep the reward layer; the card then shows nothing.
+    ActivityResult? craftResult;
+    Object? craftToken;
+    if (!craft.summaryHeld && craft.quantity > 0) {
+      final ContentId? outputId = craft.lastReport?.outputItemId;
+      final Rarity? rarity = craft.lastReport?.outputRarity;
+      craftResult = ActivityResult(
+        verb: craft.active || craft.completed <= 1
+            ? 'CRAFTED'
+            : 'CRAFTING COMPLETE',
+        itemId: outputId,
+        itemName: craft.outputName ?? 'Items',
+        quantity: craft.quantity,
+        skillName: craft.skillName,
+        xp: craft.xp,
+        rarity: rarity,
+      );
+      craftToken =
+          'craft:${craft.active}:${craft.activeRecipe?.value ?? craft.summaryRecipe?.value}'
+          ':${craft.completed}:${craft.quantity}';
+    }
+
     return RewardRaise(
       token: held ? craft.lastReport : null,
       // The layer's weight is the derived significance's call
@@ -225,7 +256,14 @@ class _CraftScreenState extends State<CraftScreen> {
           ? _CraftSummary.equipControl(context, craft, pinnedRecipe)
           : null,
       onDismiss: CraftScope.read(context).dismissSummary,
-      child: ListView(
+      child: ActivityResultHost(
+        result: craftResult,
+        resultToken: craftToken,
+        // A finished summary's card, once read, acknowledges the
+        // controller's summary; a mid-run card expiring acknowledges
+        // nothing (dismissSummary is a no-op while the queue runs).
+        onExpired: CraftScope.read(context).dismissSummary,
+        child: ListView(
         controller: _list,
         padding: const EdgeInsets.fromLTRB(
           StrideSpace.screenGutter,
@@ -337,6 +375,7 @@ class _CraftScreenState extends State<CraftScreen> {
             ],
           ],
         ],
+        ),
       ),
     );
   }
@@ -1056,28 +1095,10 @@ class _ActiveCraftPanel extends StatelessWidget {
           skill: recipe.skill,
           child: CraftRepetitionBar(craft: craft, skill: recipe.skill),
         ),
-        if (craft.completed > 0) ...<Widget>[
-          const SizedBox(height: StrideSpace.s8),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  '${craft.outputName ?? recipe.outputName} made: '
-                  '${craft.quantity}',
-                  style: StrideType.micro.copyWith(
-                    color: StrideColors.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                '+${craft.xp} ${craft.skillName ?? recipe.skillName} XP',
-                style: StrideType.micro.copyWith(
-                  color: StrideColors.forSkill(recipe.skill),
-                ),
-              ),
-            ],
-          ),
-        ],
+        // The running queue's committed gains live on the universal
+        // activity result card (GFCP01 device correction), which updates
+        // in place per boundary — the micro-line here said the same thing
+        // twice on one screen.
         const SizedBox(height: StrideSpace.s8),
         // An exit, not a commit — the neutral register
         // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
@@ -1297,56 +1318,20 @@ class _CraftSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final CraftReport? refusal = craft.stopReport;
 
-    // Whatever transient form renders below, its decay clock starts at the
-    // first sighting — a queue that finished while the player was on
-    // another tab keeps its summary until they come back (the owner's
-    // brief: "if they come back after a finite queue: summarize what
-    // completed"). Idempotent on the controller.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) CraftScope.read(context).noteSummarySeen();
-    });
-
-    if (craft.quantity == 0 && refusal != null) {
-      return SurfaceBlock(
-        child: AdaptiveText(
-          _refusalText(refusal),
-          style: StrideType.sub,
-          color: StrideColors.textSecondary,
-        ),
-      );
-    }
-    if (craft.quantity == 0) return const SizedBox.shrink();
-
-    // A held summary is the reward layer's (PLAYABLE_POLISH_01 §4); the
-    // card beneath the scrim shows nothing of it, so the result is read
-    // exactly once, in one place.
-    if (craft.summaryHeld) return const SizedBox.shrink();
-
-    final String skillName = craft.skillName ?? recipe.skillName;
-    final String xpLine = '+${craft.xp} $skillName XP';
-
-    // MINOR — components and food: the brief, truthful beat, on the
-    // seen-started timer — now with the thing itself: the approved 48 px
-    // icon and the rarity ink, so a completion shows what was made instead
-    // of only logging it (GAME_FEEL_CHARACTER_PRESENTATION_01, item 1).
-    return StaggeredReveal(
-      children: <Widget>[
-        RewardBeat(
-          tier: RewardTier.minor,
-          eyebrow: 'CRAFTED',
-          title: '${craft.outputName ?? recipe.outputName} ×${craft.quantity}',
-          // Common stays low-key everywhere — the row rule RewardItemRow
-          // already keeps; ink and badge start at Uncommon.
-          rarity: recipe.outputRarity == Rarity.common
-              ? null
-              : recipe.outputRarity,
-          icon: PixelAsset.item(PixelIcons.itemFor(recipe.outputItem)),
-          lines: <String>[
-            xpLine,
-            if (refusal != null) 'Stopped: ${_refusalText(refusal)}',
-          ],
-        ),
-      ],
+    // The completion itself now lands on the screen's universal activity
+    // result card (GFCP01 device correction) — one home, visible whatever
+    // row is expanded or scrolled to. What stays here is the refusal: the
+    // sentence explaining a stopped queue belongs beside the recipe it
+    // stopped on.
+    if (refusal == null) return const SizedBox.shrink();
+    return SurfaceBlock(
+      child: AdaptiveText(
+        craft.quantity == 0
+            ? _refusalText(refusal)
+            : 'Stopped: ${_refusalText(refusal)}',
+        style: StrideType.sub,
+        color: StrideColors.textSecondary,
+      ),
     );
   }
 

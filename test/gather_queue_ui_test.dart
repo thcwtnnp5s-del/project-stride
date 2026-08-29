@@ -274,18 +274,27 @@ void main() {
     expect(find.text('Meadow Herb gained: 2'), findsOneWidget);
     expect(find.text('+20 Foraging XP'), findsOneWidget);
 
-    // Stop mid-third: the two completed repetitions stay committed, and the
-    // summary strip reports them on the idle card.
+    // Stop mid-third: the two completed repetitions stay committed, and
+    // the finish lands on the universal activity result card (GFCP01
+    // device correction) — asserted inside its readable hold, before a
+    // settle would run its decay out.
     await tapVisible(tester, find.text('Stop gathering'));
     await pumpUntil(
       tester,
       () => session.activityQueue == null && !activity.active,
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(session.totalSpent, 160, reason: 'exactly the two completions');
     expect(session.inventoryCount(kHerb), 2);
-    expect(find.textContaining('Gather ×'), findsOneWidget);
+    expect(find.text('GATHERING COMPLETE'), findsOneWidget);
     expect(find.text('Meadow Herb ×2'), findsOneWidget);
+
+    // And the card decays on its own; the panel is back to the idle
+    // control with nothing pinned.
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Gather ×'), findsOneWidget);
+    expect(find.text('Meadow Herb ×2'), findsNothing);
   });
 }
