@@ -29,6 +29,14 @@ zero audio, health/economy untouchable, no FOMO, crafting free).
    each, rewarding guaranteed ordinary materials and one-time character
    XP. The optional elite signature roll designed by DEPTH-G ships
    **disabled**; enabling it is the owner's Q-12-adjacent call.
+   The four elite ids are frozen here so content, art mapping and the pin
+   test cannot drift: `enemy.old_grey`, `enemy.gallery_foreman`,
+   `enemy.rimeclaw_matriarch`, `enemy.guardian_awakened`. Their hunt
+   contracts are authored `class: regional` **with** `bountyEnemy` — the
+   only loader-legal shape in which a bounty's character XP is one-time
+   (regionals are non-repeatable) and therefore countable by the §5 band
+   test; a repeatable elite bounty would be a design change and returns
+   to the owner.
 2. **Two additive content fields**, both cross-reference-validated:
    `requiresProject` on `ProjectDefinition` (the contract-side twin
    already ships) and `requiresKnownEnemy` on `EnemyDefinition` (engine

@@ -14,6 +14,7 @@ import 'commands.dart';
 import 'event_reducer.dart';
 import 'events.dart';
 import 'game_state.dart';
+import 'progression.dart';
 import 'rejection.dart';
 import 'state_version.dart';
 
@@ -262,6 +263,22 @@ final class GameEngine {
         'visit); it returns once the player moves on',
         subject: command.enemy.value,
       );
+    }
+    // Veteran Hunts gate (`DECISIONS/0028`): a named elite will not show
+    // itself until its base species is Known. Availability information only —
+    // the veteran waits forever (P-4).
+    final ContentId? mustKnow = enemy.requiresKnownEnemy;
+    if (mustKnow != null) {
+      final EnemyDefinition? base = registry.enemies[mustKnow];
+      if (base == null || knowledgeTierFor(state, base) != KnowledgeTier.known) {
+        return _Decision.reject(
+          RejectionCode.enemyNotKnown,
+          command,
+          '"${enemy.displayName}" will not show itself until '
+          '${base?.displayName ?? mustKnow.value} is Known',
+          subject: command.enemy.value,
+        );
+      }
     }
 
     final PlayerCombatLoadout loadout = CombatRules.loadoutFor(state, registry);
@@ -2109,6 +2126,19 @@ final class GameEngine {
         RejectionCode.unknownProject,
         command,
         'no community project is defined with that ID',
+        subject: command.project.value,
+      );
+    }
+    // A gated project answers "not open yet" wherever the player stands,
+    // before any location or stage question — matching the contract offer
+    // gate's ordering (`DECISIONS/0028`).
+    final ContentId? gate = project.requiresProject;
+    if (gate != null && !state.progress.isProjectComplete(gate)) {
+      return _Decision.reject(
+        RejectionCode.projectNotAvailable,
+        command,
+        '"${project.displayName}" opens once '
+        '"${registry.projects[gate]?.displayName ?? gate.value}" is complete',
         subject: command.project.value,
       );
     }

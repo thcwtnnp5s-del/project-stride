@@ -918,6 +918,7 @@ final class EnemyDefinition {
     this.knownAt = 6,
     this.knownXp = 25,
     this.tellLine = '',
+    this.requiresKnownEnemy,
   });
 
   final ContentId id;
@@ -976,6 +977,14 @@ final class EnemyDefinition {
   /// nothing in the engine reads it.
   final String tellLine;
 
+  /// An enemy that must be **Known** before this one can be fought — the
+  /// Veteran Hunts gate (`DECISIONS/0028`, experimental). The value is the
+  /// base species' id: `enemy.old_grey` requires `enemy.forest_wolf` Known.
+  /// Hidden from encounter lists while the referenced enemy is Unseen; shown
+  /// locked from Seen; offered at Known. Availability information only —
+  /// nothing is reserved (P-9), and the veteran waits forever (P-4).
+  final ContentId? requiresKnownEnemy;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -992,6 +1001,7 @@ final class EnemyDefinition {
     'knownAt',
     'knownXp',
     'tellLine',
+    'requiresKnownEnemy',
   };
 
   static EnemyDefinition? read(JsonReader reader) {
@@ -1036,6 +1046,10 @@ final class EnemyDefinition {
         max: 1000000,
       ),
       tellLine: reader.optionalString('tellLine'),
+      requiresKnownEnemy: reader.optionalId(
+        'requiresKnownEnemy',
+        ContentNamespace.enemy,
+      ),
     );
     return reader.isComplete ? definition : null;
   }
@@ -1353,6 +1367,7 @@ final class ProjectDefinition {
     this.developmentTo,
     this.developmentRank = 0,
     this.revealRumors = const <ContentId>[],
+    this.requiresProject,
   });
 
   final ContentId id;
@@ -1383,6 +1398,14 @@ final class ProjectDefinition {
   /// Rumors revealed on completion.
   final List<ContentId> revealRumors;
 
+  /// A project whose completion is required before this one accepts
+  /// contributions — the Granary opens after the Mill (`DECISIONS/0028`,
+  /// experimental). Availability information, never a reservation (P-9);
+  /// a gated project stays visible with its gate stated, and waits forever
+  /// (P-4). A chain must bottom out at an ungated project — the loader
+  /// refuses self-references and cycles.
+  final ContentId? requiresProject;
+
   static const Set<String> fields = <String>{
     'id',
     'displayName',
@@ -1394,6 +1417,7 @@ final class ProjectDefinition {
     'developmentTo',
     'developmentRank',
     'revealRumors',
+    'requiresProject',
   };
 
   static ProjectDefinition? read(JsonReader reader) {
@@ -1420,6 +1444,10 @@ final class ProjectDefinition {
       developmentRank: reader.optionalInt('developmentRank', min: 0, max: 100),
       revealRumors: List<ContentId>.unmodifiable(
         reader.idList('revealRumors', ContentNamespace.rumor),
+      ),
+      requiresProject: reader.optionalId(
+        'requiresProject',
+        ContentNamespace.project,
       ),
     );
     if (definition.stages.isEmpty) return null;

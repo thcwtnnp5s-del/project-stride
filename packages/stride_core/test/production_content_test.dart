@@ -76,6 +76,40 @@ void main() {
       }
     });
 
+    test(
+      'one-time character XP lands in the 0028 band',
+      () {
+        final ContentRegistry registry = loadProduction(
+          productionSource,
+        ).requireRegistry;
+        int oneTime = 0;
+        // 1. One-time contracts: exactly the non-repeatable class. Repeatable
+        //    bounty/local-need XP is grind, not accomplishment, and is
+        //    excluded — which is also why the veteran hunt contracts are
+        //    authored `class: regional` with `bountyEnemy` (`DECISIONS/0028`).
+        for (final ContractDefinition c in registry.contracts.values) {
+          if (!c.isRepeatable) oneTime += c.rewardCharacterXp;
+        }
+        // 2. Projects: every stage's XP plus the completion award — each paid
+        //    exactly once by construction (P-10).
+        for (final ProjectDefinition p in registry.projects.values) {
+          for (final ProjectStage s in p.stages) {
+            oneTime += s.characterXp;
+          }
+          oneTime += p.completionCharacterXp;
+        }
+        // 3. Knowledge: knownXp is paid once on the crossing victory.
+        for (final EnemyDefinition e in registry.enemies.values) {
+          oneTime += e.knownXp;
+        }
+        // DECISIONS/0028 §5: character level 10 is reached by accomplishment,
+        // not repeat-kill grind. The band is a floor AND a ceiling so rider
+        // stacking cannot overshoot either.
+        expect(oneTime, inInclusiveRange(2900, 3200));
+      },
+      skip: 'armed when the 0028 content pack lands — integration task E10',
+    );
+
     test('every shipped item carries an authored rarity', () {
       final ContentRegistry registry = loadProduction(
         productionSource,

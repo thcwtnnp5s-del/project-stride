@@ -111,6 +111,7 @@ final class ContentLoader {
     _validateCrossReferences(parsed, collector);
     _validateSkills(parsed, collector);
     _validateWorld(parsed, collector);
+    _validateEntryKeySafety(parsed, collector);
     _validateContracts(parsed, collector);
     _validateProjects(parsed, collector);
     _validateProfiles(parsed, collector);
@@ -579,6 +580,32 @@ final class ContentLoader {
       }
     }
 
+    // Veteran Hunts gate (`DECISIONS/0028`): the referenced base enemy must
+    // exist, and no enemy may require itself — an enemy that must be Known
+    // before it can be fought could then never be fought at all.
+    for (final EnemyDefinition enemy in parsed.enemies.values) {
+      final ContentId? mustKnow = enemy.requiresKnownEnemy;
+      if (mustKnow == null) continue;
+      if (mustKnow == enemy.id) {
+        collector.add(
+          sourceFile: parsed.sourceOf[enemy.id] ?? 'unknown',
+          entryId: enemy.id.value,
+          field: 'requiresKnownEnemy',
+          explanation:
+              'the enemy requires itself to be Known, which can never happen',
+          suggestion: 'reference the base species the veteran is a variant of',
+        );
+        continue;
+      }
+      checkRef(
+        enemy.id,
+        'requiresKnownEnemy',
+        mustKnow,
+        ContentNamespace.enemy,
+        parsed.enemies.containsKey,
+      );
+    }
+
     for (final ProjectDefinition project in parsed.projects.values) {
       checkRef(
         project.id,
@@ -586,6 +613,13 @@ final class ContentLoader {
         project.location,
         ContentNamespace.location,
         parsed.locations.containsKey,
+      );
+      checkRef(
+        project.id,
+        'requiresProject',
+        project.requiresProject,
+        ContentNamespace.project,
+        parsed.projects.containsKey,
       );
       for (int s = 0; s < project.stages.length; s++) {
         final ProjectStage stage = project.stages[s];
@@ -739,6 +773,99 @@ final class ContentLoader {
           explanation: 'a project with no stages can never begin',
           suggestion: 'author at least one stage with requirements',
         );
+      }
+
+      // `requiresProject` chains must bottom out at an ungated project
+      // (`DECISIONS/0028`): a self-reference or cycle would make every
+      // project in the loop permanently unopenable. Dangling referents are
+      // already refused by the cross-reference pass, so this walk stops
+      // quietly at an unknown id rather than double-reporting.
+      final ContentId? gate = project.requiresProject;
+      if (gate != null) {
+        final List<ContentId> path = <ContentId>[project.id];
+        final Set<ContentId> visited = <ContentId>{project.id};
+        ContentId? cursor = gate;
+        while (cursor != null) {
+          if (visited.contains(cursor)) {
+            collector.add(
+              sourceFile: file,
+              entryId: project.id.value,
+              field: 'requiresProject',
+              explanation: cursor == project.id
+                  ? 'the project requires itself'
+                        '${path.length > 1 ? ' through ${path.skip(1).map((ContentId id) => id.value).join(' -> ')}' : ''}, '
+                        'so it could never open'
+                  : 'the requirement chain loops at "${cursor.value}" '
+                        '(${path.map((ContentId id) => id.value).join(' -> ')} -> ${cursor.value})',
+              suggestion:
+                  'a project chain must bottom out at an ungated project',
+            );
+            break;
+          }
+          visited.add(cursor);
+          path.add(cursor);
+          cursor = parsed.projects[cursor]?.requiresProject;
+        }
+      }
+    }
+  }
+
+  /// `RULES` L-1 (`DECISIONS/0028` §4): an item that opens a location may
+  /// never be consumed. `entryRequirements` are checked against live
+  /// inventory on every travel, so a recipe, contract delivery, or project
+  /// stage that eats an entry key could lock the player out of somewhere
+  /// they have already been. `requiresOwned` is deliberately exempt —
+  /// show-don't-consume is the safe pattern.
+  void _validateEntryKeySafety(
+    _ParsedContent parsed,
+    ErrorCollector collector,
+  ) {
+    final Set<ContentId> entryKeys = <ContentId>{
+      for (final LocationDefinition location in parsed.locations.values)
+        ...location.entryRequirements,
+    };
+    if (entryKeys.isEmpty) return;
+
+    void refuse(ContentId owner, String field, ContentId item) {
+      collector.add(
+        sourceFile: parsed.sourceOf[owner] ?? 'unknown',
+        entryId: owner.value,
+        field: field,
+        explanation:
+            '"${item.value}" opens a location; consuming it could lock the '
+            'player out of somewhere they have been',
+        suggestion:
+            'entry keys are shown, never spent - use requiresOwned on a '
+            'contract, or a different material',
+      );
+    }
+
+    for (final RecipeDefinition recipe in parsed.recipes.values) {
+      for (int i = 0; i < recipe.ingredients.length; i++) {
+        if (entryKeys.contains(recipe.ingredients[i].item)) {
+          refuse(recipe.id, 'ingredients[$i].item', recipe.ingredients[i].item);
+        }
+      }
+    }
+    for (final ContractDefinition contract in parsed.contracts.values) {
+      for (int i = 0; i < contract.requires.length; i++) {
+        if (entryKeys.contains(contract.requires[i].item)) {
+          refuse(contract.id, 'requires[$i].item', contract.requires[i].item);
+        }
+      }
+    }
+    for (final ProjectDefinition project in parsed.projects.values) {
+      for (int s = 0; s < project.stages.length; s++) {
+        final ProjectStage stage = project.stages[s];
+        for (int i = 0; i < stage.requires.length; i++) {
+          if (entryKeys.contains(stage.requires[i].item)) {
+            refuse(
+              project.id,
+              'stages[$s].requires[$i].item',
+              stage.requires[i].item,
+            );
+          }
+        }
       }
     }
   }

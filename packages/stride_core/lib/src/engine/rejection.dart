@@ -102,6 +102,11 @@ enum RejectionCode {
   /// (`DECISIONS/0020` §3).
   enemyDrivenOff('enemy_driven_off'),
 
+  /// The enemy is gated behind knowledge of another (`requiresKnownEnemy`,
+  /// `DECISIONS/0028`): the referenced enemy is not yet Known. Study the
+  /// species; the veteran waits forever (P-4).
+  enemyNotKnown('enemy_not_known'),
+
   /// A combat action was issued with no encounter active.
   noEncounter('no_encounter'),
 
@@ -155,6 +160,11 @@ enum RejectionCode {
 
   /// The project is already complete; nothing more can be contributed.
   projectComplete('project_complete'),
+
+  /// The project exists but is not yet open: its `requiresProject`
+  /// prerequisite has not been completed (`DECISIONS/0028`). Availability
+  /// information, like [contractNotAvailable]; nothing is reserved.
+  projectNotAvailable('project_not_available'),
 
   /// A contribution named a non-positive amount, an item the stage does not
   /// need or has already received in full, or more than the player holds.
