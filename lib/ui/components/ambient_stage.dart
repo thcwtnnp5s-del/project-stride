@@ -537,6 +537,21 @@ class _AmbientStageState extends State<AmbientStage> {
 /// offscreen, and the vsync-driven controller stops under `TickerMode` like
 /// every other stage animation. Reduced motion holds frame 0, the shared
 /// standing pose.
+///
+/// ## Reduced motion silences the picture, never the sound
+///
+/// The cadence cursor and the drawn frame are **two different values**
+/// (PRESENTATION_COMBAT_EVOLUTION_01). Until that separation existed, reduced
+/// motion stopped the controller, so `_onTick` never ran, so `onBeat` never
+/// fired — and a player who wanted a still picture got a **totally silent
+/// game**: every profession cue in the product, gone, with nothing on screen
+/// or in a test to say so.
+///
+/// Now the controller runs either way. `_cursor` advances and crosses the
+/// strike frame on schedule, so the strike still sounds; `_frame` is pinned to
+/// 0 and no `setState` is issued, so nothing moves and no rebuild happens.
+/// Reduce Motion is a request about *motion*, not a request for silence, and
+/// the two axes are separated the same way the audio and haptic toggles are.
 class _ActivityLoop extends StatefulWidget {
   const _ActivityLoop({
     required this.frames,
@@ -567,7 +582,15 @@ class _ActivityLoopState extends State<_ActivityLoop>
     duration: _activityFrameDuration * widget.frames.length,
   )..addListener(_onTick);
 
+  /// The loop position. Advances on every tick, motion or no motion — this is
+  /// what decides when the tool lands, and therefore when the cue fires.
+  int _cursor = 0;
+
+  /// The frame actually drawn. Tracks [_cursor] normally; pinned to 0 while
+  /// reduced motion is on.
   int _frame = 0;
+
+  bool _reducedMotion = false;
   bool _precached = false;
 
   @override
@@ -579,12 +602,16 @@ class _ActivityLoopState extends State<_ActivityLoop>
         precacheImage(AssetImage(frame), context);
       }
     }
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _controller.stop();
-      if (_frame != 0) setState(() => _frame = 0);
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
+    // Re-read on *change*, not only on mount: a player who turns Reduce Motion
+    // on mid-session gets the still picture immediately, and one who turns it
+    // off gets the loop back without remounting the stage.
+    _reducedMotion = MediaQuery.disableAnimationsOf(context);
+    if (_reducedMotion && _frame != 0) setState(() => _frame = 0);
+    // The controller runs in both modes. Under reduced motion it drives the
+    // cadence and nothing else: no `setState` is issued below, so it costs one
+    // vsync callback of arithmetic and zero rebuilds — and `TickerMode` still
+    // stops it on a hidden tab, exactly as before.
+    if (!_controller.isAnimating) _controller.repeat();
   }
 
   void _onTick() {
@@ -592,17 +619,18 @@ class _ActivityLoopState extends State<_ActivityLoop>
       0,
       widget.frames.length - 1,
     );
-    if (next == _frame) return;
+    if (next == _cursor) return;
     // The beat is a **crossing**, not an equality: under load a slow frame
     // can jump the counter past the strike frame, and an equality test would
     // silently drop that cycle's sound while the picture showed the tool
     // landing. Wrapping (next < prev) means a new cycle began.
-    final int prev = _frame;
+    final int prev = _cursor;
     final int beat = widget.beatFrame;
     final bool crossed = next > prev
         ? prev < beat && beat <= next
         : beat > prev || beat <= next;
-    setState(() => _frame = next);
+    _cursor = next;
+    if (!_reducedMotion) setState(() => _frame = next);
     if (crossed) widget.onBeat?.call();
   }
 

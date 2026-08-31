@@ -21,6 +21,76 @@ to `M-02` stays valid.
 
 ---
 
+## M-16 — A cue driven by an animation ticker is a cue an accessibility toggle can delete
+
+**Date:** 2026-08-31 · **Category:** presentation coupling / accessibility /
+verification blindness
+
+### What happened
+
+Every sound effect in the product fired from one place: `_ActivityLoop._onTick`
+in `lib/ui/components/ambient_stage.dart`, called by an `AnimationController`
+listener, which invoked `onActivityBeat` when the drawn frame crossed the
+tool's strike frame. Firing sound from the picture was a deliberate and
+well-argued choice — `audio_controller.dart` documents it as "sound follows
+what the player *watches*, never activity duration".
+
+The same file also honoured Reduce Motion the way every other animated widget
+in the app does: `if (MediaQuery.disableAnimationsOf(context)) _controller.stop()`.
+
+Both decisions were correct in isolation. Together they meant that **enabling
+Reduce Motion silenced the entire game** — all five profession cues, every
+gather, every craft, permanently, for as long as the setting was on. Nobody
+chose that. It fell out of the composition of two reasonable rules, and it
+survived a full audio milestone and two presentation milestones.
+
+### Why nothing caught it
+
+`test/audio/audio_assets_test.dart` was thorough about the wrong axis. Every
+test in it iterated a cue table and checked the world against it — the files
+exist, the region keys are real locations, the skill keys are real skills, the
+IDs match the naming convention. **Not one test asserted that a cue ever
+fires.** A suite built entirely from "the table is consistent" assertions is
+structurally incapable of noticing that the caller was removed.
+
+The defect also had no symptom a player could report precisely. There is no
+error, no log line, no missing-asset warning — the game simply becomes quiet,
+which reads as "this game does not have much sound" rather than as a fault.
+
+### Cost
+
+Unknown but bounded below by one full milestone: the audio foundation shipped
+in AUDIO_PRESENTATION_01 (v2.17) and was reported by the owner across later
+rounds as some actions feeling "effectively silent". Diagnosing it consumed a
+forensics pass in PRESENTATION_COMBAT_EVOLUTION_01.
+
+### What prevents recurrence
+
+- **The cadence and the picture are now two values.** `_ActivityLoop` keeps a
+  `_cursor` that advances whether or not motion is enabled, and a `_frame` that
+  is pinned to 0 under Reduce Motion. Motion stops; timing does not.
+- **`test/activity_beat_audio_test.dart`** asserts the beat fires *with Reduce
+  Motion on*, and separately that the drawn frame does not move. It was
+  falsified against the pre-fix code before being trusted: the pre-fix build
+  fails exactly the audio assertion and passes the other two.
+- **The general rule, which is the durable part:** an accessibility preference
+  must degrade the one channel it names and no other. Reduce Motion may not
+  remove audio; a sound toggle may not remove haptics; a haptic toggle may not
+  remove sound. When one feedback channel is *driven by* another's clock, the
+  toggle for the driver silently becomes a toggle for both — so a cue must
+  never be emitted from a callback that an accessibility setting can stop.
+
+### The second instance, which is why this is a rule and not a bug
+
+This is the **second** time a presentation-layer decision silently disabled
+audio in this repository. The first was hidden `IndexedStack` tabs continuing
+to tick (v2.28), where the fix — `TickerMode` — was correct for performance and
+took the cues with it as a side effect. Both incidents share one shape: audio
+was made a passenger of the animation system, and every change to the
+animation system moved it without anyone deciding to.
+
+---
+
 ## M-15 — Seam repair with no enforced boundary repainted the approved interior it was protecting
 
 **Date:** 2026-08-27 · **Category:** art pipeline / content protection (M-12 /

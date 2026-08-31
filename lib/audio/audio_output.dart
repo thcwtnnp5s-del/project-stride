@@ -8,6 +8,8 @@
 /// without a platform channel in the room.
 library;
 
+import 'dart:async';
+
 import 'package:audioplayers/audioplayers.dart';
 
 /// One playing music track. The controller owns at most two at a time — the
@@ -73,14 +75,30 @@ final class AudioplayersOutput implements AudioOutput {
 
   @override
   Future<void> playCue(String assetPath, {required double volume}) async {
-    final AudioPlayer player = _cuePlayers.putIfAbsent(assetPath, () {
+    AudioPlayer? player = _cuePlayers[assetPath];
+    if (player == null) {
       final AudioPlayer p = AudioPlayer();
       // Short transients want the low-latency path (SoundPool on Android);
       // stop-not-release keeps the decoded source warm between strikes.
-      p.setPlayerMode(PlayerMode.lowLatency);
-      p.setReleaseMode(ReleaseMode.stop);
-      return p;
-    });
+      //
+      // **Awaited** (PRESENTATION_COMBAT_EVOLUTION_01). These were
+      // fire-and-forget inside a `putIfAbsent`, with `play()` issued on the
+      // next line — so the very first strike of every cue path raced its own
+      // player configuration. A first hit that is sometimes silent, and only
+      // ever on the first hit, is the hardest kind of audio bug to believe.
+      await p.setPlayerMode(PlayerMode.lowLatency);
+      await p.setReleaseMode(ReleaseMode.stop);
+      // Re-check: an interleaved call for the same path may have installed one
+      // while this was awaiting. Losing the race means disposing our own.
+      final AudioPlayer? raced = _cuePlayers[assetPath];
+      if (raced != null) {
+        unawaited(p.dispose());
+        player = raced;
+      } else {
+        _cuePlayers[assetPath] = p;
+        player = p;
+      }
+    }
     await player.stop();
     await player.play(AssetSource(assetPath), volume: volume);
   }

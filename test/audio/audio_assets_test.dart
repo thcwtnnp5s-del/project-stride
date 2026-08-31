@@ -82,4 +82,50 @@ void main() {
       expect(convention.hasMatch(id), isTrue, reason: id);
     }
   });
+
+  // -- The referential invariants (PRESENTATION_COMBAT_EVOLUTION_01) --------
+  //
+  // Every test above iterates a table and checks the world against it. None of
+  // them could see the one defect that actually reaches the player: a cue
+  // naming an asset ID that no table defines. `playSkillCue` resolved that
+  // with `AudioCues.files[id]!`, so a single mistyped character threw a
+  // `_CastError` out of an animation tick — inside a `setState` frame — and
+  // took the screen down instead of going quiet. The lookup is null-safe now
+  // (`AudioCues.fileFor`), and these two tests are what stop a dangling
+  // reference from reaching a device in the first place.
+
+  test('every skill cue names an asset the tables define', () {
+    for (final MapEntry<String, ActionCue> e in AudioCues.skillCues.entries) {
+      expect(
+        AudioCues.files.containsKey(e.value.assetId),
+        isTrue,
+        reason:
+            '${e.key} names asset "${e.value.assetId}", which AudioCues.files '
+            'does not define — the sound would silently never play',
+      );
+    }
+  });
+
+  test('every region music key names an asset the tables define', () {
+    for (final MapEntry<String, String> e in AudioCues.regionMusic.entries) {
+      expect(
+        AudioCues.files.containsKey(e.value),
+        isTrue,
+        reason:
+            '${e.key} names asset "${e.value}", which AudioCues.files does '
+            'not define — the region would be silent',
+      );
+    }
+  });
+
+  test('a cue naming an unknown asset resolves to silence, never a throw', () {
+    // The fallback contract itself, stated as a test so it cannot regress
+    // back into a `!`. Both a missing ID and a null resolve to null.
+    expect(AudioCues.fileFor('combat.nothing.produced.yet.01'), isNull);
+    expect(AudioCues.fileFor(null), isNull);
+    expect(
+      AudioCues.fileFor('gather.mining.01'),
+      'audio/v1/sfx/sfx_gather_mining_01.wav',
+    );
+  });
 }

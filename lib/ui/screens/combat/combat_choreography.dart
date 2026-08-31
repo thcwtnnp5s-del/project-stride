@@ -62,6 +62,7 @@ final class StageSegment {
     this.telegraph,
     this.heal,
     this.heavyFlash = false,
+    this.heavyImpactAt,
   }) : assert(duration > Duration.zero, 'a segment must take time');
 
   final Duration duration;
@@ -107,6 +108,20 @@ final class StageSegment {
 
   /// The telegraph line brightens for a heavy blow.
   final bool heavyFlash;
+
+  /// When in this segment a heavy blow actually **lands**, for the haptic.
+  ///
+  /// Null on every segment that is not a heavy strike
+  /// (PRESENTATION_COMBAT_EVOLUTION_01). The heavy haptic used to fire at the
+  /// segment's *start*, under a comment claiming it landed "as it lands on
+  /// screen" — but the Guardian's heavy strike frame is 500 ms into a 1,167 ms
+  /// track, and the Bear's is 625 ms into 1,125. The wrist was arriving up to
+  /// two thirds of a second before the arm came down, which reads as a phone
+  /// glitch rather than as a blow.
+  ///
+  /// This is the same `lands` offset the effect burst, the recoil and the HP
+  /// tween already use, so all four now agree on when the hit happened.
+  final Duration? heavyImpactAt;
 }
 
 /// How long a figure without a flinch track recoils.
@@ -237,6 +252,7 @@ List<StageSegment> choreograph(
             hpTweenStart: lands,
             hpTweenEnd: lands + _hpTween,
             heavyFlash: b.heavy,
+            heavyImpactAt: b.heavy ? lands : null,
           ),
         );
 

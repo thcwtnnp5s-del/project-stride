@@ -341,9 +341,10 @@ class _CombatStageState extends State<CombatStage>
     if (s.turn case final int t) _turn = t;
     if (s.telegraph case final bool t) _telegraph = t;
     // The heavy blow lands in the hand as it lands on screen — once, at the
-    // segment's start, never per frame. The skip path (`_applyRemaining`)
+    // frame the arm comes down (`StageSegment.heavyImpactAt`), never at the
+    // segment's start and never per frame. The skip path (`_applyRemaining`)
     // deliberately stays silent: a fast-forwarded round is not a moment.
-    if (s.heavyFlash) AudioScope.maybeRead(context)?.hapticHeavy();
+    _heavyHapticPending = s.heavyImpactAt;
     _controller
       ..duration = s.duration
       ..forward(from: 0);
@@ -381,6 +382,9 @@ class _CombatStageState extends State<CombatStage>
 
   /// Every remaining segment's end state, at once — the skip.
   void _applyRemaining() {
+    // A fast-forwarded round is not a moment: drop the owed heavy haptic
+    // rather than firing it late, or firing several at once.
+    _heavyHapticPending = null;
     for (int i = _index; i < _segments.length; i++) {
       _applySegmentEnd(_segments[i]);
     }
@@ -441,7 +445,18 @@ class _CombatStageState extends State<CombatStage>
     return d * _controller.value;
   }
 
-  void _onTick() => _refresh(_elapsed);
+  /// The offset within the current segment at which the heavy haptic is still
+  /// owed, or null once it has fired (or when this segment has no heavy blow).
+  Duration? _heavyHapticPending;
+
+  void _onTick() {
+    final Duration elapsed = _elapsed;
+    if (_heavyHapticPending case final Duration at when elapsed >= at) {
+      _heavyHapticPending = null;
+      AudioScope.maybeRead(context)?.hapticHeavy();
+    }
+    _refresh(elapsed);
+  }
 
   void _refresh(Duration elapsed) {
     final _Shot next = _shotAt(elapsed);

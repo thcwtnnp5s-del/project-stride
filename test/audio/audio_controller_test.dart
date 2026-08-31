@@ -200,7 +200,7 @@ void main() {
   });
 
   group('action cues', () {
-    test('each profession fires its one accepted cue at sfx volume', () {
+    test('each profession fires its one accepted cue at its trimmed volume', () {
       build();
       const Map<String, String> expected = <String, String>{
         'skill.mining': 'gather.mining.01',
@@ -213,9 +213,50 @@ void main() {
         now += 10000; // past every cooldown
         controller.playSkillCue(e.key);
         expect(output.cues.last.$1, AudioCues.files[e.value]!, reason: e.key);
-        expect(output.cues.last.$2, AudioSettings.defaultSfxVolume);
+        // The cue's level is the player's volume scaled by that cue's own
+        // trim (`ActionCue.trimDb`) — the level-matching pass. Was a bare
+        // `defaultSfxVolume` before the five shipped cues were measured and
+        // found to span 10.4 dB of LUFS-M max.
+        expect(
+          output.cues.last.$2,
+          closeTo(
+            AudioSettings.defaultSfxVolume *
+                AudioCues.skillCues[e.key]!.gain,
+            1e-9,
+          ),
+          reason: e.key,
+        );
       }
       expect(output.cues.length, expected.length);
+    });
+
+    test('a trim only ever attenuates, and mining is the untouched floor', () {
+      build(); // only so the shared tearDown has something to dispose.
+      // The invariant that keeps this table honest: `trimDb` can never make a
+      // cue louder than the player asked for, so it can never clip a file
+      // already mastered to −1.0 dBTP.
+      for (final MapEntry<String, ActionCue> e in AudioCues.skillCues.entries) {
+        expect(
+          e.value.trimDb,
+          lessThanOrEqualTo(0),
+          reason: '${e.key} boosts, which can clip',
+        );
+        expect(e.value.gain, lessThanOrEqualTo(1.0), reason: e.key);
+        expect(e.value.gain, greaterThan(0), reason: e.key);
+      }
+      // Mining is the measured quietest cue; nothing may pull it lower.
+      expect(AudioCues.skillCues['skill.mining']!.trimDb, 0);
+      expect(AudioCues.skillCues['skill.mining']!.gain, 1.0);
+    });
+
+    test('cooking fires on every stir, not every other one', () {
+      build(); // only so the shared tearDown has something to dispose.
+      // 7 frames ping-ponged to 12 slots at 110 ms = 1,320 ms per cycle. A
+      // floor above that skipped a cycle; the floor must stay under it.
+      expect(
+        AudioCues.skillCues['skill.cooking']!.cooldownMillis,
+        lessThan(1320),
+      );
     });
 
     test('the cooldown floor swallows a double-fire, not the next beat', () {

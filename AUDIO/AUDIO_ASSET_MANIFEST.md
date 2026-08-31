@@ -84,6 +84,30 @@ Prompts are verbatim in the block after the table — they are long, and a
 - **P-9** (`craft.smithing.01`): `TrackType: SFX. Close-mic blacksmith workshop recording of one single hammer strike: a heavy forging hammer lands squarely on a glowing heated iron workpiece resting on a damped steel anvil. Solid weighty impact, the soft hot metal absorbs the blow, dense hammer mass contact, short controlled low resonance dying quickly, tight decay, dry close workshop air, physical and believable.`
 - **P-10** (`craft.cooking.01`): `TrackType: SFX. Close-mic field recording of a small piece of meat cooking over a hot rustic wood fire: clear gentle frying and sizzling from the food, tiny fat pops, a few soft dry fire crackles underneath, warm intimate hearth cooking sound, realistic natural texture, one short steady cooking moment.`
 
+### Playback trim, and why it is not a new row
+
+**PRESENTATION_COMBAT_EVOLUTION_01 (2026-08-31) changed no file above.** All
+ten assets are byte-identical to what AUDIO_PRESENTATION_01 shipped, so every
+Source / Licence / Model / Prompt / Date cell stands unamended.
+
+What that pass added is a **runtime attenuation per cue** — `ActionCue.trimDb`
+in `lib/audio/audio_cues.dart` — because the five SFX were mastered to a peak
+target while the five music tracks were mastered to a loudness target, leaving
+the cues spread across **10.4 dB of LUFS-M max** (smithing −10.0, mining
+−20.4, measured on the shipped files). Only `craft.smithing.01` is materially
+trimmed, by −7.0 dB. Full measurements, the target and its reasoning are in
+`assets/audio/v1/README.md` § *The playback trim*.
+
+It lives in code rather than in a file because a trim is a mix decision, not a
+master: it is reversible in one line, cannot clip, and never puts this
+manifest out of date with the bytes on disk.
+
+**One owner ruling is queued there:** `gather.mining.01` is the measured floor,
+a trim can only attenuate, and mining is the cue the owner named. Lifting it
+needs a deterministic limiter re-master of `MINING_AP1_SA25_4102.wav` — zero
+generations, but a change of packaging class, and therefore not taken
+unilaterally.
+
 ### Phase note on material identity
 
 The coverage requirement below (copper ≠ iron, oak ≠ pine) stands as the

@@ -157,10 +157,13 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
     _retireCurrentMusic();
     if (assetId == null || !_settings.enabled) return;
 
-    final MusicChannel channel = await _output.startMusic(
-      AudioCues.files[assetId]!,
-      volume: 0,
-    );
+    // An assigned ID with no bundled file is silence, not a crash: the bus
+    // keeps the assignment (so a later build that ships the track plays it on
+    // the next region change) and simply never starts a channel.
+    final String? file = AudioCues.fileFor(assetId);
+    if (file == null) return;
+
+    final MusicChannel channel = await _output.startMusic(file, volume: 0);
     if (_disposed || epoch != _musicEpoch) {
       // A newer assignment landed while this start was in flight. This
       // channel lost; it never becomes audible.
@@ -253,15 +256,20 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
     if (!_settings.enabled || _settings.sfxVolume <= 0) return;
     final ActionCue? cue = AudioCues.cueForSkill(skill);
     if (cue == null) return;
+    // Resolve BEFORE the cooldown is stamped. A cue with no file yet is
+    // silence, and silence must not consume the cooldown slot of the sound
+    // that will eventually replace it.
+    final String? file = AudioCues.fileFor(cue.assetId);
+    if (file == null) return;
     final int now = _nowMillis();
     final int? last = _lastCueAt[cue.assetId];
     if (last != null && now - last < cue.cooldownMillis) return;
     _lastCueAt[cue.assetId] = now;
+    // The player's volume, scaled by the cue's own trim — the level-matching
+    // pass (`ActionCue.trimDb`). Attenuation only, so this can never exceed
+    // what the player asked for.
     unawaited(
-      _output.playCue(
-        AudioCues.files[cue.assetId]!,
-        volume: _settings.sfxVolume,
-      ),
+      _output.playCue(file, volume: _settings.sfxVolume * cue.gain),
     );
   }
 
@@ -325,20 +333,52 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
   // Deliberately independent of Reduce Motion — separate accessibility
   // axes — and beneath the OS's own System Haptics switch either way.
 
+  /// The last time each strength fired, on the monotonic clock.
+  final Map<String, int> _lastHapticAt = <String, int>{};
+
+  /// The floor between two haptics of the same strength.
+  ///
+  /// The scarcity rule above was **prose only** until now: nothing enforced
+  /// it, and combat could already fire two `heavyImpact`s inside one ~2.5 s
+  /// round. As combat grows from one haptic to a beat sheet's worth, prose
+  /// stops being enough — a rule the code contradicts is not a rule. Heavy is
+  /// held furthest apart because it is the one reserved for a round-defining
+  /// blow; two in quick succession is exactly the numbing this comment warns
+  /// against.
+  static const Map<String, int> _hapticFloorMillis = <String, int>{
+    'light': 120,
+    'medium': 400,
+    'heavy': 1200,
+    'selection': 80,
+  };
+
+  /// True when [strength] may fire now, stamping it if so.
+  bool _admitHaptic(String strength) {
+    if (!_settings.hapticsEnabled) return false;
+    final int now = _nowMillis();
+    final int? last = _lastHapticAt[strength];
+    final int floor = _hapticFloorMillis[strength] ?? 0;
+    if (last != null && now - last < floor) return false;
+    _lastHapticAt[strength] = now;
+    return true;
+  }
+
   void hapticLight() {
-    if (_settings.hapticsEnabled) unawaited(HapticFeedback.lightImpact());
+    if (_admitHaptic('light')) unawaited(HapticFeedback.lightImpact());
   }
 
   void hapticMedium() {
-    if (_settings.hapticsEnabled) unawaited(HapticFeedback.mediumImpact());
+    if (_admitHaptic('medium')) unawaited(HapticFeedback.mediumImpact());
   }
 
   void hapticHeavy() {
-    if (_settings.hapticsEnabled) unawaited(HapticFeedback.heavyImpact());
+    if (_admitHaptic('heavy')) unawaited(HapticFeedback.heavyImpact());
   }
 
   void hapticSelection() {
-    if (_settings.hapticsEnabled) unawaited(HapticFeedback.selectionClick());
+    if (_admitHaptic('selection')) {
+      unawaited(HapticFeedback.selectionClick());
+    }
   }
 
   /// Brings the assigned track back after enable/resume: resumes the held
@@ -354,12 +394,11 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
     }
     final String? assetId = _musicAssetId;
     if (assetId == null) return;
+    final String? file = AudioCues.fileFor(assetId);
+    if (file == null) return;
     final int epoch = ++_musicEpoch;
     unawaited(() async {
-      final MusicChannel channel = await _output.startMusic(
-        AudioCues.files[assetId]!,
-        volume: 0,
-      );
+      final MusicChannel channel = await _output.startMusic(file, volume: 0);
       if (_disposed || epoch != _musicEpoch) {
         await channel.dispose();
         return;
