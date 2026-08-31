@@ -184,9 +184,15 @@ class _EncounterRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: StrideSpace.s8),
+              // SPENT means "exhausted this visit — travel resets it", and
+              // only that. A knowledge-gated veteran says LOCKED instead:
+              // a wrong word here teaches a false rule about what walking
+              // buys (FDO01 final review, `DECISIONS/0028`).
               Text(
                 o.available
                     ? '${o.remainingThisVisit}/${o.encountersPerVisit}'
+                    : o.reason == 'enemy_not_known'
+                    ? 'LOCKED'
                     : 'SPENT',
                 style: StrideType.microLabel.copyWith(
                   color: o.available

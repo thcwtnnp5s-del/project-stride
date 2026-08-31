@@ -443,7 +443,7 @@
       "toolKind": "pickaxe",
       "tier": 2,
       "power": 6,
-      "toolBonusYieldPercent": 20,
+      "toolBonusYieldPercent": 25,
       "stackable": false
     },
     {
@@ -453,7 +453,7 @@
       "rarity": "epic",
       "slot": "armor",
       "tier": 2,
-      "power": 7,
+      "power": 8,
       "frostGuard": 3,
       "stackable": false
     },

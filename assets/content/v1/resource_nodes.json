@@ -161,7 +161,7 @@
       "id": "resource_node.hollow_thicket",
       "displayName": "Hollow Thicket",
       "skill": "skill.foraging",
-      "requiredLevel": 10,
+      "requiredLevel": 9,
       "requiredToolKind": "none",
       "minimumToolTier": 0,
       "yieldsItem": "item.hollow_root",

@@ -131,7 +131,7 @@
       ],
       "outputItem": "item.bronze_axe",
       "outputQuantity": 1,
-      "xp": 70,
+      "xp": 60,
       "craftSeconds": 120
     },
     {
@@ -151,7 +151,7 @@
       ],
       "outputItem": "item.bronze_pickaxe",
       "outputQuantity": 1,
-      "xp": 70,
+      "xp": 60,
       "craftSeconds": 120
     },
     {
@@ -729,7 +729,7 @@
       ],
       "outputItem": "item.bronze_ingot",
       "outputQuantity": 1,
-      "xp": 20,
+      "xp": 0,
       "craftSeconds": 45
     },
     {
@@ -745,7 +745,7 @@
       ],
       "outputItem": "item.bronze_ingot",
       "outputQuantity": 1,
-      "xp": 20,
+      "xp": 0,
       "craftSeconds": 45
     },
     {
@@ -761,7 +761,7 @@
       ],
       "outputItem": "item.bronze_ingot",
       "outputQuantity": 2,
-      "xp": 35,
+      "xp": 0,
       "craftSeconds": 60
     },
     {
