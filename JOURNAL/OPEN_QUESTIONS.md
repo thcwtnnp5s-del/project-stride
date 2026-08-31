@@ -638,6 +638,16 @@ design question the owner's device play should answer before it is fixed:
 - **A guard / brace action.** The Guardian telegraphs its heavy strike; today
   the player's only answer is to eat. If a second tactical action earns its
   place, "brace" (halve the next hit, deal none) is the candidate.
+  **Engine evidence (Fable Depth Offensive 01, 2026-08-31):** an exhaustive
+  engine-driven sweep while tuning the Gallery Foreman found that against a
+  guarded enemy, brace **alone never converts an attack-only loss into a
+  win** — forfeiting the attack round costs almost exactly what halving the
+  heavy saves (≈4–5 HP net per heavy). Brace's value **accumulates** across a
+  longer, provisioned fight: with one hearty stew on both sides, braced
+  telegraphs win the Foreman and ignored ones lose
+  (`packages/stride_core/test/veteran_hunts_test.dart`, deterministic seeds).
+  So brace earns its place as part of a *kit*, not as a reflex — evidence for
+  the owner's Q-06 ruling, not a pre-emption of it.
 - **The driven-off rule.** ✅ **Answered by play → `DECISIONS/0021`
   (2026-08-19).** One victory per enemy per visit felt too restrictive on the
   phone; the limiter stays travel (any move clears the visit), but the count
@@ -908,6 +918,20 @@ If the owner rules for pure trophies, the six recipes and their items
 revert cleanly and the guard returns to its blanket form. The question
 **remains the owner's**; what changed is that the verdict can now be
 made by playing the candidate instead of imagining it.
+
+**Decision-packet addendum (2026-08-31, Fable Depth Offensive 01.)** The
+offensive deliberately added **zero** new signature consumers or sinks —
+its deterministic lineage pieces (Tin-Braced Pickaxe, Frostwarden Coat)
+make the signature Masterworks pure optional trophies again by giving
+each stall a walked road, so every Q-12 outcome stays one clean revert.
+Two designed-but-not-shipped options ride in the packet for the same
+visit: **Trophy Commissions** (DEPTH-H's Known-gated hunt contracts that
+*produce* a guaranteed signature after six deterministic victories — a
+mercy ceiling on the 6k–50k-step expected hunts, recommended shape if
+the owner wants signatures to stay exciting without the stall), and the
+**elite 20% signature roll** (DEPTH-G's valve, shipped disabled). Both
+are producers, not sinks: neither deepens Masterwork dependence
+whichever way Q-12 falls.
 
 ---
 

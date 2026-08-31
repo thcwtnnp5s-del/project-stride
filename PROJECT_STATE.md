@@ -1,5 +1,56 @@
 # Project Stride — Project State
 
+**Version:** 2.34
+**Status:** 🧪 **FABLE DEPTH OFFENSIVE 01 — the largest autonomous
+gameplay/content expansion attempted, on `fable-depth-offensive-01` (from
+`game-feel-character-presentation-01` @ `a32e206`), awaiting the owner's
+device evaluation.** Records: `MILESTONES/FABLE_DEPTH_OFFENSIVE_01.md`
+(method, the twelve improvements, balance canon, verdicts, the decision
+packet, iPhone checklist), `MILESTONES/FABLE_DEPTH_OFFENSIVE_01_THESIS.md`
+(frozen before code), `DECISIONS/0028_DEPTH_OFFENSIVE_SCOPE.md`
+(experimental; the enemy pin moves 9 → 13 and reverts with the branch).
+
+The owner's brief — make Stride substantially deeper without breaking a
+single identity rule — ran as a five-wave swarm (6 foundation agents, 20
+designers with a ruthless editor, a 5-director council, 5 build planners,
+4 playtesters, 5 adversarial reviewers) and landed as **one coherent
+game**: four **Veteran Hunts** — named elites of drawn species, hidden
+until their base is Seen, offered at Known, each finally making Brace,
+frostGuard and the heal ladder load-bear (and the tuning sweep produced
+real Q-06 evidence: brace alone never converts a loss against a guarded
+enemy; its value accumulates across a provisioned fight); the **Bronze
+Lineage** (Smithing 7 → 10: the fanghilt turned hunter's blade, the
+Waywarden's Tunic consuming the day-one tunic, the Tin-Braced Pickaxe and
+Frostwarden Coat as deterministic summits that end the ~37–51k-step
+signature stalls); three **rank-2 projects** on the new `requiresProject`
+gate (Granary, Lower Gallery Works, the Hollow Undercroft chain — two
+rumor IOUs paid in place, the Hollow destination finally out-earning the
+stay-home Mill Garden); the **cooking conservation ladder** to 10 with
+standing demand that retires both zero-consumer foods; the zero-XP
+**reclaim trio** (the first surplus-equipment sink — review killed its XP
+so it cannot be a meta); ~18 contracts including the cross-region
+Charter; and the **information pack** — derived upgrade lineage
+(UPGRADES INTO / Trades away / Later: reforges into), the honest roadmap
+end-cap, locked-but-visible gates everywhere, and **Field Notes**, the
+pushed Bestiary route that lets hunts be planned from home. One-time
+character XP lands at exactly **3,165** of 3,650 (level 10 by
+accomplishment, band-test-enforced 2,900–3,200). The L-1 validator makes
+the Hollow re-lock trap impossible to author.
+
+**Zero PixelLab generations** (balance exactly 25, untouched; eight
+recorded byte-copies, `--check` clean at 851 files), zero audio, **state
+stays v9**, health untouched, crafting still costs zero steps. Wave 4
+found and killed one real defect (hunt cards bypassed the Seen gate);
+the five reviewers ruled INSTALL / fixed / CLEAN / fixed / WOULD PLAY,
+and every must-fix landed (the reclaim meta, the clone capstones, the
+LOCKED-not-SPENT row). Suites: core **733**, app suite green with the
+depth-offensive session proofs, five engine play-proofs, analyze clean,
+verify clean. Q-12 gets a decision packet (Trophy Commissions designed,
+not shipped); Q-06 gets engine evidence. Nothing merges without the
+owner's verdict.
+
+---
+
 **Version:** 2.33
 **Status:** 🚧 **GFCP01 DEVICE CORRECTION 01 — the universal activity
 result, on `game-feel-character-presentation-01`, awaiting the owner's
