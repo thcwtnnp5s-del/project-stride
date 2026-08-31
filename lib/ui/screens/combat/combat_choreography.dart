@@ -63,6 +63,7 @@ final class StageSegment {
     this.heal,
     this.heavyFlash = false,
     this.heavyImpactAt,
+    this.enemyFallOut = false,
   }) : assert(duration > Duration.zero, 'a segment must take time');
 
   final Duration duration;
@@ -109,6 +110,12 @@ final class StageSegment {
   /// The telegraph line brightens for a heavy blow.
   final bool heavyFlash;
 
+  /// The enemy sinks and fades over this segment instead of playing a track:
+  /// the killing blow's answer for a creature with no defeat and no flinch
+  /// art. Mutually exclusive with [enemyHoldsPose] by construction — a figure
+  /// that has a pose to hold does not need this.
+  final bool enemyFallOut;
+
   /// When in this segment a heavy blow actually **lands**, for the haptic.
   ///
   /// Null on every segment that is not a heavy strike
@@ -126,6 +133,13 @@ final class StageSegment {
 
 /// How long a figure without a flinch track recoils.
 const Duration recoilDuration = Duration(milliseconds: 150);
+
+/// How long a figure with **no defeat and no flinch track** takes to sink and
+/// fade on the killing blow. See the `WonBeat` case.
+const Duration _fallOut = Duration(milliseconds: 500);
+
+/// How far it sinks, in logical pixels, over that time.
+const int fallOutDrop = 6;
 
 /// The window over which an HP bar tweens after a blow lands.
 const Duration _hpTween = Duration(milliseconds: 250);
@@ -279,11 +293,28 @@ List<StageSegment> choreograph(
       case WonBeat():
         final CombatTrack? defeat = enemy?.defeat;
         final CombatTrack? held = defeat ?? enemy?.hit;
+        // **The Scree Crawler could not be seen to die.** It is the one enemy
+        // with neither a defeat track nor a hit track, so `held` was null, the
+        // segment collapsed to a bare 400 ms, and the stage went on drawing
+        // its *idle* until the victory panel covered it. The player killed
+        // something and watched it keep breathing.
+        //
+        // With no art to play, the fall-out is a deterministic presentation of
+        // a fact the beat already carries: the last standing frame sinks
+        // toward the ground line and fades out. A translate and an alpha over
+        // an approved frame — no new silhouette, no invented pose (`RULES.md`
+        // A-2, the same class as the recoil this file already runs on). It is
+        // not a defeat animation and does not pretend to be one; it is the
+        // difference between a creature dying off-screen and a creature dying.
+        final bool fallOut = enemy != null && held == null;
         out.add(
           StageSegment(
-            duration: held == null ? _afterBlow : held.duration + _wonHold,
+            duration: held != null
+                ? held.duration + _wonHold
+                : (fallOut ? _fallOut + _wonHold : _afterBlow),
             enemyTrack: held,
             enemyHoldsPose: held != null,
+            enemyFallOut: fallOut,
             enemyHpTo: 0,
             hpTweenEnd: const Duration(milliseconds: 150),
             telegraph: false,

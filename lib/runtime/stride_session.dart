@@ -1546,6 +1546,7 @@ final class EncounterView {
     required this.isBoss,
     this.knowledge = KnowledgeTier.unseen,
     this.intentLine,
+    this.guardReading,
   });
 
   final ContentId enemyId;
@@ -1579,6 +1580,69 @@ final class EncounterView {
   /// actually resolve. Null while the enemy is unseen — an unknown creature
   /// gives nothing away. Presentation only; no roll changes at any tier.
   final String? intentLine;
+
+  /// This round's reply in figures, against the armour actually worn — null
+  /// below Studied. See `StrideSession._guardReadingFor`.
+  final CombatGuardReading? guardReading;
+}
+
+/// What this round's enemy reply costs, and what bracing would save.
+///
+/// Every figure mirrors `GameEngine._enemyReply` exactly and is a pure
+/// function of the snapshotted encounter, the enemy definition and the
+/// terrain. Presentation only: reading it changes no roll, and not reading it
+/// costs nothing but health.
+final class CombatGuardReading {
+  const CombatGuardReading({
+    required this.heavy,
+    required this.strikes,
+    required this.lowest,
+    required this.highest,
+    required this.bracedLowest,
+    required this.bracedHighest,
+  });
+
+  /// True on a guarded creature's telegraph turn — the blow that takes no
+  /// roll, and so the one this reading can state exactly.
+  final bool heavy;
+
+  /// How many times the reply lands this round: 2 for a flurry, else 1.
+  final int strikes;
+
+  /// The damage band of a single strike, taken. Equal when [heavy].
+  final int lowest;
+  final int highest;
+
+  /// The same strike if the player braces instead of attacking.
+  final int bracedLowest;
+  final int bracedHighest;
+
+  /// Whether bracing actually saves anything this round.
+  ///
+  /// It does not always, and the label must be allowed to say so. Against a
+  /// Forest Wolf at low defence, halving 2–3 saves one point and forfeits a
+  /// whole round of damage — bracing there is simply wrong, and a button that
+  /// implied otherwise would be selling a bad decision.
+  bool get worthwhile => bracedHighest < highest;
+
+  String _band(int lo, int hi) => lo == hi ? '$lo' : '$lo–$hi';
+
+  /// `takes 13` / `takes 3–5 twice`.
+  String get takenLabel {
+    final String band = _band(lowest, highest);
+    return strikes > 1 ? '$band twice' : band;
+  }
+
+  /// `take 6 instead of 13` — the Brace button's own worth, in the only unit
+  /// that matters, computed from the coat the player is wearing.
+  String get braceLabel {
+    if (!worthwhile) {
+      return 'Half damage — little to save against this blow';
+    }
+    return 'Take ${_band(bracedLowest, bracedHighest)} '
+        'instead of ${_band(lowest, highest)}'
+        '${strikes > 1 ? ', each of two blows' : ''}';
+  }
 }
 
 /// One enemy the player could fight where they stand, with the reason it
@@ -4592,6 +4656,112 @@ final class StrideSession {
               knowledgeTierFor(active.state, enemy),
               e.telegraph,
             ),
+      guardReading: enemy == null
+          ? null
+          : _guardReadingFor(
+              enemy,
+              e,
+              knowledgeTierFor(active.state, enemy),
+              content.locations[e.location]?.terrain == Terrain.alpine,
+            ),
+    );
+  }
+
+  /// What this round's reply costs, taken and braced — the **guard reading**
+  /// (PRESENTATION_COMBAT_EVOLUTION_01).
+  ///
+  /// ## Why this exists
+  ///
+  /// Equipment already decides every fight in this game, completely, and the
+  /// game never says so. Against the Oakback Bear at level 10, a Bearhide
+  /// Coat (defence 9) wins at roughly 64% health while a Traveler Tunic
+  /// (defence 2) dies on turn 5 — the heavy goes from 13 to 20 and the
+  /// ordinary strikes from 1–3 to 8–10. Against Old Grey, *two* points of
+  /// armour is the difference between winning at ~10 HP and losing. The
+  /// player discovers all of it by watching a bar empty.
+  ///
+  /// So knowledge buys **foresight**, not power: at Studied the fight states
+  /// what the creature's blow costs *against the armour you are actually
+  /// wearing*, and the Brace button states what bracing would save. Swap the
+  /// coat and the number moves. That is the whole design — no new stat, no
+  /// attack types, no resistance table, no roll changed, and nothing here is
+  /// mandatory: every figure is discoverable by fighting, knowledge only
+  /// makes it cheaper than health.
+  ///
+  /// ## Why it cannot drift from the engine
+  ///
+  /// This mirrors `GameEngine._enemyReply` exactly — heavy takes no roll,
+  /// brace halves **before** frost guard, both floor at 1, and frost guard
+  /// applies only on alpine terrain. A projection that disagreed with the
+  /// resolver would be worse than saying nothing: it would promise a number
+  /// and then deal a different one. `test/combat_guard_reading_test.dart`
+  /// pins the two against each other across every enemy, armour and terrain.
+  static CombatGuardReading? _guardReadingFor(
+    EnemyDefinition enemy,
+    EncounterState e,
+    KnowledgeTier tier,
+    bool alpine,
+  ) {
+    // Seen tells you how many blows land, not how hard. The figures are the
+    // Studied reward.
+    if (tier == KnowledgeTier.unseen || tier == KnowledgeTier.seen) return null;
+    return computeGuardReading(
+      enemyAttack: enemy.attack,
+      enemyBehavior: enemy.behavior,
+      playerDefence: e.playerDefence,
+      playerFrostGuard: e.playerFrostGuard,
+      turn: e.turn,
+      alpine: alpine,
+    );
+  }
+
+  /// The reading itself, over primitives — separated from the tier gate above
+  /// so the parity test can drive it across every enemy, coat and terrain
+  /// without constructing thirteen encounters.
+  static CombatGuardReading computeGuardReading({
+    required int enemyAttack,
+    required EnemyBehavior enemyBehavior,
+    required int playerDefence,
+    required int playerFrostGuard,
+    required int turn,
+    required bool alpine,
+  }) {
+    final int frostGuard = alpine ? playerFrostGuard : 0;
+    final bool heavy =
+        enemyBehavior == EnemyBehavior.guarded && CombatRules.isHeavyTurn(turn);
+    final int strikes = enemyBehavior == EnemyBehavior.flurry ? 2 : 1;
+
+    int apply(int damage, {required bool braced}) {
+      int d = damage;
+      if (braced) d = d ~/ 2 < 1 ? 1 : d ~/ 2;
+      if (frostGuard > 0) d = d - frostGuard < 1 ? 1 : d - frostGuard;
+      return d;
+    }
+
+    // A heavy strike has no roll at all, so its figure is exact rather than a
+    // band — which is precisely what makes the telegraph worth reading.
+    if (heavy) {
+      final int raw = CombatRules.heavyStrike(enemyAttack, playerDefence);
+      return CombatGuardReading(
+        heavy: true,
+        strikes: 1,
+        lowest: apply(raw, braced: false),
+        highest: apply(raw, braced: false),
+        bracedLowest: apply(raw, braced: true),
+        bracedHighest: apply(raw, braced: true),
+      );
+    }
+    // An ordinary strike rolls in {-1, 0, +1}, so the honest statement is a
+    // band across the whole roll, not a single number.
+    final int low = CombatRules.strike(enemyAttack, playerDefence, -1);
+    final int high = CombatRules.strike(enemyAttack, playerDefence, 1);
+    return CombatGuardReading(
+      heavy: false,
+      strikes: strikes,
+      lowest: apply(low, braced: false),
+      highest: apply(high, braced: false),
+      bracedLowest: apply(low, braced: true),
+      bracedHighest: apply(high, braced: true),
     );
   }
 

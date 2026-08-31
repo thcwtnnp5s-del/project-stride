@@ -967,17 +967,41 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // The header title is the selected destination's label, so finding it
-        // in the header is what proves the shell actually moved.
+        // The header carries the selected destination's label, so finding it
+        // there is what proves the shell actually moved.
+        //
+        // It is the **eyebrow** since PRESENTATION_COMBAT_EVOLUTION_01, and
+        // therefore uppercased: the header was inverted so the *place* takes
+        // the title and the section name is demoted to a breadcrumb. The
+        // navigation claim is unchanged and just as strict — one widget, in
+        // the header, naming the tab that was tapped.
         expect(
           find.descendant(
             of: find.byType(ScreenHeader),
-            matching: find.text(tab),
+            matching: find.text(tab.toUpperCase()),
           ),
           findsOneWidget,
           reason:
               'tapping $tab did not put $tab in the header; the shell did not '
               'navigate, or the destination has no screen',
+        );
+
+        // And the header's TITLE is the place, on every tab.
+        //
+        // This is the inversion's whole point, so it is asserted rather than
+        // assumed. The largest word on screen used to be the name of the menu
+        // the player was standing in — reprinted by the tab bar four dp below
+        // — which is the single strongest "this is an application" signal the
+        // product had. It is now where you are, and it changes when you walk.
+        expect(
+          find.descendant(
+            of: find.byType(ScreenHeader),
+            matching: find.text(session.locationName),
+          ),
+          findsOneWidget,
+          reason:
+              'the header on $tab does not name the place. If the title has '
+              'gone back to being the tab label, the inversion has regressed.',
         );
       }
     });

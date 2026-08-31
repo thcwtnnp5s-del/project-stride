@@ -401,8 +401,26 @@ class _CombatControlsState extends State<_CombatControls> {
                   : StrideColors.textSecondary,
             ),
           ),
-          const SizedBox(height: StrideSpace.s8),
+          const SizedBox(height: StrideSpace.s4),
         ],
+        // The figure the words above imply, against the armour actually worn
+        // — the Studied tier's mechanical payoff. Separate from the intent
+        // line because it is arithmetic, not narration, and because it must
+        // appear on the fights that have no telegraph to read at all.
+        if (view.guardReading case final CombatGuardReading g) ...<Widget>[
+          Text(
+            g.heavy
+                ? 'Its heavy lands for ${g.takenLabel} against your guard.'
+                : 'It strikes for ${g.takenLabel} against your guard.',
+            style: StrideType.micro.copyWith(
+              color: view.telegraph
+                  ? StrideColors.danger
+                  : StrideColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: StrideSpace.s8),
+        ] else
+          const SizedBox(height: StrideSpace.s4),
         StrideButton(
           label: held ? 'Fighting…' : 'Attack',
           // Offense wears the danger accent inside the encounter —
@@ -421,9 +439,24 @@ class _CombatControlsState extends State<_CombatControls> {
           // edge, so offense and defense read apart at a glance without a
           // rainbow.
           variant: StrideButtonVariant.defense,
+          // The button states its own worth in figures once the creature is
+          // Studied (PRESENTATION_COMBAT_EVOLUTION_01): "Take 6 instead of
+          // 13", computed from the armour actually worn. This is the whole
+          // answer to two of the owner's asks at once — equipment mattering,
+          // and knowledge being mechanically valuable — without a single new
+          // stat or a roll changed. Swap the coat and the number moves.
+          //
+          // It is also allowed to say bracing is NOT worth it, because
+          // sometimes it is not: halving 2–3 against a wolf saves one point
+          // and forfeits a round. A button that only ever recommended itself
+          // would be selling a bad decision.
+          //
+          // Below Studied there is no reading, and the line falls back to the
+          // rule rather than inventing a figure the player has not earned.
           subLabel: held
               ? null
-              : 'Half damage, deal none — the answer to a heavy blow',
+              : (view.guardReading?.braceLabel ??
+                    'Half damage, deal none — the answer to a heavy blow'),
           onPressed: held ? null : c.combatBrace,
         ),
         const SizedBox(height: StrideSpace.s8),

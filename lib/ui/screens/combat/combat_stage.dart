@@ -115,6 +115,9 @@ class CombatStage extends StatefulWidget {
   State<CombatStage> createState() => _CombatStageState();
 }
 
+/// How long the fall-out takes — mirrors `_fallOut` in the choreography.
+const Duration _fallOutWindow = Duration(milliseconds: 500);
+
 enum _Phase {
   /// The idle tracks loop.
   idle,
@@ -142,6 +145,8 @@ final class _Shot {
     required this.heal,
     required this.healRise,
     required this.heavyFlash,
+    this.enemyFade = 1,
+    this.enemySink = 0,
   });
 
   final CombatTrack travelerTrack;
@@ -154,6 +159,12 @@ final class _Shot {
 
   final int travelerDx;
   final int enemyDx;
+
+  /// The fall-out (see `StageSegment.enemyFallOut`): the killing blow's
+  /// answer for a creature with no defeat and no flinch art. 1 and 0 mean
+  /// "standing normally", which is every frame of every other fight.
+  final double enemyFade;
+  final int enemySink;
 
   /// Shown HP, possibly mid-tween. Rounded for display.
   final double enemyHp;
@@ -170,6 +181,8 @@ final class _Shot {
         enemyFrame != o.enemyFrame ||
         travelerDx != o.travelerDx ||
         enemyDx != o.enemyDx ||
+        enemyFade != o.enemyFade ||
+        enemySink != o.enemySink ||
         enemyHp.round() != o.enemyHp.round() ||
         playerHp.round() != o.playerHp.round() ||
         heal != o.heal ||
@@ -527,6 +540,8 @@ class _CombatStageState extends State<CombatStage>
     int? heal;
     int healRise = 0;
     bool flash = false;
+    double enemyFade = 1;
+    int enemySink = 0;
 
     if (_phase == _Phase.playing && _index < _segments.length) {
       final StageSegment s = _segments[_index];
@@ -560,6 +575,18 @@ class _CombatStageState extends State<CombatStage>
             .round();
       }
       flash = s.heavyFlash && elapsed < const Duration(milliseconds: 400);
+      if (s.enemyFallOut) {
+        // Linear over the fall-out window, then held at gone. Deliberately
+        // not eased: this is a deterministic presentation of a committed
+        // fact, and an ease would be an authored gesture the art never made.
+        final double p =
+            (elapsed.inMicroseconds / _fallOutWindow.inMicroseconds).clamp(
+          0.0,
+          1.0,
+        );
+        enemyFade = 1 - p;
+        enemySink = (fallOutDrop * p).round();
+      }
     }
 
     return _Shot(
@@ -575,6 +602,8 @@ class _CombatStageState extends State<CombatStage>
       heal: heal,
       healRise: healRise,
       heavyFlash: flash,
+      enemyFade: enemyFade,
+      enemySink: enemySink,
     );
   }
 
@@ -681,20 +710,31 @@ class _Scene extends StatelessWidget {
     final int offset = ((width - full) / 2).floor();
     final int ground = CombatAssets.backdropGroundRow * scale;
 
-    Widget figure(CombatTrack t, int frame, int column, int dx) {
+    Widget figure(
+      CombatTrack t,
+      int frame,
+      int column,
+      int dx, {
+      int sink = 0,
+      double fade = 1,
+    }) {
       final int left =
           offset + column * scale - (t.footprint.centerX * scale).round() + dx;
-      final int top = ground - t.anchorRow * scale;
+      final int top = ground - t.anchorRow * scale + sink;
+      final Widget sprite = GroundedSprite(
+        assetPath: t.frame(frame),
+        footprint: t.footprint,
+        scale: scale,
+        canvas: t.canvasWidth,
+        canvasHeight: t.canvasHeight,
+      );
       return Positioned(
         left: left.toDouble(),
         top: top.toDouble(),
-        child: GroundedSprite(
-          assetPath: t.frame(frame),
-          footprint: t.footprint,
-          scale: scale,
-          canvas: t.canvasWidth,
-          canvasHeight: t.canvasHeight,
-        ),
+        // Opacity is only ever introduced by the fall-out, so the ordinary
+        // fight pays nothing for it — every other frame passes fade == 1 and
+        // the sprite is returned untouched.
+        child: fade >= 1 ? sprite : Opacity(opacity: fade, child: sprite),
       );
     }
 
@@ -748,6 +788,8 @@ class _Scene extends StatelessWidget {
               shot.enemyFrame,
               CombatAssets.enemyColumn,
               shot.enemyDx,
+              sink: shot.enemySink,
+              fade: shot.enemyFade,
             ),
           for (final (EffectArt, StageActor, int) fx in shot.effects)
             effect(fx),
