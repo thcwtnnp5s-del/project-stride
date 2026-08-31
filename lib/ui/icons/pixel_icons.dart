@@ -279,6 +279,15 @@ abstract final class PixelIcons {
     'item.hornpoint_pickaxe': '$_art/item/hornpoint_pickaxe.png',
     'item.traveler_ration': '$_art/item/traveler_ration.png',
     'item.expedition_stew': '$_art/item/expedition_stew.png',
+
+    // Fable Depth Offensive 01 (`DECISIONS/0028`). The three bronze-lineage
+    // pieces wear recorded byte-copies of the icon of the item each recipe
+    // CONSUMES — the same piece, rebuilt around the trophy haul — so the copy
+    // and its donor almost never share a bag. Distinct authored icons are the
+    // recorded future PixelLab round.
+    'item.waywarden_tunic': '$_art/item/waywarden_tunic.png',
+    'item.tinbraced_pickaxe': '$_art/item/tinbraced_pickaxe.png',
+    'item.frostwarden_coat': '$_art/item/frostwarden_coat.png',
   };
 
   // ------------------------------------------------------------------ nodes
@@ -310,6 +319,14 @@ abstract final class PixelIcons {
     'resource_node.sheltered_frost_meadow':
         '$_art/node/sheltered_frost_meadow.png',
     'resource_node.mill_garden': '$_art/node/mill_garden.png',
+    // Fable Depth Offensive 01 (`DECISIONS/0028`): the five depth nodes, same
+    // deterministic-copy rule — each reuses the scenery of the node whose
+    // subject it deepens.
+    'resource_node.warded_grove': '$_art/node/warded_grove.png',
+    'resource_node.gallery_tin_lode': '$_art/node/gallery_tin_lode.png',
+    'resource_node.collapsed_span': '$_art/node/collapsed_span.png',
+    'resource_node.undercroft_silkfall': '$_art/node/undercroft_silkfall.png',
+    'resource_node.deep_hollow_thicket': '$_art/node/deep_hollow_thicket.png',
   };
 
   static String? nodeFor(ContentId node) => _nodeArt[node.value];

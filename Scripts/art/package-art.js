@@ -2372,6 +2372,55 @@ for (const [id, sourceId] of Object.entries({
   emit(`node/${id}.png`, encode(raster));
 }
 
+// ------------------------------------------- Fable Depth Offensive 01
+
+/**
+ * THE DEPTH OFFENSIVE PASS (`DECISIONS/0028`) — recorded placeholder art,
+ * all A-2 byte copies, zero generations.
+ *
+ * Item icons: each bronze-lineage piece CONSUMES the item whose icon it
+ * copies (the fiction is the same piece, rebuilt around the trophy haul),
+ * so the copy and its donor almost never share a bag. Distinct authored
+ * icons are the recorded future PixelLab round. Copied from the emitted
+ * bytes so the copy can never drift from what actually shipped.
+ *
+ * The four Veteran Hunt elites need NO rows here — they reuse their
+ * species' full packaged combat sets via `CombatAssets.enemyFor` (code,
+ * not packaged bytes).
+ */
+for (const [id, donor] of Object.entries({
+  waywarden_tunic: 'traveler_tunic',
+  tinbraced_pickaxe: 'reinforced_pickaxe',
+  frostwarden_coat: 'frostlined_jerkin',
+})) {
+  const bytes = emitted.get(`item/${donor}.png`);
+  if (!bytes) throw new Error(`depth offensive icon donor missing: item/${donor}.png`);
+  emit(`item/${id}.png`, bytes);
+}
+
+/**
+ * Node plates for the five depth nodes — the same deterministic-copy rule
+ * as Iteration 03: each reuses the scenery of the node whose subject it
+ * deepens (the warded grove is the oak line's deep stand; the gallery tin
+ * lode deepens the tin line; the collapsed span is the scrap line's deep
+ * working; the undercroft silkfall deepens the silk line; the deep hollow
+ * thicket is the root line, further down). Copied from the emitted bytes —
+ * some donors are themselves recorded copies, and the chain must land on
+ * what actually shipped. Distinct authored scenery is a recorded future
+ * round (A-1).
+ */
+for (const [id, donor] of Object.entries({
+  warded_grove: 'heartwood_oak',
+  gallery_tin_lode: 'deep_tin_seam',
+  collapsed_span: 'old_workings',
+  undercroft_silkfall: 'veiled_silkstrand',
+  deep_hollow_thicket: 'hollow_thicket',
+})) {
+  const bytes = emitted.get(`node/${donor}.png`);
+  if (!bytes) throw new Error(`depth offensive plate donor missing: node/${donor}.png`);
+  emit(`node/${id}.png`, bytes);
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

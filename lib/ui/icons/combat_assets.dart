@@ -683,6 +683,13 @@ abstract final class CombatAssets {
     'enemy.salamander' => salamander,
     'enemy.oakback_bear' => bear,
     'enemy.scree_crawler' => crawler,
+    // Veteran Hunts (`DECISIONS/0028`): named elites reuse their species'
+    // full combat set — zero generations; the hold-hit-pose precedent covers
+    // withheld frames.
+    'enemy.old_grey' => wolf,
+    'enemy.gallery_foreman' => goblin,
+    'enemy.rimeclaw_matriarch' => lynx,
+    'enemy.guardian_awakened' => guardian,
     _ => null,
   };
 
@@ -712,7 +719,11 @@ abstract final class CombatAssets {
   /// creatures whose attack is a mouth — wolf, lynx, salamander — bite,
   /// everything else strikes.
   static EffectArt strikeEffectOf(ContentId enemy) => switch (enemy.value) {
-    'enemy.forest_wolf' || 'enemy.frost_lynx' || 'enemy.salamander' => fxBite,
+    'enemy.forest_wolf' ||
+    'enemy.frost_lynx' ||
+    'enemy.salamander' ||
+    'enemy.old_grey' ||
+    'enemy.rimeclaw_matriarch' => fxBite,
     _ => fxImpact,
   };
 

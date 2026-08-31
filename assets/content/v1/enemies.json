@@ -263,6 +263,122 @@
         }
       ],
       "tellLine": "Stone grates on stone as it winds up a crushing strike."
+    },
+    {
+      "id": "enemy.old_grey",
+      "displayName": "Old Grey",
+      "location": "location.whispering_woods",
+      "health": 48,
+      "attack": 13,
+      "defence": 4,
+      "isBoss": false,
+      "behavior": "flurry",
+      "xp": 140,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.forest_wolf",
+      "drops": [
+        {
+          "item": "item.wolf_pelt",
+          "quantity": 2,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.meadow_herb",
+          "quantity": 1,
+          "chancePercent": 50
+        }
+      ],
+      "tellLine": "Scarred and patient, it feints where the young ones snapped — two strikes, always."
+    },
+    {
+      "id": "enemy.gallery_foreman",
+      "displayName": "Foreman of the Broken Gallery",
+      "location": "location.stonefall_mine",
+      "health": 60,
+      "attack": 15,
+      "defence": 5,
+      "isBoss": false,
+      "behavior": "guarded",
+      "xp": 150,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.cave_goblin",
+      "drops": [
+        {
+          "item": "item.scrap_metal",
+          "quantity": 2,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.copper_ore",
+          "quantity": 2,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.tin_ore",
+          "quantity": 1,
+          "chancePercent": 40
+        }
+      ],
+      "tellLine": "It hefts a broken drill-arm overhead before the crushing blow falls."
+    },
+    {
+      "id": "enemy.rimeclaw_matriarch",
+      "displayName": "Rimeclaw Matriarch",
+      "location": "location.frostmere",
+      "health": 52,
+      "attack": 14,
+      "defence": 5,
+      "isBoss": false,
+      "behavior": "flurry",
+      "xp": 150,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.frost_lynx",
+      "drops": [
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 2,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.rime_blossom",
+          "quantity": 1,
+          "chancePercent": 60
+        }
+      ],
+      "tellLine": "She strikes twice from the flank, and the cold rides every blow."
+    },
+    {
+      "id": "enemy.guardian_awakened",
+      "displayName": "The Guardian, Awakened",
+      "location": "location.forgotten_hollow",
+      "health": 72,
+      "attack": 14,
+      "defence": 5,
+      "isBoss": true,
+      "behavior": "guarded",
+      "xp": 150,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.hollow_guardian",
+      "drops": [
+        {
+          "item": "item.hollow_root",
+          "quantity": 3,
+          "chancePercent": 100
+        }
+      ],
+      "tellLine": "The whole chamber shakes as it draws both arms back for the breaking strike."
     }
   ]
 }

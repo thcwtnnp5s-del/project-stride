@@ -39,9 +39,14 @@ void main() {
       // ninth is the Scree Crawler (`DECISIONS/0027`, **experimental** —
       // Stonefall's armoured fight, from the same pack's READY art; the count
       // reverts with the decision if the owner strikes the experiment).
+      // The tenth through thirteenth are the Veteran Hunts
+      // (`DECISIONS/0028`, EXPERIMENTAL on this branch): named elite
+      // stat-variants of drawn species, zero new art, each gated by
+      // `requiresKnownEnemy` on its base. The count reverts to nine with
+      // the decision if the owner strikes the branch.
       expect(registry.skills, hasLength(5));
       expect(registry.locations, hasLength(5));
-      expect(registry.enemies, hasLength(9));
+      expect(registry.enemies, hasLength(13));
 
       for (final String id in <String>[
         'skill.woodcutting',
@@ -71,6 +76,10 @@ void main() {
         'enemy.mountain_ram',
         'enemy.hollow_guardian',
         'enemy.scree_crawler',
+        'enemy.old_grey',
+        'enemy.gallery_foreman',
+        'enemy.rimeclaw_matriarch',
+        'enemy.guardian_awakened',
       ]) {
         expect(registry.enemies, contains(ContentId.unchecked(id)));
       }

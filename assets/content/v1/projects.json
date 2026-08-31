@@ -171,6 +171,121 @@
       "completionHeadline": "THE HOLLOW FIELD CAMP STANDS",
       "developmentTo": "Charted",
       "developmentRank": 1
+    },
+    {
+      "id": "project.havens_rest_granary",
+      "displayName": "Raise the Granary and Cookhouse",
+      "location": "location.havens_rest",
+      "requiresProject": "project.havens_rest_mill",
+      "brief": "The mill grinds, but every harvest still winters in barrels and hope. A granary with a long hearth would turn Haven's Rest from a place that survives its winters into a place that feeds its neighbours'.",
+      "stages": [
+        {
+          "name": "Raise the Granary Frame",
+          "requires": [
+            { "item": "item.oak_plank", "quantity": 12 },
+            { "item": "item.pine_plank", "quantity": 3 }
+          ],
+          "characterXp": 45
+        },
+        {
+          "name": "The Long Hearth",
+          "requires": [
+            { "item": "item.bronze_ingot", "quantity": 5 },
+            { "item": "item.scrap_metal", "quantity": 3 }
+          ],
+          "characterXp": 50
+        },
+        {
+          "name": "Stock the Larder",
+          "requires": [
+            { "item": "item.traveler_ration", "quantity": 4 },
+            { "item": "item.duskcap_skewer", "quantity": 4 },
+            { "item": "item.hearty_stew", "quantity": 2 },
+            { "item": "item.herb_broth", "quantity": 6 }
+          ],
+          "characterXp": 55
+        }
+      ],
+      "completionCharacterXp": 80,
+      "completionHeadline": "THE GRANARY STANDS FULL",
+      "developmentTo": "Thriving",
+      "developmentRank": 2
+    },
+    {
+      "id": "project.lower_gallery_works",
+      "displayName": "Open the Lower Gallery",
+      "location": "location.stonefall_mine",
+      "requiresProject": "project.stonefall_lift",
+      "brief": "The lift runs, and at the bottom of its shaft the old crews' last door still stands shut. Behind it: the lower gallery, tin enough for a generation, and whatever made them close it gently on their way out.",
+      "stages": [
+        {
+          "name": "Shore the Descent",
+          "requires": [
+            { "item": "item.oak_plank", "quantity": 12 },
+            { "item": "item.pine_plank", "quantity": 3 }
+          ],
+          "characterXp": 45
+        },
+        {
+          "name": "Rails and Fittings",
+          "requires": [
+            { "item": "item.bronze_ingot", "quantity": 8 },
+            { "item": "item.scrap_metal", "quantity": 5 }
+          ],
+          "characterXp": 55
+        },
+        {
+          "name": "Break Through",
+          "requires": [
+            { "item": "item.tin_ore", "quantity": 8 },
+            { "item": "item.heat_scale", "quantity": 2 },
+            { "item": "item.herb_broth", "quantity": 4 }
+          ],
+          "characterXp": 60
+        }
+      ],
+      "completionCharacterXp": 90,
+      "completionHeadline": "THE LOWER GALLERY IS OPEN",
+      "developmentTo": "Delving",
+      "developmentRank": 2
+    },
+    {
+      "id": "project.hollow_undercroft",
+      "displayName": "Open the Undercroft",
+      "location": "location.forgotten_hollow",
+      "requiresProject": "project.hollow_field_camp",
+      "brief": "Behind the sealed door the rubbings traced, stairs go down into the barrow the maps never dared. Shore the steps, brace the dark, and the scholar's study goes below — where the silk falls in sheets and the roots grow old.",
+      "stages": [
+        {
+          "name": "Clear the Barrow Steps",
+          "requires": [
+            { "item": "item.oak_log", "quantity": 6 },
+            { "item": "item.pine_plank", "quantity": 3 }
+          ],
+          "characterXp": 40
+        },
+        {
+          "name": "Brace the Descent",
+          "requires": [
+            { "item": "item.bronze_ingot", "quantity": 4 },
+            { "item": "item.scrap_metal", "quantity": 2 }
+          ],
+          "characterXp": 50
+        },
+        {
+          "name": "The Study Goes Below",
+          "requires": [
+            { "item": "item.gloom_silk", "quantity": 3 },
+            { "item": "item.hearty_stew", "quantity": 2 },
+            { "item": "item.boar_hide", "quantity": 2 }
+          ],
+          "characterXp": 50
+        }
+      ],
+      "completionCharacterXp": 75,
+      "completionHeadline": "THE UNDERCROFT STANDS OPEN",
+      "developmentTo": "Unsealed",
+      "developmentRank": 2
     }
   ]
 }

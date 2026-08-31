@@ -40,7 +40,9 @@
       "yieldsItem": "item.duskcap",
       "yieldsQuantity": 1,
       "stepCost": 130,
-      "xp": 15
+      "xp": 15,
+      "bonusYieldLevel": 5,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.copper_seam",
@@ -66,7 +68,9 @@
       "yieldsItem": "item.tin_ore",
       "yieldsQuantity": 1,
       "stepCost": 160,
-      "xp": 17
+      "xp": 17,
+      "bonusYieldLevel": 5,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.deep_tin_seam",
@@ -78,7 +82,9 @@
       "yieldsItem": "item.tin_ore",
       "yieldsQuantity": 2,
       "stepCost": 190,
-      "xp": 24
+      "xp": 24,
+      "bonusYieldLevel": 6,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.hardened_copper_seam",
@@ -91,6 +97,8 @@
       "yieldsQuantity": 2,
       "stepCost": 200,
       "xp": 26,
+      "bonusYieldLevel": 7,
+      "bonusYieldPercent": 10,
       "unlockedByProject": "project.stonefall_lift"
     },
     {
@@ -103,7 +111,9 @@
       "yieldsItem": "item.rime_blossom",
       "yieldsQuantity": 1,
       "stepCost": 240,
-      "xp": 22
+      "xp": 22,
+      "bonusYieldLevel": 7,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.frostpine_stand",
@@ -115,7 +125,9 @@
       "yieldsItem": "item.pine_log",
       "yieldsQuantity": 1,
       "stepCost": 240,
-      "xp": 22
+      "xp": 22,
+      "bonusYieldLevel": 6,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.oldgrowth_frostpine",
@@ -127,7 +139,9 @@
       "yieldsItem": "item.pine_log",
       "yieldsQuantity": 2,
       "stepCost": 280,
-      "xp": 34
+      "xp": 34,
+      "bonusYieldLevel": 9,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.silkstrand_thicket",
@@ -139,7 +153,9 @@
       "yieldsItem": "item.gloom_silk",
       "yieldsQuantity": 1,
       "stepCost": 260,
-      "xp": 26
+      "xp": 26,
+      "bonusYieldLevel": 8,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.hollow_thicket",
@@ -151,7 +167,9 @@
       "yieldsItem": "item.hollow_root",
       "yieldsQuantity": 1,
       "stepCost": 300,
-      "xp": 34
+      "xp": 34,
+      "bonusYieldLevel": 12,
+      "bonusYieldPercent": 10
     },
     {
       "id": "resource_node.heartwood_oak",
@@ -222,6 +240,81 @@
       "stepCost": 120,
       "xp": 18,
       "unlockedByProject": "project.havens_rest_mill"
+    },
+    {
+      "id": "resource_node.warded_grove",
+      "displayName": "Warded Grove",
+      "skill": "skill.woodcutting",
+      "requiredLevel": 6,
+      "requiredToolKind": "axe",
+      "minimumToolTier": 1,
+      "yieldsItem": "item.oak_log",
+      "yieldsQuantity": 2,
+      "stepCost": 200,
+      "xp": 28,
+      "bonusYieldLevel": 8,
+      "bonusYieldPercent": 10,
+      "unlockedByProject": "project.ranger_watchtower"
+    },
+    {
+      "id": "resource_node.gallery_tin_lode",
+      "displayName": "Gallery Tin Lode",
+      "skill": "skill.mining",
+      "requiredLevel": 6,
+      "requiredToolKind": "pickaxe",
+      "minimumToolTier": 2,
+      "yieldsItem": "item.tin_ore",
+      "yieldsQuantity": 2,
+      "stepCost": 190,
+      "xp": 26,
+      "bonusYieldLevel": 8,
+      "bonusYieldPercent": 10,
+      "unlockedByProject": "project.lower_gallery_works"
+    },
+    {
+      "id": "resource_node.collapsed_span",
+      "displayName": "Collapsed Span",
+      "skill": "skill.mining",
+      "requiredLevel": 7,
+      "requiredToolKind": "pickaxe",
+      "minimumToolTier": 2,
+      "yieldsItem": "item.scrap_metal",
+      "yieldsQuantity": 2,
+      "stepCost": 260,
+      "xp": 34,
+      "bonusYieldLevel": 9,
+      "bonusYieldPercent": 10,
+      "unlockedByProject": "project.lower_gallery_works"
+    },
+    {
+      "id": "resource_node.undercroft_silkfall",
+      "displayName": "Undercroft Silkfall",
+      "skill": "skill.foraging",
+      "requiredLevel": 9,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.gloom_silk",
+      "yieldsQuantity": 2,
+      "stepCost": 280,
+      "xp": 44,
+      "bonusYieldLevel": 11,
+      "bonusYieldPercent": 10,
+      "unlockedByProject": "project.hollow_undercroft"
+    },
+    {
+      "id": "resource_node.deep_hollow_thicket",
+      "displayName": "Deep Hollow Thicket",
+      "skill": "skill.foraging",
+      "requiredLevel": 10,
+      "requiredToolKind": "none",
+      "minimumToolTier": 0,
+      "yieldsItem": "item.hollow_root",
+      "yieldsQuantity": 2,
+      "stepCost": 300,
+      "xp": 52,
+      "bonusYieldLevel": 12,
+      "bonusYieldPercent": 10,
+      "unlockedByProject": "project.hollow_undercroft"
     }
   ]
 }

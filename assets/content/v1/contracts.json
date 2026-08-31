@@ -118,6 +118,80 @@
       "requiresCompletedNeedAt": "location.whispering_woods",
       "rewardCharacterXp": 30
     },
+    {
+      "id": "contract.table_for_the_crews",
+      "displayName": "Table for the Crews",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 8,
+      "brief": "The granary's long hearth feeds every crew that builds, hauls, or walks for Haven's Rest. Skewers, hot, by the dozen if you had them — three will do.",
+      "requiresProject": "project.havens_rest_granary",
+      "requires": [{ "item": "item.duskcap_skewer", "quantity": 3 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 45 }]
+    },
+    {
+      "id": "contract.winter_stores",
+      "displayName": "Winter Stores",
+      "location": "location.havens_rest",
+      "class": "local_need",
+      "deckOrder": 9,
+      "brief": "A stew for the shelf and a tea for the sick house — the granary lays down winter the way the mill laid down flour.",
+      "requiresProject": "project.havens_rest_granary",
+      "requires": [
+        { "item": "item.hearty_stew", "quantity": 1 },
+        { "item": "item.frostbloom_tea", "quantity": 1 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 55 }],
+      "rewardItems": [{ "item": "item.meadow_herb", "quantity": 2 }]
+    },
+    {
+      "id": "contract.charter_woods",
+      "displayName": "The Provisioner's Charter: Woods",
+      "location": "location.havens_rest",
+      "class": "regional",
+      "brief": "The provisioner writes charters for suppliers she trusts, and trusts nobody. Duskcap from the groves and good oak plank, delivered together — the first page of a longer document.",
+      "requiresProject": "project.havens_rest_mill",
+      "requires": [
+        { "item": "item.duskcap", "quantity": 6 },
+        { "item": "item.oak_plank", "quantity": 6 }
+      ],
+      "rewardSkillXp": [
+        { "skill": "skill.foraging", "xp": 60 },
+        { "skill": "skill.woodcutting", "xp": 60 }
+      ],
+      "rewardCharacterXp": 35
+    },
+    {
+      "id": "contract.charter_mine",
+      "displayName": "The Provisioner's Charter: Stonefall",
+      "location": "location.havens_rest",
+      "class": "regional",
+      "brief": "Page two: ore in quantity and honest scrap, weighed on her own scales. She has heard every story about the mine road. Bring the metal and she will stop telling them.",
+      "requiresContract": "contract.charter_woods",
+      "requires": [
+        { "item": "item.copper_ore", "quantity": 10 },
+        { "item": "item.scrap_metal", "quantity": 3 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.mining", "xp": 120 }],
+      "rewardCharacterXp": 45
+    },
+    {
+      "id": "contract.charter_long_circuit",
+      "displayName": "The Provisioner's Charter: The Long Circuit",
+      "location": "location.havens_rest",
+      "class": "regional",
+      "brief": "The last page names every road at once: pine off the mountain, silk out of the dark, blossom from the cold meadows, and broth from home to carry it all on. Walk the whole circuit and the charter is yours — she says the next one she writes will be for the road east, when it opens.",
+      "requiresContract": "contract.charter_mine",
+      "requires": [
+        { "item": "item.pine_plank", "quantity": 2 },
+        { "item": "item.gloom_silk", "quantity": 2 },
+        { "item": "item.rime_blossom", "quantity": 2 },
+        { "item": "item.herb_broth", "quantity": 6 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 80 }],
+      "rewardCharacterXp": 55,
+      "rewardItems": [{ "item": "item.frostbloom_tea", "quantity": 2 }]
+    },
 
     {
       "id": "contract.a_hunters_token",
@@ -234,6 +308,45 @@
       "bountyEnemy": "enemy.oakback_bear",
       "bountyCount": 1,
       "rewardCharacterXp": 60
+    },
+    {
+      "id": "contract.the_old_grey",
+      "displayName": "The Old Grey",
+      "location": "location.whispering_woods",
+      "class": "regional",
+      "brief": "Every ranger knows the wolves. One wolf knows the rangers back — old, grey, and patient as winter. They will pay to see it turned from the trails, and they do not expect you to manage it.",
+      "bountyEnemy": "enemy.old_grey",
+      "bountyCount": 1,
+      "rewardItems": [{ "item": "item.wolf_pelt", "quantity": 2 }],
+      "rewardCharacterXp": 40
+    },
+    {
+      "id": "contract.rangers_field_kit",
+      "displayName": "Ranger's Field Kit",
+      "location": "location.whispering_woods",
+      "class": "local_need",
+      "deckOrder": 6,
+      "brief": "A ranger's pack has room for one meal. With the tower watching the deep woods, the patrols run longer — make it a meal that matters.",
+      "requiresProject": "project.ranger_watchtower",
+      "requires": [{ "item": "item.traveler_ration", "quantity": 2 }],
+      "rewardSkillXp": [
+        { "skill": "skill.foraging", "xp": 30 },
+        { "skill": "skill.cooking", "xp": 30 }
+      ]
+    },
+    {
+      "id": "contract.the_fletchers_order",
+      "displayName": "The Fletchers' Order",
+      "location": "location.whispering_woods",
+      "class": "regional",
+      "brief": "With the tower up and the warded grove open, the fletchers work again — and they want Hollow silk for bindings and grove oak for shafts, bought right here so the carrying pays twice.",
+      "requiresProject": "project.ranger_watchtower",
+      "requires": [
+        { "item": "item.gloom_silk", "quantity": 2 },
+        { "item": "item.oak_plank", "quantity": 2 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.woodcutting", "xp": 50 }],
+      "rewardCharacterXp": 20
     },
 
     {
@@ -375,6 +488,31 @@
       "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 120 }],
       "rewardCharacterXp": 30
     },
+    {
+      "id": "contract.the_foremans_toll",
+      "displayName": "The Foreman's Toll",
+      "location": "location.stonefall_mine",
+      "class": "regional",
+      "brief": "Something runs the goblins now — bigger, smarter, swinging a drill-arm like a hammer. The crews call it the Foreman and pay its toll in lost carts. Break it, and the smith swears she'll talk of nothing but the blade they say was tempered at five hearths.",
+      "bountyEnemy": "enemy.gallery_foreman",
+      "bountyCount": 1,
+      "rewardItems": [{ "item": "item.bronze_ingot", "quantity": 1 }],
+      "rewardCharacterXp": 50
+    },
+    {
+      "id": "contract.tin_for_the_works",
+      "displayName": "Tin for the Works",
+      "location": "location.stonefall_mine",
+      "class": "local_need",
+      "deckOrder": 8,
+      "brief": "The lower gallery eats fittings the way the crews eat broth. Tin for the bronze, scrap for the patching — the works take both, forever.",
+      "requiresProject": "project.lower_gallery_works",
+      "requires": [
+        { "item": "item.tin_ore", "quantity": 3 },
+        { "item": "item.scrap_metal", "quantity": 1 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 40 }]
+    },
 
     {
       "id": "contract.warm_supplies",
@@ -474,6 +612,44 @@
       "rewardItems": [{ "item": "item.frostbloom_tea", "quantity": 2 }],
       "rewardCharacterXp": 60
     },
+    {
+      "id": "contract.the_matriarch",
+      "displayName": "The Matriarch of the Pass",
+      "location": "location.frostmere",
+      "class": "regional",
+      "brief": "The lynxes on the supply line are her daughters. The outfitter wants the pass back, and she is blunt about the price of trying: wear the wrong coat up there and the cold will finish what the claws start.",
+      "bountyEnemy": "enemy.rimeclaw_matriarch",
+      "bountyCount": 1,
+      "rewardItems": [{ "item": "item.lynx_pelt", "quantity": 2 }],
+      "rewardCharacterXp": 60
+    },
+    {
+      "id": "contract.trail_rations",
+      "displayName": "Trail Rations",
+      "location": "location.frostmere",
+      "class": "local_need",
+      "deckOrder": 5,
+      "brief": "The survey teams eat standing up, half a day from the fire. Rations that keep in a coat pocket — the ledger takes every one.",
+      "requires": [{ "item": "item.traveler_ration", "quantity": 3 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 45 }],
+      "rewardItems": [{ "item": "item.rime_blossom", "quantity": 1 }]
+    },
+    {
+      "id": "contract.the_far_survey",
+      "displayName": "The Far Survey",
+      "location": "location.frostmere",
+      "class": "regional",
+      "brief": "Past the lake the maps go white. The expedition will walk into that white — if the cook can keep them alive in it.",
+      "requiresProject": "project.frostmere_shelter",
+      "requiresContract": "contract.northern_expedition",
+      "requires": [
+        { "item": "item.expedition_stew", "quantity": 2 },
+        { "item": "item.traveler_ration", "quantity": 2 },
+        { "item": "item.ram_wool", "quantity": 1 }
+      ],
+      "rewardCharacterXp": 60,
+      "rewardItems": [{ "item": "item.rime_blossom", "quantity": 2 }]
+    },
 
     {
       "id": "contract.silk_for_the_study",
@@ -533,6 +709,68 @@
       "bountyCount": 1,
       "rewardItems": [{ "item": "item.gloom_silk", "quantity": 1 }],
       "rewardCharacterXp": 45
+    },
+    {
+      "id": "contract.the_hollow_stirs",
+      "displayName": "The Hollow Stirs",
+      "location": "location.forgotten_hollow",
+      "class": "regional",
+      "brief": "The scholar has stopped taking notes. Whatever the Guardian was before, the Undercroft's opening has woken the rest of it — and she says, very quietly, that someone had better be ready when it stands up properly.",
+      "bountyEnemy": "enemy.guardian_awakened",
+      "bountyCount": 1,
+      "rewardItems": [{ "item": "item.hollow_root", "quantity": 3 }],
+      "rewardCharacterXp": 90
+    },
+    {
+      "id": "contract.deep_larder",
+      "displayName": "The Deep Larder",
+      "location": "location.forgotten_hollow",
+      "class": "local_need",
+      "deckOrder": 5,
+      "brief": "The scholar is going deeper and staying longer. One pot of the expedition stew — the kind that brings a person back from nothing.",
+      "requiresProject": "project.hollow_field_camp",
+      "requires": [{ "item": "item.expedition_stew", "quantity": 1 }],
+      "rewardSkillXp": [{ "skill": "skill.cooking", "xp": 65 }],
+      "rewardItems": [{ "item": "item.hollow_root", "quantity": 1 }]
+    },
+    {
+      "id": "contract.barrow_rubbings",
+      "displayName": "Rubbings from the Sealed Door",
+      "location": "location.forgotten_hollow",
+      "class": "regional",
+      "brief": "The scholar has read your sigil once. Now she wants the door it opens — or at least its face. Board her a scaffold, press silk to the old stone, and bring her every line the masons left.",
+      "requiresContract": "contract.scholars_interest",
+      "requiresOwned": ["item.hollow_sigil"],
+      "requires": [
+        { "item": "item.pine_plank", "quantity": 2 },
+        { "item": "item.gloom_silk", "quantity": 1 }
+      ],
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 70 }],
+      "rewardCharacterXp": 40
+    },
+    {
+      "id": "contract.undercroft_roots",
+      "displayName": "Roots for the Undercroft",
+      "location": "location.forgotten_hollow",
+      "class": "local_need",
+      "deckOrder": 6,
+      "brief": "Below the barrow steps the study burns lamp oil and appetite alike. Hollow root, whole, as often as you pass — the deep work does not pause.",
+      "requiresProject": "project.hollow_undercroft",
+      "requires": [{ "item": "item.hollow_root", "quantity": 2 }],
+      "rewardSkillXp": [{ "skill": "skill.foraging", "xp": 35 }]
+    },
+    {
+      "id": "contract.first_descent",
+      "displayName": "The First Descent",
+      "location": "location.forgotten_hollow",
+      "class": "regional",
+      "brief": "She will go down herself — after you have gone first. Carry a proper expedition meal, put the Warden down once more, and tell her what the dark smells like. She says the Guardian is not done growing.",
+      "requiresProject": "project.hollow_undercroft",
+      "bountyEnemy": "enemy.hollow_guardian",
+      "bountyCount": 1,
+      "requires": [{ "item": "item.expedition_stew", "quantity": 1 }],
+      "rewardItems": [{ "item": "item.gloom_silk", "quantity": 2 }],
+      "rewardCharacterXp": 70
     }
   ]
 }

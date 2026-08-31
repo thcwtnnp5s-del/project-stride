@@ -362,6 +362,7 @@
       "slot": "weapon",
       "tier": 1,
       "power": 10,
+      "wildernessYieldPercent": 10,
       "stackable": false
     },
     {
@@ -419,6 +420,41 @@
       "tier": 2,
       "power": 6,
       "toolBonusYieldPercent": 20,
+      "stackable": false
+    },
+
+    {
+      "id": "item.waywarden_tunic",
+      "displayName": "Waywarden's Tunic",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "armor",
+      "tier": 1,
+      "power": 5,
+      "wildernessYieldPercent": 15,
+      "stackable": false
+    },
+    {
+      "id": "item.tinbraced_pickaxe",
+      "displayName": "Tin-Braced Pickaxe",
+      "category": "equipment",
+      "rarity": "rare",
+      "slot": "tool",
+      "toolKind": "pickaxe",
+      "tier": 2,
+      "power": 6,
+      "toolBonusYieldPercent": 20,
+      "stackable": false
+    },
+    {
+      "id": "item.frostwarden_coat",
+      "displayName": "Frostwarden Coat",
+      "category": "equipment",
+      "rarity": "epic",
+      "slot": "armor",
+      "tier": 2,
+      "power": 7,
+      "frostGuard": 3,
       "stackable": false
     },
 

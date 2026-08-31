@@ -29,7 +29,8 @@
           "chancePercent": 8,
           "signature": true
         }
-      ]
+      ],
+      "tellLine": "It circles low, snapping twice in a rush."
     },
     {
       "id": "enemy.wild_boar",
@@ -59,7 +60,8 @@
           "chancePercent": 8,
           "signature": true
         }
-      ]
+      ],
+      "tellLine": "It paws the ground, then drives in one goring charge."
     },
     {
       "id": "enemy.oakback_bear",
@@ -81,7 +83,8 @@
           "quantity": 1,
           "chancePercent": 70
         }
-      ]
+      ],
+      "tellLine": "It rises to its full height before the heavy swipe falls."
     },
     {
       "id": "enemy.cave_goblin",
@@ -116,7 +119,8 @@
           "chancePercent": 8,
           "signature": true
         }
-      ]
+      ],
+      "tellLine": "It jabs once a round, quick and mean, eyes on your pack."
     },
     {
       "id": "enemy.salamander",
@@ -141,7 +145,33 @@
           "chancePercent": 8,
           "signature": true
         }
-      ]
+      ],
+      "tellLine": "Heat gathers along its back before the scalding lunge."
+    },
+    {
+      "id": "enemy.scree_crawler",
+      "displayName": "Scree Crawler",
+      "location": "location.stonefall_mine",
+      "health": 34,
+      "attack": 6,
+      "defence": 6,
+      "isBoss": false,
+      "behavior": "steady",
+      "xp": 70,
+      "encountersPerVisit": 2,
+      "drops": [
+        {
+          "item": "item.tin_ore",
+          "quantity": 1,
+          "chancePercent": 45
+        },
+        {
+          "item": "item.scrap_metal",
+          "quantity": 1,
+          "chancePercent": 35
+        }
+      ],
+      "tellLine": "Its plates grind shut and it simply keeps coming."
     },
     {
       "id": "enemy.frost_lynx",
@@ -171,7 +201,8 @@
           "chancePercent": 6,
           "signature": true
         }
-      ]
+      ],
+      "tellLine": "It feints wide, then strikes twice from the flank."
     },
     {
       "id": "enemy.mountain_ram",
@@ -201,7 +232,8 @@
           "chancePercent": 8,
           "signature": true
         }
-      ]
+      ],
+      "tellLine": "It lowers its horns and drives one measured, solid blow."
     },
     {
       "id": "enemy.hollow_guardian",
@@ -228,7 +260,124 @@
           "quantity": 2,
           "chancePercent": 70
         }
-      ]
+      ],
+      "tellLine": "Stone grates on stone as it winds up a crushing strike."
+    },
+    {
+      "id": "enemy.old_grey",
+      "displayName": "Old Grey",
+      "location": "location.whispering_woods",
+      "health": 48,
+      "attack": 13,
+      "defence": 4,
+      "isBoss": false,
+      "behavior": "flurry",
+      "xp": 140,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.forest_wolf",
+      "drops": [
+        {
+          "item": "item.wolf_pelt",
+          "quantity": 2,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.meadow_herb",
+          "quantity": 1,
+          "chancePercent": 50
+        }
+      ],
+      "tellLine": "Scarred and patient, it feints where the young ones snapped — two strikes, always."
+    },
+    {
+      "id": "enemy.gallery_foreman",
+      "displayName": "Foreman of the Broken Gallery",
+      "location": "location.stonefall_mine",
+      "health": 56,
+      "attack": 13,
+      "defence": 5,
+      "isBoss": false,
+      "behavior": "guarded",
+      "xp": 150,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.cave_goblin",
+      "drops": [
+        {
+          "item": "item.scrap_metal",
+          "quantity": 2,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.copper_ore",
+          "quantity": 2,
+          "chancePercent": 60
+        },
+        {
+          "item": "item.tin_ore",
+          "quantity": 1,
+          "chancePercent": 40
+        }
+      ],
+      "tellLine": "It hefts a broken drill-arm overhead before the crushing blow falls."
+    },
+    {
+      "id": "enemy.rimeclaw_matriarch",
+      "displayName": "Rimeclaw Matriarch",
+      "location": "location.frostmere",
+      "health": 54,
+      "attack": 14,
+      "defence": 5,
+      "isBoss": false,
+      "behavior": "flurry",
+      "xp": 150,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.frost_lynx",
+      "drops": [
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 2,
+          "chancePercent": 100
+        },
+        {
+          "item": "item.rime_blossom",
+          "quantity": 1,
+          "chancePercent": 60
+        }
+      ],
+      "tellLine": "She strikes twice from the flank, and the cold rides every blow."
+    },
+    {
+      "id": "enemy.guardian_awakened",
+      "displayName": "The Guardian, Awakened",
+      "location": "location.forgotten_hollow",
+      "health": 72,
+      "attack": 14,
+      "defence": 5,
+      "isBoss": true,
+      "behavior": "guarded",
+      "xp": 150,
+      "encountersPerVisit": 1,
+      "studiedAt": 1,
+      "knownAt": 2,
+      "knownXp": 25,
+      "requiresKnownEnemy": "enemy.hollow_guardian",
+      "drops": [
+        {
+          "item": "item.hollow_root",
+          "quantity": 3,
+          "chancePercent": 100
+        }
+      ],
+      "tellLine": "The whole chamber shakes as it draws both arms back for the breaking strike."
     }
   ]
 }

@@ -78,9 +78,11 @@ void main() {
     // 9 since PRESENTATION_WORLD_REWARD_FEEL_01 B-3 added the Hardened
     // Copper Seam; 12 since Fable V2 (`DECISIONS/0027`) added the three
     // Verge nodes as byte-copy plates; 17 since Iteration 03 added the five
-    // depth nodes the same way; `node_art_resolution_test` holds the count
-    // to the content pack, so this stays a plain census.
-    expect(scenery, hasLength(17), reason: 'one entry per node vignette');
+    // depth nodes the same way; 22 since Fable Depth Offensive 01
+    // (`DECISIONS/0028`) added its five, donor-bounds verbatim;
+    // `node_art_resolution_test` holds the count to the content pack, so
+    // this stays a plain census.
+    expect(scenery, hasLength(22), reason: 'one entry per node vignette');
   });
 
   test(

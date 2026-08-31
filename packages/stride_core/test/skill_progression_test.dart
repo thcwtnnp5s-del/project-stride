@@ -182,20 +182,30 @@ void main() {
       // never be made at the level it advertised. Not a hard block — the
       // reachability validator ignores levels by design — and invisible until
       // someone plays for an hour.
+      // The gate is the CHEAPEST same-skill source: a deliberate high-level
+      // alternate source — the `DECISIONS/0028` reclaim trio returns Bronze
+      // Ingots at Smithing 8 while the ingot recipe itself needs 1 — does not
+      // raise the level at which the ingredient can actually be made.
       for (final RecipeDefinition recipe in stepRegistry.recipes.values) {
         for (final RecipeIngredient ingredient in recipe.ingredients) {
+          RecipeDefinition? cheapest;
           for (final RecipeDefinition source in stepRegistry.recipes.values) {
             if (source.outputItem != ingredient.item) continue;
             if (source.skill != recipe.skill) continue;
-            expect(
-              source.requiredLevel,
-              lessThanOrEqualTo(recipe.requiredLevel),
-              reason:
-                  '${recipe.id} claims level ${recipe.requiredLevel} but its '
-                  'ingredient "${ingredient.item}" comes from ${source.id}, '
-                  'which needs ${source.requiredLevel} in the same skill',
-            );
+            if (cheapest == null ||
+                source.requiredLevel < cheapest.requiredLevel) {
+              cheapest = source;
+            }
           }
+          if (cheapest == null) continue;
+          expect(
+            cheapest.requiredLevel,
+            lessThanOrEqualTo(recipe.requiredLevel),
+            reason:
+                '${recipe.id} claims level ${recipe.requiredLevel} but its '
+                'ingredient "${ingredient.item}" comes from ${cheapest.id}, '
+                'which needs ${cheapest.requiredLevel} in the same skill',
+          );
         }
       }
     });

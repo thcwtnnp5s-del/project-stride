@@ -39,7 +39,8 @@
       "resourceNodes": [
         "resource_node.oak_stand",
         "resource_node.duskcap_grove",
-        "resource_node.heartwood_oak"
+        "resource_node.heartwood_oak",
+        "resource_node.warded_grove"
       ]
     },
     {
@@ -62,7 +63,9 @@
         "resource_node.tin_seam",
         "resource_node.deep_tin_seam",
         "resource_node.hardened_copper_seam",
-        "resource_node.old_workings"
+        "resource_node.old_workings",
+        "resource_node.gallery_tin_lode",
+        "resource_node.collapsed_span"
       ]
     },
     {
@@ -103,7 +106,9 @@
       "resourceNodes": [
         "resource_node.silkstrand_thicket",
         "resource_node.hollow_thicket",
-        "resource_node.veiled_silkstrand"
+        "resource_node.veiled_silkstrand",
+        "resource_node.undercroft_silkfall",
+        "resource_node.deep_hollow_thicket"
       ]
     }
   ]

@@ -631,6 +631,222 @@
       "outputQuantity": 1,
       "xp": 130,
       "craftSeconds": 150
+    },
+    {
+      "id": "recipe.waywarden_tunic",
+      "displayName": "Waywarden's Tunic",
+      "skill": "skill.smithing",
+      "requiredLevel": 8,
+      "ingredients": [
+        {
+          "item": "item.traveler_tunic",
+          "quantity": 1
+        },
+        {
+          "item": "item.boar_hide",
+          "quantity": 2
+        },
+        {
+          "item": "item.boar_tusk",
+          "quantity": 2
+        },
+        {
+          "item": "item.ram_wool",
+          "quantity": 2
+        }
+      ],
+      "outputItem": "item.waywarden_tunic",
+      "outputQuantity": 1,
+      "xp": 200,
+      "craftSeconds": 180
+    },
+    {
+      "id": "recipe.tinbraced_pickaxe",
+      "displayName": "Tin-Braced Pickaxe",
+      "skill": "skill.smithing",
+      "requiredLevel": 9,
+      "ingredients": [
+        {
+          "item": "item.reinforced_pickaxe",
+          "quantity": 1
+        },
+        {
+          "item": "item.tin_ore",
+          "quantity": 3
+        },
+        {
+          "item": "item.bronze_ingot",
+          "quantity": 2
+        },
+        {
+          "item": "item.pine_plank",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.tinbraced_pickaxe",
+      "outputQuantity": 1,
+      "xp": 220,
+      "craftSeconds": 180
+    },
+    {
+      "id": "recipe.frostwarden_coat",
+      "displayName": "Frostwarden Coat",
+      "skill": "skill.smithing",
+      "requiredLevel": 10,
+      "ingredients": [
+        {
+          "item": "item.frostlined_jerkin",
+          "quantity": 1
+        },
+        {
+          "item": "item.bear_pelt",
+          "quantity": 2
+        },
+        {
+          "item": "item.lynx_pelt",
+          "quantity": 2
+        },
+        {
+          "item": "item.ram_wool",
+          "quantity": 2
+        }
+      ],
+      "outputItem": "item.frostwarden_coat",
+      "outputQuantity": 1,
+      "xp": 260,
+      "craftSeconds": 180
+    },
+    {
+      "id": "recipe.reclaim_bronze_axe",
+      "displayName": "Reclaim Bronze Axe",
+      "skill": "skill.smithing",
+      "requiredLevel": 8,
+      "ingredients": [
+        {
+          "item": "item.bronze_axe",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.bronze_ingot",
+      "outputQuantity": 1,
+      "xp": 20,
+      "craftSeconds": 45
+    },
+    {
+      "id": "recipe.reclaim_bronze_pickaxe",
+      "displayName": "Reclaim Bronze Pickaxe",
+      "skill": "skill.smithing",
+      "requiredLevel": 8,
+      "ingredients": [
+        {
+          "item": "item.bronze_pickaxe",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.bronze_ingot",
+      "outputQuantity": 1,
+      "xp": 20,
+      "craftSeconds": 45
+    },
+    {
+      "id": "recipe.reclaim_bronze_chestplate",
+      "displayName": "Reclaim Bronze Chestplate",
+      "skill": "skill.smithing",
+      "requiredLevel": 8,
+      "ingredients": [
+        {
+          "item": "item.bronze_chestplate",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.bronze_ingot",
+      "outputQuantity": 2,
+      "xp": 35,
+      "craftSeconds": 60
+    },
+    {
+      "id": "recipe.forage_broth",
+      "displayName": "Forager's Broth",
+      "skill": "skill.cooking",
+      "requiredLevel": 2,
+      "ingredients": [
+        {
+          "item": "item.duskcap",
+          "quantity": 1
+        },
+        {
+          "item": "item.meadow_herb",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.herb_broth",
+      "outputQuantity": 1,
+      "xp": 16,
+      "craftSeconds": 45
+    },
+    {
+      "id": "recipe.field_rations",
+      "displayName": "Field Rations (pair)",
+      "skill": "skill.cooking",
+      "requiredLevel": 5,
+      "ingredients": [
+        {
+          "item": "item.herb_broth",
+          "quantity": 2
+        },
+        {
+          "item": "item.duskcap",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.traveler_ration",
+      "outputQuantity": 2,
+      "xp": 30,
+      "craftSeconds": 75
+    },
+    {
+      "id": "recipe.frostbloom_pot",
+      "displayName": "Frostbloom Pot (pair)",
+      "skill": "skill.cooking",
+      "requiredLevel": 8,
+      "ingredients": [
+        {
+          "item": "item.rime_blossom",
+          "quantity": 3
+        },
+        {
+          "item": "item.duskcap",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.frostbloom_tea",
+      "outputQuantity": 2,
+      "xp": 48,
+      "craftSeconds": 90
+    },
+    {
+      "id": "recipe.expedition_pot",
+      "displayName": "Expedition Pot (pair)",
+      "skill": "skill.cooking",
+      "requiredLevel": 10,
+      "ingredients": [
+        {
+          "item": "item.hearty_stew",
+          "quantity": 2
+        },
+        {
+          "item": "item.rime_blossom",
+          "quantity": 3
+        },
+        {
+          "item": "item.duskcap",
+          "quantity": 1
+        }
+      ],
+      "outputItem": "item.expedition_stew",
+      "outputQuantity": 2,
+      "xp": 120,
+      "craftSeconds": 90
     }
   ]
 }

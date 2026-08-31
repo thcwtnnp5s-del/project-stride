@@ -648,6 +648,31 @@ abstract final class AmbientAssets {
       assetPath: '$_art/node/mill_garden.png',
       bounds: SpriteBounds(left: 15, top: 16, right: 88, bottom: 85),
     ),
+    // Fable Depth Offensive 01 (`DECISIONS/0028`): the five depth nodes'
+    // plates are recorded byte-copies of the nodes they deepen (donor table
+    // in Scripts/art/package-art.js), so each carries its donor's measured
+    // bounds verbatim. Distinct authored scenery is the same future icon
+    // round Iteration 03 recorded (A-1).
+    '$_art/node/warded_grove.png': StageScenery(
+      assetPath: '$_art/node/warded_grove.png',
+      bounds: SpriteBounds(left: 2, top: 4, right: 95, bottom: 94),
+    ),
+    '$_art/node/gallery_tin_lode.png': StageScenery(
+      assetPath: '$_art/node/gallery_tin_lode.png',
+      bounds: SpriteBounds(left: 2, top: 6, right: 93, bottom: 90),
+    ),
+    '$_art/node/collapsed_span.png': StageScenery(
+      assetPath: '$_art/node/collapsed_span.png',
+      bounds: SpriteBounds(left: 10, top: 11, right: 79, bottom: 90),
+    ),
+    '$_art/node/undercroft_silkfall.png': StageScenery(
+      assetPath: '$_art/node/undercroft_silkfall.png',
+      bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
+    ),
+    '$_art/node/deep_hollow_thicket.png': StageScenery(
+      assetPath: '$_art/node/deep_hollow_thicket.png',
+      bounds: SpriteBounds(left: 1, top: 3, right: 94, bottom: 93),
+    ),
   };
 
   /// The workstation kind a craft scene composes around, resolved from the
