@@ -28,9 +28,14 @@
 /// loud one, at the exact frame it happens, at zero release cost.
 library;
 
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+
+import 'panel_skin.dart';
 
 /// A pixel-art sprite, drawn at an exact integer multiple of its native size.
 ///
@@ -269,6 +274,242 @@ class PixelScene extends StatelessWidget {
       ),
     );
   }
+}
+
+/// An authored panel frame, drawn as a **tiled** nine-patch.
+///
+/// The third member of this file's family, and it lives here for the same
+/// reason the other two do: `Scripts/check-ui-boundary.sh` confines image
+/// painting to this one file so `filterQuality: none` has a single home. That
+/// guard was extended in the same change that added this widget — it used to
+/// match only the `Image.*` constructors, so a frame written the obvious way,
+/// with a `DecorationImage` in a `BoxDecoration`, would have rendered bilinear
+/// and passed CI in silence. A guard with a hole shaped like the next feature
+/// is worse than no guard, because it is trusted.
+///
+/// ## Tiled, never stretched — and why `centerSlice` is refused
+///
+/// Flutter ships a nine-patch: `Image`'s `centerSlice`. It is wrong here.
+/// `centerSlice` **stretches** the edge bands and the middle to fill, and
+/// stretching pixel art is the exact failure L-18's first paragraph exists to
+/// prevent. A 2 px rivet stretched over 300 px is a smear.
+///
+/// So the edges **repeat**. Corners draw once at 1:1 integer scale; the strips
+/// between them tile until they run out, and the last tile is clipped. That
+/// imposes a real constraint on the art, and it is recorded in the production
+/// plan rather than discovered later: **no once-only ornament may live inside
+/// a repeating strip**, and a frame must be reviewed at two different panel
+/// heights, because a seam that reads at one repeat count can beat at another.
+///
+/// ## What it deliberately does not draw
+///
+/// The interior. The panel's own fill — or an optional low-variation surface
+/// tile — owns the middle, so body text never sits on frame art and the
+/// contrast question never arises. A frame is an edge.
+/// ## Nothing is drawn until the image is decoded
+///
+/// The frame resolves its asset and repaints when it arrives. Before then it
+/// draws the [fallback] — today's painted decoration — so a panel is never
+/// briefly frameless and never flashes. That is also what makes the widget
+/// honest in a widget test, where images resolve on a fake codec.
+class PixelFrame extends StatefulWidget {
+  const PixelFrame({
+    super.key,
+    required this.skin,
+    required this.child,
+    this.fallback,
+  });
+
+  final PanelSkin skin;
+  final Widget child;
+
+  /// Painted while the image is in flight, and forever if it fails to load. A
+  /// missing frame must degrade to the rectangle it replaced, never to a hole.
+  final Decoration? fallback;
+
+  @override
+  State<PixelFrame> createState() => _PixelFrameState();
+}
+
+class _PixelFrameState extends State<PixelFrame> {
+  ui.Image? _image;
+  ImageStream? _stream;
+  ImageStreamListener? _listener;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(PixelFrame old) {
+    super.didUpdateWidget(old);
+    if (old.skin.assetPath != widget.skin.assetPath) _resolve();
+  }
+
+  void _resolve() {
+    final ImageStream stream = AssetImage(
+      widget.skin.assetPath,
+    ).resolve(createLocalImageConfiguration(context));
+    if (stream.key == _stream?.key) return;
+    _detach();
+    _stream = stream;
+    _listener = ImageStreamListener((ImageInfo info, bool _) {
+      if (!mounted) {
+        info.image.dispose();
+        return;
+      }
+      setState(() => _image = info.image);
+    }, onError: (Object _, StackTrace? _) {
+      // A frame that will not load is a panel without a frame, not a crash and
+      // not an empty box: the fallback decoration keeps painting.
+    });
+    stream.addListener(_listener!);
+  }
+
+  void _detach() {
+    if (_stream != null && _listener != null) {
+      _stream!.removeListener(_listener!);
+    }
+    _stream = null;
+    _listener = null;
+  }
+
+  @override
+  void dispose() {
+    _detach();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final double c = widget.skin.inset;
+    final ui.Image? image = _image;
+    return CustomPaint(
+      painter: image == null
+          ? null
+          : _FramePainter(skin: widget.skin, image: image),
+      foregroundPainter: null,
+      child: DecoratedBox(
+        // Once the frame paints, the fallback's border would double the edge.
+        decoration: image == null
+            ? (widget.fallback ?? const BoxDecoration())
+            : const BoxDecoration(),
+        child: Padding(padding: EdgeInsets.all(c), child: widget.child),
+      ),
+    );
+  }
+}
+
+/// The frame painter, for a test that needs to paint into its own canvas and
+/// read the pixels back.
+///
+/// "Edges tile rather than stretch" is the one claim in this file that cannot
+/// be checked by inspecting a widget tree — it is only true or false in the
+/// rendered pixels, and it is the exact property that separates this renderer
+/// from `centerSlice`. So the painter gets a seam rather than the test getting
+/// a golden file it would have to eyeball.
+@visibleForTesting
+CustomPainter debugFramePainter(PanelSkin skin, ui.Image image) =>
+    _FramePainter(skin: skin, image: image);
+
+/// Paints [PanelSkin]'s eight patches: four corners at integer scale, four
+/// tiled strips, and **no interior**.
+class _FramePainter extends CustomPainter {
+  _FramePainter({required this.skin, required this.image});
+
+  final PanelSkin skin;
+  final ui.Image image;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final int n = skin.corner;
+    final double s = skin.scale.toDouble();
+    final double c = n * s;
+    // Nearest neighbour, no anti-aliasing: the same contract PixelAsset holds.
+    final Paint paint = Paint()
+      ..filterQuality = FilterQuality.none
+      ..isAntiAlias = false;
+
+    void patch(Rect src, Rect dst) => canvas.drawImageRect(image, src, dst, paint);
+
+    final int iw = skin.nativeWidth;
+    final int ih = skin.nativeHeight;
+
+    // Corners, once each, at exact integer scale.
+    patch(Rect.fromLTWH(0, 0, n * 1.0, n * 1.0), Rect.fromLTWH(0, 0, c, c));
+    patch(
+      Rect.fromLTWH((iw - n) * 1.0, 0, n * 1.0, n * 1.0),
+      Rect.fromLTWH(size.width - c, 0, c, c),
+    );
+    patch(
+      Rect.fromLTWH(0, (ih - n) * 1.0, n * 1.0, n * 1.0),
+      Rect.fromLTWH(0, size.height - c, c, c),
+    );
+    patch(
+      Rect.fromLTWH((iw - n) * 1.0, (ih - n) * 1.0, n * 1.0, n * 1.0),
+      Rect.fromLTWH(size.width - c, size.height - c, c, c),
+    );
+
+    // Edge strips, REPEATED — never stretched (see the class doc). The final
+    // tile in each run is clipped, which is why no once-only ornament may be
+    // authored inside a strip.
+    final double stripW = (iw - 2 * n) * s;
+    final double stripH = (ih - 2 * n) * s;
+    if (stripW <= 0 || stripH <= 0) return;
+
+    final Rect topSrc = Rect.fromLTWH(n * 1.0, 0, (iw - 2 * n) * 1.0, n * 1.0);
+    final Rect botSrc = Rect.fromLTWH(
+      n * 1.0,
+      (ih - n) * 1.0,
+      (iw - 2 * n) * 1.0,
+      n * 1.0,
+    );
+    final Rect leftSrc = Rect.fromLTWH(0, n * 1.0, n * 1.0, (ih - 2 * n) * 1.0);
+    final Rect rightSrc = Rect.fromLTWH(
+      (iw - n) * 1.0,
+      n * 1.0,
+      n * 1.0,
+      (ih - 2 * n) * 1.0,
+    );
+
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    for (double x = c; x < size.width - c; x += stripW) {
+      final double w = math.min(stripW, size.width - c - x);
+      final Rect src = Rect.fromLTWH(
+        topSrc.left,
+        topSrc.top,
+        topSrc.width * (w / stripW),
+        topSrc.height,
+      );
+      patch(src, Rect.fromLTWH(x, 0, w, c));
+      patch(
+        Rect.fromLTWH(botSrc.left, botSrc.top, src.width, botSrc.height),
+        Rect.fromLTWH(x, size.height - c, w, c),
+      );
+    }
+    for (double y = c; y < size.height - c; y += stripH) {
+      final double h = math.min(stripH, size.height - c - y);
+      final Rect src = Rect.fromLTWH(
+        leftSrc.left,
+        leftSrc.top,
+        leftSrc.width,
+        leftSrc.height * (h / stripH),
+      );
+      patch(src, Rect.fromLTWH(0, y, c, h));
+      patch(
+        Rect.fromLTWH(rightSrc.left, rightSrc.top, rightSrc.width, src.height),
+        Rect.fromLTWH(size.width - c, y, c, h),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_FramePainter old) =>
+      old.image != image || old.skin.assetPath != skin.assetPath;
 }
 
 /// A box of exactly [width] × [height] that complains, in debug, when its

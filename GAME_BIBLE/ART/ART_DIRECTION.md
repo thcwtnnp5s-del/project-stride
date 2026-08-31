@@ -277,12 +277,43 @@ icon acceptance.
 **L-18 — Every pixel asset is displayed at an exact integer multiple of its
 native size, with nearest-neighbour filtering and no sub-pixel positioning, in a
 container that layout cannot compress.**
-Interface chrome — type, panels, borders, radii, tracks — is ordinary high-DPI
-native rendering. **The interface is not pixelated; the content is.**
+**Interface chrome may be authored pixel art. Text, layout, measurement, state
+and interaction are never raster.**
 
 The container clause is load-bearing and was earned: a container one pixel
 narrower than its pixel content silently rescales a sprite with no visible cause,
 which cost three wrong diagnoses before it was measured.
+
+**Amended 2026-08-31 by owner ruling — `DECISIONS/0029`.** This rule previously
+ended: *"Interface chrome — type, panels, borders, radii, tracks — is ordinary
+high-DPI native rendering. The interface is not pixelated; the content is."*
+That sentence settled a **typography** question — the single-canvas pixel screen
+retired at the UI Baseline Closeout, where a bitmap font fought real
+anti-aliased type — and was then read as a permanent ban on interface
+*material*. The owner has ruled the wider reading superseded: PixelLab may
+author panel and frame art, headers, material surfaces, borders, dividers,
+reward and combat frames, craft, inventory and board treatments, and restrained
+backplates.
+
+The first paragraph is untouched and now governs **more** assets, not fewer.
+The boundary that replaces the old sentence:
+
+- A raster asset may occupy only a panel's **outer edge** (corners at 1:1,
+  edges **tiled** — never stretched, so `centerSlice` is out), a panel's
+  **interior as a low-variation tiled surface**, or a **discrete ornament**
+  Flutter positions.
+- It may never carry a word, a number, a state, or a boundary Flutter must
+  measure. **Text is never pixelated.** Whole screens are never raster.
+- One chassis family app-wide. Screens differ by band, surface and picture —
+  never by eleven different borders.
+- **The enforcing test:** with every frame asset removed, the app must still
+  lay out, read, navigate and pass its accessibility assertions. Art may change
+  how Stride feels; it may never change what Stride does.
+
+**L-15, L-16 and L-17 are unchanged and bind interface art too:** an icon may
+not change referent, a wrong semantic is a blocker, and `#58D6C0` remains
+walking's alone. A frame that reads as a slot, a lock, a coin or a capacity
+meter is refused on semantics however well it is drawn.
 
 **L-19 — Bronze content reads as bronze, not as gold bullion.**
 Bronze uses a bronze / reddish-copper family, not a bright worked-gold family. A
@@ -339,14 +370,14 @@ reopen them as if they were still absent:
 | Sprite dimensions | **Reopened by the presentation split.** L-3 and L-12's UI figure are superseded; world keeps **128 × 192**. Portrait, icon and tile canvases are unstated |
 | Camera angle | **Three-quarter top-down / isometric-lite**, preserved as a family; not strict isometric (**L-9**) |
 | Exact character proportions | **≈ 1 : 4.5** head-to-body (**L-2**); exact pixel construction still an implementation question |
-| Final UI visual language | **Closed at the direction level** (status block): native high-DPI chrome, pixel content, teal = walking (**L-16**), icon policy (**L-17**), scale discipline (**L-18**). The *token values* — palette, exact type scale, spacing — are proposed in `exploration/WALKSCAPE_PIVOT_01/UI_SYSTEM_PROPOSED_01.md` and are **not** canonized here |
+| Final UI visual language | **Reopened and re-closed by `DECISIONS/0029` (owner ruling, 2026-08-31): authored pixel chrome IS permitted** — panels, frames, surfaces, ornaments; never text, never a whole screen. Otherwise closed at the direction level: pixel content, teal = walking (**L-16**), icon policy (**L-17**), scale discipline (**L-18**). The *token values* — palette, exact type scale, spacing — are proposed in `exploration/WALKSCAPE_PIVOT_01/UI_SYSTEM_PROPOSED_01.md` and are **not** canonized here |
 
 ### Closed by the UI Baseline Closeout (2026-08-16)
 
 | Was open | Now |
 |---|---|
 | The production art direction (A/B/C) | **Chosen** — modernized polished pixel mobile RPG, native high-DPI UI + pixel content. A/B/C and **L-11** superseded, not resolved |
-| Whether the UI is authored on a pixel grid | **No.** Native widgets at device resolution (**L-12** superseded for UI, **L-18**) |
+| Whether the UI is authored on a pixel grid | **Partly, since `DECISIONS/0029`.** Layout, text and interaction stay native widgets at device resolution (**L-12** superseded for UI); a panel's frame, surface and ornaments may be authored pixel art on the integer-scale grid (**L-18** as amended) |
 | Character presentation as one asset | **No.** Split into portrait / world sprite / item icons (**L-3** superseded) |
 | What teal means | **Walking and steps, system-wide, exclusively** (**L-16**) |
 | Whether inventory icons must be blind-nameable | **No** — but a wrong read is a blocker (**L-17**) |

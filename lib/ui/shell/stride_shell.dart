@@ -70,14 +70,26 @@ class _StrideShellState extends State<StrideShell> {
             : null,
         child: () {
           // The region's biome colour on every screen's header (Fable V2
-          // Iteration 02): the eyebrow — the place's name — wears the
-          // place's ink, and the bar breathes the region deep. The app now
-          // tells you where you are before a word is read, and it changes
-          // when you travel.
+          // Iteration 02): the place's name wears the place's ink, and the
+          // bar breathes the region deep.
+          //
+          // **The place is the title** (PRESENTATION_COMBAT_EVOLUTION_01).
+          // It used to be the other way round: `title: _selected.label` put
+          // "Adventure" / "Inventory" / "Craft" at 19 px bold as the largest
+          // word on every screen, with the place demoted to an 11 px eyebrow
+          // above it — and the tab bar reprinted that same word four dp
+          // below. The biggest thing on screen was the name of the menu you
+          // were standing in, which is what an application looks like. Now
+          // the biggest thing is where you are, which is what a game looks
+          // like, and it changes when you walk somewhere.
+          //
+          // The section name is not lost — it moves to the eyebrow, where a
+          // breadcrumb belongs, and stays available to a screen reader in the
+          // same order it always was.
           final ContentId? here = controller.session.currentLocation;
           return ScreenHeader(
-            eyebrow: controller.session.locationName,
-            title: _selected.label,
+            eyebrow: _selected.label,
+            title: controller.session.locationName,
             regionInk: here == null ? null : StrideColors.forRegion(here),
             regionDeep: here == null ? null : StrideColors.forRegionDeep(here),
             trailing: BankedStepsReadout(

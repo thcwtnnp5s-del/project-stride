@@ -197,6 +197,13 @@ class _AdventureScreenState extends State<AdventureScreen> {
         skill: skill,
         skillName: gathered.skillName,
         xp: gathered.experience ?? 0,
+        // The gather path's rarity, at last (PRESENTATION_COMBAT_EVOLUTION_01).
+        // `ActivityResult.notable` reads this, so an Uncommon-or-better find
+        // now takes the accented 2 px frame, the reward glow and the longer
+        // hold — the same escalation a craft has had since GFCP01. Before
+        // this, pulling Rare Gloom Silk looked exactly like pulling Copper
+        // Ore, which made the game's best gathering moment its quietest.
+        rarity: gathered.rarity,
         incremental: true,
       );
       activityToken = gathered;

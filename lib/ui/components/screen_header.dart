@@ -28,11 +28,12 @@ class ScreenHeader extends StatelessWidget {
   final String title;
   final Widget? trailing;
 
-  /// The region's biome colour (Fable V2 Iteration 02): [regionInk] tints
-  /// the eyebrow — the place's name wears the place's colour — and
-  /// [regionDeep] breathes a short vertical wash down from the top of the
-  /// bar. Both null keeps the header exactly as it always was; the banked
-  /// readout stays the brightest thing either way (L-16 composition).
+  /// The region's biome colour (Fable V2 Iteration 02): [regionInk] tints the
+  /// **place's name** — which since PRESENTATION_COMBAT_EVOLUTION_01 is the
+  /// [title], not the [eyebrow] — and [regionDeep] breathes a short vertical
+  /// wash down from the top of the bar. Both null keeps the header exactly as
+  /// it always was; the banked readout stays the brightest thing either way
+  /// (L-16 composition).
   final Color? regionInk;
   final Color? regionDeep;
 
@@ -67,16 +68,26 @@ class ScreenHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // Shrink-within-bounds rather than clip. These strings are
-                // fixed and short, which is exactly why they are the right
-                // side of the header to yield: the banked figure is player
-                // data and grows, the titles are four known words.
+                // Shrink-within-bounds rather than clip.
+                //
+                // **The reasoning here changed** with the header inversion
+                // (PRESENTATION_COMBAT_EVOLUTION_01). It used to read "the
+                // titles are four known words", which justified this side of
+                // the header yielding first. The title is now a **place
+                // name** — content, not a fixed string — and "Whispering
+                // Woods" beside a five-figure banked readout on a 320 dp
+                // phone is D-01's shape one axis over. `AdaptiveText` shrinks
+                // rather than clips, which is what keeps that honest, and it
+                // is now load-bearing rather than belt-and-braces.
                 AdaptiveText(
                   eyebrow.toUpperCase(),
                   style: StrideType.screenEyebrow,
+                ),
+                AdaptiveText(
+                  title,
+                  style: StrideType.screenTitle,
                   color: regionInk,
                 ),
-                AdaptiveText(title, style: StrideType.screenTitle),
               ],
             ),
           ),

@@ -1344,10 +1344,25 @@ final class ActionReport {
     this.unlockedNames = const <String>[],
     this.rejection,
     this.detail,
+    this.rarity,
   });
 
   final bool succeeded;
   final String nodeName;
+
+  /// The yielded item's authored rarity, for the result card's frame.
+  ///
+  /// **Added in PRESENTATION_COMBAT_EVOLUTION_01**, because until then the
+  /// gather path was blind to it. `InventoryEntry` and `DropPreview` both
+  /// carried rarity already; this report simply dropped it, so the universal
+  /// result card had nothing to escalate on and **a Rare Gloom Silk pulled
+  /// from a silkstrand thicket rendered exactly like a Common Copper Ore** —
+  /// same frame, same weight, same everything. The craft path had
+  /// distinguished its outputs since GFCP01; the gather path never could.
+  ///
+  /// A projection of content the item definition already holds. No new domain
+  /// data, no new event field, and nothing here decides anything.
+  final Rarity? rarity;
 
   /// Profile-scaled, as it would be charged. Shown before the action is taken,
   /// which is why it is on the report rather than only on the event.
@@ -3193,6 +3208,7 @@ final class StrideSession {
       skillLevelBefore: levelBefore,
       skillLevelAfter: levelAfter,
       unlockedNames: _unlocksOpened(gathered.skill, levelBefore, levelAfter),
+      rarity: content.items[gathered.item]?.rarity,
     );
   }
 

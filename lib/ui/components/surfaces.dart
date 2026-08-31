@@ -4,6 +4,14 @@
 /// weight in exactly one colour. A nested block is declared by its fill alone; a
 /// well is declared by fill *and* outline. That is the whole system, and it
 /// should not be extended without a reason.
+///
+/// **The reason arrived** (`DECISIONS/0029`, owner ruling 2026-08-31). The
+/// system was built narrow on purpose and then never given a second visual
+/// register, so one rectangle came to draw thirty-four panels and the product
+/// read as an application rather than a game. [SectionCard] now names a
+/// [PanelRole], and `panel_skin.dart` decides whether that role has authored
+/// art. The ladder above is unchanged; what changed is that a rung may now be
+/// made of something.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -11,6 +19,8 @@ import 'package:flutter/widgets.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
+import 'panel_skin.dart';
+import 'pixel_asset.dart';
 
 /// The universal content container.
 ///
@@ -22,32 +32,72 @@ import '../theme/stride_typography.dart';
 /// rung; type contrast is measured against [StrideColors.surfaceCard]
 /// either way. One primitive, so identity washes cannot become per-screen
 /// one-offs.
+/// [role] (PRESENTATION_COMBAT_EVOLUTION_01) names what this panel **is**, so
+/// that authored frame art can replace the painted rectangle later without
+/// touching any of the ~34 call sites. Today every role resolves to null in
+/// [PanelSkins] and every card paints exactly what it always painted; the
+/// registry is the whole integration surface of `DECISIONS/0029`. See
+/// `panel_skin.dart` for why the genericness the owner named is this one
+/// rectangle repeated, and why a registry is the fix rather than a parameter.
 class SectionCard extends StatelessWidget {
-  const SectionCard({super.key, required this.child, this.padding, this.wash});
+  const SectionCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.wash,
+    this.role = PanelRole.card,
+  });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final Color? wash;
+  final PanelRole role;
+
+  /// The painted rectangle: what every panel looks like until its role has
+  /// art, and what every panel falls back to if that art fails to load.
+  BoxDecoration _painted() => BoxDecoration(
+    color: wash == null ? StrideColors.surfaceCard : null,
+    gradient: wash == null
+        ? null
+        : LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[wash!, StrideColors.surfaceCard],
+            stops: const <double>[0, 0.45],
+          ),
+    border: Border.all(color: StrideColors.borderDefault),
+    borderRadius: StrideRadius.card,
+  );
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: padding ?? const EdgeInsets.all(StrideSpace.cardPadding),
-    decoration: BoxDecoration(
-      color: wash == null ? StrideColors.surfaceCard : null,
-      gradient: wash == null
-          ? null
-          : LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: <Color>[wash!, StrideColors.surfaceCard],
-              stops: const <double>[0, 0.45],
-            ),
-      border: Border.all(color: StrideColors.borderDefault),
-      borderRadius: StrideRadius.card,
-    ),
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final EdgeInsetsGeometry pad =
+        padding ?? const EdgeInsets.all(StrideSpace.cardPadding);
+    final PanelSkin? skin = PanelSkins.of(role);
+
+    if (skin == null) {
+      return Container(
+        width: double.infinity,
+        padding: pad,
+        decoration: _painted(),
+        child: child,
+      );
+    }
+    // The frame owns the edge; the fill still owns the middle, so body text
+    // never sits on frame art. `PixelFrame` insets by the corner itself, so
+    // the caller's padding is applied inside that.
+    return SizedBox(
+      width: double.infinity,
+      child: PixelFrame(
+        skin: skin,
+        fallback: _painted(),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: StrideColors.surfaceCard),
+          child: Padding(padding: pad, child: child),
+        ),
+      ),
+    );
+  }
 }
 
 /// A block nested inside a card. Fill only — no border.

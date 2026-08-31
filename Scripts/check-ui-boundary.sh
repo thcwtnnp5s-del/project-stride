@@ -146,13 +146,29 @@ scan "(grantedSlices|DateTime\.now|\.toLocal\()" \
 # Image's default filterQuality is low, which is bilinear -- the single most
 # likely way pixel crispness leaks away (ART_DIRECTION L-18). PixelAsset is the
 # one place it is set to none.
+#
+# `DecorationImage` and `paintImage` are caught alongside the `Image.*`
+# constructors, and that addition is the whole point of this paragraph. This
+# guard used to match the constructors ALONE, which was airtight for as long as
+# the only way to draw a picture was to build an `Image` widget. The moment
+# `DECISIONS/0029` allowed authored interface art, the obvious way to draw a
+# panel frame became a `DecorationImage` inside a `BoxDecoration` -- which never
+# touches `Image.asset`, defaults to bilinear like everything else, and would
+# have sailed through this check while quietly softening every border in the
+# product. A guard with a hole in exactly the shape of the next feature is
+# worse than no guard, because it is trusted.
+#
+# `AssetImage` on its own is deliberately NOT matched: `precacheImage(AssetImage(...))`
+# is legitimate and widespread, and banning it would push authors toward
+# suppression rather than compliance. What is forbidden is *painting* through a
+# path that cannot set filterQuality, not naming an asset.
 image_hits=$(
   while IFS= read -r file; do
     case "${file#"$REPO_ROOT/"}" in
       lib/ui/components/pixel_asset.dart) continue ;;
     esac
     stripped=$(sed 's://.*$::' "$file")
-    if line=$(printf '%s\n' "$stripped" | grep -nE "Image\.(asset|file|network|memory)" || true); [ -n "$line" ]; then
+    if line=$(printf '%s\n' "$stripped" | grep -nE "Image\.(asset|file|network|memory)|DecorationImage|paintImage" || true); [ -n "$line" ]; then
       printf '%s: %s\n' "${file#"$REPO_ROOT/"}" "$line"
     fi
   done < <(find "$UI_DIR" -name '*.dart')
