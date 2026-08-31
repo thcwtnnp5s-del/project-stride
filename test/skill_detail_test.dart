@@ -118,11 +118,14 @@ void main() {
     // The route's own heading (SectionHeading renders uppercase).
     expect(find.text('ROADMAP'), findsOneWidget);
 
-    // The current band, the next band's distance, and a collapsed dead
-    // run are all on screen.
+    // The current band, the next band's distance, and the honest end of
+    // the road are all on screen. (The collapsed dead-run line used to be
+    // asserted here; Fable Depth Offensive 01 filled Mining's last dead
+    // levels — `DECISIONS/0028` — so the ladder is dense to its horizon
+    // and the end-cap line is now the plan's closing statement.)
     expect(find.text('NOW'), findsOneWidget);
     expect(find.text('120 XP away'), findsOneWidget);
-    expect(find.textContaining('nothing yet'), findsWidgets);
+    expect(find.textContaining('The road runs out here'), findsOneWidget);
 
     // Expanding an unlock shows its pre-capped story and the Pursuit
     // control.

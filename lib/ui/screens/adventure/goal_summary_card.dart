@@ -21,6 +21,7 @@ import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
+import 'bestiary_screen.dart';
 import 'goal_board_screen.dart';
 
 class GoalSummaryCard extends StatelessWidget {
@@ -83,9 +84,25 @@ class GoalSummaryCard extends StatelessWidget {
           // Navigation, not a commit — the neutral register, so opening a
           // board never outranks the screen's game action
           // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
-          StrideButton.secondary(
-            label: 'Goal Board',
-            onPressed: () => GoalBoardScreen.open(context),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: StrideButton.secondary(
+                  label: 'Goal Board',
+                  onPressed: () => GoalBoardScreen.open(context),
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              // The hunt-planning surface (`DECISIONS/0028` §6): same
+              // navigation register as the board — never outranking the
+              // screen's game action.
+              Expanded(
+                child: StrideButton.secondary(
+                  label: 'Field Notes',
+                  onPressed: () => BestiaryScreen.open(context),
+                ),
+              ),
+            ],
           ),
         ],
       ),

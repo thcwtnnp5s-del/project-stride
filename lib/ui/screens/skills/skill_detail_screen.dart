@@ -321,6 +321,28 @@ class _Ladder extends StatelessWidget {
       i++;
     }
 
+    // The honest end of the road (`DECISIONS/0028` §6): the ladder used to
+    // stop silently at the last content level, indistinguishable from a
+    // cap. One muted line says which it is — and when every unlock is open,
+    // the census line becomes the closure statement.
+    if (roadmap.contentHorizon > 0 &&
+        roadmap.contentHorizon < roadmap.maxLevel) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(top: StrideSpace.s8),
+          child: Text(
+            roadmap.horizonReached
+                ? 'Every written unlock is open. The road runs out here — '
+                      'nothing is written above LV ${roadmap.contentHorizon} '
+                      'yet.'
+                : 'The road runs out here — nothing is written above '
+                      'LV ${roadmap.contentHorizon} yet.',
+            style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: rows,

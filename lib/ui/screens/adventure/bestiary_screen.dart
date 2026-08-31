@@ -1,0 +1,251 @@
+/// Field Notes — the Bestiary route (`DECISIONS/0028` §6).
+///
+/// ## Why a pushed full-screen route
+///
+/// Enemy knowledge was location-locked: the signature hunts and Known gates
+/// that shape a 3,000–6,000-step trip could only be inspected by standing
+/// where the enemy lives, so every hunt was planned blind. This route lists
+/// every enemy whose existence the player can currently see, grouped by
+/// region with the journey cost to reach it — the planning surface, not a
+/// second combat UI. Starting a fight still happens on location, through the
+/// encounter card, exactly as before.
+///
+/// ## What it deliberately is not
+///
+/// Not an encyclopedia (resources and recipes already answer "what am I
+/// for" at their own decision points), not a completion meter (one fact
+/// line, no percentages — P-5), and not animated: rows are static so
+/// thirteen entries cost no tickers (the hidden-tab lesson).
+library;
+
+import 'package:flutter/material.dart' show MaterialPageRoute;
+import 'package:flutter/widgets.dart';
+import 'package:stride_core/stride_core.dart' show KnowledgeTier;
+
+import '../../../runtime/stride_session.dart';
+import '../../components/screen_header.dart';
+import '../../components/surfaces.dart';
+import '../../state/activity_controller.dart';
+import '../../state/session_controller.dart';
+import '../../state/session_scope.dart';
+import '../../theme/stride_colors.dart';
+import '../../theme/stride_metrics.dart';
+import '../../theme/stride_typography.dart';
+
+class BestiaryScreen extends StatelessWidget {
+  const BestiaryScreen({super.key});
+
+  /// Pushes the notes, re-wrapped in the pushing context's controllers —
+  /// the Goal Board's own pattern.
+  static Future<void> open(BuildContext context) {
+    final SessionController session = SessionScope.read(context);
+    final ActivityController activity = ActivityScope.read(context);
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SessionScope(
+          controller: session,
+          child: ActivityScope(
+            controller: activity,
+            child: const BestiaryScreen(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final SessionController c = SessionScope.of(context);
+    final BestiaryView notes = c.session.bestiary;
+    final EdgeInsets inset = MediaQuery.viewPaddingOf(context);
+
+    return ColoredBox(
+      color: StrideColors.surfaceGround,
+      child: Column(
+        children: <Widget>[
+          SizedBox(height: inset.top),
+          ScreenHeader(
+            eyebrow: 'THE TRAVELER\'S JOURNAL',
+            title: 'Field Notes',
+            trailing: Semantics(
+              button: true,
+              label: 'Close the field notes',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(context).pop(),
+                child: Padding(
+                  padding: const EdgeInsets.all(StrideSpace.s8),
+                  child: Text(
+                    'CLOSE',
+                    style: StrideType.microLabel.copyWith(
+                      color: StrideColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                StrideSpace.screenGutter,
+                StrideSpace.s12,
+                StrideSpace.screenGutter,
+                StrideSpace.s16 + inset.bottom,
+              ),
+              children: <Widget>[
+                // The one fact line — a statement, never a meter (P-5).
+                SectionCard(
+                  child: Text(
+                    notes.complete
+                        ? 'Field Guide — complete edition. Every creature '
+                              'you have heard of is Known.'
+                        : '${notes.knownCount} of ${notes.visibleCount} '
+                              'creatures Known.',
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textSecondary,
+                    ),
+                  ),
+                ),
+                for (final BestiaryRegionView region in notes.regions) ...[
+                  const SizedBox(height: StrideSpace.cardGap),
+                  SectionHeading(
+                    label: region.isHere
+                        ? '${region.locationName} — HERE'
+                        : region.distanceSteps == null
+                        ? region.locationName
+                        : '${region.locationName} — '
+                              '${formatSteps(region.distanceSteps!)} steps',
+                  ),
+                  const SizedBox(height: StrideSpace.s8),
+                  SectionCard(
+                    padding: const EdgeInsets.all(
+                      StrideSpace.cardPaddingCompact,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        for (
+                          int i = 0;
+                          i < region.entries.length;
+                          i++
+                        ) ...<Widget>[
+                          if (i > 0)
+                            Container(
+                              height: 1,
+                              margin: const EdgeInsets.symmetric(
+                                vertical: StrideSpace.s4,
+                              ),
+                              color: StrideColors.separator,
+                            ),
+                          _BestiaryRow(entry: region.entries[i]),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One creature's notes: name and tier word, the study progress in plain
+/// words, and — as knowledge buys it — the drops. Static by design.
+class _BestiaryRow extends StatelessWidget {
+  const _BestiaryRow({required this.entry});
+
+  final EncounterOption entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final String tierWord = switch (entry.knowledge) {
+      KnowledgeTier.unseen => 'Unseen',
+      KnowledgeTier.seen => 'Seen',
+      KnowledgeTier.studied => 'Studied',
+      KnowledgeTier.known => 'Known',
+    };
+    // The next study milestone, in the card's own grammar; nothing when
+    // Known — the ladder deliberately stops (`DECISIONS/0023` §5).
+    final String? progress = switch (entry.knowledge) {
+      KnowledgeTier.known => null,
+      KnowledgeTier.studied =>
+        'Known after ${entry.knownAt - entry.victories} more '
+            '${entry.knownAt - entry.victories == 1 ? 'victory' : 'victories'}',
+      _ when entry.victories > 0 =>
+        'Studied after ${entry.studiedAt - entry.victories} more '
+            '${entry.studiedAt - entry.victories == 1 ? 'victory' : 'victories'}',
+      _ => null,
+    };
+    // Only what knowledge has revealed: unrevealed signatures stay the
+    // mystery the encounter card keeps them (`DECISIONS/0023` §5).
+    final List<String> drops = <String>[
+      for (final DropPreview drop in entry.drops)
+        if (drop.revealed) drop.name,
+    ];
+    final String? gate = entry.reason == 'enemy_not_known'
+        ? (entry.requiresKnownEnemyName == null
+              ? 'Will not show itself yet'
+              : 'Know the ${entry.requiresKnownEnemyName} to draw it out')
+        : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: StrideSpace.s4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  entry.name,
+                  style: StrideType.itemName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              Text(
+                tierWord.toUpperCase(),
+                style: StrideType.microLabel.copyWith(
+                  color: entry.knowledge == KnowledgeTier.known
+                      ? StrideColors.accentSteps
+                      : StrideColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          if (gate != null) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              gate,
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 1,
+            ),
+          ] else if (progress != null) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              progress,
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 1,
+            ),
+          ],
+          if (drops.isNotEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              'Drops: ${drops.join(', ')}',
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

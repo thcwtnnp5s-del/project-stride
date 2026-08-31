@@ -363,11 +363,17 @@ class EncounterCard extends StatelessWidget {
   /// player's experience of it did not change, only how many wins it took.
   static String? _subLabel(EncounterOption o) => o.available
       ? '${o.remainingThisVisit} of ${o.encountersPerVisit} this visit'
-      : _reasonText(o.reason);
+      : _reasonText(o);
 
   /// The truthful reason the button is disabled, in the engine's order.
-  static String? _reasonText(String? reason) => switch (reason) {
+  static String? _reasonText(EncounterOption o) => switch (o.reason) {
     null => null,
+    // The Veteran Hunts gate (`DECISIONS/0028`): the card states the same
+    // rule the engine refuses with — study the species, the veteran waits.
+    'enemy_not_known' =>
+      o.requiresKnownEnemyName == null
+          ? 'Will not show itself yet'
+          : 'Know the ${o.requiresKnownEnemyName} to draw it out',
     'enemy_driven_off' => 'Driven off — returns after you travel',
     'encounter_in_progress' => 'Finish your current encounter',
     'session_not_ready' => 'Reload before fighting',

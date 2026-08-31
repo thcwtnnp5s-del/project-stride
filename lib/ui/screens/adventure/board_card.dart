@@ -991,6 +991,18 @@ class _ProjectTileState extends State<_ProjectTile> {
                 // Wraps rather than shrinks, as the contract title above: a
                 // project name may take two lines but never lose a character.
                 Text(project.name, style: StrideType.itemName),
+                // Development reads as a ladder (`DECISIONS/0028`): a
+                // follow-up project names what it follows, complete or not.
+                if (project.followsName case final String follows) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s2),
+                  Text(
+                    'Follows the $follows',
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textMuted,
+                    ),
+                    maxLines: 1,
+                  ),
+                ],
                 if (!open) ...<Widget>[
                   const SizedBox(height: StrideSpace.s2),
                   Text(
@@ -1032,6 +1044,29 @@ class _ProjectTileState extends State<_ProjectTile> {
         ],
       ),
     );
+
+    // A gated project stays visible, head-only, with its gate stated in the
+    // engine's wording — never hidden, never contributable (`DECISIONS/0028`).
+    if (project.isLocked) {
+      return SurfaceBlock(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            head,
+            if (project.lockedReason case final String reason) ...<Widget>[
+              const SizedBox(height: StrideSpace.s4),
+              Text(
+                reason,
+                style: StrideType.micro.copyWith(
+                  color: StrideColors.textSecondary,
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
 
     if (!open) return SurfaceBlock(child: head);
 

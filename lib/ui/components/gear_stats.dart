@@ -124,6 +124,27 @@ class GearStatsBlock extends StatelessWidget {
               maxLines: 3,
             ),
           ],
+          // What the worn piece gives up if this one replaces it — the same
+          // sentences the worn piece's own passives read as, capped at two
+          // so the block stays a glance (`DECISIONS/0028` §6).
+          for (final String lost in g.tradeOffLines.take(2)) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              'Trades away: $lost',
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 2,
+            ),
+          ],
+          // The derived lineage's forward pointer, so a piece's future is
+          // known before it is spent.
+          if (g.upgradeLine case final String upgrade) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              'Later: $upgrade',
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 2,
+            ),
+          ],
         ],
       ),
     );

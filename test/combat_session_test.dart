@@ -365,6 +365,9 @@ void main() {
           ('Duskcap Grove', 'Foraging', 3, null),
           // Iteration 03: the WC 4 depth node beside the starter stand.
           ('Heartwood Oak', 'Woodcutting', 4, 'Axe'),
+          // Fable Depth Offensive 01: the WC 6 stand behind the Watchtower
+          // (`DECISIONS/0028`).
+          ('Warded Grove', 'Woodcutting', 6, 'Axe'),
         ],
       );
       expect(

@@ -399,6 +399,8 @@ final class GearStats {
     required this.verdict,
     this.wornToolKind,
     this.wornTier = 0,
+    this.tradeOffLines = const <String>[],
+    this.upgradeLine,
   });
 
   final ContentId item;
@@ -429,6 +431,17 @@ final class GearStats {
   final String? wornName;
   final int wornPower;
   final GearVerdict verdict;
+
+  /// What equipping this piece gives up: the worn piece's passive sentences
+  /// the candidate does not carry, verbatim from the same builder that
+  /// wrote [passives] (`DECISIONS/0028` §6). Empty when nothing is lost,
+  /// when the slot is empty, or when comparing a piece with itself.
+  final List<String> tradeOffLines;
+
+  /// The derived lineage's forward pointer — "Reforges into Waywarden's
+  /// Tunic (DEF 5)" — from the same recipe edges the craft bench executes.
+  /// Null for a piece nothing upgrades.
+  final String? upgradeLine;
 
   /// `+2`, `−1`, `±0` against the slot — or null when nothing is worn.
   String? get deltaLabel {
@@ -981,6 +994,8 @@ final class SkillRoadmap {
     required this.levels,
     required this.openCount,
     required this.totalCount,
+    this.contentHorizon = 0,
+    this.maxLevel = 0,
   });
 
   final SkillStanding standing;
@@ -990,6 +1005,16 @@ final class SkillRoadmap {
   /// header's "6 of 14 unlocks open" line.
   final int openCount;
   final int totalCount;
+
+  /// The last level any authored content touches, and the skill's own cap —
+  /// so the ladder can end honestly ("the road runs out here; nothing is
+  /// written above LV [contentHorizon] yet") instead of silently, and a
+  /// finished horizon can say so (`DECISIONS/0028` §6).
+  final int contentHorizon;
+  final int maxLevel;
+
+  /// True when every authored unlock is open — the ladder is walked.
+  bool get horizonReached => totalCount > 0 && openCount == totalCount;
 }
 
 /// What a journey did.
@@ -1566,6 +1591,7 @@ final class EncounterOption {
     this.victories = 0,
     this.studiedAt = 3,
     this.knownAt = 6,
+    this.requiresKnownEnemyName,
   });
 
   final ContentId enemyId;
@@ -1596,9 +1622,14 @@ final class EncounterOption {
 
   final bool available;
 
-  /// `encounter_in_progress` · `enemy_driven_off` · `session_not_ready`, or
-  /// null when [available].
+  /// `enemy_not_known` · `encounter_in_progress` · `enemy_driven_off` ·
+  /// `session_not_ready`, or null when [available].
   final String? reason;
+
+  /// When [reason] is `enemy_not_known`: the display name of the enemy that
+  /// must be Known before this one shows itself (`DECISIONS/0028`), so the
+  /// card can state the gate in the engine's own terms. Null otherwise.
+  final String? requiresKnownEnemyName;
 
   /// The compact enemy-knowledge tier (`DECISIONS/0023` §5), with the
   /// victory counts the card can narrate progress from. Presentation only:
@@ -4117,6 +4148,90 @@ final class StrideSession {
     );
   }
 
+  // -- Derived upgrade lineage (`DECISIONS/0028` §6) ------------------------
+
+  /// The equipment lineage map, computed once per content load and never
+  /// authored: for every recipe whose ingredients include a piece of
+  /// equipment AND whose output is equipment, an edge from the consumed
+  /// piece to the produced one. Both-ends-equipment keeps material-consuming
+  /// crafts (and the reclaim recipes' ingot outputs) out of the lineage —
+  /// reclaims surface through the bench's trade lines instead.
+  ///
+  /// Cached by registry identity: the fold is over static content, so it is
+  /// wrong to recompute per build and wrong to survive a content reload.
+  /// Progress-dependent filtering (a retired recipe is not a live upgrade)
+  /// happens at read time in [itemLineageOf], so the cache stays load-stable.
+  Map<ContentId, ItemLineageView>? _lineageCache;
+  ContentRegistry? _lineageCacheFor;
+
+  ItemLineageView? itemLineageOf(ContentId item) {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return null;
+    if (!identical(_lineageCacheFor, content)) {
+      _lineageCache = _buildLineage(content);
+      _lineageCacheFor = content;
+    }
+    final ItemLineageView? cached = _lineageCache![item];
+    if (cached == null) return null;
+    // A retired recipe is not a live upgrade — the same rule itemPurposeOf
+    // applies to USED IN.
+    bool live(LineageEdge e) {
+      final RecipeDefinition? r = content.recipes[e.recipeId];
+      if (r == null) return false;
+      return !(r.retiredByProject != null &&
+          active.state.progress.isProjectComplete(r.retiredByProject!));
+    }
+
+    final List<LineageEdge> to = cached.upgradesTo.where(live).toList();
+    final List<LineageEdge> from = cached.upgradesFrom.where(live).toList();
+    if (to.isEmpty && from.isEmpty) return null;
+    return ItemLineageView(upgradesTo: to, upgradesFrom: from);
+  }
+
+  static Map<ContentId, ItemLineageView> _buildLineage(
+    ContentRegistry content,
+  ) {
+    final Map<ContentId, List<LineageEdge>> to = <ContentId, List<LineageEdge>>{};
+    final Map<ContentId, List<LineageEdge>> from =
+        <ContentId, List<LineageEdge>>{};
+    for (final RecipeDefinition r in content.recipes.values) {
+      final ItemDefinition? output = content.items[r.outputItem];
+      if (output == null || output.category != ItemCategory.equipment) {
+        continue;
+      }
+      for (final RecipeIngredient i in r.ingredients) {
+        final ItemDefinition? consumed = content.items[i.item];
+        if (consumed == null ||
+            consumed.category != ItemCategory.equipment) {
+          continue;
+        }
+        final LineageEdge edge = LineageEdge(
+          recipeId: r.id,
+          recipeName: r.displayName,
+          fromItem: i.item,
+          fromName: consumed.displayName,
+          toItem: r.outputItem,
+          toName: output.displayName,
+          quantity: i.quantity,
+        );
+        (to[i.item] ??= <LineageEdge>[]).add(edge);
+        (from[r.outputItem] ??= <LineageEdge>[]).add(edge);
+      }
+    }
+    return <ContentId, ItemLineageView>{
+      for (final ContentId id in <ContentId>{...to.keys, ...from.keys})
+        id: ItemLineageView(
+          upgradesTo: List<LineageEdge>.unmodifiable(
+            to[id] ?? const <LineageEdge>[],
+          ),
+          upgradesFrom: List<LineageEdge>.unmodifiable(
+            from[id] ?? const <LineageEdge>[],
+          ),
+        ),
+    };
+  }
+
   /// What [item] is *for* — every consumer and source the content pack
   /// names, as display strings (Fable V2, `DECISIONS/0027`). Null for an
   /// item the pack does not define.
@@ -4136,9 +4251,19 @@ final class StrideSession {
     String placeOf(ContentId location) =>
         content.locations[location]?.displayName ?? location.value;
 
+    // An upgrade edge is the stronger statement, so its recipe leaves the
+    // USED IN list — "upgrades into" and "used in" saying the same recipe
+    // twice would read as two different uses (`DECISIONS/0028` §6).
+    final ItemLineageView? lineage = itemLineageOf(item);
+    final Set<ContentId> lineageRecipes = <ContentId>{
+      for (final LineageEdge e in lineage?.upgradesTo ?? const <LineageEdge>[])
+        e.recipeId,
+    };
+
     final List<String> usedInRecipes = <String>[
       for (final RecipeDefinition r in content.recipes.values)
         if (r.ingredients.any((RecipeIngredient i) => i.item == item) &&
+            !lineageRecipes.contains(r.id) &&
             // A retired recipe is not a live use.
             !(r.retiredByProject != null &&
                 state.progress.isProjectComplete(r.retiredByProject!)))
@@ -4201,6 +4326,8 @@ final class StrideSession {
       gatheredAt: gatheredAt,
       droppedBy: droppedBy,
       craftedBy: craftedBy,
+      upgradesInto: lineage?.upgradesTo ?? const <LineageEdge>[],
+      reforgedFrom: lineage?.upgradesFrom ?? const <LineageEdge>[],
       healing: def.healing,
       // A hunter's proof: a signature (or the boss's quest token) that
       // nothing consumes is a keepsake by design (`DECISIONS/0023` §5),
@@ -4246,6 +4373,21 @@ final class StrideSession {
       EquipmentSlot.armor => ('Defence', 'DEF'),
       EquipmentSlot.tool => ('Tool power', 'TOOL'),
     };
+    final List<String> passives = _passiveLinesOf(content, def);
+    // What equipping this piece gives up: the worn piece's passive sentences
+    // that the candidate does not carry, built by the same builder so gain
+    // and loss are verbatim mirrors — equipping over frostGuard or a yield
+    // passive should never be a quiet surprise (`DECISIONS/0028` §6).
+    final List<String> wornPassives = worn == null || wornId == item
+        ? const <String>[]
+        : _passiveLinesOf(content, worn);
+    final List<String> tradeOffLines = <String>[
+      for (final String line in wornPassives)
+        if (!passives.contains(line)) line,
+    ];
+    // The derived lineage's forward pointer — "reforges into X" — so the
+    // player learns an item's future before spending it.
+    final LineageEdge? nextEdge = itemLineageOf(item)?.upgradesTo.firstOrNull;
     return GearStats(
       item: item,
       slot: slot,
@@ -4254,33 +4396,46 @@ final class StrideSession {
       power: def.power,
       tier: def.tier,
       toolKind: def.toolKind,
-      passives: <String>[
-        // A tool names the sites it actually opens, from the same node data
-        // the engine gates gathering on — never a tier abstraction alone
-        // (this pass, §5: "Tier 1" is functional; "Mines Copper Ore, Tin
-        // Ore" is a reason to want the tool). The tier line stays as the
-        // rule the names are instances of.
-        if (def.toolKind != ToolKind.none) ...<String>[
-          'Works ${def.toolKind == ToolKind.axe ? 'woodcutting' : 'mining'} '
-              'sites up to tier ${def.tier}',
-          ..._toolSiteLines(content, def),
-        ],
-        if (def.frostGuard > 0)
-          'Cold weather: −${def.frostGuard} damage taken in alpine fights',
-        if (def.wildernessYieldPercent > 0)
-          'Wilderness ready: ${def.wildernessYieldPercent}% chance of +1 '
-              'yield when woodcutting or foraging',
-        if (def.toolBonusYieldPercent > 0)
-          '${def.toolBonusYieldPercent}% chance of +1 yield at sites this '
-              'tool works',
-      ],
+      passives: passives,
       wornName: worn?.displayName ?? (wornId?.value),
       wornPower: wornPower,
       verdict: verdict,
       wornToolKind: worn?.toolKind,
       wornTier: worn?.tier ?? 0,
+      tradeOffLines: tradeOffLines,
+      upgradeLine: nextEdge == null
+          ? null
+          : 'Reforges into ${nextEdge.toName}'
+                '${content.items[nextEdge.toItem] == null ? '' : ' ($statShort ${content.items[nextEdge.toItem]!.power})'}',
     );
   }
+
+  /// The passive sentences a piece of equipment carries — one builder for
+  /// both the candidate and the worn piece, so a gained and a lost passive
+  /// are the same sentence.
+  static List<String> _passiveLinesOf(
+    ContentRegistry content,
+    ItemDefinition def,
+  ) => <String>[
+    // A tool names the sites it actually opens, from the same node data
+    // the engine gates gathering on — never a tier abstraction alone
+    // (this pass, §5: "Tier 1" is functional; "Mines Copper Ore, Tin
+    // Ore" is a reason to want the tool). The tier line stays as the
+    // rule the names are instances of.
+    if (def.toolKind != ToolKind.none) ...<String>[
+      'Works ${def.toolKind == ToolKind.axe ? 'woodcutting' : 'mining'} '
+          'sites up to tier ${def.tier}',
+      ..._toolSiteLines(content, def),
+    ],
+    if (def.frostGuard > 0)
+      'Cold weather: −${def.frostGuard} damage taken in alpine fights',
+    if (def.wildernessYieldPercent > 0)
+      'Wilderness ready: ${def.wildernessYieldPercent}% chance of +1 '
+          'yield when woodcutting or foraging',
+    if (def.toolBonusYieldPercent > 0)
+      '${def.toolBonusYieldPercent}% chance of +1 yield at sites this '
+          'tool works',
+  ];
 
   /// The named-site lines a tool's passives carry: which sites in the pack
   /// this tool opens, what they yield, and — when the pack holds one — the
@@ -4472,56 +4627,163 @@ final class StrideSession {
     final bool ready = isReady;
     return <EncounterOption>[
       for (final EnemyDefinition enemy in content.enemies.values)
-        if (enemy.location == here)
-          () {
-            final int remaining = active.state.world.remaining(
-              enemy.id,
-              enemy.encountersPerVisit,
-            );
-            final String? reason = fighting
-                ? 'encounter_in_progress'
-                : remaining <= 0
-                ? 'enemy_driven_off'
-                : !ready
-                ? 'session_not_ready'
-                : null;
-            final KnowledgeTier tier = knowledgeTierFor(active.state, enemy);
-            return EncounterOption(
-              enemyId: enemy.id,
-              name: enemy.displayName,
-              isBoss: enemy.isBoss,
-              behavior: enemy.behavior,
-              maxHealth: active.profile.applyEnemyHealth(enemy.health),
-              attack: enemy.attack,
-              defence: enemy.defence,
-              xp: active.profile.applyXp(enemy.xp),
-              drops: <DropPreview>[
-                for (final EnemyDrop drop in enemy.drops)
-                  DropPreview(
-                    id: drop.item,
-                    name:
-                        content.items[drop.item]?.displayName ??
-                        drop.item.value,
-                    rarity: content.items[drop.item]?.rarity,
-                    chancePercent: drop.chancePercent,
-                    signature: drop.signature,
-                    // A signature drop's existence is concealed until the
-                    // enemy is Known (`DECISIONS/0023` §5). Presentation
-                    // only: the roll is unchanged.
-                    revealed: !drop.signature || tier == KnowledgeTier.known,
-                  ),
-              ],
-              encountersPerVisit: enemy.encountersPerVisit,
-              remainingThisVisit: remaining,
-              available: reason == null,
-              reason: reason,
-              knowledge: tier,
-              victories: active.state.progress.victoriesOf(enemy.id),
-              studiedAt: enemy.studiedAt,
-              knownAt: enemy.knownAt,
-            );
-          }(),
+        if (enemy.location == here && _eliteVisible(active.state, content, enemy))
+          _encounterOptionOf(
+            active,
+            content,
+            enemy,
+            fighting: fighting,
+            ready: ready,
+          ),
     ];
+  }
+
+  /// The Veteran Hunts visibility rule (`DECISIONS/0028`): an enemy gated by
+  /// `requiresKnownEnemy` is hidden entirely while its base species is
+  /// Unseen, shown locked from Seen, and offered at Known. Hidden-until-Seen
+  /// is what keeps a fresh save's screens exactly as they were.
+  static bool _eliteVisible(
+    GameState state,
+    ContentRegistry content,
+    EnemyDefinition enemy,
+  ) {
+    final ContentId? mustKnow = enemy.requiresKnownEnemy;
+    if (mustKnow == null) return true;
+    final EnemyDefinition? base = content.enemies[mustKnow];
+    if (base == null) return false;
+    return knowledgeTierFor(state, base) != KnowledgeTier.unseen;
+  }
+
+  /// One enemy's card facts — shared by [encountersHere] and the Bestiary
+  /// route, so a fight is described by exactly one builder.
+  EncounterOption _encounterOptionOf(
+    GameEngine active,
+    ContentRegistry content,
+    EnemyDefinition enemy, {
+    required bool fighting,
+    required bool ready,
+  }) {
+    final int remaining = active.state.world.remaining(
+      enemy.id,
+      enemy.encountersPerVisit,
+    );
+    // The knowledge gate outranks the transient reasons — the engine's
+    // refusal is unconditional while it holds (`DECISIONS/0028`).
+    final EnemyDefinition? knownGateBase = () {
+      final ContentId? mustKnow = enemy.requiresKnownEnemy;
+      if (mustKnow == null) return null;
+      final EnemyDefinition? base = content.enemies[mustKnow];
+      if (base == null ||
+          knowledgeTierFor(active.state, base) != KnowledgeTier.known) {
+        return base ?? enemy;
+      }
+      return null;
+    }();
+    final String? reason = knownGateBase != null
+        ? 'enemy_not_known'
+        : fighting
+        ? 'encounter_in_progress'
+        : remaining <= 0
+        ? 'enemy_driven_off'
+        : !ready
+        ? 'session_not_ready'
+        : null;
+    final KnowledgeTier tier = knowledgeTierFor(active.state, enemy);
+    return EncounterOption(
+      enemyId: enemy.id,
+      name: enemy.displayName,
+      isBoss: enemy.isBoss,
+      behavior: enemy.behavior,
+      maxHealth: active.profile.applyEnemyHealth(enemy.health),
+      attack: enemy.attack,
+      defence: enemy.defence,
+      xp: active.profile.applyXp(enemy.xp),
+      drops: <DropPreview>[
+        for (final EnemyDrop drop in enemy.drops)
+          DropPreview(
+            id: drop.item,
+            name: content.items[drop.item]?.displayName ?? drop.item.value,
+            rarity: content.items[drop.item]?.rarity,
+            chancePercent: drop.chancePercent,
+            signature: drop.signature,
+            // A signature drop's existence is concealed until the
+            // enemy is Known (`DECISIONS/0023` §5). Presentation
+            // only: the roll is unchanged.
+            revealed: !drop.signature || tier == KnowledgeTier.known,
+          ),
+      ],
+      encountersPerVisit: enemy.encountersPerVisit,
+      remainingThisVisit: remaining,
+      available: reason == null,
+      reason: reason,
+      knowledge: tier,
+      victories: active.state.progress.victoriesOf(enemy.id),
+      studiedAt: enemy.studiedAt,
+      knownAt: enemy.knownAt,
+      requiresKnownEnemyName: knownGateBase?.displayName,
+    );
+  }
+
+  /// The Field Notes route (`DECISIONS/0028` §6): every enemy whose
+  /// existence the player can currently see, grouped by region with the
+  /// journey cost to reach it — so a hunt is planned from home instead of
+  /// discovered blind at a 3,000-step remove.
+  ///
+  /// Reuses the exact card builder [encountersHere] uses, so a fight is
+  /// described by one set of facts everywhere. Gated veterans obey the same
+  /// visibility rule as the location card (hidden until the base species is
+  /// Seen). Pure projection over live state; nothing here is stored.
+  BestiaryView get bestiary {
+    final GameEngine? active = engine;
+    final ContentRegistry? content = registry;
+    if (active == null || content == null) return const BestiaryView();
+    final ContentId here = active.state.world.currentLocation;
+    final bool fighting = active.state.encounter != null;
+    final bool ready = isReady;
+
+    int visible = 0;
+    int known = 0;
+    final List<BestiaryRegionView> regions = <BestiaryRegionView>[];
+    for (final LocationDefinition location in content.locations.values) {
+      final List<EncounterOption> entries = <EncounterOption>[
+        for (final EnemyDefinition enemy in content.enemies.values)
+          if (enemy.location == location.id &&
+              _eliteVisible(active.state, content, enemy))
+            _encounterOptionOf(
+              active,
+              content,
+              enemy,
+              fighting: fighting,
+              ready: ready,
+            ),
+      ];
+      if (entries.isEmpty) continue;
+      visible += entries.length;
+      known += entries
+          .where((EncounterOption o) => o.knowledge == KnowledgeTier.known)
+          .length;
+      final bool isHere = location.id == here;
+      regions.add(
+        BestiaryRegionView(
+          locationId: location.id,
+          locationName: location.displayName,
+          isHere: isHere,
+          distanceSteps: isHere
+              ? null
+              : journeyStatusFor(content, active.state, location.id).totalCost,
+          entries: entries,
+        ),
+      );
+    }
+    return BestiaryView(
+      regions: regions,
+      knownCount: known,
+      visibleCount: visible,
+      // The completion FACT — never a pressure meter: true only when every
+      // enemy in the whole pack is Known (at which point every gated
+      // veteran is visible too, so the count is honest).
+      complete: known == content.enemies.length,
+    );
   }
 
   /// The player's combat figures right now, from `CombatRules.loadoutFor` —
@@ -4691,7 +4953,11 @@ final class StrideSession {
       ],
       encounters: <PlaceEncounterLine>[
         for (final EnemyDefinition enemy in content.enemies.values)
-          if (enemy.location == place.id)
+          // The same visibility rule as the encounter list: a gated veteran
+          // whose base species is Unseen does not exist on any surface yet
+          // (`DECISIONS/0028`).
+          if (enemy.location == place.id &&
+              _eliteVisible(active.state, content, enemy))
             PlaceEncounterLine(
               enemyId: enemy.id,
               name: enemy.displayName,
@@ -5118,14 +5384,19 @@ final class StrideSession {
         levels: const <RoadmapLevel>[],
         openCount: 0,
         totalCount: 0,
+        maxLevel: definition.maxLevel,
       );
     }
 
     final Map<int, List<SkillUnlock>> byLevel = <int, List<SkillUnlock>>{};
     int horizon = standing.level;
+    // The last level any authored content touches — distinct from [horizon],
+    // which the ladder also stretches to reach the player's own level.
+    int contentHorizon = 0;
     for (final SkillUnlock u in unlocks) {
       byLevel.putIfAbsent(u.requiredLevel, () => <SkillUnlock>[]).add(u);
       if (u.requiredLevel > horizon) horizon = u.requiredLevel;
+      if (u.requiredLevel > contentHorizon) contentHorizon = u.requiredLevel;
     }
     // The nearest level above the player that still holds content — the one
     // band that carries an XP distance.
@@ -5159,6 +5430,8 @@ final class StrideSession {
       ],
       openCount: unlocks.where((SkillUnlock u) => u.unlocked).length,
       totalCount: unlocks.length,
+      contentHorizon: contentHorizon,
+      maxLevel: definition.maxLevel,
     );
   }
 
@@ -5859,6 +6132,16 @@ final class StrideSession {
         ? project.stages.length - 1
         : (live?.stage ?? 0);
 
+    // The `requiresProject` gate (`DECISIONS/0028`): a gated project stays
+    // visible with its gate stated — the engine owns the refusal, this
+    // mirrors its reason (E-2). Nothing is reserved (P-9).
+    final ContentId? gate = project.requiresProject;
+    final bool locked =
+        !complete && gate != null && !state.progress.isProjectComplete(gate);
+    final String? gateName = gate == null
+        ? null
+        : (content.projects[gate]?.displayName ?? gate.value);
+
     final List<ProjectStageView> stages = <ProjectStageView>[];
     for (int s = 0; s < project.stages.length; s++) {
       final ProjectStage stage = project.stages[s];
@@ -5889,7 +6172,7 @@ final class StrideSession {
     // What the player could donate right now: per current-stage item,
     // min(held, remaining). Empty when nothing useful is in the bag.
     final Map<ContentId, int> contributable = <ContentId, int>{};
-    if (!complete) {
+    if (!complete && !locked) {
       final ProjectStage stage = project.stages[currentStage];
       final Map<ContentId, int> contributed =
           live?.contributed ?? const <ContentId, int>{};
@@ -5913,8 +6196,12 @@ final class StrideSession {
       completionHeadline: project.completionHeadline,
       developmentTo: project.developmentTo,
       contributable: contributable,
+      isLocked: locked,
+      lockedReason: locked ? 'Opens once "$gateName" is complete' : null,
+      followsName: gateName,
       canAdvanceNow:
           !complete &&
+          !locked &&
           stages[currentStage].lines.every(
             (RequirementLine l) =>
                 (contributable[l.item] ?? 0) + l.progress >= l.required,
@@ -5933,6 +6220,8 @@ final class StrideSession {
               for (final ContractDefinition contract
                   in content.contracts.values)
                 if (contract.requiresProject == id) contract.displayName,
+              for (final ProjectDefinition p in content.projects.values)
+                if (p.requiresProject == id) p.displayName,
             ],
     );
   }
@@ -6422,9 +6711,19 @@ final class ItemPurposeView {
     required this.craftedBy,
     required this.healing,
     required this.isTrophy,
+    this.upgradesInto = const <LineageEdge>[],
+    this.reforgedFrom = const <LineageEdge>[],
   });
 
   final List<String> usedInRecipes;
+
+  /// Recipes that consume this piece of equipment to make a better one —
+  /// the derived lineage (`DECISIONS/0028` §6). The consuming recipe is
+  /// deduplicated out of [usedInRecipes].
+  final List<LineageEdge> upgradesInto;
+
+  /// The edges that produce this piece by consuming another.
+  final List<LineageEdge> reforgedFrom;
 
   /// Contracts and projects that want it now, with their places.
   final List<String> wantedBy;
@@ -6446,8 +6745,90 @@ final class ItemPurposeView {
       gatheredAt.isEmpty &&
       droppedBy.isEmpty &&
       craftedBy.isEmpty &&
+      upgradesInto.isEmpty &&
       healing == 0 &&
       !isTrophy;
+}
+
+/// One derived upgrade edge: recipe [recipeName] consumes [quantity] of
+/// [fromName] and produces [toName] (`DECISIONS/0028` §6). Computed from
+/// recipes' equipment-consuming ingredients, never authored.
+final class LineageEdge {
+  const LineageEdge({
+    required this.recipeId,
+    required this.recipeName,
+    required this.fromItem,
+    required this.fromName,
+    required this.toItem,
+    required this.toName,
+    required this.quantity,
+  });
+
+  final ContentId recipeId;
+  final String recipeName;
+  final ContentId fromItem;
+  final String fromName;
+  final ContentId toItem;
+  final String toName;
+  final int quantity;
+}
+
+/// One region's chapter of the Field Notes route — see
+/// [StrideSession.bestiary].
+final class BestiaryRegionView {
+  const BestiaryRegionView({
+    required this.locationId,
+    required this.locationName,
+    required this.isHere,
+    required this.entries,
+    this.distanceSteps,
+  });
+
+  final ContentId locationId;
+  final String locationName;
+  final bool isHere;
+
+  /// The cheapest journey's step cost from where the player stands, from
+  /// the same routing the Set out button quotes. Null when [isHere], or
+  /// when no route exists yet.
+  final int? distanceSteps;
+
+  final List<EncounterOption> entries;
+}
+
+/// The Field Notes route, whole (`DECISIONS/0028` §6).
+final class BestiaryView {
+  const BestiaryView({
+    this.regions = const <BestiaryRegionView>[],
+    this.knownCount = 0,
+    this.visibleCount = 0,
+    this.complete = false,
+  });
+
+  final List<BestiaryRegionView> regions;
+
+  /// Known enemies among those currently visible, and the visible total —
+  /// a fact line, never a completion meter.
+  final int knownCount;
+  final int visibleCount;
+
+  /// True when every enemy in the pack is Known — the "complete edition".
+  final bool complete;
+}
+
+/// An item's place in the derived equipment lineage — see
+/// [StrideSession.itemLineageOf].
+final class ItemLineageView {
+  const ItemLineageView({
+    this.upgradesTo = const <LineageEdge>[],
+    this.upgradesFrom = const <LineageEdge>[],
+  });
+
+  /// Edges where this item is consumed to make something better.
+  final List<LineageEdge> upgradesTo;
+
+  /// Edges where this item is the product.
+  final List<LineageEdge> upgradesFrom;
 }
 
 /// One location's board, folded to the glance the World inspector shows
@@ -6516,6 +6897,9 @@ final class ProjectView {
     required this.contributable,
     required this.canAdvanceNow,
     this.opens = const <String>[],
+    this.isLocked = false,
+    this.lockedReason,
+    this.followsName,
   });
 
   final ContentId id;
@@ -6545,6 +6929,17 @@ final class ProjectView {
   /// Whether donating everything in [contributable] would complete the
   /// current stage.
   final bool canAdvanceNow;
+
+  /// The `requiresProject` gate (`DECISIONS/0028`): true while the
+  /// prerequisite project is incomplete. A locked project stays visible —
+  /// [lockedReason] states the gate in the engine's own wording, and
+  /// [contributable] stays empty until it opens.
+  final bool isLocked;
+  final String? lockedReason;
+
+  /// The prerequisite project's display name, whether or not it is complete —
+  /// "follows the Mill" — so development reads as a ladder. Null when ungated.
+  final String? followsName;
 
   bool get hasSomethingToGive => contributable.isNotEmpty;
 }

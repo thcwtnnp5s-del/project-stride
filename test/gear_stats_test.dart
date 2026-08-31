@@ -118,14 +118,19 @@ void main() {
       expect(training.passives, contains('Mines: Copper Seam, Tin Seam'));
       expect(training.passives, contains('Tier 1 opens Deep Tin Seam'));
 
-      // Tier 2 pick: every pickaxe site — Iteration 03's Old Workings
+      // Sanity for the axe family after Fable Depth Offensive 01
+      // (`DECISIONS/0028`): the Warded Grove (WC 6, tier 1) joins the
+      // tier-1 chop list in tier-then-id order.
+
+      // Tier 2 pick: every pickaxe site — Iteration 03's Old Workings and
+      // Fable Depth Offensive 01's gallery pair (`DECISIONS/0028`)
       // included — and no gap line; the pack holds nothing above tier 2.
       final GearStats reinforced = s.gearStatsOf(reinforcedPick)!;
       expect(
         reinforced.passives,
         contains(
-          'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Hardened Copper '
-          'Seam, Old Workings',
+          'Mines: Copper Seam, Tin Seam, Deep Tin Seam, Collapsed Span, '
+          'Gallery Tin Lode, Hardened Copper Seam, Old Workings',
         ),
       );
       expect(
@@ -141,7 +146,9 @@ void main() {
       expect(axe.passives, contains('Tier 1 opens Frostpine Stand'));
       expect(
         s.gearStatsOf(bronzeAxe)!.passives,
-        contains('Chops: Oak Stand, Frostpine Stand, Heartwood Oak'),
+        contains(
+          'Chops: Oak Stand, Frostpine Stand, Heartwood Oak, Warded Grove',
+        ),
       );
       expect(
         s.gearStatsOf(bronzeAxe)!.passives,

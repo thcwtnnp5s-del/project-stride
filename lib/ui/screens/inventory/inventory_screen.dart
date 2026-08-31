@@ -323,6 +323,17 @@ class _ItemPurposeBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<(String, String)> lines = <(String, String)>[
       if (purpose.healing > 0) ('EATS AS', '+${purpose.healing} HP'),
+      // The derived lineage (`DECISIONS/0028` §6): a piece's future stated
+      // before its uses, because "this becomes something better" is the
+      // stronger fact. The consuming recipe is already deduplicated out of
+      // USED IN by the projection.
+      if (purpose.upgradesInto.isNotEmpty)
+        (
+          'UPGRADES INTO',
+          purpose.upgradesInto
+              .map((LineageEdge e) => '${e.toName} — ${e.recipeName}')
+              .join('\n'),
+        ),
       if (purpose.usedInRecipes.isNotEmpty)
         ('USED IN', purpose.usedInRecipes.join(', ')),
       if (purpose.wantedBy.isNotEmpty)
