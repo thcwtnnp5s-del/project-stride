@@ -353,9 +353,24 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
   };
 
   /// True when [strength] may fire now, stamping it if so.
-  bool _admitHaptic(String strength) {
+  ///
+  /// [always] bypasses the floor. It exists because keying the floor on
+  /// *strength* alone loses the wrong tap: review found that a heavy blow
+  /// landing and then a MAJOR reward layer rising inside 1,200 ms would
+  /// suppress the **payoff**, precisely because the blow before it was
+  /// strong. A held panel the player must dismiss is not a repeat of the blow
+  /// that produced it; it is the moment the blow was for.
+  ///
+  /// The floor still governs everything that can genuinely stack — repeated
+  /// strikes, loop-adjacent taps, rapid selections — because those are the
+  /// numbing this rule exists to prevent.
+  bool _admitHaptic(String strength, {bool always = false}) {
     if (!_settings.hapticsEnabled) return false;
     final int now = _nowMillis();
+    if (always) {
+      _lastHapticAt[strength] = now;
+      return true;
+    }
     final int? last = _lastHapticAt[strength];
     final int floor = _hapticFloorMillis[strength] ?? 0;
     if (last != null && now - last < floor) return false;
@@ -367,12 +382,19 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
     if (_admitHaptic('light')) unawaited(HapticFeedback.lightImpact());
   }
 
-  void hapticMedium() {
-    if (_admitHaptic('medium')) unawaited(HapticFeedback.mediumImpact());
+  /// [payoff] marks a moment the player is being *answered* — a reward layer
+  /// rising, an outcome acknowledged. Those are never rate-limited: a
+  /// suppressed payoff is a game that did not respond.
+  void hapticMedium({bool payoff = false}) {
+    if (_admitHaptic('medium', always: payoff)) {
+      unawaited(HapticFeedback.mediumImpact());
+    }
   }
 
-  void hapticHeavy() {
-    if (_admitHaptic('heavy')) unawaited(HapticFeedback.heavyImpact());
+  void hapticHeavy({bool payoff = false}) {
+    if (_admitHaptic('heavy', always: payoff)) {
+      unawaited(HapticFeedback.heavyImpact());
+    }
   }
 
   void hapticSelection() {

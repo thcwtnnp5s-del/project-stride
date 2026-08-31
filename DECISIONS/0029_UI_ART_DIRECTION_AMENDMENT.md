@@ -110,9 +110,13 @@ the skin architecture ships with a painted fallback and an empty registry
 ## What this decision does NOT authorize
 
 - **No PixelLab generation in this workstream.** The remaining balance is
-  **exactly 25**, it is the atlas emergency reserve, and the owner's ruling
-  reaffirms it is not available here. Reset is 2026-09-16. Everything below is
-  architecture plus a production queue.
+  **exactly 25** and it is the atlas emergency reserve. The owner's ruling
+  states this directly — *"The remaining 25 PixelLab generations are STILL
+  RESERVED for the atlas and are NOT authorized for this workstream"* — and it
+  matches the standing position carried since WORLD_ATLAS_REMASTER_01, where a
+  single inpaint call bills 20–40 and therefore consumes the whole correction
+  capacity. Reset is 2026-09-16. Everything below is architecture plus a
+  production queue.
 - **No pixelated text**, at any size, anywhere. Bitmap type is not in scope and
   is not a future option under this decision.
 - **No full-screen raster.** A screen is a composition Flutter performs; a

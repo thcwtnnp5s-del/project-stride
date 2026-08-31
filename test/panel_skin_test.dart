@@ -102,21 +102,75 @@ void main() {
   });
 
   group('the inset reserve', () {
-    test('a role reserves the same room authored or not', () {
-      // Why this exists: without it, the day the first frame ships every panel
-      // in the product reflows, and the art gets blamed for the reflow.
-      for (final PanelRole role in PanelRole.values) {
-        expect(
-          PanelSkins.insetFor(role),
-          greaterThanOrEqualTo(0),
-          reason: role.name,
+    // Review caught the first version of this group asserting `insetFor >= 0`
+    // and `modalFrame > card` — neither of which tests the reserve, both of
+    // which pass whether or not the reserve does anything. It did not:
+    // `SectionCard` ignored it entirely, so the reflow the reserve exists to
+    // prevent would have happened on the first asset, with a green test.
+
+    testWidgets('a role\'s content box is the same width with a reserve', (
+      WidgetTester tester,
+    ) async {
+      // The property that matters: a role that reserves room must ALREADY be
+      // giving that room up while unskinned. Otherwise the day art lands,
+      // every panel of that role narrows by the frame's width at once.
+      Future<double> contentWidthFor(PanelRole role) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Center(
+              child: SizedBox(
+                width: 320,
+                child: SectionCard(
+                  role: role,
+                  child: SizedBox(key: ValueKey<PanelRole>(role), height: 20),
+                ),
+              ),
+            ),
+          ),
         );
+        return tester.getSize(find.byKey(ValueKey<PanelRole>(role))).width;
       }
-      // A modal is the heaviest edge in the system and reserves the most.
+
+      final double card = await contentWidthFor(PanelRole.card);
+      final double modal = await contentWidthFor(PanelRole.modalFrame);
+
+      // A modal reserves the heaviest edge, so its content box is narrower by
+      // exactly twice the reserve — now, before any art exists.
       expect(
-        PanelSkins.insetFor(PanelRole.modalFrame),
-        greaterThan(PanelSkins.insetFor(PanelRole.card)),
+        card - modal,
+        PanelSkins.insetFor(PanelRole.modalFrame) * 2,
+        reason:
+            'the reserve is not being applied; the frame will reflow every '
+            'panel of this role on the day it ships',
       );
+    });
+
+    testWidgets('an unreserved role is byte-identical to what shipped', (
+      WidgetTester tester,
+    ) async {
+      // The other half: `card` and `kitTray` reserve nothing, so the
+      // overwhelming majority of the product must be untouched by all of this.
+      expect(PanelSkins.insetFor(PanelRole.card), 0);
+      expect(PanelSkins.insetFor(PanelRole.kitTray), 0);
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 320,
+              child: SectionCard(
+                child: SizedBox(key: Key('c'), height: 20),
+              ),
+            ),
+          ),
+        ),
+      );
+      // 320, less the card's own 14 dp padding each side, less the 1 px border
+      // each side that `Container` adds to the child's inset — and nothing
+      // else. No reserve, no frame, no change from what shipped.
+      expect(tester.getSize(find.byKey(const Key('c'))).width, 320 - 28 - 2);
     });
   });
 

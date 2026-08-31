@@ -318,14 +318,121 @@ separate measured `band` field now carries the layout figure.
 
 ## 11. Known issues
 
-- **`lib/ui/state/craft_memory.dart` violates two UI-boundary rules**
-  (`path_provider` import, `File()` write) — **pre-existing**, introduced by
-  GFCP01 `830f1a1`, not by this workstream. It makes
-  `Scripts/check-ui-boundary.sh` exit non-zero, which strongly suggests that
-  guard is not currently being run. Flagged, not fixed: it is out of scope and
-  touching durable-state plumbing mid-presentation-pass is the wrong risk.
+- **CI IS RED ON THIS BRANCH, and it was red before it.**
+  `lib/ui/state/craft_memory.dart` violates two UI-boundary rules
+  (`path_provider` import at :29, `File()` at :47 and :81) — **pre-existing**,
+  introduced by GFCP01 `830f1a1`, not by this workstream.
+
+  An earlier draft of this section said the failure "strongly suggests that
+  guard is not currently being run." **That was wrong, and the truth is
+  worse.** `.github/workflows/ci.yml:125` runs `check-ui-boundary.sh`
+  unconditionally, with no `continue-on-error`, *before* the analyzer and the
+  test suites. So CI fails at that step and **never reaches** the 966 app
+  tests reported here — every suite figure in this document and in
+  `PROJECT_STATE.md` is from a **local** run.
+
+  Two consequences worth stating plainly. The `DecorationImage`/`paintImage`
+  rule this workstream added to that same guard — the one protecting L-18's
+  surviving paragraph from the moment authored frames land — is correct in
+  source and **unreachable in practice** while the gate is red. And a guard
+  that always fails is a guard people learn to skip, which makes the next
+  person to skip it the person shipping the first frame asset.
+
+  Still flagged rather than fixed here: it is durable-state plumbing, out of
+  this pass's scope, and the right fix (move it behind `StrideSession`, or
+  open a named ADR-backed exemption — never a loosened pattern, `RULES.md`
+  G-4) deserves its own change. **It must close before this branch merges.**
 - Combat still has **no sound**, by necessity. The wiring is ready; the assets
   are not producible. Device review should judge the *picture* and not report
   the silence as a new defect.
 - `textMuted` (`#7C7263`) fails WCAG AA on all four surfaces (3.58 / 3.16 /
   2.63 / 3.96). Pre-existing, palette-wide, not addressed here.
+
+---
+
+## 12. iPhone acceptance checklist
+
+Install with `Scripts/ios/build-release-device.sh` — **not** Xcode's Run
+button, which installs a Debug build (M-09).
+
+**Read this first: combat is silent, by necessity.** `STABILITY_API_KEY` is
+unset, so no audio could be produced this round. The combat cue architecture is
+wired and resolves to silence. Judge the *picture* and the *figures*; the
+silence is a known, queued gap, not a new defect.
+
+### A — The header inversion (all six tabs)
+
+1. Walk each tab. The **place** should be the large word, in the region's own
+   colour; the tab name is the small uppercase line above it.
+2. **Travel somewhere and re-check all six.** The title should change on every
+   tab. If it does not, the inversion is not doing its job.
+3. The honest risk, and the thing to judge hardest: with the region constant,
+   five list screens now have near-identical headers, and the only thing
+   distinguishing them is 11 px. **Is the place worth that?** A reviewer
+   already argued no. If you agree, say so — the change is six lines and
+   reverts cleanly.
+
+### B — The guard reading (the round's headline)
+
+4. Fight something until it reaches **Studied** (3 wins for most, 2 for the
+   bear and the Guardian). Below that there is deliberately no reading.
+5. The line above the controls should read *"Your armour takes it to …"*, and
+   the **Brace button should state its own worth in figures**.
+6. **The point of the whole feature:** change armour and fight the same
+   creature again. **The number must move.** If it does not, the feature has
+   failed regardless of how it looks.
+7. Find a case where Brace says *"gives up your strike"* rather than
+   recommending — an ordinary turn in good armour. It should refuse to
+   recommend itself when bracing is a bad play. A button that always argues
+   for itself is the defect this was rebuilt to avoid.
+8. On a **flurry** enemy, check the round total reads clearly ("3–5 each, 6–10
+   this round") rather than making you add.
+9. Is this legible, or is it a spreadsheet? Two reviewers split on this. Your
+   call decides whether the line stays or only the button keeps the figures.
+
+### C — Combat presentation
+
+10. Kill a **Scree Crawler** (Stonefall). It should now visibly sink and fade.
+    Before this round it kept idling until the reward panel covered it.
+11. Take a **heavy blow** from a guarded enemy (bear, salamander, Guardian).
+    The haptic should land *with* the blow, not before it. It used to fire up
+    to 625 ms early.
+12. Win a fight and confirm the victory tap still fires right after a heavy
+    blow — a rate limit was added, and payoffs are exempt from it.
+
+### D — Audio (the six defect fixes)
+
+13. **Turn Reduce Motion ON** (Settings → Accessibility → Motion). Gather
+    something. **You must still hear the profession cue** while the picture
+    holds still. This was a total, silent, product-wide SFX blackout — M-16.
+14. Compare **smithing** against **mining** and **cooking** at equal volume.
+    Smithing was 10.4 dB hotter and is now attenuated 7 dB. Ratify or ask for
+    a retune.
+15. **Mining is the floor and I could not raise it** — a trim can only
+    attenuate. Q-17 offers three zero-credit routes (limiter re-master, anchor
+    swap to an unshipped candidate, lower music default). Say which you want.
+16. Cook something and confirm the sizzle now lands on **every** stir rather
+    than every other one.
+17. Check the ring/silent switch — `respectSilence: true` means the hardware
+    switch mutes everything. If the game seems silent, check this first.
+
+### E — Everything that should be unchanged
+
+18. Travel presentation, ambient scenes, buttons, craft completion cards — all
+    device-PASSED previously and deliberately untouched.
+19. Gather something **Rare** (Gloom Silk, from a silkstrand thicket). It
+    should now take the accented frame and longer hold that a rare craft
+    already got. It used to look exactly like Copper Ore.
+20. Panels look **exactly as before**. That is correct: the frame architecture
+    shipped with an empty registry and no art. Nothing should have moved.
+
+### F — Decisions this checklist is asking for
+
+- **B-3**: keep or revert the header inversion.
+- **B-9**: keep the guard-reading line, or let the Brace button carry the
+  figures alone.
+- **D-15**: which route for mining.
+- **Q-15**: buy the Slash/Crush/Pierce art milestone (~300–700 generations), or
+  close the question.
+- **Q-12 / Q-06**: unchanged, still open. Note that a verdict on Brace taken
+  *with* the reading enabled is a verdict on Brace **plus** the reading.

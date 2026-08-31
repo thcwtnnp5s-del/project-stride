@@ -116,6 +116,8 @@ void main() {
               playerFrostGuard: frost,
               turn: turn,
               alpine: alpine,
+              enemyDefence: 0,
+              playerAttack: 1,
             );
 
             final String where =
@@ -126,6 +128,24 @@ void main() {
               r.bracedLowest,
               expectBracedLow,
               reason: 'bracedLowest @ $where',
+            );
+            final int expectBracedHigh = _engineDamage(
+              enemyAttack: atk,
+              playerDefence: def,
+              roll: heavy ? 0 : 1,
+              heavy: heavy,
+              braced: true,
+              frostGuard: effectiveFrost,
+            );
+            expect(
+              r.bracedHighest,
+              expectBracedHigh,
+              reason: 'bracedHighest @ $where',
+            );
+            expect(
+              r.strikes,
+              behavior == EnemyBehavior.flurry ? 2 : 1,
+              reason: 'strikes @ $where',
             );
             expect(r.heavy, heavy, reason: 'heavy @ $where');
           }
@@ -146,6 +166,8 @@ void main() {
       playerFrostGuard: 3,
       turn: 3,
       alpine: true,
+      enemyDefence: 0,
+      playerAttack: 1,
     );
     expect(r.heavy, isTrue);
     expect(r.lowest, 11); // 22 - 8 = 14, then frost guard 3 -> 11
@@ -160,6 +182,8 @@ void main() {
       playerFrostGuard: 3,
       turn: 3,
       alpine: false,
+      enemyDefence: 0,
+      playerAttack: 1,
     );
     expect(warm.lowest, 14, reason: 'the coat must not warm the Hollow');
   });
@@ -192,7 +216,9 @@ void main() {
         alpine: false,
       );
       expect(r.strikes, 2);
-      expect(r.braceLabel, contains('each of two blows'));
+      // The round total, not just the per-blow band: "3-5 twice" makes a
+      // player at 8 health do arithmetic at the worst possible moment.
+      expect(r.takenLabel, contains('this round'));
     });
 
     test('a blow already floored at 1 admits bracing saves nothing', () {
@@ -208,7 +234,9 @@ void main() {
         alpine: false,
       );
       expect(r.worthwhile, isFalse);
-      expect(r.braceLabel, contains('little to save'));
+      // It still states the figure; what it drops is the recommendation, and
+      // it names the cost that makes bracing wrong here.
+      expect(r.braceLabel, contains('gives up your strike'));
     });
 
     test('a heavy blow states one exact figure, never a band', () {
@@ -224,7 +252,7 @@ void main() {
       );
       expect(r.lowest, r.highest);
       expect(r.takenLabel, '19'); // 2*11 - 3
-      expect(r.braceLabel, 'Take 9 instead of 19');
+      expect(r.braceLabel, contains('Take 9 instead of 19'));
     });
 
     test('armour visibly moves the number — the whole point', () {

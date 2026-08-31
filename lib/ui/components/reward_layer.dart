@@ -65,11 +65,18 @@ Future<void> showRewardLayer(
   final bool reduced = MediaQuery.disableAnimationsOf(context);
   // The one haptic per payoff, scaled to the layer's own tier — here, so no
   // caller can double it and no beat inside the layer can add its own.
+  //
+  // `payoff: true` exempts it from the rate floor
+  // (PRESENTATION_COMBAT_EVOLUTION_01). A layer rises at most once per payoff
+  // and the player has to dismiss it, so it can never stack — but a heavy
+  // blow landing moments earlier would otherwise suppress the very tap that
+  // answers it, which is the one drop that would actually be felt as the game
+  // failing to respond.
   final AudioController? audio = AudioScope.maybeRead(context);
   if (tier == RewardTier.major) {
-    audio?.hapticHeavy();
+    audio?.hapticHeavy(payoff: true);
   } else {
-    audio?.hapticMedium();
+    audio?.hapticMedium(payoff: true);
   }
   // The one announcement per payoff, on the same single-home rule as the
   // haptic: a held layer a sighted player must acknowledge is a moment a

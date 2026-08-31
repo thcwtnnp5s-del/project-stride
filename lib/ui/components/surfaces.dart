@@ -76,9 +76,19 @@ class SectionCard extends StatelessWidget {
     final PanelSkin? skin = PanelSkins.of(role);
 
     if (skin == null) {
+      // The unskinned path reserves the room a frame of this role will take,
+      // so the day art lands the material changes and the layout does not.
+      // Without this the reserve is a comment rather than a behaviour, and
+      // every panel in the product reflows on the first asset — with the art
+      // taking the blame for a text-wrap regression it did not cause.
+      // `card` and `kitTray` reserve zero, so the overwhelming majority of
+      // panels are byte-identical to what shipped.
+      final double reserve = PanelSkins.insetFor(role);
       return Container(
         width: double.infinity,
-        padding: pad,
+        padding: reserve == 0
+            ? pad
+            : pad.add(EdgeInsets.all(reserve)).resolve(TextDirection.ltr),
         decoration: _painted(),
         child: child,
       );

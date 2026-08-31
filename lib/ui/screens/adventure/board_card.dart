@@ -27,6 +27,7 @@ import '../../components/rarity_item_title.dart';
 import '../../components/reward_beat.dart';
 import '../../components/reward_layer.dart';
 import '../../components/screen_header.dart' show formatSteps;
+import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../theme/rarity_style.dart';
@@ -156,6 +157,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
     ].join(' · ');
 
     return SectionCard(
+      role: PanelRole.boardSlip,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[

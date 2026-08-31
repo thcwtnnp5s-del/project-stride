@@ -2,12 +2,20 @@
 
 **Status: LOCKED — production art direction chosen.**
 *Owner Direction Round 01 (2026-08-14), confirmed and extended at the UI Baseline
-Closeout (2026-08-16).*
+Closeout (2026-08-16), **amended 2026-08-31 by owner ruling —
+`DECISIONS/0029_UI_ART_DIRECTION_AMENDMENT.md`** (see L-18).*
 
 > The production art direction is **MODERNIZED POLISHED PIXEL MOBILE RPG**,
-> implemented as **native high-DPI mobile UI with pixel art as framed content**,
+> implemented as **native high-DPI mobile UI, with pixel art as both framed
+> content and — since `DECISIONS/0029` — the interface's own material**
+> (panels, frames, surfaces, ornaments; never text, never a whole screen),
 > with character presentation split across **portrait + simplified world/activity
 > sprite + item/equipment icons**.
+
+**A locked document is one that changes by decision, not one that never
+changes.** The 2026-08-31 amendment went through the owner, is recorded in an
+ADR, and replaced the superseded sentence in place with its previous text
+preserved. Read L-18 before acting on anything in this file about chrome.
 
 **A/B/C is closed.** Directions A, B and C were three treatments of a
 single-canvas pixel screen. That premise was retired when the UI moved to native

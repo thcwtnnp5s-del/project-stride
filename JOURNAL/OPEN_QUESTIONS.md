@@ -1005,3 +1005,126 @@ moving pixels, and is a creative call. UNRESOLVED until the owner rules.
 Nothing is blocked in the product: every surface renders the base
 Traveler until this is answered. The 25-generation atlas reserve is
 unrelated and untouched.
+
+---
+
+## Q-15 — The weapon-archetype bill: is Slash/Crush/Pierce worth an art milestone?
+
+**Raised:** 2026-08-31, Presentation & Combat Evolution 01.
+**UNRESOLVED** — the owner's call, and a spending decision rather than a
+design one.
+
+The owner asked for Slash/Crush/Pierce to be reopened "responsibly", with
+the explicit condition that categories exist only where honest art and
+content exist, and no invisible "this sword is secretly Crush". The
+workstream **refused it**, and the refusal is on the content, not on
+taste:
+
+- There are exactly **four weapon-slot items and all four are swords**
+  (training 3, bronze 9, fanghilt 10, bronze longsword 12). The split
+  would be **4 Slash / 0 Crush / 0 Pierce**.
+- The nine axes and pickaxes are **tool-slot and contribute zero to
+  combat** by a guard written specifically against this
+  (`combat_rules.dart:128`). Reversing it would put a hatchet in the
+  weapon slot and still swing a pale-steel sword, because
+  `TravelerArt.combatVariants` is empty and every combat frame has that
+  sword baked in — *including when nothing is equipped*.
+- The item art is a documented three-family silhouette system: blade,
+  lopsided wedge, symmetric two spikes. There is **no hammer, mace,
+  spear, bow or staff** anywhere in the item set.
+
+**The bill, if the owner wants to buy it** (a self-contained art
+milestone, not an increment): 4 new weapon items · 4 new 48 px icons ·
+**2 new icon silhouette families**, each needing its own exploration
+round · 3 on-body combat sets including a mandatory *unarmed* set · ~84
+frames · ~12 animation jobs · one optional enemy-side field (never three
+guards) · ~4 recipes touching the frozen Bronze Lineage, which reopens
+balance. Estimated **300–700 generations**.
+
+This is downstream of Q-14, which asks the same question about visible
+equipment generally and must be answered first: an attack type the
+Traveler cannot be seen to swing is the invisible lie the brief forbids.
+
+---
+
+## Q-16 — Reduce Motion, and the channels an accessibility setting may switch off
+
+**Raised:** 2026-08-31, Presentation & Combat Evolution 01, from the
+defect recorded as **M-16**.
+**Partially answered in code; the general rule is UNRESOLVED.**
+
+Enabling Reduce Motion silenced **every sound effect in the product**,
+because the cue fired from an animation controller the setting stops. The
+coupling was defensible on its own terms — sound follows what the player
+*watches* — and so was honouring the setting. Together they deleted a
+whole feedback channel that nobody chose to delete, and no test could see
+it.
+
+Fixed for the working loop (the cadence cursor and the drawn frame are
+now separate values), and pinned by `test/activity_beat_audio_test.dart`.
+
+**What is not settled** is the general rule, and it will be needed again
+the moment combat audio exists:
+
+1. An accessibility preference should degrade **the one channel it
+   names** — Reduce Motion must not remove audio, a sound toggle must not
+   remove haptics, a haptic toggle must not remove sound. Should that be
+   promoted to `RULES.md`, or does it stay a lesson in `MISTAKES.md`?
+2. Combat's presentation is timed by segments; Flutter collapses
+   animation durations under Reduce Motion, so a 2.5 s round's cues would
+   arrive nearly simultaneously. Outcome cues therefore belong on the
+   reward layer rather than on a segment — but the **voice cap and
+   priority rule that make that survivable do not exist yet**.
+3. Haptics now have a per-strength rate floor. A floor **drops** a
+   haptic rather than queueing it. Silent-drop is right for a loop beat
+   and arguably wrong for two distinct payoffs landing together. Nobody
+   has ruled which.
+
+Combat still has no Reduce Motion path at all — `lib/ui/screens/combat/`
+reads `disableAnimationsOf` nowhere — and that is recorded as a deferral
+in `MILESTONES/PRESENTATION_COMBAT_EVOLUTION_01.md`, not as done.
+
+---
+
+## Q-17 — Mining is the floor, and a trim can only attenuate
+
+**Raised:** 2026-08-31, Presentation & Combat Evolution 01.
+**UNRESOLVED** — needs the owner's ear, and costs nothing either way.
+
+The five shipped SFX were mastered to a **peak** target while the five
+music tracks were mastered to a **loudness** target, so they were never
+level-matched to each other. Measured on the shipped files (BS.1770,
+400 ms momentary, at their own 44.1 kHz):
+
+```text
+smithing    -10.0      <- 10.4 dB hotter than mining
+foraging    -17.2
+woodcutting -18.4
+cooking     -18.9
+mining      -20.4      <- the floor
+```
+
+`ActionCue.trimDb` pulls the outlier down to a −17.0 ceiling. It is
+**attenuation only**, because the files already sit at −1.0 dBTP and the
+quiet ones cannot be boosted without clipping.
+
+So **mining cannot be raised from the cue table at all** — and mining is
+the cue the owner named directly ("mining should ring"). Three options,
+all zero-credit:
+
+1. **A deterministic limiter re-master** of `MINING_AP1_SA25_4102.wav` —
+   fixed recorded ffmpeg parameters, −1.0 dBTP ceiling. This moves the
+   packaging class from *gain/trim/format* to *gain/trim/format +
+   limiting*, which changes an accepted asset's character and is
+   therefore the owner's call.
+2. **An anchor swap.** `MINING_AP1_SA25_4101` is an unshipped candidate
+   from the same round, recorded as ~1.3 LU hotter with a tighter
+   transient. Swapping the accepted take is free but is a creative
+   re-acceptance, not a technical one.
+3. **Lower the music default** (0.55). Reaches fresh installs only; the
+   owner's device already has a persisted settings file.
+
+Also open, and cheaper than any of them: the cooking cue is a
+transient-less 2 s sizzle plateau by its own provenance record, so it
+punctuates nothing however it is timed. Its real answer is
+`craft.cooking.stir.01` in the production queue, not a cooldown number.

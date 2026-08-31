@@ -1600,7 +1600,23 @@ final class CombatGuardReading {
     required this.highest,
     required this.bracedLowest,
     required this.bracedHighest,
+    required this.forfeited,
+    required this.lethalUnbraced,
   });
+
+  /// What a round of bracing gives up: the damage the player's own strike
+  /// would have done, at the median roll.
+  ///
+  /// Bracing is not free — it deals **nothing**. Any judgement about whether
+  /// it is worth doing that ignores this term is not a judgement about
+  /// bracing, it is a judgement about taking less damage, which is always
+  /// true and therefore says nothing.
+  final int forfeited;
+
+  /// Whether this round's reply would drop the player if they do not brace.
+  /// When it would, the arithmetic stops mattering — surviving is the whole
+  /// decision.
+  final bool lethalUnbraced;
 
   /// True on a guarded creature's telegraph turn — the blow that takes no
   /// roll, and so the one this reading can state exactly.
@@ -1617,31 +1633,66 @@ final class CombatGuardReading {
   final int bracedLowest;
   final int bracedHighest;
 
-  /// Whether bracing actually saves anything this round.
+  /// The whole round's worst case if the player does not brace.
+  int get roundWorst => highest * strikes;
+
+  /// The whole round's worst case if they do.
+  int get bracedRoundWorst => bracedHighest * strikes;
+
+  /// Whether bracing is actually the better play this round.
   ///
-  /// It does not always, and the label must be allowed to say so. Against a
-  /// Forest Wolf at low defence, halving 2–3 saves one point and forfeits a
-  /// whole round of damage — bracing there is simply wrong, and a button that
-  /// implied otherwise would be selling a bad decision.
-  bool get worthwhile => bracedHighest < highest;
+  /// **This test was wrong on its first attempt, and the way it was wrong is
+  /// worth keeping written down.** It began as `bracedHighest < highest` —
+  /// "does bracing reduce the damage?" Because a braced strike floors at 1,
+  /// that reduces to *"is the incoming damage more than 1?"*, which is true
+  /// for nine of the thirteen shipped enemies on every turn at every armour
+  /// value in the game. The button therefore recommended bracing almost
+  /// always, and bracing is usually **wrong**: it deals nothing, so it
+  /// forfeits an entire round of the player's own damage.
+  ///
+  /// The concrete case that condemned it, from shipped content: an Oakback
+  /// Bear on an ordinary turn against Bronze Longsword + Bearhide Coat reads
+  /// *"Take 1 instead of 1–3"* — a saving of at most two health, bought by
+  /// giving up nine to eleven damage on a 55 HP enemy. Roughly a fifth of the
+  /// fight, spent to avoid a scratch, and the game said it like a good idea.
+  /// The repository's own FDO01 tuning sweep had already recorded that brace
+  /// alone never converts a loss against a guarded enemy, so the advice
+  /// contradicted evidence sitting in `JOURNAL/OPEN_QUESTIONS.md`.
+  ///
+  /// It now compares the saving against what the saving costs, and says yes
+  /// when the round would otherwise be lethal — because at that point nothing
+  /// else is worth optimising.
+  bool get worthwhile =>
+      lethalUnbraced || (roundWorst - bracedRoundWorst) >= forfeited;
 
   String _band(int lo, int hi) => lo == hi ? '$lo' : '$lo–$hi';
 
-  /// `takes 13` / `takes 3–5 twice`.
+  /// `13` / `3–5 each, 6–10 this round`.
+  ///
+  /// A flurry states the **round total** as well as the per-blow band. "3–5
+  /// twice" asks a player at 8 health to do arithmetic at the exact moment
+  /// the UX bible says not to, and the question they are actually asking —
+  /// *do I survive this round?* — is answered only by the total.
   String get takenLabel {
     final String band = _band(lowest, highest);
-    return strikes > 1 ? '$band twice' : band;
+    if (strikes <= 1) return band;
+    return '$band each, ${_band(lowest * strikes, roundWorst)} this round';
   }
 
-  /// `take 6 instead of 13` — the Brace button's own worth, in the only unit
-  /// that matters, computed from the coat the player is wearing.
+  /// The Brace button's own worth, in the only unit that matters, computed
+  /// from the coat the player is actually wearing.
+  ///
+  /// It states the figures either way. What changes with [worthwhile] is
+  /// whether it *recommends*: a control that only ever argues for itself is
+  /// selling, not informing.
   String get braceLabel {
+    final String from = _band(lowest, highest);
+    final String to = _band(bracedLowest, bracedHighest);
+    if (lethalUnbraced) return 'Take $to instead of $from — this can drop you';
     if (!worthwhile) {
-      return 'Half damage — little to save against this blow';
+      return 'Halves it to $to, but gives up your strike';
     }
-    return 'Take ${_band(bracedLowest, bracedHighest)} '
-        'instead of ${_band(lowest, highest)}'
-        '${strikes > 1 ? ', each of two blows' : ''}';
+    return 'Take $to instead of $from';
   }
 }
 
@@ -4708,8 +4759,11 @@ final class StrideSession {
     return computeGuardReading(
       enemyAttack: enemy.attack,
       enemyBehavior: enemy.behavior,
+      enemyDefence: enemy.defence,
+      playerAttack: e.playerAttack,
       playerDefence: e.playerDefence,
       playerFrostGuard: e.playerFrostGuard,
+      playerHp: e.playerHp,
       turn: e.turn,
       alpine: alpine,
     );
@@ -4725,6 +4779,9 @@ final class StrideSession {
     required int playerFrostGuard,
     required int turn,
     required bool alpine,
+    int enemyDefence = 0,
+    int playerAttack = 1,
+    int playerHp = 999,
   }) {
     final int frostGuard = alpine ? playerFrostGuard : 0;
     final bool heavy =
@@ -4742,26 +4799,32 @@ final class StrideSession {
     // band — which is precisely what makes the telegraph worth reading.
     if (heavy) {
       final int raw = CombatRules.heavyStrike(enemyAttack, playerDefence);
+      final int taken = apply(raw, braced: false);
       return CombatGuardReading(
         heavy: true,
         strikes: 1,
-        lowest: apply(raw, braced: false),
-        highest: apply(raw, braced: false),
+        lowest: taken,
+        highest: taken,
         bracedLowest: apply(raw, braced: true),
         bracedHighest: apply(raw, braced: true),
+        forfeited: CombatRules.strike(playerAttack, enemyDefence, 0),
+        lethalUnbraced: taken >= playerHp,
       );
     }
     // An ordinary strike rolls in {-1, 0, +1}, so the honest statement is a
     // band across the whole roll, not a single number.
     final int low = CombatRules.strike(enemyAttack, playerDefence, -1);
     final int high = CombatRules.strike(enemyAttack, playerDefence, 1);
+    final int worst = apply(high, braced: false);
     return CombatGuardReading(
       heavy: false,
       strikes: strikes,
       lowest: apply(low, braced: false),
-      highest: apply(high, braced: false),
+      highest: worst,
       bracedLowest: apply(low, braced: true),
       bracedHighest: apply(high, braced: true),
+      forfeited: CombatRules.strike(playerAttack, enemyDefence, 0),
+      lethalUnbraced: worst * strikes >= playerHp,
     );
   }
 

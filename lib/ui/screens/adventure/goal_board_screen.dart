@@ -25,6 +25,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
 import '../../components/screen_header.dart';
+import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../state/activity_controller.dart';
 import '../../state/session_controller.dart';
@@ -110,6 +111,7 @@ class GoalBoardScreen extends StatelessWidget {
                   const LocationBoardCard()
                 else
                   SectionCard(
+                    role: PanelRole.boardSlip,
                     child: Text(
                       'No one posts work at this place. Boards hang in '
                       'settlements and worksites.',

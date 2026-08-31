@@ -39,6 +39,7 @@ import '../../components/gear_stats.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
+import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/audio_scope.dart';
@@ -112,6 +113,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ],
         if (entries.isEmpty)
           const SectionCard(
+            role: PanelRole.kitTray,
             child: Text('You are carrying nothing.', style: StrideType.body),
           )
         else
@@ -126,6 +128,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           // like, instead of *inside* it, which is what a broken screen looks
           // like.
           SectionCard(
+            role: PanelRole.kitTray,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[

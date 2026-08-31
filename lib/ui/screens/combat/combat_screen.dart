@@ -52,6 +52,7 @@ import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/reward_beat.dart';
 import '../../components/reward_layer.dart';
+import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -200,6 +201,7 @@ class _CombatScreenState extends State<CombatScreen> {
             equipment: c.session.equipmentVisualState,
           ),
           SectionCard(
+            role: PanelRole.combatFrame,
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -383,6 +385,23 @@ class _CombatControlsState extends State<_CombatControls> {
         ? 'Health is full'
         : null;
 
+    // The armour is the subject of the sentence, deliberately.
+    //
+    // It states the design thesis inside the line — *this* is what your coat
+    // is doing — rather than beside it, and it avoids putting a number in the
+    // creature's voice one line under its authored tell. It also avoids the
+    // word "guard", which in this game already means an enemy's `guarded`
+    // behaviour and the `frostGuard` stat, neither of which is "the armour
+    // you are wearing".
+    //
+    // It says "your armour" and never names the piece: `playerDefence` is
+    // snapshotted at the first bell, so if the player swaps a coat mid-fight
+    // the figure still describes the coat they *started* in. A generic noun
+    // is the honest one; naming an item would state something false.
+    String guardSentence(CombatGuardReading g) => g.heavy
+        ? 'Your armour takes the heavy blow to ${g.takenLabel}.'
+        : 'Your armour takes it to ${g.takenLabel}.';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -403,19 +422,35 @@ class _CombatControlsState extends State<_CombatControls> {
           ),
           const SizedBox(height: StrideSpace.s4),
         ],
-        // The figure the words above imply, against the armour actually worn
-        // — the Studied tier's mechanical payoff. Separate from the intent
-        // line because it is arithmetic, not narration, and because it must
-        // appear on the fights that have no telegraph to read at all.
-        if (view.guardReading case final CombatGuardReading g) ...<Widget>[
+        // The figure the words above imply, stated against the armour the
+        // player is actually wearing — the Studied tier's mechanical payoff.
+        //
+        // Three review notes shaped this into what it is:
+        //
+        // - **Say it once.** A first pass printed the number here *and* in the
+        //   Brace sub-label, under an intent line already narrating the same
+        //   blow — three statements of one fact, two of them containing the
+        //   same integer. That is the "spreadsheet" the UX bible refuses. The
+        //   armour line keeps the *taken* figure; the button keeps the
+        //   *braced* one; neither repeats the other.
+        // - **Make the armour the subject.** "It strikes for 3–5 against your
+        //   guard" put the creature's voice on a number and used "guard",
+        //   which already means two other things in this game (an enemy's
+        //   `guarded` behaviour, and `frostGuard`). Naming the worn piece
+        //   states the design thesis inside the sentence rather than beside
+        //   it, and reads as the journal the bible asks for.
+        // - **Not while the round is animating.** The view is frozen during a
+        //   command, so an ungated line asserts the *previous* round's figures
+        //   over the blows currently landing.
+        if (view.guardReading case final CombatGuardReading g when !held) ...<Widget>[
           Text(
-            g.heavy
-                ? 'Its heavy lands for ${g.takenLabel} against your guard.'
-                : 'It strikes for ${g.takenLabel} against your guard.',
+            guardSentence(g),
             style: StrideType.micro.copyWith(
+              // Never `textMuted`: it fails WCAG AA on all four surfaces, and
+              // this is the one number the game volunteers.
               color: view.telegraph
                   ? StrideColors.danger
-                  : StrideColors.textMuted,
+                  : StrideColors.textSecondary,
             ),
           ),
           const SizedBox(height: StrideSpace.s8),

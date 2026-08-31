@@ -1,5 +1,73 @@
 # Project Stride — Project State
 
+**Version:** 2.35
+**Status:** 🧪 **PRESENTATION & COMBAT EVOLUTION 01 — the presentation
+answer to "it still looks like generic AI-authored Flutter UI", on
+`presentation-combat-evolution-01` (from `fable-depth-offensive-01` @
+`9b61964`), awaiting the owner's device evaluation.** Records:
+`MILESTONES/PRESENTATION_COMBAT_EVOLUTION_01.md` (diagnosis, rulings,
+deferrals, known issues), `DECISIONS/0029_UI_ART_DIRECTION_AMENDMENT.md`
+(**owner ruling — the LOCKED rule L-18 is amended: PixelLab may author
+interface art**), `GAME_BIBLE/ART/PIXELLAB_UI_PRODUCTION_PLAN.md` and
+`AUDIO/AUDIO_PRODUCTION_QUEUE_01.md` (both ready to run when capacity
+returns).
+
+The forensic finding reframed the brief. The owner's charge is accurate
+but its usual explanation is wrong: there is **no stock Material anywhere
+in this app** — no Card, Chip, ListTile, ElevatedButton,
+LinearProgressIndicator, AlertDialog or Icons.* — and
+`LinearProgressIndicator` appears once, inside a comment refusing it. What
+produces the read is narrower: **`SectionCard` draws one rectangle at
+thirty-four call sites**, thirty-one of which take no hue wash, and the
+washes are authored within ~6 L* of the card colour so they cannot carry
+identity at all. Nine of twelve surfaces contain no image. 896 files of
+hand-authored pixel art render every creature and item in the game, and
+every container around them was a rounded rectangle from a layout engine.
+
+So: `SectionCard` names a **`PanelRole`**, a **`PanelSkins` registry
+(shipping empty)** decides whether that role has art, and **`PixelFrame`**
+draws a **tiled** nine-patch — refusing `centerSlice`, which stretches. The
+whole product reverts in one commit by emptying the map, and CI enforces
+that with the registry empty the app must lay out, read and navigate
+identically. The **header is inverted**: the place is the title in the
+region's ink, the tab name a breadcrumb — the largest word on screen used
+to be the name of the menu you were standing in.
+
+**Audio: six defects, ten accepted assets, zero generations.** Reduce
+Motion was a **total SFX blackout** (the cue fired from an animation
+ticker the setting stops) — recorded as **M-16**. The mix was never
+level-matched: measured LUFS-M max spans **10.4 dB**, smithing −10.0
+against mining −20.4, so `ActionCue.trimDb` attenuates the outlier.
+Cooking fired every *other* stir. Three `!` lookups crashed a setState
+frame on a bad asset id. The heavy haptic fired up to 625 ms before the
+blow landed. Haptics had no rate limit at all.
+
+**Combat: three rulings, and the one that mattered.**
+**Slash/Crush/Pierce — NO**: four weapon items, all swords, so the split
+is 4/0/0, and the Traveler swings a baked sword in every frame including
+unarmed. **Iron — NO this round**: no unused icon exists and
+`scrap_metal` already occupies iron's grey ramp; 8–12 generations minimum.
+**Provisioning — not shipped**: the existing preparation layer is already
+decisive and already invisible. Because **equipment already decides every
+fight and the game never said so** — defence 9 wins the Oakback Bear at
+~64% health where defence 2 dies on turn 5 — knowledge now buys
+**foresight**: at Studied the fight states what a blow costs against the
+coat worn, and Brace says *"Take 9 instead of 19"*. Zero engine change,
+zero content change, **state stays v9**, pinned to the resolver by a
+546-case parity test. The **Scree Crawler** — the only enemy with neither
+a defeat nor a flinch track — is finally seen to die.
+
+**Zero PixelLab generations** (balance exactly **25**, the atlas reserve,
+untouched). **Zero audio generated** — `STABILITY_API_KEY` is unset, so
+generation was unavailable and the balance is unverifiable; the owner's
+GitHub audio sources were searched for a **third** time and remain
+unrecoverable, and no URL was invented. Suites: core **738**, app **966**,
+analyze clean. Known issue, pre-existing and flagged not fixed:
+`lib/ui/state/craft_memory.dart` violates two UI-boundary rules
+(GFCP01 `830f1a1`). Nothing merges without the owner's verdict.
+
+---
+
 **Version:** 2.34
 **Status:** 🧪 **FABLE DEPTH OFFENSIVE 01 — the largest autonomous
 gameplay/content expansion attempted, on `fable-depth-offensive-01` (from
