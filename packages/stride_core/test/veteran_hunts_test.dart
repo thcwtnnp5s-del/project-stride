@@ -256,6 +256,48 @@ void main() {
     }
   });
 
+  test('a hunt inherits its quarry\'s gate: not acceptable below Known, '
+      'acceptable at it', () {
+    // Wave 4 finding, fixed: the four hunt cards used to bypass the Seen
+    // gate entirely — visible and acceptable on the first visit, naming an
+    // enemy no surface admitted existed. The gate is derived from the
+    // enemy's own requiresKnownEnemy, never a second field.
+    final ContractDefinition hunt = registry.contracts.values.firstWhere(
+      (ContractDefinition c) => c.bountyEnemy == oldGrey,
+    );
+    final GameEngine below = hunter(
+      woods,
+      knownBase: wolf,
+      weapon: longsword,
+      armor: bearhide,
+    );
+    final GameState short = below.state.copyWith(
+      progress: below.state.progress.copyWith(
+        enemyVictories: <ContentId, int>{
+          wolf: registry.enemies[wolf]!.knownAt - 1,
+        },
+      ),
+    );
+    final GameEngine engine = GameEngine(registry: registry, state: short);
+    final EngineResult refused = engine.execute(
+      AcceptContract(contract: hunt.id),
+    );
+    expect(refused.isAccepted, isFalse);
+    expect(refused.rejection!.code, RejectionCode.contractNotAvailable);
+    expect(refused.rejection!.explanation, contains('Known'));
+
+    final GameEngine at = hunter(
+      woods,
+      knownBase: wolf,
+      weapon: longsword,
+      armor: bearhide,
+    );
+    expect(
+      at.execute(AcceptContract(contract: hunt.id)).isAccepted,
+      isTrue,
+    );
+  });
+
   test('an elite bounty pays exactly once — regional class with bountyEnemy', () {
     final List<ContractDefinition> hunts = registry.contracts.values
         .where(

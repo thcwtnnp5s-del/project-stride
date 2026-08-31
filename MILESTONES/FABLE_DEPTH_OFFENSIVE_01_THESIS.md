@@ -200,7 +200,12 @@ and supplies at least two others (DEPTH-S invariant, verified at integration).
 
 Everything in §14 marked deferred/archived, plus: Foraging 11–12 and Mining 9–12
 final sites (A's designs held for Wave 2 so this wave's proofs stay dense),
-eastern_city, WC 8–10, T3 tools, Frostmere's rank-2 (Council-C's recorded debt).
+eastern_city, WC 8–10, T3 tools, Frostmere's rank-2 (Council-C's recorded debt),
+**Woodcutting level 2** (the one interior dead level the pass leaves: its
+starter milestone sits at WC 3, and moving or duplicating it would be filler —
+found by the Wave 4 dead-content recount), and the **scree_crawler's missing
+signature/study content** (DEPTH-H's flag; signature additions sit next to
+Q-12 and wait with it).
 
 ## 16. Expected effect
 

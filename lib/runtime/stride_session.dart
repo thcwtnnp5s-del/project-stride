@@ -5837,6 +5837,17 @@ final class StrideSession {
     final List<ContractView> regionals = <ContractView>[];
     for (final ContractDefinition c in content.contracts.values) {
       if (c.location != location) continue;
+      // A hunt on a gated veteran obeys the veteran's own visibility rule
+      // (`DECISIONS/0028`): hidden entirely while the base species is
+      // Unseen — a board must not name an enemy no surface admits exists —
+      // then shown with the engine's own locked reason until Known.
+      if (c.bountyEnemy case final ContentId quarry) {
+        final EnemyDefinition? elite = content.enemies[quarry];
+        if (elite != null &&
+            !_eliteVisible(active.state, content, elite)) {
+          continue;
+        }
+      }
       switch (c.contractClass) {
         case ContractClass.bounty:
           bounties.add(_contractViewOf(c, active, content));

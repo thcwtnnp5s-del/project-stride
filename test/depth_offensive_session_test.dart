@@ -219,8 +219,26 @@ void main() {
   });
 
   test('the Field Notes on a fresh save: no elites anywhere, distances from '
-      'home, nothing complete', () async {
+      'home, nothing complete — and no board names a hidden hunt', () async {
     final StrideSession s = await launch(steps: 0);
+
+    // Wave 4 finding, fixed: the hunt cards used to bypass the Seen gate.
+    // A fresh save's boards must not name any gated veteran's contract.
+    for (final ContentId place in <ContentId>[woods, haven]) {
+      final BoardView? board = s.boardFor(place);
+      if (board == null) continue;
+      for (final ContractView c in <ContractView>[
+        ...board.bounties,
+        ...board.regionals,
+      ]) {
+        expect(
+          c.name.contains('Old Grey'),
+          isFalse,
+          reason: '${c.name} names a veteran no surface admits exists',
+        );
+      }
+    }
+
     final BestiaryView notes = s.bestiary;
     expect(notes.regions, isNotEmpty);
     for (final BestiaryRegionView region in notes.regions) {

@@ -511,7 +511,7 @@
         { "item": "item.tin_ore", "quantity": 3 },
         { "item": "item.scrap_metal", "quantity": 1 }
       ],
-      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 40 }]
+      "rewardSkillXp": [{ "skill": "skill.smithing", "xp": 35 }]
     },
 
     {

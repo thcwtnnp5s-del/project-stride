@@ -116,7 +116,6 @@ void main() {
         // stacking cannot overshoot either.
         expect(oneTime, inInclusiveRange(2900, 3200));
       },
-      skip: 'armed when the 0028 content pack lands — integration task E10',
     );
 
     test('every shipped item carries an authored rarity', () {

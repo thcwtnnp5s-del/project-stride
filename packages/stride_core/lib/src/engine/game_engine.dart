@@ -1840,6 +1840,28 @@ final class GameEngine {
         subject: contract.id.value,
       );
     }
+    // A hunt inherits its quarry's gate (`DECISIONS/0028`): a bounty on an
+    // enemy that will not show itself until its species is Known cannot be
+    // taken up before then either — the board and the field must agree.
+    // Derived from the enemy's own `requiresKnownEnemy`; no contract field.
+    final ContentId? bounty = contract.bountyEnemy;
+    if (bounty != null) {
+      final ContentId? mustKnow = registry.enemies[bounty]?.requiresKnownEnemy;
+      if (mustKnow != null) {
+        final EnemyDefinition? base = registry.enemies[mustKnow];
+        if (base == null ||
+            knowledgeTierFor(state, base) != KnowledgeTier.known) {
+          return CommandRejection(
+            code: RejectionCode.contractNotAvailable,
+            command: command.name,
+            explanation:
+                '"${contract.displayName}" is taken up once '
+                '${base?.displayName ?? mustKnow.value} is Known',
+            subject: contract.id.value,
+          );
+        }
+      }
+    }
     return null;
   }
 
