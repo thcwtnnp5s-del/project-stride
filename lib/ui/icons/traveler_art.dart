@@ -53,12 +53,51 @@ abstract final class TravelerArt {
     growable: false,
   );
 
-  /// Item id → coarse variant class (`'item.bronze_sword' →
-  /// 'weapon.bronze'`). **Deliberately empty**: no approved on-body art
-  /// exists for any class yet, and an unmapped item is the base outfit by
-  /// construction. Authored data, not code — a gear art round appends rows
-  /// here (E-5).
-  static const Map<String, String> variantOfItem = <String, String>{};
+  /// Item id → coarse variant class.
+  ///
+  /// **Coarse on purpose.** Ten armour items resolve to three classes, because
+  /// a strip per item is how the combinatorics stop being governable — and
+  /// because the classes are what the player actually reads at sprite scale: a
+  /// breastplate, a fur jerkin, a long coat. Two bronze chestplates that differ
+  /// by a frost resistance value look identical to an eye and should.
+  ///
+  /// An unmapped item is the base outfit by construction, so a content pack
+  /// that adds an item before its art exists degrades to the Traveler rather
+  /// than to a hole. Authored data, not code (E-5).
+  static const Map<String, String> variantOfItem = <String, String>{
+    // The starter tunics are the base figure — no row, deliberately.
+    // Plate: hard bronze over the shirt.
+    'item.bronze_chestplate': 'armor.plate',
+    'item.scalewarmed_chestplate': 'armor.plate',
+    // Jerkin: hide and fur, bulkier through the chest.
+    'item.wolfhide_jerkin': 'armor.jerkin',
+    'item.tuskbound_jerkin': 'armor.jerkin',
+    'item.frostlined_jerkin': 'armor.jerkin',
+    // Coat: long, belted, the heaviest silhouette.
+    'item.bearhide_coat': 'armor.coat',
+    'item.clawguard_coat': 'armor.coat',
+    'item.frostwarden_coat': 'armor.coat',
+  };
+
+  /// Armour class → the standing figure that wears it.
+  ///
+  /// One 64² south rotation per class, from PixelLab
+  /// `create_character_state` on the canonical Traveler — the same individual
+  /// the shipped sprite is a rotation of, so these are variants rather than
+  /// lookalikes.
+  static const Map<String, String> armorFigures = <String, String>{
+    'armor.plate': 'assets/art/v1/sprite/traveler_south_plate.png',
+    'armor.jerkin': 'assets/art/v1/sprite/traveler_south_jerkin.png',
+    'armor.coat': 'assets/art/v1/sprite/traveler_south_coat.png',
+  };
+
+  /// The standing figure for [visual] — what the player is wearing.
+  ///
+  /// The base Traveler when nothing is equipped, or when what is equipped has
+  /// no authored class. Never a hole, never a guess.
+  static String figureFor(EquipmentVisualState visual) =>
+      armorFigures[_variantOf(visual.armor?.itemId)] ??
+      'assets/art/v1/sprite/traveler_south.png';
 
   /// (combat) weapon-variant class → the full combatant set for it.
   /// Empty until the first weapon round — which must include an

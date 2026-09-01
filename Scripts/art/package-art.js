@@ -1284,6 +1284,36 @@ for (const [id, { dir, src }] of Object.entries(WORK_PROPS)) {
   emit(`work/prop_${id}.png`, encode(raster));
 }
 
+// -------------------------------------------------------------- VAWO01 gear
+/**
+ * VISIBLE EQUIPMENT — the armour figures (`DECISIONS/0030` § 3, Q-14 closed).
+ *
+ * Three coarse armour classes as full 64² standing figures, plus the base the
+ * Traveler already ships. Produced with PixelLab's `create_character_state` on
+ * the canonical Stride Traveler (`c82b7da5-…`, PIXELLAB_PROOF_01), which is
+ * the same individual the shipped sprite is a rotation of — verified by
+ * comparing the canonical south rotation against `sprite/traveler_south.png`
+ * before a single state was ordered. That is what makes these variants rather
+ * than lookalikes: the face, the proportions and the pack carry over, and only
+ * the garment changes.
+ *
+ * **Not layered.** `FOUNDATION_G_EQUIPMENT.md` measured the alternative and it
+ * does not survive contact: per-frame bounding-box centres travel 13–23.5 px,
+ * no hand anchor exists on 219 frames, and the baked blade shares all seven of
+ * its colours with the body, so the palette substitution a layer would need is
+ * not deterministic and would not be A-2.
+ */
+const VAWO_GEAR_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'equip');
+for (const cls of ['plate', 'jerkin', 'coat']) {
+  const raster = png.load(path.join(VAWO_GEAR_SRC, `traveler_south_${cls}.png`));
+  if (raster.width !== 64 || raster.height !== 64) {
+    throw new Error(
+      `gear ${cls}: expected 64x64, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`sprite/traveler_south_${cls}.png`, encode(raster));
+}
+
 // ------------------------------------------------------------- VAWO01 gather
 /**
  * THE GATHER SCENE FAMILY (`DECISIONS/0031`, round record in

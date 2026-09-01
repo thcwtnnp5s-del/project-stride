@@ -198,6 +198,10 @@ flutter:
     - assets/art/v1/work/
     - assets/art/v1/portrait/traveler.png
     - assets/art/v1/sprite/traveler_south.png
+    # Visible equipment: the coarse armour classes (VAWO01).
+    - assets/art/v1/sprite/traveler_south_plate.png
+    - assets/art/v1/sprite/traveler_south_jerkin.png
+    - assets/art/v1/sprite/traveler_south_coat.png
     - assets/art/v1/anim/gather_f0.png
     - assets/art/v1/anim/gather_f1.png
     - assets/art/v1/anim/gather_f2.png

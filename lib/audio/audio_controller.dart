@@ -35,6 +35,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/widgets.dart';
@@ -243,6 +244,115 @@ class AudioController extends ChangeNotifier with WidgetsBindingObserver {
   // -- SFX bus ----------------------------------------------------------------
 
   final Map<String, int> _lastCueAt = <String, int>{};
+
+  // -- Event bus (VAWO01, `DECISIONS/0032`) -----------------------------------
+
+  /// The most cues that may be *started* inside one [_voiceWindowMillis].
+  ///
+  /// The performance audit's budget is four simultaneous voices, two of which
+  /// are music, so two SFX. This is the arrival-rate form of that: a phone
+  /// speaker resolves at most two transients in a 200 ms window and anything
+  /// past the second is mush, so a third is refused rather than mixed into
+  /// noise.
+  static const int _voiceCap = 2;
+  static const int _voiceWindowMillis = 200;
+
+  /// Start times of recently started event cues, newest last.
+  final List<int> _recentVoices = <int>[];
+
+  /// The last event start, and what priority it had — the stream floor that
+  /// [EventCue.minGapMillis] governs.
+  int _lastEventAt = 0;
+  int _lastEventPriority = 0;
+
+  /// How far the music bed is currently pulled down, as a multiplier.
+  double _duck = 1;
+  int _duckUntil = 0;
+
+  /// Fire a semantic game event.
+  ///
+  /// The whole combat and outcome surface goes through here, and the ordering
+  /// inside it is deliberate:
+  ///
+  /// 1. **Resolve before you reserve.** As in [playSkillCue] — an event whose
+  ///    sound has not been produced yet must not consume the gap slot of the
+  ///    sound that will replace it, or landing the file later would change the
+  ///    behaviour of every cue around it.
+  /// 2. **Stream gap, then voice cap, then priority.** A high-priority cue may
+  ///    break the gap of a lower one; nothing may break the voice cap, because
+  ///    that is a property of the speaker rather than of the game.
+  ///
+  /// Returns whether the event was actually voiced, which is what
+  /// `audio_event_test` asserts against — the arbitration is only checkable if
+  /// it reports its decision.
+  bool playEvent(String event) {
+    if (_disposed || _halted) return false;
+    if (!_settings.enabled || _settings.sfxVolume <= 0) return false;
+
+    final EventCue? cue = EventCues.of(event);
+    if (cue == null) return false;
+
+    final String? file = AudioCues.fileFor(cue.assetId);
+    if (file == null) return false; // wired, not yet produced — silence
+
+    final int now = _nowMillis();
+
+    // The stream floor. A strictly higher-priority cue is allowed through it:
+    // a blow landing must never be swallowed by the swing that preceded it.
+    if (now - _lastEventAt < cue.minGapMillis &&
+        cue.priority <= _lastEventPriority) {
+      return false;
+    }
+
+    // The voice cap, which nothing overrides.
+    _recentVoices.removeWhere((int t) => now - t >= _voiceWindowMillis);
+    if (_recentVoices.length >= _voiceCap) return false;
+
+    _recentVoices.add(now);
+    _lastEventAt = now;
+    _lastEventPriority = cue.priority;
+
+    if (cue.duckDb < 0) _applyDuck(cue.duckScale, now);
+
+    unawaited(
+      _output.playCue(file, volume: _settings.sfxVolume * cue.gain),
+    );
+    return true;
+  }
+
+  /// Pull the music bed down for this cue, and schedule its recovery.
+  ///
+  /// Deepest duck wins while several overlap, and the bed only comes back once
+  /// the last of them has expired — a bed that popped up between two blows
+  /// would be more distracting than no duck at all.
+  void _applyDuck(double scale, int now) {
+    const int holdMillis = 260;
+    if (scale < _duck) _duck = scale;
+    _duckUntil = math.max(_duckUntil, now + holdMillis);
+    _pushMusicVolume();
+    _duckTimer?.cancel();
+    _duckTimer = Timer(const Duration(milliseconds: holdMillis + 40), () {
+      if (_disposed) return;
+      if (_nowMillis() < _duckUntil) return; // a later cue extended it
+      _duck = 1;
+      _pushMusicVolume();
+    });
+  }
+
+  Timer? _duckTimer;
+
+  /// The music bus level the bed should be at right now.
+  ///
+  /// The duck multiplies the player's own setting and is floored, so a duck can
+  /// never silence music the player asked for and can never raise it above
+  /// what they chose.
+  double get _musicLevel =>
+      math.max(_settings.musicVolume * _duck, _settings.musicVolume * 0.35);
+
+  void _pushMusicVolume() {
+    final MusicChannel? current = _music;
+    if (current != null) unawaited(current.setVolume(_musicLevel));
+  }
 
   /// Fires [skill]'s accepted action cue, if its cooldown has elapsed.
   ///

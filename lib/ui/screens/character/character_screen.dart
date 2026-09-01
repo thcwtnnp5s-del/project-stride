@@ -31,6 +31,7 @@ import '../../components/rarity_item_title.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
+import '../../icons/traveler_art.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -87,9 +88,22 @@ class CharacterScreen extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              const InsetWell.square(
+              // **What the player is wearing**, not a fixed bust (VAWO01,
+              // Q-14). The Character screen is the one surface whose whole
+              // subject is the Traveler, and it showed the same picture
+              // whatever was equipped — the owner's "no ghost gear, I want to
+              // see what I'm wearing".
+              //
+              // The figure is the equipped armour class's standing rotation,
+              // resolved through `TravelerArt` from the session's existing
+              // projection. Nothing new persists: `equipmentVisualState` is a
+              // getter over `equipment.bySlot` that holds nothing, and an
+              // unmapped item falls back to the base Traveler.
+              InsetWell.square(
                 contentSize: StrideGeometry.portraitContent,
-                child: PixelAsset.portrait(PixelIcons.portraitTraveler),
+                child: PixelAsset.portrait(
+                  TravelerArt.figureFor(c.session.equipmentVisualState),
+                ),
               ),
               const SizedBox(width: StrideSpace.s12),
               Expanded(
