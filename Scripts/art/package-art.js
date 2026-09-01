@@ -1284,6 +1284,54 @@ for (const [id, { dir, src }] of Object.entries(WORK_PROPS)) {
   emit(`work/prop_${id}.png`, encode(raster));
 }
 
+// ------------------------------------------------------------- VAWO01 world
+/**
+ * WORLD LIFE — two dragons and three landmarks (`WORLD_LIFE_DIRECTION_01.md`).
+ *
+ * **All original designs.** The owner's references were mood shorthand, and
+ * the direction document records what each design deliberately is *not*: the
+ * Rimespire is an ice-accreted Nordic stave tower rather than a crystal
+ * palace; Lanterngard is a ring of standing stones colonised by blackthorn
+ * rather than a turreted castle, and its fairies are motes of light, never
+ * humanoid figures; the Black Gable is a tarred Hebridean croft rather than a
+ * Victorian mansion. Nothing here uses the teal-green family at all, because
+ * `ART_DIRECTION.md` L-16 reserves it for walking — the palette guard measures
+ * that on every one of these files.
+ *
+ * **The two channels are not interchangeable, and the choice is a performance
+ * decision.** A landmark body is a *static* prop: no ticker, no `Opacity`, and
+ * it does not consume one of the ~40 overlay slots. Only motion costs a slot,
+ * so the dragons are overlays and the buildings are props. Both dragons are
+ * **periodic** (`intervalMillis`), which keeps `FOUNDATION_K`'s in-frame
+ * budget intact — 19 of the 30 shipped overlays are continuous and this round
+ * adds none.
+ */
+const VAWO_WORLD_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'world');
+for (const id of ['overlay_redwyrm', 'overlay_stormdrake']) {
+  for (let i = 0; i < 9; i += 1) {
+    const raster = png.load(path.join(VAWO_WORLD_SRC, `${id}_f${i}.png`));
+    if (raster.width !== 72 || raster.height !== 32) {
+      throw new Error(
+        `${id} f${i}: expected 72x32, got ${raster.width}x${raster.height}`,
+      );
+    }
+    emit(`env/${id}_f${i}.png`, encode(raster));
+  }
+}
+for (const [id, w, h] of [
+  ['prop_rimespire', 48, 72],
+  ['prop_lanterngard', 72, 56],
+  ['prop_black_gable', 56, 52],
+]) {
+  const raster = png.load(path.join(VAWO_WORLD_SRC, `${id}.png`));
+  if (raster.width !== w || raster.height !== h) {
+    throw new Error(
+      `${id}: expected ${w}x${h}, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`env/${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------------- VAWO01 gear
 /**
  * VISIBLE EQUIPMENT — the armour figures (`DECISIONS/0030` § 3, Q-14 closed).

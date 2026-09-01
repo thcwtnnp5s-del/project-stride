@@ -511,7 +511,35 @@
       ]
     }
   ],
-  "props": [],
+  "props": [
+    {
+      "asset": "env/prop_rimespire",
+      "x": 4944,
+      "y": 936,
+      "width": 48,
+      "height": 72,
+      "anchorX": 24,
+      "anchorY": 71
+    },
+    {
+      "asset": "env/prop_lanterngard",
+      "x": 396,
+      "y": 2544,
+      "width": 72,
+      "height": 56,
+      "anchorX": 36,
+      "anchorY": 55
+    },
+    {
+      "asset": "env/prop_black_gable",
+      "x": 4716,
+      "y": 4716,
+      "width": 56,
+      "height": 52,
+      "anchorX": 28,
+      "anchorY": 51
+    }
+  ],
   "overlays": [
     {
       "asset": "env/overlay_snow_flurry",
@@ -960,6 +988,46 @@
       "opacity": 1,
       "width": 20,
       "height": 19
+    },
+    {
+      "asset": "env/overlay_redwyrm",
+      "x": 4416,
+      "y": 1836,
+      "frames": 9,
+      "frameMillis": 400,
+      "playLoops": 1,
+      "intervalMillis": 61000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": 30,
+        "y": -13
+      },
+      "opacity": 1,
+      "width": 72,
+      "height": 32
+    },
+    {
+      "asset": "env/overlay_stormdrake",
+      "x": 4992,
+      "y": 4128,
+      "frames": 9,
+      "frameMillis": 380,
+      "playLoops": 1,
+      "intervalMillis": 67000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": -30,
+        "y": 9
+      },
+      "opacity": 1,
+      "width": 72,
+      "height": 32
     }
   ]
 }
