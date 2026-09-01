@@ -18,6 +18,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/screens/adventure/location_stage.dart';
 import 'package:stride/ui/theme/stride_theme.dart';
 import 'package:stride_core/stride_core.dart';
@@ -71,7 +72,15 @@ void main() {
       ))!;
       final ResourceNodeDefinition node =
           s.nodeDefinitionOf(ContentId.unchecked(nodeId))!;
-      const String? vignette = null;
+      // The real location painting, not null.
+      //
+      // This was null, and that made the harness prove the wrong thing: the
+      // work backdrop is resolved from the vignette (region x skill, VAWO01),
+      // so a null vignette silently fell back to the legacy per-skill plate
+      // and every captured frame showed art the app would not show. An
+      // evidence harness that does not exercise the shipped path is evidence
+      // of nothing.
+      final String? vignette = PixelIcons.vignetteFor(ContentId.unchecked(locId));
 
       Widget stage({required bool active, required bool lock}) => MaterialApp(
         theme: strideTheme(),

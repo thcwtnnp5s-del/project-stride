@@ -1284,6 +1284,103 @@ for (const [id, { dir, src }] of Object.entries(WORK_PROPS)) {
   emit(`work/prop_${id}.png`, encode(raster));
 }
 
+// ------------------------------------------------------------- VAWO01 gather
+/**
+ * THE GATHER SCENE FAMILY (`DECISIONS/0031`, round record in
+ * `GAME_BIBLE/ART/exploration/VAWO01/GATHER_ROUND_RECORD_01.md`).
+ *
+ * Eighteen plates that answer the owner's loudest presentation complaint. Two
+ * things distinguish them from the six props above, and both are rules rather
+ * than preferences:
+ *
+ * **Backdrops are keyed by REGION and SKILL, not by skill alone.** The three
+ * incumbents are keyed by skill, so selecting an activity discarded the
+ * regional painting and every foraging node in the game — Haven, the Woods,
+ * Frostmere, the Hollow — showed Haven's meadow. Nothing on screen said where
+ * the player was for the whole of a 48 s–3 min gather.
+ *
+ * **Subjects are 48 × 48 and drawn ×2, not 96 × 96 at ×1** (L-18a,
+ * `DECISIONS/0031`). Everything sharing the figure's ground line shares the
+ * figure's density. The on-screen footprint is unchanged at 96 dp, so this
+ * moves no layout — it stops the subject's pixels being a quarter the area of
+ * the pixels of the man swinging at it.
+ *
+ * The six 96 props stay packaged and unreferenced, as the exploration record.
+ * They are superseded, not deleted.
+ */
+const VAWO_GATHER_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'gather');
+
+/** region × skill. A pair with no plate falls back in `AmbientAssets`. */
+const GATHER_BACKDROPS = [
+  'haven_foraging',
+  'woods_woodcutting',
+  'woods_foraging',
+  'stonefall_mining',
+  'frostmere_woodcutting',
+  'frostmere_foraging',
+  'hollow_foraging',
+  // Project-built variants. Each of these nodes only unlocks once its
+  // project is complete, so the built backdrop is unconditionally correct
+  // and needs no state read on the stage.
+  'haven_mill_garden',
+  'woods_warded_grove',
+  'stonefall_lift',
+  'stonefall_gallery',
+  'frostmere_shelter',
+  'hollow_field_camp',
+  'hollow_undercroft',
+];
+for (const id of GATHER_BACKDROPS) {
+  const raster = png.load(path.join(VAWO_GATHER_SRC, `bg_${id}.png`));
+  if (raster.width !== 384 || raster.height !== 176) {
+    throw new Error(
+      `gather backdrop ${id}: expected 384x176, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`work/bg_${id}.png`, encode(raster));
+}
+
+/** The working face itself, one per resource family. */
+const GATHER_SUBJECTS = [
+  'meadow_bed',
+  'duskcap_bed',
+  'rime_cushion',
+  'gloom_silk',
+  'hollow_root',
+  'oak_cut',
+  'frostpine_cut',
+  'copper_face',
+  'tin_face',
+  'hardened_copper_face',
+  'ruin_face',
+  // Tier subjects: the deeper node of a family gets its own face, so a
+  // player who unlocked it sees what they unlocked.
+  'heartwood_oak_cut',
+  'deep_tin_lode',
+  'oldgrowth_frostpine_cut',
+];
+for (const id of GATHER_SUBJECTS) {
+  const raster = png.load(path.join(VAWO_GATHER_SRC, `prop_${id}.png`));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(
+      `gather subject ${id}: expected 48x48 (L-18a, DECISIONS/0031), `
+      + `got ${raster.width}x${raster.height}`,
+    );
+  }
+  // A subject that reaches its own frame edge is the point — it is a working
+  // face continuing past the picture, not an object with air on all four
+  // sides. But a plate with NO transparent margin anywhere is a full-bleed
+  // rectangle, which is a backdrop that has been filed as a subject.
+  let clear = 0;
+  for (let i = 3; i < raster.data.length; i += 4) if (raster.data[i] === 0) clear += 1;
+  if (clear < 128) {
+    throw new Error(
+      `gather subject ${id}: only ${clear} transparent px — this is a plate, not a subject`,
+    );
+  }
+  emit(`work/prop_${id}.png`, encode(raster));
+}
+
 // ------------------------------------------------- Playable Polish 02
 
 /**

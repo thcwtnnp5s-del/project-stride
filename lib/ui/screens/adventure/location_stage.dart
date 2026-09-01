@@ -146,7 +146,14 @@ class LocationStage extends StatelessWidget {
 
     final String? workBackdrop = skill == null
         ? null
-        : AmbientAssets.workBackdropFor(skill);
+        : AmbientAssets.workBackdropFor(
+            skill,
+            // The region comes from the arrival painting the stage is already
+            // holding, so the work backdrop and the painting it replaces are
+            // derived from one value and cannot disagree about where we are.
+            vignette: vignette,
+            nodeArt: nodeArt,
+          );
 
     final Widget figures = AmbientStage(
       // The completion one-shot is the skill's **own** action.

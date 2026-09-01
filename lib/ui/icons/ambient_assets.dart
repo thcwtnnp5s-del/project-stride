@@ -470,11 +470,85 @@ abstract final class AmbientAssets {
   /// its node vignette, which is worse but never blank.
   static StageScenery? workPropFor(String nodeArt) => _workProps[nodeArt];
 
-  /// The **work backdrop** for a profession: the tighter place the focused
-  /// composition happens in, in place of the full location painting (§3).
-  /// Null where a profession has none, and the caller then dims the location
-  /// vignette instead.
-  static String? workBackdropFor(String skill) => _workBackdrops[skill];
+  /// The **work backdrop**: the tighter place the focused composition happens
+  /// in, in place of the full location painting.
+  ///
+  /// **Keyed by region *and* skill since VAWO01** (`DECISIONS/0031`). It was
+  /// keyed by skill alone, and there were three plates for five regions — so
+  /// choosing an activity threw away the regional arrival painting and every
+  /// foraging node in the game, at Haven, in the Woods, at Frostmere and in
+  /// the Hollow, showed Haven's meadow. Nothing on screen said where the
+  /// player was for the whole of a gather.
+  ///
+  /// The region comes from the [vignette] the screen is already holding —
+  /// the arrival painting's own path — rather than from a location id passed
+  /// down beside it. That is deliberate: the backdrop and the painting it
+  /// replaces are then derived from one value and **cannot disagree about
+  /// where we are**.
+  ///
+  /// [nodeArt] takes precedence where a node has a built variant. Those nodes
+  /// only unlock when their project is complete, so the built backdrop is
+  /// unconditionally correct and the stage needs no state read to choose it —
+  /// and the player finally sees the thing they spent steps building, every
+  /// time they work it.
+  static String? workBackdropFor(
+    String skill, {
+    String? vignette,
+    String? nodeArt,
+  }) {
+    final String? built = nodeArt == null ? null : _builtBackdrops[nodeArt];
+    if (built != null) return built;
+
+    final String? region = _regionOf(vignette);
+    if (region != null) {
+      final String? keyed = _regionWorkBackdrops['$region|$skill'];
+      if (keyed != null) return keyed;
+    }
+    // A region×skill pair the content graph does not contain, or an unknown
+    // vignette. Falls back to the profession plate rather than to nothing.
+    return _workBackdrops[skill];
+  }
+
+  /// The bare region name from a location vignette path, or null.
+  static String? _regionOf(String? vignette) {
+    if (vignette == null) return null;
+    final int slash = vignette.lastIndexOf('/');
+    if (slash < 0) return null;
+    final String file = vignette.substring(slash + 1);
+    if (!file.endsWith('.png')) return null;
+    // `alt_` variants name the same place.
+    final String stem = file.substring(0, file.length - 4);
+    return stem.startsWith('alt_') ? stem.substring(4) : stem;
+  }
+
+  /// region × skill → the plate authored for that pair.
+  static const Map<String, String> _regionWorkBackdrops = <String, String>{
+    'havens_rest|skill.foraging': '$_art/work/bg_haven_foraging.png',
+    'whispering_woods|skill.woodcutting':
+        '$_art/work/bg_woods_woodcutting.png',
+    'whispering_woods|skill.foraging': '$_art/work/bg_woods_foraging.png',
+    'stonefall_mine|skill.mining': '$_art/work/bg_stonefall_mining.png',
+    'frostmere|skill.woodcutting': '$_art/work/bg_frostmere_woodcutting.png',
+    'frostmere|skill.foraging': '$_art/work/bg_frostmere_foraging.png',
+    'forgotten_hollow|skill.foraging': '$_art/work/bg_hollow_foraging.png',
+  };
+
+  /// Nodes whose unlocking project changes the place they are worked in.
+  static const Map<String, String> _builtBackdrops = <String, String>{
+    '$_art/node/mill_garden.png': '$_art/work/bg_haven_mill_garden.png',
+    '$_art/node/warded_grove.png': '$_art/work/bg_woods_warded_grove.png',
+    '$_art/node/old_workings.png': '$_art/work/bg_stonefall_lift.png',
+    '$_art/node/hardened_copper_seam.png': '$_art/work/bg_stonefall_lift.png',
+    '$_art/node/gallery_tin_lode.png': '$_art/work/bg_stonefall_gallery.png',
+    '$_art/node/collapsed_span.png': '$_art/work/bg_stonefall_gallery.png',
+    '$_art/node/sheltered_frost_meadow.png':
+        '$_art/work/bg_frostmere_shelter.png',
+    '$_art/node/veiled_silkstrand.png': '$_art/work/bg_hollow_field_camp.png',
+    '$_art/node/undercroft_silkfall.png':
+        '$_art/work/bg_hollow_undercroft.png',
+    '$_art/node/deep_hollow_thicket.png':
+        '$_art/work/bg_hollow_undercroft.png',
+  };
 
   /// Whether this profession's loop works towards the figure's **east**.
   ///
@@ -505,67 +579,167 @@ abstract final class AmbientAssets {
   /// so one lookup site answers both and a node cannot be wired into one
   /// table and forgotten in the other.
   ///
-  /// Bounds measured by `Scripts/art/png.js` on the packaged plate. Only the
-  /// bottom matters for placement — the prop sits with its lowest opaque row
-  /// on the ground line — but the whole box is recorded, because a composition
-  /// test that can only check one edge is a test of half a placement.
+  /// **Every one of the twenty-two nodes now has an entry** (VAWO01). Twelve
+  /// of them previously had none and fell through to their 96 inventory-icon
+  /// vignette, which is what the owner was seeing as "a weird isolated object
+  /// floating in the centre of a scene": several of those plates carry their
+  /// own ground — a snow patch, a separate soil line — pasted onto an
+  /// unrelated backdrop.
+  ///
+  /// **`native` is 48 and the stage draws these at ×2** (L-18a,
+  /// `DECISIONS/0031`): everything sharing the figure's ground line shares the
+  /// figure's density. The on-screen footprint is unchanged at 96 dp.
+  ///
+  /// `behindFigure` is true for anything the tool's arc would otherwise
+  /// disappear into — the rock faces and the felled boles. It is false for the
+  /// low beds, which the forager kneels down onto and should reach into.
+  ///
+  /// Fourteen plates across twenty-two nodes; the **scene** is the pair
+  /// (backdrop, subject) and all twenty-two of those are distinct.
   static const Map<String, StageScenery> _workProps = <String, StageScenery>{
+    '$_art/node/meadow_patch.png': StageScenery(
+      assetPath: '$_art/work/prop_meadow_bed.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 1, right: 46, bottom: 46),
+    ),
+    '$_art/node/mill_garden.png': StageScenery(
+      assetPath: '$_art/work/prop_meadow_bed.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 1, right: 46, bottom: 46),
+    ),
+    '$_art/node/duskcap_grove.png': StageScenery(
+      assetPath: '$_art/work/prop_duskcap_bed.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 2, top: 7, right: 45, bottom: 40),
+    ),
+    '$_art/node/rimefrost_hollow.png': StageScenery(
+      assetPath: '$_art/work/prop_rime_cushion.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 8, right: 46, bottom: 46),
+    ),
+    '$_art/node/sheltered_frost_meadow.png': StageScenery(
+      assetPath: '$_art/work/prop_rime_cushion.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 8, right: 46, bottom: 46),
+    ),
+    '$_art/node/silkstrand_thicket.png': StageScenery(
+      assetPath: '$_art/work/prop_gloom_silk.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 4, right: 47, bottom: 47),
+    ),
+    '$_art/node/veiled_silkstrand.png': StageScenery(
+      assetPath: '$_art/work/prop_gloom_silk.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 4, right: 47, bottom: 47),
+    ),
+    '$_art/node/undercroft_silkfall.png': StageScenery(
+      assetPath: '$_art/work/prop_gloom_silk.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 4, right: 47, bottom: 47),
+    ),
+    '$_art/node/hollow_thicket.png': StageScenery(
+      assetPath: '$_art/work/prop_hollow_root.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 3, right: 46, bottom: 45),
+    ),
+    '$_art/node/deep_hollow_thicket.png': StageScenery(
+      assetPath: '$_art/work/prop_hollow_root.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 3, right: 46, bottom: 45),
+    ),
+    '$_art/node/oak_stand.png': StageScenery(
+      assetPath: '$_art/work/prop_oak_cut.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 0, right: 47, bottom: 41),
+      behindFigure: true,
+    ),
+    '$_art/node/warded_grove.png': StageScenery(
+      assetPath: '$_art/work/prop_oak_cut.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 0, right: 47, bottom: 41),
+      behindFigure: true,
+    ),
+    '$_art/node/heartwood_oak.png': StageScenery(
+      assetPath: '$_art/work/prop_heartwood_oak_cut.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 0, right: 47, bottom: 47),
+      behindFigure: true,
+    ),
+    '$_art/node/frostpine_stand.png': StageScenery(
+      assetPath: '$_art/work/prop_frostpine_cut.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 1, right: 47, bottom: 46),
+      behindFigure: true,
+    ),
+    '$_art/node/oldgrowth_frostpine.png': StageScenery(
+      assetPath: '$_art/work/prop_oldgrowth_frostpine_cut.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 5, right: 47, bottom: 43),
+      behindFigure: true,
+    ),
     '$_art/node/copper_seam.png': StageScenery(
-      assetPath: '$_art/work/prop_copper_seam.png',
-      bounds: SpriteBounds(left: 4, top: 3, right: 91, bottom: 92),
-      // Tall enough to swallow the pick if drawn last (blind QA round 2).
+      assetPath: '$_art/work/prop_copper_face.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 7, top: 2, right: 40, bottom: 45),
       behindFigure: true,
     ),
     '$_art/node/tin_seam.png': StageScenery(
-      assetPath: '$_art/work/prop_tin_seam.png',
-      bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 91),
-      // Tall enough to swallow the pick if drawn last (blind QA round 2).
+      assetPath: '$_art/work/prop_tin_face.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 0, right: 47, bottom: 47),
+      behindFigure: true,
+    ),
+    '$_art/node/deep_tin_seam.png': StageScenery(
+      assetPath: '$_art/work/prop_deep_tin_lode.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 1, top: 1, right: 45, bottom: 46),
+      behindFigure: true,
+    ),
+    '$_art/node/gallery_tin_lode.png': StageScenery(
+      assetPath: '$_art/work/prop_tin_face.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 0, right: 47, bottom: 47),
       behindFigure: true,
     ),
     '$_art/node/hardened_copper_seam.png': StageScenery(
-      assetPath: '$_art/work/prop_hardened_copper_seam.png',
-      bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 92),
-      // Tall enough to swallow the pick if drawn last (blind QA round 2).
-      behindFigure: true,
-    ),
-    '$_art/node/oak_stand.png': StageScenery(
-      assetPath: '$_art/work/prop_oak_stand.png',
-      bounds: SpriteBounds(left: 2, top: 5, right: 90, bottom: 90),
-      // Tall enough to swallow the axe if drawn last (blind QA round 1).
-      behindFigure: true,
-    ),
-    '$_art/node/meadow_patch.png': StageScenery(
-      assetPath: '$_art/work/prop_meadow_patch.png',
-      bounds: SpriteBounds(left: 15, top: 37, right: 91, bottom: 91),
-    ),
-    '$_art/node/duskcap_grove.png': StageScenery(
-      assetPath: '$_art/work/prop_duskcap_grove.png',
-      bounds: SpriteBounds(left: 8, top: 16, right: 88, bottom: 94),
-    ),
-    // Fable V2 (`DECISIONS/0027`): the Deep Tin Seam's plate is a byte copy
-    // of the tin seam's (A-2), so the prop and bounds carry over verbatim.
-    '$_art/node/deep_tin_seam.png': StageScenery(
-      assetPath: '$_art/work/prop_tin_seam.png',
-      bounds: SpriteBounds(left: 4, top: 5, right: 90, bottom: 91),
-      behindFigure: true,
-    ),
-    // Fable V2 Iteration 03: the same donor rule as the plates — each new
-    // node borrows the work prop of the node it deepens, where one exists.
-    // The two silk/frost forage nodes fall back to their vignettes, exactly
-    // as their donors do.
-    '$_art/node/heartwood_oak.png': StageScenery(
-      assetPath: '$_art/work/prop_oak_stand.png',
-      bounds: SpriteBounds(left: 2, top: 5, right: 90, bottom: 90),
+      assetPath: '$_art/work/prop_hardened_copper_face.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 1, right: 47, bottom: 47),
       behindFigure: true,
     ),
     '$_art/node/old_workings.png': StageScenery(
-      assetPath: '$_art/work/prop_copper_seam.png',
-      bounds: SpriteBounds(left: 4, top: 3, right: 91, bottom: 92),
+      assetPath: '$_art/work/prop_ruin_face.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 1, right: 45, bottom: 46),
       behindFigure: true,
     ),
-    '$_art/node/mill_garden.png': StageScenery(
-      assetPath: '$_art/work/prop_meadow_patch.png',
-      bounds: SpriteBounds(left: 15, top: 37, right: 91, bottom: 91),
+    '$_art/node/collapsed_span.png': StageScenery(
+      assetPath: '$_art/work/prop_ruin_face.png',
+      native: 48,
+      scale: 2,
+      bounds: SpriteBounds(left: 0, top: 1, right: 45, bottom: 46),
+      behindFigure: true,
     ),
   };
 

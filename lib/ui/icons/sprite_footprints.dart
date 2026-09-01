@@ -678,30 +678,100 @@ abstract final class SpriteFootprints {
       right: 71,
       bottom: 94,
     ),
+    'assets/art/v1/work/prop_copper_face.png': SpriteFootprint(
+      left: 13,
+      right: 36,
+      bottom: 45,
+    ),
     'assets/art/v1/work/prop_copper_seam.png': SpriteFootprint(
       left: 22,
       right: 82,
       bottom: 92,
+    ),
+    'assets/art/v1/work/prop_deep_tin_lode.png': SpriteFootprint(
+      left: 1,
+      right: 45,
+      bottom: 46,
+    ),
+    'assets/art/v1/work/prop_duskcap_bed.png': SpriteFootprint(
+      left: 13,
+      right: 32,
+      bottom: 40,
     ),
     'assets/art/v1/work/prop_duskcap_grove.png': SpriteFootprint(
       left: 26,
       right: 47,
       bottom: 94,
     ),
+    'assets/art/v1/work/prop_frostpine_cut.png': SpriteFootprint(
+      left: 3,
+      right: 44,
+      bottom: 46,
+    ),
+    'assets/art/v1/work/prop_gloom_silk.png': SpriteFootprint(
+      left: 0,
+      right: 47,
+      bottom: 47,
+    ),
+    'assets/art/v1/work/prop_hardened_copper_face.png': SpriteFootprint(
+      left: 0,
+      right: 47,
+      bottom: 47,
+    ),
     'assets/art/v1/work/prop_hardened_copper_seam.png': SpriteFootprint(
       left: 22,
       right: 67,
       bottom: 92,
+    ),
+    'assets/art/v1/work/prop_heartwood_oak_cut.png': SpriteFootprint(
+      left: 0,
+      right: 47,
+      bottom: 47,
+    ),
+    'assets/art/v1/work/prop_hollow_root.png': SpriteFootprint(
+      left: 18,
+      right: 29,
+      bottom: 45,
+    ),
+    'assets/art/v1/work/prop_meadow_bed.png': SpriteFootprint(
+      left: 9,
+      right: 38,
+      bottom: 46,
     ),
     'assets/art/v1/work/prop_meadow_patch.png': SpriteFootprint(
       left: 49,
       right: 74,
       bottom: 91,
     ),
+    'assets/art/v1/work/prop_oak_cut.png': SpriteFootprint(
+      left: 9,
+      right: 39,
+      bottom: 41,
+    ),
     'assets/art/v1/work/prop_oak_stand.png': SpriteFootprint(
       left: 15,
       right: 85,
       bottom: 90,
+    ),
+    'assets/art/v1/work/prop_oldgrowth_frostpine_cut.png': SpriteFootprint(
+      left: 1,
+      right: 46,
+      bottom: 43,
+    ),
+    'assets/art/v1/work/prop_rime_cushion.png': SpriteFootprint(
+      left: 13,
+      right: 34,
+      bottom: 46,
+    ),
+    'assets/art/v1/work/prop_ruin_face.png': SpriteFootprint(
+      left: 16,
+      right: 34,
+      bottom: 46,
+    ),
+    'assets/art/v1/work/prop_tin_face.png': SpriteFootprint(
+      left: 0,
+      right: 47,
+      bottom: 47,
     ),
     'assets/art/v1/work/prop_tin_seam.png': SpriteFootprint(
       left: 22,

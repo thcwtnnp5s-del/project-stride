@@ -18,19 +18,23 @@
 ///
 /// So every gather scene in the product grounded the man and floated the ore.
 ///
-/// ## What is asserted, and what is deliberately not
+/// ## What is asserted
 ///
-/// This file asserts **grounding**, which is now true, and **records the
-/// duplication**, which is not yet fixed. The second is a ratchet, not an
-/// endorsement: 22 nodes currently draw on 12 distinct scenes because 12 of
-/// them fall through to an inventory-icon plate and 10 are pixel-identical to
-/// another node. That is `GH-01` and `GH-04`, both P0, and both need art that
-/// this workstream has not generated yet.
+/// **Grounding**, and **distinctness**, both of which are now true.
 ///
-/// The ratchet is here because the alternative is worse. `node_art_resolution_test`
-/// asserts only that *a* 96² plate with ≥800 opaque pixels exists, which is why
-/// twelve icon fallbacks and ten duplicate scenes have shipped CI-green for
-/// months. A number that must not grow is how that stops being invisible.
+/// Distinctness is measured on the pair the player actually looks at — the
+/// backdrop behind and the working face in front — not on the subject plate
+/// alone. Fourteen subject plates serve twenty-two nodes, and that is right:
+/// the Tin Seam and the Gallery Tin Lode *are* the same face in two different
+/// places. The backdrop separates them, so all twenty-two scenes differ.
+///
+/// Before VAWO01 the figure was **12 of 22**, and all five Forgotten Hollow
+/// nodes drew one identical picture.
+///
+/// The subject-plate ratchet below is kept as the second line of defence.
+/// `node_art_resolution_test` asserts only that *a* 96² plate with ≥800 opaque
+/// pixels exists, which is how twelve inventory-icon fallbacks shipped CI-green
+/// for months — a number that may not grow is how that stops being invisible.
 library;
 
 import 'dart:convert' show jsonDecode;
@@ -49,20 +53,15 @@ import 'package:stride_core/stride_core.dart' show ContentId;
 /// **This number may fall. It may never rise.** Every reduction is a plate the
 /// gather-scene rounds authored; every increase is a new node shipped without
 /// one, which is the defect that produced the current figure.
-/// Measured, not quoted: **17 of the 22 nodes** share their subject plate with
-/// at least one other node, and the 22 nodes draw on **12 distinct plates**.
+/// Measured after the VAWO01 gather round: **15 of 22** nodes share a subject
+/// plate, across **14 distinct plates** (was 17 and 12).
 ///
-/// `FOUNDATION_H_GATHER.md` reports "10 duplicates" for the same tree. Both are
-/// right and they count different things — that audit counted *scenes* whose
-/// (backdrop, subject) pair repeats, this counts *nodes* whose subject plate is
-/// byte-identical to another's. The distinct-plate figure agrees exactly: 12.
-///
-/// The worst group is Forgotten Hollow, where **all five nodes are one image**
-/// despite yielding two different resources.
-const int _knownDuplicateSubjectNodes = 17;
+/// Sharing a plate is not a defect by itself — see the header. The scene test
+/// above is the one that must stay at zero.
+const int _knownDuplicateSubjectNodes = 15;
 
 /// The floor on variety. Rises as plates are authored; must never fall.
-const int _knownDistinctSubjectPlates = 12;
+const int _knownDistinctSubjectPlates = 14;
 
 /// FNV-1a over the asset's bytes, 64-bit, as a grouping key.
 ///
@@ -170,7 +169,83 @@ void main() {
     }
   });
 
-  testWidgets('scene duplication does not grow', (WidgetTester tester) async {
+  testWidgets('every node is a distinct scene', (WidgetTester tester) async {
+    // **The metric that matters.** A "scene" is the pair the player actually
+    // looks at — the backdrop behind and the working face in front — not the
+    // subject plate alone. Fourteen subject plates serve twenty-two nodes, and
+    // that is fine, because the backdrop separates every node that shares one:
+    // Tin Seam and the Gallery Tin Lode are the same face in two different
+    // places, which is what they are in the fiction too.
+    //
+    // Before VAWO01 this figure was **12 of 22**, with all five Forgotten
+    // Hollow nodes drawing one identical picture.
+    final List<String> ids = await nodeIds(tester);
+
+    final Map<String, String> locationOfNode = (await tester.runAsync(() async {
+      final Map<String, Object?> doc =
+          jsonDecode(
+                await rootBundle.loadString('assets/content/v1/locations.json'),
+              )
+              as Map<String, Object?>;
+      final Map<String, String> out = <String, String>{};
+      for (final Object? raw in doc['entries']! as List<Object?>) {
+        final Map<String, Object?> loc = raw! as Map<String, Object?>;
+        for (final Object? n
+            in (loc['resourceNodes'] as List<Object?>? ?? <Object?>[])) {
+          out[n! as String] = loc['id']! as String;
+        }
+      }
+      return out;
+    }))!;
+
+    final Map<String, String> skillOfNode = (await tester.runAsync(() async {
+      final Map<String, Object?> doc =
+          jsonDecode(
+                await rootBundle.loadString(
+                  'assets/content/v1/resource_nodes.json',
+                ),
+              )
+              as Map<String, Object?>;
+      return <String, String>{
+        for (final Object? raw in doc['entries']! as List<Object?>)
+          (raw! as Map<String, Object?>)['id']! as String:
+              (raw as Map<String, Object?>)['skill']! as String,
+      };
+    }))!;
+
+    final Map<String, List<String>> byScene = <String, List<String>>{};
+    for (final String id in ids) {
+      final String? art = PixelIcons.nodeFor(ContentId.unchecked(id));
+      // The arrival painting the stage would be holding for this location.
+      final String vignette =
+          'assets/art/v1/location/${locationOfNode[id]!.split('.').last}.png';
+      final String backdrop =
+          AmbientAssets.workBackdropFor(
+            skillOfNode[id]!,
+            vignette: vignette,
+            nodeArt: art,
+          ) ??
+          vignette;
+      (byScene['$backdrop + ${subjectFor(id)!.assetPath}'] ??= <String>[])
+          .add(id);
+    }
+
+    final Iterable<List<String>> shared = byScene.values.where(
+      (List<String> g) => g.length > 1,
+    );
+    expect(
+      shared,
+      isEmpty,
+      reason:
+          'These nodes draw an identical scene — same backdrop, same working '
+          'face — so the player cannot tell them apart: $shared',
+    );
+    expect(byScene, hasLength(ids.length));
+  });
+
+  testWidgets('subject-plate duplication does not grow', (
+    WidgetTester tester,
+  ) async {
     final List<String> ids = await nodeIds(tester);
 
     // Group by the bytes actually shipped, not by asset path: two paths can be

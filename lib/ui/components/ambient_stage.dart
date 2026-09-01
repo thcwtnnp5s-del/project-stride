@@ -60,10 +60,27 @@ final class StageScenery {
     required this.assetPath,
     required this.bounds,
     this.native = 96,
+    this.scale = 1,
     this.behindFigure = false,
   });
 
   final String assetPath;
+
+  /// The integer multiple this plate is drawn at (L-18, `DECISIONS/0031`).
+  ///
+  /// 1 for the legacy 96 vignettes; **2 for the 48 gather subjects**, which
+  /// share the figure's ground line and therefore have to share the figure's
+  /// density. Both land on the same 96 dp of stage, so this changes what a
+  /// pixel is, not where the plate sits.
+  final int scale;
+
+  /// The plate's drawn extent in stage dp — what the layout measures, as
+  /// opposed to [native], which is what the file measures. Conflating the two
+  /// is how a ×2 plate ends up placed as if it were half its size.
+  double get displayExtent => (native * scale).toDouble();
+
+  /// [bounds] in stage dp rather than source pixels.
+  double scaled(int sourcePx) => (sourcePx * scale).toDouble();
 
   /// Whether this prop is painted **before** the figure rather than after.
   ///
@@ -182,20 +199,22 @@ final class AmbientStageLayout {
   /// the figure and the thing he is working on share one floor — the single
   /// fact that separates "a scene" from "two sprites in a box".
   Rect propRect(StageScenery p, {bool east = false}) => Rect.fromLTWH(
-    east ? feetCentre + propGap : feetCentre - propGap - p.native,
-    groundLine - (p.bounds.bottom + 1),
-    p.native.toDouble(),
-    p.native.toDouble(),
+    east
+        ? feetCentre + propGap
+        : feetCentre - propGap - p.displayExtent,
+    groundLine - p.scaled(p.bounds.bottom + 1),
+    p.displayExtent,
+    p.displayExtent,
   );
 
   /// The prop's opaque box in stage dp.
   Rect propOpaque(StageScenery p, {bool east = false}) {
     final Rect r = propRect(p, east: east);
     return Rect.fromLTRB(
-      r.left + p.bounds.left,
-      r.top + p.bounds.top,
-      r.left + p.bounds.right + 1,
-      r.top + p.bounds.bottom + 1,
+      r.left + p.scaled(p.bounds.left),
+      r.top + p.scaled(p.bounds.top),
+      r.left + p.scaled(p.bounds.right + 1),
+      r.top + p.scaled(p.bounds.bottom + 1),
     );
   }
 
@@ -369,18 +388,22 @@ Widget _prop(AmbientStageLayout layout, StageScenery prop, bool east) {
   return Positioned(
     left: rect.left,
     top: rect.top,
+    // L-18a (`DECISIONS/0031`): everything sharing the figure's ground line
+    // shares the figure's density. A 48 plate draws at ×2 — the same 96 dp
+    // footprint the 96 plates had at ×1, so no layout moves — and a 96 plate
+    // stays at ×1 while any remain.
     child: footprint == null
         ? PixelAsset(
             assetPath: prop.assetPath,
             nativeWidth: prop.native,
             nativeHeight: prop.native,
-            scale: 1,
+            scale: prop.scale,
           )
         : GroundedSprite(
             assetPath: prop.assetPath,
             footprint: footprint,
             canvas: prop.native,
-            scale: 1,
+            scale: prop.scale,
           ),
   );
 }
