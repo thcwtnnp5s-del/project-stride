@@ -2514,18 +2514,54 @@ for (const [id, spec] of Object.entries(WMP03_CREATURES)) {
  * drift from what actually shipped.
  */
 for (const [id, donor] of Object.entries({
-  fanghilt_sword: 'training_sword',
-  tuskbound_jerkin: 'wolfhide_jerkin',
-  goblin_toothed_axe: 'training_axe',
-  scalewarmed_chestplate: 'bronze_chestplate',
-  clawguard_coat: 'bearhide_coat',
-  hornpoint_pickaxe: 'bronze_pickaxe',
-  traveler_ration: 'herb_broth',
-  expedition_stew: 'hearty_stew',
+  // All eight are now authored icons — see the VAWO01 block below.
 })) {
   const bytes = emitted.get(`item/${donor}.png`);
   if (!bytes) throw new Error(`iteration 03 icon donor missing: item/${donor}.png`);
   emit(`item/${id}.png`, bytes);
+}
+
+/**
+ * VAWO01 — THE AUTHORED ICONS THAT REPLACE THE RECORDED BYTE COPIES.
+ *
+ * Eleven items shipped a byte-identical copy of another item's icon, recorded
+ * in the two blocks below as placeholders awaiting "the recorded future
+ * PixelLab round". This is that round.
+ *
+ * The justification for the copies was that a Masterwork piece CONSUMES its
+ * donor, so "the copy and its donor almost never share a bag". True of the bag,
+ * and false of the screen: the Craft screen shows 39 rows drawn from 21 distinct
+ * pictures, donor and copy side by side, and three of the donors are starter
+ * gear worn from minute one.
+ *
+ *  is here for a different reason and is not a copy. It shipped as a
+ * ROUND boulder differing from Copper Ore only by inclusion colour — 90.5%
+ * silhouette overlap, which is drift D-5, named and banned by this project's
+ * own style spec and shipped anyway. It is re-authored angular, so the two are
+ * tellable apart in greyscale.
+ */
+const VAWO_ITEM_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'items');
+for (const id of [
+  'fanghilt_sword',
+  'tuskbound_jerkin',
+  'goblin_toothed_axe',
+  'scalewarmed_chestplate',
+  'clawguard_coat',
+  'hornpoint_pickaxe',
+  'traveler_ration',
+  'expedition_stew',
+  'waywarden_tunic',
+  'tinbraced_pickaxe',
+  'frostwarden_coat',
+  'tin_ore',
+]) {
+  const raster = png.load(path.join(VAWO_ITEM_SRC, `${id}.png`));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(
+      `item ${id}: expected 48x48, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`item/${id}.png`, encode(raster));
 }
 
 /**
@@ -2564,9 +2600,7 @@ for (const [id, sourceId] of Object.entries({
  * not packaged bytes).
  */
 for (const [id, donor] of Object.entries({
-  waywarden_tunic: 'traveler_tunic',
-  tinbraced_pickaxe: 'reinforced_pickaxe',
-  frostwarden_coat: 'frostlined_jerkin',
+  // All three are now authored icons — see the VAWO01 block below.
 })) {
   const bytes = emitted.get(`item/${donor}.png`);
   if (!bytes) throw new Error(`depth offensive icon donor missing: item/${donor}.png`);
