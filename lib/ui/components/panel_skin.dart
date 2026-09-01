@@ -178,23 +178,31 @@ abstract final class PanelSkins {
   /// That is the point, and it is also the risk: a row lands with a device
   /// review, not with a compile.
   ///
-  /// `card` was authored in VAWO01 (`DECISIONS/0030`, which reopened the
-  /// PixelLab budget that `0029` recorded as exhausted). One frame family
-  /// app-wide, per L-18 as amended — `heroPlate` and `boardSlip` deliberately
-  /// reuse the same asset rather than opening a second border, because eleven
-  /// unrelated borders is the failure mode this direction is most likely to
-  /// produce.
+  /// Authored in VAWO01 (`DECISIONS/0030`, which reopened the PixelLab budget
+  /// that `0029` recorded as exhausted).
   ///
-  /// `combatFrame` and `modalFrame` are still painted: combat "is a place, not
-  /// an interruption" and wants its own heavier edge (production plan Batch D),
-  /// and a modal wants the 8 px band. Both keep their reserve so the day those
-  /// assets land, the material changes and the layout does not.
+  /// **Every role, one asset.** That is L-18 as amended read literally — "one
+  /// chassis family app-wide; screens differ by band, surface and picture,
+  /// never by eleven different borders" — and it is a correction to this
+  /// registry's first shape, which framed three roles and left three painted.
   ///
-  /// `kitTray` wants a surface, not a frame, and may never take a row here.
+  /// Three framed and three painted was defensible per role and wrong as a
+  /// product: it put an authored leather edge on Skills, Character and
+  /// Adventure while Inventory and Combat kept the machine-drawn rectangle the
+  /// whole direction exists to remove. The player does not experience roles,
+  /// they experience screens, and half a chassis reads as an unfinished one.
+  ///
+  /// The per-role differentiation the production plan reserves — a heavier
+  /// modal band, combat's own scarred edge — remains the right destination. It
+  /// is a **later batch**, and until it exists the honest state is one family
+  /// everywhere rather than a family and a gap.
   static const Map<PanelRole, PanelSkin> authored = <PanelRole, PanelSkin>{
     PanelRole.card: _chassis,
     PanelRole.heroPlate: _chassis,
     PanelRole.boardSlip: _chassis,
+    PanelRole.kitTray: _chassis,
+    PanelRole.combatFrame: _chassis,
+    PanelRole.modalFrame: _chassis,
   };
 
   /// The chassis: oiled leather welt with a continuous stitch line and
@@ -229,16 +237,15 @@ abstract final class PanelSkins {
   /// The room each role keeps for a frame it does not have yet. Chosen to
   /// match the geometry the production plan specifies, so the reserve is a
   /// prediction the art must honour rather than a number the art will fight.
-  /// `card`, `heroPlate` and `boardSlip` now resolve to [_chassis] and take
-  /// its measured 16, so their entries here are only the fallback figure used
-  /// if the asset fails to load — kept equal to the real inset so a failed
-  /// decode changes the material and not the layout.
+  /// The fallback figure used if the asset fails to decode. Every role now
+  /// resolves to the chassis, so every reserve equals its real inset — which is
+  /// what makes a failed decode change the material and not the layout.
   static const Map<PanelRole, double> _reserve = <PanelRole, double>{
     PanelRole.card: 16,
-    PanelRole.kitTray: 0,
+    PanelRole.kitTray: 16,
     PanelRole.heroPlate: 16,
     PanelRole.boardSlip: 16,
-    PanelRole.combatFrame: 12,
+    PanelRole.combatFrame: 16,
     PanelRole.modalFrame: 16,
   };
 }
