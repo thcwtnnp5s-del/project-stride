@@ -1067,6 +1067,20 @@ Traveler cannot be seen to swing is the invisible lie the brief forbids.
 
 ## Q-16 — Reduce Motion, and the channels an accessibility setting may switch off
 
+**CLOSED — owner ruling, 2026-09-01** (`DECISIONS/0032`). Resolved in favour of
+**accessible audio continuity**: Reduce Motion reduces visual motion and does
+not reduce audio. Combat cues fire from the state machine rather than from a
+drawn frame; a voice cap of two starts per 200 ms that nothing overrides; four
+named priority bands so a blow outranks the swing that threw it; a stream floor
+breakable only by a strictly higher band; and a music duck rather than a louder
+cue. Cues are fired, never queued — which is what satisfies "no delayed cue
+continuing after the encounter has resolved".
+
+The tempting fix was the one `MISTAKES.md` M-16 already records as a defect, so
+the audio layer does not consult the setting at all — the strongest available
+form of "it does not reduce audio".
+
+
 **Raised:** 2026-08-31, Presentation & Combat Evolution 01, from the
 defect recorded as **M-16**.
 **Partially answered in code; the general rule is UNRESOLVED.**

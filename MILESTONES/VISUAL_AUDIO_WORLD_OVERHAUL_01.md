@@ -1,10 +1,12 @@
 # Visual / Audio / World Overhaul 01 — the thesis
 
 ```
-STATUS: IN PROGRESS · branch visual-audio-world-overhaul-01 · from 6d41bce
-Opened: 2026-09-01 · Authority: DECISIONS/0030 (owner ruling, 2026-09-01)
+STATUS: PRODUCTION ROUNDS LANDED · branch visual-audio-world-overhaul-01
+From 6d41bce · Opened 2026-09-01 · Awaiting device acceptance
+Authority: DECISIONS/0030 (budget + audio), 0031 (L-18a density), 0032 (Q-16)
+PixelLab: 10,000 -> 9,821 remaining, 179 used
 Evidence: MILESTONES/evidence/VAWO01/wave0/ (twelve audits)
-Directions: GAME_BIBLE/ART/exploration/VAWO01/{GATHER_SCENE,WORLD_LIFE}_DIRECTION_01.md
+          GAME_BIBLE/ART/exploration/VAWO01/ (four round records, 82 review renders)
 ```
 
 **What this document is.** The diagnosis, the budget, the chosen order, and the
@@ -311,19 +313,30 @@ Ordered by visible payoff per unit of risk, not by the phase list.
 | # | Step | Gens | State |
 |---|---|---:|---|
 | 1 | Guards (palette, tile-seam), budget decision, G-8 hazards | 0 | **DONE** |
-| 2 | UI chassis frame + image-cache sizing | 18 | **DONE** |
-| 3 | Gather grounding + per-skill one-shot + ratchet test | 0 | **DONE** |
+| 2 | UI chassis frame, **every role**, + image-cache sizing | 18 | **DONE** |
+| 3 | Gather grounding + per-skill one-shot + ratchets | 0 | **DONE** |
 | 4 | Encounter-card scale inversion + golden race | 0 | **DONE** |
-| 5 | Typeface + type scale | 0 | next, highest leverage |
-| 6 | Free asset utilisation (combat idles → Field Notes, work backdrops → Skill Detail, orphan props → atlas) | 0 | next |
-| 7 | Enemy batch 0 (per-enemy timing, wire `wolf_hit`) | 0 | next |
-| 8 | Audio architecture: cues, duck, voice cap, Q-16 | 0 | next |
-| 9 | Gather scenes R1 | 60–110 | needs the § 3 density ruling |
-| 10 | Item icons, enemy batches 1–4 | 130–190 | |
-| 11 | Equipment W1–W3 + brace | 400–640 | needs the § 13 owner ruling |
-| 12 | World life — the ten | 450–550 | |
+| 5 | **Gather scenes — 28 plates, 22/22 distinct** | 68 | **DONE** |
+| 6 | **Visible armour — 3 classes, Character paper doll** | ~90 | **DONE** |
+| 7 | **Audio architecture — 20 cues, cap, priority, duck; Q-16** | 0 | **DONE** |
+| 8 | **World life — 2 dragons, 3 landmarks** | 11 | **DONE** |
+| 9 | **Item icons — 12 authored, 0 duplicates** | 13 | **DONE** |
+| 10 | Combat weapon variants | ~50 spent | **DEFERRED — see below** |
+| 11 | Typeface + type scale | 0 | not started |
+| 12 | Free asset utilisation (combat idles to Field Notes, etc.) | 0 | not started |
+| 13 | Enemy batches 1–4 | 74–108 | not started |
+| 14 | Atlas seam recomposition | — | not started (Q-13 gates the south) |
+| 15 | EXP/reward art, UI batches C–I | 30–60 | not started |
 
-Steps 1–4 are landed and are the reason this document can be specific.
+**Combat weapon variants are deferred on a measured finding, not on budget.**
+PixelLab's *template* animations discard held props: `fight-stance-idle` and
+`taking-punch` returned the Bronze Sword state bare-handed, because a template
+imposes a skeleton and re-renders the figure into it. Only the v3 custom attack
+kept the blade. A bronze loadout would therefore have flickered between armed
+and unarmed inside one round — worse than the defect it was meant to fix — and
+`CombatantArt` requires all four tracks, so a partial set is not an option.
+`EQUIPMENT_ROUND_RECORD_01.md` carries what the next round needs. **An unarmed
+player still sees a baked steel sword in combat.**
 
 ## 18. Explicitly rejected
 
@@ -349,28 +362,49 @@ Steps 1–4 are landed and are the reason this document can be specific.
 
 ## 19. Acceptance criteria
 
-**Landed and verifiable now**
+**Landed and machine-verified**
 
-1. `flutter analyze` clean; **976 tests pass**.
-2. `check-art-palette` green across 872 PNGs; `check-tile-seam` green on all
-   four chassis runs; `package-art --check` green at 851 files.
-3. Goldens are **deterministic** — the suite re-run twice produces no diff.
-4. Every gather node resolves a subject with a **measured** footprint.
-5. Emptying `PanelSkins.authored` returns the product to the painted rectangle.
-6. Large-text support is not reduced: `ui_responsive_test` green at ×1.4 / 320 dp.
+1. `flutter analyze` clean; **983 tests pass**.
+2. `check-art-palette` green across **924 PNGs** — no teal collision outside the
+   one allowlisted step glyph, zero semi-transparent pixels, chrome under the
+   `textMuted` ceiling. L-16 had never been measured before this workstream.
+3. `check-tile-seam` green: all four chassis runs wrap at their declared period.
+4. `package-art.js --check` green at **903 files**, and idempotent.
+5. Goldens are **deterministic** — the suite re-run twice produces no diff.
+6. **All 22 gather nodes are a distinct scene** (was 12 of 22), and every
+   subject has a *measured* footprint, so every one is grounded.
+7. **Zero byte-identical item icons** (was 11 pairs). Copper and Tin overlap
+   under 75% by silhouette (was 90.5%).
+8. Every `PanelRole` resolves to one chassis family; every reserve equals its
+   real inset; `SectionCard` still carries the painted fallback, so the
+   direction reverts in one commit.
+9. Large-text support is not reduced: `ui_responsive_test` green at ×1.4 / 320 dp.
+10. Save format untouched — **state stays v9**, no migration, and
+    `visible_equipment_test` pins that reading the equipment projection commits
+    nothing.
 
 **Requires the iPhone, and is not claimed until then**
 
-7. The chassis reads as authored leather at device scale and does not crowd
-   text on the smallest supported width.
-8. Mining, woodcutting and foraging subjects read as resting on the ground.
-9. The Oakback Bear reads as larger than the Grey Wolf on the encounter card.
-10. No frame rate or battery regression on the Adventure and World tabs.
+11. The chassis reads as authored leather at device scale on all six tabs and
+    does not crowd text on the smallest supported width.
+12. Mining, woodcutting and foraging read as *places being worked in*, and the
+    five regions are tellable apart without reading a word.
+13. Equipping a chestplate, a jerkin or a coat visibly changes the Traveler on
+    the Character screen.
+14. The Oakback Bear reads as larger than the Grey Wolf on the encounter card.
+15. The red wyrm and the storm drake read as different creatures on the world
+    map, and neither obscures a settlement or a route.
+16. No frame-rate or battery regression on the Adventure and World tabs.
 
-**Not yet begun** — 5 through 12 of § 17, and every acceptance criterion that
-depends on them.
+**Known and not fixed** — named rather than implied:
 
----
+- **An unarmed player still sees a baked steel sword in combat** (§ 17 row 10).
+- **No new audio exists.** Twenty event cues are wired and silent; both provider
+  keys are unset.
+- **No typeface.** 292 text sites still render in the iOS system font — the
+  single largest remaining "generated" tell, and it costs zero generations.
+- Enemy silhouette collisions, the atlas seams, and UI batches C–I are
+  unstarted.
 
 ## Open questions this workstream must not answer silently
 

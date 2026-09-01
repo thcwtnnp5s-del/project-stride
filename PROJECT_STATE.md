@@ -1,53 +1,57 @@
 # Project Stride — Project State
 
-**Version:** 2.36
-**Status:** 🧪 **VISUAL / AUDIO / WORLD OVERHAUL 01 — the budget reopens and
-the chassis lands, on `visual-audio-world-overhaul-01` (from
-`presentation-combat-evolution-01` @ `6d41bce`), IN PROGRESS and awaiting the
-owner's device evaluation.** Records:
-`MILESTONES/VISUAL_AUDIO_WORLD_OVERHAUL_01.md` (the thesis — diagnosis,
-budget, chosen order, explicit rejections, acceptance criteria),
-`DECISIONS/0030_VISUAL_AUDIO_WORLD_OVERHAUL_SCOPE.md` (**owner ruling —
-PixelLab reopens at 10,000 generations and audio reopens; Q-14 closes**),
-twelve forensic audits in `MILESTONES/evidence/VAWO01/wave0/`, and two art
-directions in `GAME_BIBLE/ART/exploration/VAWO01/`.
+**Version:** 2.37
+**Status:** 🧪 **VISUAL / AUDIO / WORLD OVERHAUL 01 — the production rounds
+landed, on `visual-audio-world-overhaul-01` (from
+`presentation-combat-evolution-01` @ `6d41bce`), awaiting the owner's device
+acceptance.** Records: `MILESTONES/VISUAL_AUDIO_WORLD_OVERHAUL_01.md` (the
+thesis, with the implementation table and acceptance criteria),
+`DECISIONS/0030` (**owner ruling — PixelLab reopens at 10,000; audio reopens;
+Q-14 closes**), `DECISIONS/0031` (**L-18a — density is a property of a plane**),
+`DECISIONS/0032` (**Q-16 — Reduce Motion reduces motion, not audio**), twelve
+forensic audits in `MILESTONES/evidence/VAWO01/wave0/`, and four round records
+in `GAME_BIBLE/ART/exploration/VAWO01/`.
 
-**Four of the owner's complaints had a cause other than the obvious one, and
-that is the whole value of the audit wave.**
+**PixelLab: 179 of 10,000 generations used.** Budget was never the constraint;
+blind review was, exactly as the production plan predicted.
 
-- **The floating gather object was not a placement bug.** The subject's base
-  already sat on the ground line; what was missing was light. `GroundedSprite`
-  composites a contact shadow and its own doc says a bare `PixelAsset` on a
-  background *is* the floating defect — the Traveler went through it and the
-  ore he was hitting did not. Every gather scene grounded the man and floated
-  the rock. Fixed, with footprints now measured for both subject families.
-- **The generic UI was not leftover Material** (there is none) — it was one
-  rectangle at 33 sites plus, larger than anything else, **no typeface at all**:
-  292 text sites render in the iOS system font, which is the literal signature
-  of "pixel art over Flutter".
-- **The bear looking small was not an art problem.** The encounter card demoted
-  large canvases to ×1, so the largest land animal in the game drew at 50 dp
-  against the wolf's 58 and the boss at 71 against the salamander's 92. The rule
-  measured the canvas; a combat canvas is mostly empty.
-- **The goldens were racy**, and the chassis exposed it: `settleImages`
-  precached `Image` widgets and `PixelFrame` is not one, so Skills won the
-  decode race and Adventure lost it in the same run.
+What a player will see that they could not before:
 
-Landed: two guards that did not exist (**L-16 has been system-wide since it was
-written and nothing had ever measured it** — 872 PNGs now scanned), the chassis
-frame family reaching ~28 panels from one registry row, gather grounding, the
-per-skill completion one-shot (mining used to end with the miner picking a
-herb), the encounter-card scale fix, and the image cache sized *before* the art
-arrives rather than after. Two G-8 hazards closed: `AUDIO/evaluation/` was
-652 MB unignored, and the exploration tree's `*.md` exception was un-ignoring
-the WalkScape reference set's prose, whose own header reads DO NOT COMMIT.
+- **Every panel in the app is leather.** One authored chassis frame, every
+  `PanelRole`, ~34 call sites, no call site edited.
+- **All 22 gather nodes are a distinct scene**, up from 12. Twenty-eight new
+  plates: seven region×skill backdrops, seven project-built variants, fourteen
+  working faces. Backdrops were keyed by *skill* before, so every foraging node
+  in the game showed Haven's meadow.
+- **The gather subject is grounded.** `AmbientStage._prop` built a bare
+  `PixelAsset` while the Traveler beside it went through `GroundedSprite` —
+  every scene grounded the man and floated the ore.
+- **The Character screen shows what you are wearing** — three armour classes,
+  zero new persisted state, state stays v9.
+- **Zero byte-identical item icons**, down from eleven pairs; copper and tin
+  are no longer one boulder in two colours.
+- **A red wyrm and a storm drake fly the atlas**, with three original landmarks
+  — an ice-accreted stave tower, a standing-stone fairy court, a storm-dark
+  croft. All original; none uses the reserved teal.
+- **The bear is no longer the smallest creature in the game** on the encounter
+  card.
 
-**976 tests pass, analyze clean, goldens deterministic across re-runs.** Not
-begun: typeface, free-asset utilisation, audio architecture, and the four large
-art rounds (gather scenes, items, enemies, equipment, world life) — all
-specified in the thesis with measured estimates. **Audio generation is blocked
-on credentials**: both provider keys are unset, which blocks new sound files and
-not the architecture. Nothing here has been seen on the iPhone.
+Under the surface: two guards that had never existed (**L-16 has been
+system-wide since it was written and nothing had ever measured it** — 924 PNGs
+now scanned), the image cache sized before the art arrived rather than after,
+and a full combat/reward audio architecture — twenty cues, a voice cap,
+priority bands and a music duck — wired and deliberately silent.
+
+**Not done, and named rather than implied:** an unarmed player still sees a
+baked steel sword in combat (PixelLab template animations discard held props —
+the finding and the fix are in `EQUIPMENT_ROUND_RECORD_01.md`); **no new audio
+files exist**, because both provider keys are unset; **there is still no
+typeface**, which is the largest remaining "generated" tell and costs zero
+generations; and enemy silhouettes, atlas seams and UI batches C–I are
+unstarted.
+
+**983 tests pass, analyze clean, goldens deterministic, packaging idempotent.**
+Nothing here has been seen on the iPhone.
 
 <details>
 <summary>Previous status — Presentation &amp; Combat Evolution 01 (v2.35)</summary>
