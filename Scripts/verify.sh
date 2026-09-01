@@ -148,6 +148,26 @@ step "Shipped art matches the packaging step"
 node ./Scripts/art/package-art.js --check
 node ./Scripts/art/nav-active-variant.js --check
 
+step "Art palette reserves what the interface reserves"
+# L-16 reserves #58D6C0 for walking system-wide and, until VAWO01, nothing
+# measured it — `DECISIONS/0029` conceded the generated palettes only *appeared*
+# clear of teal, "an impression, not a measurement". Interface art is the first
+# art authored near interface colour, so it is the first that can collide.
+# Also holds the zero-semi-transparent-pixel baseline that makes integer
+# scaling exact (L-18), and keeps chrome below the textMuted luminance ceiling.
+node ./Scripts/art/check-art-palette.js --self-test >/dev/null
+node ./Scripts/art/check-art-palette.js
+
+step "Tiled frame edges actually tile"
+# 0029 forbids centerSlice and makes tiling the only permitted edge behaviour,
+# which moves the risk: a join that beats every repeat period is invisible at
+# the one phone width its author reviewed and obvious at the next. The four
+# supported widths produce four different fractional remainders (production
+# plan §3.3), so no single-height human review can cover this. A pass is a
+# pre-filter, never acceptance -- RULES.md A-3 still decides.
+node ./Scripts/art/check-tile-seam.js --self-test >/dev/null
+node ./Scripts/art/check-tile-seam.js
+
 step "Dependency policy"
 ./Scripts/check-dependency-policy.sh
 

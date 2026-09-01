@@ -1,0 +1,7 @@
+{
+  "corner": 16,
+  "band": 8,
+  "period": 8,
+  "scale": 2,
+  "note": "Geometry measured from the asset, never guessed. `corner` locates the four corner blocks so the tile-seam guard can find the edge runs; `band` is the frame material depth and is what PanelSkin insets content by (NOT `corner` — see production plan section 3.2.1)."
+}

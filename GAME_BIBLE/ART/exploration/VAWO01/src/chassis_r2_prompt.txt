@@ -1,0 +1,17 @@
+A hollow rectangular border from a traveller's leather-bound journal cover, laid
+flat and seen straight on, filling the whole picture out to all four edges, with
+a completely empty transparent hole in the middle: the border is exactly the
+same thickness on all four sides, six pixels thick, and is built as an outer
+dark line, a band of oiled dark brown leather, and an inner dark line; one fine
+paler stitch line runs along the middle of the leather all the way round without
+a break and without any knot, bead or dash of a different size; the leather is
+lit along the top and left sides and shadowed along the bottom and right sides;
+the four corners turn as rounded quarter circles about seven pixels in radius,
+with the leather and the stitch line continuous around each turn; the border is
+plain along its whole length with nothing attached to it — pixel art interface
+frame for a dark fantasy travel journal, seen flat and straight on, single dark
+outline along every edge, flat matte shading in a few clear steps, light from
+the upper left, dark warm brown leather and aged timber palette with no bright
+values, no glow, no emissive light, no white specular, no cast shadow, no
+gradient, no text, no numbers, no metal studs, no buckles, no clasps, no
+gemstones, no coins

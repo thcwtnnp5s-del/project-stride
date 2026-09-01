@@ -172,15 +172,47 @@ final class PanelSkin {
 abstract final class PanelSkins {
   const PanelSkins._();
 
-  /// The registry. Nothing is authored yet — the 25 remaining PixelLab
-  /// generations are the atlas emergency reserve and are not available to this
-  /// workstream, so every role deliberately resolves to null and every panel
-  /// paints its fallback.
+  /// The registry.
   ///
   /// **Adding a row is a visual change to every panel of that role at once.**
   /// That is the point, and it is also the risk: a row lands with a device
   /// review, not with a compile.
-  static const Map<PanelRole, PanelSkin> authored = <PanelRole, PanelSkin>{};
+  ///
+  /// `card` was authored in VAWO01 (`DECISIONS/0030`, which reopened the
+  /// PixelLab budget that `0029` recorded as exhausted). One frame family
+  /// app-wide, per L-18 as amended — `heroPlate` and `boardSlip` deliberately
+  /// reuse the same asset rather than opening a second border, because eleven
+  /// unrelated borders is the failure mode this direction is most likely to
+  /// produce.
+  ///
+  /// `combatFrame` and `modalFrame` are still painted: combat "is a place, not
+  /// an interruption" and wants its own heavier edge (production plan Batch D),
+  /// and a modal wants the 8 px band. Both keep their reserve so the day those
+  /// assets land, the material changes and the layout does not.
+  ///
+  /// `kitTray` wants a surface, not a frame, and may never take a row here.
+  static const Map<PanelRole, PanelSkin> authored = <PanelRole, PanelSkin>{
+    PanelRole.card: _chassis,
+    PanelRole.heroPlate: _chassis,
+    PanelRole.boardSlip: _chassis,
+  };
+
+  /// The chassis: oiled leather welt with a continuous stitch line and
+  /// reinforced corner caps, from a traveller's journal cover.
+  ///
+  /// Geometry is measured from the PNG, never guessed, and is mirrored in
+  /// `assets/ui/v1/frame/chassis_64.json` for the tile-seam guard. `band` is 8
+  /// and `corner` is 16: the corner block has to contain the whole corner cap,
+  /// while the band is only the material depth — insetting by `corner` would
+  /// cost every panel 32 logical px per side (production plan § 3.2.1).
+  static const PanelSkin _chassis = PanelSkin(
+    assetPath: 'assets/ui/v1/frame/chassis_64.png',
+    nativeWidth: 64,
+    nativeHeight: 64,
+    corner: 16,
+    band: 8,
+    scale: 2,
+  );
 
   /// The frame for [role], or null when that role is still painted.
   static PanelSkin? of(PanelRole role) => authored[role];
@@ -197,11 +229,15 @@ abstract final class PanelSkins {
   /// The room each role keeps for a frame it does not have yet. Chosen to
   /// match the geometry the production plan specifies, so the reserve is a
   /// prediction the art must honour rather than a number the art will fight.
+  /// `card`, `heroPlate` and `boardSlip` now resolve to [_chassis] and take
+  /// its measured 16, so their entries here are only the fallback figure used
+  /// if the asset fails to load — kept equal to the real inset so a failed
+  /// decode changes the material and not the layout.
   static const Map<PanelRole, double> _reserve = <PanelRole, double>{
-    PanelRole.card: 0,
+    PanelRole.card: 16,
     PanelRole.kitTray: 0,
-    PanelRole.heroPlate: 12,
-    PanelRole.boardSlip: 12,
+    PanelRole.heroPlate: 16,
+    PanelRole.boardSlip: 16,
     PanelRole.combatFrame: 12,
     PanelRole.modalFrame: 16,
   };

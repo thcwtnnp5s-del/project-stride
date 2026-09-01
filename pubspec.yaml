@@ -97,6 +97,12 @@ flutter:
     - assets/ui/v1/skill_mining.png
     - assets/ui/v1/skill_smithing.png
     - assets/ui/v1/skill_cooking.png
+    # The chassis frame (VAWO01, DECISIONS/0030). One frame family app-wide:
+    # PanelSkins maps roles to it, so ~28 panels change material from this one
+    # line and no call site moves. The sidecar chassis_64.json beside it is
+    # build-time geometry for Scripts/art/check-tile-seam.js and is deliberately
+    # NOT declared here — it must not ship in the bundle.
+    - assets/ui/v1/frame/chassis_64.png
 
     # Game art, v1. Authored in PixelLab, packaged by
     # `Scripts/art/package-art.js`, which is the only thing that writes this

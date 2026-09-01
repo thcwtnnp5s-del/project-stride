@@ -14,6 +14,8 @@
 /// made of something.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import '../theme/stride_colors.dart';
@@ -39,6 +41,11 @@ import 'pixel_asset.dart';
 /// registry is the whole integration surface of `DECISIONS/0029`. See
 /// `panel_skin.dart` for why the genericness the owner named is this one
 /// rectangle repeated, and why a registry is the fix rather than a parameter.
+/// The smallest gap kept between an authored frame's inner line and the type
+/// inside it. Not zero: type beginning hard against the frame's inner dark line
+/// reads as a layout error even when the arithmetic is right.
+const double _framedGap = 6;
+
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -94,8 +101,30 @@ class SectionCard extends StatelessWidget {
       );
     }
     // The frame owns the edge; the fill still owns the middle, so body text
-    // never sits on frame art. `PixelFrame` insets by the corner itself, so
-    // the caller's padding is applied inside that.
+    // never sits on frame art.
+    //
+    // **The frame's band replaces the padding rather than adding to it.**
+    // `PixelFrame` already insets by `skin.inset`, and the band is a material
+    // margin — it is the same breathing room the padding exists to provide, so
+    // charging for both double-counts it. Stacking them cost 30 dp per side
+    // against the unskinned 15, and that is not a taste question: at 320 dp
+    // with the accessibility text scale at x1.4 it took "Woodcutting" below the
+    // width it needs, which `ui_responsive_test.dart` catches and
+    // `DECISIONS/0029` forbids outright — decorative art may never reduce
+    // large-text support.
+    //
+    // So the caller's padding is reduced by what the frame already spent, and
+    // floored at a small gap so type never begins hard against the frame's
+    // inner line. A caller passing a deliberately large padding still gets the
+    // extra room it asked for, measured from the same place as before.
+    final EdgeInsets resolved = pad.resolve(TextDirection.ltr);
+    final EdgeInsets interior = EdgeInsets.fromLTRB(
+      math.max(_framedGap, resolved.left - skin.inset),
+      math.max(_framedGap, resolved.top - skin.inset),
+      math.max(_framedGap, resolved.right - skin.inset),
+      math.max(_framedGap, resolved.bottom - skin.inset),
+    );
+
     return SizedBox(
       width: double.infinity,
       child: PixelFrame(
@@ -103,7 +132,7 @@ class SectionCard extends StatelessWidget {
         fallback: _painted(),
         child: DecoratedBox(
           decoration: BoxDecoration(color: StrideColors.surfaceCard),
-          child: Padding(padding: pad, child: child),
+          child: Padding(padding: interior, child: child),
         ),
       ),
     );

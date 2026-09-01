@@ -22,6 +22,29 @@ Future<void> main() async {
   // anything else touches a platform channel. Bootstrap does both.
   WidgetsFlutterBinding.ensureInitialized();
 
+  // The image cache is sized for this bundle, not for Flutter's defaults.
+  //
+  // The default cap is **1,000 entries** and this app ships **872 PNGs** — the
+  // count binds at 87% occupancy, and it binds roughly four times sooner than
+  // the 100 MiB byte cap does, because the mean decoded PNG here is only ~23
+  // KiB. Left alone, VAWO01's new art would push past the entry cap and start
+  // evicting; the symptom is not a crash but a re-decode stutter when a screen
+  // is revisited, which reads as "the new art made it slow".
+  //
+  // `maximumSizeBytes` is deliberately *lowered* from the 100 MiB default to
+  // 48 MiB. Total decoded art is ~20 MiB today with a budget of 44 MiB
+  // (`FOUNDATION_K_PERFORMANCE.md`), so 48 MiB is a ceiling the budget fits
+  // inside — which makes overspending the memory budget show up as a visible
+  // eviction stutter in QA rather than as invisible growth on the device.
+  //
+  // Note what is *not* done here: no `cacheWidth`/`cacheHeight`/`ResizeImage`
+  // anywhere. Resampling at decode drops columns before `filterQuality` is ever
+  // consulted, and this app magnifies pixel art at integer scale (L-18). The
+  // usual "downscale large images" advice is actively wrong for this product.
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 2000
+    ..maximumSizeBytes = 48 << 20;
+
   // Awaited before the first frame rather than kicked off behind a splash.
   //
   // The app's whole claim is that what it shows is what is durable, and a screen

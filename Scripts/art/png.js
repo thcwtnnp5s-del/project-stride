@@ -134,6 +134,157 @@ function load(file) {
   return new Raster(width, height, out);
 }
 
+/**
+ * Read-only decode of any depth-8 non-interlaced PNG into RGBA8.
+ *
+ * ## Why this exists alongside the strict `load`
+ *
+ * `load` refuses anything that is not colour type 6, and that strictness is
+ * correct for what it serves: `package-art.js` **writes** the art that ships,
+ * and a decoder that guesses would put wrong colours into shipped pixel art,
+ * where wrong colours are not subtle.
+ *
+ * A **guard** has the opposite failure mode. `check-art-palette.js` measures
+ * every shipped PNG for reserved-teal collisions, stray alpha and luminance
+ * ceiling breaches. Thirteen of the 871 shipped files -- `glyph_arrow` and the
+ * twelve nav icons -- are colour type 3, palette-indexed. Under `load` alone
+ * the guard could not read them, and a guard that silently cannot see 13 files
+ * is a guard with a hole exactly where hand-maintained interface art lives.
+ *
+ * So: `load` stays strict and nothing that writes art changes behaviour. This
+ * is additive, and it is for reading only -- it has no `save` counterpart, by
+ * design. Round-tripping a palette PNG through here and back out would launder
+ * it into RGBA without anyone deciding to, which is how `assets/ui/v1`'s
+ * hand-maintained provenance rows would quietly stop describing the files.
+ *
+ * Supports colour types 0 (grey), 2 (RGB), 3 (palette), 4 (grey+alpha) and
+ * 6 (RGBA), at bit depth 8, non-interlaced. `tRNS` transparency is honoured
+ * for types 0, 2 and 3.
+ */
+function loadAny(file) {
+  const buf = fs.readFileSync(file);
+  if (!buf.subarray(0, 8).equals(SIGNATURE)) {
+    throw new Error(`${file}: not a PNG`);
+  }
+
+  let width = 0;
+  let height = 0;
+  let colorType = -1;
+  let palette = null;
+  let trns = null;
+  const idat = [];
+  let offset = 8;
+
+  while (offset < buf.length) {
+    const length = buf.readUInt32BE(offset);
+    const type = buf.toString('ascii', offset + 4, offset + 8);
+    const body = buf.subarray(offset + 8, offset + 8 + length);
+    offset += 12 + length;
+
+    if (type === 'IHDR') {
+      width = body.readUInt32BE(0);
+      height = body.readUInt32BE(4);
+      const depth = body[8];
+      colorType = body[9];
+      const interlace = body[12];
+      if (depth !== 8 || interlace !== 0) {
+        throw new Error(
+          `${file}: expected bit depth 8 and no interlacing, got depth ` +
+            `${depth}, interlace ${interlace}.`,
+        );
+      }
+      if (![0, 2, 3, 4, 6].includes(colorType)) {
+        throw new Error(`${file}: unsupported colour type ${colorType}`);
+      }
+    } else if (type === 'PLTE') {
+      palette = Buffer.from(body);
+    } else if (type === 'tRNS') {
+      trns = Buffer.from(body);
+    } else if (type === 'IDAT') {
+      idat.push(body);
+    } else if (type === 'IEND') {
+      break;
+    }
+  }
+
+  if (width === 0 || height === 0) throw new Error(`${file}: no IHDR`);
+  if (colorType === 3 && palette === null) {
+    throw new Error(`${file}: palette colour type with no PLTE chunk`);
+  }
+
+  const samples = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[colorType];
+  const stride = width * samples;
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const flat = Buffer.alloc(height * stride);
+
+  // Unfilter. Identical to `load`, except the predictor step is the sample
+  // width of this colour type rather than a hardcoded 4.
+  for (let y = 0; y < height; y++) {
+    const filter = raw[y * (stride + 1)];
+    const line = raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
+    const dst = y * stride;
+    const prev = dst - stride;
+
+    for (let x = 0; x < stride; x++) {
+      const a = x >= samples ? flat[dst + x - samples] : 0;
+      const b = y > 0 ? flat[prev + x] : 0;
+      const c = x >= samples && y > 0 ? flat[prev + x - samples] : 0;
+      let value = line[x];
+      switch (filter) {
+        case 0: break;
+        case 1: value += a; break;
+        case 2: value += b; break;
+        case 3: value += (a + b) >> 1; break;
+        case 4: value += paethPredictor(a, b, c); break;
+        default: throw new Error(`${file}: unknown row filter ${filter}`);
+      }
+      flat[dst + x] = value & 0xff;
+    }
+  }
+
+  // Expand to RGBA8.
+  const out = Buffer.alloc(width * height * 4);
+  for (let n = 0; n < width * height; n++) {
+    const s = n * samples;
+    const d = n << 2;
+    let r;
+    let g;
+    let b;
+    let alpha = 255;
+
+    switch (colorType) {
+      case 0:
+        r = flat[s]; g = flat[s]; b = flat[s];
+        if (trns && trns.length >= 2 && flat[s] === trns[1]) alpha = 0;
+        break;
+      case 2:
+        r = flat[s]; g = flat[s + 1]; b = flat[s + 2];
+        if (trns && trns.length >= 6
+            && r === trns[1] && g === trns[3] && b === trns[5]) alpha = 0;
+        break;
+      case 3: {
+        const i = flat[s] * 3;
+        if (i + 2 >= palette.length) {
+          throw new Error(`${file}: palette index ${flat[s]} out of range`);
+        }
+        r = palette[i]; g = palette[i + 1]; b = palette[i + 2];
+        if (trns && flat[s] < trns.length) alpha = trns[flat[s]];
+        break;
+      }
+      case 4:
+        r = flat[s]; g = flat[s]; b = flat[s]; alpha = flat[s + 1];
+        break;
+      default: // 6
+        r = flat[s]; g = flat[s + 1]; b = flat[s + 2]; alpha = flat[s + 3];
+        break;
+    }
+
+    out[d] = r; out[d + 1] = g; out[d + 2] = b; out[d + 3] = alpha;
+  }
+
+  return new Raster(width, height, out);
+}
+
 // ------------------------------------------------------------------- encode
 
 function chunk(type, body) {
@@ -329,6 +480,7 @@ module.exports = {
   fill,
   footprint,
   load,
+  loadAny,
   save,
   scale,
 };

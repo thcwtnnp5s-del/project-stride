@@ -278,3 +278,73 @@ ios/Flutter/Local.xcconfig
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/tools/**
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/review/**
 !GAME_BIBLE/ART/exploration/WORLD_ATLAS_REMASTER_01/iteration_02/device_screens/**
+
+# ---------------------------------------------------------------------------
+# Visual / Audio / World Overhaul 01 (VAWO01)
+#
+# The workstream authorised by the owner on 2026-09-01, which reopened PixelLab
+# (10,000 generations, Tier 3) and amended `DECISIONS/0029`'s "no generation in
+# this workstream" clause. Recorded in `DECISIONS/0030`.
+#
+# Everything below is a packaging SOURCE. `Scripts/art/package-art.js --check`
+# and the UI frame kit both read from these directories, so a clean checkout
+# without them fails verification -- the exact latent defect that shipped once
+# already (`PIXELLAB_ASSET_INVENTORY.md` §2), and precondition P-5 of
+# `GAME_BIBLE/ART/PIXELLAB_UI_PRODUCTION_PLAN.md`.
+#
+# `rejected/` is tracked on purpose. A rejected roll with a written verdict is
+# the evidence the next round is built on, and re-learning a rejection costs
+# generations (M-05).
+#
+# NOT tracked, deliberately: `raw/` (unselected candidate dumps) and any
+# reference imagery. `WALKSCAPE_REFERENCE_SET/` remains excluded above -- it is
+# third-party material and publishing it required a history rewrite (M-08).
+# ---------------------------------------------------------------------------
+!GAME_BIBLE/ART/exploration/VAWO01/out/**
+!GAME_BIBLE/ART/exploration/VAWO01/src/**
+!GAME_BIBLE/ART/exploration/VAWO01/tools/**
+!GAME_BIBLE/ART/exploration/VAWO01/review/**
+!GAME_BIBLE/ART/exploration/VAWO01/rejected/**
+!GAME_BIBLE/ART/exploration/VAWO01/*.json
+GAME_BIBLE/ART/exploration/VAWO01/raw/**
+
+# ---------------------------------------------------------------------------
+# WalkScape reference set — the .md files too
+#
+# The images here have been excluded since M-08. The *prose* was not: the
+# blanket `!GAME_BIBLE/ART/exploration/**/*.md` exception above un-ignores
+# `README.md` and `OBSERVATION_05.md`, and those describe third-party
+# screenshots in construction detail. `README.md`'s own header reads
+# `DO NOT COMMIT`.
+#
+# This is the same class of near-miss as M-08 itself: a broad exception that
+# was right for round records reaching one directory it should never reach.
+# Re-ignored here, after the exception, so last-match-wins puts it back.
+# ---------------------------------------------------------------------------
+GAME_BIBLE/ART/exploration/WALKSCAPE_REFERENCE_SET/**
+
+# ---------------------------------------------------------------------------
+# AUDIO/evaluation — 652 MB of audition material, never committed, and until
+# now not ignored either
+#
+# The largest live G-8 hazard in the tree: a single `git add AUDIO/` would
+# publish ~200 files including 26 MB raw WAV renders and 56 MB zips. It has
+# survived this long only because every commit so far named its paths.
+#
+# Ignored wholesale, with exceptions for the three small classes that are
+# genuinely repository knowledge — generation provenance, the mastering tools,
+# and the round indices — so that re-auditioning the 40+ already-paid-for
+# candidates in VAWO01 can be recorded without dragging the renders in.
+# Whether those exceptions are actually taken up is an owner call
+# (`FOUNDATION_L_PACKAGING.md`); the ignore is not.
+# ---------------------------------------------------------------------------
+AUDIO/evaluation/**
+!AUDIO/evaluation/**/
+!AUDIO/evaluation/**/provenance/*.json
+!AUDIO/evaluation/**/tools/*.mjs
+!AUDIO/evaluation/INDEX*.md
+!AUDIO/evaluation/**/INDEX*.md
+AUDIO/evaluation/**/*.wav
+AUDIO/evaluation/**/*.mp3
+AUDIO/evaluation/**/*.flac
+AUDIO/evaluation/**/*.zip

@@ -39,24 +39,73 @@ const PanelSkin _fixture = PanelSkin(
 );
 
 void main() {
-  group('the empty registry is the shipped product', () {
-    test('no role has authored art yet', () {
-      // The state `DECISIONS/0029` ships in: architecture landed, art queued
-      // for after the 2026-09-16 PixelLab reset. If this ever fails without a
-      // device review having happened, a frame family landed by accident.
-      expect(PanelSkins.authored, isEmpty);
-      for (final PanelRole role in PanelRole.values) {
+  group('the registry is exactly what was reviewed', () {
+    test('only the chassis roles are authored', () {
+      // VAWO01 (`DECISIONS/0030`) landed one frame family and registered it
+      // against three roles. This assertion is deliberately an *exact set*
+      // rather than a count or a non-emptiness check, so it keeps doing the
+      // job it did when the registry was empty: **if this fails without a
+      // device review having happened, a frame family landed by accident.**
+      expect(
+        PanelSkins.authored.keys.toSet(),
+        <PanelRole>{PanelRole.card, PanelRole.heroPlate, PanelRole.boardSlip},
+      );
+
+      // One family app-wide (L-18 as amended). The three authored roles share
+      // a single asset; eleven unrelated borders is the failure mode this
+      // direction is most likely to produce, so it is pinned here.
+      expect(
+        PanelSkins.authored.values.map((PanelSkin s) => s.assetPath).toSet(),
+        hasLength(1),
+      );
+
+      // Still painted, deliberately: combat wants its own heavier edge and a
+      // modal wants the 8 px band (production plan Batch D), and `kitTray`
+      // wants a surface rather than a frame.
+      for (final PanelRole role in <PanelRole>[
+        PanelRole.kitTray,
+        PanelRole.combatFrame,
+        PanelRole.modalFrame,
+      ]) {
         expect(PanelSkins.of(role), isNull, reason: role.name);
       }
     });
 
-    testWidgets('a card with no skin paints the rectangle it always painted', (
+    test('the chassis geometry matches the asset it declares', () {
+      // Geometry is measured from the PNG, never guessed — a frame whose
+      // declared geometry disagrees with its file renders wrong in a way that
+      // looks like a layout bug, the most expensive kind of art defect to
+      // diagnose. These figures are mirrored in
+      // `assets/ui/v1/frame/chassis_64.json` for the tile-seam guard, and the
+      // band/corner distinction is the one § 3.2.1 of the production plan was
+      // written about.
+      final PanelSkin chassis = PanelSkins.of(PanelRole.card)!;
+      expect(chassis.assetPath, 'assets/ui/v1/frame/chassis_64.png');
+      expect(chassis.nativeWidth, 64);
+      expect(chassis.nativeHeight, 64);
+      expect(chassis.corner, 16);
+      expect(chassis.band, 8);
+      expect(chassis.scale, 2);
+      // Content is inset by the BAND, not the corner block. Insetting by the
+      // corner would cost every panel 32 logical px per side.
+      expect(chassis.inset, 16);
+      expect(chassis.cornerExtent, 32);
+    });
+
+    testWidgets('an unskinned role paints the rectangle it always painted', (
       WidgetTester tester,
     ) async {
+      // The reversibility property `DECISIONS/0029` requires and `0030`
+      // preserves: emptying the registry returns the product to the painted
+      // rectangle in one commit. `kitTray` is genuinely unskinned, so it
+      // exercises that path for real rather than by simulation.
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
-          child: SectionCard(child: SizedBox(width: 100, height: 20)),
+          child: SectionCard(
+            role: PanelRole.kitTray,
+            child: SizedBox(width: 100, height: 20),
+          ),
         ),
       );
 
@@ -70,6 +119,18 @@ void main() {
       expect(d.color, StrideColors.surfaceCard);
       expect(d.borderRadius, StrideRadius.card);
       expect(d.border, Border.all(color: StrideColors.borderDefault));
+    });
+
+    testWidgets('a skinned role routes through PixelFrame', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SectionCard(child: SizedBox(width: 100, height: 20)),
+        ),
+      );
+      expect(find.byType(PixelFrame), findsOneWidget);
     });
 
     testWidgets('every role still lays out at the same size', (
@@ -132,13 +193,16 @@ void main() {
         return tester.getSize(find.byKey(ValueKey<PanelRole>(role))).width;
       }
 
-      final double card = await contentWidthFor(PanelRole.card);
+      // `kitTray` reserves nothing and `modalFrame` reserves the heaviest
+      // edge, so the modal's content box is narrower by exactly twice the
+      // reserve — while both are still unskinned. `card` cannot play the
+      // zero-reserve part any more: it now resolves to the chassis, which is
+      // the whole point of VAWO01.
+      final double tray = await contentWidthFor(PanelRole.kitTray);
       final double modal = await contentWidthFor(PanelRole.modalFrame);
 
-      // A modal reserves the heaviest edge, so its content box is narrower by
-      // exactly twice the reserve — now, before any art exists.
       expect(
-        card - modal,
+        tray - modal,
         PanelSkins.insetFor(PanelRole.modalFrame) * 2,
         reason:
             'the reserve is not being applied; the frame will reflow every '
@@ -149,9 +213,9 @@ void main() {
     testWidgets('an unreserved role is byte-identical to what shipped', (
       WidgetTester tester,
     ) async {
-      // The other half: `card` and `kitTray` reserve nothing, so the
-      // overwhelming majority of the product must be untouched by all of this.
-      expect(PanelSkins.insetFor(PanelRole.card), 0);
+      // `kitTray` reserves nothing and has no art, so it must be untouched by
+      // all of this — the control case that proves the seam only changes what
+      // it was pointed at.
       expect(PanelSkins.insetFor(PanelRole.kitTray), 0);
 
       await tester.pumpWidget(
@@ -161,6 +225,7 @@ void main() {
             child: SizedBox(
               width: 320,
               child: SectionCard(
+                role: PanelRole.kitTray,
                 child: SizedBox(key: Key('c'), height: 20),
               ),
             ),
@@ -171,6 +236,19 @@ void main() {
       // each side that `Container` adds to the child's inset — and nothing
       // else. No reserve, no frame, no change from what shipped.
       expect(tester.getSize(find.byKey(const Key('c'))).width, 320 - 28 - 2);
+    });
+
+    testWidgets('the chassis reserve equals the chassis inset', (
+      WidgetTester tester,
+    ) async {
+      // The reserve is the fallback figure used when the asset fails to
+      // decode. Keeping it equal to the real inset is what makes a failed
+      // decode change the material and not the layout — a panel is never
+      // briefly frameless *and* briefly reflowed.
+      expect(
+        PanelSkins.insetFor(PanelRole.card),
+        PanelSkins.of(PanelRole.card)!.inset,
+      );
     });
   });
 
