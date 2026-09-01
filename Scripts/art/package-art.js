@@ -94,7 +94,11 @@ const ITEM_ICONS = {
   'item.oak_handle': 'icon_oak_handle_48.png',
   'item.oak_log': 'icon_oak_log_48.png',
   'item.pine_log': 'icon_pine_log_48.png',
-  'item.tin_ore': 'icon_tin_ore_48.png',
+  // `item.tin_ore` is NOT here. It is re-authored in the VAWO01 block below:
+  // the original shipped as a round boulder differing from Copper Ore only by
+  // inclusion colour (drift D-5). Two emitters for one path also break
+  // `--check`, which compares every emit against disk — the first would report
+  // the second's file as stale.
   'item.training_axe': 'icon_training_axe_48.png',
   'item.training_pickaxe': 'icon_training_pickaxe_48.png',
   'item.training_sword': 'icon_training_sword_48.png',
