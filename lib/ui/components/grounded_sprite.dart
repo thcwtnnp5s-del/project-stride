@@ -33,6 +33,8 @@
 /// the pixels under the feet.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 import '../icons/sprite_footprints.dart';
@@ -70,6 +72,24 @@ abstract final class ContactShadowSpec {
   /// Native pixels of room reserved below the sprite for the ellipse's lower
   /// half, which would otherwise be clipped by the sprite's own box.
   static const double bleed = 4;
+
+  /// Hard ceiling on the ellipse's half-height, in native pixels.
+  ///
+  /// [squash] is a *fraction of width*, which is right for figures — every
+  /// Traveler sprite has a contact span in the same narrow range, so the
+  /// shadow never got large enough for the fraction to misbehave.
+  ///
+  /// Gather subjects broke that assumption. A plant bed or an ore face is
+  /// authored to run off its own frame and measures 40+ px of contact against
+  /// a figure's 11, so the unclamped ellipse would be three times deeper than
+  /// the man's standing beside it — and a contact shadow that deep stops
+  /// reading as contact and starts reading as a *cast* shadow, implying a light
+  /// source the scene does not have.
+  ///
+  /// Clamping the half-height rather than the width keeps the shadow as wide as
+  /// the thing standing on it, which is the property the whole widget exists
+  /// for.
+  static const double maxHalfHeight = 9;
 }
 
 /// A sprite composited onto a background, with its contact shadow.
@@ -149,7 +169,10 @@ class _ContactShadowPainter extends CustomPainter {
     final double centerX = footprint.centerX * scale;
     final double centerY = (footprint.bottom - ContactShadowSpec.inset) * scale;
     final double rx = (footprint.width / 2 + ContactShadowSpec.spread) * scale;
-    final double ry = rx * ContactShadowSpec.squash;
+    final double ry = math.min(
+      rx * ContactShadowSpec.squash,
+      ContactShadowSpec.maxHalfHeight * scale,
+    );
 
     final Rect oval = Rect.fromCenter(
       center: Offset(centerX, centerY),

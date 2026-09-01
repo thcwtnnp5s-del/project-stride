@@ -149,8 +149,25 @@ class LocationStage extends StatelessWidget {
         : AmbientAssets.workBackdropFor(skill);
 
     final Widget figures = AmbientStage(
-      gatherFrames: PixelIcons.gatherFrames,
-      gatherFootprint: SpriteFootprints.gather,
+      // The completion one-shot is the skill's **own** action.
+      //
+      // This was `PixelIcons.gatherFrames` unconditionally, which is the
+      // foraging pluck — so finishing a mining queue ended with the miner
+      // kneeling to pick a herb, and finishing a woodcutting queue did the
+      // same. The loop the player watched for the whole gather and the beat
+      // it resolved on were two different professions (`GH-07`).
+      //
+      // Outside a gather there is no skill and the gather cycle is right: it
+      // is the generic "picked something up" beat.
+      gatherFrames: skill == null
+          ? PixelIcons.gatherFrames
+          : AmbientAssets.activityLoopFor(skill),
+      gatherFootprint: skill == null
+          ? SpriteFootprints.gather
+          : AmbientAssets.activityFootprintFor(skill),
+      gatherCanvas: skill == null
+          ? 64
+          : AmbientAssets.activityCanvasFor(skill),
       playToken: playToken,
       // Work mode drops the companion scenes — the cat is a companion, not a
       // fixture, and a rock face is not where it sits (§6). The living

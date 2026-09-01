@@ -162,7 +162,18 @@ function load(file) {
  * for types 0, 2 and 3.
  */
 function loadAny(file) {
-  const buf = fs.readFileSync(file);
+  return decodeAny(fs.readFileSync(file), file);
+}
+
+/**
+ * The buffer form of [loadAny], for bytes that are not on disk yet.
+ *
+ * `package-art.js` holds every emitted asset as bytes in memory before it
+ * writes them, and under `--check` it never writes them at all. Measuring a
+ * footprint from an emitted plate therefore has to work from the buffer, or
+ * the measurement would silently differ between a packaging run and a check.
+ */
+function decodeAny(buf, file = '<buffer>') {
   if (!buf.subarray(0, 8).equals(SIGNATURE)) {
     throw new Error(`${file}: not a PNG`);
   }
@@ -477,6 +488,7 @@ module.exports = {
   blit,
   bounds,
   crop,
+  decodeAny,
   fill,
   footprint,
   load,

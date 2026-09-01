@@ -38,6 +38,7 @@ class SpriteAnimation extends StatefulWidget {
     required this.footprint,
     required this.playToken,
     this.scale = 2,
+    this.canvas = 64,
     this.onPlayingChanged,
   });
 
@@ -61,6 +62,14 @@ class SpriteAnimation extends StatefulWidget {
   final Object? playToken;
 
   final int scale;
+
+  /// Native frame width, in sprite pixels.
+  ///
+  /// 64 for the gather cycle. The per-skill work loops are wider — the tool's
+  /// swing needs the room — so a one-shot built from one of those renders at
+  /// the wrong canvas unless it says so. Passed through to [GroundedSprite],
+  /// which is what actually knows how to size a non-square frame.
+  final int canvas;
 
   @override
   State<SpriteAnimation> createState() => _SpriteAnimationState();
@@ -136,6 +145,7 @@ class _SpriteAnimationState extends State<SpriteAnimation>
       assetPath: widget.frames[frame],
       footprint: widget.footprint,
       scale: widget.scale,
+      canvas: widget.canvas,
     );
   }
 }

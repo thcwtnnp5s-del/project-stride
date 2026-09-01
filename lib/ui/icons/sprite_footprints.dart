@@ -546,4 +546,167 @@ abstract final class SpriteFootprints {
     right: 41,
     bottom: 62,
   );
+
+  /// Every gather-scene subject plate, keyed by the asset path the scene
+  /// resolves.
+  ///
+  /// A map rather than named constants because the consumer is
+  /// `AmbientStage._prop`, which is handed a `StageScenery` and knows only its
+  /// `assetPath`. Hand-wiring a footprint into each of the twenty-odd
+  /// `StageScenery` literals would put the measurement and the plate in two
+  /// places that can disagree; this cannot drift, because both sides come from
+  /// the same packaging run.
+  static const Map<String, SpriteFootprint> byNodeAsset =
+      <String, SpriteFootprint>{
+    'assets/art/v1/node/collapsed_span.png': SpriteFootprint(
+      left: 15,
+      right: 33,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/copper_seam.png': SpriteFootprint(
+      left: 15,
+      right: 33,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/deep_hollow_thicket.png': SpriteFootprint(
+      left: 34,
+      right: 79,
+      bottom: 93,
+    ),
+    'assets/art/v1/node/deep_tin_seam.png': SpriteFootprint(
+      left: 22,
+      right: 80,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/duskcap_grove.png': SpriteFootprint(
+      left: 28,
+      right: 60,
+      bottom: 78,
+    ),
+    'assets/art/v1/node/frostpine_stand.png': SpriteFootprint(
+      left: 18,
+      right: 78,
+      bottom: 87,
+    ),
+    'assets/art/v1/node/gallery_tin_lode.png': SpriteFootprint(
+      left: 22,
+      right: 80,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/hardened_copper_seam.png': SpriteFootprint(
+      left: 15,
+      right: 33,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/heartwood_oak.png': SpriteFootprint(
+      left: 35,
+      right: 71,
+      bottom: 94,
+    ),
+    'assets/art/v1/node/hollow_thicket.png': SpriteFootprint(
+      left: 34,
+      right: 79,
+      bottom: 93,
+    ),
+    'assets/art/v1/node/meadow_patch.png': SpriteFootprint(
+      left: 33,
+      right: 74,
+      bottom: 85,
+    ),
+    'assets/art/v1/node/mill_garden.png': SpriteFootprint(
+      left: 33,
+      right: 74,
+      bottom: 85,
+    ),
+    'assets/art/v1/node/oak_stand.png': SpriteFootprint(
+      left: 35,
+      right: 71,
+      bottom: 94,
+    ),
+    'assets/art/v1/node/old_workings.png': SpriteFootprint(
+      left: 15,
+      right: 33,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/oldgrowth_frostpine.png': SpriteFootprint(
+      left: 18,
+      right: 78,
+      bottom: 87,
+    ),
+    'assets/art/v1/node/rimefrost_hollow.png': SpriteFootprint(
+      left: 3,
+      right: 93,
+      bottom: 91,
+    ),
+    'assets/art/v1/node/sheltered_frost_meadow.png': SpriteFootprint(
+      left: 3,
+      right: 93,
+      bottom: 91,
+    ),
+    'assets/art/v1/node/silkstrand_thicket.png': SpriteFootprint(
+      left: 34,
+      right: 79,
+      bottom: 93,
+    ),
+    'assets/art/v1/node/station_cookfire.png': SpriteFootprint(
+      left: 7,
+      right: 56,
+      bottom: 60,
+    ),
+    'assets/art/v1/node/station_forge.png': SpriteFootprint(
+      left: 24,
+      right: 39,
+      bottom: 61,
+    ),
+    'assets/art/v1/node/tin_seam.png': SpriteFootprint(
+      left: 22,
+      right: 80,
+      bottom: 90,
+    ),
+    'assets/art/v1/node/undercroft_silkfall.png': SpriteFootprint(
+      left: 34,
+      right: 79,
+      bottom: 93,
+    ),
+    'assets/art/v1/node/veiled_silkstrand.png': SpriteFootprint(
+      left: 34,
+      right: 79,
+      bottom: 93,
+    ),
+    'assets/art/v1/node/warded_grove.png': SpriteFootprint(
+      left: 35,
+      right: 71,
+      bottom: 94,
+    ),
+    'assets/art/v1/work/prop_copper_seam.png': SpriteFootprint(
+      left: 22,
+      right: 82,
+      bottom: 92,
+    ),
+    'assets/art/v1/work/prop_duskcap_grove.png': SpriteFootprint(
+      left: 26,
+      right: 47,
+      bottom: 94,
+    ),
+    'assets/art/v1/work/prop_hardened_copper_seam.png': SpriteFootprint(
+      left: 22,
+      right: 67,
+      bottom: 92,
+    ),
+    'assets/art/v1/work/prop_meadow_patch.png': SpriteFootprint(
+      left: 49,
+      right: 74,
+      bottom: 91,
+    ),
+    'assets/art/v1/work/prop_oak_stand.png': SpriteFootprint(
+      left: 15,
+      right: 85,
+      bottom: 90,
+    ),
+    'assets/art/v1/work/prop_tin_seam.png': SpriteFootprint(
+      left: 22,
+      right: 67,
+      bottom: 91,
+    ),
+  };
 }

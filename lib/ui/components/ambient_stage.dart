@@ -234,6 +234,7 @@ class AmbientStage extends StatefulWidget {
     required this.gatherFrames,
     required this.gatherFootprint,
     required this.playToken,
+    this.gatherCanvas = 64,
     required this.scenes,
     required this.restFrame,
     required this.restFootprint,
@@ -254,8 +255,16 @@ class AmbientStage extends StatefulWidget {
   });
 
   /// See [SpriteAnimation].
+  ///
+  /// The one-shot that plays when a gather lands. **It is the skill's own
+  /// action, not a fixed cycle** — until VAWO01 every profession finished on
+  /// `PixelIcons.gatherFrames`, the foraging pluck, so a completed mining queue
+  /// ended with the miner kneeling to pick a herb. `LocationStage` now resolves
+  /// it per skill, which is why the canvas has to travel with it: the work
+  /// loops are up to 76 px wide where the gather cycle is 64.
   final List<String> gatherFrames;
   final SpriteFootprint gatherFootprint;
+  final int gatherCanvas;
   final Object? playToken;
 
   /// The activity mode: while [activityActive] and [activityFrames] are both
@@ -333,17 +342,48 @@ class AmbientStage extends StatefulWidget {
 
 /// The near prop, placed by the layout. One builder, so the two paint-order
 /// branches cannot drift into two different placements.
-Widget _prop(AmbientStageLayout layout, StageScenery prop, bool east) =>
-    Positioned(
-  left: layout.propRect(prop, east: east).left,
-  top: layout.propRect(prop, east: east).top,
-  child: PixelAsset(
-    assetPath: prop.assetPath,
-    nativeWidth: prop.native,
-    nativeHeight: prop.native,
-    scale: 1,
-  ),
-);
+///
+/// **Grounded, since VAWO01.** This built a bare [PixelAsset] for the whole of
+/// the product's life, while the Traveler standing next to it went through
+/// [GroundedSprite] — whose own documentation says, of exactly this
+/// construction, that "a bare `PixelAsset.sprite` on a background is the
+/// floating defect". So every gather scene grounded the man and floated the
+/// thing he was hitting.
+///
+/// That asymmetry is the mechanical half of the owner's "weird isolated object
+/// floating in the centre of a scene". The geometry was never wrong — the
+/// subject's base already sat on the ground line — the *light* was. Nothing
+/// under it darkened, so nothing said it was resting there.
+///
+/// The footprint is looked up rather than declared, so it is measured from the
+/// plate that actually ships (`SpriteFootprints.byNodeAsset`, emitted by
+/// `Scripts/art/package-art.js`). A plate with no measurement falls back to the
+/// old bare asset rather than to a guessed shadow — a wrong shadow is worse
+/// than none, and `gather_grounding_test.dart` fails on any node that lands in
+/// that branch.
+Widget _prop(AmbientStageLayout layout, StageScenery prop, bool east) {
+  final Rect rect = layout.propRect(prop, east: east);
+  final SpriteFootprint? footprint =
+      SpriteFootprints.byNodeAsset[prop.assetPath];
+
+  return Positioned(
+    left: rect.left,
+    top: rect.top,
+    child: footprint == null
+        ? PixelAsset(
+            assetPath: prop.assetPath,
+            nativeWidth: prop.native,
+            nativeHeight: prop.native,
+            scale: 1,
+          )
+        : GroundedSprite(
+            assetPath: prop.assetPath,
+            footprint: footprint,
+            canvas: prop.native,
+            scale: 1,
+          ),
+  );
+}
 
 class _AmbientStageState extends State<AmbientStage> {
   bool _gatherPlaying = false;
@@ -444,6 +484,7 @@ class _AmbientStageState extends State<AmbientStage> {
                   footprint: widget.gatherFootprint,
                   playToken: widget.playToken,
                   scale: widget.scale,
+                  canvas: widget.gatherCanvas,
                   onPlayingChanged: _onGatherPlaying,
                 ),
               ),
