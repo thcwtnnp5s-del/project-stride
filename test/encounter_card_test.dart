@@ -156,8 +156,9 @@ void main() {
     expect(enemySprite(tester), endsWith('wolf_idle_f0.png'));
   });
 
-  testWidgets('the guardian takes the band at native scale — 96 at ×2 would '
-      'not fit a card', (WidgetTester tester) async {
+  testWidgets('the guardian takes the band at the combat stage scale', (
+    WidgetTester tester,
+  ) async {
     final SessionController c = await boot(tester);
     await tester.pumpWidget(
       shell(
@@ -175,10 +176,56 @@ void main() {
       find.byType(GroundedSprite),
     );
     expect(sprite.assetPath, contains('guardian_idle'));
-    expect(sprite.scale, 1);
+    // Was ×1, on the reasoning that a 96 canvas at ×2 would need a 200 dp
+    // band. That measured the canvas; a combat canvas is mostly empty, and
+    // `guardian_idle`'s content is 71 rows, needing 150. See below for why
+    // the reasoning mattered rather than just the number.
+    expect(sprite.scale, 2);
     expect(sprite.canvas, 96);
     expect(find.text('Hollow Guardian'), findsOneWidget);
     expect(find.text('BOSS'), findsOneWidget);
+  });
+
+  testWidgets('a larger creature is never drawn smaller than a smaller one', (
+    WidgetTester tester,
+  ) async {
+    // The property the old rule broke, and the reason this test exists rather
+    // than an assertion about any one creature's scale.
+    //
+    // Demoting the big canvases to ×1 inverted the roster: measured content
+    // heights are wolf 29 rows, crawler 33, salamander 46, bear 50, guardian
+    // 71 — but the player saw the bear at 50 dp against the wolf's 58, and the
+    // boss guardian at 71 against the salamander's 92. The card told them the
+    // bear was the smallest thing in the game.
+    //
+    // One scale for the whole roster is what makes that unrepresentable: with
+    // a single multiplier, drawn order *is* authored order, and no future
+    // creature can re-break it by being large.
+    final SessionController c = await boot(tester);
+
+    final Map<String, int> scales = <String, int>{};
+    for (final (String id, String name) in <(String, String)>[
+      ('enemy.grey_wolf', 'Grey Wolf'),
+      ('enemy.scree_crawler', 'Scree Crawler'),
+      ('enemy.ember_salamander', 'Ember Salamander'),
+      ('enemy.oakback_bear', 'Oakback Bear'),
+      ('enemy.hollow_guardian', 'Hollow Guardian'),
+    ]) {
+      await tester.pumpWidget(shell(c, option(enemy: id, name: name)));
+      await tester.pumpAndSettle();
+      final Finder f = find.byType(GroundedSprite);
+      if (f.evaluate().isEmpty) continue; // an enemy with no art table entry
+      scales[id] = tester.widget<GroundedSprite>(f).scale;
+    }
+
+    expect(scales, isNotEmpty);
+    expect(
+      scales.values.toSet(),
+      hasLength(1),
+      reason:
+          'Enemies are drawn at more than one scale, so the card no longer '
+          'reports relative size honestly: $scales',
+    );
   });
 
   testWidgets('an enemy the art table does not know renders the card exactly '

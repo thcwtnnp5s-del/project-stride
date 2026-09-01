@@ -47,6 +47,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -152,6 +153,18 @@ void main() {
         for (final Element e in find.byType(Image).evaluate()) {
           final Image image = e.widget as Image;
           await precacheImage(image.image, e);
+        }
+        for (final Element e in find.byType(PixelFrame).evaluate()) {
+          // PixelFrame is NOT an `Image`: it resolves an AssetImage through an
+          // ImageStream and paints with CustomPaint, so the loop above never
+          // sees it and the chassis frame decoded whenever it happened to
+          // finish. Skills won that race and Adventure lost it in the same run,
+          // which is a flaky golden rather than a wrong one — the worse of the
+          // two, because it fails for whoever runs it next.
+          await precacheImage(
+            AssetImage((e.widget as PixelFrame).skin.assetPath),
+            e,
+          );
         }
       });
       await tester.pumpAndSettle();

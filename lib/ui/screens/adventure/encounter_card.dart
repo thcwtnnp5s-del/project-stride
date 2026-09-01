@@ -400,18 +400,45 @@ class _EnemyStage extends StatelessWidget {
 
   final CombatantArt art;
 
-  /// The band's interior height. 120 seats the ×2 wolf-class figures exactly
-  /// (56 canvas + 4 shadow bleed, ×2) and keeps the card compact — the
-  /// creature reads first without the card becoming a second combat screen.
-  static const double height = 120;
+  /// The band's interior height.
+  ///
+  /// **152, and every creature is drawn at ×2** — because the previous rule
+  /// inverted the roster's size ordering, which is the one thing this band
+  /// exists to communicate.
+  ///
+  /// The old rule seated the 56-canvas figures at ×2 in a 120 band and dropped
+  /// anything larger to ×1, on the reasoning that a 96 canvas would otherwise
+  /// need 200 dp. That reasoning measured the **canvas**, and a combat canvas
+  /// is mostly empty. Measured content heights are: wolf 29 rows, crawler 33,
+  /// salamander 46, bear 50, guardian 71. Under the old rule the player saw
+  ///
+  /// * wolf, ×2 → 58 dp of creature
+  /// * **bear, demoted to ×1 → 50 dp** — the largest land animal in the game
+  ///   drawn smaller than the wolf
+  /// * **guardian, demoted to ×1 → 71 dp** — the boss drawn smaller than the
+  ///   salamander's 92
+  ///
+  /// At ×2 the *content* needs (71 + 4) × 2 = 150 dp at worst, so one band of
+  /// 152 seats the entire roster with nothing clipped, and the sizes come out
+  /// in the right order: 66, 74, 100, 108, 150. The card grows by 32 dp and
+  /// stops lying about what the player is about to fight.
+  static const double height = 152;
 
-  /// ×2 where the figure fits — the combat stage's own scale, so the creature
-  /// here and the creature in the fight are the same size of thing — and ×1
-  /// (native, the crispest reduction) for the guardian-class 96 canvases,
-  /// which at ×2 would need a 200 dp band. Integer scales only: pixel art
-  /// never lands between multiples.
-  static int scaleFor(CombatTrack idle) =>
-      (idle.canvasHeight + ContactShadowSpec.bleed) * 2 <= height ? 2 : 1;
+  /// The combat stage's own scale, for every creature without exception, so
+  /// the thing on the card and the thing in the fight are the same size of
+  /// thing. Integer scales only: pixel art never lands between multiples.
+  static const int scale = 2;
+
+  /// How far to push a figure down so every creature stands on one ground
+  /// line.
+  ///
+  /// A combat canvas has empty rows *below* the feet as well as above —
+  /// `bear_idle` ends at row 61 of 76 — so bottom-aligning the canvas seats
+  /// each creature at a different height and the band stops reading as a
+  /// floor. The footprint's lowest opaque row is exactly the measurement that
+  /// removes it.
+  static double groundOffset(CombatTrack idle) =>
+      (idle.canvasHeight - 1 - idle.footprint.bottom) * scale.toDouble();
 
   @override
   Widget build(BuildContext context) => Container(
@@ -428,7 +455,10 @@ class _EnemyStage extends StatelessWidget {
       borderRadius: StrideRadius.inner,
       child: Align(
         alignment: Alignment.bottomCenter,
-        child: _EnemyIdle(track: art.idle, scale: scaleFor(art.idle)),
+        child: Transform.translate(
+          offset: Offset(0, groundOffset(art.idle)),
+          child: _EnemyIdle(track: art.idle, scale: scale),
+        ),
       ),
     ),
   );
