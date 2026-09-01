@@ -1,6 +1,57 @@
 # Project Stride — Project State
 
-**Version:** 2.35
+**Version:** 2.36
+**Status:** 🧪 **VISUAL / AUDIO / WORLD OVERHAUL 01 — the budget reopens and
+the chassis lands, on `visual-audio-world-overhaul-01` (from
+`presentation-combat-evolution-01` @ `6d41bce`), IN PROGRESS and awaiting the
+owner's device evaluation.** Records:
+`MILESTONES/VISUAL_AUDIO_WORLD_OVERHAUL_01.md` (the thesis — diagnosis,
+budget, chosen order, explicit rejections, acceptance criteria),
+`DECISIONS/0030_VISUAL_AUDIO_WORLD_OVERHAUL_SCOPE.md` (**owner ruling —
+PixelLab reopens at 10,000 generations and audio reopens; Q-14 closes**),
+twelve forensic audits in `MILESTONES/evidence/VAWO01/wave0/`, and two art
+directions in `GAME_BIBLE/ART/exploration/VAWO01/`.
+
+**Four of the owner's complaints had a cause other than the obvious one, and
+that is the whole value of the audit wave.**
+
+- **The floating gather object was not a placement bug.** The subject's base
+  already sat on the ground line; what was missing was light. `GroundedSprite`
+  composites a contact shadow and its own doc says a bare `PixelAsset` on a
+  background *is* the floating defect — the Traveler went through it and the
+  ore he was hitting did not. Every gather scene grounded the man and floated
+  the rock. Fixed, with footprints now measured for both subject families.
+- **The generic UI was not leftover Material** (there is none) — it was one
+  rectangle at 33 sites plus, larger than anything else, **no typeface at all**:
+  292 text sites render in the iOS system font, which is the literal signature
+  of "pixel art over Flutter".
+- **The bear looking small was not an art problem.** The encounter card demoted
+  large canvases to ×1, so the largest land animal in the game drew at 50 dp
+  against the wolf's 58 and the boss at 71 against the salamander's 92. The rule
+  measured the canvas; a combat canvas is mostly empty.
+- **The goldens were racy**, and the chassis exposed it: `settleImages`
+  precached `Image` widgets and `PixelFrame` is not one, so Skills won the
+  decode race and Adventure lost it in the same run.
+
+Landed: two guards that did not exist (**L-16 has been system-wide since it was
+written and nothing had ever measured it** — 872 PNGs now scanned), the chassis
+frame family reaching ~28 panels from one registry row, gather grounding, the
+per-skill completion one-shot (mining used to end with the miner picking a
+herb), the encounter-card scale fix, and the image cache sized *before* the art
+arrives rather than after. Two G-8 hazards closed: `AUDIO/evaluation/` was
+652 MB unignored, and the exploration tree's `*.md` exception was un-ignoring
+the WalkScape reference set's prose, whose own header reads DO NOT COMMIT.
+
+**976 tests pass, analyze clean, goldens deterministic across re-runs.** Not
+begun: typeface, free-asset utilisation, audio architecture, and the four large
+art rounds (gather scenes, items, enemies, equipment, world life) — all
+specified in the thesis with measured estimates. **Audio generation is blocked
+on credentials**: both provider keys are unset, which blocks new sound files and
+not the architecture. Nothing here has been seen on the iPhone.
+
+<details>
+<summary>Previous status — Presentation &amp; Combat Evolution 01 (v2.35)</summary>
+
 **Status:** 🧪 **PRESENTATION & COMBAT EVOLUTION 01 — the presentation
 answer to "it still looks like generic AI-authored Flutter UI", on
 `presentation-combat-evolution-01` (from `fable-depth-offensive-01` @
@@ -65,6 +116,8 @@ unrecoverable, and no URL was invented. Suites: core **738**, app **966**,
 analyze clean. Known issue, pre-existing and flagged not fixed:
 `lib/ui/state/craft_memory.dart` violates two UI-boundary rules
 (GFCP01 `830f1a1`). Nothing merges without the owner's verdict.
+
+</details>
 
 ---
 

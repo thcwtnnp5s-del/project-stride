@@ -976,6 +976,24 @@ POST_RESET_GENERATION_PLAN.md`).
 
 ## Q-14 — Visible-equipment art: which gear, on which surfaces, first?
 
+**CLOSED — owner ruling, 2026-09-01** (`DECISIONS/0030`). The owner answered
+the priority half in imperatives — *"MAKE THE TRAVELER ACTUALLY WEAR THEIR
+EQUIPMENT. MAKE THE SWORD THEY EQUIP APPEAR IN THEIR HAND. MAKE ARMOR CHANGE
+THEIR SILHOUETTE"* — recorded as **P0** for the weapon and chest slots, tool
+strongly preferred. The cost half is answered too, and by measurement rather
+than by budget: `FOUNDATION_G_EQUIPMENT.md` establishes that **layering is not
+viable** (per-frame bbox centre travels 13–23.5 px; no anchor data exists and
+660 grip records would be per-frame anatomical judgement, which A-1 gives to
+PixelLab; and the baked blade shares all seven of its colours with the body, so
+the steel→bronze remap floated below is **not deterministic** and would not be
+A-2). The chosen architecture is **precomposed variants with per-surface axis
+dominance**, ~49 tracks for W1–W3 plus the missing brace stance.
+
+**Still open, and deliberately narrower:** whether W4 is funded — under axis
+dominance a bronze-armoured player still fights in a tunic
+(`MILESTONES/VISUAL_AUDIO_WORLD_OVERHAUL_01.md` § 13). That is a taste call for
+the owner at device review, not a blocker on W1.
+
 **Raised:** 2026-08-28, Game Feel & Character Presentation 01 (FEEL-E
 architecture review, R1).
 
