@@ -272,3 +272,35 @@ item, or a step cost.
   joint shapes, not two) into `assets/art/v1/track/`, and its widgets read
   `lib/ui/screens/skills/track_art.dart`. Anyone else wanting a journey mark
   asks SKILLS, not NAV.
+- 2026-09-02 — **§1 and §3 are declared but empty, and will stay that way**
+  (`d32a01f`). Thirty-two `pixen` rolls across four prompt strategies produced
+  no usable flat nine-patch or ornament: the model draws a lit object in
+  perspective, decorated with studs, above the `#7C7263` ceiling, and the two
+  large "cut from a sheet" masters came back rotated on the diagonal so no
+  axis-aligned crop exists. FMPO02 measured the same boundary on `modal_128`,
+  `strap_corner_64`, `corner_mark_48`, `tab_index_32x16` and `nav_plate_32`
+  and shipped none of them. **This changes nothing you code against**: every
+  name in §1–§3 exists, `KitFrames.insetFor` / `KitTiles.thicknessFor` /
+  `KitMarks.sizeFor` return the declared geometry, and `KitPlate` / `KitEdge`
+  / `KitOrnament` paint a square, one-weight fallback — so a screen built
+  against a name is finished today and gains material the day a row lands,
+  without reflowing. Verdicts per roll:
+  `GAME_BIBLE/ART/exploration/EPO03/ledger/UI_KIT.md`.
+- 2026-09-02 — **§2 `navWelt` has landed** (`d32a01f`):
+  `assets/ui/v1/nav/nav_welt_v2.png`, 8 × 6 at ×2 = 12 dp, guard-clean. The
+  header shelf now draws **the same tile** (`ade5a62`) — one chassis, one
+  stitch, layout-neutral because the shelf already spent 12 dp.
+- 2026-09-02 — **§6 landed** (`771930e`): `StrideRadius.card` and `.inner` are
+  `BorderRadius.zero`, `.chip` and `.gate` are 2 while the chips are being
+  deleted, `.tabActive` is deprecated and square. **Your screens are square
+  from this commit whether or not you have touched them** — that is the point,
+  and it is the first item on `DIR-05`'s failure list retired at the kit level.
+- 2026-09-02 — **the bottom nav is rebuilt** (`ade5a62`, `2db6fe6`). Two things
+  that reach other teams: `StrideTabBar` now paints the home-indicator inset in
+  its own leather, so `StrideScaffold` publishes the figure through
+  `StrideBottomInset` instead of painting a flat rectangle under the bar — if
+  you measure the bar in a test, measure `StrideTabBar.contentKey`, because the
+  bar's own bottom is now the bottom of the glass. And
+  `StrideDestination.glyphActive` and the six `PixelIcons.nav*Active`
+  constants are **gone**: one glyph per destination, the plate carries the
+  state (Q-26). The `_hi` PNGs and their CI guard stay untouched.

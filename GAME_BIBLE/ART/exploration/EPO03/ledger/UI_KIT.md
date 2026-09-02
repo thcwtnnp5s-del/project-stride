@@ -16,8 +16,17 @@ recorded as `—` so the re-issue is not mistaken for a re-roll.
 | Batch 1 — lost to job expiry | 16 | **16** |
 | Batch 2 — the kit's first real pass | 14 | **14** |
 | Batch 3 — sheets to cut from | 2 | **2** |
-| **Spent so far** | **32** | **32** |
+| Batch 4 — the welt, deterministic post-work | 0 | **0** |
+| **Spent** | **32** | **32** |
 | Remaining under cap | | **288** |
+
+**Shipped: one asset from thirty-two rolls.** That ratio is the round's real
+finding and it is not a prompt-quality problem — it is where `pixen` stops.
+The 288 left unspent are deliberately unspent: four strategies against the
+frame/ornament class all failed the same way, and M-05 forbids paying again
+for a reason already written down. What the budget bought instead is a kit
+whose every name works today without art (`d32a01f`) and a nav rebuilt out of
+the one material class the model does succeed at.
 
 ---
 
@@ -82,5 +91,30 @@ window search that turned a 64×16 welt strip into the shipped 8×4 tile). Batch
 
 | job | asset | canvas | cost | verdict | reason |
 |---|---|---|---:|---|---|
-| 0edd4777 | `leather_recesses` sheet | 128² | 1 | *pending* | a leather sheet of plain stamped recesses; the nav well and the slot wells are cut from it |
-| e77988f0 | `leather_pads` sheet | 128² | 1 | *pending* | a leather sheet of plain raised pads; the active nav plate is cut from it |
+| 0edd4777 | `sheet_recesses_a` | 128² | 1 | **REJECT** | the recesses are drawn as a bandolier **on the diagonal**; no axis-aligned window contains one, so nothing can be cut. Stitching also runs near-cream, over the ceiling |
+| e77988f0 | `sheet_pads_a` | 128² | 1 | **REJECT** | the pads are rotated a few degrees off axis for the same reason, and their lit rims sit over the ceiling |
+
+Sheet: `review/ui/sheets_x4.png`. **Four strategies, one answer.** Asked
+directly the model draws an object; asked for a sheet to cut from, it draws the
+sheet at an angle. `GAME_BIBLE/ART/PIXELLAB_UI_PRODUCTION_PLAN` §3.5's window
+search cannot rescue a rotated source — rotating pixel art is not a
+deterministic post-step and A-2 forbids inventing the pixels it would need.
+**The frame and ornament classes are closed for this round** (`RULES.md` A-1's
+escalation clause, `MISTAKES.md` M-05), and `KitFrames`/`KitMarks` ship
+declared and empty with every consumer painting its fallback.
+
+## Batch 4 — the welt, cut and clamped (0 generations)
+
+Deterministic post-work on the batch-2 master, A-2 throughout:
+
+| step | tool | result |
+|---|---|---|
+| band crop | `png.crop` rows 0–5 | the stitch row, away from the master's pure-white bottom row |
+| ceiling clamp | `tools/ceiling-clamp.js` (**new**) | 1 colour / 8 px, `#A87353` → `#97674A`, linear-light rescale — the operation VAWO01 used on `chassis_64`, now written down |
+| tile cut | `tools/tile-cut.js --w 8 --h 6` | window (12,0), join 15.219 vs interior 38.341 |
+| proof | `tools/strip-proof.js` (**new**) | 25 repeats across 393 dp, read at ×4: `review/ui/welt_run2_x4.png` |
+| package | `tools/kit-package.js` (**new**) | `out/ui/nav/nav_welt_v2.{png,json}` — teal 0, semi-alpha 0, over-ceiling 0, max `#815235` L=0.1096 |
+
+**ACCEPT.** Reads as a continuous saddle stitch at phone scale with no visible
+join. Shipped to `assets/ui/v1/nav/nav_welt_v2.png`; drawn by both the nav bar
+and the header shelf.
