@@ -525,9 +525,7 @@ class _ContractRow extends StatelessWidget {
                         color: locked
                             ? StrideColors.textMuted
                             : StrideColors.textSecondary,
-                        fontFeatures: const <FontFeature>[
-                          FontFeature.tabularFigures(),
-                        ],
+                        fontFeatures: StrideType.tabularFigures,
                       ),
                       maxLines: 2,
                     ),
@@ -1011,9 +1009,7 @@ class _ProjectTileState extends State<_ProjectTile> {
                     materials,
                     style: StrideType.micro.copyWith(
                       color: StrideColors.textSecondary,
-                      fontFeatures: const <FontFeature>[
-                        FontFeature.tabularFigures(),
-                      ],
+                      fontFeatures: StrideType.tabularFigures,
                     ),
                     maxLines: 2,
                   ),
@@ -1261,9 +1257,7 @@ class _MaterialProgressRow extends StatelessWidget {
                   color: line.satisfied
                       ? StrideColors.textPrimary
                       : StrideColors.textSecondary,
-                  fontFeatures: const <FontFeature>[
-                    FontFeature.tabularFigures(),
-                  ],
+                  fontFeatures: StrideType.tabularFigures,
                 ),
               ),
             ),

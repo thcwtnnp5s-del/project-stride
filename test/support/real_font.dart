@@ -110,11 +110,64 @@ Future<void> loadRealFont() async {
   }
 
   // `Roboto` is the family `ThemeData`'s typography names on the test target
-  // platform, and no `StrideType` role sets a family of its own — so
-  // registering it here makes it the resolved font for the whole tree rather
-  // than something each style has to opt into.
+  // platform. It stays registered as the floor for anything that names no
+  // family of its own.
   final FontLoader loader = FontLoader('Roboto')
     ..addFont(regular.readAsBytes().then(ByteData.sublistView))
     ..addFont(bold.readAsBytes().then(ByteData.sublistView));
   await loader.load();
+
+  await _loadShippedFonts();
+}
+
+/// Register the families the app actually ships (VAWO01).
+///
+/// Every `StrideType` role now names a family — Cinzel for the display
+/// register, Alegreya Sans for reading and for every numeral — so without this
+/// the harness would resolve them to the fallback and **every golden would be
+/// evidence about a font the product does not use**. That is the same class of
+/// mistake `loadRealFont` was written for in the first place (M-06), one step
+/// further along.
+///
+/// Read from `assets/fonts/`, which is where `pubspec.yaml` declares them, so
+/// the harness and the bundle cannot name different files.
+Future<void> _loadShippedFonts() async {
+  // Same candidate convention as the Roboto search above: the suite runs from
+  // the repository root or from `test/`.
+  String? dir;
+  for (final String candidate in <String>['assets/fonts', '../assets/fonts']) {
+    if (Directory(candidate).existsSync()) {
+      dir = candidate;
+      break;
+    }
+  }
+  if (dir == null) {
+    fail(
+      'No assets/fonts directory found. pubspec.yaml declares the shipped '
+      'families there, so a golden taken now would render the app in a font '
+      'it does not ship.',
+    );
+  }
+
+  Future<void> family(String name, List<String> files) async {
+    final FontLoader loader = FontLoader(name);
+    for (final String f in files) {
+      final File file = File('$dir/$f');
+      if (!file.existsSync()) {
+        fail(
+          'Missing shipped font ${file.path}. pubspec.yaml declares it, so a '
+          'golden taken now would render the app in a font it does not ship.',
+        );
+      }
+      loader.addFont(file.readAsBytes().then(ByteData.sublistView));
+    }
+    await loader.load();
+  }
+
+  await family('Cinzel', <String>['Cinzel-Variable.ttf']);
+  await family('AlegreyaSans', <String>[
+    'AlegreyaSans-Regular.ttf',
+    'AlegreyaSans-Medium.ttf',
+    'AlegreyaSans-Bold.ttf',
+  ]);
 }

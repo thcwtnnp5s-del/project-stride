@@ -374,7 +374,7 @@ class _BankedCountUp extends StatelessWidget {
     final bool reduced = MediaQuery.disableAnimationsOf(context);
     final TextStyle style = StrideType.sectionHeading.copyWith(
       color: StrideColors.accentSteps,
-      fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      fontFeatures: StrideType.tabularFigures,
     );
     if (reduced) {
       return Text('+${formatSteps(banked)} STEPS BANKED', style: style);
@@ -705,7 +705,7 @@ class _WalkingFact extends StatelessWidget {
         child: AdaptiveText(
           value,
           style: StrideType.sub.copyWith(
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+            fontFeatures: StrideType.tabularFigures,
           ),
           color: valueColor ?? StrideColors.textPrimary,
           minScale: 0.8,

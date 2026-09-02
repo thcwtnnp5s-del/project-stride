@@ -290,9 +290,7 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
                         '${formatSteps(line.retainedGranted)} this week',
                         style: StrideType.micro.copyWith(
                           color: StrideColors.textPrimary,
-                          fontFeatures: const <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
+                          fontFeatures: StrideType.tabularFigures,
                         ),
                         maxLines: 1,
                       ),
@@ -372,7 +370,7 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
           value,
           style: StrideType.micro.copyWith(
             color: StrideColors.textPrimary,
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+            fontFeatures: StrideType.tabularFigures,
           ),
           maxLines: 1,
         ),
@@ -555,7 +553,7 @@ class _BarRow extends StatelessWidget {
               color: value > 0
                   ? StrideColors.textPrimary
                   : StrideColors.textMuted,
-              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+              fontFeatures: StrideType.tabularFigures,
             ),
             maxLines: 1,
           ),

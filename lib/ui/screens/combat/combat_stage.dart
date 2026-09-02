@@ -971,7 +971,7 @@ class _Combatant extends StatelessWidget {
       Text(
         '$hp / $maxHp',
         style: StrideType.numericValue.copyWith(
-          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+          fontFeatures: StrideType.tabularFigures,
         ),
       ),
     ],

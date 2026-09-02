@@ -190,9 +190,7 @@ class _ActivityRow extends StatelessWidget {
                   formatSteps(cost),
                   style: StrideType.itemCount.copyWith(
                     color: StrideColors.textPrimary,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
+                    fontFeatures: StrideType.tabularFigures,
                   ),
                 ),
               ] else
@@ -348,7 +346,7 @@ class _QuantitySelector extends StatelessWidget {
         '$count',
         style: StrideType.sub.copyWith(
           color: enabled ? StrideColors.textPrimary : StrideColors.textMuted,
-          fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+          fontFeatures: StrideType.tabularFigures,
         ),
       ),
       _QuantityChip(
@@ -639,7 +637,7 @@ class _SecondsRemaining extends StatelessWidget {
     return Text(
       '${seconds < 0 ? 0 : seconds}s',
       style: StrideType.micro.copyWith(
-        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        fontFeatures: StrideType.tabularFigures,
       ),
     );
   }

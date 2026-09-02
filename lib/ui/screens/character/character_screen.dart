@@ -504,9 +504,7 @@ class _SkillRow extends StatelessWidget {
                   '${formatSteps(skill.experience)} XP',
                   style: StrideType.micro.copyWith(
                     color: StrideColors.textSecondary,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
+                    fontFeatures: StrideType.tabularFigures,
                   ),
                   maxLines: 1,
                 ),
@@ -532,9 +530,7 @@ class _SkillRow extends StatelessWidget {
               Text(
                 '${skill.level}',
                 style: StrideType.sectionHeading.copyWith(
-                  fontFeatures: const <FontFeature>[
-                    FontFeature.tabularFigures(),
-                  ],
+                  fontFeatures: StrideType.tabularFigures,
                 ),
               ),
               Text(' / ${skill.maxLevel}', style: StrideType.micro),

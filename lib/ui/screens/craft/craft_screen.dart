@@ -1123,7 +1123,7 @@ class _CraftSecondsRemaining extends StatelessWidget {
     return Text(
       '${seconds < 0 ? 0 : seconds}s',
       style: StrideType.micro.copyWith(
-        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+        fontFeatures: StrideType.tabularFigures,
       ),
     );
   }

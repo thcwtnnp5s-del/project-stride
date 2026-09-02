@@ -247,3 +247,40 @@ flutter:
     - assets/audio/v1/sfx/sfx_gather_foraging_01.wav
     - assets/audio/v1/sfx/sfx_craft_smithing_01.wav
     - assets/audio/v1/sfx/sfx_craft_cooking_01.wav
+
+    # The OFL notices for the two bundled families. Declared as assets so
+    # they ship inside the binary: the licence requires the notice to
+    # accompany the fonts, and a notice left out of the bundle did not ship.
+    - assets/fonts/OFL-Cinzel.txt
+    - assets/fonts/OFL-AlegreyaSans.txt
+
+  # Typography (VAWO01). Bundled locally, never fetched at runtime: P-8 is
+  # offline-first, and a font that arrives over the network is a first frame
+  # that renders in something else.
+  #
+  # Both families are SIL Open Font License 1.1, which permits bundling and
+  # redistribution inside an application. The licence files ship beside them in
+  # assets/fonts/ and are declared below so they travel with the binary — OFL
+  # requires the notice to accompany the fonts, and a licence left out of the
+  # bundle is a licence that did not ship.
+  #
+  #   Cinzel        display  — screen titles, card titles, section headings.
+  #                            Inscriptional Roman capitals: authored and
+  #                            carved rather than blackletter. VARIABLE font,
+  #                            so weight is selected with FontVariation in
+  #                            StrideType, not by declaring one file per weight.
+  #   Alegreya Sans body     — everything long enough to read, and every
+  #                            numeral. Humanist, warm, and it has real lining
+  #                            figures, which the economy column needs.
+  fonts:
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel-Variable.ttf
+    - family: AlegreyaSans
+      fonts:
+        - asset: assets/fonts/AlegreyaSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/AlegreyaSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/AlegreyaSans-Bold.ttf
+          weight: 700
