@@ -213,93 +213,96 @@ class _AdventureScreenState extends State<AdventureScreen> {
       result: activityResult,
       resultToken: activityToken,
       child: ListView(
-      // Zero horizontal padding: the stage is full-bleed, and every other
-      // child re-applies the gutter itself.
-      padding: const EdgeInsets.only(bottom: StrideSpace.s16),
-      children: <Widget>[
-        // WHERE I AM, ALIVE — one stage for the whole location
-        // (PRESENTATION_WORLD_REWARD_FEEL_01 §4–§5): the arrival painting,
-        // the Traveler and companions, the selected activity's node as far
-        // scenery, and the profession loop while a queue runs. The Traveler
-        // lives here and nowhere else on this screen.
-        LocationStage(
-          locationName: s.locationName,
-          vignette: vignette,
-          selectedNode: staged,
-          activityActive: active != null && staged != null,
-          playToken: playToken,
-          locked: locked,
-          lockReason: lockReason,
-          // The action beats (AUDIO_PRESENTATION_01): the profession's one
-          // accepted cue, fired by the stage when the work is visibly
-          // happening — the loop's strike frame, or the one-shot beginning.
-          // `read`, not `of`: a beat must not subscribe this screen.
-          //
-          // The watched single gather also lands one light tap under the
-          // finger. The queue loop's beat (`onActivityBeat`) deliberately
-          // does not: a haptic per loop strike is exactly the "loop beat"
-          // the seam's contract forbids.
-          onActivityBeat: staged == null
-              ? null
-              : () => AudioScope.read(context).playSkillCue(staged.skill.value),
-          onGatherCue: staged == null
-              ? null
-              : () {
-                  final AudioController audio = AudioScope.read(context);
-                  audio.playSkillCue(staged.skill.value);
-                  audio.hapticLight();
-                },
-        ),
-
-        _Gutter(child: _WalkingStrip(controller: c)),
-        const SizedBox(height: StrideSpace.cardGap),
-
-        _Gutter(
-          child: Column(
-            children: <Widget>[
-              if (s.isStale) ...<Widget>[
-                StaleBanner(busy: c.busy, onReload: c.reload),
-                const SizedBox(height: StrideSpace.cardGap),
-              ],
-
-              // WHAT MY WALKING JUST MADE POSSIBLE — after a granting sync,
-              // held until dismissed (`DECISIONS/0023` §1). Above everything
-              // else because it is the moment the sync exists for.
-              if (c.lastOpportunities.isNotEmpty) ...<Widget>[
-                _OpportunityBanner(controller: c),
-                const SizedBox(height: StrideSpace.cardGap),
-              ],
-
-              // WHAT I CAN DO HERE — the compact activity list; only the
-              // selected activity expands (§6).
-              ActivityPanel(
-                nodes: nodes,
-                selected: stagedId,
-                onSelect: (ContentId? id) => setState(() => _selected = id),
-              ),
-              const SizedBox(height: StrideSpace.cardGap),
-
-              // WHAT I CAN FIGHT HERE — compact rows, only the selected
-              // creature expanded (§15). Absent where the content has no
-              // enemy (Haven's Rest), rather than an empty-state card: a safe
-              // place does not need to announce it.
-              if (encounters.isNotEmpty) ...<Widget>[
-                EncounterPanel(
-                  options: encounters,
-                  selected: _selectedEnemy,
-                  onSelect: (ContentId? id) =>
-                      setState(() => _selectedEnemy = id),
-                ),
-                const SizedBox(height: StrideSpace.cardGap),
-              ],
-
-              // WHAT I AM WORKING TOWARDS — three lines and one button; the
-              // full tracker and the board live on the Goal Board (§8–§9).
-              const GoalSummaryCard(),
-            ],
+        // Zero horizontal padding: the stage is full-bleed, and every other
+        // child re-applies the gutter itself.
+        padding: const EdgeInsets.only(bottom: StrideSpace.s16),
+        children: <Widget>[
+          // WHERE I AM, ALIVE — one stage for the whole location
+          // (PRESENTATION_WORLD_REWARD_FEEL_01 §4–§5): the arrival painting,
+          // the Traveler and companions, the selected activity's node as far
+          // scenery, and the profession loop while a queue runs. The Traveler
+          // lives here and nowhere else on this screen.
+          LocationStage(
+            locationName: s.locationName,
+            vignette: vignette,
+            selectedNode: staged,
+            activityActive: active != null && staged != null,
+            playToken: playToken,
+            locked: locked,
+            lockReason: lockReason,
+            // The action beats (AUDIO_PRESENTATION_01): the profession's one
+            // accepted cue, fired by the stage when the work is visibly
+            // happening — the loop's strike frame, or the one-shot beginning.
+            // `read`, not `of`: a beat must not subscribe this screen.
+            //
+            // The watched single gather also lands one light tap under the
+            // finger. The queue loop's beat (`onActivityBeat`) deliberately
+            // does not: a haptic per loop strike is exactly the "loop beat"
+            // the seam's contract forbids.
+            onActivityBeat: staged == null
+                ? null
+                : () =>
+                      AudioScope.read(context).playSkillCue(staged.skill.value),
+            onGatherCue: staged == null
+                ? null
+                : () {
+                    final AudioController audio = AudioScope.read(context);
+                    audio.playSkillCue(staged.skill.value);
+                    audio.hapticLight();
+                  },
           ),
-        ),
-      ],
+
+          _Gutter(child: _WalkingStrip(controller: c)),
+          // The picture and the band under it are one hero block; 24 is what
+          // separates a hero from the first group beneath it (`ART-12` §0).
+          const SizedBox(height: StrideSpace.rhythmHero),
+
+          _Gutter(
+            child: Column(
+              children: <Widget>[
+                if (s.isStale) ...<Widget>[
+                  StaleBanner(busy: c.busy, onReload: c.reload),
+                  const SizedBox(height: StrideSpace.rhythmGroup),
+                ],
+
+                // WHAT MY WALKING JUST MADE POSSIBLE — after a granting sync,
+                // held until dismissed (`DECISIONS/0023` §1). Above everything
+                // else because it is the moment the sync exists for.
+                if (c.lastOpportunities.isNotEmpty) ...<Widget>[
+                  _OpportunityBanner(controller: c),
+                  const SizedBox(height: StrideSpace.rhythmGroup),
+                ],
+
+                // WHAT I CAN DO HERE — the expedition kit; only the selected
+                // activity expands (§6).
+                ActivityPanel(
+                  nodes: nodes,
+                  selected: stagedId,
+                  onSelect: (ContentId? id) => setState(() => _selected = id),
+                ),
+                const SizedBox(height: StrideSpace.rhythmGroup),
+
+                // WHAT I CAN FIGHT HERE — compact rows, only the selected
+                // creature expanded (§15). Absent where the content has no
+                // enemy (Haven's Rest), rather than an empty-state card: a safe
+                // place does not need to announce it.
+                if (encounters.isNotEmpty) ...<Widget>[
+                  EncounterPanel(
+                    options: encounters,
+                    selected: _selectedEnemy,
+                    onSelect: (ContentId? id) =>
+                        setState(() => _selectedEnemy = id),
+                  ),
+                  const SizedBox(height: StrideSpace.rhythmGroup),
+                ],
+
+                // WHAT I AM WORKING TOWARDS — three lines and one button; the
+                // full tracker and the board live on the Goal Board (§8–§9).
+                const GoalSummaryCard(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -520,6 +520,14 @@ final class RegionPlace {
   bool get isAdjacent => stepCostFromHere != null;
 }
 
+/// What a place *is*, in two content facts and nothing else — the header's
+/// breadcrumb (FMPO02, `ART-12_ux_brief.md` §8).
+///
+/// A record rather than a class: it carries no behaviour, and the words a
+/// player reads for these two values are presentation and belong with the
+/// atlas inspector that already owns them (`AtlasPlaceInfo`).
+typedef PlaceIdentity = ({LocationKind kind, Terrain terrain});
+
 /// Everything the atlas inspector says about one place.
 ///
 /// A separate projection from [RegionPlace], deliberately. The legend needs
@@ -4323,7 +4331,8 @@ final class StrideSession {
   static Map<ContentId, ItemLineageView> _buildLineage(
     ContentRegistry content,
   ) {
-    final Map<ContentId, List<LineageEdge>> to = <ContentId, List<LineageEdge>>{};
+    final Map<ContentId, List<LineageEdge>> to =
+        <ContentId, List<LineageEdge>>{};
     final Map<ContentId, List<LineageEdge>> from =
         <ContentId, List<LineageEdge>>{};
     for (final RecipeDefinition r in content.recipes.values) {
@@ -4333,8 +4342,7 @@ final class StrideSession {
       }
       for (final RecipeIngredient i in r.ingredients) {
         final ItemDefinition? consumed = content.items[i.item];
-        if (consumed == null ||
-            consumed.category != ItemCategory.equipment) {
+        if (consumed == null || consumed.category != ItemCategory.equipment) {
           continue;
         }
         final LineageEdge edge = LineageEdge(
@@ -4876,7 +4884,8 @@ final class StrideSession {
     final bool ready = isReady;
     return <EncounterOption>[
       for (final EnemyDefinition enemy in content.enemies.values)
-        if (enemy.location == here && _eliteVisible(active.state, content, enemy))
+        if (enemy.location == here &&
+            _eliteVisible(active.state, content, enemy))
           _encounterOptionOf(
             active,
             content,
@@ -5166,6 +5175,31 @@ final class StrideSession {
           kind: LocationKinds.kindFor(content, location.id),
         ),
     ];
+  }
+
+  /// The place's own descriptor: what kind of place it is, and what ground it
+  /// stands on.
+  ///
+  /// **The header's eyebrow reads this** (FMPO02, `ART-12_ux_brief.md` §8).
+  /// It is deliberately not [placeDetailsFor]: that builds a gather line and
+  /// an encounter line per node for the inspector's panel, and the header
+  /// rebuilds on every command. Two content lookups and a derived word are
+  /// what a breadcrumb costs.
+  ///
+  /// Both fields are the content pack's own — the kind through
+  /// `LocationKinds.kindFor`, which is a pure function over the registry
+  /// (`DECISIONS/0021` §5), so the eyebrow cannot disagree with the atlas
+  /// marker for the same place. Null before the game starts, or for a
+  /// location the pack does not know.
+  PlaceIdentity? placeIdentityOf(ContentId location) {
+    final ContentRegistry? content = registry;
+    if (content == null) return null;
+    final LocationDefinition? place = content.locations[location];
+    if (place == null) return null;
+    return (
+      kind: LocationKinds.kindFor(content, place.id),
+      terrain: place.terrain,
+    );
   }
 
   /// Everything the atlas inspector says about one place, or null when the
@@ -6092,8 +6126,7 @@ final class StrideSession {
       // then shown with the engine's own locked reason until Known.
       if (c.bountyEnemy case final ContentId quarry) {
         final EnemyDefinition? elite = content.enemies[quarry];
-        if (elite != null &&
-            !_eliteVisible(active.state, content, elite)) {
+        if (elite != null && !_eliteVisible(active.state, content, elite)) {
           continue;
         }
       }

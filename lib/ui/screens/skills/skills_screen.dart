@@ -10,6 +10,19 @@
 /// of the content pack, and not a second inventory. A player opens it to decide
 /// where to walk next.
 ///
+/// ## A handbook, not five posters (FMPO02, `ART-12_ux_brief.md` §4)
+///
+/// Five near-identical cards — plate, name, level, bar, caption, three unlock
+/// lines and a `ROADMAP` hint apiece — took ~1000 dp to say five things that
+/// differ only in a hue and a number, and the repetition is what made the tab
+/// read as a database printout rather than a guild handbook. The five cards
+/// are now five **spines** of one card: 64 dp each, hairline separated, with
+/// the level's progress dyed into the spine's own lower edge.
+///
+/// The unlock lines went with them — to [SkillDetailScreen], which is the
+/// route that already exists to answer *what next* and now opens with them.
+/// The spine answers *where am I*; nothing is lost and ~660 dp is returned.
+///
 /// ## Every number here is derived in the domain
 ///
 /// `SkillStanding` comes from `SkillDefinition.standingAt` in `stride_core` —
@@ -20,11 +33,13 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show SkillStanding;
+import 'package:stride_core/stride_core.dart' show ContentId, SkillStanding;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
+import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
+import '../../components/rules.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
@@ -54,81 +69,166 @@ class SkillsScreen extends StatelessWidget {
       children: <Widget>[
         if (session.isStale) ...<Widget>[
           StaleBanner(busy: controller.busy, onReload: controller.reload),
-          SizedBox(height: StrideSpace.cardGap),
+          SizedBox(height: StrideSpace.rhythmGroup),
         ],
-        for (final SkillStanding standing in standings) ...<Widget>[
-          _SkillCard(standing: standing),
-          SizedBox(height: StrideSpace.cardGap),
-        ],
+        // One card, five spines. `padding: zero` because a spine's progress
+        // rule is flush to its own lower edge and full bleed — it is the
+        // spine's edge, not an object laid on top of it — so the card's
+        // interior gutter belongs to the row and not to the panel. The clip
+        // is what keeps the first and last full-bleed rules inside the card's
+        // radius; `SectionCard` paints its surface behind the child and does
+        // not clip it.
+        //
+        // `buckram` is the handbook's own material (`ART-02` §2). It resolves
+        // to null until the tile ships, and the card then paints exactly the
+        // flat fill it always painted.
+        SectionCard(
+          surface: PanelSurface.buckram,
+          padding: EdgeInsets.zero,
+          child: ClipRRect(
+            borderRadius: StrideRadius.card,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final (int i, SkillStanding standing)
+                    in standings.indexed) ...<Widget>[
+                  if (i > 0) const HairlineRule(),
+                  SkillSpine(standing: standing),
+                ],
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-class _SkillCard extends StatelessWidget {
-  const _SkillCard({required this.standing});
+/// One profession, as a 64 dp spine of the handbook.
+///
+/// The whole spine is the control (`ART-12` §4): 64 dp is well past the 44 dp
+/// floor, it opens the roadmap wherever the finger lands, and the `ROADMAP`
+/// text hint is gone — a row that is entirely a button does not need a word
+/// saying so.
+///
+/// A `Stack`, not a `Column`, and that is load-bearing. The rule has to sit on
+/// the spine's bottom edge while the spine grows with the text scaler; a
+/// `Column` would need a bounded height to pin it there, and a fixed 64 dp box
+/// around scaling type is D-01's shape. Here the padded row sizes the stack,
+/// `minHeight` holds the rhythm at scale 1.0, and the rule stays on the bottom
+/// edge wherever that edge lands.
+class SkillSpine extends StatelessWidget {
+  const SkillSpine({super.key, required this.standing});
 
   final SkillStanding standing;
 
+  /// The spine's rhythm height, and its touch target.
+  static const double height = 64;
+
+  /// The rule's weight — the spine's lower edge, dyed.
+  static const double ruleHeight = 4;
+
   @override
   Widget build(BuildContext context) {
-    final SessionController controller = SessionScope.of(context);
-    final List<SkillUnlock> unlocks = controller.session.unlocksFor(
-      standing.skill,
-    );
+    final Color accent = StrideColors.forSkill(standing.skill);
 
-    // The next few things this skill opens — not one, and not all of them.
-    // One line hid the level-10 Hollow Thicket from a Foraging-4 player,
-    // which is exactly the long walk this screen exists to motivate; every
-    // gate would answer "what exists" when the player asked "what next"
-    // (Fable V2, `DECISIONS/0027`).
-    final List<SkillUnlock> upcoming = unlocks
-        .where((SkillUnlock u) => !u.unlocked)
-        .take(3)
-        .toList();
-    final int openCount = unlocks.where((SkillUnlock u) => u.unlocked).length;
-
-    // The profession's own atmosphere (Fable V2 Iteration 02): each card
-    // breathes its skill's deep from the top, so five professions stop
-    // being five identical brown slabs and the tab reads as a set of
-    // trades. The ink itself stays where it always was — name and fill.
-    //
-    // The whole card opens the profession's roadmap (Iteration 03): the
-    // card stays the glance, the pushed route is the depth, and the
-    // ROADMAP hint carries the Sync-fold's weight — "there is more"
-    // without adding a control.
     return Semantics(
       button: true,
-      label: '${standing.displayName} roadmap',
+      // The glance the spine answers, said in full: the roadmap it opens and
+      // the position the rule draws. `SkillProgressBar`'s sentence is reused
+      // verbatim rather than paraphrased — a bar with no label is a shape,
+      // and so is a rule.
+      label:
+          '${standing.displayName} roadmap. '
+          '${SkillProgressBar.semanticsLabelFor(standing)}',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => SkillDetailScreen.open(context, standing.skill),
-        child: SectionCard(
-          wash: StrideColors.forSkillDeep(standing.skill),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: height),
+          child: Stack(
             children: <Widget>[
-              SkillHeaderRow(standing: standing),
-              SizedBox(height: StrideSpace.s12),
-              SkillProgressBar(standing: standing),
-              SizedBox(height: StrideSpace.s8),
-              SkillProgressCaption(standing: standing),
-              SizedBox(height: StrideSpace.s12),
-              _UnlockLines(upcoming: upcoming, openCount: openCount),
-              SizedBox(height: StrideSpace.s6),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'ROADMAP',
-                  style: StrideType.microLabel.copyWith(
-                    color: StrideColors.textSecondary,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  StrideSpace.s12,
+                  StrideSpace.s12,
+                  StrideSpace.s12,
+                  StrideSpace.s12 + ruleHeight,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    SkillPlate(skill: standing.skill),
+                    const SizedBox(width: StrideSpace.iconLabelGap),
+                    Expanded(
+                      // Wraps rather than shrinks. At 320 dp with the
+                      // accessibility scale at 1.4, `Woodcutting` needs
+                      // 170 dp of the 168 the spine can give it beside a
+                      // 32 dp crest and `LV 1` — two and a half pixels
+                      // short, and `AdaptiveText` is already at its floor
+                      // there. A `minScale` low enough to absorb that is
+                      // the illegibility trade `adaptive_text.dart`
+                      // refuses; the spine is a **minimum** 64 dp and can
+                      // simply be taller.
+                      child: Text(
+                        standing.displayName,
+                        style: StrideType.cardTitle.copyWith(color: accent),
+                        maxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(width: StrideSpace.s8),
+                    AdaptiveText(
+                      standing.isMaxLevel ? 'MAX' : 'LV ${standing.level}',
+                      style: StrideType.numericValue,
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                // Keyed by level so a level-up snaps to the new ladder
+                // rather than rewinding through it.
+                child: ProgressRule(
+                  key: ValueKey<int>(standing.level),
+                  fraction: standing.progress,
+                  ink: accent,
+                  height: ruleHeight,
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The profession's crest: its icon on a plate of its own deep with a hairline
+/// in its ink (Fable V2 Iteration 02) — not a floating glyph.
+///
+/// The rail is reserved whether or not the icon resolves: a null icon must not
+/// shift the name of every other skill out of alignment.
+class SkillPlate extends StatelessWidget {
+  const SkillPlate({super.key, required this.skill});
+
+  final ContentId skill;
+
+  static const double extent = 32;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? icon = PixelIcons.skillFor(skill);
+    return Container(
+      width: extent,
+      height: extent,
+      decoration: BoxDecoration(
+        color: StrideColors.forSkillDeep(skill),
+        border: Border.all(color: StrideColors.forSkill(skill)),
+        borderRadius: StrideRadius.inner,
+      ),
+      child: icon == null ? null : Center(child: PixelAsset.skill(icon)),
     );
   }
 }
@@ -140,27 +240,12 @@ class SkillHeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String? icon = PixelIcons.skillFor(standing.skill);
     final Color accent = StrideColors.forSkill(standing.skill);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        // The icon on a plate of its trade's deep with a hairline in its
-        // ink (Fable V2 Iteration 02) — the profession's crest, not a
-        // floating glyph. The rail is reserved whether or not the icon
-        // resolves: a null icon must not shift the name of every other
-        // skill out of alignment.
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: StrideColors.forSkillDeep(standing.skill),
-            border: Border.all(color: accent),
-            borderRadius: StrideRadius.inner,
-          ),
-          child: icon == null ? null : Center(child: PixelAsset.skill(icon)),
-        ),
+        SkillPlate(skill: standing.skill),
         SizedBox(width: StrideSpace.iconLabelGap),
         Expanded(
           child: AdaptiveText(
@@ -189,6 +274,15 @@ class SkillProgressBar extends StatelessWidget {
 
   final SkillStanding standing;
 
+  /// The sentence a bar — or a [ProgressRule] drawn from the same standing —
+  /// is read aloud as. One statement, so the two shapes cannot describe the
+  /// same fact two ways.
+  static String semanticsLabelFor(SkillStanding standing) => standing.isMaxLevel
+      ? '${standing.displayName} at maximum level'
+      : '${standing.displayName} level ${standing.level}, '
+            '${standing.experienceIntoLevel} of '
+            '${standing.experienceForLevel} experience into the level';
+
   @override
   Widget build(BuildContext context) {
     final Color accent = StrideColors.forSkill(standing.skill);
@@ -202,11 +296,7 @@ class SkillProgressBar extends StatelessWidget {
 
     return Semantics(
       // Read aloud as a sentence, because a bar with no label is a shape.
-      label: standing.isMaxLevel
-          ? '${standing.displayName} at maximum level'
-          : '${standing.displayName} level ${standing.level}, '
-                '${standing.experienceIntoLevel} of '
-                '${standing.experienceForLevel} experience into the level',
+      label: semanticsLabelFor(standing),
       child: ClipRRect(
         borderRadius: StrideRadius.chip,
         child: SizedBox(
@@ -274,60 +364,6 @@ class SkillProgressCaption extends StatelessWidget {
             color: StrideColors.textMuted,
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _UnlockLines extends StatelessWidget {
-  const _UnlockLines({required this.upcoming, required this.openCount});
-
-  final List<SkillUnlock> upcoming;
-  final int openCount;
-
-  /// `Level 3 opens Duskcap Grove at Whispering Woods`, with the extra gate
-  /// said where one exists — `Level 2 + a contract at Haven's Rest opens
-  /// Wolfhide Jerkin` — so the screen never promises what the level alone
-  /// cannot deliver.
-  static String lineFor(SkillUnlock u) {
-    final String level = u.gate == null
-        ? 'Level ${u.requiredLevel}'
-        : 'Level ${u.requiredLevel} + ${u.gate}';
-    final String where = u.where == null ? '' : ' at ${u.where}';
-    return '$level opens ${u.displayName}$where';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // "Everything open" is a real and satisfying state, and it needs its own
-    // sentence rather than an empty space where a goal used to be.
-    if (upcoming.isEmpty) {
-      return AdaptiveText(
-        openCount == 0
-            ? 'Nothing in this content pack uses it yet.'
-            : 'Everything this skill opens is open.',
-        style: StrideType.micro,
-        color: StrideColors.textMuted,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        for (final (int i, SkillUnlock u) in upcoming.indexed)
-          Padding(
-            padding: EdgeInsets.only(top: i == 0 ? 0 : StrideSpace.s4),
-            child: Text(
-              lineFor(u),
-              style: StrideType.micro.copyWith(
-                // The nearest rung carries the emphasis; the ones behind it
-                // are the road ahead, quieter.
-                color: i == 0
-                    ? StrideColors.textSecondary
-                    : StrideColors.textMuted,
-              ),
-            ),
-          ),
       ],
     );
   }

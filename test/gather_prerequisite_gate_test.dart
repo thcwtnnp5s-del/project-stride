@@ -168,14 +168,32 @@ void main() {
       'concrete reason', (WidgetTester tester) async {
     await pumpApp(tester, steps: 2000, atWoods: true);
 
-    // The compact row states the gap before anything is tapped (§7: locked
-    // activities stay visible and aspirational). Three locked rows since
+    // The journal entry states the gap before anything is tapped (§7: locked
+    // activities stay visible and aspirational). Three locked entries since
     // Fable Depth Offensive 01 added the Warded Grove (WC 6, behind the
     // Watchtower — `DECISIONS/0028`) beside Iteration 03's Heartwood Oak
     // (WC 4) and the grove.
     expect(find.text('Duskcap Grove'), findsOneWidget);
-    expect(find.text('LOCKED'), findsNWidgets(3));
     expect(find.text('Requires Foraging 3 — you are 1'), findsOneWidget);
+
+    // **The word `LOCKED` is gone and its absence is asserted** (FMPO02,
+    // `ART-12` §5). It said, in a fourth place, what the reason line beside
+    // it says with a distance attached; what marks a locked entry now is
+    // that its sketch — and only its sketch — sits back at 0.55, so the
+    // sentence that matters stays at full reading contrast.
+    expect(find.text('LOCKED'), findsNothing);
+    expect(
+      tester
+          .widgetList<Opacity>(
+            find.descendant(
+              of: find.byType(ActivityPanel),
+              matching: find.byType(Opacity),
+            ),
+          )
+          .where((Opacity o) => o.opacity == 0.55),
+      hasLength(3),
+      reason: 'three locked entries, three dimmed sketches',
+    );
 
     await select(tester, 'Duskcap Grove');
 

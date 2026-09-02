@@ -60,7 +60,16 @@ void main() {
     ))!;
     await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Goal Board').first);
+    // Scrolled to first. The goals group is the last thing on Adventure and
+    // the screen grew with FMPO02's journal entries (`ART-12` §5), so the two
+    // board controls sit just under the fold on a fresh save at 393 × 852 —
+    // an accepted trade for the entries above them, which are what the screen
+    // is for. `test/fold_clearance_test.dart` is what holds the line that
+    // matters: the activity list and the gather control.
+    final Finder board = find.text('Goal Board').first;
+    await tester.ensureVisible(board);
+    await tester.pumpAndSettle();
+    await tester.tap(board);
     await tester.pumpAndSettle();
     expect(find.text('CLOSE'), findsOneWidget, reason: 'the board is open');
   }

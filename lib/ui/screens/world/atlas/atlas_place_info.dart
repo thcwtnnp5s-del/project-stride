@@ -196,12 +196,27 @@ final class AtlasPlaceInfo {
   /// across. Separate from [from] because the marker layer needs the kind of
   /// *every* place on every build while the inspector needs the details of one.
   static AtlasPlaceKind kindOf(StrideSession session, RegionPlace place) =>
-      switch (place.kind) {
-        LocationKind.haven => AtlasPlaceKind.haven,
-        LocationKind.wilds => AtlasPlaceKind.wilds,
-        LocationKind.worksite => AtlasPlaceKind.worksite,
-        LocationKind.perilous => AtlasPlaceKind.perilous,
-      };
+      kindFrom(place.kind);
+
+  /// The domain's kind as the atlas's own. Split out of [kindOf] because the
+  /// header's breadcrumb has a [LocationKind] and no [RegionPlace] to carry
+  /// it — and translating it a second time somewhere else is how two surfaces
+  /// come to call the same place two things.
+  static AtlasPlaceKind kindFrom(LocationKind kind) => switch (kind) {
+    LocationKind.haven => AtlasPlaceKind.haven,
+    LocationKind.wilds => AtlasPlaceKind.wilds,
+    LocationKind.worksite => AtlasPlaceKind.worksite,
+    LocationKind.perilous => AtlasPlaceKind.perilous,
+  };
+
+  /// The place's descriptor — `Settlement · Grassland`.
+  ///
+  /// The header's eyebrow (FMPO02, `ART-12_ux_brief.md` §8), in the same two
+  /// words the atlas inspector prints for the same place, from the same two
+  /// tables. The header does not get its own vocabulary: a place called a
+  /// Settlement on the map and a Haven in the bar is two places.
+  static String descriptorFor(PlaceIdentity identity) =>
+      '${kindFrom(identity.kind).word} · ${terrainWordFor(identity.terrain)}';
 
   /// An enemy's behaviour as a player's word. Presentation only; the figures
   /// stay on the encounter card.

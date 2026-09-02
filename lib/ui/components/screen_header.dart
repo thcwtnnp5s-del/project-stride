@@ -22,11 +22,26 @@ class ScreenHeader extends StatelessWidget {
     this.trailing,
     this.regionInk,
     this.regionDeep,
+    this.rule,
   });
 
   final String eyebrow;
   final String title;
   final Widget? trailing;
+
+  /// The 1 px rule under the bar, in the region's ink at 24 % (FMPO02,
+  /// `ART-12_ux_brief.md` §8).
+  ///
+  /// **The header needs an end, and it must not be a second frame.** The wash
+  /// fades into the screen's ground, so the bar has no lower edge at all and
+  /// the eye reads the header and the first card as one column of stuff. A
+  /// hairline in the place's own ink terminates it and says nothing else; at
+  /// 24 % it is a change of value, not a line drawn round something.
+  ///
+  /// Null — the default — leaves a header exactly as it was, which is what
+  /// every pushed route wants: a route that is already a modal layer does not
+  /// need a rule saying where it stops.
+  final Color? rule;
 
   /// The region's biome colour (Fable V2 Iteration 02): [regionInk] tints the
   /// **place's name** — which since PRESENTATION_COMBAT_EVOLUTION_01 is the
@@ -50,14 +65,24 @@ class ScreenHeader extends StatelessWidget {
       vertical: StrideSpace.s6,
     ),
     alignment: Alignment.center,
-    decoration: regionDeep == null
+    decoration: regionDeep == null && rule == null
         ? null
         : BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: <Color>[regionDeep!, StrideColors.surfaceGround],
-            ),
+            gradient: regionDeep == null
+                ? null
+                : LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[regionDeep!, StrideColors.surfaceGround],
+                  ),
+            // Beneath the wash, and inside the box: a `Border` is drawn within
+            // the container's own bounds, so the bar terminates without
+            // growing and `headerMinHeight` still resolves to 61 at scale 1.
+            border: rule == null
+                ? null
+                : Border(
+                    bottom: BorderSide(color: rule!.withValues(alpha: 0.24)),
+                  ),
           ),
     child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) => Row(
@@ -79,9 +104,21 @@ class ScreenHeader extends StatelessWidget {
                 // phone is D-01's shape one axis over. `AdaptiveText` shrinks
                 // rather than clips, which is what keeps that honest, and it
                 // is now load-bearing rather than belt-and-braces.
-                AdaptiveText(
+                // **Wraps, where it used to shrink.** The eyebrow was four
+                // known words — `CRAFT`, `WORLD` — and one line at one size
+                // was never in question. It is now the place's own
+                // descriptor (FMPO02 §8), and `SETTLEMENT · GRASSLAND`
+                // wants 196 dp of the 153 a 320 dp phone can spare beside
+                // the banked readout. `AdaptiveText`'s floor cannot absorb
+                // that, and lowering the floor to make it fit is the trade
+                // `adaptive_text.dart` refuses — so the breadcrumb takes a
+                // second line on the narrowest phones and every character
+                // survives. Nothing changes for a short eyebrow: one word
+                // still lays out on one line at full size.
+                Text(
                   eyebrow.toUpperCase(),
                   style: StrideType.screenEyebrow,
+                  maxLines: 2,
                 ),
                 AdaptiveText(
                   title,

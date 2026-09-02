@@ -1,12 +1,23 @@
-/// The three-line tracked-goal summary Adventure keeps, now that the full
-/// planning surface lives on the Goal Board (PRESENTATION_WORLD_REWARD_FEEL_01
-/// §9).
+/// The tracked goals Adventure keeps pinned, now that the full planning
+/// surface lives on the Goal Board (PRESENTATION_WORLD_REWARD_FEEL_01 §9).
 ///
-/// One line per filled slot — the goal's name and the single most useful
-/// figure — and one button. The full tracker with its per-line material
-/// breakdowns, sources and clear controls is the Goal Board's overview tab;
-/// Adventure answers "what am I working toward" in three glances and nothing
-/// more (§44: tertiary information does not live on every Adventure card).
+/// One **note plate** per filled slot — the goal's name and the single most
+/// useful figure — and two navigation controls beneath. The full tracker with
+/// its per-line material breakdowns, sources and clear controls is the Goal
+/// Board's overview tab; Adventure answers "what am I working toward" at a
+/// glance and nothing more (§44: tertiary information does not live on every
+/// Adventure card).
+///
+/// ## Pinned notes, not a third list (FMPO02, `ART-12_ux_brief.md` §5)
+///
+/// The three summary lines were a label column and a dotted sentence, which
+/// is the same shape as the activity rows above them and the walking facts
+/// above those — three lists in one scroll, distinguishable only by reading.
+/// A goal is a note somebody pinned up, so it is drawn as one: a `boardSlip`
+/// plate on `cork`, two to a row, 88 dp tall. The row is laid out by measuring
+/// rather than by writing 176 down — 176 is what (393 − 32 − 8) / 2 comes to
+/// at the reference width, and a written constant would be wrong at every
+/// other one.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -14,6 +25,7 @@ import 'package:flutter/widgets.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/panel_skin.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../state/session_controller.dart';
@@ -31,81 +43,82 @@ class GoalSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
     final TrackedGoalsView goals = c.session.trackedGoals;
-    final bool empty =
-        goals.journey == null &&
-        goals.pursuit == null &&
-        goals.contract == null;
 
-    return SectionCard(
-      padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeading(label: 'Current goals'),
-          const SizedBox(height: StrideSpace.s6),
-          if (empty)
-            // The empty slot is the new player's one natural signpost, and
-            // it used to point at nothing (Fable V2, `DECISIONS/0027`). One
-            // sentence of direction, phrased as invitation, never as a task:
-            // nothing here expires, counts down, or nags (`RULES.md` P-5).
-            Text(
-              c.session.usableEnergy > 0
-                  ? 'Nothing tracked yet. The Goal Board below has work '
-                        'wanting doing, and the World tab shows where a walk '
-                        'could take you.'
-                  : 'Nothing tracked yet. Steps you walk bank here — '
-                        'come back after a stroll and see what they open.',
-              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-            )
-          else ...<Widget>[
-            if (goals.journey case final JourneyGoalView j)
-              _SummaryLine(
-                label: 'JOURNEY',
-                name: j.destinationName,
-                status: _journeyStatus(j),
-                emphasised: j.ready && !j.arrived,
+    final List<Widget> plates = <Widget>[
+      if (goals.journey case final JourneyGoalView j)
+        _NotePlate(
+          label: 'JOURNEY',
+          name: j.destinationName,
+          status: _journeyStatus(j),
+          emphasised: j.ready && !j.arrived,
+        ),
+      if (goals.pursuit case final PursuitGoalView p)
+        _NotePlate(
+          label: 'PURSUIT',
+          name: p.itemName,
+          status: _pursuitStatus(p),
+          emphasised: p.owned || (!p.owned && p.needs.isEmpty),
+        ),
+      if (goals.contract case final ContractGoalView k)
+        _NotePlate(
+          label: 'CONTRACT',
+          name: k.name,
+          status: _contractStatus(k),
+          emphasised: k.readyToAdvance && !k.complete,
+        ),
+    ];
+
+    if (plates.isEmpty) {
+      // The empty slot is the new player's one natural signpost, and it used
+      // to point at nothing (Fable V2, `DECISIONS/0027`). One plate, so the
+      // board is visibly a board with nothing on it yet, and one sentence of
+      // direction phrased as invitation, never as a task: nothing here
+      // expires, counts down, or nags (`RULES.md` P-5).
+      plates.add(
+        _NotePlate(
+          label: 'NOTHING PINNED',
+          name: '',
+          status: c.session.usableEnergy > 0
+              ? 'The Goal Board has work wanting doing, and the World tab '
+                    'shows where a walk could take you.'
+              : 'Steps you walk bank here — come back after a stroll and '
+                    'see what they open.',
+          emphasised: false,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const SectionHeading(label: 'Current goals'),
+        const SizedBox(height: StrideSpace.rhythmRow),
+        _PlateRows(plates: plates),
+        const SizedBox(height: StrideSpace.rhythmRow),
+        // Navigation, not a commit — the neutral register, so opening a
+        // board never outranks the screen's game action
+        // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: StrideButton.secondary(
+                label: 'Goal Board',
+                onPressed: () => GoalBoardScreen.open(context),
               ),
-            if (goals.pursuit case final PursuitGoalView p)
-              _SummaryLine(
-                label: 'PURSUIT',
-                name: p.itemName,
-                status: _pursuitStatus(p),
-                emphasised: p.owned || (!p.owned && p.needs.isEmpty),
+            ),
+            const SizedBox(width: StrideSpace.rhythmRow),
+            // The hunt-planning surface (`DECISIONS/0028` §6): same
+            // navigation register as the board — never outranking the
+            // screen's game action.
+            Expanded(
+              child: StrideButton.secondary(
+                label: 'Field Notes',
+                onPressed: () => BestiaryScreen.open(context),
               ),
-            if (goals.contract case final ContractGoalView k)
-              _SummaryLine(
-                label: 'CONTRACT',
-                name: k.name,
-                status: _contractStatus(k),
-                emphasised: k.readyToAdvance && !k.complete,
-              ),
+            ),
           ],
-          const SizedBox(height: StrideSpace.s8),
-          // Navigation, not a commit — the neutral register, so opening a
-          // board never outranks the screen's game action
-          // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: StrideButton.secondary(
-                  label: 'Goal Board',
-                  onPressed: () => GoalBoardScreen.open(context),
-                ),
-              ),
-              const SizedBox(width: StrideSpace.s8),
-              // The hunt-planning surface (`DECISIONS/0028` §6): same
-              // navigation register as the board — never outranking the
-              // screen's game action.
-              Expanded(
-                child: StrideButton.secondary(
-                  label: 'Field Notes',
-                  onPressed: () => BestiaryScreen.open(context),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -133,10 +146,59 @@ class GoalSummaryCard extends StatelessWidget {
   }
 }
 
-/// `JOURNEY  Frostmere — READY`, one line, the figure in the accent only when
-/// it is the "go now" state.
-class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({
+/// The plates, two to a row.
+///
+/// The cell width is measured, not written: `(width − gap) / 2`, which is 176
+/// at the 393 dp reference and correct at 320 and 430 as well. The plates
+/// floor at 88 dp and grow with the text scaler rather than clipping (D-01),
+/// so in the ordinary case a row of two is a row of two 88 dp notes.
+///
+/// **Deliberately not `IntrinsicHeight`.** Equalising the pair to the taller
+/// one is the tidier row, and it costs a second layout pass of the whole
+/// subtree inside a lazy sliver — which trips the framework's own
+/// `!semantics.parentDataDirty` assertion when the semantics tree is compiled
+/// for the same frame (`screen_evidence_test`, every Adventure case). Two
+/// notes pinned at slightly different depths is what a board looks like
+/// anyway.
+class _PlateRows extends StatelessWidget {
+  const _PlateRows({required this.plates});
+
+  final List<Widget> plates;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: <Widget>[
+      for (int i = 0; i < plates.length; i += 2) ...<Widget>[
+        if (i > 0) const SizedBox(height: StrideSpace.rhythmRow),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: plates[i]),
+            const SizedBox(width: StrideSpace.rhythmRow),
+            // The odd plate keeps its half of the row rather than
+            // stretching across it: a note is a note's width, and a
+            // full-bleed one would read as the card the plates replaced.
+            Expanded(
+              child: i + 1 < plates.length
+                  ? plates[i + 1]
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ],
+    ],
+  );
+}
+
+/// One pinned note: what kind of goal, which one, and where it stands.
+///
+/// `boardSlip` on `cork` (`ART-02` §2) — the role the board contracts and
+/// project slips already name, so a pinned goal and a pinned contract are
+/// visibly the same kind of object. Both resolve to the painted card until
+/// their art ships.
+class _NotePlate extends StatelessWidget {
+  const _NotePlate({
     required this.label,
     required this.name,
     required this.status,
@@ -144,28 +206,49 @@ class _SummaryLine extends StatelessWidget {
   });
 
   final String label;
+
+  /// The goal's own name. Empty on the empty-state plate, which has a status
+  /// sentence and nothing to name.
   final String name;
+
   final String status;
+
+  /// Whether this is the "go now" state — READY, in hand, ready to deliver.
   final bool emphasised;
 
+  /// The plate's rhythm height. A floor, never an exact box.
+  static const double height = 88;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: StrideSpace.s4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.baseline,
-      textBaseline: TextBaseline.alphabetic,
-      children: <Widget>[
-        SizedBox(width: 76, child: Text(label, style: StrideType.microLabel)),
-        Expanded(
-          child: AdaptiveText(
-            '$name — $status',
-            style: StrideType.sub,
-            color: emphasised
-                ? StrideColors.accentSteps
-                : StrideColors.textSecondary,
+  Widget build(BuildContext context) => ConstrainedBox(
+    // Outside the card, not inside it: a minimum applied to the *content*
+    // would be 88 dp of text plus the card's own padding and edge, and the
+    // plate would come out at 110.
+    constraints: const BoxConstraints(minHeight: height),
+    child: SectionCard(
+      role: PanelRole.boardSlip,
+      surface: PanelSurface.cork,
+      padding: const EdgeInsets.all(StrideSpace.blockPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(label, style: StrideType.microLabel),
+          if (name.isNotEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            AdaptiveText(name, style: StrideType.itemName),
+          ],
+          const SizedBox(height: StrideSpace.s2),
+          Text(
+            status,
+            style: StrideType.micro.copyWith(
+              color: emphasised
+                  ? StrideColors.accentSteps
+                  : StrideColors.textSecondary,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }

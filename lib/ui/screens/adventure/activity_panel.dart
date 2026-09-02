@@ -1,14 +1,29 @@
-/// The activity list: every gather node at this location as a compact,
-/// selectable row, with one expanded detail for the selected activity.
+/// The expedition kit: every gather node at this location as an entry in one
+/// field journal, with one expanded detail for the selected activity.
+///
+/// ## The kit (FMPO02, `ART-12_ux_brief.md` §5)
+///
+/// The rows were eleven bordered blocks stacked inside a bordered card, each
+/// one a name and a run of dotted-together facts at 11 px — a table of
+/// contents for a database. They are now **journal entries**: 112 dp, the
+/// node's own 96 dp vignette on the left where a field journal would have the
+/// sketch, the name at `cardTitle`, what it asks and what it gives beneath,
+/// and the walk it costs on the right. One rule between entries, not eleven
+/// borders.
+///
+/// A locked entry dims **only its vignette**, to 0.55 — the place is there,
+/// the player cannot work it yet — and keeps its reason line at full reading
+/// contrast. Muting the whole entry made the one sentence that says *how far
+/// away* the hardest thing on the row to read.
 ///
 /// ## What this replaces (PRESENTATION_WORLD_REWARD_FEEL_01 §6–§7)
 ///
 /// One full `GatherNodeCard` per node — each ~380 dp with its own stage, its
 /// own Traveler, its own tiles and button — was the single largest source of
-/// vertical mass on Adventure. The rows here are ~48 dp each; only the
-/// selected activity expands into queue controls, requirement gates, tiles
-/// and the action. Locked activities stay visible as compact aspirational
-/// rows: the name, the concrete requirement, and nothing else.
+/// vertical mass on Adventure. An entry is 112 dp; only the selected activity
+/// expands into queue controls, requirement gates, tiles and the action.
+/// Locked activities stay visible as aspirational entries: the name, the
+/// concrete requirement, and nothing else.
 ///
 /// The queue semantics are untouched: everything below dispatches through
 /// the same [ActivityController] / [SessionController] paths the old card
@@ -21,13 +36,18 @@ import 'package:stride_core/stride_core.dart'
     show ContentId, ResourceNodeDefinition, ToolKind;
 
 import '../../../runtime/stride_session.dart';
-import '../../components/adaptive_text.dart';
+import '../../components/ambient_stage.dart' show StageScenery;
 import '../../components/data_display.dart';
+import '../../components/panel_skin.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/reward_beat.dart';
 import '../../components/reward_layer.dart';
+import '../../components/rules.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
+import '../../icons/ambient_assets.dart';
+import '../../icons/pixel_icons.dart';
 import '../../state/activity_controller.dart';
 import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
@@ -65,43 +85,68 @@ class ActivityPanel extends StatelessWidget {
       );
     }
 
+    // `padding: zero`, because the entries' separators are full bleed — a
+    // rule that stopped short of the panel's edge would read as an underline
+    // on the entry above it rather than as the leaf between two. The clip is
+    // what keeps those rules inside the card's radius: `SectionCard` paints
+    // its surface behind the child and does not clip it.
+    //
+    // `journalLeaf` is the Adventure family's material (`ART-02` §2). It
+    // resolves to null until the tile ships, and the card then paints exactly
+    // the flat fill it always painted.
     return SectionCard(
-      padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeading(label: 'Activities'),
-          const SizedBox(height: StrideSpace.s6),
-          for (final ResourceNodeDefinition node in nodes) ...<Widget>[
-            _ActivityRow(
-              node: node,
-              session: s,
-              selected: selected == node.id,
-              onTap: () => onSelect(selected == node.id ? null : node.id),
-            ),
-            if (selected == node.id)
-              Padding(
-                padding: const EdgeInsets.only(
-                  top: StrideSpace.s6,
-                  bottom: StrideSpace.s6,
-                ),
-                child: ActivityDetail(node: node),
+      surface: PanelSurface.journalLeaf,
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: StrideRadius.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(
+                StrideSpace.s12,
+                StrideSpace.s12,
+                StrideSpace.s12,
+                StrideSpace.rhythmRow,
               ),
+              child: SectionHeading(label: 'Expedition kit'),
+            ),
+            for (final (int i, ResourceNodeDefinition node)
+                in nodes.indexed) ...<Widget>[
+              if (i > 0) const HairlineRule(),
+              _KitEntry(
+                node: node,
+                session: s,
+                selected: selected == node.id,
+                onTap: () => onSelect(selected == node.id ? null : node.id),
+              ),
+              if (selected == node.id)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    StrideSpace.s12,
+                    0,
+                    StrideSpace.s12,
+                    StrideSpace.s12,
+                  ),
+                  child: ActivityDetail(node: node),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
-/// One compact activity row: what it is, what it needs, what it gives.
+/// One journal entry: the sketch, what it is, what it asks, what it costs.
 ///
-/// Unlocked: `Copper Seam · 140 steps` over `Mining 1 · ×1 Copper Ore ·
-/// +14 XP`. Locked: the name muted, and the concrete gap — `Requires Mining
-/// 3 — you are 1` — because a wall with a distance written on it is a plan
-/// (§7: visible and aspirational, never a giant card).
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({
+/// Unlocked: `Copper Seam` over `Mining 1 · ×1 Copper Ore · +14 XP`, with
+/// `140` and the walking mark on the right. Locked: the same entry with the
+/// sketch in shadow and the concrete gap — `Requires Mining 3 — you are 1` —
+/// said at reading contrast, because a wall with a distance written on it is
+/// a plan (§7: visible and aspirational, never a giant card).
+class _KitEntry extends StatelessWidget {
+  const _KitEntry({
     required this.node,
     required this.session,
     required this.selected,
@@ -112,6 +157,11 @@ class _ActivityRow extends StatelessWidget {
   final StrideSession session;
   final bool selected;
   final VoidCallback onTap;
+
+  /// The entry's rhythm height: the 96 dp sketch plus 8 dp of air each side.
+  /// A **minimum** — a wrapped name at an enlarged text scale grows the entry
+  /// rather than clipping (D-01).
+  static const double height = 112;
 
   @override
   Widget build(BuildContext context) {
@@ -139,72 +189,140 @@ class _ActivityRow extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: StrideSpace.s4),
-          padding: const EdgeInsets.symmetric(
-            horizontal: StrideSpace.s10,
-            vertical: StrideSpace.s6,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? StrideColors.surfaceRaised
-                : StrideColors.surfaceBlock,
-            border: Border.all(
-              color: selected
-                  ? StrideColors.forSkill(node.skill)
-                  : StrideColors.borderDefault,
-            ),
-            borderRadius: StrideRadius.inner,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: height),
+          child: Stack(
             children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  StrideSpace.s12,
+                  StrideSpace.s8,
+                  StrideSpace.s12,
+                  StrideSpace.s8,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
-                    AdaptiveText(
-                      node.displayName,
-                      style: StrideType.itemName,
-                      color: locked
-                          ? StrideColors.textMuted
-                          : StrideColors.textPrimary,
+                    _NodeSketch(
+                      art: PixelIcons.nodeFor(node.id),
+                      dimmed: locked,
                     ),
-                    Text(
-                      subLine,
-                      style: StrideType.micro.copyWith(
-                        color: locked
-                            ? StrideColors.textMuted
-                            : StrideColors.textSecondary,
+                    const SizedBox(width: StrideSpace.s12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          // Wraps rather than shrinks. `AdaptiveText` is one
+                          // line by construction, and one line of `cardTitle`
+                          // cannot hold `Meadow Patch` beside a 96 dp sketch
+                          // at 320 dp — it needed 124 dp of the 104 it had.
+                          // The entry has vertical room the row it replaced
+                          // did not (the sketch is 96 dp tall and the text is
+                          // ~70), so a second line is free here and a
+                          // shrink ladder would be paying for width that is
+                          // not scarce.
+                          Text(
+                            node.displayName,
+                            style: StrideType.cardTitle.copyWith(
+                              color: StrideColors.textPrimary,
+                            ),
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: StrideSpace.s2),
+                          Text(
+                            subLine,
+                            style: StrideType.micro.copyWith(
+                              color: StrideColors.textSecondary,
+                            ),
+                            maxLines: 3,
+                          ),
+                        ],
                       ),
-                      maxLines: 2,
+                    ),
+                    const SizedBox(width: StrideSpace.s8),
+                    // The walk this costs. `WalkingRole.unit` and not the
+                    // teal stock mark: `walking_glyph.dart` writes the rule
+                    // down — teal is steps the player *owns*, muted is steps
+                    // as a price — and a cost is a price.
+                    const WalkingGlyph(role: WalkingRole.unit),
+                    const SizedBox(width: StrideSpace.s4),
+                    Text(
+                      formatSteps(cost),
+                      style: StrideType.itemCount.copyWith(
+                        color: StrideColors.textPrimary,
+                        fontFeatures: StrideType.tabularFigures,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: StrideSpace.s8),
-              if (!locked) ...<Widget>[
-                const WalkingGlyph(role: WalkingRole.unit),
-                const SizedBox(width: StrideSpace.s4),
-                Text(
-                  formatSteps(cost),
-                  style: StrideType.itemCount.copyWith(
-                    color: StrideColors.textPrimary,
-                    fontFeatures: StrideType.tabularFigures,
-                  ),
-                ),
-              ] else
-                Text(
-                  'LOCKED',
-                  style: StrideType.microLabel.copyWith(
-                    color: StrideColors.textMuted,
-                  ),
+              // The open entry's index mark: the trade's ink on the leaf's
+              // inner edge. Not a border — the entries have none, and giving
+              // the selected one a box back is what the journal replaced.
+              if (selected)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 3,
+                  child: ColoredBox(color: StrideColors.forSkill(node.skill)),
                 ),
             ],
           ),
         ),
       ),
     );
+  }
+}
+
+/// The node's own 96 dp sketch, standing on the entry's floor.
+///
+/// **Bottom-aligned by measured bounds, not by the canvas** — the plates carry
+/// empty rows under the subject, so bottom-aligning the canvas seats every
+/// sketch at a different height and the column of entries stops reading as a
+/// page. This is `_EnemyStage.groundOffset`'s arithmetic against
+/// `AmbientAssets`' measured bounds, which is the same table the location
+/// stage places the far scenery with — one measurement, two uses, no second
+/// place for it to disagree.
+///
+/// The rail is reserved whether or not the art resolves: a node with no plate
+/// must not shift the name of every other entry out of alignment.
+class _NodeSketch extends StatelessWidget {
+  const _NodeSketch({required this.art, required this.dimmed});
+
+  /// The node's vignette path, or null where the pack has none.
+  final String? art;
+
+  /// A locked entry dims **only this** — to 0.55 — and nothing else.
+  final bool dimmed;
+
+  static const double extent = 96;
+
+  @override
+  Widget build(BuildContext context) {
+    final StageScenery? plate = AmbientAssets.sceneryFor(art);
+    Widget? sketch;
+    if (plate != null) {
+      final double drop =
+          (plate.native - 1 - plate.bounds.bottom) * plate.scale.toDouble();
+      sketch = ClipRect(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Transform.translate(
+            offset: Offset(0, drop),
+            child: PixelAsset(
+              assetPath: plate.assetPath,
+              nativeWidth: plate.native,
+              nativeHeight: plate.native,
+              scale: plate.scale,
+            ),
+          ),
+        ),
+      );
+      if (dimmed) sketch = Opacity(opacity: 0.55, child: sketch);
+    }
+    return SizedBox(width: extent, height: extent, child: sketch);
   }
 }
 
@@ -524,12 +642,14 @@ class _GatherControl extends StatelessWidget {
           // row is expanded. What stays in the panel is what belongs to
           // this node specifically: the refusal sentence, and a stopped
           // queue's reason.
-          if (summaryHere && !queueHeld && activity.stopReport != null)
-            ...<Widget>[
+          if (summaryHere &&
+              !queueHeld &&
+              activity.stopReport != null) ...<Widget>[
             const SizedBox(height: StrideSpace.s8),
             _QueueSummaryStrip(activity: activity, skill: node.skill),
-          ] else if (report != null && !reportHeld && !report.succeeded)
-            ...<Widget>[
+          ] else if (report != null &&
+              !reportHeld &&
+              !report.succeeded) ...<Widget>[
             const SizedBox(height: StrideSpace.s8),
             _ResultStrip(report: report, skill: node.skill),
           ],
@@ -636,9 +756,7 @@ class _SecondsRemaining extends StatelessWidget {
         (activity.repetitionDuration - activity.elapsedOfCurrent).inSeconds;
     return Text(
       '${seconds < 0 ? 0 : seconds}s',
-      style: StrideType.micro.copyWith(
-        fontFeatures: StrideType.tabularFigures,
-      ),
+      style: StrideType.micro.copyWith(fontFeatures: StrideType.tabularFigures),
     );
   }
 }

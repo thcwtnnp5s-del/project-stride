@@ -101,22 +101,28 @@ void main() {
     }
   });
 
-  testWidgets('the card opens the route; the ladder reads as a plan', (
+  testWidgets('the spine opens the route; the ladder reads as a plan', (
     WidgetTester tester,
   ) async {
     final SessionController c = await boot(tester);
     await tester.pumpWidget(shell(c, const SkillsScreen()));
     await tester.pumpAndSettle();
 
-    // The cards carry the roadmap hint (the last may sit below the test
-    // viewport's fold — the ListView is lazy); tapping one pushes the
-    // route.
-    expect(find.text('ROADMAP'), findsWidgets);
+    // **The `ROADMAP` hint is gone from the list** (FMPO02, `ART-12` §4):
+    // the whole 64 dp spine is the control, and a row that is entirely a
+    // button does not need a word saying so. Five spines, one card.
+    expect(find.text('ROADMAP'), findsNothing);
+    expect(find.byType(SkillSpine), findsNWidgets(5));
+
     await tester.tap(find.text('Mining'));
     await tester.pumpAndSettle();
     expect(find.byType(SkillDetailScreen), findsOneWidget);
     // The route's own heading (SectionHeading renders uppercase).
     expect(find.text('ROADMAP'), findsOneWidget);
+
+    // The three lines the spine gave up are the first thing the route says.
+    expect(find.text('NEXT'), findsOneWidget);
+    expect(find.textContaining('opens '), findsWidgets);
 
     // The current band, the next band's distance, and the honest end of
     // the road are all on screen. (The collapsed dead-run line used to be
@@ -128,8 +134,11 @@ void main() {
     expect(find.textContaining('The road runs out here'), findsOneWidget);
 
     // Expanding an unlock shows its pre-capped story and the Pursuit
-    // control.
-    await tester.tap(find.textContaining('Tin Seam at Stonefall').first);
+    // control. `.last`, not `.first`: the NEXT block above the ladder names
+    // this same unlock in its own sentence — `Level 2 opens Tin Seam at
+    // Stonefall Mine` — and that line is a statement, not a control. The
+    // ladder's row is the later of the two in tree order.
+    await tester.tap(find.textContaining('Tin Seam at Stonefall').last);
     await tester.pumpAndSettle();
     expect(find.textContaining('Yields Tin Ore'), findsOneWidget);
     expect(find.text('Track as Pursuit'), findsOneWidget);
@@ -138,6 +147,6 @@ void main() {
     await tester.tap(find.text('CLOSE'));
     await tester.pumpAndSettle();
     expect(find.byType(SkillDetailScreen), findsNothing);
-    expect(find.text('ROADMAP'), findsWidgets);
+    expect(find.byType(SkillSpine), findsNWidgets(5));
   });
 }

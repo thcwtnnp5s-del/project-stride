@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:stride_core/stride_core.dart' show ContentId;
 
 import '../../debug/dev_harness.dart';
+import '../../runtime/stride_session.dart' show PlaceIdentity;
 import '../components/screen_header.dart';
+import '../screens/world/atlas/atlas_place_info.dart';
 import '../theme/stride_colors.dart';
 import '../components/stride_scaffold.dart';
 import '../components/stride_tab_bar.dart';
@@ -83,15 +85,32 @@ class _StrideShellState extends State<StrideShell> {
           // the biggest thing is where you are, which is what a game looks
           // like, and it changes when you walk somewhere.
           //
-          // The section name is not lost — it moves to the eyebrow, where a
-          // breadcrumb belongs, and stays available to a screen reader in the
-          // same order it always was.
+          // **The tab name is gone from the header** (FMPO02, `ART-12` §8).
+          // Demoting it to the eyebrow was half the fix: the lit nav plate
+          // four dp below already says which tab this is, and a bar that
+          // reprints it is saying the same word twice — the utility-app
+          // tell. The eyebrow now carries the *place's* own descriptor —
+          // `SETTLEMENT · GRASSLAND` — so both lines of the header describe
+          // where the player is standing, and both change when they walk.
+          //
+          // The words are the atlas inspector's, from the atlas inspector's
+          // tables, so the bar and the map cannot call one place two things.
+          // The tab is still named for a screen reader by the tab bar's own
+          // selected control, which is where the name of a control belongs.
           final ContentId? here = controller.session.currentLocation;
+          final PlaceIdentity? identity = here == null
+              ? null
+              : controller.session.placeIdentityOf(here);
           return ScreenHeader(
-            eyebrow: _selected.label,
+            eyebrow: identity == null
+                ? ''
+                : AtlasPlaceInfo.descriptorFor(identity),
             title: controller.session.locationName,
             regionInk: here == null ? null : StrideColors.forRegion(here),
             regionDeep: here == null ? null : StrideColors.forRegionDeep(here),
+            // The bar's own end (§8). Only the shell passes it: a pushed
+            // route's header is already a layer over this one.
+            rule: here == null ? null : StrideColors.forRegion(here),
             trailing: BankedStepsReadout(
               bankedSteps: controller.session.usableEnergy,
             ),

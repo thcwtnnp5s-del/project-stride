@@ -157,21 +157,106 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> {
                     padding: const EdgeInsets.all(
                       StrideSpace.cardPaddingCompact,
                     ),
-                    child: _Ladder(
-                      roadmap: roadmap,
-                      skill: widget.skill,
-                      earnedOpen: _earnedOpen,
-                      onToggleEarned: () =>
-                          setState(() => _earnedOpen = !_earnedOpen),
-                      expanded: _expanded,
-                      onToggleRow: ((int, String) key) => setState(
-                        () => _expanded = _expanded == key ? null : key,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _NextBlock(roadmap: roadmap),
+                        _Ladder(
+                          roadmap: roadmap,
+                          skill: widget.skill,
+                          earnedOpen: _earnedOpen,
+                          onToggleEarned: () =>
+                              setState(() => _earnedOpen = !_earnedOpen),
+                          expanded: _expanded,
+                          onToggleRow: ((int, String) key) => setState(
+                            () => _expanded = _expanded == key ? null : key,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ],
             ),
+    );
+  }
+}
+
+/// The next three things this trade opens, at the top of the roadmap.
+///
+/// **These are the lines the Skills spine gave up** (FMPO02, `ART-12` §4).
+/// The spine answers *where am I* in 64 dp; the three lines it used to carry
+/// answer *what next*, and this route is where that question was already
+/// being answered at length. Put at the head of the ladder rather than left
+/// to be reconstructed from it: the ladder is ordered by level and a player
+/// asking "what is next" should not have to scan twelve bands to find the
+/// three that are.
+///
+/// Nothing is computed here. The entries are the projection's own, in the
+/// projection's own order (`RULES.md` E-2, F-07).
+class _NextBlock extends StatelessWidget {
+  const _NextBlock({required this.roadmap});
+
+  final SkillRoadmap roadmap;
+
+  /// `Level 3 opens Duskcap Grove at Whispering Woods`, with the extra gate
+  /// said where one exists — `Level 2 + a contract at Haven's Rest opens
+  /// Wolfhide Jerkin` — so the block never promises what the level alone
+  /// cannot deliver.
+  static String lineFor(SkillUnlock u) {
+    final String level = u.gate == null
+        ? 'Level ${u.requiredLevel}'
+        : 'Level ${u.requiredLevel} + ${u.gate}';
+    final String where = u.where == null ? '' : ' at ${u.where}';
+    return '$level opens ${u.displayName}$where';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<SkillUnlock> upcoming = <SkillUnlock>[
+      for (final RoadmapLevel level in roadmap.levels)
+        for (final SkillUnlock u in level.entries)
+          if (!u.unlocked) u,
+    ].take(3).toList();
+
+    // "Everything open" is a real and satisfying state, and the ladder's own
+    // closing line already says it — a NEXT heading over nothing would be a
+    // gap where a goal used to be.
+    if (upcoming.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'NEXT',
+          style: StrideType.microLabel.copyWith(
+            color: StrideColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: StrideSpace.s4),
+        for (final (int i, SkillUnlock u) in upcoming.indexed)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : StrideSpace.s4),
+            child: Text(
+              lineFor(u),
+              style: StrideType.micro.copyWith(
+                // The nearest rung carries the emphasis; the ones behind it
+                // are the road ahead, quieter.
+                color: i == 0
+                    ? StrideColors.textSecondary
+                    : StrideColors.textMuted,
+              ),
+            ),
+          ),
+        Container(
+          height: 1,
+          margin: const EdgeInsets.only(
+            top: StrideSpace.s8,
+            bottom: StrideSpace.s4,
+          ),
+          color: StrideColors.separator,
+        ),
+      ],
     );
   }
 }
