@@ -1,0 +1,66 @@
+{
+  "family": "landmarks",
+  "round": "EPO03 wave 2 / DIR-03",
+  "note": "Atlas is 1024x1024 native; world coords = atlas px x 6. Overlay x,y is the sprite TOP-LEFT in world coords. Every frame is fully opaque-or-transparent (no partial alpha) and free of reserved teal #58D6C0 +-10. Placement is NOT done here: `assets/content/v1/atlas/atlas_layout.json` is hand-edited and PROD-WORLD-LIFE owns its `overlays` array — the four rows below are requested in MILESTONES/evidence/EPO03/wave2/REQUESTS_LIFE.md.",
+  "assets": [
+    {
+      "name": "overlay_fae_court",
+      "supersedes": "env/overlay_fairy_motes (32x32, 4 f, five toned discs — DIR-03 top failure 2, D0033 §6 / Q-28)",
+      "kind": "overlay",
+      "canvas": "112x80",
+      "frames": 16,
+      "frameMillis": 220,
+      "playLoops": 3,
+      "intervalMillis": 14000,
+      "opacity": 1,
+      "atlas": { "x": 300, "y": 400 },
+      "world": { "x": 1800, "y": 2400 },
+      "placement": "The fairy glade. Seven 9x8 px winged silhouettes ride ellipses around the castle at atlas (335,452) = local (35,52); each carries a three-frame trail of its own glow ink; frames 10-15 close the ring in a gathering pulse. Source: one fairy cut from the accepted 96x64 swarm's 4-frame wingbeat (job fe5c6c38 -> 3532c6da), arranged by tools/fairy-arcs.js (0 gens).",
+      "dutyCycle": "10.6s active / 24.6s cycle = 43%"
+    },
+    {
+      "name": "overlay_storm_rain",
+      "kind": "overlay",
+      "canvas": "96x96",
+      "frames": 8,
+      "frameMillis": 120,
+      "playLoops": 6,
+      "intervalMillis": 9000,
+      "opacity": 0.55,
+      "atlas": { "x": 170, "y": 856 },
+      "world": { "x": 1020, "y": 5136 },
+      "placement": "Rain sheets over the storm pocket. Rows 0-27 are the churning cloud wisps from the animate_image pass (job c7f6305b); the rain body is the accepted still (job 7804285a) scrolled 3,6 px per frame with wrap, because the model emptied the rain out of six of its eight frames. tools/rain-assemble.js (0 gens).",
+      "dutyCycle": "5.8s active / 14.8s cycle = 39%"
+    },
+    {
+      "name": "overlay_storm_strike",
+      "supersedes": "env/overlay_storm_lightning (48x64, 8 f, a 6%-duty bolt with no flash — DIR-03 top failure 3)",
+      "kind": "overlay",
+      "canvas": "80x96",
+      "frames": 8,
+      "frameMillis": 100,
+      "playLoops": 1,
+      "intervalMillis": 11000,
+      "opacity": 1,
+      "atlas": { "x": 178, "y": 808 },
+      "world": { "x": 1068, "y": 4848 },
+      "placement": "The strike on the storm house. The fork's foot lands on the roof at atlas (218,880) = local (40,72). f0 main fork + a 30 px dithered white-blue ground flash, f1 afterglow, f2 the thinner second fork, f3 fade, f4-f7 empty — a strike every 11.8 s. Forks: jobs 8bdd1c8e and 6c2e96ac; assembled by tools/strike-assemble.js (0 gens).",
+      "dutyCycle": "0.8s active / 11.8s cycle = 7% (the flash cadence, not the darkness — the pocket itself is painted terrain)"
+    },
+    {
+      "name": "overlay_ice_beacon_sweep",
+      "supersedes": "env/overlay_ice_beacon (48x80, 7 f) IN SLOT — the old file is left packaged and unreferenced rather than re-emitted at a new canvas, so `atlas_layout_test` stays green while PROD-WORLD-LIFE holds the layout row",
+      "kind": "overlay",
+      "canvas": "96x96",
+      "frames": 10,
+      "frameMillis": 260,
+      "playLoops": 2,
+      "intervalMillis": 9000,
+      "opacity": 1,
+      "atlas": { "x": 420, "y": 116 },
+      "world": { "x": 2520, "y": 696 },
+      "placement": "The ice bastion's beacon. f0 dark, the crown lights, the cone sweeps left -> centre -> right -> centre over the frozen causeway, a cold-white sparkle drifts on the crown ledge. Keyed out of four edit_image_pixen passes over the SHIPPED L3 crop (jobs 55b29557, 397015a4, 1d1d93f4, b42d5403) plus sparkle f28c485f, by tools/beacon-key.js: every overlay pixel is a pixel the model added over the terrain that already ships.",
+      "dutyCycle": "5.2s active / 14.2s cycle = 37%"
+    }
+  ]
+}

@@ -556,15 +556,6 @@
       "height": 21,
       "anchorX": 12,
       "anchorY": 20
-    },
-    {
-      "asset": "env/prop_ice_tower",
-      "x": 2808,
-      "y": 1062,
-      "width": 48,
-      "height": 80,
-      "anchorX": 24,
-      "anchorY": 79
     }
   ],
   "overlays": [

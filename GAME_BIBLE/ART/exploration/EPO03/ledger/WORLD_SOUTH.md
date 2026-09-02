@@ -42,3 +42,7 @@ marker now sits on the dune/machair lip with the beach immediately south of it
 rather than in the middle of the old sand band. Named as residual in the
 report; not chased with a third roll, because roll 1 proved a third variation
 risks the best painting in the territory for ~20 px of sand.
+
+| # | region / roll | tool | job id | canvas / mask / seed | cost line | verdict | reason |
+|---|---|---|---|---|---|---|---|
+| 3 | S2 roll 1 — the interior sand stripe and the SW wood edge | inpaint_image | 24eb1233-afd0-4d8a-9ecf-63cd3b9c5242 | crop 512x324 @ (128,700) (b2ec6a3, cut from the composite S1 shipped into) / mask 268x284 @ (44,40) / seed 6002 | cost: ~40 generations | _pending_ | Measured first: inside the rect 172-440 x 740-1024 there are only scattered pond/beck pixels and NO sea, so the y 810-870 sand belt here is sand in the middle of the land. Intent: no sea, therefore no beach — heath, gorse, bracken and a beck replace the belt; the wood's straight top edge breaks into bays and copses; the blue-rimmed orchard becomes ordinary broadleaf; machair only at the far right where S1's dune belt starts; the reserved storm-knoll pocket (168-264 x 816-952) kept plain and open for LANDMARKS |

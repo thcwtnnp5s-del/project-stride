@@ -3485,7 +3485,12 @@ const FMPO_AMBIENT_STRIPS = [
   ['traveler_coat_bronzeaxe_woodcut', 8, 80, false],
   ['traveler_base_bronzeaxe_woodcut', 8, 80, false],
   ['traveler_jerkin_bronzepick_mine', 8, 80, false],
-  ['traveler_plate_bronzepick_mine', 8, 80, false],
+  // `traveler_plate_bronzepick_mine` moved to the EPO03 EQUIPMENT block
+  // below — its head was recoloured to the muted copper the other four bronze
+  // tool strips use, so its source is now `EPO03/out/equip/tracks/`. Emitting
+  // it from both places would make `--check` compare the old bytes against
+  // the new file and report a permanent staleness, so the row moves rather
+  // than being overridden. See that block for the reason and the evidence.
   // Re-dressed from the jerkin pick strip by reference edit (garment swapped,
   // pose and tool kept) after v3 failed twice on each — see traveler_art.dart.
   ['traveler_coat_bronzepick_mine', 8, 80, false],
@@ -3644,6 +3649,127 @@ for (const body of ['plate', 'jerkin', 'coat']) {
 }
 for (const [id, frames, width, mirror] of FMPO_AMBIENT_STRIPS) {
   fmpoStrip(id, frames, width, mirror, 'ambient', ambientFootprints);
+}
+
+// ------------------------------------------- EPO03 EQUIPMENT (PROD-EQUIPMENT)
+/**
+ * EPO03 wave 2, the equipment family — DIR-08's top failures, closed in
+ * priority order. Every strip here is 80 x 64 with the feet on row 62 already,
+ * so it needs no `equip-prep` window: each was made by editing an *accepted,
+ * shipped* strip frame-for-frame, which carries the geometry over by
+ * construction (the same route the FMPO02 craft re-dresses took).
+ *
+ * This block runs AFTER the FMPO02 matrix on purpose. `emit()` keys by path,
+ * so a strip re-emitted here replaces the FMPO02 one in the packaged set and
+ * in `--check`, without editing another round's list.
+ *
+ * **P1a — `base|weapon.steel` has a brace at last.** DIR-08 failure 4: a
+ * training-sword player pressing Brace had no braced figure at all (0 files),
+ * because FMPO02 authored brace for the two VAWO01 base sets and the nine
+ * armoured loadouts but not for the pre-PixelLab base + steel set. The strip
+ * is `traveler_base_bronze_brace` with the bronze blade re-drawn as the plain
+ * pale steel training blade by one 6-frame `edit_image` text edit; the man,
+ * his shirt and vest, his pack and the whole six-frame guard are the accepted
+ * strip's own pixels. It inherits its source's one weakness — the blade reads
+ * in f0-f2 and is hidden behind the forearms in f3-f5 — which the armoured
+ * brace strips do not have; that is the source's pose, not the edit's
+ * (`EPO03/review/equip/p1_base_steel_brace_x3.png`, and the family sheet
+ * `brace_family_x3.png` beside it).
+ *
+ * **P1b — the Plate Bronze Pick stops being the odd one out.** DIR-08 failure
+ * 2: five bronze tool strips, and the plate pick was a saturated orange the
+ * other four were not (it is the wave-A probe `0f7a53bf`, ordered before the
+ * other four states set the family's muted copper). One 8-frame `edit_image`
+ * text edit recolours the head to that muted copper and touches nothing else.
+ * Two things fall out of it, both measured: the strip now snaps **0** pixels
+ * under `toneBronze` (it is already inside the copper ramp, where the old one
+ * was not), and the swing-streak the FMPO02 block keys out of f4 is simply
+ * gone — the keying above is left in place, harmless, because it is that
+ * block's record of what its own source needed.
+ */
+const EPO_EQUIP_SRC = path.join(EXPLORE, 'EPO03', 'out', 'equip', 'tracks');
+function epoStrip(id, frames, width, dest, footprints) {
+  for (let i = 0; i < frames; i++) {
+    const frame = png.load(path.join(EPO_EQUIP_SRC, `${id}_f${i}.png`));
+    if (frame.width !== width || frame.height !== 64) {
+      throw new Error(
+        `EPO03 ${id} f${i}: expected ${width}x64, got ` +
+          `${frame.width}x${frame.height}`,
+      );
+    }
+    if (/bronze/.test(id)) toneBronze(frame);
+    // The same ghost-gear guard every Traveler strip ships under: a frame
+    // whose opaque pixels are not one 8-connected piece is a weapon off the
+    // hand or a floating artifact (`RULES.md` A-1).
+    let opaque = 0;
+    for (let p = 3; p < frame.data.length; p += 4) {
+      if (frame.data[p] !== 0) opaque++;
+    }
+    if (attachedPixelCount(frame) !== opaque) {
+      throw new Error(
+        `EPO03 ${id} f${i}: ${opaque - attachedPixelCount(frame)} px are not ` +
+          'attached to the standing figure (ghost gear or a floating artifact).',
+      );
+    }
+    if (i === 0) footprints[`${dest}_${id}`] = png.footprint(frame);
+    emit(`${dest}/${id}_f${i}.png`, encode(frame));
+  }
+}
+const EPO_COMBAT_STRIPS = [['traveler_base_steel_brace', 6]];
+const EPO_AMBIENT_STRIPS = [['traveler_plate_bronzepick_mine', 8, 80]];
+for (const [id, frames] of EPO_COMBAT_STRIPS) {
+  epoStrip(id, frames, 80, 'combat', combatFootprints);
+}
+for (const [id, frames, width] of EPO_AMBIENT_STRIPS) {
+  epoStrip(id, frames, width, 'ambient', ambientFootprints);
+}
+
+// ----------------------------------------- EPO03 LANDMARKS (PROD-WORLD-LANDMARKS)
+/**
+ * EPO03 wave 2, the fantasy-landmark family — DIR-03.
+ *
+ * The three landmarks stopped being props this round. The fairy castle, the
+ * storm house and the ice tower were 31 x 39, 25 x 21 and 48 x 80 sprites
+ * standing ON the map; each is now painted INTO the terrain as an atlas region
+ * (`out/atlas/manifest_landmarks.json`, composited by the EPO03 atlas block
+ * far above), which is also why a landmark survives overview zoom, where props
+ * are hidden. What ships here is the motion that sits on top of the painting.
+ *
+ * Four overlays, all at NET-NEW paths. Three supersede an older overlay in
+ * SLOT rather than in file: `overlay_fairy_motes` (five toned discs),
+ * `overlay_storm_lightning` (a 6 %-duty bolt over nothing) and
+ * `overlay_ice_beacon` (48 x 80, on a pedestal that no longer exists). Their
+ * files are deliberately left packaged and untouched, because
+ * `assets/content/v1/atlas/atlas_layout.json` still points at them and its
+ * `overlays` array belongs to PROD-WORLD-LIFE: re-emitting one of those paths
+ * at a new canvas would fail `atlas_layout_test` the moment it landed, hours
+ * before the team that owns the row could swap it. The four rows are requested
+ * in `MILESTONES/evidence/EPO03/wave2/REQUESTS_LIFE.md` with exact JSON; once
+ * they land, the three superseded files are unreferenced and the producer may
+ * retire their emitters at closeout.
+ *
+ * Every canvas below is asserted from the family manifest, so packaging cannot
+ * silently disagree with what the round delivered, and `env/` is a
+ * per-directory pubspec entry, so no new frame needs a pubspec line.
+ */
+const EPO_LANDMARK_SRC = path.join(EXPLORE, "EPO03", "out", "landmarks");
+const epoLandmarks = JSON.parse(
+  fs.readFileSync(path.join(EPO_LANDMARK_SRC, "manifest.json"), "utf8"),
+);
+for (const entry of epoLandmarks.assets) {
+  const [w, h] = entry.canvas.split("x").map(Number);
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(
+      path.join(EPO_LANDMARK_SRC, `${entry.name}_f${i}.png`),
+    );
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(
+        `EPO03 landmarks ${entry.name}_f${i}: manifest says ${entry.canvas}, `
+        + `got ${frame.width}x${frame.height}`,
+      );
+    }
+    emit(`env/${entry.name}_f${i}.png`, encode(frame));
+  }
 }
 
 // -------------------------------------------------------- footprint metrics

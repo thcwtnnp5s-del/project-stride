@@ -1,0 +1,43 @@
+{
+  "comment": "EPO03 PROD-WORLD-EAST pending regions (never a manifest). Territory 600-1024 x 0-700 (DIR-01). Crop coords as ATLAS_PRODUCTION_RULES s2. `cut` is read by tools/atlas-maskcut.js AFTER atlas-mask.js: open sea beyond cut.seaMargin px of any land/ice body >= cut.minLand px is forced to 0 so the sea is never authorized (the FMPO02 N3 lesson), and cut.holes (atlas px) are hard 0 over identity features whose protection coreAuthor/reauthorizes lifted. The PixelLab mask src/atlas/<id>_inpaint.png is the inpaint rect minus open sea beyond cut.inpaintMargin minus the holes inflated by cut.holeInflate. Salts 100-119 belong to EAST.",
+  "regions": [
+    {
+      "id": "E1",
+      "x": 716, "y": 0, "w": 254, "h": 360,
+      "atlas": "756-930 x 40-320",
+      "rect": { "x0": 40, "y0": 40, "x1": 214, "y1": 320 },
+      "ramps": { "left": 32, "right": 24, "top": 32, "bottom": 24 },
+      "inpaint": { "x": 40, "y": 40, "w": 174, "h": 280 },
+      "salt": 100, "seed": 0, "status": "pending",
+      "coreAuthor": true,
+      "reauthorizes": ["volcano_east_cliff", "east_watchtower_flank"],
+      "cut": {
+        "seaMargin": 24, "inpaintMargin": 18, "minLand": 40, "holeInflate": 2,
+        "holes": [
+          { "x": 752, "y": 258, "w": 32, "h": 62, "why": "east-cliff cape and cliff top: volcano_east_cliff identity, byte-held; only the golden's ice and sea rows east of x=784 are re-authored" }
+        ]
+      },
+      "intent": "The shelf's hard white diagonal (900,80)->(800,281) becomes a calving front: lobed graded ice face with a shadow foot, tabular bergs and brash off the edge, winding leads cutting back into the shelf; the sea stays the one sea; the front's south tip meets the east-cliff cape as a tri-join."
+    },
+    {
+      "id": "E2",
+      "x": 556, "y": 192, "w": 248, "h": 168,
+      "atlas": "600-764 x 232-320",
+      "rect": { "x0": 44, "y0": 40, "x1": 208, "y1": 128 },
+      "ramps": { "left": 32, "right": 24, "top": 32, "bottom": 24 },
+      "inpaint": { "x": 44, "y": 40, "w": 164, "h": 88 },
+      "salt": 101, "seed": 0, "status": "pending",
+      "coreAuthor": true,
+      "reauthorizes": ["volcano_east_cliff", "east_watchtower_flank"],
+      "cut": {
+        "seaMargin": 24, "inpaintMargin": 18, "minLand": 40, "holeInflate": 2,
+        "holes": [
+          { "x": 626, "y": 288, "w": 22, "h": 34, "why": "Rimewatch tower (639,296), byte-held" },
+          { "x": 728, "y": 272, "w": 24, "h": 52, "why": "Emberhold tower (743,288) and the east_watchtower_flank golden 744-752 x 273-323, byte-held" },
+          { "x": 752, "y": 258, "w": 32, "h": 62, "why": "east-cliff cape: volcano_east_cliff identity, byte-held" }
+        ]
+      },
+      "intent": "The ice->volcano butt at y~280 becomes the volcano's north shoulder: snow greying into ash-dusted drifts, cooled lava tongues and boulders through the snow, a meltwater pool at the rock's foot, steam where hot rock meets ice; the rock silhouette and both towers exactly as they were. Cut from the composite after E1 ships."
+    }
+  ]
+}

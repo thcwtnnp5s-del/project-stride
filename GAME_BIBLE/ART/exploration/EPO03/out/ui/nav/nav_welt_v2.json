@@ -1,0 +1,31 @@
+{
+  "asset": "nav_welt_v2",
+  "destination": "assets/ui/v1/nav/nav_welt_v2.png",
+  "kind": "longitudinal tile, repeated along the top edge of the 64dp nav bar and, at the same period and scale, along the header shelf — one chassis, one stitch (DIR-15 §2)",
+  "corner": null,
+  "band": null,
+  "period": 8,
+  "scale": 2,
+  "tiles": "horizontally only; the last tile is clipped, never rescaled",
+  "ramp": "the master's own leather, ceiling-clamped; no ramp snap",
+  "master": "raw/ui/nav_welt_v2_b.png (pixen 64x32, job 7a0c4880)",
+  "recipe": {
+    "crop": "rows 0-5, the stitch band",
+    "clamp": "tools/ceiling-clamp.js — 1 colour / 8 px, #A87353 -> #97674A, linear-light rescale",
+    "cut": "tools/tile-cut.js --w 8 --h 6, best-wrapping window at (12,0), join 15.219 / interior 38.341"
+  },
+  "note": "Replaces nav_welt (8x4). 12 dp at x2, which is the header shelf's 12 exactly, so the bar and the header are terminated by the same stitch. The master's bottom row was pure white and its two stitch rows sat over the ceiling; the band cut and the clamp are why neither ships.",
+  "canvas": [
+    8,
+    6
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 18,
+    "maxHex": "#815235",
+    "maxL": 0.1096,
+    "verdict": "clean"
+  }
+}
