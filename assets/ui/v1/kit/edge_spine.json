@@ -1,0 +1,28 @@
+{
+  "asset": "edge_spine",
+  "kind": "longitudinal tile, repeated VERTICALLY down a page left edge",
+  "corner": null,
+  "band": null,
+  "period": 7,
+  "scale": 1,
+  "tiles": "vertically only; the last tile is clipped",
+  "master": "raw/ui/edge_spine_a.png (pixen 32x64, job 9901cfb5)",
+  "recipe": {
+    "period": "measured from the binding cords: peaks at rows 1,7,13,20,26,32,38,45,51,57 -> gaps of 6 and 7; the 7-row window at row 51 wraps best (delta 7.10)",
+    "clamp": "tools/ceiling-clamp.js, 1 colour"
+  },
+  "destination": "assets/ui/v1/kit/edge_spine.png",
+  "canvas": [
+    32,
+    7
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 28,
+    "maxHex": "#986942",
+    "maxL": 0.1717,
+    "verdict": "clean"
+  }
+}

@@ -575,6 +575,16 @@ abstract final class KitFrames {
       band: 4,
       scale: 2,
     ),
+    KitFrame.btnPlateV2: PanelSkin(
+      assetPath: '$_dir/btn_plate_v2.png',
+      nativeWidth: 56,
+      nativeHeight: 24,
+      // Corner 8, not the band's 5: at 5 the rounded corner is clipped and the
+      // plate reads square (`review/ui/np_btn5.png`).
+      corner: 8,
+      band: 5,
+      scale: 2,
+    ),
     KitFrame.stageFrame: PanelSkin(
       assetPath: '$_dir/stage_frame.png',
       nativeWidth: 114,
@@ -609,7 +619,7 @@ abstract final class KitFrames {
     KitFrame.labelPlateSelected: 4,
     KitFrame.navWell: 4,
     KitFrame.navPlateActive: 8,
-    KitFrame.btnPlateV2: 8,
+    KitFrame.btnPlateV2: 10,
   };
 
   /// The frame for [frame], or null while it is still painted.
@@ -722,6 +732,15 @@ abstract final class KitTiles {
       nativeWidth: 8,
       nativeHeight: 4,
     ),
+    // The book's spine, repeated DOWN the page's left edge. Period 7 is the
+    // binding cords' own measured spacing, not a chosen number.
+    KitTile.edgeSpine: KitStrip(
+      assetPath: '$_kit/edge_spine.png',
+      nativeWidth: 32,
+      nativeHeight: 7,
+      scale: 1,
+      axis: Axis.vertical,
+    ),
     // Picture class: 384 wide at ×1, drawn once and clipped, exactly like a
     // band. The stone wall the model drew above and below the plank is not the
     // shelf and was cropped off.
@@ -788,6 +807,16 @@ enum KitMark {
   btnQuietCapLeft,
   btnQuietCapRight,
 
+  /// The plate behind a short label — a level, a rarity, a boss mark, a cost.
+  ///
+  /// **An ornament, not a frame.** A ribbon is a *three*-patch: two fixed
+  /// swallowtail ends with a tiling middle. [PixelFrame] only draws
+  /// nine-patches, and the ribbon's left and right "bands" measure 0 because
+  /// the notches are transparent at mid-height, so it cannot carry one uniform
+  /// inset. It ships at its authored 96 × 32 and holds a short label; anything
+  /// wider needs a three-patch painter, which is a separate change.
+  ribbonLabel,
+
   /// A folio's index tab.
   ///
   /// **An ornament, not a frame**, and the measurement is why: the authored
@@ -827,6 +856,12 @@ abstract final class KitMarks {
 
   static const Map<KitMark, KitOrnamentArt> authored =
       <KitMark, KitOrnamentArt>{
+        KitMark.ribbonLabel: KitOrnamentArt(
+          assetPath: '$_dir/ribbon_label.png',
+          nativeWidth: 89,
+          nativeHeight: 22,
+          scale: 1,
+        ),
         KitMark.tabPlate: KitOrnamentArt(
           assetPath: '$_dir/tab_plate.png',
           nativeWidth: 48,
@@ -846,6 +881,7 @@ abstract final class KitMarks {
     KitMark.sheetGrip: Size(48, 12),
     KitMark.btnQuietCapLeft: Size(32, 48),
     KitMark.btnQuietCapRight: Size(32, 48),
+    KitMark.ribbonLabel: Size(89, 22),
     KitMark.tabPlate: Size(48, 32),
   };
 

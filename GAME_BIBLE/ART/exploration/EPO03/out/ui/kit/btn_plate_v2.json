@@ -1,0 +1,29 @@
+{
+  "asset": "btn_plate_v2",
+  "kind": "nine-patch button plate, drawn through PixelFrame",
+  "corner": 8,
+  "band": 5,
+  "period": null,
+  "scale": 2,
+  "master": "raw/ui/pro_btn_1.png (create_image_pro, job 407e9549, candidate 1 of 4)",
+  "recipe": {
+    "key": "the plate came back with a WHITE face, not a transparent one; every pixel over L 0.5 keyed to alpha 0 (deterministic, the keyBorderWhite operation). This turned three \"solid plate\" rejects into three usable frames.",
+    "crop": "to content, 96x48 -> 56x24",
+    "geometry": "MEASURED band 5/5/5/5, spread 0. Corner 8 not 5: ninepatch-proof.js shows the rounded corner clipped at 5 (review/ui/np_btn5.png vs np_btn8.png)."
+  },
+  "note": "Replaces btn_plate (58x26, corner 4 / band 0-declared-1) when StrideButton is repointed. Not yet wired: the button is on 43 call sites and that swap is its own change.",
+  "destination": "assets/ui/v1/kit/btn_plate_v2.png",
+  "canvas": [
+    56,
+    24
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 11,
+    "maxHex": "#6F6549",
+    "maxL": 0.1317,
+    "verdict": "clean"
+  }
+}

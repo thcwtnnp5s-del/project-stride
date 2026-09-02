@@ -1,0 +1,24 @@
+{
+  "asset": "ribbon_label",
+  "kind": "discrete ornament, positioned by Flutter - NOT a nine-patch",
+  "corner": null,
+  "band": null,
+  "period": null,
+  "scale": 1,
+  "master": "raw/ui/pro_ribbon_2.png (create_image_pro, job a5f7d9f2, candidate 2 of 4)",
+  "note": "A ribbon is a THREE-patch - fixed swallowtail ends with a tiling middle - and the painter only does nine-patches. Measured band 6/0/0/0: the left and right \"bands\" are the notches, which are transparent at mid-height, so it cannot carry one uniform inset. It ships at its authored 96x32 and holds a short label (a level, a rarity, a boss mark, a cost). A label wider than that needs a three-patch painter, which is a separate change.",
+  "destination": "assets/ui/v1/kit/ribbon_label.png",
+  "canvas": [
+    89,
+    22
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 13,
+    "maxHex": "#7D2123",
+    "maxL": 0.0557,
+    "verdict": "clean"
+  }
+}

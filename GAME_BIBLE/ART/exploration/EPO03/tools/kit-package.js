@@ -132,3 +132,45 @@ for (const [file, meta] of [
 ]) {
   emit(R(file), png.loadAny(R(file)), { ...meta, destination: 'assets/ui/v1/kit/' + path.basename(file) });
 }
+
+// --- EPO03 batch 7: the second pro wave ------------------------------------
+for (const [file, meta] of [
+  ['out/ui/kit/btn_plate_v2.png', {
+    asset: 'btn_plate_v2', kind: 'nine-patch button plate, drawn through PixelFrame',
+    corner: 8, band: 5, period: null, scale: 2,
+    master: 'raw/ui/pro_btn_1.png (create_image_pro, job 407e9549, candidate 1 of 4)',
+    recipe: {
+      key: 'the plate came back with a WHITE face, not a transparent one; every pixel over '
+        + 'L 0.5 keyed to alpha 0 (deterministic, the keyBorderWhite operation). This turned '
+        + 'three "solid plate" rejects into three usable frames.',
+      crop: 'to content, 96x48 -> 56x24',
+      geometry: 'MEASURED band 5/5/5/5, spread 0. Corner 8 not 5: ninepatch-proof.js shows the '
+        + 'rounded corner clipped at 5 (review/ui/np_btn5.png vs np_btn8.png).',
+    },
+    note: 'Replaces btn_plate (58x26, corner 4 / band 0-declared-1) when StrideButton is '
+      + 'repointed. Not yet wired: the button is on 43 call sites and that swap is its own change.',
+  }],
+  ['out/ui/kit/edge_spine.png', {
+    asset: 'edge_spine', kind: 'longitudinal tile, repeated VERTICALLY down a page left edge',
+    corner: null, band: null, period: 7, scale: 1,
+    tiles: 'vertically only; the last tile is clipped',
+    master: 'raw/ui/edge_spine_a.png (pixen 32x64, job 9901cfb5)',
+    recipe: {
+      period: 'measured from the binding cords: peaks at rows 1,7,13,20,26,32,38,45,51,57 -> '
+        + 'gaps of 6 and 7; the 7-row window at row 51 wraps best (delta 7.10)',
+      clamp: 'tools/ceiling-clamp.js, 1 colour',
+    },
+  }],
+  ['out/ui/kit/ribbon_label.png', {
+    asset: 'ribbon_label', kind: 'discrete ornament, positioned by Flutter - NOT a nine-patch',
+    corner: null, band: null, period: null, scale: 1,
+    master: 'raw/ui/pro_ribbon_2.png (create_image_pro, job a5f7d9f2, candidate 2 of 4)',
+    note: 'A ribbon is a THREE-patch - fixed swallowtail ends with a tiling middle - and the '
+      + 'painter only does nine-patches. Measured band 6/0/0/0: the left and right "bands" are '
+      + 'the notches, which are transparent at mid-height, so it cannot carry one uniform inset. '
+      + 'It ships at its authored 96x32 and holds a short label (a level, a rarity, a boss mark, '
+      + 'a cost). A label wider than that needs a three-patch painter, which is a separate change.',
+  }],
+]) {
+  emit(R(file), png.loadAny(R(file)), { ...meta, destination: 'assets/ui/v1/kit/' + path.basename(file) });
+}
