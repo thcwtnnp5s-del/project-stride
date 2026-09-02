@@ -28,6 +28,8 @@ Regions: `E/src/atlas/regions_landmarks.json` (pending) → `E/out/atlas/manifes
 | 55b29557 | edit_image_pixen | beacon crown only, no beam (seed 1284) | 96x96 | 1 | **ACCEPT** | the dim crown glint the sweep opens and closes on; 138 lit px |
 | f28c485f | create_image_pixen | beacon drift sparkle: 1–2 px cold-white glints (seed 1271) | 32x32 | 1 | **ACCEPT** | sparse single-pixel cold-white and pale-blue glints, correctly spaced |
 | 09edcc61 | create_image_pixen | beacon drift sparkle B (seed 1272) | 32x32 | 1 | REJECT | four-point violet-blue stars, too saturated and too busy for a snow glitter |
+| de827074 | inpaint_image | L2 storm pocket r1: gloom hollow, black gable at (218,900) with three amber windows, blasted leaning trees, wet track (seed 1301) | 176x176 crop, mask 96x96 @ (40,40) | ~20 | **ACCEPT — SHIPPED** | the house reads as a destination at 34 px with lit windows; two blasted trees and a charred split one; puddled track. Heath 60 px east is 33.5 L* brighter and west 24.0 L* brighter than the ground at the house. `south_strand_w` re-extracted in the same commit. QA: repeated sprite pairs 0. |
+| 1e07df6f | inpaint_image | L2 r2: the whole rect under a storm shadow, gloom heaviest at the middle (seed 1302) | 176x176 crop, mask 96x96 @ (40,40) | ~20 | **REJECT** | a hard-edged dark RECTANGLE filling the mask exactly — the generated rectangle the round exists to remove. Asking for a field-wide tonal shift asks the model for a panel. r1 stands. rejected/atlas/L2_r2.txt |
 
 ## Assembly (0 generations — deterministic, A-2)
 
@@ -43,7 +45,8 @@ Regions: `E/src/atlas/regions_landmarks.json` (pending) → `E/out/atlas/manifes
 | | generations |
 |---|---:|
 | L3 inpaints (r1 reject, r2 candidate, r3 shipped) | 60 |
+| L2 inpaints (r1 shipped, r2 reject) | 40 |
 | overlay stills and animations | 17 |
 | beacon edits and sparkles (one infra failure, 0) | 6 |
-| **spent so far** | **83** of the 300 cap |
-| L2 + L1 inpaints still to come (3 rolls each at ~20–25) | budgeted 130 |
+| **spent so far** | **123** of the 300 cap |
+| L1 inpaints still to come (up to 3 rolls at ~25) | budgeted 75 |
