@@ -256,3 +256,19 @@ item, or a step cost.
 ## 8. Amendments (append-only, newest last)
 
 - 2026-09-02 — contract published (this commit).
+- 2026-09-02 — `pubspec.yaml` gains two packaged directories, `assets/art/v1/ui/`
+  (screen-specific chrome, flat `ui/<team>_<name>.png`, requested by
+  UI-INVENTORY) and `assets/art/v1/track/` (the Skills journey family,
+  requested by PROD-UI-SKILLS). Each carries a `README.md` so the directory
+  resolves before its first asset lands — an unresolvable directory entry is
+  a hard build error, git tracks no empty directory, and `package-art.js
+  --check` skips `.md`. **This is not the shared kit**: chrome every screen
+  uses stays in `assets/ui/v1/`, declared file by file.
+- 2026-09-02 — **the journey family is struck from §1–§3 and from NAV's
+  production family.** `KitFrame.journeyPlate`, `KitTile.journeyRoad`,
+  `KitMark.journeyWaystone`, `journeyLanternLit`, `journeyLanternUnlit` stay
+  declared and permanently `null`; NAV authors none of them and spends no
+  generations on them. SKILLS authors the journey itself per DIR-07 (four
+  joint shapes, not two) into `assets/art/v1/track/`, and its widgets read
+  `lib/ui/screens/skills/track_art.dart`. Anyone else wanting a journey mark
+  asks SKILLS, not NAV.

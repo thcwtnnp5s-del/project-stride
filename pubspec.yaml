@@ -267,6 +267,16 @@ flutter:
     - assets/art/v1/node/
     - assets/art/v1/work/
     - assets/art/v1/reward/
+    # EPO03 — two more whole-directory families, on the same terms as the seven
+    # above: one `package-art.js` emitter owns each path and `--check` guards
+    # the contents, so a per-file manifest here would only be a second copy
+    # that drifts. `ui/` holds the screen teams' own chrome (flat
+    # `ui/<team>_<name>.png`, requested by UI-INVENTORY); `track/` holds the
+    # Skills journey family (requested by PROD-UI-SKILLS, DIR-07). Interface
+    # chrome shared by every screen still lives in the hand-maintained
+    # `assets/ui/v1/` tree and is declared file by file above.
+    - assets/art/v1/ui/
+    - assets/art/v1/track/
     - assets/art/v1/portrait/traveler.png
     - assets/art/v1/portrait/traveler_plate.png
     - assets/art/v1/portrait/traveler_jerkin.png
