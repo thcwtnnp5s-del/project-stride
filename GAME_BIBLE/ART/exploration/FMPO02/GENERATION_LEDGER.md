@@ -26,3 +26,16 @@ Per-family ledgers: `ledger/<FAMILY>.md` (written by each PROD lead). Probe verd
 | producer closure (steel column, busts) | — | +~131 | 6 steel-head text edits (~120) on the accepted bronze strips; 4 portrait edits (jerkin, coat accepted first roll; plate re-rolled once for gold→bronze) |
 
 Closing figure recorded at closeout (see §9 of the milestone record).
+
+## Reconciliation (FINAL-11, 2026-09-02)
+
+**The per-family figures above do not reconcile and the live balance is the
+only authoritative total.** Summed per job, the family ledgers come to
+≈2,076–2,238 against a live delta of ≈1,600; the discrepancy is the
+Equipment lead recording the shared-account delta (9,551 → 8,642 = 909) as
+its own spend, the exact error this ledger warns every lead about. By
+subtraction Equipment's real spend is ≈500, which also means an 80×64
+`create_character_state` cost ≈44 generations, not the ≈120 the lead
+reported — a figure that drove the round's biggest cut (the steel tool column,
+later closed for ≈120 generations of text edits). Only the balance checkpoints
+are facts; every family row is a lead's own report.

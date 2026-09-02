@@ -1590,6 +1590,9 @@ for (const [id, frames] of VAWO_TRACKS) {
           `${frame.width}x${frame.height}`,
       );
     }
+    // The same bronze-not-gold remap the FMPO02 strips get (`toneBronze`,
+    // defined with the FMPO02 block below; a hoisted function declaration).
+    if (/bronze/.test(id)) toneBronze(frame);
     let opaque = 0;
     for (let p = 3; p < frame.data.length; p += 4) {
       if (frame.data[p] !== 0) opaque++;
@@ -3332,7 +3335,38 @@ const FMPO_AMBIENT_STRIPS = [
   ['traveler_jerkin_walk_west', 6, 64, false],
   ['traveler_coat_walk_west', 6, 64, false],
 ];
+/**
+ * Bronze reads as bronze, not gold (`ART_DIRECTION.md` L-19).
+ *
+ * The council's pixel director measured the PixelLab bronze blades and tool
+ * heads at their two hottest inks — (246,144,39) and (235,99,7), with a few
+ * (240,138,87) siblings — against the item family's copper highlight
+ * (200,133,54): the strips glowed where the icons did not. This is a palette
+ * remap, not a drawing (A-2): every pixel whose colour is brighter and more
+ * saturated than the hair ramp can ever be (R ≥ 225, G ≤ 150, B ≤ 90, and
+ * R − G ≥ 80) is snapped to the icon family's highlight. The jerkin's
+ * reddish hair tops out at (227,152,88) — G 152 — so the threshold misses it
+ * by construction, and every other body colour is far below it.
+ */
+function toneBronze(frame) {
+  // The item family's copper highlight (bronze_sword.png, measured).
+  const copper = [200, 133, 54];
+  const d = frame.data;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    if (r >= 225 && g <= 150 && b <= 90 && r - g >= 80) {
+      d[i] = copper[0];
+      d[i + 1] = copper[1];
+      d[i + 2] = copper[2];
+      n++;
+    }
+  }
+  return n;
+}
 function fmpoStrip(id, frames, width, mirror, dest, footprints) {
+  const bronze = /bronze/.test(id);
   for (let i = 0; i < frames; i++) {
     let frame = png.load(path.join(FMPO_EQUIP_SRC, `${id}_f${i}.png`));
     if (frame.width !== width || frame.height !== 64) {
@@ -3341,6 +3375,7 @@ function fmpoStrip(id, frames, width, mirror, dest, footprints) {
       );
     }
     if (mirror) frame = flipX(frame);
+    if (bronze) toneBronze(frame);
     let opaque = 0;
     for (let p = 3; p < frame.data.length; p += 4) {
       if (frame.data[p] !== 0) opaque++;

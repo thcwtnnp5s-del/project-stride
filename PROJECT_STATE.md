@@ -1,5 +1,83 @@
 # Project Stride — Project State
 
+**Version:** 2.39
+**Status:** 🧪 **FABLE 5 MEGA PRODUCTION OVERHAUL 02 — the second production
+offensive landed, on `fable5-mega-production-overhaul-02` (from
+`visual-audio-world-overhaul-01` @ `4d9a81f`), awaiting the owner's device
+acceptance.** Record: `MILESTONES/FABLE5_MEGA_PRODUCTION_OVERHAUL_02.md` (the
+doctrine, the commit table, the ledger, the named gaps, the device checklist,
+the twelve reviewer verdicts). Evidence: `MILESTONES/evidence/FMPO02/wave0..3/`
+and 44 device renders from HEAD in
+`GAME_BIBLE/ART/exploration/FMPO02/review/device/`.
+
+**PixelLab: ≈1,600 generations this round (9,762 → ≈8,166).** The target was
+2,000–3,000; every family stopped when its accepted art covered the owner's
+named failure, and the two that could have absorbed more were blocked by an
+owner decision (the south strand goldens, Q-18/Q-25), not by thrift.
+
+What a player will see that they could not before:
+
+- **The world is a place.** Nine atlas regions and two bridges repainted, one
+  at a time under the mandated loop with guards green throughout: the west is
+  hedged foothills with a beck and a ford, the north is drifted snow with
+  nunataks and a glacier cirque, the north-east is pack ice off a shelf, the
+  south-west slab is a wood with glades, the south coast runs in dune ridges
+  across the old bands. The frozen core and all fifteen landmark goldens are
+  byte-identical.
+- **Something is always happening on it.** Forty of forty overlays and six
+  props: an original red fire dragon that patrols the volcano and breathes a
+  plume over the sea; a blue storm dragon, serpentine and finned, over
+  Frostmere with lightning breath off the cape; the Fairy Castle in a woods
+  glade with motes; the Storm House under its own cloud with lightning every
+  thirteen seconds; the Ice-Mage Tower with a beacon; deer, wolves, a bear, a
+  yeti, a wagon, crows, a fishing boat, chimney smoke, a lantern.
+- **The Traveler wears what he equipped, everywhere.** Three armoured bodies ×
+  three weapon classes in combat, five tracks each including a real Brace
+  stance; bronze and steel tool loops on all four bodies; forage, idle and walk
+  per armour; the Inventory figure at ×2; the Character bust in its armour.
+  `equipment_projection_test` walks every armour × weapon × tool and fails on
+  any path back to the shirt.
+- **The frame left the list.** The chassis frames only a screen's picture and
+  its modals; every other panel is a material — ten tiles under the L* ceiling
+  — with bands under headers, button plates, a leather nav bar with a welt, a
+  header shelf. Region deeps moved 8–13 L* so a place's header is that place's.
+- **Craft is a workshop:** a station strip, a hero folio with the output at
+  96 dp and an ingredient tray, two-column tiles, one ledger line per locked
+  level, a bottom sheet, salvage crates on the reclaim rows.
+- **Inventory is a case, Character a folio, Skills a handbook, Adventure a
+  journal**, each with its own material and rhythm (24 / 16 / 8).
+- **The fight takes the screen:** a 384 × 256 stage on taller backdrops, framed
+  gauges, a 2 × 2 command block on leather at 219 dp (from ≈276), one narration
+  line on the stage, Reduce Motion honoured in the stage.
+- **A creature stands on its ground:** the encounter band is sized to the
+  creature (the wolf at 76 dp, from 152) on a habitat plate per region, the
+  salamander in its cave. Boar, bear, salamander and crawler flinch; the
+  crawler falls; four elites are their own creatures.
+- **Twelve items read as different things**, seven gather scenes stopped being
+  staged, and rewards seal: a rare-drop mark, signature and masterwork seals,
+  the four VAWO01 marks placed.
+
+**Not done, and named rather than implied:**
+
+- **No audio files exist.** `STABILITY_API_KEY` is unset; the queue
+  (`AUDIO/AUDIO_PRODUCTION_QUEUE_03.md`) runs with zero code changes once it is.
+- **The south strand band (y 810–870) is unchanged** — two landmark goldens the
+  owner extracted; re-extracting them is the owner's call (Q-18, Q-25). The
+  south layer-cake is reduced, not removed. N3 keeps the old crack net above
+  y 90 and east of x 772.
+- **The three combat command plates are ornaments, not nine-patches**; the
+  narration strip tile was refused at 2.9:1; `bg_workbench`, `band_combat_kit`
+  and `ram2_idle` are packaged and unwired; the nav glyph candidates were not
+  swapped (Q-26). Q-19 … Q-26 in `JOURNAL/OPEN_QUESTIONS.md`.
+
+**1,027 tests pass, analyze clean, palette guard green at 1,745 PNGs, tile-seam
+guard green at 26 strips, packaging idempotent at 1,741 files, goldens
+regenerated after every screen was inspected.** Nothing here has been seen on
+the iPhone.
+
+<details>
+<summary>Previous status — Visual / Audio / World Overhaul 01 (v2.38)</summary>
+
 **Version:** 2.38
 **Status:** 🧪 **VISUAL / AUDIO / WORLD OVERHAUL 01 — the second production
 wave landed, on `visual-audio-world-overhaul-01` (from
@@ -80,6 +158,8 @@ goldens regenerated.** Nothing here has been seen on the iPhone.
 Device-visible acceptance evidence — every named surface at 393 × 852, rendered
 from `6d41bce` and from HEAD and set side by side — is in
 `GAME_BIBLE/ART/exploration/VAWO01/review/device/`.
+
+</details>
 
 <details>
 <summary>Previous status — Presentation &amp; Combat Evolution 01 (v2.35)</summary>
