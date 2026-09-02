@@ -337,13 +337,6 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
-  /// `ambient_traveler_plate_bronzepick_mine` — 11 px of contact, 30..40.
-  static const SpriteFootprint ambientTravelerPlateBronzepickMine = SpriteFootprint(
-    left: 30,
-    right: 40,
-    bottom: 62,
-  );
-
   /// `ambient_traveler_coat_bronzepick_mine` — 13 px of contact, 32..44.
   static const SpriteFootprint ambientTravelerCoatBronzepickMine = SpriteFootprint(
     left: 32,
@@ -531,6 +524,13 @@ abstract final class SpriteFootprints {
     left: 30,
     right: 42,
     bottom: 63,
+  );
+
+  /// `ambient_traveler_plate_bronzepick_mine` — 11 px of contact, 30..40.
+  static const SpriteFootprint ambientTravelerPlateBronzepickMine = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
   );
 
   /// `combat_traveler_attack` — 12 px of contact, 34..45.
@@ -1251,6 +1251,13 @@ abstract final class SpriteFootprints {
   static const SpriteFootprint combatTravelerCoatUnarmedBrace = SpriteFootprint(
     left: 31,
     right: 40,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_base_steel_brace` — 12 px of contact, 37..48.
+  static const SpriteFootprint combatTravelerBaseSteelBrace = SpriteFootprint(
+    left: 37,
+    right: 48,
     bottom: 62,
   );
 

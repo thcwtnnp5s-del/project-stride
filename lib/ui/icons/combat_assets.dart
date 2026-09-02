@@ -301,6 +301,17 @@ abstract final class CombatAssets {
       anchorRow: 62,
       footprint: SpriteFootprints.combatTravelerStagger,
     ),
+    // The base body's guard, authored in EPO03 (DIR-08 failure 4).
+    //
+    // FMPO02 gave a brace to the two VAWO01 base sets and to all nine armoured
+    // loadouts, and missed this one — the *shipped* base set, which is what a
+    // Traveler holding the Training Sword fights with. So the one loadout every
+    // new player starts in was the only one where pressing Brace produced no
+    // braced figure at all. The strip is `traveler_base_bronze_brace` with the
+    // blade re-drawn as the pale steel training blade by a single six-frame
+    // edit, so it is this figure's own guard rather than a borrowed one
+    // (`Scripts/art/package-art.js`, EPO03 EQUIPMENT).
+    brace: _baseBrace('steel', SpriteFootprints.combatTravelerBaseSteelBrace),
     // Opaque rows 4..62: the chest is about row 28, 34 above the feet.
     impactRise: 34,
   );

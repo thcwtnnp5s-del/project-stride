@@ -9,6 +9,9 @@
 /// head on a training pick is a smaller lie than the shirt); the body never.
 library;
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/ambient_scene.dart';
@@ -41,6 +44,58 @@ void main() {
     for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries)
       if (e.value.startsWith('tool.')) e.key,
   ];
+
+  test('every equippable item in the content pack has an authored class', () {
+    // EPO03, DIR-08 failure 3. `waywarden_tunic` drew the white shirt in all
+    // ten contexts for a whole round, and nothing failed: an item with no row
+    // resolves to the base body by construction, so "not yet authored" and
+    // "deliberately the base figure" were the same silence. This closes that
+    // as code — the table must answer for every `category: equipment` id the
+    // content pack ships, and an item that arrives without a decision fails
+    // here rather than quietly wearing the starting clothes.
+    //
+    // Read from `items.json` itself, not from a hand-kept list, because a
+    // second list is exactly what drifts.
+    final Map<String, dynamic> pack =
+        jsonDecode(File('assets/content/v1/items.json').readAsStringSync())
+            as Map<String, dynamic>;
+    final List<String> equippable = <String>[
+      for (final dynamic e in pack['entries'] as List<dynamic>)
+        if ((e as Map<String, dynamic>)['category'] == 'equipment')
+          e['id'] as String,
+    ];
+    expect(equippable.length, greaterThanOrEqualTo(23));
+    for (final String id in equippable) {
+      expect(
+        TravelerArt.variantOfItem.containsKey(id),
+        isTrue,
+        reason: '$id is equippable and has no authored variant class, so it '
+            'draws the base figure without anyone having decided that',
+      );
+    }
+  });
+
+  test('every loadout can brace', () {
+    // EPO03, DIR-08 failure 4. `CombatantArt.brace` is nullable and the
+    // choreography holds the idle when it is missing, so the one loadout
+    // without a brace track — base body + training sword, which is what every
+    // new player fights in — showed no braced figure at all when the player
+    // pressed Brace. Nothing failed, because nothing asked.
+    for (final String? weapon in weapons) {
+      for (final String? armour in <String?>[null, ...armours]) {
+        final EquipmentVisualState v = EquipmentVisualState(
+          armor: armour == null ? null : _fact(armour),
+          weapon: weapon == null ? null : _fact(weapon),
+        );
+        expect(
+          TravelerArt.combatantFor(v).brace,
+          isNotNull,
+          reason: '${armour ?? 'no armour'} + ${weapon ?? 'nothing'} cannot '
+              'brace',
+        );
+      }
+    }
+  });
 
   test('every armour fights, rests, walks and works in its own class', () {
     expect(armours, isNotEmpty);

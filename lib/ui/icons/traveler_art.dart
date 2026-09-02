@@ -122,7 +122,16 @@ abstract final class TravelerArt {
   /// that adds an item before its art exists degrades to the Traveler rather
   /// than to a hole. Authored data, not code (E-5).
   static const Map<String, String> variantOfItem = <String, String>{
-    // The starter tunics are the base figure — no row, deliberately.
+    // The starter tunic **is** the base figure, and now says so out loud.
+    // It used to have no row at all, which was true but silent: "unmapped"
+    // and "deliberately the base body" looked identical from outside, so the
+    // hole DIR-08 found — `waywarden_tunic` drawing the white shirt in all
+    // ten contexts — was indistinguishable from a design choice. With every
+    // equippable armour carrying a row, `equipment_projection_test.dart` can
+    // assert the table is total, and a new item that arrives without art
+    // fails a test instead of quietly wearing the shirt. The value is
+    // [baseBody], so nothing resolves differently.
+    'item.traveler_tunic': baseBody,
     // Plate: hard bronze over the shirt.
     'item.bronze_chestplate': 'armor.plate',
     'item.scalewarmed_chestplate': 'armor.plate',
@@ -134,6 +143,19 @@ abstract final class TravelerArt {
     'item.bearhide_coat': 'armor.coat',
     'item.clawguard_coat': 'armor.coat',
     'item.frostwarden_coat': 'armor.coat',
+    // **The Waywarden's Tunic stops being the shirt** (EPO03, DIR-08 failure
+    // 3). It was the last equippable armour with no row: a rare T1 chest
+    // piece that Inventory named and every drawing surface then ignored, so
+    // the player wearing it fought, mined, foraged, smithed and walked in the
+    // starting shirt. DIR-08 asks for a fifth body class for it — a tiered
+    // shoulder mantle over a split knee-length skirt, shared with the
+    // Frostwarden Coat — and until that body is authored the honest answer is
+    // the *nearest correct family*, not absence: a belted hide garment
+    // bulkier through the chest than the shirt. The jerkin is that. When the
+    // warden rows exist in every context this row and `frostwarden_coat`
+    // move together to `armor.warden`; a half-authored warden class would
+    // fail the projection test, which is the point of it.
+    'item.waywarden_tunic': 'armor.jerkin',
     // Weapons. `item.training_sword` **is mapped now** (FMPO02): its absence
     // was honest only on the base body, whose baked blade is a plain steel
     // sword. On a plated body the same fallthrough drew the base clothes —
