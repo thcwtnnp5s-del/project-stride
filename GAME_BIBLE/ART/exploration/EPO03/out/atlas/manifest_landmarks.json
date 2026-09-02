@@ -40,6 +40,26 @@
         "south_strand_w"
       ],
       "intent": "The Storm House painted into the heath: a gloom hollow with a black-gabled house 34 px wide, three amber windows, blasted leaning trees (one split and charred), a wet track with puddles. Cut from the composite after SOUTH S2; r2 (a whole-rect shadow) rejected as a generated rectangle."
+    },
+    {
+      "id": "L1",
+      "name": "fairy_glade",
+      "x": 256,
+      "y": 352,
+      "w": 208,
+      "h": 192,
+      "salt": 122,
+      "status": "accepted",
+      "job": "9db93810-ea56-4756-9a6f-0902c3f47ade",
+      "seed": 1402,
+      "tool": "inpaint_image",
+      "cost": 20,
+      "atlas": "296-416 x 392-496",
+      "review": "review/atlas/L1_r2_preview_x2.png, L1_after_x2.png, L1_after_fov.png",
+      "team": "landmarks",
+      "coreAuthor": true,
+      "reauthorizes": [],
+      "intent": "The Fairy Castle painted into the core canopy: a glade with a moss-green pool ringed in gold flower-light, a pale root bridge across it, a castle grown from three birch trunks with amber windows at (335,452), winding paths. r1 (no pool, a dry ravine) rejected."
     }
   ]
 }

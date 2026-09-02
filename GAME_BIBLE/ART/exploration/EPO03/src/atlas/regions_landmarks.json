@@ -95,10 +95,11 @@
         "h": 104
       },
       "salt": 122,
-      "seed": 0,
-      "status": "pending",
+      "seed": 1402,
+      "status": "accepted",
       "coreAuthor": true,
-      "intent": "The Fairy Castle: a glade opened in the oak canopy, a castle grown from three living birch trunks with moss roofs and amber windows at atlas (335,452), a root bridge over a moss-green pool ringed with gold flower-lights, faint paths, a ragged copse edge; clear of the Greenwatch (286,431) and Whispering Woods (383,509) markers."
+      "intent": "The Fairy Castle: a glade opened in the oak canopy, a castle grown from three living birch trunks with moss roofs and amber windows at atlas (335,452), a root bridge over a moss-green pool ringed with gold flower-lights, faint paths, a ragged copse edge; clear of the Greenwatch (286,431) and Whispering Woods (383,509) markers.",
+      "job": "9db93810"
     }
   ]
 }

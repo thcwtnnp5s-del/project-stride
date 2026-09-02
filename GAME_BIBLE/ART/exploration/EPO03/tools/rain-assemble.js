@@ -9,6 +9,23 @@ const path = require('path');
 const png = require(path.resolve(__dirname, '../../../../../Scripts/art/png.js'));
 const [stillP, animP, outP, framesS, wispS, dxS, dyS] = process.argv.slice(2);
 const still = png.load(stillP);
+// The wisp band is a full-width slab of dark cloud: at phone FOV its left,
+// right and top edges read as a drawn RECTANGLE over the heath (seen on
+// PLACEMENT_f0_L2_storm_fov_x2.png). It is frayed here by dropping WHOLE wisp
+// pixels with a probability that falls off toward those three edges — the same
+// dither-SELECT the atlas masks use (A-2), never partial alpha, which the
+// palette guard forbids outright.
+const hash = (x, y, salt) => {
+  let h = (x * 73856093) ^ (y * 19349663) ^ (salt * 83492791);
+  h = (h ^ (h >>> 13)) >>> 0;
+  return (h % 1024) / 1024;
+};
+const FRAY_X = 20, FRAY_Y = 8;
+const wispKeep = (x, y, w) => Math.min(
+  Math.min(x, w - 1 - x) / FRAY_X,
+  (y + 1) / FRAY_Y,
+  1,
+);
 const F = Number(framesS), WISP = Number(wispS), dx = Number(dxS), dy = Number(dyS);
 const W = still.width, H = still.height;
 for (let f = 0; f < F; f++) {
@@ -16,7 +33,10 @@ for (let f = 0; f < F; f++) {
   const anim = png.load(`${animP}${f + 1}.png`); // animate frame 1..F (0 is the input)
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     let src, sx, sy;
-    if (y < WISP) { src = anim; sx = x; sy = y; }
+    if (y < WISP) {
+      if (hash(x, y, 181 + f) >= wispKeep(x, y, W)) continue;   // frayed edge
+      src = anim; sx = x; sy = y;
+    }
     else {
       src = still;
       sx = ((x - dx * f) % W + W) % W;

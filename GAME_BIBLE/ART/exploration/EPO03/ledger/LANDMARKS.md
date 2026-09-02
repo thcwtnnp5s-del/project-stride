@@ -30,12 +30,14 @@ Regions: `E/src/atlas/regions_landmarks.json` (pending) → `E/out/atlas/manifes
 | 09edcc61 | create_image_pixen | beacon drift sparkle B (seed 1272) | 32x32 | 1 | REJECT | four-point violet-blue stars, too saturated and too busy for a snow glitter |
 | de827074 | inpaint_image | L2 storm pocket r1: gloom hollow, black gable at (218,900) with three amber windows, blasted leaning trees, wet track (seed 1301) | 176x176 crop, mask 96x96 @ (40,40) | ~20 | **ACCEPT — SHIPPED** | the house reads as a destination at 34 px with lit windows; two blasted trees and a charred split one; puddled track. Heath 60 px east is 33.5 L* brighter and west 24.0 L* brighter than the ground at the house. `south_strand_w` re-extracted in the same commit. QA: repeated sprite pairs 0. |
 | 1e07df6f | inpaint_image | L2 r2: the whole rect under a storm shadow, gloom heaviest at the middle (seed 1302) | 176x176 crop, mask 96x96 @ (40,40) | ~20 | **REJECT** | a hard-edged dark RECTANGLE filling the mask exactly — the generated rectangle the round exists to remove. Asking for a field-wide tonal shift asks the model for a panel. r1 stands. rejected/atlas/L2_r2.txt |
+| 9e21366e | inpaint_image | L1 fairy glade r1: birch castle, glade, root bridge, pool with gold flower-lights (seed 1401) | 208x192 crop, mask 120x104 @ (40,40) | ~20 | **REJECT** | the castle, the glade and the bridge all landed, but there is NO POOL — the bridge crosses a dry brown ravine and no flower-lights exist. Two of four named features missing. rejected/atlas/L1_r1.txt |
+| 9db93810 | inpaint_image | L1 r2: the pool named FIRST, the castle standing over it, "no dry ravine" (seed 1402) | 208x192 crop, mask 120x104 @ (40,40) | ~20 | **ACCEPT — SHIPPED** | a moss-green pool ringed all round in gold flower-light, the pale root bridge arching across it, the birch castle with amber windows on the far bank at (335,452), paths winding out to the canopy fringe. Core re-base (`coreAuthor`), no golden touched. QA: repeated sprite pairs 0. |
 
 ## Assembly (0 generations — deterministic, A-2)
 
 | tool | what it does | why not PixelLab |
 |---|---|---|
-| `tools/rain-assemble.js` | `overlay_storm_rain` 8 f: rows 0–27 are the animate pass wisps, the rain body is the accepted still scrolled 3,6 px/frame with wrap | the animate pass emptied the rain out of six of its eight frames (measured); the still is PixelLab art either way |
+| `tools/rain-assemble.js` | `overlay_storm_rain` 8 f: rows 0–27 are the animate pass wisps (their left, right and top edges hash-frayed after the first placement render showed the band as a drawn rectangle over the heath), the rain body is the accepted still scrolled 3,6 px/frame with wrap | the animate pass emptied the rain out of six of its eight frames (measured); the still is PixelLab art either way |
 | `tools/strike-assemble.js` | `overlay_storm_strike` 8 f: fork + a 30 px dithered ground flash, afterglow, second fork, fade, four empty | DIR-03 specifies this frame plan as script-assembled; the forks are PixelLab pixels translated onto the roof |
 | `tools/beacon-key.js` | `overlay_ice_beacon_sweep` 10 f: subtracts the shipped crop from four lit passes, drops 8-connected components under 10 px, sweeps L→C→R→C with a drifting sparkle | DIR-03 specifies diff-key; every kept pixel is one the model added |
 | `tools/fairy-arcs.js` | `overlay_fae_court` 16 f: seven fairies on ellipses round the castle, three-frame glow trails, a gathering pulse at f10–15 | DIR-03 specifies `fairy-arcs.js`; the sprite is PixelLab's 4-frame wingbeat, only placed |
@@ -46,7 +48,8 @@ Regions: `E/src/atlas/regions_landmarks.json` (pending) → `E/out/atlas/manifes
 |---|---:|
 | L3 inpaints (r1 reject, r2 candidate, r3 shipped) | 60 |
 | L2 inpaints (r1 shipped, r2 reject) | 40 |
-| overlay stills and animations | 17 |
-| beacon edits and sparkles (one infra failure, 0) | 6 |
-| **spent so far** | **123** of the 300 cap |
-| L1 inpaints still to come (up to 3 rolls at ~25) | budgeted 75 |
+| L1 inpaints (r1 reject, r2 shipped) | 40 |
+| overlay stills and animations (10 pixen + 3 animate) | 13 |
+| beacon edits and sparkles (one CUDA-OOM failure billed 0) | 6 |
+| **family total** | **159** of the 300 cap |
+| unspent | 141 |

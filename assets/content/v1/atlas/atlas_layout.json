@@ -538,15 +538,6 @@
       "height": 52,
       "anchorX": 28,
       "anchorY": 51
-    },
-    {
-      "asset": "env/prop_fairy_castle",
-      "x": 2010,
-      "y": 2712,
-      "width": 31,
-      "height": 39,
-      "anchorX": 15,
-      "anchorY": 38
     }
   ],
   "overlays": [
