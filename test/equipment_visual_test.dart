@@ -74,26 +74,63 @@ void main() {
     expect(session.equipmentVisualState.weapon, isNull);
   });
 
-  test('the resolver is total, and inert while the tables are empty',
-      () async {
+  test('the resolver is total, and honest about what is held', () async {
     final StrideSession session = await boot();
     await session.equip(kSword);
     await session.equip(kTunic);
 
+    // The lie the VAWO01 weapon round existed to remove: an empty weapon slot
+    // used to fall through to the base set, whose 28 frames all bake a sword.
+    expect(
+      TravelerArt.combatantFor(EquipmentVisualState.none),
+      same(CombatAssets.travelerUnarmed),
+      reason: 'nothing equipped must draw empty hands',
+    );
+
+    // The training sword keeps the base set, and that is the truth for it —
+    // the baked blade is a plain steel training sword.
+    expect(
+      TravelerArt.combatantFor(session.equipmentVisualState),
+      same(CombatAssets.traveler),
+    );
+
+    // Every bronze-tier blade shares one authored set.
+    for (final String id in <String>[
+      'item.bronze_sword',
+      'item.bronze_longsword',
+      'item.fanghilt_sword',
+    ]) {
+      expect(
+        TravelerArt.combatantFor(
+          EquipmentVisualState(
+            weapon: EquippedVisualFact(itemId: id, tier: 1, toolKind: 'none'),
+          ),
+        ),
+        same(CombatAssets.travelerBronze),
+        reason: '$id draws the bronze blade it is',
+      );
+    }
+
+    // An *equipped* item no table knows still degrades to the base rather than
+    // to a hole (`RULES.md` E-5) — unlike an empty slot, which is a value.
+    expect(
+      TravelerArt.combatantFor(
+        const EquipmentVisualState(
+          weapon: EquippedVisualFact(
+            itemId: 'item.not_in_any_pack',
+            tier: 9,
+            toolKind: 'none',
+          ),
+        ),
+      ),
+      same(CombatAssets.traveler),
+      reason: 'base combat set, never null, never faked',
+    );
+
     for (final EquipmentVisualState state in <EquipmentVisualState>[
       EquipmentVisualState.none,
       session.equipmentVisualState,
-      // An item id no table knows: the base outfit by construction.
-      const EquipmentVisualState(
-        weapon: EquippedVisualFact(
-          itemId: 'item.not_in_any_pack',
-          tier: 9,
-          toolKind: 'none',
-        ),
-      ),
     ]) {
-      expect(TravelerArt.combatantFor(state), same(CombatAssets.traveler),
-          reason: 'base combat set, never null, never faked');
       expect(TravelerArt.walkWestFor(state),
           TravelerArt.travelerWalkWestFrames,
           reason: 'base walk, never null');

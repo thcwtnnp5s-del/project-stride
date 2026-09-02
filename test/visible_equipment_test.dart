@@ -50,15 +50,31 @@ void main() {
     expect(TravelerArt.figureFor(_wearing('item.waywarden_tunic')), _base);
   });
 
-  test('each armour class shows its own figure', () {
-    final Map<String, String> byItem = <String, String>{
-      for (final String id in TravelerArt.variantOfItem.keys)
-        id: TravelerArt.figureFor(_wearing(id)),
+  test('every mapped item resolves through its own family', () {
+    // `variantOfItem` carries two families now — `armor.*` figures and
+    // `weapon.*` combat sets — so "mapped" no longer means "has a figure".
+    // Every row must belong to one of them; an unrecognised prefix would be a
+    // row that resolves to nothing anywhere, which is ghost gear by another
+    // name.
+    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+      expect(
+        e.value.startsWith('armor.') || e.value.startsWith('weapon.'),
+        isTrue,
+        reason: '${e.key} maps to ${e.value}, which no resolver reads',
+      );
+    }
+
+    final Map<String, String> byArmourItem = <String, String>{
+      for (final MapEntry<String, String> e
+          in TravelerArt.variantOfItem.entries)
+        if (e.value.startsWith('armor.')) e.key: TravelerArt.figureFor(
+          _wearing(e.key),
+        ),
     };
 
     // Nothing mapped may fall through to the base — a mapped item whose class
     // has no figure would be a silent regression to "ghost gear".
-    for (final MapEntry<String, String> e in byItem.entries) {
+    for (final MapEntry<String, String> e in byArmourItem.entries) {
       expect(
         e.value,
         isNot(_base),
@@ -70,8 +86,20 @@ void main() {
     // ten items to three figures — but two *classes* sharing art would mean
     // the player cannot tell a breastplate from a coat.
     expect(TravelerArt.armorFigures.values.toSet(), hasLength(3));
-    expect(byItem.values.toSet(), hasLength(3));
+    expect(byArmourItem.values.toSet(), hasLength(3));
+
+    // The same totality for the weapon family: every mapped weapon reaches an
+    // authored combat set rather than the base's baked steel blade.
+    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+      if (!e.value.startsWith('weapon.')) continue;
+      expect(
+        TravelerArt.combatVariants[e.value],
+        isNotNull,
+        reason: '${e.key} is mapped to ${e.value}, which has no combat set',
+      );
+    }
   });
+
 
   test('the classes are the ones that were authored', () {
     expect(

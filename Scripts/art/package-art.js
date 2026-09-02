@@ -1366,6 +1366,140 @@ for (const cls of ['plate', 'jerkin', 'coat']) {
   emit(`sprite/traveler_south_${cls}.png`, encode(raster));
 }
 
+// ----------------------------------------------- VAWO01 combat gear variants
+/**
+ * THE TRAVELER FIGHTS WITH THE WEAPON HE IS ACTUALLY HOLDING.
+ *
+ * Until now every combat track baked one generic steel sword into the figure,
+ * so a Traveler with an empty weapon slot still swung a blade he did not own.
+ * That is a lie the interface tells about durable state, and the owner ruled it
+ * out of the final build. These are the two ends of the honest set: **unarmed**
+ * (nothing in the hands) and **bronze** (the Bronze Sword he can actually
+ * forge). `TravelerArt.combatVariants` picks between them and the shipped base;
+ * anything unmapped keeps the base, so no item loses its art.
+ *
+ * ## Why only two tracks sets rather than the full matrix
+ *
+ * The owner's own escape hatch: *"if the all-track matrix is too large, solve
+ * the smallest coherent supported set that eliminates the lie."* Unarmed is the
+ * lie itself, and bronze is the first weapon the player earns. Four tiers × four
+ * tracks would be sixteen strips, each needing every frame inspected, and the
+ * three steel tiers all read as "a sword" at 2× on a phone — the lie they tell
+ * is a tier lie, not a category lie.
+ *
+ * ## Provenance and what was rejected
+ *
+ * v3 animation only, on the canonical Stride Traveler, with the held weapon
+ * named explicitly in every prompt — the documented fix for PixelLab's template
+ * animations, which discard held props (`EQUIPMENT_ROUND_RECORD_01.md`). Two
+ * strips were rejected and re-rolled rather than shipped: a 7-frame bronze hit
+ * that dropped the sword at f6, and the template bronze idle that came back
+ * bare-handed.
+ *
+ * ## The deterministic preparation, in full (`RULES.md` A-2)
+ *
+ * - v3 returns an 88 × 88 square. Every frame is cropped to `(4, 12, 80, 64)`,
+ *   which puts the standing baseline on row 62 — the same anchor row every
+ *   shipped Traveler track already stands on — and is lossless: the union
+ *   opaque box across all five v3 strips is x 9..77, y 12..75, wholly inside
+ *   the window. The template `unarmed_idle` is native 80 × 64 and stands on
+ *   row 63, which is why it declares its own anchor row rather than sharing one.
+ * - `bronze_attack` f5 came back with 136 px of detached artifact — a green
+ *   tuft floating at knee height plus four specks — beside an 1147 px figure.
+ *   Removed by flooding the component that contains the standing foot and
+ *   keying everything else to zero. Nothing was drawn: the bronze census over
+ *   f3–f6 reads 78 / 77 / 82 / 80, so the blade is untouched.
+ *
+ * The single-component assertion below is the guard that keeps this honest. It
+ * is not a style rule — it is the ghost-gear check. Across all 43 frames the
+ * blade is always joined to the hand, so a frame that arrives in two pieces is
+ * either a detached weapon or a floating artifact, and both are the defect the
+ * owner said must not ship.
+ */
+const VAWO_TRACK_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'equip', 'tracks');
+const VAWO_TRACKS = [
+  ['traveler_unarmed_idle', 8],
+  ['traveler_unarmed_attack', 7],
+  ['traveler_unarmed_hit', 7],
+  ['traveler_bronze_idle', 9],
+  ['traveler_bronze_attack', 7],
+  ['traveler_bronze_hit', 5],
+  ['traveler_unarmed_stagger', 9],
+  ['traveler_bronze_stagger', 9],
+];
+/** Opaque pixels reachable from the bottom-most opaque pixel, 8-connected. */
+function attachedPixelCount(raster) {
+  const w = raster.width;
+  const h = raster.height;
+  const opaque = (x, y) =>
+    x >= 0 && y >= 0 && x < w && y < h && raster.data[(y * w + x) * 4 + 3] !== 0;
+  let sx = -1;
+  let sy = -1;
+  for (let y = h - 1; y >= 0 && sy < 0; y--) {
+    for (let x = 0; x < w; x++) {
+      if (opaque(x, y)) {
+        sx = x;
+        sy = y;
+        break;
+      }
+    }
+  }
+  if (sy < 0) return 0;
+  const seen = new Int8Array(w * h);
+  const stack = [[sx, sy]];
+  seen[sy * w + sx] = 1;
+  let n = 0;
+  while (stack.length > 0) {
+    const [cx, cy] = stack.pop();
+    n++;
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [1, -1],
+      [-1, 1],
+      [-1, -1],
+    ]) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (opaque(nx, ny) && seen[ny * w + nx] === 0) {
+        seen[ny * w + nx] = 1;
+        stack.push([nx, ny]);
+      }
+    }
+  }
+  return n;
+}
+for (const [id, frames] of VAWO_TRACKS) {
+  for (let i = 0; i < frames; i++) {
+    const frame = png.load(path.join(VAWO_TRACK_SRC, `${id}_f${i}.png`));
+    if (frame.width !== 80 || frame.height !== 64) {
+      throw new Error(
+        `combat variant ${id} f${i}: expected 80x64, got ` +
+          `${frame.width}x${frame.height}`,
+      );
+    }
+    let opaque = 0;
+    for (let p = 3; p < frame.data.length; p += 4) {
+      if (frame.data[p] !== 0) opaque++;
+    }
+    if (attachedPixelCount(frame) !== opaque) {
+      throw new Error(
+        `combat variant ${id} f${i}: ${opaque - attachedPixelCount(frame)} px ` +
+          'are not attached to the standing figure. A detached fragment is ' +
+          'either a floating artifact or a weapon that has come off the hand, ' +
+          'and neither may ship (VAWO01: "do not ship flickering/ghost gear").',
+      );
+    }
+    if (i === 0) {
+      combatFootprints[`combat_${id}`] = png.footprint(frame);
+    }
+    emit(`combat/${id}_f${i}.png`, encode(frame));
+  }
+}
+
 // ------------------------------------------------------------- VAWO01 gather
 /**
  * THE GATHER SCENE FAMILY (`DECISIONS/0031`, round record in

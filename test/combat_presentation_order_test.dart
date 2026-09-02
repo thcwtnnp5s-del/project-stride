@@ -88,6 +88,11 @@ void main() {
   /// `FakeAsync`), standing in the Whispering Woods — armed and armoured
   /// unless [armed] is false (an unarmed Traveler loses to the wolf's
   /// flurry, which is how the defeat presentation is reached).
+  /// Since the VAWO01 weapon round, [armed] also decides which combat art
+  /// the stage resolves: an unarmed Traveler goes down empty-handed on the
+  /// `traveler_unarmed_*` strips, an armed one on the base set. The defeat
+  /// cases below boot unarmed, so they assert the unarmed kneel — which is
+  /// the stronger claim, because it is the loadout that actually loses.
   Future<StrideSession> boot(WidgetTester tester, {bool armed = true}) async {
     tester.view.physicalSize = const Size(393 * 3, 852 * 3);
     tester.view.devicePixelRatio = 3.0;
@@ -354,7 +359,7 @@ void main() {
                 .widgetList<GroundedSprite>(find.byType(GroundedSprite))
                 .any(
                   (GroundedSprite g) =>
-                      g.assetPath.contains('traveler_stagger'),
+                      g.assetPath.contains('traveler_unarmed_stagger'),
                 );
       }
       expect(zeroAt, isNonNegative, reason: 'the killing blow must present');
@@ -373,7 +378,7 @@ void main() {
             .widgetList<GroundedSprite>(find.byType(GroundedSprite))
             .any(
               (GroundedSprite g) =>
-                  g.assetPath.endsWith('traveler_stagger_f8.png'),
+                  g.assetPath.endsWith('traveler_unarmed_stagger_f8.png'),
             ),
         isTrue,
       );
@@ -418,7 +423,7 @@ void main() {
             .widgetList<GroundedSprite>(find.byType(GroundedSprite))
             .any(
               (GroundedSprite g) =>
-                  g.assetPath.endsWith('traveler_stagger_f8.png'),
+                  g.assetPath.endsWith('traveler_unarmed_stagger_f8.png'),
             ),
         isTrue,
       );

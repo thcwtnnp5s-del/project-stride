@@ -285,6 +285,139 @@ abstract final class CombatAssets {
     impactRise: 34,
   );
 
+  // ------------------------------------------------- Traveler gear variants
+
+  /// **The Traveler with nothing in his hands** (VAWO01).
+  ///
+  /// The base set bakes a generic pale-steel sword into every frame, so a
+  /// Traveler who has equipped no weapon still fought with one — the interface
+  /// contradicting durable state. `TravelerArt.combatantFor` routes an empty
+  /// weapon slot here instead.
+  ///
+  /// No [stagger]. The Traveler's defeat-as-retreat strip is the *base*
+  /// figure's, sword and all, so reusing it would put the blade back in his
+  /// hands at the one moment the camera holds on him. The choreography's
+  /// documented fallback covers it: with no stagger track it holds the flinch,
+  /// which is this set's own empty-handed flinch (`LostBeat`).
+  ///
+  /// Frames are PixelLab v3 on the canonical Traveler; geometry and
+  /// preparation in `package-art.js`, VAWO01 combat gear variants.
+  static final CombatantArt travelerUnarmed = CombatantArt(
+    // Native 80x64 from the character rotation — this one strip is a template
+    // animation, and stands on row 63 rather than the v3 crop's 62. Declared
+    // per track precisely so the two can differ without the figure shifting.
+    idle: _track(
+      'traveler_unarmed_idle',
+      8,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 63,
+      footprint: SpriteFootprints.combatTravelerUnarmedIdle,
+    ),
+    attack: _track(
+      'traveler_unarmed_attack',
+      7,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerUnarmedAttack,
+    ),
+    // Measured, not guessed: the fist's reach per frame is
+    // 56 56 68 66 72 60 57 — f4 is the extension, f5–f6 the recovery.
+    strikeFrame: 4,
+    hit: _track(
+      'traveler_unarmed_hit',
+      7,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerUnarmedHit,
+    ),
+    // Nine frames at 8 fps through to the kneel, held — the base strip's own
+    // shape and tempo, re-authored empty-handed. Borrowing the base's would
+    // have put the generic sword back in his hands at the one moment the
+    // camera lingers on him. Defeat is retreat, never death (`RULES.md` P-7):
+    // the last frame is a figure down on one knee and alive.
+    stagger: _track(
+      'traveler_unarmed_stagger',
+      9,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerUnarmedStagger,
+    ),
+    // Opaque rows 1..62, the same standing height as the base figure, so the
+    // impact still lands on the chest.
+    impactRise: 34,
+  );
+
+  /// **The Traveler holding the Bronze Sword he actually forged** (VAWO01).
+  ///
+  /// Covers all three bronze-tier blades. `item.training_sword` deliberately
+  /// has no variant: the base set's pale-steel blade *is* a plain training
+  /// sword, so the base is already honest for it.
+  static final CombatantArt travelerBronze = CombatantArt(
+    idle: _track(
+      'traveler_bronze_idle',
+      9,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerBronzeIdle,
+    ),
+    attack: _track(
+      'traveler_bronze_attack',
+      7,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerBronzeAttack,
+    ),
+    // Blade reach per frame is 63 58 56 71 52 70 73: f4 is the cock-back, f5
+    // the thrust arriving, f6 the held extension. The blow lands on f5 so the
+    // strip has a frame of follow-through after it, rather than firing the
+    // impact on the last frame it will ever draw.
+    strikeFrame: 5,
+    hit: _track(
+      'traveler_bronze_hit',
+      5,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerBronzeHit,
+    ),
+    // The bronze retreat. The first roll came back with the blade turning
+    // serrated over its last three frames — the weapon becoming a different
+    // object mid-strip, which is the ghost gear this round exists to prevent —
+    // so it was rejected and re-rolled with the sword held clear of the
+    // ground. All nine frames now carry one clean tapered blade.
+    stagger: _track(
+      'traveler_bronze_stagger',
+      9,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 80,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: SpriteFootprints.combatTravelerBronzeStagger,
+    ),
+    impactRise: 34,
+  );
+
   // --------------------------------------------------------------- enemies
 
   static final CombatantArt wolf = CombatantArt(
@@ -729,14 +862,25 @@ abstract final class CombatAssets {
 
   /// Every frame the stage may draw for a fight against [enemy] — what it
   /// precaches on mount. The other enemies' tracks are not decoded.
-  static List<String> framesFor(ContentId enemy, ContentId location) {
+  ///
+  /// [traveler] is the *resolved* gear variant, not the base set. Precaching
+  /// the base while the stage draws the bronze strips would decode the blade
+  /// on its first painted frame — visible on a phone as gear that flickers in,
+  /// which is the defect the variant round exists to avoid. Defaults to the
+  /// base so a caller that has no equipment fact still gets sane behaviour.
+  static List<String> framesFor(
+    ContentId enemy,
+    ContentId location, {
+    CombatantArt? traveler,
+  }) {
+    final CombatantArt t = traveler ?? CombatAssets.traveler;
     final CombatantArt? e = enemyFor(enemy);
     return <String>[
       backdropFor(location),
-      ...traveler.idle.track.frames,
-      ...traveler.attack.track.frames,
-      ...?traveler.hit?.track.frames,
-      ...?traveler.stagger?.track.frames,
+      ...t.idle.track.frames,
+      ...t.attack.track.frames,
+      ...?t.hit?.track.frames,
+      ...?t.stagger?.track.frames,
       if (e != null) ...<String>[
         ...e.idle.track.frames,
         ...e.attack.track.frames,

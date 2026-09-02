@@ -89,7 +89,8 @@ class CombatStage extends StatefulWidget {
   /// The loadout's visual facts at encounter start, resolved through
   /// `TravelerArt` when the art binds (GAME_FEEL_CHARACTER_PRESENTATION_01,
   /// item 5). A fight's loadout is fixed at its first bell, so this is a
-  /// snapshot by design. Base Traveler until variant strips exist.
+  /// snapshot by design. The default — nothing equipped — draws the unarmed
+  /// set, not the base's baked sword (VAWO01).
   final EquipmentVisualState equipment;
 
   /// The committed figures. While [ended], this is the last view the parent
@@ -253,8 +254,9 @@ class _CombatStageState extends State<CombatStage>
   }
 
   void _bindArt() {
-    // Through the visible-equipment seam: base art today, and the seam is
-    // where a weapon-variant round will land without touching this file.
+    // Through the visible-equipment seam: an empty weapon slot draws the
+    // unarmed set, a bronze-tier blade draws the bronze set, and anything
+    // else falls through to the base (VAWO01).
     _traveler = TravelerArt.combatantFor(widget.equipment);
     _enemy = CombatAssets.enemyFor(widget.view.enemyId);
     _strikeEffect = CombatAssets.strikeEffectOf(widget.view.enemyId);
@@ -276,6 +278,7 @@ class _CombatStageState extends State<CombatStage>
     for (final String frame in CombatAssets.framesFor(
       widget.view.enemyId,
       widget.view.location,
+      traveler: _traveler,
     )) {
       precacheImage(AssetImage(frame), context);
     }

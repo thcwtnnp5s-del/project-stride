@@ -19,6 +19,23 @@ import 'package:stride/ui/screens/combat/combat_choreography.dart';
 import 'package:stride/ui/screens/combat/combat_stage.dart';
 import 'package:stride_core/stride_core.dart';
 
+/// The loadout every stage in this file is built with.
+///
+/// These tests prove the *choreography* — segment order, frame timing, what
+/// the stage settles on — and every duration in them was measured against the
+/// base Traveler's strips. The VAWO01 weapon round made the default loadout
+/// (nothing equipped) resolve to the unarmed set, whose attack runs seven
+/// frames rather than four, which moves every pumped instant below. Naming
+/// the training sword keeps these cases pointed at the art they were written
+/// against; `combat_gear_variant_test.dart` covers which set a loadout picks.
+const EquipmentVisualState _armed = EquipmentVisualState(
+  weapon: EquippedVisualFact(
+    itemId: 'item.training_sword',
+    tier: 0,
+    toolKind: 'none',
+  ),
+);
+
 EncounterView view({
   String enemy = 'enemy.forest_wolf',
   String enemyName = 'Forest Wolf',
@@ -117,7 +134,12 @@ void main() {
     final List<bool> playing = <bool>[];
     await tester.pumpWidget(
       host(
-        CombatStage(view: view(), report: null, onPlayingChanged: playing.add),
+        CombatStage(
+          equipment: _armed,
+          view: view(),
+          report: null,
+          onPlayingChanged: playing.add,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -132,6 +154,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 2, playerHp: 36, enemyHp: 13),
           report: round,
           onPlayingChanged: playing.add,
@@ -203,13 +226,19 @@ void main() {
     final List<bool> playing = <bool>[];
     await tester.pumpWidget(
       host(
-        CombatStage(view: view(), report: null, onPlayingChanged: playing.add),
+        CombatStage(
+          equipment: _armed,
+          view: view(),
+          report: null,
+          onPlayingChanged: playing.add,
+        ),
       ),
     );
     await tester.pumpAndSettle();
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 2, playerHp: 36, enemyHp: 13),
           report: round,
           onPlayingChanged: playing.add,
@@ -237,6 +266,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(
             enemy: 'enemy.hollow_guardian',
             enemyName: 'Hollow Guardian',
@@ -285,6 +315,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(
             enemy: 'enemy.frost_lynx',
             enemyName: 'Frost Lynx',
@@ -321,12 +352,16 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      host(CombatStage(view: view(), report: null), tickers: false),
+      host(
+        CombatStage(equipment: _armed, view: view(), report: null),
+        tickers: false,
+      ),
     );
     await tester.pump();
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 2, playerHp: 36, enemyHp: 13),
           report: round,
         ),
@@ -346,7 +381,9 @@ void main() {
   testWidgets('a lost round fells nobody, a won round fells the wolf and holds '
       'the pose', (WidgetTester tester) async {
     await tester.pumpWidget(
-      host(CombatStage(view: view(enemyHp: 5), report: null)),
+      host(
+        CombatStage(equipment: _armed, view: view(enemyHp: 5), report: null),
+      ),
     );
     await tester.pumpAndSettle();
     // Not `const`: a `RewardLine` carries a parsed `ContentId`, and parsing
@@ -373,7 +410,14 @@ void main() {
     );
     // The encounter has cleared: the parent passes the remembered view.
     await tester.pumpWidget(
-      host(CombatStage(view: view(enemyHp: 5), report: won, ended: true)),
+      host(
+        CombatStage(
+          equipment: _armed,
+          view: view(enemyHp: 5),
+          report: won,
+          ended: true,
+        ),
+      ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 700));
@@ -434,11 +478,14 @@ void main() {
 
   testWidgets('a flurry round shows two distinct player decreases and never '
       'an increase', (WidgetTester tester) async {
-    await tester.pumpWidget(host(CombatStage(view: view(), report: null)));
+    await tester.pumpWidget(
+      host(CombatStage(equipment: _armed, view: view(), report: null)),
+    );
     await tester.pumpAndSettle();
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 2, playerHp: 33, enemyHp: 13),
           report: flurryRound,
         ),
@@ -481,11 +528,14 @@ void main() {
   testWidgets('a tap mid-flurry skips to the exact committed figures', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(host(CombatStage(view: view(), report: null)));
+    await tester.pumpWidget(
+      host(CombatStage(equipment: _armed, view: view(), report: null)),
+    );
     await tester.pumpAndSettle();
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 2, playerHp: 33, enemyHp: 13),
           report: flurryRound,
         ),
@@ -507,11 +557,14 @@ void main() {
       'whole and replays the new one to its committed end', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(host(CombatStage(view: view(), report: null)));
+    await tester.pumpWidget(
+      host(CombatStage(equipment: _armed, view: view(), report: null)),
+    );
     await tester.pumpAndSettle();
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 2, playerHp: 36, enemyHp: 13),
           report: round,
         ),
@@ -545,6 +598,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(turn: 3, playerHp: 29, enemyHp: 6),
           report: next,
         ),
@@ -713,6 +767,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(playerHp: 4),
           report: null,
           onPlayingChanged: playing.add,
@@ -738,6 +793,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(playerHp: 4),
           report: lost,
           ended: true,
@@ -787,6 +843,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(playerHp: 4),
           report: null,
           onPlayingChanged: playing.add,
@@ -810,6 +867,7 @@ void main() {
     await tester.pumpWidget(
       host(
         CombatStage(
+          equipment: _armed,
           view: view(playerHp: 4),
           report: lost,
           ended: true,
