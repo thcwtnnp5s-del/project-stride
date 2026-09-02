@@ -728,12 +728,17 @@ for (const entry of combatManifest) {
  * with status `accepted` — the blind Visual QA verdict — are emitted;
  * `lynx_hit` is withheld (reads as a prowl) and the stage recoils the figure.
  */
+const VAWO_LYNX_TRACKS = new Set(['lynx_idle', 'lynx_attack', 'lynx_defeat']);
 const COMBAT_WRD_SRC = path.join(
   EXPLORE, 'WORLD_REWARD_DEPTH_01', 'combat', 'out', 'combat',
 );
 const combatWrdManifest = JSON.parse(
   fs.readFileSync(path.join(COMBAT_WRD_SRC, 'manifest.json'), 'utf8'),
-).filter((entry) => entry.status === 'accepted');
+).filter((entry) => entry.status === 'accepted')
+  // The three lynx tracks are re-authored in the VAWO01 block below (the
+  // shipped pair read as one animal). Emitting both would give one path two
+  // emitters, which `--check` rejects outright.
+  .filter((entry) => !VAWO_LYNX_TRACKS.has(entry.id));
 for (const entry of combatWrdManifest) {
   const [w, h] = Array.isArray(entry.canvas)
     ? entry.canvas
@@ -1364,6 +1369,51 @@ for (const cls of ['plate', 'jerkin', 'coat']) {
     );
   }
   emit(`sprite/traveler_south_${cls}.png`, encode(raster));
+}
+
+// -------------------------------------------------------------- VAWO01 lynx
+/**
+ * THE FROST LYNX STOPS BEING A SECOND WOLF (`ENEMY_ROUND_RECORD_01.md`).
+ *
+ * Measured at stage scale, exactly one pair of the nine-enemy roster failed to
+ * read apart: wolf and lynx, **74 % silhouette overlap in place**, with alpha
+ * masks agreeing on 95.3 % of the canvas. Not a recolour — only 0.5 % of the
+ * shared opaque pixels are the same colour — but the same animal drawn twice.
+ *
+ * The cause is in the previous round's own record: the lynx "follows the
+ * wolf's method exactly" (`WORLD_REWARD_DEPTH_01/combat/README.md` §2), same
+ * quadruped template, same camera, same size — and its accepted QA note
+ * describes a "long-tailed quadruped", which is the one thing a lynx is not.
+ *
+ * Re-authored by the route that gives silhouette control rather than a
+ * skeleton: `create_image_pixen` for the west-facing still, then
+ * `animate_image` per track. `create_character` was tried first on both the
+ * `cat` and `lion` quadruped templates and returned a flat white house cat
+ * both times — standard mode is template-dominated and ignores the
+ * descriptive cues, and v3 has no quadruped mode. The cues that matter are
+ * the ones a wolf cannot have: black ear tufts, a stump tail, a cheek ruff,
+ * long legs, a spotted tan coat.
+ *
+ * Geometry: authored 48 × 32, padded to the roster's 56² canvas with the
+ * standing baseline on the manifest's own anchor row 39. **One offset per
+ * track**, computed from that track's frame 0 — a per-frame re-centring would
+ * iron the animation flat. Nothing is cropped, scaled or drawn (A-2).
+ */
+const VAWO_LYNX_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'lynx');
+for (const [track, count] of [['idle', 7], ['attack', 9], ['defeat', 7]]) {
+  for (let i = 0; i < count; i++) {
+    const frame = png.load(path.join(VAWO_LYNX_SRC, `lynx_${track}_f${i}.png`));
+    if (frame.width !== 56 || frame.height !== 56) {
+      throw new Error(
+        `lynx_${track} f${i}: expected 56x56, got ` +
+          `${frame.width}x${frame.height}`,
+      );
+    }
+    if (i === 0) {
+      combatFootprints[`combat_lynx_${track}`] = png.footprint(frame);
+    }
+    emit(`combat/lynx_${track}_f${i}.png`, encode(frame));
+  }
 }
 
 // ------------------------------------------------------------ VAWO01 reward

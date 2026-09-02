@@ -414,27 +414,6 @@ abstract final class SpriteFootprints {
     bottom: 83,
   );
 
-  /// `combat_lynx_idle` — 23 px of contact, 22..44.
-  static const SpriteFootprint combatLynxIdle = SpriteFootprint(
-    left: 22,
-    right: 44,
-    bottom: 39,
-  );
-
-  /// `combat_lynx_attack` — 23 px of contact, 22..44.
-  static const SpriteFootprint combatLynxAttack = SpriteFootprint(
-    left: 22,
-    right: 44,
-    bottom: 39,
-  );
-
-  /// `combat_lynx_defeat` — 23 px of contact, 22..44.
-  static const SpriteFootprint combatLynxDefeat = SpriteFootprint(
-    left: 22,
-    right: 44,
-    bottom: 39,
-  );
-
   /// `combat_traveler_stagger` — 12 px of contact, 22..33.
   static const SpriteFootprint combatTravelerStagger = SpriteFootprint(
     left: 22,
@@ -538,6 +517,27 @@ abstract final class SpriteFootprints {
     left: 23,
     right: 34,
     bottom: 50,
+  );
+
+  /// `combat_lynx_idle` — 42 px of contact, 8..49.
+  static const SpriteFootprint combatLynxIdle = SpriteFootprint(
+    left: 8,
+    right: 49,
+    bottom: 39,
+  );
+
+  /// `combat_lynx_attack` — 42 px of contact, 8..49.
+  static const SpriteFootprint combatLynxAttack = SpriteFootprint(
+    left: 8,
+    right: 49,
+    bottom: 39,
+  );
+
+  /// `combat_lynx_defeat` — 42 px of contact, 8..49.
+  static const SpriteFootprint combatLynxDefeat = SpriteFootprint(
+    left: 8,
+    right: 49,
+    bottom: 39,
   );
 
   /// `combat_traveler_unarmed_idle` — 7 px of contact, 30..36.

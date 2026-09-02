@@ -458,12 +458,20 @@ abstract final class CombatAssets {
     impactRise: 14,
   );
 
-  /// The Frost Lynx — Frostmere's first enemy (World & Reward Depth 01;
-  /// `WORLD_REWARD_DEPTH_01/combat/README.md`). Blind Visual QA at ×2: idle
-  /// "a grey cat stalking" PASS-WITH-NOTE, attack "a cat pouncing/swiping"
-  /// PASS, defeat "flattens until prone, legible as a downed animal" PASS;
-  /// `lynx_hit` withheld (read as a prowl) — the stage recoils the figure, as
-  /// for the wolf. 56² canvas, anchor row 39 on every track.
+  /// The Frost Lynx — Frostmere's first enemy, **re-authored in VAWO01**
+  /// (`ENEMY_ROUND_RECORD_01.md`).
+  ///
+  /// The shipped version followed the wolf's method exactly — same quadruped
+  /// template, same camera, same size — and measured 74 % silhouette overlap
+  /// with it in place, the only pair in the nine-enemy roster that failed to
+  /// read apart at stage scale. Its own accepted QA note described a
+  /// "long-tailed quadruped", which is the one thing a lynx is not. The
+  /// replacement carries the cues a wolf cannot: black ear tufts, a stump
+  /// tail, a cheek ruff, long legs and a spotted tan coat.
+  ///
+  /// `lynx_hit` stays withheld (it read as a prowl) — the stage recoils the
+  /// figure, as it does for the wolf. 56² canvas, anchor row 39 on every
+  /// track, unchanged, so nothing downstream of this table moved.
   static final CombatantArt lynx = CombatantArt(
     idle: _track(
       'lynx_idle',
@@ -485,8 +493,14 @@ abstract final class CombatAssets {
       anchorRow: 39,
       footprint: SpriteFootprints.combatLynxAttack,
     ),
-    // f6 = the pounce lands (manifest: crouch f2–f5, pounce-swipe f6–f8).
-    strikeFrame: 6,
+    // Measured, not inherited: the re-authored strike's leftmost reach per
+    // frame is 8 7 7 6 6 6 7 5 5, so f7 is the furthest extension and f8 is
+    // the one frame of follow-through after the blow. The strip stalks
+    // forward rather than leaping — `animate_image` animates largely in
+    // place, and two rolls moved the body 1 px and 3 px against the previous
+    // track's ~10. That is recorded as a known limit of the method rather
+    // than faked with a per-frame translation the artist never authored.
+    strikeFrame: 7,
     defeat: _track(
       'lynx_defeat',
       7,
