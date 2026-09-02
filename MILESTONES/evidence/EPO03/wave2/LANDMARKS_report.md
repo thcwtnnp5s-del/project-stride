@@ -89,13 +89,14 @@ At 197×426 opening zoom (`E/review/atlas/L*_after_fov.png`,
    Until it lands, the sprites are packaged and unplaced, and
    `worldlife-composite.js` cannot show them — which is why the family's own
    `landmark-overlay-preview.js` renders the placement evidence instead.
-2. **L1 was painted before PROD-WORLD-WEST's core-face region (WA).** WEST
-   registered nothing all session (`manifest_west.json` is still `[]`; WA
-   176,260 160×280 is still `pending`), and DIR-03 sequences L1 after it. L1's
-   authored rect stops at x 296 and WA's stops there too, so no authored ground
-   is contested — but **WEST must cut WA's crop from the composite that now
-   contains L1 and freeze the ±40 px east margin.** That is the shared-edge
-   rule; it needs saying out loud because the order was inverted.
+2. **L1 was painted before PROD-WORLD-WEST's core-face region (WA)** — WEST
+   had registered nothing when L1's crop was cut, and DIR-03 sequences L1 after
+   it, so the order was inverted. **WA landed shortly after and the join was
+   re-inspected on the shipped composite** (`E/review/atlas/L1_after_x2.png`):
+   WA's new bays, copses and lone oaks meet the glade's ragged fringe as one
+   hand, no seam, no wall, no density step — L1's authored rect stops at x 296
+   and WA's stops there too, so no authored ground was ever contested. Closed,
+   but recorded: it was luck of sequencing that it read, not the rule.
 3. **SOUTH's S3 landed after L2** and brought the shoreline to within ~15 px of
    the storm house, so the gloom pocket's west side is smaller than DIR-03's
    "NE–SW darkness fading out at the edge". Measured on the shipped composite:
