@@ -1,0 +1,41 @@
+{
+  "comment": "EPO03 PROD-WORLD-SOUTH pending regions (never a manifest). Territory 0-860 x 700-1024 (DIR-01). x,y,w,h = crop origin/size on the 1024^2 atlas; rect = authored rect in CROP coords (half-open; a coordinate outside [0,w)/[0,h) is the canvas edge, no ramp); ramps 24 free / 32 across a texture change, one-sided from the rect edge, width jittered +/-60%; inpaint = the rectangle handed to inpaint_image in crop coords (equals the rect). Salts 60-79 (SOUTH). coreAuthor where the rect enters (256..768)^2 or its rim; reauthorizes = every landmark golden the mask touches (re-extracted in the same commit, DECISIONS/0033). Storm knoll 168-264 x 816-952 is reserved for LANDMARKS: plain terrain only there.",
+  "regions": [
+    {
+      "id": "S1",
+      "x": 348, "y": 700, "w": 512, "h": 324,
+      "atlas": "392-820 x 740-1024",
+      "rect": { "x0": 44, "y0": 40, "x1": 472, "y1": 324 },
+      "ramps": { "left": 32, "right": 24, "top": 32, "bottom": 0 },
+      "inpaint": { "x": 44, "y": 40, "w": 428, "h": 284 },
+      "salt": 60, "seed": 6001, "status": "pending",
+      "coreAuthor": true,
+      "reauthorizes": ["flock_south", "south_strand_w", "south_strand_e"],
+      "intent": "The delta shore: marsh wets into grey silt in fingers, braided channels converge SE into one trunk reaching the sea through silt bars, tidal flats and creeks; the shore runs diagonally from the wooded eastern headland down toward the lower left with surf, sand, dune ridges at an angle and machair behind; one creek cuts the beach; the headland keeps its wood and its sand rim continues as a curving spit hooking south. Authors PLAINS->MARSH (apron) and COAST->SEA (Sunward shore, spit)."
+    },
+    {
+      "id": "S2",
+      "x": 128, "y": 700, "w": 512, "h": 324,
+      "atlas": "172-440 x 740-1024",
+      "rect": { "x0": 44, "y0": 40, "x1": 312, "y1": 324 },
+      "ramps": { "left": 32, "right": 32, "top": 32, "bottom": 0 },
+      "inpaint": { "x": 44, "y": 40, "w": 268, "h": 284 },
+      "salt": 61, "seed": 6002, "status": "pending",
+      "coreAuthor": true,
+      "reauthorizes": ["south_strand_w"],
+      "intent": "West of the delta: no sand where no sea reaches; sward and heath grade south into the SW wood's outliers and, near S1's dunes, into machair; the wood's straight top edge and the strand band's western run dissolve. Plain terrain over the reserved storm-knoll pocket. Authors FOREST->PLAINS at the wood's north edge and the S1 join."
+    },
+    {
+      "id": "S3",
+      "x": 0, "y": 660, "w": 300, "h": 364,
+      "atlas": "0-256 x 700-1024",
+      "rect": { "x0": 0, "y0": 40, "x1": 256, "y1": 364 },
+      "ramps": { "left": 0, "right": 32, "top": 32, "bottom": 0 },
+      "inpaint": { "x": 0, "y": 40, "w": 256, "h": 324 },
+      "salt": 62, "seed": 6003, "status": "pending",
+      "coreAuthor": false,
+      "reauthorizes": ["south_strand_w"],
+      "intent": "The SW corner: the west shore turns from a vertical turquoise cut into a curved, diagonal coast with rock, sand and shallows; dunes and machair behind it; the wood grades into it; the lime slab goes. Paints the y=700 edge against WEST's accepted composite. Plain terrain over the reserved storm-knoll pocket."
+    }
+  ]
+}
