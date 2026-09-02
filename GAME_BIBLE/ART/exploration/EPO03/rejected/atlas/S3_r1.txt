@@ -1,0 +1,14 @@
+S3 roll 1 (job aec776d8-ce2d-45e7-b152-e37459caea9d, seed 6003, 40 gens) — REJECT.
+The coast is right: the vertical turquoise cut becomes a curving bay with a
+rocky headland, boulders in the water, varying sand width, a creek through the
+beach, surf and angled dunes; the lime slab and the leftover driftwood sand
+patch are both gone. It fails on content, not on drawing: the generation
+DELETED the SW wood (the FMPO02 S1 canopy, roughly atlas 112-210 x 897-1015)
+and left roughly 120 x 90 atlas px of empty sward with a formless brown smudge
+across it — a dead zone, which DIR-02 names as a thing to eliminate, and the
+wood that DIR-01 says hosts the storm pocket.
+Evidence: rejected/atlas/S3_r1_deadzone_x3.png (before | after at (60,800) 200x224 x3);
+review/atlas/S3_r1_x2.png, S3_preview_x2.png.
+Intent changed for roll 2 (not the seed): the wood is named as kept and only
+its western face broken into copses; the open heath is confined to the band
+where the reserved storm knoll goes; no brown stain.
