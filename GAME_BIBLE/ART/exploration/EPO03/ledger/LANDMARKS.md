@@ -1,0 +1,23 @@
+# EPO03 — PROD-WORLD-LANDMARKS ledger
+
+Brief: `MILESTONES/evidence/EPO03/wave1/DIR-03_fantasy_landmarks.md`. Cap **300**.
+Family total = the sum of the tool's own cost lines below; never a balance delta (M-17).
+Regions: `E/src/atlas/regions_landmarks.json` (pending) → `E/out/atlas/manifest_landmarks.json` (accepted). Salts 120–139.
+
+| job id | tool | what was asked | size | cost line | verdict | reason |
+|---|---|---|---|---|---|---|
+| 283d63dd | inpaint_image | L3 ice bastion r1: three stepped terraces, crystalline tower at (468,177), SW causeway with ice pillars, sastrugi (seed 1201) | 200x192 crop, mask 120x120 @ (40,44) | ~20 | **REJECT** | isometric stepped ziggurat with stairs and straight edges, an object ON the snow (the pedestal failure at 85 px); "three stepped terraces" read as a countable unit → pyramid. Intent changed for r2. rejected/atlas/L3_r1.txt |
+| 0a74bbe1 | create_image_pixen | storm rain still A: diagonal 1-px pale streaks + dark wisps at top (seed 1211) | 96x96 | 1 | REJECT | three cartoon cumulus clouds (a cloud shape) |
+| 7804285a | create_image_pixen | storm rain still B (seed 1212) | 96x96 | 1 | **ACCEPT** (still) | dark churning wisps at the top, dense 1-px white diagonal streaks 6–10 px; goes to animate_image |
+| e7bd86f8 | create_image_pixen | storm strike main fork, white core violet edge, 2–3 branches (seed 1221) | 80x96 | 1 | REJECT | cartoon zigzag bolt glyph, not a fork |
+| 6c2e96ac | create_image_pixen | storm strike thinner second fork (seed 1222) | 80x96 | 1 | **ACCEPT** | a real thin fork, white core with violet fringe, two branches; f3 of the strike |
+| 9d1d5ef4 | create_image_pixen | fairy silhouette A: 8 px body, cream wings, honey glow, no face (seed 1231) | 24x24 | 1 | pending | |
+| ba335260 | create_image_pixen | fairy silhouette B (seed 1232) | 24x24 | 1 | pending | |
+| 60377176 | create_image_pixen | fairy silhouette C, moth wings (seed 1233) | 24x24 | 1 | pending | |
+| 8bdd1c8e | create_image_pixen | storm strike main fork re-roll: realistic channel, 2-px white core, three branches, "not a zigzag icon" (seed 1223) | 80x96 | 1 | **ACCEPT** | a bright crooked main channel with five thin branches, top to bottom centre; f1 of the strike (out/landmarks/strike_fork_main.png) |
+| fe5c6c38 | create_image_pixen | fairy swarm A: eight 6–8 px fairies on one canvas, to cut individual sprites from (seed 1241) | 96x64 | 1 | **ACCEPT** | nine 9×8 px fairies (dark body, cream wings, gold glow tips), all top-facing; the cut source for the fae court; goes to animate_image for the wingbeat |
+| 2f9185f7 | create_image_pixen | fairy swarm B (seed 1242) | 96x64 | 1 | **ACCEPT** (reserve) | eight 8–13 px fairies in a ring facing eight directions; kept as directional variants |
+| 372c4ad9 | inpaint_image | L3 ice bastion r2: intent changed — rugged natural glacier mound, seracs and crevasses, top-down, slender tower on the summit, winding SW causeway; "no pyramid/ziggurat/steps" (seed 1202) | 200x192 crop, mask 120x120 @ (40,44) | ~20 | **CANDIDATE** (held against r3) | a rugged organic ice mound ~85 px with blue south faces, seracs and a crystal spire; no pedestal, no straight edge beyond the cliff foot; the causeway barely reads and the spire is ~15×22 px. review/atlas/L3_r2_preview_x2.png |
+| c7f6305b | animate_image | storm rain: rain_B still → 8 f pouring loop, wisps churning (seed 1251) | 96x96 ×8 | 2 | pending | |
+| 0ad-pending | animate_image | fairy swarm A → 4 f wingbeat, hover in place (seed 1261) | 96x64 ×4 | pending cost line | pending | |
+| 12a-pending | inpaint_image | L3 r3: same intent, the causeway made a clearly visible 5-px pillared road to a gate and the tower the tallest thing in the scene (seed 1203) | 200x192 crop, mask 120x120 @ (40,44) | ~20 | pending | |

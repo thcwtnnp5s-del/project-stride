@@ -1,0 +1,1 @@
+L3 r1 (283d63dd, seed 1201): REJECT — an isometric stepped ziggurat with stairs and straight edges sitting ON the snow; the pedestal failure at 85 px. "three stepped terraces" is a countable unit and became a pyramid (DIR-02). Edge integration was fine. Sheet: review/atlas/L3_preview_x2.png, L3_r1_x2.png

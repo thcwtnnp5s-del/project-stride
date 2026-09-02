@@ -1,0 +1,1 @@
+fairy_A/B/C (9d1d5ef4, ba335260, 60377176): REJECT — pixen fills the 24 canvas: 15-18 px insects (wasp, bee, moth) against a ~30 px castle; the spec wants 6-10 px silhouettes. Replaced by a swarm roll at 96x64 to cut small fairies from. Sheet: review/landmarks/fairy_r1_x8.png

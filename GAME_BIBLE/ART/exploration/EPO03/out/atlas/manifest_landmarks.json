@@ -1,4 +1,24 @@
 {
   "comment": "EPO03 accepted atlas regions for team landmarks, in blit order. A region appears here ONLY after the single-defect loop ACCEPT (generate -> composite -> guards -> full atlas + x2 perimeter + 197x426 phone FOV -> verdict). Fields: id, x, y, w, h (crop origin/size on the 1024^2 atlas; <id>.png and <id>_mask.png are exactly w x h), salt (>= 40, unique across all five manifests), status, job, seed, atlas, review, team, reauthorizes (landmark golden ids this region overwrites; each is re-extracted in the same commit — DECISIONS/0033).",
-  "regions": []
+  "regions": [
+    {
+      "id": "L3",
+      "name": "ice_bastion",
+      "x": 380,
+      "y": 72,
+      "w": 200,
+      "h": 192,
+      "salt": 120,
+      "status": "accepted",
+      "job": "817cd7de-cf74-4331-87b6-b1a61c87aced",
+      "seed": 1203,
+      "tool": "inpaint_image",
+      "cost": 20,
+      "atlas": "420-540 x 116-236",
+      "review": "review/atlas/L3_r3_preview_x2.png, L3_after_x2.png, L3_after_fov.png",
+      "team": "landmarks",
+      "reauthorizes": [],
+      "intent": "The Ice-Mage Tower rebuilt on a glacial foundation: an organic ice mound with blue south faces, a tall crystal spire with a dark gate, a pillared causeway winding up from the south-west (r3; r1 ziggurat rejected, r2 held)."
+    }
+  ]
 }

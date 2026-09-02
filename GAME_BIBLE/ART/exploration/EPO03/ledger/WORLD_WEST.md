@@ -7,3 +7,4 @@ physical iPhone remains the authority.
 
 | job/id | tool | canvas | cost | verdict | reason |
 |---|---|---|---|---|---|
+| 7fb79946-a866-484d-a52a-1700e4f04c77 | inpaint_image | 160x280 (WA, mask 80x194 @40,40, seed 801, crop @83c9132) | 25 | pending | WA roll 1 — upper core face: bays, promontories, stepping copses; firs at the top |
