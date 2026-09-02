@@ -1,0 +1,39 @@
+# EPO03 — PixelLab generation ledger
+
+Live `get_balance` at open (2026-09-02): **7,989 remaining / 2,010 used / 10,000 total** (Tier 3 Pixel Architect, resets 2026-10-01). Credits $0.00.
+
+**Accounting rule (M-17).** Only the balance checkpoints below are facts. Every
+family figure is the lead's own **sum of the tool's cost lines** (`cost: ~20
+generations`), never a balance delta — more than one agent holds this account at
+once, and a delta taken mid-round is the round's number, not a family's. A unit
+cost that will drive a cut is checked against one isolated job first.
+
+Per-family ledgers: `ledger/<FAMILY>.md`, one row per job: what was asked, the
+tool, the job id, the cost line, the verdict (ACCEPT / REJECT / RE-ROLL /
+REPLACE SECTION) and the reason. Rejected rolls keep their reason so a re-roll
+never repeats them (M-05).
+
+## Target allocation (owner brief, approximate)
+
+| Family | Target |
+|---|---:|
+| World recomposition (regions) | 700–1,000 |
+| World landmarks / life | 350–600 |
+| UI | 450–700 |
+| Character / equipment | 250–450 |
+| Items | 150–300 |
+| Gathering / encounters | 150–300 |
+| Reward / other | 100–200 |
+| **Session target** | **2,000–3,000** |
+
+## Balance checkpoints (live `get_balance`)
+
+| When | Remaining | Used this round | Note |
+|---|---:|---:|---|
+| open, 2026-09-02 | 7,989 | 0 | Tier 3, resets 2026-10-01 |
+
+## Family totals (each lead's own sum of cost lines)
+
+| Family | Requested | Accepted | Rejected | Visible value |
+|---|---:|---:|---:|---|
+| _(filled by the leads)_ | | | | |

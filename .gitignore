@@ -357,3 +357,16 @@ AUDIO/evaluation/**/*.zip
 !GAME_BIBLE/ART/exploration/FMPO02/out/**
 !GAME_BIBLE/ART/exploration/FMPO02/review/**
 !GAME_BIBLE/ART/exploration/FMPO02/rejected/**
+
+# Fable 5 Executive Production Overhaul 03 (EPO03) — the same shape as FMPO02:
+# deterministic tools, job/crop sources (PixelLab reads them from
+# raw.githubusercontent.com by commit SHA), the selected out/ tree
+# package-art.js reads, review evidence and rejected rolls with verdicts.
+# raw/ candidate dumps stay local.
+!GAME_BIBLE/ART/exploration/EPO03/tools/**
+!GAME_BIBLE/ART/exploration/EPO03/src/**
+!GAME_BIBLE/ART/exploration/EPO03/out/**
+!GAME_BIBLE/ART/exploration/EPO03/review/**
+!GAME_BIBLE/ART/exploration/EPO03/rejected/**
+!GAME_BIBLE/ART/exploration/EPO03/ledger/**
+GAME_BIBLE/ART/exploration/EPO03/raw/**

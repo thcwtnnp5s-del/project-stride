@@ -1,0 +1,428 @@
+{
+  "comment": "FMPO02 ART-03 regional recomposition. x,y = crop origin on the 1024^2 atlas; w,h = crop size (the generation and the mask are both exactly this size). `rect` is the authored rect in CROP coords (half-open); a coordinate outside [0,w)/[0,h) means the edge is the atlas canvas edge and its ramp is 0, so authorization runs to the border with no ramp line. `ramps` are px: 24 on a free edge, 32 where the boundary crosses a texture change. Each ramp is ONE-SIDED, anchored on the rect edge (alpha 0) and rising inward, with its width hash-jittered +/-60%; the authored rect edge therefore equals the inpaint rect edge, so the boundary contour always falls strictly inside authored terrain and never on the inpaint cut. `inpaint` is the rectangle handed to PixelLab inpaint_image, in crop coords. Salts 1-15 are taken by earlier rounds; FMPO02 uses 20+.",
+  "regions": [
+    {
+      "id": "W1",
+      "x": 128,
+      "y": 228,
+      "w": 196,
+      "h": 298,
+      "atlas": "176-256 x 276-460",
+      "rect": {
+        "x0": 48,
+        "y0": 48,
+        "x1": 128,
+        "y1": 232
+      },
+      "ramps": {
+        "left": 20,
+        "right": 28,
+        "top": 32,
+        "bottom": 24
+      },
+      "inpaint": {
+        "x": 48,
+        "y": 48,
+        "w": 100,
+        "h": 184
+      },
+      "salt": 20,
+      "seed": 701,
+      "status": "pending",
+      "intent": "Canopy face breaks into bays, promontories, stepping-stone groves and lone oaks over 60-80 px; a beck runs out of the trees into the meadow.",
+      "rimBlock": true,
+      "rimNote": "rimBlock: the A-4 rim (atlas 256-276) is left to the master. package-art.js keepRepair dithers the rim 90%->5% regardless of this mask, so a region that changes content there composites roughly half old / half new and reads as a speckled column. Measured on roll 1: 1697 gen vs 1946 base px across 256-276."
+    },
+    {
+      "id": "W2",
+      "x": 0,
+      "y": 210,
+      "w": 228,
+      "h": 338,
+      "atlas": "8-180 x 258-470",
+      "rect": {
+        "x0": 8,
+        "y0": 48,
+        "x1": 180,
+        "y1": 260
+      },
+      "ramps": {
+        "left": 24,
+        "right": 24,
+        "top": 32,
+        "bottom": 24
+      },
+      "inpaint": {
+        "x": 8,
+        "y": 48,
+        "w": 172,
+        "h": 212
+      },
+      "salt": 21,
+      "seed": 702,
+      "status": "pending",
+      "intent": "Rolling foothill meadows terracing up to the Worldspine: hedged pasture, bracken tussocks, copses of 3-7 trees, a beck with a stone ford, sheep-crop paler on the ridges; the two lowland snow-cones become rock knolls."
+    },
+    {
+      "id": "W3",
+      "x": 0,
+      "y": 556,
+      "w": 248,
+      "h": 290,
+      "atlas": "8-200 x 596-786",
+      "rect": {
+        "x0": 8,
+        "y0": 40,
+        "x1": 200,
+        "y1": 230
+      },
+      "ramps": {
+        "left": 24,
+        "right": 24,
+        "top": 24,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 8,
+        "y": 40,
+        "w": 192,
+        "h": 190
+      },
+      "salt": 22,
+      "seed": 703,
+      "status": "pending",
+      "intent": "The same meadow language stepping south into scrub, gorse, hollow-ways and a drystone-walled sheepfold, grading into the south-western woods."
+    },
+    {
+      "id": "N1",
+      "x": 0,
+      "y": 0,
+      "w": 300,
+      "h": 298,
+      "atlas": "0-252 x 0-272",
+      "rect": {
+        "x0": -24,
+        "y0": -24,
+        "x1": 252,
+        "y1": 272
+      },
+      "ramps": {
+        "left": 0,
+        "right": 12,
+        "top": 0,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 0,
+        "y": 0,
+        "w": 252,
+        "h": 282
+      },
+      "salt": 23,
+      "seed": 704,
+      "status": "pending",
+      "intent": "Wind-drifted snowfield: sastrugi combed north-west to south-east, drift shadows behind ridges, rock nunataks, a frozen tarn, pale rime conifers on the south margin.",
+      "note": "Inpaint extended to y=282 (frozen bottom margin 16 px, right 48 px; top and left are the canvas edge). The authored rect ends at y=272 so the bottom ramp lies entirely inside generated terrain, and the region paints through the pre-existing straight snow/meadow line at atlas y ~ 240-262 that W2 could not reach (its own mask starts at 258).",
+      "joinNote": "Right ramp 12 pairs with N2 left ramp 12 across the 12 px crop overlap (atlas 240-252): both half-alpha contours land at atlas 246, so coverage is continuous and no base leaks between them."
+    },
+    {
+      "id": "N2",
+      "x": 196,
+      "y": 0,
+      "w": 372,
+      "h": 300,
+      "atlas": "240-520 x 0-236",
+      "rect": {
+        "x0": 44,
+        "y0": -24,
+        "x1": 324,
+        "y1": 236
+      },
+      "ramps": {
+        "left": 12,
+        "right": 10,
+        "top": 0,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 44,
+        "y": 0,
+        "w": 280,
+        "h": 236
+      },
+      "salt": 24,
+      "seed": 705,
+      "status": "pending",
+      "intent": "Snow uplands north of the frozen lake: glacier tongues descending south into the basin, a crevasse field, a bare rocky crag with a wind-scoured approach, the distant mountains cut as crisp peaks.",
+      "joinNote": "Left ramp 12 pairs with N1 (half-alpha contours meet at atlas 246). Right ramp widened from 8 to 40 once N3 was deferred: with no neighbouring region to meet, an 8 px ramp let the contour wander only +/-2.4 px and N2 ended against the surviving crack-net on a razor vertical at atlas 515. At 40 px the contour wanders about +/-12 px and reads as pack ice thinning, not as a cut."
+    },
+    {
+      "id": "N3",
+      "x": 460,
+      "y": 0,
+      "w": 356,
+      "h": 304,
+      "atlas": "504-772 x 90-232",
+      "rect": {
+        "x0": 44,
+        "y0": 90,
+        "x1": 312,
+        "y1": 232
+      },
+      "ramps": {
+        "left": 10,
+        "right": 32,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 44,
+        "y": 90,
+        "w": 268,
+        "h": 142
+      },
+      "salt": 25,
+      "seed": 726,
+      "status": "pending",
+      "intent": "One climatic sequence from land to sea: fast ice against the shore, a shelf edge with a calving line, large ice plates, brash, then open cold sea.",
+      "deferReason": "Two rolls, two failures, stopped per ART-03 §7 / M-12. Roll 1 (seed 706) produced the exact honeycomb tessellation it was told to avoid, because asking for \"large ice plates with water between them\" IS a request for a tessellation. Roll 2 (seed 717) fixed that - a drifted snow shelf with a ragged calving edge and three separated floes - but filled the top third with a flat solid teal rectangle of generated open water, which ART-03 §3 forbids outright (\"never generate flat water\", 0/4 historical acceptance). DIAGNOSIS for the next round: the mask (y 0-232) reaches into open-sea latitudes, so every roll has to invent sea. The fix is a shorter mask that stops at the ice (roughly y 90-232) and leaves the water to the deterministic ocean conform - a mask redesign, not another roll.",
+      "rimBlock": true,
+      "note": "Roll 3, coordinator-authorised, my own diagnosis applied: the mask no longer reaches open-sea latitudes (y 90-232, was 0-232), so no roll is forced to invent sea. Frozen margins 44 on every side. Clear of every golden: frostmere_north_wall keepout starts y=236, volcano_east_cliff y=240, east_watchtower_flank y=253 - all below the mask.",
+      "joinNote": "Left ramp 10 pairs with N2 right ramp 10 across the 16 px generation overlap (atlas 504-519). Both edges draw the SAME wander - N2 right uses wander(sy, salt+1)=wander(sy,25) and N3 left uses wander(sy, salt+0)=wander(sy,25) - so the two contours move symmetrically about atlas 511.5 and can never open a gap: half-width k = R(1+0.6w)/2 stays <= 8 for R=10, and a gap needs k > 8."
+    },
+    {
+      "id": "S1",
+      "x": 48,
+      "y": 790,
+      "w": 300,
+      "h": 282,
+      "atlas": "96-300 x 886-992",
+      "rect": {
+        "x0": 48,
+        "y0": 96,
+        "x1": 252,
+        "y1": 202
+      },
+      "ramps": {
+        "left": 24,
+        "right": 32,
+        "top": 32,
+        "bottom": 24
+      },
+      "inpaint": {
+        "x": 48,
+        "y": 96,
+        "w": 204,
+        "h": 106
+      },
+      "salt": 26,
+      "seed": 707,
+      "status": "pending",
+      "intent": "Storm-shadowed old-growth woodland on a rising knoll, its value stepped in three plies with glades and a rutted track running in."
+    },
+    {
+      "id": "S2",
+      "x": 256,
+      "y": 726,
+      "w": 348,
+      "h": 346,
+      "atlas": "300-560 x 886-1024",
+      "rect": {
+        "x0": 44,
+        "y0": 160,
+        "x1": 304,
+        "y1": 322
+      },
+      "ramps": {
+        "left": 24,
+        "right": 24,
+        "top": 32,
+        "bottom": 0
+      },
+      "inpaint": {
+        "x": 44,
+        "y": 160,
+        "w": 260,
+        "h": 138
+      },
+      "salt": 27,
+      "seed": 708,
+      "status": "pending",
+      "intent": "Dune ridges and tidal creeks running across the latitude instead of along it, seaward machair grading landward into sward through hedgerow and gorse, sand only where the sea reaches it."
+    },
+    {
+      "id": "S3",
+      "x": 332,
+      "y": 700,
+      "w": 384,
+      "h": 160,
+      "atlas": "372-676 x 740-789",
+      "rect": {
+        "x0": 40,
+        "y0": 40,
+        "x1": 344,
+        "y1": 89
+      },
+      "ramps": {
+        "left": 24,
+        "right": 24,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 40,
+        "y": 40,
+        "w": 304,
+        "h": 49
+      },
+      "salt": 28,
+      "seed": 709,
+      "status": "pending",
+      "intent": "River braids converging east to the trunk channel and reaching the sea, clumped reed margins and silt bars, marsh and silt interleaving in fingers.",
+      "rimBlock": true
+    },
+    {
+      "id": "NB1",
+      "x": 180,
+      "y": 0,
+      "w": 160,
+      "h": 300,
+      "atlas": "224-296 x 0-250",
+      "rect": {
+        "x0": 44,
+        "y0": -24,
+        "x1": 116,
+        "y1": 250
+      },
+      "ramps": {
+        "left": 24,
+        "right": 24,
+        "top": 0,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 44,
+        "y": 0,
+        "w": 72,
+        "h": 250
+      },
+      "salt": 29,
+      "seed": 716,
+      "status": "pending",
+      "intent": "Bridge: one continuous wind-drifted snowfield carried across the N1/N2 join so the two regions read as one slope.",
+      "note": "Not an ART-03 region. The N1 and N2 crops overlap by only 12 atlas px, too narrow to author a boundary in: paired ramps stop the base leaking but the contour can wander only +/-3.6 px, and the join read as a straight vertical at atlas x=246 down the whole phone viewport. This bridge is cut from the composite AFTER N1 and N2 landed, so it carries both their snow languages in its frozen margins and can author across them (WACUI bridge pattern). Crop published at commit f71aa30 so PixelLab could fetch it."
+    },
+    {
+      "id": "NB2",
+      "x": 440,
+      "y": 60,
+      "w": 140,
+      "h": 200,
+      "atlas": "476-548 x 90-230",
+      "rect": {
+        "x0": 36,
+        "y0": 30,
+        "x1": 108,
+        "y1": 170
+      },
+      "ramps": {
+        "left": 32,
+        "right": 32,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 36,
+        "y": 30,
+        "w": 72,
+        "h": 140
+      },
+      "salt": 30,
+      "seed": 736,
+      "status": "pending",
+      "intent": "Bridge: drifted snow breaking up into the first worn floes and narrow winding leads, so the N2 snow and the N3 pack ice read as one fraying shelf edge instead of a vertical cut.",
+      "rimBlock": true,
+      "note": "Not an ART-03 region. N2 (mask to atlas x 520) and N3 (mask from atlas x 504) overlap by 16 px and their paired 10 px ramps stop the base leaking, but the terrain either side is a texture change a 10 px ramp cannot carry: flat drifted snow on the left, teal leads and floes on the right. At x2 the join read as a near-vertical edge at atlas x ~ 505-518 over y 90-236. Cut from the composite AFTER N2 and N3 landed so it carries both languages in its frozen margins (NB1 / WACUI bridge pattern). Crop published at commit 2bb50f0 so PixelLab could fetch it.",
+      "goldenNote": "Mask bottom atlas y=230 keeps 6 px clear of frostmere_north_wall keepout, which starts at y=236."
+    },
+    {
+      "id": "NB3",
+      "x": 440,
+      "y": 0,
+      "w": 140,
+      "h": 150,
+      "atlas": "476-548 x 0-110",
+      "rect": {
+        "x0": 36,
+        "y0": -24,
+        "x1": 108,
+        "y1": 110
+      },
+      "ramps": {
+        "left": 32,
+        "right": 32,
+        "top": 0,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 36,
+        "y": 0,
+        "w": 72,
+        "h": 110
+      },
+      "salt": 31,
+      "seed": 746,
+      "status": "pending",
+      "intent": "Bridge: drifted snow fraying diagonally into worn floes and narrow leads, carried up the x~513 meridian from NB2’s top edge to the canvas edge, so N2’s snow and the surviving master pack ice stop meeting on a straight line.",
+      "rimBlock": true,
+      "note": "Not an ART-03 region. FINAL-04 #2: NB2 fixed this meridian only from y=90 down; above it a 110 px razor vertical survived at atlas x~513 (column mean L1 81.0 against a band median of 29.6), N2’s snow on the left and the untouched master pack ice on the right. Cut from the current composite AFTER the N1/N2 quantise and NB2 landed, so both languages sit frozen in its margins (NB1/NB2/WACUI bridge pattern). Crop published at commit c8b8605 so PixelLab could fetch it.",
+      "goldenNote": "Mask ends at atlas y=110, far above every golden in the north (frostmere_north_wall keepout starts y=236) and far above the A-4 core (y=256)."
+    },
+    {
+      "id": "GAP",
+      "x": 134,
+      "y": 124,
+      "w": 138,
+      "h": 202,
+      "atlas": "150-256 x 140-310",
+      "rect": {
+        "x0": 16,
+        "y0": 16,
+        "x1": 122,
+        "y1": 186
+      },
+      "ramps": {
+        "left": 32,
+        "right": 20,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 16,
+        "y": 16,
+        "w": 106,
+        "h": 170
+      },
+      "salt": 32,
+      "seed": 756,
+      "status": "pending",
+      "intent": "Repaint the grey-green slab of unclaimed master terrain between N1 and the A-4 core wall as one wind-drifted snowfield breaking up into heath, rock and a ragged conifer treeline, so its four straight edges stop being the strongest lines in the band.",
+      "rimBlock": true,
+      "note": "Not an ART-03 region. FINAL-04 #9 / the coordinator’s re-read: a drab olive-grey rectangle at roughly atlas 195-245 x 200-256. PROVENANCE CORRECTED BY MEASUREMENT before rolling: it is NOT unclaimed master terrain. N1’s mask reads 255 across it and the composite there is byte-identical to N1’s own generation; only 1.9% of the rect (54 of 2,856 px) still matches the 4d9a81f master. It is N1’s \"rime conifers on the south margin\" drawn as a slab, and the palette remap then snapped it flat. So this is a repaint of an accepted region, not a fill of a hole, and GAP composites AFTER N1 and NB1 to supersede them. Measured edges before: x=230 scores 93.9 and x=233 carries 27 px of unbroken run against a band median of 40.7; y=255 scores 133.4 with a 35 px run against 39.3. Crop cut from the current composite and published at commit c79e197 so PixelLab could fetch it.",
+      "goldenNote": "No golden lies in atlas 150-256 x 140-310 (the nearest, west_caravan_road and roadjoin_corridor_west, start at y=480). The rect’s right edge sits exactly on the A-4 core wall at x=256 and rimBlock forces alpha 0 from there in, so the frozen core and its dithered rim are untouched.",
+      "rampNote": "Right ramp chosen by sweep, not by convention. At the briefed 32 the ramp reached full alpha only at atlas ~224, so the old slab’s rightmost columns survived as a 7x28 grey rectangle at atlas 239-246 x 227-255 — the exact defect class being removed. Measured over 236-252 x 225-258 (surviving slab-grey px) and the worst straight run in columns 230-256: r8 1/14, r12 1/36, r16 3/14, r20 10/10, r24 61/23, r28 107/23, r32 155/18. 20 is the minimum of the straight-run metric with the sliver down 94%."
+    }
+  ],
+  "deferred": [
+    {
+      "id": "S4",
+      "atlas": "628-786 x 806-880",
+      "reason": "UNRESOLVED — the whole mask rect lies inside the south_strand_e golden (512-800 x 810-870) plus its 20 px keepout. Nothing is writable without re-extracting that golden, which is an owner authorization (ART-03 §2 note, R3b pattern). Not attempted."
+    },
+    {
+      "id": "E1",
+      "atlas": "772-1010 x 30-200",
+      "reason": "Gated on N3's review saying the east half still speckles."
+    }
+  ]
+}
