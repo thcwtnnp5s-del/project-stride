@@ -1,26 +1,24 @@
 [
   {
-    "id": "traveler_plate_bronze_idle",
+    "id": "traveler_base_bronze_brace",
     "ok": true,
-    "frames": 8,
+    "frames": 6,
     "canvasWidth": 80,
     "canvasHeight": 64,
     "anchorRow": 62,
     "window": [
-      8,
+      5,
       12
     ],
     "footRowSrc": 74,
     "union": [
       19,
-      1,
-      59,
+      2,
+      60,
       62
     ],
     "keyedPixels": 0,
     "clippedTop": [
-      0,
-      0,
       0,
       0,
       0,
@@ -34,26 +32,24 @@
       0,
       0,
       0,
-      0,
-      0,
       0
     ]
   },
   {
-    "id": "traveler_plate_bronze_attack",
+    "id": "traveler_coat_bronze_brace",
     "ok": true,
-    "frames": 8,
+    "frames": 6,
     "canvasWidth": 80,
     "canvasHeight": 64,
     "anchorRow": 62,
     "window": [
-      8,
+      5,
       12
     ],
     "footRowSrc": 74,
     "union": [
-      18,
-      1,
+      12,
+      -3,
       66,
       62
     ],
@@ -61,6 +57,40 @@
     "clippedTop": [
       0,
       0,
+      8,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_coat_steel_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      9,
+      15
+    ],
+    "footRowSrc": 77,
+    "union": [
+      14,
+      0,
+      65,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
       0,
       0,
       0,
@@ -74,13 +104,11 @@
       0,
       0,
       0,
-      0,
-      0,
       0
     ]
   },
   {
-    "id": "traveler_plate_bronze_hit",
+    "id": "traveler_coat_unarmed_brace",
     "ok": true,
     "frames": 6,
     "canvasWidth": 80,
@@ -92,320 +120,8 @@
     ],
     "footRowSrc": 74,
     "union": [
-      11,
-      1,
-      68,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_steel_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      19,
-      1,
-      59,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_steel_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      14,
-      1,
-      67,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_unarmed_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      26,
-      1,
-      53,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_unarmed_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      7,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      8,
-      1,
-      70,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_unarmed_hit",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      6,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      25,
-      -1,
-      54,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      3
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_unarmed_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      5,
-      11
-    ],
-    "footRowSrc": 73,
-    "union": [
-      18,
+      22,
       2,
-      60,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_bronze_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      11
-    ],
-    "footRowSrc": 73,
-    "union": [
-      15,
-      2,
-      68,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_bronze_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      21,
-      1,
       57,
       62
     ],
@@ -416,86 +132,6 @@
       0,
       0,
       0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_bronze_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      21,
-      1,
-      61,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_bronze_hit",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      4,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      14,
-      1,
-      64,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
       0
     ],
     "clippedBottom": [
@@ -508,243 +144,7 @@
     ]
   },
   {
-    "id": "traveler_jerkin_bronze_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      17,
-      1,
-      61,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_steel_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      21,
-      1,
-      59,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_steel_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      6,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      10,
-      -3,
-      69,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      14,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_steel_hit",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      3,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      8,
-      1,
-      70,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_steel_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      7,
-      11
-    ],
-    "footRowSrc": 73,
-    "union": [
-      14,
-      1,
-      64,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_steel_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      5,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      6,
-      -1,
-      73,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_steel_hit",
+    "id": "traveler_jerkin_bronze_brace",
     "ok": true,
     "frames": 6,
     "canvasWidth": 80,
@@ -752,283 +152,11 @@
     "anchorRow": 62,
     "window": [
       7,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      19,
-      1,
-      59,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_unarmed_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      5,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      23,
-      1,
-      55,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_unarmed_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      20,
-      1,
-      61,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_unarmed_hit",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      4,
       12
     ],
     "footRowSrc": 74,
     "union": [
       13,
-      1,
-      66,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_unarmed_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      4,
-      11
-    ],
-    "footRowSrc": 73,
-    "union": [
-      18,
-      2,
-      61,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_bronze_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      21,
-      1,
-      61,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_bronze_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      6,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      8,
-      1,
-      70,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_bronze_hit",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      3,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      14,
       1,
       65,
       62
@@ -1052,21 +180,21 @@
     ]
   },
   {
-    "id": "traveler_coat_bronze_stagger",
+    "id": "traveler_jerkin_steel_brace",
     "ok": true,
-    "frames": 8,
+    "frames": 6,
     "canvasWidth": 80,
     "canvasHeight": 64,
     "anchorRow": 62,
     "window": [
-      4,
-      11
+      8,
+      12
     ],
-    "footRowSrc": 73,
+    "footRowSrc": 74,
     "union": [
-      6,
-      2,
-      73,
+      14,
+      1,
+      64,
       63
     ],
     "keyedPixels": 0,
@@ -1076,13 +204,9 @@
       0,
       0,
       0,
-      0,
-      0,
       0
     ],
     "clippedBottom": [
-      0,
-      0,
       0,
       0,
       0,
@@ -1092,67 +216,25 @@
     ]
   },
   {
-    "id": "traveler_coat_steel_idle",
+    "id": "traveler_jerkin_unarmed_brace",
     "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      10,
-      15
-    ],
-    "footRowSrc": 77,
-    "union": [
-      21,
-      0,
-      58,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_steel_attack",
-    "ok": true,
-    "frames": 8,
+    "frames": 6,
     "canvasWidth": 80,
     "canvasHeight": 64,
     "anchorRow": 62,
     "window": [
       4,
-      15
+      12
     ],
-    "footRowSrc": 77,
+    "footRowSrc": 74,
     "union": [
-      16,
-      0,
-      63,
+      24,
+      1,
+      55,
       62
     ],
     "keyedPixels": 0,
     "clippedTop": [
-      0,
-      0,
       0,
       0,
       0,
@@ -1166,13 +248,11 @@
       0,
       0,
       0,
-      0,
-      0,
       0
     ]
   },
   {
-    "id": "traveler_coat_steel_hit",
+    "id": "traveler_plate_bronze_brace",
     "ok": true,
     "frames": 6,
     "canvasWidth": 80,
@@ -1180,127 +260,11 @@
     "anchorRow": 62,
     "window": [
       5,
-      15
-    ],
-    "footRowSrc": 77,
-    "union": [
-      17,
-      0,
-      61,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_steel_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      2,
-      15
-    ],
-    "footRowSrc": 77,
-    "union": [
-      7,
-      0,
-      72,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_unarmed_idle",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
       12
     ],
     "footRowSrc": 74,
     "union": [
-      25,
-      1,
-      53,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_unarmed_attack",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      8,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      23,
+      10,
       1,
       68,
       62
@@ -1312,13 +276,9 @@
       0,
       0,
       0,
-      0,
-      0,
       0
     ],
     "clippedBottom": [
-      0,
-      0,
       0,
       0,
       0,
@@ -1328,295 +288,91 @@
     ]
   },
   {
-    "id": "traveler_coat_unarmed_hit",
+    "id": "traveler_plate_steel_brace",
     "ok": true,
     "frames": 6,
     "canvasWidth": 80,
     "canvasHeight": 64,
     "anchorRow": 62,
     "window": [
-      2,
-      9
-    ],
-    "footRowSrc": 71,
-    "union": [
-      13,
-      4,
-      65,
-      65
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      12,
-      10,
-      4,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_unarmed_stagger",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      6,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      19,
-      1,
-      60,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_bronzepick_mine",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      16,
-      20
-    ],
-    "footRowSrc": 82,
-    "union": [
-      7,
-      -2,
-      72,
-      66
-    ],
-    "keyedPixels": 4,
-    "clippedTop": [
-      9,
-      10,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      43,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_bronzepick_mine",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      4,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      9,
-      0,
-      70,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_bronzeaxe_woodcut",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      4,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      9,
-      1,
-      70,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_bronzeaxe_woodcut",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      1,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      12,
-      1,
-      66,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_base_bronzeaxe_woodcut",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 80,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      10,
-      18
-    ],
-    "footRowSrc": 80,
-    "union": [
-      4,
-      0,
-      75,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_forage",
-    "ok": true,
-    "frames": 9,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      12,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
       8,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      17,
+      2,
+      68,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_plate_unarmed_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      3,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      22,
+      2,
+      57,
+      64
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      5,
+      4,
+      5
+    ]
+  },
+  {
+    "id": "traveler_base_unarmed_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      4,
+      13
+    ],
+    "footRowSrc": 75,
+    "union": [
+      23,
       1,
       55,
       62
@@ -1628,441 +384,9 @@
       0,
       0,
       0,
-      0,
-      0,
-      0,
       0
     ],
     "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_look_around",
-    "ok": true,
-    "frames": 7,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      14,
-      1,
-      48,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_walk_west",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      15,
-      1,
-      48,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_plate_idle_breathe",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      13,
-      1,
-      50,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_forage",
-    "ok": true,
-    "frames": 9,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      12,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      9,
-      1,
-      53,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_look_around",
-    "ok": true,
-    "frames": 7,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      12,
-      0,
-      50,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_walk_west",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      15,
-      1,
-      47,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_jerkin_idle_breathe",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      13,
-      0,
-      50,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_forage",
-    "ok": true,
-    "frames": 9,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      11,
-      1,
-      52,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_look_around",
-    "ok": true,
-    "frames": 7,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      15,
-      1,
-      48,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_walk_west",
-    "ok": true,
-    "frames": 6,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      10,
-      11
-    ],
-    "footRowSrc": 73,
-    "union": [
-      15,
-      2,
-      47,
-      63
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]
-  },
-  {
-    "id": "traveler_coat_idle_breathe",
-    "ok": true,
-    "frames": 8,
-    "canvasWidth": 64,
-    "canvasHeight": 64,
-    "anchorRow": 62,
-    "window": [
-      11,
-      12
-    ],
-    "footRowSrc": 74,
-    "union": [
-      15,
-      0,
-      48,
-      62
-    ],
-    "keyedPixels": 0,
-    "clippedTop": [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    "clippedBottom": [
-      0,
-      0,
       0,
       0,
       0,

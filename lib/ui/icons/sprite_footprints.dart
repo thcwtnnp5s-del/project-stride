@@ -344,6 +344,27 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_traveler_coat_bronzepick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerCoatBronzepickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_base_bronzepick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerBaseBronzepickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_plate_bronzeaxe_woodcut` — 11 px of contact, 27..37.
+  static const SpriteFootprint ambientTravelerPlateBronzeaxeWoodcut = SpriteFootprint(
+    left: 27,
+    right: 37,
+    bottom: 62,
+  );
+
   /// `ambient_traveler_plate_forage` — 11 px of contact, 27..37.
   static const SpriteFootprint ambientTravelerPlateForage = SpriteFootprint(
     left: 27,
@@ -722,6 +743,118 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `combat_boar_hit` — 23 px of contact, 23..45.
+  static const SpriteFootprint combatBoarHit = SpriteFootprint(
+    left: 23,
+    right: 45,
+    bottom: 43,
+  );
+
+  /// `combat_bear_hit` — 43 px of contact, 21..63.
+  static const SpriteFootprint combatBearHit = SpriteFootprint(
+    left: 21,
+    right: 63,
+    bottom: 61,
+  );
+
+  /// `combat_salamander_hit` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderHit = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 49,
+  );
+
+  /// `combat_crawler_hit` — 44 px of contact, 2..45.
+  static const SpriteFootprint combatCrawlerHit = SpriteFootprint(
+    left: 2,
+    right: 45,
+    bottom: 39,
+  );
+
+  /// `combat_crawler_defeat` — 46 px of contact, 0..45.
+  static const SpriteFootprint combatCrawlerDefeat = SpriteFootprint(
+    left: 0,
+    right: 45,
+    bottom: 39,
+  );
+
+  /// `combat_old_grey_idle` — 25 px of contact, 21..45.
+  static const SpriteFootprint combatOldGreyIdle = SpriteFootprint(
+    left: 21,
+    right: 45,
+    bottom: 40,
+  );
+
+  /// `combat_old_grey_attack` — 25 px of contact, 22..46.
+  static const SpriteFootprint combatOldGreyAttack = SpriteFootprint(
+    left: 22,
+    right: 46,
+    bottom: 40,
+  );
+
+  /// `combat_gallery_foreman_idle` — 14 px of contact, 22..35.
+  static const SpriteFootprint combatGalleryForemanIdle = SpriteFootprint(
+    left: 22,
+    right: 35,
+    bottom: 46,
+  );
+
+  /// `combat_gallery_foreman_attack` — 10 px of contact, 23..32.
+  static const SpriteFootprint combatGalleryForemanAttack = SpriteFootprint(
+    left: 23,
+    right: 32,
+    bottom: 46,
+  );
+
+  /// `combat_rimeclaw_matriarch_idle` — 42 px of contact, 9..50.
+  static const SpriteFootprint combatRimeclawMatriarchIdle = SpriteFootprint(
+    left: 9,
+    right: 50,
+    bottom: 40,
+  );
+
+  /// `combat_rimeclaw_matriarch_attack` — 41 px of contact, 8..48.
+  static const SpriteFootprint combatRimeclawMatriarchAttack = SpriteFootprint(
+    left: 8,
+    right: 48,
+    bottom: 40,
+  );
+
+  /// `combat_guardian_awakened_idle` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianAwakenedIdle = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
+  );
+
+  /// `combat_guardian_awakened_attack` — 20 px of contact, 38..57.
+  static const SpriteFootprint combatGuardianAwakenedAttack = SpriteFootprint(
+    left: 38,
+    right: 57,
+    bottom: 83,
+  );
+
+  /// `combat_ram2_idle` — 24 px of contact, 22..45.
+  static const SpriteFootprint combatRam2Idle = SpriteFootprint(
+    left: 22,
+    right: 45,
+    bottom: 42,
+  );
+
+  /// `combat_traveler_base_unarmed_brace` — 8 px of contact, 25..32.
+  static const SpriteFootprint combatTravelerBaseUnarmedBrace = SpriteFootprint(
+    left: 25,
+    right: 32,
+    bottom: 60,
+  );
+
+  /// `combat_traveler_base_bronze_brace` — 12 px of contact, 37..48.
+  static const SpriteFootprint combatTravelerBaseBronzeBrace = SpriteFootprint(
+    left: 37,
+    right: 48,
+    bottom: 62,
+  );
+
   /// `combat_traveler_plate_bronze_idle` — 30 px of contact, 30..59.
   static const SpriteFootprint combatTravelerPlateBronzeIdle = SpriteFootprint(
     left: 30,
@@ -748,6 +881,13 @@ abstract final class SpriteFootprints {
     left: 25,
     right: 59,
     bottom: 63,
+  );
+
+  /// `combat_traveler_plate_bronze_brace` — 10 px of contact, 33..42.
+  static const SpriteFootprint combatTravelerPlateBronzeBrace = SpriteFootprint(
+    left: 33,
+    right: 42,
+    bottom: 62,
   );
 
   /// `combat_traveler_plate_steel_idle` — 11 px of contact, 30..40.
@@ -778,6 +918,13 @@ abstract final class SpriteFootprints {
     bottom: 61,
   );
 
+  /// `combat_traveler_plate_steel_brace` — 10 px of contact, 29..38.
+  static const SpriteFootprint combatTravelerPlateSteelBrace = SpriteFootprint(
+    left: 29,
+    right: 38,
+    bottom: 62,
+  );
+
   /// `combat_traveler_plate_unarmed_idle` — 11 px of contact, 30..40.
   static const SpriteFootprint combatTravelerPlateUnarmedIdle = SpriteFootprint(
     left: 30,
@@ -806,6 +953,13 @@ abstract final class SpriteFootprints {
     bottom: 63,
   );
 
+  /// `combat_traveler_plate_unarmed_brace` — 11 px of contact, 33..43.
+  static const SpriteFootprint combatTravelerPlateUnarmedBrace = SpriteFootprint(
+    left: 33,
+    right: 43,
+    bottom: 62,
+  );
+
   /// `combat_traveler_jerkin_bronze_idle` — 10 px of contact, 30..39.
   static const SpriteFootprint combatTravelerJerkinBronzeIdle = SpriteFootprint(
     left: 30,
@@ -829,6 +983,13 @@ abstract final class SpriteFootprints {
 
   /// `combat_traveler_jerkin_bronze_stagger` — 10 px of contact, 30..39.
   static const SpriteFootprint combatTravelerJerkinBronzeStagger = SpriteFootprint(
+    left: 30,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_bronze_brace` — 10 px of contact, 30..39.
+  static const SpriteFootprint combatTravelerJerkinBronzeBrace = SpriteFootprint(
     left: 30,
     right: 39,
     bottom: 62,
@@ -862,6 +1023,13 @@ abstract final class SpriteFootprints {
     bottom: 63,
   );
 
+  /// `combat_traveler_jerkin_steel_brace` — 13 px of contact, 29..41.
+  static const SpriteFootprint combatTravelerJerkinSteelBrace = SpriteFootprint(
+    left: 29,
+    right: 41,
+    bottom: 62,
+  );
+
   /// `combat_traveler_jerkin_unarmed_idle` — 11 px of contact, 28..38.
   static const SpriteFootprint combatTravelerJerkinUnarmedIdle = SpriteFootprint(
     left: 28,
@@ -888,6 +1056,13 @@ abstract final class SpriteFootprints {
     left: 29,
     right: 39,
     bottom: 63,
+  );
+
+  /// `combat_traveler_jerkin_unarmed_brace` — 11 px of contact, 29..39.
+  static const SpriteFootprint combatTravelerJerkinUnarmedBrace = SpriteFootprint(
+    left: 29,
+    right: 39,
+    bottom: 62,
   );
 
   /// `combat_traveler_coat_bronze_idle` — 12 px of contact, 30..41.
@@ -918,6 +1093,13 @@ abstract final class SpriteFootprints {
     bottom: 63,
   );
 
+  /// `combat_traveler_coat_bronze_brace` — 12 px of contact, 33..44.
+  static const SpriteFootprint combatTravelerCoatBronzeBrace = SpriteFootprint(
+    left: 33,
+    right: 44,
+    bottom: 62,
+  );
+
   /// `combat_traveler_coat_steel_idle` — 9 px of contact, 29..37.
   static const SpriteFootprint combatTravelerCoatSteelIdle = SpriteFootprint(
     left: 29,
@@ -946,6 +1128,13 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `combat_traveler_coat_steel_brace` — 9 px of contact, 30..38.
+  static const SpriteFootprint combatTravelerCoatSteelBrace = SpriteFootprint(
+    left: 30,
+    right: 38,
+    bottom: 62,
+  );
+
   /// `combat_traveler_coat_unarmed_idle` — 10 px of contact, 28..37.
   static const SpriteFootprint combatTravelerCoatUnarmedIdle = SpriteFootprint(
     left: 28,
@@ -971,6 +1160,13 @@ abstract final class SpriteFootprints {
   static const SpriteFootprint combatTravelerCoatUnarmedStagger = SpriteFootprint(
     left: 29,
     right: 38,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_unarmed_brace` — 10 px of contact, 31..40.
+  static const SpriteFootprint combatTravelerCoatUnarmedBrace = SpriteFootprint(
+    left: 31,
+    right: 40,
     bottom: 62,
   );
 
@@ -1156,14 +1352,14 @@ abstract final class SpriteFootprints {
       bottom: 47,
     ),
     'assets/art/v1/work/prop_hollow_root.png': SpriteFootprint(
-      left: 18,
-      right: 29,
+      left: 8,
+      right: 38,
       bottom: 45,
     ),
     'assets/art/v1/work/prop_meadow_bed.png': SpriteFootprint(
-      left: 9,
-      right: 38,
-      bottom: 46,
+      left: 10,
+      right: 40,
+      bottom: 44,
     ),
     'assets/art/v1/work/prop_meadow_patch.png': SpriteFootprint(
       left: 49,
@@ -1186,9 +1382,9 @@ abstract final class SpriteFootprints {
       bottom: 43,
     ),
     'assets/art/v1/work/prop_rime_cushion.png': SpriteFootprint(
-      left: 13,
-      right: 34,
-      bottom: 46,
+      left: 6,
+      right: 41,
+      bottom: 43,
     ),
     'assets/art/v1/work/prop_ruin_face.png': SpriteFootprint(
       left: 16,

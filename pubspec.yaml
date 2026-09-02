@@ -104,6 +104,68 @@ flutter:
     # NOT declared here — it must not ship in the bundle.
     - assets/ui/v1/frame/chassis_64.png
 
+    # FMPO02 wave 2 — the interior materials. Ten 32-square tiles, drawn x2
+    # through PanelSurfaces, one per screen family. These are the SECOND
+    # identity axis DECISIONS/0029 named: a card differs from its neighbour by
+    # what it is made of, never by a second border. Sidecar .json files beside
+    # them are build-time geometry for Scripts/art/check-tile-seam.js and are
+    # deliberately NOT declared — they must not ship in the bundle.
+    - assets/ui/v1/surface/grain_journal_leaf.png
+    - assets/ui/v1/surface/grain_oilcloth.png
+    - assets/ui/v1/surface/grain_buckram.png
+    - assets/ui/v1/surface/grain_leather.png
+    - assets/ui/v1/surface/grain_bench_oak.png
+    - assets/ui/v1/surface/grain_steel.png
+    - assets/ui/v1/surface/grain_slate.png
+    - assets/ui/v1/surface/grain_chart_vellum.png
+    - assets/ui/v1/surface/grain_cork.png
+    - assets/ui/v1/surface/grain_plan_linen.png
+
+    # The bands — the THIRD axis. 384 x 48 pictures drawn x1 and clipped,
+    # never tiled and never stretched (lib/ui/components/band_plate.dart).
+    # band_combat_kit is declared and deliberately not drawn: the combat
+    # screen's picture is its stage, and a band above it would be a second
+    # picture competing with the first. Recorded in band_plate.dart.
+    - assets/ui/v1/band/band_forge.png
+    - assets/ui/v1/band/band_cookfire.png
+    - assets/ui/v1/band/band_bench.png
+    - assets/ui/v1/band/band_foraging.png
+    - assets/ui/v1/band/band_mining.png
+    - assets/ui/v1/band/band_world_chart.png
+    - assets/ui/v1/band/band_encounter_ground.png
+    - assets/ui/v1/band/band_adventure_trail.png
+    - assets/ui/v1/band/band_boards_batten.png
+    - assets/ui/v1/band/band_combat_kit.png
+
+    # The two button plates, drawn through PixelFrame as nine-patches at the
+    # geometry MEASURED from each PNG (ButtonPlates in panel_skin.dart).
+    - assets/ui/v1/button/btn_plate.png
+    - assets/ui/v1/button/btn_compact.png
+
+    # The two chrome edges, tiled horizontally at period 8 through EdgeStrip:
+    # the nav bar's welt where a 1 px border was, and the header's shelf
+    # where the 24 %-alpha region hairline was.
+    - assets/ui/v1/nav/nav_welt.png
+    - assets/ui/v1/header/header_shelf.png
+    # The notable-card grain (FMPO02 wave 2, PROD-REWARDS). A 32² seamless
+    # parchment tile drawn under a card body only when the result is notable.
+    - assets/ui/v1/surface/grain_notable_plate.png
+    # The combat HUD (FMPO02 wave 2, PROD-COMBAT-STAGE). Interface chrome for
+    # the fight screen: one gauge frame, the turn tab, the narration tile, the
+    # three command plates and their glyphs. Packaged and declared here; the
+    # stage geometry that draws them is a separate task, and the nine-patch
+    # numbers each was built to are in assets/ui/v1/README.md. Retreat has no
+    # icon on purpose — ART-09 §5 specifies it as a plain text link.
+    - assets/ui/v1/combat/hp_gauge_frame.png
+    - assets/ui/v1/combat/turn_marker.png
+    - assets/ui/v1/combat/narration_strip.png
+    - assets/ui/v1/combat/plate_attack.png
+    - assets/ui/v1/combat/plate_brace.png
+    - assets/ui/v1/combat/plate_eat.png
+    - assets/ui/v1/combat/icon_attack.png
+    - assets/ui/v1/combat/icon_brace.png
+    - assets/ui/v1/combat/icon_eat.png
+
     # Game art, v1. Authored in PixelLab, packaged by
     # `Scripts/art/package-art.js`, which is the only thing that writes this
     # directory — run it rather than editing a file here, and CI re-runs it with
@@ -185,6 +247,14 @@ flutter:
     - assets/art/v1/item/waywarden_tunic.png
     - assets/art/v1/item/tinbraced_pickaxe.png
     - assets/art/v1/item/frostwarden_coat.png
+    # FMPO02 wave 2 (ART-07 §3) — recipe-level art, not item art. The three
+    # reclaims all output item.bronze_ingot, so the bench drew one ingot on
+    # three rows; these are the salvage crate stamped with the piece being
+    # broken down. Named by PixelIcons._recipeIcons and gated on
+    # _packagedRecipeIcons, which these three rows are the fact behind.
+    - assets/art/v1/item/reclaim_axe.png
+    - assets/art/v1/item/reclaim_pickaxe.png
+    - assets/art/v1/item/reclaim_chestplate.png
     # Transformation Build 01 — whole-directory families. These four are
     # generated in bulk by the packaging script (185 ambient frames, the atlas
     # base + landmarks, 29 env sprites, 8 node vignettes), and the script's

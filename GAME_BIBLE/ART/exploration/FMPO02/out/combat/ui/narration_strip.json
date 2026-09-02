@@ -1,0 +1,8 @@
+{
+  "asset": "narration_strip.png",
+  "canvas": { "width": 64, "height": 16 },
+  "type": "tile-horizontal",
+  "tileUnit": 14,
+  "construction": "PixelLab pixen cannot generate a non-square 64x16 canvas directly (short side <32px), so a 16x16 candidate (seed 32, 'narr_b') was generated, cropped to its continuous cols 1-14 (14px, the flat torn-parchment cross-section), and repeated 5x via hstitch (last repeat truncated at 64px).",
+  "integrationNote": "Seams recur every 14px as a deliberate 'joined parchment segment' look (matches the torn-edge motif) rather than being sub-pixel invisible. Tile copies of this 64x16 image edge-to-edge for a longer strip — because the internal pattern is uniformly periodic at 14px, an engine-level repeat continues the same rhythm and introduces no new seam."
+}

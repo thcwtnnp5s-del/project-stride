@@ -1,0 +1,23 @@
+{
+  "asset": "rule_cap_right",
+  "destination": "assets/ui/v1/ornament/rule_cap_right.png",
+  "kind": "discrete ornament, positioned by Flutter",
+  "corner": null,
+  "band": null,
+  "scale": 2,
+  "note": "Authored, not mirrored from the left cap - a mirror flips the key light to the upper right (production plan 3.4).",
+  "master": "raw/ui/orn/rule_plate_b.png (cut 51,1,12,14)",
+  "canvas": [
+    12,
+    14
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 11,
+    "maxHex": "#A16338",
+    "maxL": 0.1679,
+    "verdict": "clean"
+  }
+}

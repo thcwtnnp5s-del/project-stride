@@ -1,0 +1,39 @@
+{
+  "asset": "rule_plate_64x16",
+  "destination": "assets/ui/v1/ornament/rule_plate_64x16.png",
+  "kind": "ornament plate carrying both rule caps and the tileable run",
+  "corner": null,
+  "band": null,
+  "period": 8,
+  "scale": 2,
+  "cuts": {
+    "rule_cap_left": [
+      1,
+      1,
+      12,
+      14
+    ],
+    "rule_cap_right": [
+      51,
+      1,
+      12,
+      14
+    ],
+    "rule_run": "the best-wrapping 8x4 window inside x 14..50, cut by tools/tile-cut.js"
+  },
+  "note": "Ships whole. Flutter positions the caps once each and tiles the run between them; nothing here is mirrored.",
+  "master": "raw/ui/orn/rule_plate_b.png",
+  "canvas": [
+    64,
+    16
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 16,
+    "maxHex": "#A16338",
+    "maxL": 0.1679,
+    "verdict": "clean"
+  }
+}

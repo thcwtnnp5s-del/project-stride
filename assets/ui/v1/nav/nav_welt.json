@@ -1,0 +1,24 @@
+{
+  "asset": "nav_welt",
+  "destination": "assets/ui/v1/nav/nav_welt.png",
+  "kind": "longitudinal tile, repeated along the top edge of the 64dp nav bar",
+  "corner": null,
+  "band": null,
+  "period": 8,
+  "scale": 2,
+  "tiles": "horizontally only; the last tile is clipped, never rescaled",
+  "master": "raw/ui/nav/welt_a.png",
+  "canvas": [
+    8,
+    4
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 8,
+    "maxHex": "#A16338",
+    "maxL": 0.1679,
+    "verdict": "clean"
+  }
+}

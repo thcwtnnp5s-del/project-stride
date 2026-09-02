@@ -1,0 +1,6 @@
+{
+  "asset": "turn_marker.png",
+  "canvas": { "width": 24, "height": 24 },
+  "type": "fixed",
+  "note": "Not a nine-patch — a single fixed leather-tab ornament (task brief calls for '24x24, a small leather tab', not a stretchable bar). No slicing required; place as-is."
+}

@@ -538,6 +538,33 @@
       "height": 52,
       "anchorX": 28,
       "anchorY": 51
+    },
+    {
+      "asset": "env/prop_fairy_castle",
+      "x": 2010,
+      "y": 2832,
+      "width": 96,
+      "height": 80,
+      "anchorX": 48,
+      "anchorY": 79
+    },
+    {
+      "asset": "env/prop_storm_house",
+      "x": 1308,
+      "y": 5526,
+      "width": 56,
+      "height": 64,
+      "anchorX": 28,
+      "anchorY": 63
+    },
+    {
+      "asset": "env/prop_ice_tower",
+      "x": 2712,
+      "y": 1512,
+      "width": 48,
+      "height": 80,
+      "anchorX": 24,
+      "anchorY": 79
     }
   ],
   "overlays": [
@@ -559,20 +586,6 @@
       "asset": "env/overlay_snow_flurry",
       "x": 3126,
       "y": 1896,
-      "frames": 8,
-      "frameMillis": 167,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 64,
-      "height": 64
-    },
-    {
-      "asset": "env/overlay_snow_flurry",
-      "x": 2496,
-      "y": 2106,
       "frames": 8,
       "frameMillis": 167,
       "drift": {
@@ -612,34 +625,6 @@
       "height": 48
     },
     {
-      "asset": "env/overlay_forest_mist",
-      "x": 1776,
-      "y": 4056,
-      "frames": 6,
-      "frameMillis": 250,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 0.4,
-      "width": 96,
-      "height": 48
-    },
-    {
-      "asset": "env/overlay_forest_mist",
-      "x": 2976,
-      "y": 4236,
-      "frames": 6,
-      "frameMillis": 250,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 0.4,
-      "width": 96,
-      "height": 48
-    },
-    {
       "asset": "env/overlay_birds",
       "x": 3336,
       "y": 2616,
@@ -657,20 +642,6 @@
       "asset": "env/overlay_birds",
       "x": 4056,
       "y": 3336,
-      "frames": 6,
-      "frameMillis": 167,
-      "drift": {
-        "x": 16,
-        "y": -3
-      },
-      "opacity": 0.9,
-      "width": 24,
-      "height": 24
-    },
-    {
-      "asset": "env/overlay_birds",
-      "x": 2616,
-      "y": 3876,
       "frames": 6,
       "frameMillis": 167,
       "drift": {
@@ -780,48 +751,6 @@
       },
       "opacity": 1,
       "width": 36,
-      "height": 48
-    },
-    {
-      "asset": "env/overlay_cloud_shadow",
-      "x": 2436,
-      "y": 3186,
-      "frames": 1,
-      "frameMillis": 1000,
-      "drift": {
-        "x": 12,
-        "y": 0
-      },
-      "opacity": 0.16,
-      "width": 96,
-      "height": 48
-    },
-    {
-      "asset": "env/overlay_cloud_shadow",
-      "x": 2136,
-      "y": 3686,
-      "frames": 1,
-      "frameMillis": 1000,
-      "drift": {
-        "x": 12,
-        "y": 0
-      },
-      "opacity": 0.16,
-      "width": 96,
-      "height": 48
-    },
-    {
-      "asset": "env/overlay_cloud_wisp",
-      "x": 3036,
-      "y": 2336,
-      "frames": 1,
-      "frameMillis": 1000,
-      "drift": {
-        "x": 9,
-        "y": 0
-      },
-      "opacity": 0.3,
-      "width": 96,
       "height": 48
     },
     {
@@ -991,43 +920,293 @@
     },
     {
       "asset": "env/overlay_redwyrm",
-      "x": 4416,
-      "y": 1836,
+      "x": 4200,
+      "y": 1440,
+      "width": 96,
+      "height": 64,
       "frames": 9,
       "frameMillis": 400,
-      "playLoops": 1,
-      "intervalMillis": 61000,
+      "playLoops": 2,
+      "intervalMillis": 22000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": 22,
+        "y": -4
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_stormdrake",
+      "x": 2100,
+      "y": 1140,
+      "width": 96,
+      "height": 56,
+      "frames": 9,
+      "frameMillis": 340,
+      "playLoops": 2,
+      "intervalMillis": 26000,
       "drift": {
         "x": 0,
         "y": 0
       },
       "travel": {
         "x": 30,
-        "y": -13
+        "y": 6
       },
-      "opacity": 1,
-      "width": 72,
-      "height": 32
+      "opacity": 1
     },
     {
-      "asset": "env/overlay_stormdrake",
+      "asset": "env/overlay_redwyrm_breath",
+      "x": 4680,
+      "y": 1800,
+      "width": 128,
+      "height": 64,
+      "frames": 8,
+      "frameMillis": 180,
+      "playLoops": 1,
+      "intervalMillis": 31000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_stormdrake_breath",
       "x": 4992,
       "y": 4128,
-      "frames": 9,
-      "frameMillis": 380,
+      "width": 128,
+      "height": 56,
+      "frames": 8,
+      "frameMillis": 340,
       "playLoops": 1,
-      "intervalMillis": 67000,
+      "intervalMillis": 34000,
       "drift": {
         "x": 0,
         "y": 0
       },
       "travel": {
-        "x": -30,
-        "y": 9
+        "x": -26,
+        "y": 8
       },
-      "opacity": 1,
-      "width": 72,
-      "height": 32
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_ice_beacon",
+      "x": 2712,
+      "y": 1032,
+      "width": 48,
+      "height": 80,
+      "frames": 7,
+      "frameMillis": 320,
+      "playLoops": 2,
+      "intervalMillis": 12000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_fairy_motes",
+      "x": 2268,
+      "y": 2520,
+      "width": 32,
+      "height": 32,
+      "frames": 4,
+      "frameMillis": 300,
+      "playLoops": 4,
+      "intervalMillis": 17000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_storm_lightning",
+      "x": 1248,
+      "y": 5028,
+      "width": 48,
+      "height": 64,
+      "frames": 8,
+      "frameMillis": 110,
+      "playLoops": 1,
+      "intervalMillis": 13000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_deer2",
+      "x": 1380,
+      "y": 1980,
+      "width": 48,
+      "height": 40,
+      "frames": 9,
+      "frameMillis": 300,
+      "playLoops": 2,
+      "intervalMillis": 35000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_bear3",
+      "x": 1980,
+      "y": 3900,
+      "width": 28,
+      "height": 28,
+      "frames": 9,
+      "frameMillis": 320,
+      "playLoops": 2,
+      "intervalMillis": 30000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_yeti3",
+      "x": 3600,
+      "y": 960,
+      "width": 44,
+      "height": 40,
+      "frames": 9,
+      "frameMillis": 350,
+      "playLoops": 2,
+      "intervalMillis": 28000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_wolfpair",
+      "x": 1812,
+      "y": 4188,
+      "width": 56,
+      "height": 44,
+      "frames": 9,
+      "frameMillis": 300,
+      "playLoops": 2,
+      "intervalMillis": 27000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_wagon",
+      "x": 2400,
+      "y": 3072,
+      "width": 32,
+      "height": 32,
+      "frames": 1,
+      "frameMillis": 12000,
+      "playLoops": 1,
+      "intervalMillis": 48000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": -11,
+        "y": 1
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_crows",
+      "x": 3216,
+      "y": 3036,
+      "width": 24,
+      "height": 24,
+      "frames": 7,
+      "frameMillis": 260,
+      "playLoops": 2,
+      "intervalMillis": 24000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_snowdrift",
+      "x": 1980,
+      "y": 900,
+      "width": 32,
+      "height": 32,
+      "frames": 9,
+      "frameMillis": 220,
+      "playLoops": 1,
+      "intervalMillis": 19000,
+      "drift": {
+        "x": 6,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_lantern",
+      "x": 2700,
+      "y": 3120,
+      "width": 16,
+      "height": 16,
+      "frames": 5,
+      "frameMillis": 240,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_chimney_smoke2",
+      "x": 2772,
+      "y": 3084,
+      "width": 16,
+      "height": 16,
+      "frames": 7,
+      "frameMillis": 240,
+      "playLoops": 3,
+      "intervalMillis": 11000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_fishing_boat",
+      "x": 4440,
+      "y": 3960,
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 400,
+      "playLoops": 3,
+      "intervalMillis": 26000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "travel": {
+        "x": -5,
+        "y": 2
+      },
+      "opacity": 1
     }
   ]
 }

@@ -1347,3 +1347,122 @@ bands with no receding-perspective cue at all, closer to how
 `habitat_rocky_ledge` and `habitat_snowbank` separate their ground from their
 background). Evidence: `GAME_BIBLE/ART/exploration/FMPO02/review/enemies/
 cave_compare_x4.png`.
+
+## Q-24 — `marker_profession` has an authored asset and no occasion to mark
+
+**Raised:** 2026-09-02, FMPO02 wave2, INTEG-REWARDS.
+**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
+**Target:** Lead Game Designer / Systems Designer, before any screen is
+wired to this mark.
+
+`marker_profession.png` (48², standing on its own) was generated in wave1
+and `ART-10_reward_brief.md` names only a candidate placement, explicitly
+hedged: *"skills_screen.dart `SkillHeaderRow` crest, for a whole-roadmap
+event. Don't force a placement — record UNRESOLVED if unnamed this round."*
+
+No report, controller, or beat in the codebase currently distinguishes "a
+whole profession's roadmap is complete" from an ordinary level-up —
+`SkillRoadmap`/`RoadmapLevel` (`lib/runtime/stride_session.dart`) track
+per-level standing, not a terminal, celebrate-once event. Wiring the mark to
+a guessed proxy (e.g. reaching the skill's `maxLevel`) would invent the
+design question it is supposed to answer, not implement one. This round left
+it unplaced in `RewardArt.markerProfession` (`lib/ui/icons/reward_art.dart`)
+with the same note. Needs an owner/design ruling on whether "profession
+mastery" is a real event before the asset is spent on a placement.
+
+## Q-25 — The south strand goldens hold the P0 the owner is complaining about
+
+**Raised:** 2026-09-02, FMPO02 wave2, PROD-WORLD-TERRAIN.
+**UNRESOLVED** — recorded rather than assumed (`RULES.md` G-3, A-4).
+**Target:** owner, before any further work on the southern atlas.
+
+D-02, "the latitude layer-cake", is a P0 on the device defect register and one
+of the things the world map is being rebuilt to fix. The pale sand stripe that
+runs through the southern *interior* rather than along the coast **is**
+`south_strand_w` (128,810 400×60) and `south_strand_e` (512,810 288×60) — two
+of the fifteen byte-enforced landmark goldens. With their 20 px keepouts they
+own atlas y 790–890 from x 108 to x 820.
+
+Consequence this round, measured rather than argued:
+
+- **S4** (SE Terrace & Spit) lies *entirely* inside `south_strand_e`'s keepout.
+  Zero writable pixels. Not attempted.
+- **S2** could only author the band *below* the strand (y 886–1024). The
+  stripe itself was untouched; what shipped breaks the cake by running dune
+  ridges and tidal creeks across the latitude beneath it, which is ART-03 §2's
+  own recommended default, not a resolution of the stripe.
+- **S1** could only start at y 886 instead of 838, so the top of the SW black
+  slab (D-12, also P0) is unchanged.
+
+The registry's own rule is that deliberate re-authoring of a landmark means
+**re-extracting its golden in the same commit — the golden's git diff is the
+authorization**. ART-03 §2 says in as many words that this "is an owner
+authorization, not mine". It is not a producer's call and was not taken.
+
+**The question:** may `south_strand_w` and `south_strand_e` be re-authored and
+their goldens re-extracted, so the southern strand can be drawn as a coast
+instead of held as a stripe? Related but separate from Q-13 (lime identity),
+which ART-03 §2 answers by default — lime stays, but as seaward machair.
+
+**Also unresolved, same shape, different zone:** the A-4 frozen core's 20 px
+rim (`package-art.js` `keepRepair`) hash-dithers *every* repair layer at
+roughly 50/50 against the master, so a region that changes terrain there
+composites as a speckled column. Measured on W1: 1,697 generation vs 1,946
+base pixels across atlas 256–276 × 276–460. The inner half of D-01's forest
+wall (256–276) and almost all of S3's delta apron therefore cannot be fixed by
+the region method at all. That is a property of the protection, not a bug in
+it — but it means those two defects need an owner decision about the core,
+not another generation.
+
+## Q-26 — Does a nav glyph belong to the chrome ceiling or to the type ladder?
+
+**Raised:** 2026-09-02, FMPO02 wave 2, INTEG-UI, on PROD-UI's finding
+(`MILESTONES/evidence/FMPO02/wave2/UI_report.md` §5).
+**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
+**Target:** UX-01 and the owner, before any further nav-glyph generation.
+
+**Numbered Q-26, not Q-24.** The dispatch asked for Q-24; Q-24 and Q-25 were
+claimed by the other wave 2 leads in the same window. Same question, next free
+number.
+
+### The question
+
+`ART_DIRECTION.md`'s ceiling holds every piece of interface art below `textMuted
+#7C7263` in relative luminance, on the principle that chrome which outshines the
+words has become a second piece of type. Eleven authored nav glyphs were
+produced this round in the **measured** `chassis_64` ramp and all eleven obey it.
+
+Side by side against the shipped set (`review/ui/nav_compare.png`) they are
+worse, and the reason is the ceiling itself:
+
+- **Legibility.** The chassis ramp tops out at `#985B30`, L = 0.144 — about
+  3.4:1 against `surfaceGround`. The glyphs the app ships today are flat
+  `#A8A093`-family silhouettes at roughly 6:1. A 14 px icon that names a
+  destination is closer to a word than to a border, and the ceiling that
+  correctly makes a welt recede makes that icon mushy.
+- **The active signal gets weaker, not stronger.** The `_hi` pair was authored
+  specifically to close the derived-variant debt in
+  `Scripts/art/nav-active-variant.js`. Authored inside one leather ramp, base
+  and `_hi` differ *less* than the index remap that derives them today, and the
+  World tab has no legal `_hi` at all — its two attempts were a radial burst and
+  a warm round disc, both named on the reject list.
+
+So: **is a navigation glyph chrome, bound by the ceiling, or is it type, bound
+by the 4.5:1 contrast floor instead?** Both answers are defensible and they
+produce different art. Answering it is also what decides whether the eleven
+candidates in `GAME_BIBLE/ART/exploration/FMPO02/out/ui/nav/` are re-rolled at a
+higher ceiling, adopted as they are, or discarded.
+
+### What was done in the meantime
+
+Nothing. INTEG-UI took PROD-UI's recommendation and **did not swap the glyphs**;
+`assets/ui/v1/nav_*.png` are untouched and the tab bar renders exactly the set it
+rendered before. The welt behind them (`nav/nav_welt.png`) and the leather ground
+are independent of this question and did ship.
+
+### Also recorded, because it will be rediscovered otherwise
+
+**PixelLab cannot author 14 × 14.** `pixflux` needs 1024 px of area (32 × 32
+minimum square) and `pixen` goes smaller but only in multiples of four. The
+candidates were authored at 16 × 16 on `pixen`, cropped to content and centred in
+14 — a crop, never a rescale.

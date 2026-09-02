@@ -40,24 +40,38 @@ function alphaAt(r, x, y) {
   return r.data[((y * r.width) + x) * 4 + 3];
 }
 
+// The figure is the LARGEST 8-connected component, not the lowest one: a
+// chip of swing effect can land below the sole, and flooding from the lowest
+// pixel then keeps the chip and deletes the man (found on the plate + axe
+// strip, frame 4). Packaging's own guard still floods from the foot, which
+// is right for a strip that has already been cleaned.
 function attachedMask(r) {
   const w = r.width, h = r.height;
   const opaque = (x, y) => x >= 0 && y >= 0 && x < w && y < h && alphaAt(r, x, y) !== 0;
-  let sx = -1, sy = -1;
-  for (let y = h - 1; y >= 0 && sy < 0; y--) {
-    for (let x = 0; x < w; x++) if (opaque(x, y)) { sx = x; sy = y; break; }
-  }
-  const seen = new Uint8Array(w * h);
-  if (sy < 0) return seen;
-  const stack = [[sx, sy]];
-  seen[sy * w + sx] = 1;
-  while (stack.length) {
-    const [cx, cy] = stack.pop();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-      const nx = cx + dx, ny = cy + dy;
-      if (opaque(nx, ny) && !seen[ny * w + nx]) { seen[ny * w + nx] = 1; stack.push([nx, ny]); }
+  const label = new Int32Array(w * h);
+  const sizes = [0];
+  let next = 1;
+  for (let y0 = 0; y0 < h; y0++) {
+    for (let x0 = 0; x0 < w; x0++) {
+      if (!opaque(x0, y0) || label[y0 * w + x0]) continue;
+      const id = next++;
+      sizes[id] = 0;
+      const stack = [[x0, y0]];
+      label[y0 * w + x0] = id;
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        sizes[id]++;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (opaque(nx, ny) && !label[ny * w + nx]) { label[ny * w + nx] = id; stack.push([nx, ny]); }
+        }
+      }
     }
   }
+  let best = 0;
+  for (let id = 1; id < next; id++) if (sizes[id] > sizes[best]) best = id;
+  const seen = new Uint8Array(w * h);
+  for (let i = 0; i < label.length; i++) seen[i] = label[i] === best ? 1 : 0;
   return seen;
 }
 

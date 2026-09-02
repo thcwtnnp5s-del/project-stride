@@ -1,0 +1,18 @@
+{
+  "asset": "band_world_chart",
+  "destination": "assets/ui/v1/band/band_world_chart.png",
+  "canvas": [
+    384,
+    48
+  ],
+  "kind": "picture band, drawn once edge to edge, never tiled and never stretched",
+  "corner": null,
+  "band": null,
+  "scale": 1,
+  "note": "Picture class, like PixelScene: drawn at x1, clipped to the card width, not a nine-patch and not a tile. No corner and no band to declare.",
+  "master": "raw/ui/band/world_chart_b.png",
+  "crop": "rows 23-70 of 96  (content-picked, 12585 non-backdrop px)  backdrop #6B5A3E",
+  "textSafe": "brightest L=0.1509 -> gain x0.930 so 4.5:1 holds under body text",
+  "ceiling": "#7C6A4A -> #786647 L=0.1395  under ceiling",
+  "guards": "teal 0  semi-alpha 0  over-ceiling 0  clean"
+}

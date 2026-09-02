@@ -1,0 +1,31 @@
+{
+  "asset": "grain_slate",
+  "destination": "assets/ui/v1/surface/grain_slate.png",
+  "canvas": [
+    32,
+    32
+  ],
+  "kind": "interior surface tile",
+  "corner": null,
+  "band": null,
+  "period": 32,
+  "scale": 2,
+  "tiles": "both axes, from the interior rect top-left, last row/column clipped never rescaled",
+  "alpha": "fully opaque, no alpha channel content",
+  "ramp": [
+    "#15161A",
+    "#1E2024",
+    "#2C2F34",
+    "#3F444A",
+    "#565B60"
+  ],
+  "master": "raw/ui/surface/slate_a.png",
+  "recipe": {
+    "flattenRadius": 4,
+    "grainDepthRungs": 2,
+    "rampTarget": 1,
+    "window": 32,
+    "method": "cut, no mirror"
+  },
+  "note": "Geometry measured from the asset. A surface has no corner and no band: PanelSkin insets by the FRAME band, and this tile is clipped to that interior."
+}

@@ -1,0 +1,11 @@
+{
+  "asset": "hp_gauge_frame.png",
+  "canvas": { "width": 96, "height": 16 },
+  "type": "nine-patch-horizontal",
+  "corner": 6,
+  "band": 3,
+  "construction": "Composited deterministically from one PixelLab pixen candidate (16x16 cap+band unit, seed 11), not generated at 96x16 directly — PixelLab's pixen tool refuses a non-square canvas when either side is below 32px. Left cap = cols 2-7 of the source unit (6px), band = cols 8-10 of the source unit (3px, tiled 28x), right cap = horizontal mirror of the left cap. Colors snapped to the ART-13/PIXELLAB_UI_PRODUCTION_PLAN CHASSIS ramp (#0F0D0B/#33291F/#4A3B2B/#6B5A3E/#7C6A4A) via reduce_colors.",
+  "opaqueContentRows": [4, 11],
+  "integrationNote": "The generated pill shape is only 8px tall (rows 4-11) inside the 16px canvas, tapering at rows 4 and 11 and flat/rectangular at rows 5-10. The Flutter-drawn HP fill should be inset within rows 5-10 (the flat straight section) and within roughly cols 7-88 (inside both end caps), not the full 16px height or full 96px width.",
+  "sliceColumns": { "leftCap": [0, 5], "band": [6, 89], "rightCap": [90, 95] }
+}

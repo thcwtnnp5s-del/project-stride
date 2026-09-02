@@ -1,0 +1,9 @@
+{
+  "asset": "plate_eat.png",
+  "canvas": { "width": 64, "height": 32 },
+  "type": "nine-patch",
+  "corner": 10,
+  "band": 12,
+  "material": "wood_eat (ART-13 §2: shadow #1A120C, mid #2A1D12, sheen #3E2C1B, edge #5A4128)",
+  "note": "Generated directly at 64x32 as one flat authored plate, then reduce_colors-snapped to the exact wood_eat ramp. Corner/band are a nine-slice approximation for engines that stretch this asset; at 64x32 no slicing is required. No icon baked in."
+}

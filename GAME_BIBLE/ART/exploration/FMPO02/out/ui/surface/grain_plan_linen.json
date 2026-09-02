@@ -1,0 +1,31 @@
+{
+  "asset": "grain_plan_linen",
+  "destination": "assets/ui/v1/surface/grain_plan_linen.png",
+  "canvas": [
+    32,
+    32
+  ],
+  "kind": "interior surface tile",
+  "corner": null,
+  "band": null,
+  "period": 32,
+  "scale": 2,
+  "tiles": "both axes, from the interior rect top-left, last row/column clipped never rescaled",
+  "alpha": "fully opaque, no alpha channel content",
+  "ramp": [
+    "#12161C",
+    "#1A2028",
+    "#28323E",
+    "#3B4A58",
+    "#4E6072"
+  ],
+  "master": "raw/ui/surface/plan_linen_c.png",
+  "recipe": {
+    "flattenRadius": 4,
+    "grainDepthRungs": 2,
+    "rampTarget": 1,
+    "window": 32,
+    "method": "cut, no mirror"
+  },
+  "note": "Geometry measured from the asset. A surface has no corner and no band: PanelSkin insets by the FRAME band, and this tile is clipped to that interior."
+}

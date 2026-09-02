@@ -1,0 +1,26 @@
+{
+  "asset": "btn_compact",
+  "destination": "assets/ui/v1/button/btn_compact.png",
+  "kind": "nine-patch button plate, drawn through PixelFrame",
+  "corner": 5,
+  "band": 2,
+  "period": null,
+  "scale": 2,
+  "ramp": "leather_primary #241F18 #3A332B #4A4034 #6B5A3E",
+  "states": "NONE authored. Every register and both states are index remaps of this one plate (DECISIONS/0029) - see out/ui/button/<candidate>/<name>__*.png.",
+  "measuredAgainstBrief": "ART-02 asked for corner 8 / band 4 (btn_plate) and corner 6 / band 3 (btn_compact). The model drew a thinner rim than that on every candidate and the numbers above are what it actually drew. Declaring the brief instead of the asset is the exact defect production plan 3.2.1 exists to prevent.",
+  "master": "out/ui/button/compact_a/compact_a.png",
+  "canvas": [
+    46,
+    22
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 4,
+    "maxHex": "#6B5A3E",
+    "maxL": 0.1079,
+    "verdict": "clean"
+  }
+}

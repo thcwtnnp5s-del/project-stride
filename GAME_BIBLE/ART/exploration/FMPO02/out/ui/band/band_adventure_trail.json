@@ -1,0 +1,18 @@
+{
+  "asset": "band_adventure_trail",
+  "destination": "assets/ui/v1/band/band_adventure_trail.png",
+  "canvas": [
+    384,
+    48
+  ],
+  "kind": "picture band, drawn once edge to edge, never tiled and never stretched",
+  "corner": null,
+  "band": null,
+  "scale": 1,
+  "note": "Picture class, like PixelScene: drawn at x1, clipped to the card width, not a nine-patch and not a tile. No corner and no band to declare.",
+  "master": "raw/ui/band/adventure_trail_b.png",
+  "crop": "rows 0-47 of 96  (content-picked, 11277 non-backdrop px)  backdrop #7C6A4A",
+  "textSafe": "brightest L=0.1621 -> gain x0.866 so 4.5:1 holds under body text",
+  "ceiling": "#5E7842 -> #58703D L=0.1400  under ceiling",
+  "guards": "teal 0  semi-alpha 0  over-ceiling 0  clean"
+}

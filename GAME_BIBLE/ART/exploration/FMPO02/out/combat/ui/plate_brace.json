@@ -1,0 +1,9 @@
+{
+  "asset": "plate_brace.png",
+  "canvas": { "width": 64, "height": 32 },
+  "type": "nine-patch",
+  "corner": 10,
+  "band": 12,
+  "material": "bluesteel_brace (ART-13 §2: shadow #1C2130, mid #2A3348, sheen #3A4268, edge #4E5C86)",
+  "note": "Generated directly at 64x32 as one flat authored plate. NOT colour-snapped by reduce_colors — the tool's inline-base64 path truncated on this file (known MCP transport limit) and the image was not committed/pushed to a URL to retry the _url variant; the candidate was accepted as generated after a manual visual check found no reserved-teal, magenta, or ceiling-luminance violations. Corner/band are a nine-slice approximation for engines that stretch this asset; at 64x32 no slicing is required. No icon baked in."
+}

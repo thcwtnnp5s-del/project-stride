@@ -49,8 +49,8 @@ function emit(outPath, raster, meta) {
 // declare the geometry MEASURED off them (production plan 3.2.1: PanelSkin
 // insets by `band`, never by `corner`).
 for (const [src, name, corner, band] of [
-  ['out/ui/button/plate_c/plate_c.png', 'btn_plate', 4, 2],
-  ['out/ui/button/compact_a/compact_a.png', 'btn_compact', 4, 2],
+  ['out/ui/button/plate_a/plate_a.png', 'btn_plate', 4, 0],
+  ['out/ui/button/compact_a/compact_a.png', 'btn_compact', 5, 2],
 ]) {
   const r = png.loadAny(R(src));
   emit(R('out/ui/button/' + name + '.png'), r, {
@@ -132,12 +132,22 @@ emit(R('out/ui/header/header_shelf.png'), png.loadAny(R('out/ui/header/header_sh
       + 'upper right (production plan 3.4).',
     master: 'raw/ui/orn/rule_plate_b.png (cut 51,1,12,14)',
   });
-  const mid = png.crop(plate, 14, 1, 36, 14);
+  // The rule body is a thin strip inside a 16-tall canvas, so crop it to its own
+  // opaque rows before looking for a run: a window that straddles the transparent
+  // surround is not a tile.
+  let ry0 = 14; let ry1 = 1;
+  for (let y = 1; y < 15; y += 1) { let solid = true; for (let x = 14; x < 50; x += 1) if (P(plate, x, y)[3] !== 255) { solid = false; break; } if (solid) { if (y < ry0) ry0 = y; if (y > ry1) ry1 = y; } }
+  const mid = png.crop(plate, 14, ry0, 36, Math.max(4, ry1 - ry0 + 1));
   fs.mkdirSync(R('out/ui/ornament'), { recursive: true });
   png.save(R('out/ui/ornament/_rule_mid.png'), mid);
+  let runOk = true;
+  try {
   execFileSync('node', [path.join(__dirname, 'tile-cut.js'), R('out/ui/ornament/_rule_mid.png'),
-    '--w', '8', '--h', '4', '--out', R('out/ui/ornament/rule_run.png')], { stdio: 'ignore' });
+    '--w', '8', '--h', String(Math.min(4, mid.height)), '--out', R('out/ui/ornament/rule_run.png')], { stdio: 'ignore' });
+  } catch (e) { runOk = false; }
   fs.unlinkSync(R('out/ui/ornament/_rule_mid.png'));
+  if (!runOk) console.log('rule_run'.padEnd(40) + 'NOT EXTRACTABLE - no fully opaque 8x' + Math.min(4, mid.height) + ' window in the rule body');
+  if (runOk)
   emit(R('out/ui/ornament/rule_run.png'), png.loadAny(R('out/ui/ornament/rule_run.png')), {
     asset: 'rule_run', destination: 'assets/ui/v1/ornament/rule_run.png',
     kind: 'longitudinal tile, repeated between the two caps',

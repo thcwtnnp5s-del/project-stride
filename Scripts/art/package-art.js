@@ -648,7 +648,10 @@ const ITEM_ICONS_T01 = [
   'bronze_chestplate', 'herb_broth', 'hearty_stew', 'hollow_sigil',
 ];
 for (const id of ITEM_ICONS_T01) {
-  const raster = png.load(path.join(ITEMS_SRC, `icon_${id}_48.png`));
+  // FMPO02 wave 2 re-authored `hearty_stew` — see `fmpo02ItemPath`.
+  const raster = png.load(
+    fmpo02ItemPath(id) || path.join(ITEMS_SRC, `icon_${id}_48.png`),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
   }
@@ -764,7 +767,10 @@ const ITEMS_WRD_SRC = path.join(
   EXPLORE, 'WORLD_REWARD_DEPTH_01', 'items', 'out',
 );
 for (const id of ['wolf_pelt', 'lynx_pelt', 'wolfhide_jerkin', 'frostlined_jerkin']) {
-  const raster = png.load(path.join(ITEMS_WRD_SRC, `icon_${id}_48.png`));
+  // FMPO02 wave 2 re-authored `lynx_pelt` — see `fmpo02ItemPath`.
+  const raster = png.load(
+    fmpo02ItemPath(id) || path.join(ITEMS_WRD_SRC, `icon_${id}_48.png`),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
   }
@@ -1033,7 +1039,12 @@ for (const [id, srcId] of Object.entries({
   if (entry.status !== 'accepted') {
     throw new Error(`${srcId}: gear status is "${entry.status}", not accepted`);
   }
-  const raster = png.load(path.join(RCP_GEAR_SRC, `${srcId}.png`));
+  // FMPO02 wave 2 re-authored `bronze_longsword` — see `fmpo02ItemPath`. The
+  // pack's own manifest status is still read first: a withheld icon may not
+  // ship, whether or not a later round redrew it.
+  const raster = png.load(
+    fmpo02ItemPath(id) || path.join(RCP_GEAR_SRC, `${srcId}.png`),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${srcId}: expected 48x48, got ${raster.width}x${raster.height}`);
   }
@@ -1103,7 +1114,11 @@ const eplManifest = JSON.parse(
   fs.readFileSync(path.join(EPL_ITEMS_SRC, 'manifest.json'), 'utf8'),
 ).filter((entry) => entry.status === 'accepted');
 for (const entry of eplManifest) {
-  const raster = png.load(path.join(EPL_ITEMS_SRC, entry.file));
+  // FMPO02 wave 2 re-authored `pristine_horn` — see `fmpo02ItemPath`. The
+  // manifest's accepted/withheld filter above still decides what ships.
+  const raster = png.load(
+    fmpo02ItemPath(entry.id) || path.join(EPL_ITEMS_SRC, entry.file),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${entry.file}: expected 48x48, got ${raster.width}x${raster.height}`);
   }
@@ -1316,17 +1331,14 @@ for (const [id, { dir, src }] of Object.entries(WORK_PROPS)) {
  * adds none.
  */
 const VAWO_WORLD_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'world');
-for (const id of ['overlay_redwyrm', 'overlay_stormdrake']) {
-  for (let i = 0; i < 9; i += 1) {
-    const raster = png.load(path.join(VAWO_WORLD_SRC, `${id}_f${i}.png`));
-    if (raster.width !== 72 || raster.height !== 32) {
-      throw new Error(
-        `${id} f${i}: expected 72x32, got ${raster.width}x${raster.height}`,
-      );
-    }
-    emit(`env/${id}_f${i}.png`, encode(raster));
-  }
-}
+// The two dragons this round authored at 72 × 32 are **superseded** by FMPO02
+// wave 2 (`WORLDLIFE_report.md`), which re-drew both at 96 × 64 and 96 × 56
+// with their own anatomy instead of one silhouette in two palettes. The
+// emitter that owns `env/overlay_redwyrm_f*` and `env/overlay_stormdrake_f*`
+// now lives in the FMPO02 world-life block; a second emitter here would not
+// lose the race, it would make `--check` call the shipped file stale. The
+// VAWO01 frames stay in the exploration tree as the record. Frame count is
+// nine in both rounds, so no orphan frame is left on disk.
 for (const [id, w, h] of [
   ['prop_rimespire', 48, 72],
   ['prop_lanterngard', 72, 56],
@@ -1644,7 +1656,11 @@ const GATHER_BACKDROPS = [
   'hollow_undercroft',
 ];
 for (const id of GATHER_BACKDROPS) {
-  const raster = png.load(path.join(VAWO_GATHER_SRC, `bg_${id}.png`));
+  // Four of these fifteen were re-authored by FMPO02 wave 2 — see
+  // `fmpo02GatherPath`. Same name, same canvas, different rock.
+  const raster = png.load(
+    fmpo02GatherPath(`bg_${id}`) || path.join(VAWO_GATHER_SRC, `bg_${id}.png`),
+  );
   if (raster.width !== 384 || raster.height !== 176) {
     throw new Error(
       `gather backdrop ${id}: expected 384x176, got ${raster.width}x${raster.height}`,
@@ -1673,7 +1689,13 @@ const GATHER_SUBJECTS = [
   'oldgrowth_frostpine_cut',
 ];
 for (const id of GATHER_SUBJECTS) {
-  const raster = png.load(path.join(VAWO_GATHER_SRC, `prop_${id}.png`));
+  // Three of these fourteen were re-authored by FMPO02 wave 2 — see
+  // `fmpo02GatherPath`. The transparent-margin assertion below still applies
+  // to the replacement, which is the point of putting it in the loop.
+  const raster = png.load(
+    fmpo02GatherPath(`prop_${id}`)
+      || path.join(VAWO_GATHER_SRC, `prop_${id}.png`),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(
       `gather subject ${id}: expected 48x48 (L-18a, DECISIONS/0031), `
@@ -2861,7 +2883,10 @@ for (const id of [
   'frostwarden_coat',
   'tin_ore',
 ]) {
-  const raster = png.load(path.join(VAWO_ITEM_SRC, `${id}.png`));
+  // FMPO02 wave 2 re-authored five of these twelve — see `fmpo02ItemPath`.
+  const raster = png.load(
+    fmpo02ItemPath(id) || path.join(VAWO_ITEM_SRC, `${id}.png`),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(
       `item ${id}: expected 48x48, got ${raster.width}x${raster.height}`,
@@ -2936,6 +2961,291 @@ for (const [id, donor] of Object.entries({
   emit(`node/${id}.png`, bytes);
 }
 
+// ------------------------------------------------------- FMPO02 wave 2 art
+/**
+ * THE WAVE-2 FAMILIES (`MILESTONES/evidence/FMPO02/wave2/*_report.md`).
+ *
+ * Six accepted families land here — gather, items, enemies, world life,
+ * rewards and the combat stage. Two rules govern all of them.
+ *
+ * **One emitter owns one path.** Four of the six *replace* art an earlier
+ * round shipped. A second `emit` for the same file does not quietly win:
+ * under `--check` the earlier call compares its bytes against the file on
+ * disk and reports `stale:`, so CI fails on a file that is in fact correct.
+ * A replacement therefore moves the **source** of the existing emitter rather
+ * than adding a second one. `fmpo02ItemPath` and `fmpo02GatherPath` below are
+ * that override; they are called from the item and gather blocks hundreds of
+ * lines above this one, which is legal because a function declaration is
+ * hoisted to the top of the module and `EXPLORE` is initialised long before
+ * either is ever called.
+ *
+ * **A manifest is the contract wherever the round wrote one.** World life
+ * ships 131 frames whose canvas differs per asset; every size asserted here is
+ * read from `out/worldlife/manifest.json`, so packaging cannot silently
+ * disagree with what the round delivered.
+ */
+const FMPO02_OUT = path.join(EXPLORE, 'FMPO02', 'out');
+
+/**
+ * The source file for `item/<id>.png` when FMPO02 wave 2 re-authored it, and
+ * `null` when it did not — the caller then keeps its own source.
+ *
+ * Nine icons across five earlier rounds (`ITEMS_report.md`): three that
+ * measured a silhouette collision against a sibling, three that read as the
+ * wrong object, and three re-authored for tier legibility. The ids stay in
+ * their original lists so each round's roster still reads as that round's
+ * roster; only where the pixels come from changes.
+ */
+function fmpo02ItemPath(id) {
+  const REAUTHORED = new Set([
+    'hearty_stew',
+    'goblin_toothed_axe',
+    'tinbraced_pickaxe',
+    'clawguard_coat',
+    'lynx_pelt',
+    'pristine_horn',
+    'scalewarmed_chestplate',
+    'bronze_longsword',
+    'fanghilt_sword',
+  ]);
+  // `EXPLORE` rather than `FMPO02_OUT`: this runs from the item blocks above,
+  // where the `const` a few lines up is still in its temporal dead zone.
+  return REAUTHORED.has(id)
+    ? path.join(EXPLORE, 'FMPO02', 'out', 'items', `icon_${id}_48.png`)
+    : null;
+}
+
+/**
+ * The source file for a gather plate FMPO02 wave 2 re-authored, or `null`.
+ *
+ * [file] is the plate's own basename — `bg_stonefall_lift`, `prop_meadow_bed`
+ * — not the region×skill key, because that is what both VAWO01 loops build
+ * before they load. Four backdrops whose rock read as dressed masonry or a
+ * doorway, and three subjects that sat on an isometric tile or a plinth
+ * instead of on the ground (`GATHER_report.md`).
+ */
+function fmpo02GatherPath(file) {
+  const REAUTHORED = new Set([
+    'bg_stonefall_mining',
+    'bg_stonefall_lift',
+    'bg_stonefall_gallery',
+    'bg_hollow_foraging',
+    'prop_meadow_bed',
+    'prop_rime_cushion',
+    'prop_hollow_root',
+  ]);
+  // `EXPLORE`, for the same dead-zone reason as `fmpo02ItemPath`.
+  return REAUTHORED.has(file)
+    ? path.join(EXPLORE, 'FMPO02', 'out', 'gather', `${file}.png`)
+    : null;
+}
+
+/**
+ * The three salvage-crate icons (`ITEMS_report.md`, `ART-07_item_brief.md` §3).
+ *
+ * Net-new paths rather than replacements: all three reclaim recipes output
+ * `item.bronze_ingot`, so the bench drew one plain ingot on three rows with
+ * nothing to say which piece was being broken down. These are recipe-level
+ * art — one crate motif, differentiated by the ghost stamp inside the lid —
+ * and `PixelIcons._recipeIcons` already names these three paths.
+ */
+for (const [id, src] of Object.entries({
+  reclaim_axe: 'icon_reclaim_axe_48.png',
+  reclaim_pickaxe: 'icon_reclaim_pickaxe_48.png',
+  reclaim_chestplate: 'icon_reclaim_chestplate_48.png',
+})) {
+  const raster = png.load(path.join(FMPO02_OUT, 'items', src));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(
+      `${src}: expected 48x48, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`item/${id}.png`, encode(raster));
+}
+
+/**
+ * THE ENEMY ROUND (`ENEMIES_report.md`, brief `ART-08_enemy_brief.md`).
+ *
+ * Three things the roster did not have:
+ *
+ * - **Five habitat plates**, 192 × 76 and fully opaque, one per region a
+ *   fight can happen in. They are packaged at the family's own canvas and
+ *   carry no footprint: a habitat is ground, and grounding the ground would
+ *   draw a contact shadow across the middle of the stage.
+ * - **The missing flinches.** Four families recoiled by translation because
+ *   no hit track existed; boar, bear, salamander and crawler now have one,
+ *   and the crawler gets the defeat its pack round withheld. Every canvas and
+ *   anchor row matches the family's shipped idle exactly, so nothing on the
+ *   stage moves.
+ * - **Four elites with their own sprites.** `DECISIONS/0028` shipped the
+ *   Veteran Hunts pointing at the base species' files, so a named elite was
+ *   its species with a different label. Each now has an idle and an attack of
+ *   its own; the hit, defeat and heavy tracks stay borrowed from the base
+ *   family, which is recorded in `combat_assets.dart` rather than hidden.
+ *
+ * `rimeclaw_matriarch` sits one row lower than the shipped lynx (40 against
+ * 39) because the edit made the cat huskier. Each elite carries its own
+ * measured footprint, so no correction is needed for that.
+ */
+const FMPO_ENEMY_SRC = path.join(FMPO02_OUT, 'enemies');
+for (const id of [
+  'habitat_forest_floor',
+  'habitat_rocky_ledge',
+  'habitat_cave_shadow',
+  'habitat_snowbank',
+  'habitat_hollow_rootbed',
+]) {
+  const raster = png.load(path.join(FMPO_ENEMY_SRC, `${id}.png`));
+  if (raster.width !== 192 || raster.height !== 76) {
+    throw new Error(
+      `${id}: expected 192x76, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`combat/${id}.png`, encode(raster));
+}
+// [id, frames, canvas edge] — every canvas is the family's shipped square.
+const FMPO_ENEMY_TRACKS = [
+  ['boar_hit', 6, 56],
+  ['bear_hit', 6, 76],
+  ['salamander_hit', 6, 56],
+  ['crawler_hit', 6, 48],
+  ['crawler_defeat', 8, 48],
+  ['old_grey_idle', 8, 56],
+  ['old_grey_attack', 8, 56],
+  ['gallery_foreman_idle', 8, 56],
+  ['gallery_foreman_attack', 8, 56],
+  ['rimeclaw_matriarch_idle', 8, 56],
+  ['rimeclaw_matriarch_attack', 8, 56],
+  ['guardian_awakened_idle', 8, 96],
+  ['guardian_awakened_attack', 8, 96],
+];
+for (const [id, frames, edge] of FMPO_ENEMY_TRACKS) {
+  for (let i = 0; i < frames; i++) {
+    const frame = png.load(path.join(FMPO_ENEMY_SRC, `${id}_f${i}.png`));
+    if (frame.width !== edge || frame.height !== edge) {
+      throw new Error(
+        `${id}_f${i}: expected ${edge}x${edge}, got ${frame.width}x${frame.height}`,
+      );
+    }
+    if (i === 0) combatFootprints[`combat_${id}`] = png.footprint(frame);
+    emit(`combat/${id}_f${i}.png`, encode(frame));
+  }
+}
+
+/**
+ * The re-horned ram idle, packaged as `ram2_idle` and wired to nothing.
+ *
+ * `ENEMIES_report.md` §4 offers these seven frames as a *candidate* full
+ * replacement for the shipped `ram_idle`, and leaves the adoption to the
+ * integrator on one stated condition — re-measuring the boar↔ram silhouette
+ * IoU — which that round did not have the tooling to do. Adopting it here
+ * would turn an unmet precondition into a silent design decision
+ * (`RULES.md` G-3), so the frames ship under their own id, the combat table
+ * is untouched, and the owner's ruling costs one table edit rather than a
+ * re-run. Same 56² canvas and anchor row 42 as the shipped set.
+ */
+for (let i = 0; i < 7; i++) {
+  const frame = png.load(path.join(FMPO_ENEMY_SRC, `ram_idle_insurance_f${i}.png`));
+  if (frame.width !== 56 || frame.height !== 56) {
+    throw new Error(
+      `ram2_idle f${i}: expected 56x56, got ${frame.width}x${frame.height}`,
+    );
+  }
+  if (i === 0) combatFootprints['combat_ram2_idle'] = png.footprint(frame);
+  emit(`combat/ram2_idle_f${i}.png`, encode(frame));
+}
+
+/**
+ * WORLD LIFE (`WORLDLIFE_report.md`, briefs ART-03 §6 and ART-04).
+ *
+ * Seventeen overlays and three landmark props for the world atlas. Two of the
+ * overlays **supersede** VAWO01's dragons: the red wyrm grows from 72 × 32 to
+ * 96 × 64 and the storm drake to 96 × 56, both still nine frames, both
+ * re-drawn as their own anatomy rather than a palette swap of each other. The
+ * VAWO01 emitter that used to own those two paths is retired above — exactly
+ * one emitter may own a file — and the frame count is unchanged, so no orphan
+ * frame is left behind for `--check` to report as unexpected.
+ *
+ * Placement is not decided here. `assets/content/v1/atlas/atlas_layout.json`
+ * is a separate hand-authored table with a slot budget the report proposes
+ * retirements against; packaging a sprite makes it available, not placed.
+ */
+const FMPO_WORLDLIFE_SRC = path.join(FMPO02_OUT, 'worldlife');
+const fmpoWorldlife = JSON.parse(
+  fs.readFileSync(path.join(FMPO_WORLDLIFE_SRC, 'manifest.json'), 'utf8'),
+);
+for (const entry of fmpoWorldlife.assets) {
+  const [w, h] = entry.canvas.split('x').map(Number);
+  const check = (raster, what) => {
+    if (raster.width !== w || raster.height !== h) {
+      throw new Error(
+        `worldlife ${what}: manifest says ${entry.canvas}, `
+        + `got ${raster.width}x${raster.height}`,
+      );
+    }
+  };
+  if (entry.kind === 'prop') {
+    const raster = png.load(path.join(FMPO_WORLDLIFE_SRC, `${entry.name}.png`));
+    check(raster, entry.name);
+    emit(`env/${entry.name}.png`, encode(raster));
+    continue;
+  }
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(
+      path.join(FMPO_WORLDLIFE_SRC, `${entry.name}_f${i}.png`),
+    );
+    check(frame, `${entry.name}_f${i}`);
+    emit(`env/${entry.name}_f${i}.png`, encode(frame));
+  }
+}
+
+/**
+ * THE REWARD MARKS (`REWARDS_report.md`, brief `ART-10_reward_brief.md`).
+ *
+ * Three of the round's four files: a rarity-neutral drop sack at 24², and two
+ * 96 × 48 banner seals for the two completions that earn one. The fourth,
+ * `grain_notable_plate`, is a card **surface** rather than a mark, so it ships
+ * in the hand-maintained `assets/ui/v1/` tree with a provenance row, not here
+ * — this script writes `assets/art/v1/` and only that.
+ */
+for (const [id, w, h] of [
+  ['mark_rare_drop', 24, 24],
+  ['seal_signature', 96, 48],
+  ['seal_masterwork', 96, 48],
+]) {
+  const raster = png.load(path.join(FMPO02_OUT, 'reward', `${id}.png`));
+  if (raster.width !== w || raster.height !== h) {
+    throw new Error(
+      `reward ${id}: expected ${w}x${h}, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`reward/${id}.png`, encode(raster));
+}
+
+/**
+ * THE TALLER COMBAT BACKDROPS (`COMBAT_STAGE_report.md`, brief ART-09).
+ *
+ * The stage's four biome plates repainted 192 × 96 → 192 × 128: the original
+ * rows 32–127 are the shipped picture unchanged, and the new top 40 rows are
+ * inpainted atmosphere above it. The ground row moves 88 → 120 and the two
+ * figure columns (58 and 138) do not move, because only the canvas grew.
+ *
+ * They ship under new ids beside the 96-tall originals rather than over them.
+ * The stage geometry that consumes them is a separate task; until it lands,
+ * `CombatAssets` still resolves the 96-tall set, and a backdrop nothing draws
+ * yet is cheaper than a half-wired stage.
+ */
+for (const biome of ['forest', 'mine', 'hollow', 'frostmere']) {
+  const id = `backdrop_${biome}_128`;
+  const raster = png.load(path.join(FMPO02_OUT, 'combat', `${id}.png`));
+  if (raster.width !== 192 || raster.height !== 128) {
+    throw new Error(
+      `${id}: expected 192x128, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`combat/${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------- FMPO02 equipment matrix
 /**
  * THE TRAVELER WEARS WHAT HE EQUIPPED, EVERYWHERE.
@@ -2969,8 +3279,18 @@ for (const [id, donor] of Object.entries({
  * off the hand or a floating artifact, and neither may ship.
  */
 const FMPO_EQUIP_SRC = path.join(EXPLORE, 'FMPO02', 'out', 'equip', 'tracks');
-const FMPO_COMBAT_TRACKS = [['idle', 8], ['attack', 8], ['hit', 6], ['stagger', 8]];
-const FMPO_COMBAT_SETS = [];
+// Brace (6f) is the fifth track: the stance the choreography used to fake
+// with a held idle because no authored pose existed. One v3 roll per state,
+// all eleven accepted first time (`review/equip/brace_all_x2.png`).
+const FMPO_COMBAT_TRACKS = [
+  ['idle', 8], ['attack', 8], ['hit', 6], ['stagger', 8], ['brace', 6],
+];
+const FMPO_COMBAT_SETS = [
+  // The two VAWO01 base-body sets gain their brace here; the base + steel
+  // set is the pre-PixelLab shipped art and has no state to animate.
+  ['traveler_base_unarmed_brace', 6],
+  ['traveler_base_bronze_brace', 6],
+];
 for (const body of ['plate', 'jerkin', 'coat']) {
   for (const held of ['bronze', 'steel', 'unarmed']) {
     for (const [track, frames] of FMPO_COMBAT_TRACKS) {
@@ -2985,6 +3305,11 @@ const FMPO_AMBIENT_STRIPS = [
   ['traveler_base_bronzeaxe_woodcut', 8, 80, false],
   ['traveler_jerkin_bronzepick_mine', 8, 80, false],
   ['traveler_plate_bronzepick_mine', 8, 80, false],
+  // Re-dressed from the jerkin pick strip by reference edit (garment swapped,
+  // pose and tool kept) after v3 failed twice on each — see traveler_art.dart.
+  ['traveler_coat_bronzepick_mine', 8, 80, false],
+  ['traveler_base_bronzepick_mine', 8, 80, false],
+  ['traveler_plate_bronzeaxe_woodcut', 8, 80, false],
   ['traveler_plate_forage', 9, 64, true],
   ['traveler_jerkin_forage', 9, 64, true],
   ['traveler_coat_forage', 9, 64, true],

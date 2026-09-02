@@ -347,3 +347,297 @@ atlas 214–286; no vertical seam, no dither column, one drawing hand.
 **Verdict: ACCEPT** (desk). Recorded as a standing lesson: **adjacent ART-03
 regions need a bridge wherever their crops overlap by less than about 60 px.**
 N2/N3 overlap by 16 px and are watched for the same defect.
+
+---
+
+## N3 — North Shelf & Floe Join — rolls 1-2 (superseded by roll 3 below)
+
+| | |
+|---|---|
+| Crop | `src/atlas/N3_crop.png`, origin (460,0), 356×304 · inpaint 268×232 at (44,0) |
+| Rolls | `a2ec1581-030d-45d4-a650-38013e85a92b` seed 706 — REJECT; `378ad451-f947-49b2-aee6-5eb425a85cc0` seed 717 — REJECT. 80 generations, none shipped |
+| Files | `rejected/atlas/N3_r1.png`, `rejected/atlas/N3_r2.png` |
+
+**Roll 1.** Asking for "large ice plates each at least twelve pixels across
+with dark water between them" is, read literally, a request for a
+**tessellation** — and it produced exactly the honeycomb the same prompt
+forbade three sentences later, plus a dark navy rectangle for the sea. The
+brief's own geographic sentence and its own prohibition are in conflict here.
+
+**Roll 2.** Rewritten as a drifted snow shelf with a ragged calving edge and
+only three or four separated floes. The honeycomb went away and the shelf read
+well — but the top third came back as a **flat solid teal rectangle** of
+generated open water, which ART-03 §3 rules out in as many words ("never
+generate flat water", 0/4 historical acceptance), with a drawn red border
+around the mask for good measure.
+
+**Stopped.** ART-03 §7's hard stop and M-12: a region that fails twice is
+recorded and left. The composite is unchanged — N3 ships nothing, and the
+crack net across atlas 504–772 survives this round.
+
+**Diagnosis for whoever picks this up.** The failure is in the mask, not the
+prompt. N3's mask runs y 0–232, which reaches well into open-sea latitudes, so
+**every roll is forced to invent sea** — and generated flat water has never
+once been accepted here. The fix is a shorter mask that stops where the ice
+stops (roughly y 90–232) and leaves the water to the deterministic ocean
+conform that already owns it. That is a mask redesign, not another roll, and
+it belongs to the next round.
+
+**Consequence: E1 is not opened.** ART-03 gates region 11 on "N3's review
+saying the east half still speckles". N3 has no accepted review, so the gate
+does not open.
+
+---
+
+## S1 — SW Gloaming (the black slab)
+
+| | |
+|---|---|
+| Crop | `src/atlas/S1_crop.png`, origin (48,790), 300×282 |
+| Inpaint mask | 204×106 at (48,96) — frozen margins 48/48/96/80 |
+| Job | `4982f64d-6de8-4f43-95e9-0b6d960081e6` · seed **707** · 25 generations |
+| Authored rect | atlas **96–300 × 886–992** · ramps left 24, right 32, top 32, bottom 24 · salt 26 |
+| Mask | 10,352 authorized · 7,407 feathered · 24,000 blocked |
+
+**Problem (BEFORE).** D-12, a P0: a near-black canopy slab sitting on the
+brightest lime ground — the worst value cliff on the map, with no internal
+structure at all.
+
+**Shaped around the golden.** ART-03 puts S1's mask at y 838–986, but
+`south_strand_w` occupies 810–870 and its 20 px keepout reaches to y=890.
+The region therefore starts at y=886 and only really bites from 891 down. The
+top of the slab (atlas 855–886) is untouched — see UNRESOLVED below.
+
+**Containment.** 17,726 px changed inside the mask. 18,260 px differ outside
+it, and all of that is the crop's off-canvas padding (atlas y ≥ 1024) being
+flattened to white by `no_background:false`; the mask blocks it and the blit
+skips `ty >= 1024`, so none of it ships.
+
+**Guards.** green. Repeated sprite pairs: **0**.
+
+**Read.** The slab is now a wood: individual round crowns readable throughout,
+canopy stepped from a dark hollow up to lit crowns on the ridge, three grassy
+glades open inside it, and scattered outliers where it meets open ground. The
+value cliff is much reduced.
+
+**Verdict: ACCEPT** (desk).
+
+---
+
+## S2 — South Coastal Plain
+
+| | |
+|---|---|
+| Crop | `src/atlas/S2_crop.png`, origin (256,726), 348×346 |
+| Inpaint mask | 260×138 at (44,160) — reaches the canvas edge at the bottom |
+| Rolls | roll 1 `0fee52cb-5db6-4009-b673-70d1e48b7eee` seed 708 — **REJECT**; roll 2 `126ab542-2803-4352-9250-ab9dbfb559bd` seed **718** — accepted. 80 generations |
+| Authored rect | atlas **300–560 × 886–1024** · ramps left 24, right 24, top 32, bottom 0 (canvas) · salt 27 |
+| Mask | 24,627 authorized · 7,086 feathered · 46,384 blocked |
+
+**Problem (BEFORE).** D-02, a P0: the south reads as three stacked latitude
+bands — sward, then a pale sand stripe running through the *interior*, then
+bright lime. A layer cake, not a coast.
+
+**Roll 1 — REJECT, and it was my error, not the model's.** I omitted
+`no_background`, so the service auto-detected transparency from the crop's
+off-canvas padding rows and returned a **cut-out**: 68.4% of the mask area
+came back transparent. Recorded because the trap is easy to walk into — every
+southern crop carries padding past y=1024.
+
+**Roll 2.** Same prompt with `no_background:false` and an explicit "solid
+opaque ground everywhere" clause.
+
+**Shaped around the goldens.** Both strands (810–870) plus their keepouts own
+y 790–890, and `flock_south` blocks another patch, so S2 authors only the
+band **below** the strand. The stripe itself is untouchable — UNRESOLVED.
+
+**Guards.** green. Repeated sprite pairs: **0**.
+
+**Read.** Low dune ridges and narrow tidal creeks now run north–south, across
+the latitude instead of along it, with gorse and thorn clumps and sand
+blow-outs. The lime band is no longer a band — it is machair with structure
+running through it, which is ART-03 §2's own recommended default for Q-13.
+
+**Verdict: ACCEPT** (desk).
+
+---
+
+## S3 — Delta Apron — **DEFERRED without spending a generation**
+
+Measured before generating, and the measurement stopped it. S3's declared band
+(atlas 372–676 × 740–789, 14,896 px) breaks down as:
+
+| | px | share |
+|---|---|---|
+| `flock_south` golden + 20 px keepout | 5,145 | 34.5% |
+| Inside the A-4 frozen core (unwritable) | 1,592 | 10.7% |
+| Inside the A-4 rim (writable, but `keepRepair`-dithered — the W1 finding) | 3,980 | 26.7% |
+| Free | 4,179 | 28.1% |
+
+With `rimBlock` on, the built mask has **0 fully-authorized pixels** and only
+3,959 partial ones: the free 28% is fragmented and none of it is far enough
+from an edge for a 32 px ramp to reach full alpha. There is nothing here for a
+generation to land on. D-09, D-19 and D-25 survive this round.
+
+**Not attempted.** Spending 25 generations to write a few thousand
+half-alpha pixels fails cost discipline; the honest answer is that this band
+is inside protected geometry and needs an owner decision, not a roll.
+
+---
+
+## S4 — SE Terrace & Spit — **DEFERRED without spending a generation**
+
+S4's entire declared mask (atlas 628–786 × 806–880) lies inside
+`south_strand_e` (512–800 × 810–870) plus its 20 px keepout (790–890).
+**Nothing in it is writable.** ART-03 §2 already flagged this: rows 8 and 10
+cross the strand goldens and re-extracting a golden is an owner
+authorization, not a producer's. D-05 residue, D-15 and D-20 survive.
+
+---
+
+## UNRESOLVED — the strand goldens block the southern P0s
+
+ART-03 §2 names this and it stayed true all round: **S1's top, S2's stripe and
+all of S4 sit inside `south_strand_w` / `south_strand_e` (y 810–870) or
+their keepouts.** The layer-cake defect D-02 — a P0, the owner's own
+complaint — *is* the strand band, and the band is byte-enforced.
+
+Deliberately re-authoring a landmark means re-extracting its golden in the
+same commit, and the golden's git diff is the authorization (landmark registry
+header, R3b pattern). **That authorization is the owner's to give and I have
+not assumed it.** Every southern region here was shaped to stay clear.
+
+What it would unblock, if granted: the sand stripe stops running through the
+interior; S1's slab is fixed to its top edge instead of from y=891 down; S4
+becomes possible at all. Recorded in `JOURNAL/OPEN_QUESTIONS.md`.
+
+---
+
+## N3 — roll 3 — **ACCEPTED**
+
+Re-authorised by the coordinator after the round's first pass: one roll, cap 60
+generations, with the diagnosis I recorded on the deferral applied.
+
+| | |
+|---|---|
+| Crop | `src/atlas/N3_crop.png`, origin (460,0), 356×304 (unchanged — no new crop published) |
+| Inpaint mask | **268×142 at (44,90)** — was 268×232 at (44,0). Frozen margins 44 on all four sides |
+| Job | `835092d1-0930-4eba-a701-420df2118bad` · seed **726** · 40 generations |
+| Authored rect | atlas **504–772 × 90–232** · ramps left 10, right 32, top 32, bottom 32 · salt 25 · `rimBlock` |
+| Mask | 21,936 authorized · 13,071 feathered · 20,856 blocked |
+
+**What changed, and it was the mask.** Rolls 1 and 2 both failed because the
+mask ran to y=0 and therefore reached open-sea latitudes, forcing every roll to
+invent sea — and generated flat water has never been accepted here. Shortening
+the mask to y 90–232 removed the requirement to invent water at all, and the
+honeycomb/flat-panel failure went with it. The prompt still leads with the
+drawing hand and now asks for **pack ice thinning off a shelf** — floes of
+varying size, worn and rounded, never touching, with narrow winding leads —
+plus an explicit instruction to leave every existing teal patch exactly where
+and what it is.
+
+**Goldens.** The shortened mask sits entirely above every nearby golden's
+keepout: `frostmere_north_wall` begins at y=236, `volcano_east_cliff` at
+y=240, `east_watchtower_flank` at y=253.
+
+**Containment.** 32,145 px changed inside the mask; 2,907 outside it (the
+generation reached down to crop y=292), all blocked by the mask — the guards
+confirm none of it reached a golden.
+
+**N2/N3 join — no bridge needed.** The generations overlap by 16 px (atlas
+504–519), well under the 60 px the NB1 lesson set as the bridge threshold, so a
+bridge was budgeted for. It proved unnecessary because the two edges can be
+made *provably* complementary: N2's right ramp draws `wander(sy, salt+1)` with
+salt 24 and N3's left draws `wander(sy, salt+0)` with salt 25 — **the same
+call**. Setting both ramps to 10 makes their half-alpha contours move
+symmetrically about atlas 511.5, with half-width k = R(1+0.6w)/2 ≤ 8 for R=10
+and a gap requiring k > 8. So the join can never open, and at ×3 it reads as
+N2's drifted snow flowing into N3's leads along an organic contour, with no
+vertical line. (N2's right ramp was 40 while N3 was deferred; it is back to 10.)
+
+**Top join.** At ×3 the floe field grows out of the surviving fast ice with no
+horizontal ruler line — the old crack lines widen into lead channels.
+
+**Guards.** `package-art.js` and `--check` green; core drift 0, 15 goldens
+held. Repeated 10×10 sprite pairs within 40 px: **0**. 3 red debris px
+despeckled.
+
+**Honestly bounded.** The crack net survives *above* y=90 and east of x=772
+(E1's ground). That is the deliberate price of the shortened mask, and the
+right trade: a smaller region that reads, rather than a full-height one that
+invents sea. E1 remains unopened.
+
+**Verdict: ACCEPT** (desk). The physical iPhone is still the authority.
+
+---
+
+## NB2 — N2/N3 bridge (not an ART-03 region)
+
+| | |
+|---|---|
+| Crop | `src/atlas/NB2_crop.png`, origin (440,60), 140×200 — cut from the composite **after** N2 and N3 landed, published at commit `2bb50f0` so PixelLab could fetch it |
+| Inpaint mask | 72×140 at (36,30) — frozen margins left 36, right 32, top 30, bottom 30 |
+| Job | `67e99899-46b8-4560-aaac-a40dce8126d3` · seed **736** · 20 generations |
+| Authored rect | atlas **476–548 × 90–230** · ramps left 32, right 32, top 32, bottom 32 · salt 30 · `rimBlock` |
+| Mask | 2,755 authorized · 5,849 feathered · 3,360 blocked |
+| Files | `out/atlas/NB2.png`, `out/atlas/NB2_mask.png` |
+| Evidence | `review/atlas/NB2_{before,after}_{full,x2,fov}.png`, `NB2_join_compare_x3.png`, `NB2_after_upper_x4.png` |
+
+**Why it exists, and why N3's own join note did not settle it.** N3 roll 3
+recorded "no bridge needed": N2's right ramp and N3's left ramp draw the *same*
+`wander` call at width 10, so the two half-alpha contours move symmetrically
+about atlas 511.5 and the join can never open a gap. That argument is correct
+and it is about **coverage**, not about **content**. A 10 px ramp cannot carry a
+texture change, and this join is one: flat drifted snow on the left, teal leads
+and rounded floes on the right. With the agreement grading commiting the ramp
+wholly to one side wherever the two differ — which is everywhere here — the
+contour had only ±3 px of wander to hide in, and at ×2 and at phone FOV the
+result read as a **near-vertical edge at atlas x ≈ 508 over y ≈ 117–178**. The
+NB1 lesson applies exactly: adjacent regions need a bridge wherever their crops
+give a boundary less than about 60 px to be authored in.
+
+**Method.** The NB1 pattern unchanged: crop the *current composite* so N2's snow
+sits frozen in the left margin and N3's floes frozen in the right, then inpaint
+one continuous surface across them. Prompt leads with the drawing hand (the N2
+roll-2 inversion) and asks for drifted snow breaking up into the first worn
+floes and narrow winding leads, the shelf edge fraying diagonally.
+
+**Goldens.** The mask stops at atlas y=230 — **6 px clear** of
+`frostmere_north_wall`'s 20 px keepout, which begins at y=236.
+
+**Containment.** `atlas-verify.js`: 8,284 px changed inside the mask; changed
+bbox (36,30)..(107,169), exactly the inpaint rectangle, so nothing was redrawn
+outside it. 1,444 px changed inside the inpaint rect but outside the graded
+mask (the ramp shoulders); the mask blocks them and none ship.
+
+**Guards.** `package-art.js` and `--check` both green: protected-interior drift
+0, all 15 landmark goldens byte-held. No guard touched.
+
+**Measured.** `atlas-qa.js` over atlas 440–580 × 60–260: repeated 10×10 sprite
+pairs within 40 px **0**; orphan flecks 82 raw over 28,000 px = **29.3 per
+10k**, well under the approved core hero region's own 69.8, so no despeckle. 0
+red debris pixels — the border artefact N1 and N3 roll 2 drew did not recur.
+
+**Read.** `NB2_join_compare_x3.png` is the decisive view. The razor vertical at
+atlas 508 is gone: the floe field now frays leftward and downward in a lobed
+tongue, its top corner broken into separate small floes stepping out onto the
+drifted snow, and its left boundary is a stepped organic diagonal. At ×2 no
+vertical line, no dither column, no rectangle, no repair footprint. At 197×426
+phone FOV the pack ice reads as one shelf edge thinning westward. At ×1 the
+whole northern floe band runs unbroken from x ≈ 480 east.
+
+**Honestly bounded.** Two things this did not do.
+
+1. The bridge's floes are **smaller and more tightly packed** than N3's next to
+   them, so there is a mild scale step in floe size across the tongue. It reads
+   as brash grading into larger floes, which is directional and plausible, and
+   `atlas-qa` finds no repeated sprite — but it is denser than the neighbour and
+   worth the owner's eye at ×2. It is not the D-22 crack-net (thin dark lines on
+   flat pale ground) and it is not a lattice.
+2. The join **above** the mask — atlas x ≈ 505–518, y 0–90, where N2's right
+   edge meets the surviving master ice — is unchanged. It is outside this
+   brief's y-range and it is a tone step rather than a drawn line
+   (`NB2_after_upper_x4.png`), much weaker than the edge below it was, but it
+   is still the last straight-ish thing on that meridian.
+
+**Verdict: ACCEPT** (desk). The physical iPhone remains the authority.

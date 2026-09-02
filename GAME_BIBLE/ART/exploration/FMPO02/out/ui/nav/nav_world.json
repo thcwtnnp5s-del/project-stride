@@ -1,0 +1,23 @@
+{
+  "asset": "nav_world",
+  "destination": "assets/ui/v1/nav_world.png",
+  "kind": "nav glyph, 14 native at x2",
+  "corner": null,
+  "band": null,
+  "scale": 2,
+  "status": "CANDIDATE - not recommended for swap without a device read (see UI_report.md)",
+  "master": "raw/ui/nav/world.png (pixen 16x16, cropped to content, centred in 14x14, remapped onto the measured chassis_64 ramp)",
+  "canvas": [
+    14,
+    14
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 5,
+    "maxHex": "#985B30",
+    "maxL": 0.1437,
+    "verdict": "clean"
+  }
+}

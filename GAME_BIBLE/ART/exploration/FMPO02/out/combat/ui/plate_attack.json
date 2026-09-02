@@ -1,0 +1,9 @@
+{
+  "asset": "plate_attack.png",
+  "canvas": { "width": 64, "height": 32 },
+  "type": "nine-patch",
+  "corner": 10,
+  "band": 12,
+  "material": "oxblood_danger (ART-13 §2: shadow #2E1614, mid #4A211E, sheen #68302A, edge #7A4238)",
+  "note": "Generated directly at 64x32 (satisfies PixelLab's canvas rule without composition) as one flat authored plate, then reduce_colors-snapped to the exact oxblood_danger ramp. Corner/band are a nine-slice approximation of the rounded-plate silhouette for engines that stretch this asset to other sizes; at the shipped 64x32 size no slicing is required. No icon is baked into the plate — icon_attack.png is drawn as a separate overlay per the brief."
+}

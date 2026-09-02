@@ -1,0 +1,24 @@
+{
+  "asset": "header_shelf",
+  "destination": "assets/ui/v1/header/header_shelf.png",
+  "kind": "longitudinal tile, repeated along the header bottom edge in place of the 1px separator",
+  "corner": null,
+  "band": null,
+  "period": 8,
+  "scale": 2,
+  "tiles": "horizontally only; the last tile is clipped, never rescaled",
+  "master": "raw/ui/hdr/shelf_a.png",
+  "canvas": [
+    8,
+    6
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 7,
+    "maxHex": "#67311F",
+    "maxL": 0.0518,
+    "verdict": "clean"
+  }
+}

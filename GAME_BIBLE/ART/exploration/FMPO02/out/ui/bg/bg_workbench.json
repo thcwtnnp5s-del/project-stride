@@ -1,0 +1,23 @@
+{
+  "asset": "bg_workbench",
+  "destination": "assets/ui/v1/bg/bg_workbench.png",
+  "kind": "picture-class backdrop, drawn once at x1 behind everything and scrimmed",
+  "corner": null,
+  "band": null,
+  "scale": 1,
+  "note": "Scrim-ready and deliberately unlit: no fire, no forge, no figures, no stall. It is a backplate, not a screen (production plan 11).",
+  "master": "raw/ui/bg/workbench_a.png",
+  "canvas": [
+    384,
+    176
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 15,
+    "maxHex": "#7C6A4A",
+    "maxL": 0.1509,
+    "verdict": "clean"
+  }
+}

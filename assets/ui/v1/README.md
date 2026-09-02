@@ -26,6 +26,175 @@ unrepresentable in that pipeline), except where noted.
 | `frame/chassis_64.png` | 64 × 64 | ×2 (band 16, corner block 32) | **The chassis frame — the one frame family, app-wide.** PixelLab `create_image_pixen`, VAWO01 round 2 seed 2202 at 64 × 64, `view: "side"`, `outline: "single color outline"`, `no_background: true`. Oiled leather welt, continuous stitch line, reinforced corner caps. Deterministic post-work only (A-2): crop to content, then a ceiling clamp moving **5 colours / 208 px** — the model's near-white stitch — down onto the § 6 ramp so nothing exceeds `textMuted #7C7263`. **No repaint**; the full-ramp redistribution was tried, produced an olive frame, and was rejected. Source and rejected candidates in `GAME_BIBLE/ART/exploration/VAWO01/`. Geometry mirrored in `frame/chassis_64.json` (build-time only, deliberately not in `pubspec.yaml`). Registered against `card`, `heroPlate` and `boardSlip` in `panel_skin.dart`. Authority `DECISIONS/0030` |
 | `skill_*.png` (5) | 24 × 24 | 24 (×1) | all five skills — **PixelLab, OD-04 round 2** (Transformation Build 01, `GAME_BIBLE/ART/exploration/TRANSFORMATION_01/items/`): leaf sprig, log round, ore lump, anvil, two-handled pot — five silhouette *families*, no two hafted tools. `skill_foraging.png` was re-generated in Playable Expansion 01 (`PLAYABLE_EXPANSION_01/out/items/skill_foraging_24.png`) for contrast — same sprig, brighter values, Visual QA PASS at ×1/×2. Drawn ×1 rather than ×2 because PixelLab cannot author below 16 px; the same 24 logical px footprint as before |
 
+## FMPO02 wave 2 — the notable grain and the combat HUD
+
+Two families, both **PixelLab, FMPO02 wave 2**, both packaged by hand into this
+tree because `Scripts/art/package-art.js` writes `assets/art/v1/` and only that.
+Round reports: `MILESTONES/evidence/FMPO02/wave2/REWARDS_report.md` and
+`COMBAT_STAGE_report.md`; job-by-job ledgers under
+`GAME_BIBLE/ART/exploration/FMPO02/ledger/`. Sources are in
+`GAME_BIBLE/ART/exploration/FMPO02/out/reward/` and `out/combat/ui/`.
+
+| File | Native | Displayed | Note |
+|---|---|---|---|
+| `surface/grain_notable_plate.png` | 32 × 32 | ×2, tiled | **PROD-REWARDS.** A seamless, low-contrast warm dark parchment tile for the body of a card the record marks *notable*, tinted by `RarityStyle.accent` at ~12–15 % alpha. Mirror-folded to seamlessness deterministically (A-2, **0 generations**). Reviewed on `review/reward/final_incontext_x4.png` beside all ten shipped `RewardArt` marks. **Not yet drawn**: `PixelFrame` does not render `surfacePath` (ART-10 §3) |
+| `combat/hp_gauge_frame.png` | 96 × 16 | ×2 | **PROD-COMBAT-STAGE**, `pixen`. Chassis leather ramp, nine-patch corner 6 / band 3. The visible pill occupies **rows 4–11 only** of the 16-row canvas, so the Flutter fill must inset into rows 5–10, not the full height. Composed from a 16 × 16 candidate with `FMPO02/tools/flipx.js` + `hstitch.js` (mirror and concat, crop-only, invents nothing) because `pixen` refuses a non-square canvas under 32 px |
+| `combat/turn_marker.png` | 24 × 24 | ×2 | Chassis leather ramp. A fixed tab, never stretched |
+| `combat/narration_strip.png` | 64 × 16 | ×2, tiled | Parchment (candidate `narr_b`). Tiles on a **14 px** rhythm by design — a torn-segment look, deliberately not sub-pixel seamless. Same `flipx`/`hstitch` compose step as the gauge |
+| `combat/plate_attack.png` | 64 × 32 | ×2 | `oxblood_danger` (ART-13 §2), nine-patch corner 10 / band 12 |
+| `combat/plate_brace.png` | 64 × 32 | ×2 | `bluesteel_brace` (ART-13 §2), corner 10 / band 12. **Not** `reduce_colors`-snapped — the call's inline base64 truncated twice; accepted after a manual palette check found no violation, and it passes `check-art-palette.js` here |
+| `combat/plate_eat.png` | 64 × 32 | ×2 | `wood_eat` (ART-13 §2), corner 10 / band 12 |
+| `combat/icon_attack.png`, `icon_brace.png`, `icon_eat.png` | 16 × 16 | ×2 | Glyphs, unforced palette (ART-13 §5) |
+
+`icon_retreat` is **not here and is not missing**: four candidates never produced
+a readable footprint glyph, and ART-09 §5 already specifies Retreat as a plain
+text link with no plate and no icon.
+
+Two things the integrator did **not** carry over. The `.json` nine-patch
+sidecars beside the HUD sources stay in the exploration tree — the numbers they
+hold are in the table above, and an undeclared file in this directory is a file
+nobody reviewed. And the round records a live disagreement with
+`ART-09_combat_brief.md` §3 on four canvases (gauge corner 8 / band 4; a
+32 × 16 turn *bar*; a 96 × 20 narration strip; 64 × 64 command plates): these
+files are built to the wave's dispatch instructions, not the brief, and which
+spec binds the engine is **UNRESOLVED** for the owner.
+
+### What the integrator found when these were wired (INTEG-COMBAT-STAGE)
+
+Two rows above describe the art differently from what the pixels are, and both
+were resolved in favour of the pixels (`lib/ui/icons/combat_assets.dart`,
+`CombatHudAssets`).
+
+**The three command plates are not nine-patches.** Each is a *centred blob on a
+transparent 64 × 32 field* — Brace a diamond over columns 9–53 and rows 3–28,
+Eat an oval, Attack a rough medallion — so the four 10 × 10 corner blocks a
+nine-patch would sample are entirely empty in all three files, and so are the
+edge strips between them. Stretched as a nine-patch they would tile the blob's
+own arc across the cell and leave a hole in the middle. The declared
+`corner 10 / band 12` is also unrepresentable as a `PanelSkin`, whose assert
+says the band is the material *inside* the corner block, and that assert is
+correct and stayed. They ship as **ornaments Flutter positions** — the third
+thing `DECISIONS/0029` allows a raster to be — drawn at ×2 behind the label,
+never stretched, with the 56 dp command cell clipping only transparent margin.
+
+**The narration strip is packaged and deliberately not drawn.** Composited over
+the stage, its drawn body (rows 4–10) has a mean relative luminance of 0.246 —
+**2.90 : 1** against `textPrimary`, and 1.85 : 1 across its four brightest rows,
+whose palest pixels (#EBE9CB) are as light as the ink. The whole-canvas mean of
+0.111 reads 5.32 : 1 and is the wrong figure: nine of the sixteen rows are fully
+transparent, so it measures the stage showing through rather than the parchment
+type would sit on. The narration keeps its translucent `surfaceGround` fill;
+`test/combat_ui_test.dart` holds all three figures so a darker re-authored strip
+swaps in on a measurement.
+
+**The taller backdrop did not free the strip's ground.** `ART-09` §2 expected
+192 × 128 to end the strip's overlap with the picture. The re-authored canvases
+added their 32 rows *above* the old row 32 and left the ground 8 rows up from
+the canvas bottom (88 of 96 → 120 of 128), so there are still only 16 dp of
+picture below the feet and the strip still covers the contact-shadow band. What
+the taller canvas bought is sky: the guardian's crown now sits 96 dp below the
+top rather than 32.
+
+## FMPO02 wave 2 — surfaces, bands, plates and edges
+
+Authored by PROD-UI in PixelLab (`pixflux`), selected, cut and packaged by the
+tools in `GAME_BIBLE/ART/exploration/FMPO02/tools/`. Job ids are from
+`GAME_BIBLE/ART/exploration/FMPO02/ledger/UI.md`; the round report is
+`MILESTONES/evidence/FMPO02/wave2/UI_report.md`. Every file below passes
+`Scripts/art/check-art-palette.js`, and every surface additionally passes
+`Scripts/art/check-tile-seam.js` on both axes. Each PNG ships with a `.json`
+sidecar carrying its **measured** geometry; the sidecars are build-time only and
+are deliberately absent from `pubspec.yaml`.
+
+### Surfaces — `surface/grain_*.png`, 32 × 32 native, drawn ×2
+
+The interior material axis (`PanelSurfaces`). Post-work is deterministic and
+per-pixel (A-2): flat-field the master's own box-blurred L\*, normalise the grain
+to two ramp rungs, snap to the `ART-13` ramp, then a 2-D window search picks the
+quietest 32-square cut. **Cut, not quarter-mirror folded** — the fold is seamless
+by construction and turns every surviving fleck into a butterfly, which reads as
+plaid at a 64 logical px repeat (report §2).
+
+| File | Job | Master | Note |
+|---|---|---|---|
+| `grain_journal_leaf.png` | `7da60dbd` | `journal_leaf_a` | aged parchment — Adventure, the Craft folio, Character, the field guide |
+| `grain_oilcloth.png` | `4335462c` | `oilcloth_a` | waxed canvas — the materials tray, the pack |
+| `grain_buckram.png` | `596b3905` | `buckram_a` | vellum — the guild handbook |
+| `grain_leather.png` | `41199e70` | `leather_d` | oiled leather — the field kit, and the nav bar's ground. Ships on a **`CHECK`**: 94.2 % base plus a 3.3 % mid fleck, literal ΔL\* 7.45 and no second heavy ink, so the "≤ 6 L\* between the two most-used inks" rule reads as a fail on a tile that has no second most-used ink. Reported rather than resolved silently (report §3) |
+| `grain_bench_oak.png` | `e11e69d8` | `bench_oak_d` | dark bench oak — the crafting station header |
+| `grain_steel.png` | `7cdce017` | `steel_b` | steel plate — combat command surfaces |
+| `grain_slate.png` | `e3a10f2f` | `slate_a` | slate — the bestiary board |
+| `grain_chart_vellum.png` | `71ec7dfe` | `chart_vellum_e` | **ships without grain**: 99.4 % one ink. Four masters produced a dead field or, in the burlap attempt, a weave that read as brickwork when tiled. It delivers the World family's interior hue and nothing else — re-author or accept knowingly |
+| `grain_cork.png` | not recorded | `cork_c` | cork — pinned notices. The ledger names three cork rolls and marks all three `REJECT`; the accepted master is `cork_c.png` and its job id is **absent from the ledger**. Recorded as a ledger gap rather than guessed |
+| `grain_plan_linen.png` | not recorded | `plan_linen_c` | chalked slate — the construction ledger. The same gap: the one `plan_linen` row is a `REJECT` and the accepted master's job id is not on record |
+
+### Bands — `band/band_*.png`, 384 × 48, drawn ×1 and clipped
+
+Picture class, like the region map: drawn once at ×1, clipped to its container,
+never tiled and never stretched (`lib/ui/components/band_plate.dart`). Cropped
+from a 384 × 96 master — at 48 tall the model draws a toolbar of icons rather
+than a place, so 96 is the working canvas and the 48-row crop is content-picked.
+
+**Each carries one linear-light gain (×0.87–×0.93) applied at packaging time.** A
+band is the only authored chrome that sits *under* type, and the brightest legal
+chrome ink measures 4.26:1 against `textPrimary` — below the 4.5:1 every readable
+surface is held to. The gain preserves every relationship in the picture and
+redraws nothing. `test/band_plate_test.dart` measures it against the shipped PNG
+rather than trusting this paragraph.
+
+| File | Job | Master → crop | Used by |
+|---|---|---|---|
+| `band_forge.png` | `3841a45f` | `forge_96` rows 25–72 | the Craft forge station, the Smithing roadmap |
+| `band_cookfire.png` | `a2489ffb` | `cookfire_a` rows 36–83 | the Craft cookfire station, the Cooking roadmap |
+| `band_bench.png` | `fd0fd33a` | `bench_b` rows 48–95 | the Craft bench station, the Woodcutting roadmap |
+| `band_foraging.png` | `e2dfdc81` | `foraging_b` rows 39–86 | the Foraging roadmap |
+| `band_mining.png` | `39ad765f` | `mining_c` rows 35–82 | the Mining roadmap |
+| `band_world_chart.png` | `6ccac4b9` | `world_chart_b` rows 23–70 | the atlas inspector |
+| `band_encounter_ground.png` | `d15a7b94` | `encounter_ground_c` rows 0–47 | the encounter list |
+| `band_adventure_trail.png` | `dcb41acf` | `adventure_trail_b` rows 0–47 | the expedition kit |
+| `band_boards_batten.png` | `3e100154` | `boards_batten_b` rows 0–47 | the Goal Board |
+| `band_combat_kit.png` | `3fb87140` | `combat_kit_b` rows 0–47 | **nothing, deliberately.** Combat's picture is its stage, and a band above it would be a second picture competing with the first |
+
+### Button plates — `button/btn_*.png`, drawn ×2 through `PixelFrame`
+
+| File | Job | Canvas | corner / band | Note |
+|---|---|---|---|---|
+| `btn_plate.png` | `ab791a3b` | 58 × 26 | 4 / **0** | the primary control. `ART-02` asked for corner 8 / band 4; the model drew a thinner rim on every candidate and the sidecar records what it drew. `ButtonPlates.primary` declares **band 1**, not 0, because `PanelSkin` asserts `band > 0` — and two logical pixels of inset are cheaper than weakening an assert every panel depends on |
+| `btn_compact.png` | `20dbcaef` | 46 × 22 | 5 / 2 | the utility control. Measured, same story |
+
+Both are one leather ramp, four inks, brightest `#6B5A3E`. **No register and no
+state was authored.** Attack, defense and ready differ by the `outline` and
+`ledge` tokens `StrideButton` already owned, and tinting the raster is refused: a
+multiply over four inks authored under the `#7C7263` ceiling has nowhere to go
+but darker, so the loud registers would read *quieter* than the neutral one.
+
+### Chrome edges — tiled horizontally at period 8, drawn ×2
+
+| File | Job | Native | Replaces |
+|---|---|---|---|
+| `nav/nav_welt.png` | `26f76d49` | 8 × 4 | the tab bar's 1 px `borderDefault` top rule. The six tabs give up 8 of their 64 dp; the bar's own height is unchanged |
+| `header/header_shelf.png` | `7b7eb094` | 8 × 6 | the header's 24 %-alpha region hairline. The `rule` parameter still decides whether a header has an end at all, and supplies the fallback line when the raster is absent |
+
+### What this round authored and did not ship
+
+`modal_128`, `strap_corner_64`, `corner_mark_48`, `tab_index_32x16`, `tack`,
+`nav_plate_32`, `banked_cartouche` and the 8 × 4 rule run all failed on the
+reject list or on measured geometry, and are recorded in the round report §4
+rather than carried. `bg_workbench` (384 × 176) is accepted and deliberately left
+in `GAME_BIBLE/ART/exploration/FMPO02/out/ui/bg/`: it belongs under
+`assets/art/v1/work/` and goes in through `Scripts/art/package-art.js`, which
+this integration does not own.
+
+### The eleven nav glyphs are candidates, and were not swapped
+
+They are packaged in that round's `out/ui/nav/` and were **deliberately not
+integrated** (report §5). Authored in the measured chassis ramp they top out
+around 3.4:1 against `surfaceGround` where the shipped flat silhouettes read at
+roughly 6:1; the authored `_hi` pair separates *less* than the current index
+remap does; and the World tab has no legal `_hi` at all. That is a design
+question rather than a craft failure, and it is open as **Q-26** in
+`JOURNAL/OPEN_QUESTIONS.md`.
+
 ## The one file that needs explaining
 
 ### `nav_world_hi.png` — derived, not authored

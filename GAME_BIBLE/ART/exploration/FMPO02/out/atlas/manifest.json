@@ -78,6 +78,58 @@
       "seed": 716,
       "atlas": "224-296 x 0-250",
       "review": "ATLAS_REGION_LOG.md — NB1 (N1/N2 bridge)"
+    },
+    {
+      "id": "S1",
+      "x": 48,
+      "y": 790,
+      "w": 300,
+      "h": 282,
+      "salt": 26,
+      "status": "accepted",
+      "job": "4982f64d-6de8-4f43-95e9-0b6d960081e6",
+      "seed": 707,
+      "atlas": "96-300 x 886-992",
+      "review": "ATLAS_REGION_LOG.md — S1"
+    },
+    {
+      "id": "S2",
+      "x": 256,
+      "y": 726,
+      "w": 348,
+      "h": 346,
+      "salt": 27,
+      "status": "accepted",
+      "job": "126ab542-2803-4352-9250-ab9dbfb559bd",
+      "seed": 718,
+      "atlas": "300-560 x 886-1024",
+      "review": "ATLAS_REGION_LOG.md — S2"
+    },
+    {
+      "id": "N3",
+      "x": 460,
+      "y": 0,
+      "w": 356,
+      "h": 304,
+      "salt": 25,
+      "status": "accepted",
+      "job": "835092d1-0930-4eba-a701-420df2118bad",
+      "seed": 726,
+      "atlas": "504-772 x 90-232",
+      "review": "ATLAS_REGION_LOG.md — N3 roll 3"
+    },
+    {
+      "id": "NB2",
+      "x": 440,
+      "y": 60,
+      "w": 140,
+      "h": 200,
+      "salt": 30,
+      "status": "accepted",
+      "job": "67e99899-46b8-4560-aaac-a40dce8126d3",
+      "seed": 736,
+      "atlas": "476-548 x 90-230",
+      "review": "ATLAS_REGION_LOG.md — NB2 (N2/N3 bridge)"
     }
   ]
 }
