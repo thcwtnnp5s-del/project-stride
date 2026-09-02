@@ -154,11 +154,19 @@ permitted by `RULES.md` A-2 and with precedent in this repo at commit
 roll REJECT throws away a good asset and spends the cap again on its
 replacement.
 
-**When a family matters and pixen has failed twice, change tool, not seed.**
-`create_image_pro` accepts labelled reference images — pass an accepted grain
-(`assets/ui/v1/surface/grain_*.png`) as the style reference, generate larger,
-downscale. It costs 20–40 against pixen’s 1, so budget a small number and
-stop after two failures of the same kind.
+**For flat, hollow or nine-patchable chrome, `create_image_pro` is the
+default — not the expensive fallback.** Measured on 2026-09-02: the three
+frame families that 32 pixen rolls refused (`inset_well`, `slot_well`,
+`stage_frame`) were each accepted on the **first pro call**, 60 generations
+for all three, returning 36 candidates. Pass an accepted grain
+(`assets/ui/v1/surface/grain_*.png`) as the labelled style reference,
+generate larger, downscale. Keep pixen for small opaque marks, where it
+already succeeds at cost 1.
+
+**Set a nine-patch band from what the painter does, not from the measured
+rim.** `stage_frame`’s iron corner cap is 26 px against a band of 19, and at
+19 the painter tiles the cap along every beam. No measurement shows this;
+render the patch as the painter will (`ninepatch-proof.js`) and look at it.
 
 **Build the Dart structure first.** Every screen’s page model is mostly
 layout on materials that already ship. A screen rebuilt on existing grains
