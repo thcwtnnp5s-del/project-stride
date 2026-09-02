@@ -907,11 +907,29 @@ void main() {
 
       // The tab bar's ground reaches the bottom edge, and its content clears
       // the home indicator.
+      //
+      // **Measured against the content box, not the bar** (EPO03). The bar
+      // became a leather strap that paints the home-indicator inset in its own
+      // material, because a flat `surfaceCard` rectangle under a leather bar
+      // was a seam across the bottom of every screen on a notched device
+      // (`DIR-15_mobile_ux.md` §2). So `StrideTabBar`'s own bottom is now the
+      // bottom of the glass by design, and it has stopped being a proxy for
+      // where the tabs end. The invariant is unchanged and still 34: the
+      // *tabs* must clear the home indicator. Only the thing it is measured
+      // against moved, with the widget boundary.
       final double barBottom = tester
           .getBottomLeft(find.byType(StrideTabBar))
           .dy;
       expect(
-        852 - barBottom,
+        barBottom,
+        852,
+        reason: 'the strap itself must reach the bottom edge, leaving no seam',
+      );
+      final double contentBottom = tester
+          .getBottomLeft(find.byKey(StrideTabBar.contentKey))
+          .dy;
+      expect(
+        852 - contentBottom,
         greaterThanOrEqualTo(34),
         reason: 'tab-bar content must clear the home indicator',
       );

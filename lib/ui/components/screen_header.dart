@@ -8,7 +8,8 @@ import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
-import 'pixel_asset.dart';
+import 'panel_skin.dart';
+import 'surfaces.dart';
 import 'walking_glyph.dart';
 
 /// Eyebrow and title on the left, a trailing slot on the right.
@@ -164,8 +165,25 @@ class ScreenHeader extends StatelessWidget {
           left: 0,
           right: 0,
           bottom: 0,
-          child: EdgeStrip.headerShelf(
+          // **One chassis, one stitch** (EPO03, `DIR-15_mobile_ux.md` §2).
+          //
+          // The shelf and the nav bar's welt were two different rasters
+          // terminating the two frames the player sees on every screen, at two
+          // different thicknesses — 12 dp here, 8 dp there — which is two
+          // unrelated edges rather than one piece of leatherwork. The welt was
+          // re-cut this round at 8 × 6 native, the shelf's exact geometry, and
+          // both now draw it: the top of the app and the bottom of the app are
+          // hemmed by the same stitch.
+          //
+          // Layout-neutral by construction — 8 × 6 at ×2 is the 12 dp
+          // [shelfHeight] this header already spent, so nothing moves and
+          // `band_plate_test.dart`'s 61 dp still holds. The `rule` parameter
+          // still decides whether a header has an end at all, and still
+          // supplies the hairline when the raster is absent.
+          child: KitEdge(
+            tile: KitTile.navWelt,
             fallbackColor: ink.withValues(alpha: 0.24),
+            fallbackAtEnd: true,
           ),
         ),
     ],
