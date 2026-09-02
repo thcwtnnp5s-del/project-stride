@@ -1,4 +1,11 @@
-// FMPO02 — deterministic graded authorization mask builder for atlas regions.
+// EPO03 — deterministic graded authorization mask builder for atlas regions
+// (the FMPO02 builder plus two owner-authorised flags, DECISIONS/0033:
+//   coreAuthor: true      — the region IS the new approved state; the A-4 core
+//                           and rim do not block it (package-art.js marks its
+//                           pixels claimed and re-snapshots the interior);
+//   reauthorizes: [ids]   — landmark goldens this region overwrites; their
+//                           keepout is lifted and each golden is re-extracted
+//                           in the same commit).
 //
 // Produces the grayscale mask that `package-art.js`'s FMPO02_ATLAS_REGIONS
 // block reads: red channel 255 = take the region generation, 0 = keep the
@@ -39,7 +46,7 @@ const protDepth = (x, y) => {
 };
 
 // The 15 byte-enforced landmark goldens (ART-03 §1 / landmark_registry.json).
-const GOLDENS = [
+const GOLDENS_LEGACY = [
   ['frostmere_north_wall', 400, 256, 160, 20],
   ['east_watchtower_flank', 744, 273, 8, 50],
   ['volcano_east_cliff', 752, 260, 72, 210],
@@ -56,6 +63,11 @@ const GOLDENS = [
   ['far_isles', 940, 205, 55, 80],
   ['ne_iceberg', 974, 210, 17, 15],
 ];
+// Read the registry so an edited rect (a re-authored landmark) is honoured.
+const REGISTRY = path.join(__dirname, '..', '..', 'WORLD_ATLAS_REMASTER_01', 'landmark_registry.json');
+const GOLDENS = require('fs').existsSync(REGISTRY)
+  ? JSON.parse(require('fs').readFileSync(REGISTRY, 'utf8')).landmarks.map((l) => [l.id, l.x, l.y, l.w, l.h])
+  : GOLDENS_LEGACY;
 const GOLDEN_KEEPOUT = 20;
 const GOLDEN_RAMP = 24;
 
@@ -69,9 +81,11 @@ const GOLDEN_RAMP = 24;
  * to remove (M-14): the keepout must protect the feature without printing its
  * outline onto the terrain around it.
  */
-function protectFactor(tx, ty, rimBlock) {
+function protectFactor(tx, ty, rimBlock, opts = {}) {
+  const coreAuthor = opts.coreAuthor === true;
+  const reauth = opts.reauthorizes || [];
   const d = protDepth(tx, ty);
-  if (d > PROT.band) return 0;
+  if (!coreAuthor && d > PROT.band) return 0;
   // `rimBlock` refuses the writable A-4 rim as well. The rim is writable, but
   // package-art.js's own `keepRepair` hash-dither runs there unconditionally,
   // keeping a repair pixel with probability 1 - depth/21 — so a region that
@@ -81,9 +95,10 @@ function protectFactor(tx, ty, rimBlock) {
   // base pixels across 256..276). The guard is not the thing to change
   // (G-4); the region is. Regions whose edge would otherwise land in the rim
   // set this and stop at the core wall.
-  if (rimBlock && d > 0) return 0;
+  if (!coreAuthor && rimBlock && d > 0) return 0;
   let f = 1;
-  for (const [, gx, gy, gw, gh] of GOLDENS) {
+  for (const [gid, gx, gy, gw, gh] of GOLDENS) {
+    if (reauth.includes(gid)) continue;
     const dx = Math.max(gx - tx, tx - (gx + gw - 1), 0);
     const dy = Math.max(gy - ty, ty - (gy + gh - 1), 0);
     const d = Math.max(dx, dy);
@@ -95,8 +110,8 @@ function protectFactor(tx, ty, rimBlock) {
 }
 
 /** True where a mask pixel may never be authorized at all. */
-function forbidden(tx, ty, rimBlock) {
-  return protectFactor(tx, ty, rimBlock) === 0;
+function forbidden(tx, ty, rimBlock, opts) {
+  return protectFactor(tx, ty, rimBlock, opts) === 0;
 }
 
 // Low-frequency value noise in [-1,1] along one axis: hash per 24 px cell,
@@ -179,6 +194,7 @@ const AGREE_HI = 45;
 function buildMask(spec) {
   const { w, h, ox, oy, rect, ramps, salt } = spec;
   const rimBlock = spec.rimBlock === true;
+  const opts = { coreAuthor: spec.coreAuthor === true, reauthorizes: spec.reauthorizes || [] };
   const jitter = spec.jitter ?? 10;
   const diff = (spec.gen && spec.src)
     ? dissimilarity(spec.gen, spec.src, w, h) : null;
@@ -192,7 +208,7 @@ function buildMask(spec) {
       const tx = ox + sx, ty = oy + sy;
       let m = 0;
       const inside = tx >= 0 && ty >= 0 && tx < 1024 && ty < 1024;
-      const pf = inside ? protectFactor(tx, ty, rimBlock) : 0;
+      const pf = inside ? protectFactor(tx, ty, rimBlock, opts) : 0;
       if (pf > 0) {
         // Each ramp is ONE-SIDED and anchored exactly on the authored rect
         // edge, which is the inpaint rectangle's own edge: alpha is 0 there

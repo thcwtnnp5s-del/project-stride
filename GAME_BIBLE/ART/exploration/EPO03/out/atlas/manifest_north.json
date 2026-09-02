@@ -1,0 +1,4 @@
+{
+  "comment": "EPO03 accepted atlas regions for team north, in blit order. A region appears here ONLY after the single-defect loop ACCEPT (generate -> composite -> guards -> full atlas + x2 perimeter + 197x426 phone FOV -> verdict). Fields: id, x, y, w, h (crop origin/size on the 1024^2 atlas; <id>.png and <id>_mask.png are exactly w x h), salt (>= 40, unique across all five manifests), status, job, seed, atlas, review, team, reauthorizes (landmark golden ids this region overwrites; each is re-extracted in the same commit — DECISIONS/0033).",
+  "regions": []
+}

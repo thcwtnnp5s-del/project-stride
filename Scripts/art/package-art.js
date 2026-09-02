@@ -2035,9 +2035,21 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
   // erased the Frostmere frozen basin and the volcano's watchtowers
   // (`MISTAKES.md` M-15).
   const PROT = { x0: 256, y0: 256, x1: 768, y1: 768, band: 20 };
-  const approved = base.clone();
+  // `let`, not `const`: the EPO03 block below re-takes this snapshot once
+  // its owner-authorised regions are in (DECISIONS/0033). Until then every
+  // layer sees the 559669e state exactly as before.
+  let approved = base.clone();
+  // Pixels the EPO03 block wrote. `protDepth` treats a claimed pixel as hard
+  // core wherever it sits on the canvas, so the sage pass, the drift guard
+  // and any layer inserted after the block cannot repaint the new approved
+  // state. Empty until the block runs — rows above behave exactly as today.
+  const claimed = new Uint8Array(1024 * 1024);
+  // Landmark goldens an EPO03 region declared it overwrites (each is
+  // re-extracted in the same commit; the golden guard still compares).
+  const reauthorized = new Set();
   // Depth inside the protected rect (0 = outside; 1 = rim pixel).
   const protDepth = (x, y) => {
+    if (claimed[y * 1024 + x]) return PROT.band + 1;
     if (x < PROT.x0 || x >= PROT.x1 || y < PROT.y0 || y >= PROT.y1) return 0;
     return Math.min(x - PROT.x0, y - PROT.y0, PROT.x1 - 1 - x, PROT.y1 - 1 - y) + 1;
   };
@@ -2528,6 +2540,120 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     }
   }
 
+  // ------------------------- EPO03_ATLAS_REGIONS (owner-authorised replacement)
+  //
+  // DECISIONS/0033: the approved atlas is a state the owner may replace. The
+  // regions here are that replacement, so — unlike every layer above — they
+  // are NOT clipped against the A-4 core or its rim, and may overwrite a
+  // landmark golden they DECLARE in `reauthorizes` (the golden is then
+  // re-extracted in the same commit; the golden guard below still compares).
+  // What keeps the new state protected: every pixel this block writes is
+  // marked `claimed`, `protDepth` treats a claimed pixel as hard core, the
+  // `approved` snapshot is re-taken as the block's last statement, and the
+  // drift guard walks the whole canvas. The guard is never weakened (G-4).
+  //
+  // Placed here, after the ghost-sail restore and before the water-only
+  // conform, because at this point the base IS the shipped composite the
+  // regions were cropped from (GOV-03 §1a): a mask's ramp dithers the
+  // generation against the terrain the reviewer actually saw, and nothing
+  // content-bearing runs after it.
+  //
+  // Five manifests, one per producer team, in fixed order (later wins where
+  // masks overlap; landmarks last so a re-authored landmark supersedes
+  // regional terrain). Every team commits {"regions":[]} at kickoff so a
+  // missing file is a defect, not an absence. Salts are >= 40 and unique
+  // (1–15 legacy, 20–32 FMPO02). Masks are built by
+  // `GAME_BIBLE/ART/exploration/EPO03/tools/atlas-mask.js` with
+  // `coreAuthor` / `reauthorizes`; compositing is the same hash dither-SELECT
+  // as FMPO02 (A-2 — never an average).
+  {
+    const EPO03 = path.join(EXPLORE, 'EPO03', 'out', 'atlas');
+    const MANIFESTS = ['manifest_north.json', 'manifest_south.json',
+      'manifest_west.json', 'manifest_east.json', 'manifest_landmarks.json'];
+    const reg = JSON.parse(
+      fs.readFileSync(path.join(REM01, 'landmark_registry.json'), 'utf8'));
+    const seenIds = new Set(), seenSalts = new Set(), shipped = [];
+    for (const file of MANIFESTS) {
+      const mf = path.join(EPO03, file);
+      if (!fs.existsSync(mf)) {
+        throw new Error(`EPO03 atlas: ${file} missing — every team commits ` +
+          `{"regions":[]} at kickoff so --check stays honest`);
+      }
+      const manifest = JSON.parse(fs.readFileSync(mf, 'utf8'));
+      for (const region of manifest.regions) {
+        if (region.status !== 'accepted') {
+          throw new Error(`EPO03 atlas region ${region.id} (${file}): status ` +
+            `'${region.status}' — only accepted regions may ship`);
+        }
+        if (seenIds.has(region.id)) {
+          throw new Error(`EPO03 atlas: duplicate region id ${region.id}`);
+        }
+        if (typeof region.salt !== 'number' || seenSalts.has(region.salt) || region.salt < 40) {
+          throw new Error(`EPO03 atlas region ${region.id}: salt ${region.salt} — ` +
+            `must be unique across all five manifests and >= 40`);
+        }
+        seenIds.add(region.id); seenSalts.add(region.salt);
+        const gen = png.load(path.join(EPO03, `${region.id}.png`));
+        const mask = png.load(path.join(EPO03, `${region.id}_mask.png`));
+        if (gen.width !== region.w || gen.height !== region.h ||
+            mask.width !== region.w || mask.height !== region.h) {
+          throw new Error(`EPO03 atlas region ${region.id}: expected ` +
+            `${region.w}x${region.h}, got gen ${gen.width}x${gen.height}, ` +
+            `mask ${mask.width}x${mask.height}`);
+        }
+        // A golden the mask touches must be declared; the declaration is the
+        // producer's statement that the golden is re-extracted in this commit.
+        const declared = new Set(region.reauthorizes || []);
+        for (const lm of reg.landmarks) {
+          if (declared.has(lm.id)) continue;
+          const sx0 = Math.max(0, lm.x - region.x), sy0 = Math.max(0, lm.y - region.y);
+          const sx1 = Math.min(region.w, lm.x + lm.w - region.x);
+          const sy1 = Math.min(region.h, lm.y + lm.h - region.y);
+          for (let sy = sy0; sy < sy1; sy++) {
+            for (let sx = sx0; sx < sx1; sx++) {
+              if (mask.data[mask.idx(sx, sy)] !== 0) {
+                throw new Error(`EPO03 atlas region ${region.id}: mask touches ` +
+                  `golden '${lm.id}' at (${region.x + sx},${region.y + sy}) but ` +
+                  `does not declare it in reauthorizes`);
+              }
+            }
+          }
+        }
+        for (const id of declared) {
+          if (!reg.landmarks.some((lm) => lm.id === id)) {
+            throw new Error(`EPO03 atlas region ${region.id}: reauthorizes unknown golden '${id}'`);
+          }
+          reauthorized.add(id);
+        }
+        for (let sy = 0; sy < region.h; sy++) {
+          for (let sx = 0; sx < region.w; sx++) {
+            const m = mask.data[mask.idx(sx, sy)];
+            if (m === 0) continue;
+            const tx = region.x + sx, ty = region.y + sy;
+            if (tx < 0 || ty < 0 || tx >= 1024 || ty >= 1024) continue;
+            // Selection, not blending: the mask is a probability, and the
+            // pixel that wins is whole.
+            if (m < 255 && hash(tx, ty, region.salt) >= m / 255) continue;
+            const si = gen.idx(sx, sy);
+            // A transparent source pixel is crop padding, not authored terrain.
+            if (gen.data[si + 3] === 0) continue;
+            // No protDepth / keepRepair clip: this layer IS the new approved state.
+            const ai = base.idx(tx, ty);
+            for (let k = 0; k < 4; k++) base.data[ai + k] = gen.data[si + k];
+            claimed[ty * 1024 + tx] = 1;
+          }
+        }
+        shipped.push(`${file.replace(/^manifest_|\.json$/g, '')}/${region.id}`);
+      }
+    }
+    if (shipped.length) console.log(`  atlas EPO03 regions: ${shipped.join(', ')}`);
+    if (reauthorized.size) {
+      console.log(`  atlas EPO03 re-authorised goldens: ${[...reauthorized].join(', ')}`);
+    }
+    // The interior of record is now the EPO03-inclusive composite.
+    approved = base.clone();
+  }
+
   // Deterministic open-ocean conform (single source of the water math). Runs
   // LAST — after the restore and the edge fixes — so every layer's deep water
   // (strip, bridge, master coast, edge pieces with older conforms baked in)
@@ -2569,6 +2695,8 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
       const fills = [];
       for (let y = y0; y < y1; y++) {
         for (let x = x0; x < x1; x++) {
+          // An EPO03-replaced shelf is approved terrain, not N3 seam debris.
+          if (protDepth(x, y) > PROT.band) continue;
           const i = base.idx(x, y);
           if (!isSage(i)) continue;
           for (const [ox, oy] of OFF) {
@@ -2590,14 +2718,22 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
   }
 
 
+  // Golden re-extraction (DECISIONS/0033): the golden guard below throws
+  // before `emit`, so a composite that legitimately re-authors a landmark is
+  // never written. With ATLAS_DUMP set, the pre-guard composite is saved to
+  // that path so the re-extraction tool can crop the new golden from it;
+  // the guard still runs and still throws — nothing is bypassed.
+  if (process.env.ATLAS_DUMP) png.save(process.env.ATLAS_DUMP, base);
+
   // Protected-interior guard: beyond the rim band, every pixel that is not
   // conformable open water must be byte-identical to the approved snapshot.
   // Any future repair layer that repaints the master interior fails packaging
   // (and therefore `--check`) rather than shipping drift (`MISTAKES.md` M-15).
+  // Walks the whole canvas: a claimed EPO03 pixel is hard core anywhere.
   {
     let drift = 0;
-    for (let y = PROT.y0; y < PROT.y1; y++) {
-      for (let x = PROT.x0; x < PROT.x1; x++) {
+    for (let y = 0; y < 1024; y++) {
+      for (let x = 0; x < 1024; x++) {
         if (protDepth(x, y) <= PROT.band) continue;
         const i = base.idx(x, y);
         const same = base.data[i] === approved.data[i] &&

@@ -283,4 +283,6 @@ than the narrow rim band, and fails packaging on any core drift. Repainting
 approved geography to solve a seam is a defect, not a technique; masks are
 authored in or outside the band.
 → `MISTAKES.md` M-15, `Scripts/art/package-art.js` (protected interior),
-`MILESTONES/WORLD_ATLAS_RESTORE_01.md`
+`MILESTONES/WORLD_ATLAS_RESTORE_01.md`,
+`DECISIONS/0033_ATLAS_REBASELINE_AUTHORITY.md` (how an approved interior is
+replaced: re-baselined in the same commit, never by weakening the guard)

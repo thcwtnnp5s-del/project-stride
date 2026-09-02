@@ -161,9 +161,14 @@ designed state, and it is what makes a later key drop in as a manifest row.
   is an authorization about the ~70% that is fair game, not a licence to touch
   the core. `A-3` still decides every boundary, and a seam metric is still
   triage rather than acceptance.
+  *Amended by `DECISIONS/0033` (owner ruling, 2026-09-02): under EPO03 the
+  core and the goldens may be re-baselined by re-authoring — the guard itself
+  is never weakened.*
 - **No answer to `Q-13`.** The lime-band identity question gates the southern
   atlas zone and is the owner's to settle. It stays `UNRESOLVED`, and the zone
   it gates is deferred rather than guessed at (`G-3`).
+  *Resolved by `DECISIONS/0033` (2026-09-02): the directive's coast
+  specification answers it.*
 - **No blind staging.** `G-8` binds this workstream with unusual force: the
   working tree currently holds ~25 untracked exploration directories including
   `WALKSCAPE_REFERENCE_SET/`, the third-party imagery whose accidental
