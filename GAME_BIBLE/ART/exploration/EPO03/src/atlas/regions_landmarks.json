@@ -1,0 +1,40 @@
+{
+  "comment": "EPO03 PROD-WORLD-LANDMARKS pending regions (DIR-03). x,y = crop origin on the 1024^2 atlas; w,h = crop size (generation and mask are exactly this size). `rect` is the authored rect in CROP coords (half-open) and equals the inpaint rect; ramps are one-sided from the rect edge rising inward, width-jittered +/-60%. Salts 120-139 are this team's. L3 first (outside the core, no golden); L2 after PROD-WORLD-SOUTH's region covering y 816-992 lands (re-extracts south_strand_w again); L1 last, after PROD-WORLD-WEST's core-face region lands (coreAuthor, D0033 s2).",
+  "regions": [
+    {
+      "id": "L3",
+      "name": "ice_bastion",
+      "x": 380, "y": 72, "w": 200, "h": 192,
+      "atlas": "420-540 x 116-236",
+      "rect": { "x0": 40, "y0": 44, "x1": 160, "y1": 164 },
+      "ramps": { "left": 24, "right": 24, "top": 24, "bottom": 24 },
+      "inpaint": { "x": 40, "y": 44, "w": 120, "h": 120 },
+      "salt": 120, "seed": 0, "status": "pending",
+      "intent": "The Ice-Mage Tower rebuilt on a glacial foundation: a crevassed bastion of three stepped terraces with blue south faces and drifts banked north, a crystalline tower footed at atlas (468,177), a 4-5 px frozen causeway with ice pillars winding up from the south-west, sastrugi around; nothing lit under the Frozen Shelf marker (445,176); frostmere_north_wall (y>=256) untouched."
+    },
+    {
+      "id": "L2",
+      "name": "storm_pocket",
+      "x": 130, "y": 816, "w": 176, "h": 176,
+      "atlas": "170-266 x 856-952",
+      "rect": { "x0": 40, "y0": 40, "x1": 136, "y1": 136 },
+      "ramps": { "left": 24, "right": 24, "top": 24, "bottom": 24 },
+      "inpaint": { "x": 40, "y": 40, "w": 96, "h": 96 },
+      "salt": 121, "seed": 0, "status": "pending",
+      "reauthorizes": ["south_strand_w"],
+      "intent": "The Storm House: a pocket of NE-SW darkness at least 25 L* below the surrounding heath fading out at the edge, a black-gabled house 28-34 px at atlas (218,900) with three amber windows, blasted trees leaning away from it (one split and charred), a wet track; the pocket is painted into the terrain, not a prop on it."
+    },
+    {
+      "id": "L1",
+      "name": "fairy_glade",
+      "x": 256, "y": 352, "w": 208, "h": 192,
+      "atlas": "296-416 x 392-496",
+      "rect": { "x0": 40, "y0": 40, "x1": 160, "y1": 144 },
+      "ramps": { "left": 24, "right": 24, "top": 24, "bottom": 24 },
+      "inpaint": { "x": 40, "y": 40, "w": 120, "h": 104 },
+      "salt": 122, "seed": 0, "status": "pending",
+      "coreAuthor": true,
+      "intent": "The Fairy Castle: a glade opened in the oak canopy, a castle grown from three living birch trunks with moss roofs and amber windows at atlas (335,452), a root bridge over a moss-green pool ringed with gold flower-lights, faint paths, a ragged copse edge; clear of the Greenwatch (286,431) and Whispering Woods (383,509) markers."
+    }
+  ]
+}
