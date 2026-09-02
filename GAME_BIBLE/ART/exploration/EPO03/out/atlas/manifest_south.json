@@ -44,6 +44,28 @@
       ],
       "review": "review/atlas/S2_r1_x2.png, S2_preview_x2.png, S2_preview_fov_x2.png, S2_after_*.png",
       "intent": "No sea reaches this ground, so no beach: the interior sand belt becomes rough grazing, heath, gorse, bracken, boulders and a winding beck; the SW wood breaks out of its straight top edge into bays and stepping copses; the blue-rimmed orchard becomes ordinary broadleaf; machair only at the far right where S1 dune belt begins; the reserved storm-knoll pocket left plain."
+    },
+    {
+      "id": "S3",
+      "x": 0,
+      "y": 660,
+      "w": 300,
+      "h": 364,
+      "salt": 62,
+      "status": "accepted",
+      "job": "33079c45-666a-4e34-94d7-974224da0719",
+      "seed": 6013,
+      "tool": "inpaint_image",
+      "cost": 40,
+      "atlas": "0-256 x 700-1024",
+      "team": "south",
+      "coreAuthor": false,
+      "reauthorizes": [
+        "south_strand_w"
+      ],
+      "review": "review/atlas/S3_r2_x2.png, S3_preview_x2.png, S3_r2_fov160_x2.png, S3_r2_fov_seam_x2.png, S3_after_*.png",
+      "postprocess": "tools/conform-region-water.js — the open-water interior of the generation is remapped to the atlas sea dialect (ocean_unify TGT palette, mean/std + nearest-palette snap, 9x9 >=80% deep guard). Deterministic, A-2. Roll 1 (seed 6003) rejected: the SW wood was cleared into a dead zone.",
+      "intent": "The SW corner: the vertical turquoise shore becomes a curving coast with a rocky headland, a bay, varying sand width, surf, angled dune ridges, machair and a creek; the wood is kept and only its straight western and northern edges break into copses; the lime slab becomes textured heath; the reserved storm-knoll pocket left plain."
     }
   ]
 }

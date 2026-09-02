@@ -74,4 +74,51 @@ storm-knoll pocket (168–264 × 816–952) is plain open heath, ready for LANDM
 | # | region / roll | tool | job id | canvas / mask / seed | cost line | verdict | reason |
 |---|---|---|---|---|---|---|---|
 | 4 | S3 roll 1 — the SW corner's vertical shore | inpaint_image | aec776d8-ce2d-45e7-b152-e37459caea9d | crop 300x364 @ (0,660) (c58265f, cut from the composite S2 shipped into) / mask 256x324 @ (0,40) / seed 6003 | cost: ~40 generations | **REJECT** — the coast is right (curving bay, rock headland, boulders, varying sand, creek, surf, angled dunes; lime slab gone) but the generation deleted the SW wood and left a ~120x90 dead zone with a brown stain. Intent changed for roll 2, not the seed. rejected/atlas/S3_r1.png + S3_r1_deadzone_x3.png | BEFORE, measured: the west shore is a near-vertical turquoise cut with a uniform sand ribbon and banded shallows in a brighter dialect than the rest of the sea; the wood ends on a razor vertical (longest straight vertical edge run in 0-256 x 860-1024 = 16 px at x=113, plus 14 px at x=18). Intent: a shore that swings — headland, bay, varying sand width, surf, angled dunes, machair, a creek; the wood's west face broken into copses; the lime slab given structure; the reserved storm-knoll pocket left plain |
-| 5 | S3 roll 2 — same crop/rect, changed intent | inpaint_image | 33079c45-666a-4e34-94d7-974224da0719 | crop 300x364 @ (0,660) (c58265f) / mask 256x324 @ (0,40) / seed 6013 | cost: ~40 generations | _pending_ | Intent changed, not the seed: the wood is named as KEPT ("it is not cleared"), only its straight western and northern edges break into copses; the open ground is confined to the upper middle and must be textured heath, "never an empty field"; "no bare brown patches" added to the forbidden list |
+| 5 | S3 roll 2 — same crop/rect, changed intent | inpaint_image | 33079c45-666a-4e34-94d7-974224da0719 | crop 300x364 @ (0,660) (c58265f) / mask 256x324 @ (0,40) / seed 6013 | cost: ~40 generations | **ACCEPT** | Intent changed, not the seed: the wood is named as KEPT ("it is not cleared"), only its straight western and northern edges break into copses; the open ground is confined to the upper middle and must be textured heath, "never an empty field"; "no bare brown patches" added to the forbidden list |
+
+## S3 — the SW corner (ACCEPTED)
+
+| | |
+|---|---|
+| Crop | `src/atlas/S3_crop.png`, origin (0,660), 300×364, cut from the composite S2 shipped into, published at `c58265f` |
+| Inpaint | 256×324 at (0,40) — frozen margins 0 left (canvas edge) / 40 top / 44 right / 0 bottom (canvas edge) |
+| Authored rect | atlas **0–256 × 700–1024** · ramps left 0 (canvas), right 32, top 32, bottom 0 (canvas) · salt **62** · `coreAuthor: false` (the rect stops one pixel short of x=256) |
+| Mask | 69,066 authorized · 8,861 feathered · 2,112 blocked (`south_strand_w`'s keepout, in the frozen right margin) |
+| Containment | changed-inside-mask 77,911; changed-outside-mask 5,090 (frozen margins, blocked at packaging) |
+| Goldens re-authored | `south_strand_w`, re-extracted from `raw/atlas/S3_pre_guard.png` in this commit. Registry rect unchanged. |
+| Guards | `package-art.js` **green** (1,827 files; core drift 0, 15 goldens held). `check-art-palette.js` green. `--check` currently throws ENOENT on `EPO03/out/equip/ls/traveler_coat_longsword_brace_f0.png` — PROD-EQUIPMENT's source mid-flight, not mine; an earlier `--check` this session was fully green with S1+S2 shipped. |
+| `atlas-qa.js` | repeated 10×10 sprite pairs **0**; orphan flecks 310 |
+| Straight runs | longest vertical 20 px at x=53 y 825 and 17 px at x=17 y 875 — both the rocky headland's own rock/grass and shore edges (`review/atlas/S3_r2_runs_x6.png`, left panel). Longest horizontal 15 px at y=795. |
+| Evidence | `review/atlas/S3_before_{fov,x2}.png`, `S3_r1_x2.png` (rejected), `S3_r2_x2.png`, `S3_preview_x2.png`, `S3_r2_fov160_x2.png` (the DIR-01 named FOV), `S3_r2_fov_seam_x2.png`, `S3_r2_runs_x6.png`, `S3_after_{full,x2,fov}.png` |
+
+**The water conform, and why a new tool rather than a third roll.** The roll came
+back with its own sea — `#438383` and hundreds of neighbours where the map's sea
+is one flat `#3e98a6` — the DIR-02 failure mode "a mask reaching open sea forces
+the model to invent water". The global conform in `package-art.js` cannot repair
+it: `ocean_unify`'s rectangles start at **x=300**, so the south-western wedge has
+never been inside them, which is also why the sea there was *already* an
+off-dialect turquoise (`#4eb9a5` / `#2c9da3`, 82 %) before this round. Rather
+than spend a third roll on water PixelLab has never once got right here (FMPO02:
+0/4), the region's own open water is remapped by `tools/conform-region-water.js`
+using `ocean_unify`'s own algorithm and its own target swatch: measure, map
+mean/std, snap to the target's palette — every output pixel is a colour the
+accepted sea is already made of (A-2; nothing averaged, nothing invented). The
+SW sea now measures **`#3e98a6` 100 %** against the east sea's `#3e98a6` 99 %,
+so the corner's turquoise panel is gone as well as the shoreline.
+**What the tool got wrong first, and now guards against:** `isDeep` alone also
+matches the blue-green outline pixels inside dark foliage, and the first run
+turned the wood cyan. A pixel is conformed only when ≥ 80 % of its 9×9
+neighbourhood is also deep — open-water interiors only.
+
+**Read.** The west shore is no longer a vertical turquoise cut: it swings out
+into a low rocky headland with boulders standing in the water, back into a bay
+with a wide beach, and the sand narrows to nothing at the rock. Surf hugs it; a
+creek winds out of the wood and cuts the beach. Behind it dune ridges at an
+angle, then gorse-and-bracken heath with boulders, then the wood — which is
+still there, now with a broken edge instead of a slab. The lime slab is gone.
+At the DIR-01 FOV (160,900) the stack reads wood → heath → dune → shore.
+
+**Residual, named.** At ×6 there is a tonal step ~17 px long at x≈244 where S3's
+heath meets S2's sward inside the right ramp. At 197×426 ×2
+(`S3_r2_fov_seam_x2.png`) it does not read. A bridge region is the prescribed
+fix and is affordable within the cap.
