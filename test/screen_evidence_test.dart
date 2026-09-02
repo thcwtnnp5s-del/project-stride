@@ -18,6 +18,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/panel_skin.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_layout.dart';
@@ -128,6 +129,14 @@ void main() {
         // two, because it fails for whoever runs it next.
         await precacheImage(
           AssetImage((e.widget as PixelFrame).skin.assetPath),
+          e,
+        );
+        final SurfaceTile? tile = (e.widget as PixelFrame).surface;
+        if (tile != null) await precacheImage(AssetImage(tile.assetPath), e);
+      }
+      for (final Element e in find.byType(SurfaceFill).evaluate()) {
+        await precacheImage(
+          AssetImage((e.widget as SurfaceFill).tile.assetPath),
           e,
         );
       }

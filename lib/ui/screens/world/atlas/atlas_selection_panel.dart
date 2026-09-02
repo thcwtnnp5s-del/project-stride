@@ -37,6 +37,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ContentId, GoalSlot, Terrain;
 
+import '../../../../audio/audio_events.dart';
 import '../../../../runtime/stride_session.dart';
 import '../../../components/adaptive_text.dart';
 import '../../../components/data_display.dart';
@@ -687,6 +688,10 @@ class _TravelControlsState extends State<_TravelControls> {
                     // tap as the boots go on. Fired here, not on arrival:
                     // the decision is the moment.
                     AudioScope.maybeRead(context)?.hapticLight();
+                    // The shared ui.commit cue (ART-11), beside the haptic
+                    // above, never replacing it. Silent until
+                    // ui.commit.01 lands.
+                    AudioEvents.commit(AudioScope.maybeRead(context));
                     setState(() => _confirming = false);
                     widget.onTravel?.call();
                   },

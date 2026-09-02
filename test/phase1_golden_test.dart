@@ -47,6 +47,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/panel_skin.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
@@ -163,6 +164,17 @@ void main() {
           // two, because it fails for whoever runs it next.
           await precacheImage(
             AssetImage((e.widget as PixelFrame).skin.assetPath),
+            e,
+          );
+          // The frame's interior tile (FMPO02) rides the same stream.
+          final SurfaceTile? tile = (e.widget as PixelFrame).surface;
+          if (tile != null) await precacheImage(AssetImage(tile.assetPath), e);
+        }
+        for (final Element e in find.byType(SurfaceFill).evaluate()) {
+          // An unframed card's material (FMPO02): the same non-`Image`
+          // resolution as the frame, so the same race.
+          await precacheImage(
+            AssetImage((e.widget as SurfaceFill).tile.assetPath),
             e,
           );
         }

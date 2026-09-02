@@ -260,7 +260,7 @@ final class EventCue {
       duckDb == 0 ? 1 : math.pow(10, duckDb / 20).toDouble();
 }
 
-/// The combat and outcome event table.
+/// The combat, outcome and UI-commit event tables.
 ///
 /// **Every asset ID here is currently unbundled, and that is the designed
 /// state.** `AudioCues.fileFor` returns null for an unknown ID and the
@@ -404,10 +404,28 @@ abstract final class EventCues {
     ),
   };
 
-  /// The cue for [event], from either table, or null when nothing is wired.
-  static EventCue? of(String event) => combat[event] ?? reward[event];
+  /// The shared UI-commit table (ART-11, FMPO02 wave 1).
+  ///
+  /// One id, `ui.commit.01`, covers every primary-commit press — Confirm,
+  /// Equip, Craft-begin, Travel-start (and, per
+  /// `GAME_BIBLE/AUDIO/02_AUDIO_EVENT_MATRIX.md` §2.5, every other commit the
+  /// game gains later) — because a click family is upkeep, not a taxonomy.
+  /// Every one of those sites already fires a haptic; this plays **beside**
+  /// it, never in place of it. Priority 10 (intent, not outcome) so it never
+  /// out-ranks the impact/outcome tiers above, and no duck — the quietest,
+  /// most frequent cue in the game must never move the music bed.
+  static const Map<String, EventCue> ui = <String, EventCue>{
+    'ui.commit': EventCue(
+      assetId: 'ui.commit.01',
+      priority: 10,
+      minGapMillis: 120,
+    ),
+  };
+
+  /// The cue for [event], from any table, or null when nothing is wired.
+  static EventCue? of(String event) => combat[event] ?? reward[event] ?? ui[event];
 
   /// Every wired event id — the surface `audio_event_test` enumerates.
   static Iterable<String> get all =>
-      <String>[...combat.keys, ...reward.keys];
+      <String>[...combat.keys, ...reward.keys, ...ui.keys];
 }
