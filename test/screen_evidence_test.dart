@@ -217,11 +217,21 @@ void main() {
     await capture(tester, 'inventory');
 
     await open(tester, 'Craft');
+    // FMPO02 (`ART-12` §1): the station is the screen's primary axis, a
+    // skill-locked recipe sits behind its gate's ledger line until the
+    // player opens it, and detail rises in a sheet rather than expanding
+    // the row — so the sheet is dismissed before the next tab is reached.
+    await tester.tap(find.text('Forge'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('more at Smithing 3'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword').first);
     await tester.pumpAndSettle();
     expect(find.text('ATTACK'), findsOneWidget);
     expect(find.text('UPGRADE'), findsOneWidget);
     await capture(tester, 'craft_gear_open');
+    await tester.tapAt(const Offset(196, 30));
+    await tester.pumpAndSettle();
 
     await open(tester, 'Character');
     await capture(tester, 'character');
@@ -450,17 +460,31 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    // Craft: the banded overview, a ready recipe, sourcing on a missing
-    // one, the chain jump, the prover warning, and a locked capstone.
+    // Craft, rebuilt by FMPO02: the workshop overview (station strip + an
+    // already-open folio), sourcing in the sheet, the chain jump inside it,
+    // the prover warning, and a locked capstone reached through its gate
+    // line rather than by scrolling past nineteen identical rows.
     await open(tester, 'Craft');
+    // The cookfire is where the bag can fund something, so the screen is
+    // already standing there with the broth's folio open — the "ready"
+    // state needs no tap at all now.
     await capture(tester, 'v3_craft_overview');
-    await tester.tap(find.text('Herb Broth'));
-    await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_ready');
+
+    /// The sheet's scrim, well above the panel's 70 % ceiling.
+    Future<void> dismissSheet() async {
+      await tester.tapAt(const Offset(196, 30));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.text('Forge'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Ingot'));
     await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_sourcing');
-    await tester.tap(find.text('Gear'));
+    await dismissSheet();
+
+    await tester.tap(find.textContaining('more at Smithing 3'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
@@ -469,33 +493,27 @@ void main() {
     await capture(tester, 'v3_craft_chain');
     await tester.tap(find.textContaining('Back to Bronze Sword'));
     await tester.pumpAndSettle();
-    // The chain scrolled the list; bring the chips back before filtering.
-    Future<void> toTop() async {
-      for (int i = 0; i < 4; i++) {
-        await tester.drag(find.byType(ListView).first, const Offset(0, 700));
-        await tester.pump();
-      }
-      await tester.pumpAndSettle();
-    }
+    await dismissSheet();
 
-    await toTop();
-    await tester.tap(find.text('Gear'));
+    await tester.tap(find.textContaining('more at Smithing 4'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fang-Hilted Sword'));
     await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_prover');
-    await toTop();
-    await tester.tap(find.text('Gear'));
-    await tester.pumpAndSettle();
+    await dismissSheet();
+
     await tester.dragUntilVisible(
-      find.text('Bronze Longsword'),
+      find.textContaining('more at Smithing 6'),
       find.byType(ListView).first,
       const Offset(0, -250),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('more at Smithing 6'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Longsword'));
     await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_locked');
+    await dismissSheet();
 
     // Inventory: the purpose block under a held material.
     await open(tester, 'Inventory');
@@ -767,218 +785,223 @@ void main() {
     }
   });
 
-  testWidgets('Game Feel & Character Presentation 01, driven into its moments',
-      (WidgetTester tester) async {
-    // The pacing pass's evidence (GAME_FEEL_CHARACTER_PRESENTATION_01):
-    // the craft completion beat with the thing itself on it, the Gather
-    // commit plate, and the ambient dwell actually dwelling. The travel
-    // card's departure and road are captured by the Iteration 02 run
-    // above; Attack/Brace and the held equipment layer are the combat and
-    // craft goldens' subjects.
-    tester.view.physicalSize = const Size(393, 852);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+  testWidgets(
+    'Game Feel & Character Presentation 01, driven into its moments',
+    (WidgetTester tester) async {
+      // The pacing pass's evidence (GAME_FEEL_CHARACTER_PRESENTATION_01):
+      // the craft completion beat with the thing itself on it, the Gather
+      // commit plate, and the ambient dwell actually dwelling. The travel
+      // card's departure and road are captured by the Iteration 02 run
+      // above; Attack/Brace and the held equipment layer are the combat and
+      // craft goldens' subjects.
+      tester.view.physicalSize = const Size(393, 852);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
 
-    final FakeTiming fake = FakeTiming();
-    final StrideSession session = (await tester.runAsync(() async {
-      final StrideSession s = await StrideSession.start(
-        overrideRoot: root,
-        source: MockStepSource(
-          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(12480)],
+      final FakeTiming fake = FakeTiming();
+      final StrideSession session = (await tester.runAsync(() async {
+        final StrideSession s = await StrideSession.start(
+          overrideRoot: root,
+          source: MockStepSource(
+            script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(12480)],
+          ),
+        );
+        await s.syncSteps();
+        await s.syncSteps();
+        // Herbs for the correction's craft drives: one broth, a ×5 batch,
+        // and the ×3 run that crosses Cooking 2 (nine broths, two herbs
+        // each — bonus procs only add slack).
+        for (int i = 0; i < 18; i++) {
+          await s.gather(kNode);
+        }
+        return s;
+      }))!;
+      session.activityWallClock = fake.wallClock;
+
+      await tester.pumpWidget(
+        StrideApp(
+          session: session,
+          syncOnStart: false,
+          activityTiming: fake.timing,
         ),
       );
-      await s.syncSteps();
-      await s.syncSteps();
-      // Herbs for the correction's craft drives: one broth, a ×5 batch,
-      // and the ×3 run that crosses Cooking 2 (nine broths, two herbs
-      // each — bonus procs only add slack).
-      for (int i = 0; i < 18; i++) {
-        await s.gather(kNode);
-      }
-      return s;
-    }))!;
-    session.activityWallClock = fake.wallClock;
+      await tester.pumpAndSettle();
 
-    await tester.pumpWidget(
-      StrideApp(
-        session: session,
-        syncOnStart: false,
-        activityTiming: fake.timing,
-      ),
-    );
-    await tester.pumpAndSettle();
+      // The Gather commit plate on the activity panel.
+      await tester.tap(find.text('Meadow Patch'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Gather'), findsWidgets);
+      await capture(tester, 'gfcp_gather_plate');
 
-    // The Gather commit plate on the activity panel.
-    await tester.tap(find.text('Meadow Patch'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('Gather'), findsWidgets);
-    await capture(tester, 'gfcp_gather_plate');
-
-    // A completed craft's MINOR beat: the icon, the name, the XP — a
-    // completion that shows the thing instead of only logging it. The
-    // decay is seen-gated on the injected timing, so the capture is calm.
-    await open(tester, 'Craft');
-    await tester.tap(find.text('Herb Broth').first);
-    await tester.pumpAndSettle();
-    final CraftController craft = CraftScope.read(
-      tester.element(find.byType(StrideTabBar)),
-    );
-    final RecipeOption broth = session.recipeOptions.singleWhere(
-      (RecipeOption r) => r.id.value == 'recipe.herb_broth',
-    );
-    await tester.runAsync(() async {
-      craft.start(broth, 1);
-      fake.advance(const Duration(seconds: 46));
-      final DateTime deadline = DateTime.now().add(
-        const Duration(seconds: 10),
+      // A completed craft's MINOR beat: the icon, the name, the XP — a
+      // completion that shows the thing instead of only logging it. The
+      // decay is seen-gated on the injected timing, so the capture is calm.
+      await open(tester, 'Craft');
+      await tester.tap(find.text('Herb Broth').first);
+      await tester.pumpAndSettle();
+      final CraftController craft = CraftScope.read(
+        tester.element(find.byType(StrideTabBar)),
       );
-      while (craft.active && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
-    });
-    // The universal result card holds its readable ~3.2 s and then decays
-    // on its own — pump into the hold, never settle past it.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('CRAFTED'), findsOneWidget);
-    expect(find.text('Herb Broth ×1'), findsOneWidget);
-    await capture(tester, 'gfcp_craft_minor_beat', settle: false);
-    await tester.pumpAndSettle();
-
-    // The batch: five broths reconciled as one summarized card — never
-    // five popups (GFCP01 device correction, batch behavior).
-    Future<void> runQueue(int count) => tester.runAsync(() async {
-      craft.start(broth, count);
-      // Boundary by boundary — the craft_flow_test pattern: each advance
-      // fires the armed one-shot, and the real-async wait lets its
-      // dispatch's file IO land before the next.
-      for (int i = 1; i <= count; i++) {
+      final RecipeOption broth = session.recipeOptions.singleWhere(
+        (RecipeOption r) => r.id.value == 'recipe.herb_broth',
+      );
+      await tester.runAsync(() async {
+        craft.start(broth, 1);
         fake.advance(const Duration(seconds: 46));
         final DateTime deadline = DateTime.now().add(
           const Duration(seconds: 10),
         );
-        while (craft.active &&
-            craft.completed < i &&
-            DateTime.now().isBefore(deadline)) {
+        while (craft.active && DateTime.now().isBefore(deadline)) {
           await Future<void>.delayed(const Duration(milliseconds: 5));
         }
-      }
-    });
-
-    await runQueue(5);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
-    expect(find.text('CRAFTING COMPLETE'), findsOneWidget);
-    expect(find.text('Herb Broth ×5'), findsOneWidget);
-    expect(find.byType(ActivityResultCard), findsOneWidget);
-    await capture(tester, 'gfcp_batch_craft_summary', settle: false);
-    await tester.pumpAndSettle();
-
-    // The level-up composed with its result: broths seven through nine
-    // cross Cooking 2 mid-run, and the held layer carries BOTH truths —
-    // the crafted beat and the universal level-up card.
-    await runQueue(3);
-    await tester.pumpAndSettle();
-    expect(find.text('LEVEL UP'), findsOneWidget);
-    expect(find.text('CRAFTED'), findsOneWidget);
-    await capture(tester, 'gfcp_levelup_with_result');
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-
-    final SessionController drives = SessionScope.read(
-      tester.element(find.byType(StrideTabBar)),
-    );
-
-    // The bonus proc, visible: the boot's gathers put Foraging at level 2,
-    // where the meadow patch's deterministic 10 % per-index roll is live —
-    // gather until it pays, then the card says so on its own line with
-    // the reward light. On the surface first: a settle after the
-    // completion would run the card's readable life out before the look.
-    await open(tester, 'Adventure');
-    bool bonusSeen = false;
-    for (int i = 0; i < 25 && !bonusSeen; i++) {
-      await tester.runAsync(() => drives.gather(kNode));
-      bonusSeen = (drives.lastAction?.bonusYield ?? 0) > 0;
+      });
+      // The universal result card holds its readable ~3.2 s and then decays
+      // on its own — pump into the hold, never settle past it.
       await tester.pump();
-    }
-    expect(bonusSeen, isTrue, reason: 'a bonus roll pays within 25 gathers');
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(find.textContaining('bonus yield'), findsOneWidget);
-    await capture(tester, 'gfcp_bonus_yield', settle: false);
-    await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('CRAFTED'), findsOneWidget);
+      expect(find.text('Herb Broth ×1'), findsOneWidget);
+      await capture(tester, 'gfcp_craft_minor_beat', settle: false);
+      await tester.pumpAndSettle();
 
-    // The other professions' verbs, on their own ground: chop an oak in
-    // the Whispering Woods, mine a copper seam at Stonefall — the same
-    // one card language, the profession's colour and verb.
-    await tester.runAsync(() async {
-      await drives.equip(ContentId.unchecked('item.training_axe'));
-      await drives.travel(ContentId.unchecked('location.whispering_woods'));
-      await drives.gather(ContentId.unchecked('resource_node.oak_stand'));
-    });
-    // Three pumps: the build, the ticker's epoch frame, and the frame
-    // that carries the entrance past its rise — a zero-duration pump
-    // leaves the card at its first instant otherwise.
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('CHOPPED'), findsOneWidget);
-    expect(find.textContaining('Woodcutting XP'), findsOneWidget);
-    await capture(tester, 'gfcp_woodcut_result', settle: false);
-    await tester.pumpAndSettle();
+      // The batch: five broths reconciled as one summarized card — never
+      // five popups (GFCP01 device correction, batch behavior).
+      Future<void> runQueue(int count) => tester.runAsync(() async {
+        craft.start(broth, count);
+        // Boundary by boundary — the craft_flow_test pattern: each advance
+        // fires the armed one-shot, and the real-async wait lets its
+        // dispatch's file IO land before the next.
+        for (int i = 1; i <= count; i++) {
+          fake.advance(const Duration(seconds: 46));
+          final DateTime deadline = DateTime.now().add(
+            const Duration(seconds: 10),
+          );
+          while (craft.active &&
+              craft.completed < i &&
+              DateTime.now().isBefore(deadline)) {
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+          }
+        }
+      });
 
-    await tester.runAsync(() async {
-      await drives.equip(ContentId.unchecked('item.training_pickaxe'));
-      await drives.travelJourney(<ContentId>[
-        ContentId.unchecked('location.havens_rest'),
-        ContentId.unchecked('location.stonefall_mine'),
-      ]);
-      await drives.gather(ContentId.unchecked('resource_node.copper_seam'));
-    });
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('MINED'), findsOneWidget);
-    expect(find.textContaining('Mining XP'), findsOneWidget);
-    await capture(tester, 'gfcp_mining_result', settle: false);
-    expect(find.text('MINED'), findsOneWidget,
-        reason: 'the card survives to capture time');
-    await tester.pumpAndSettle();
+      await runQueue(5);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('CRAFTING COMPLETE'), findsOneWidget);
+      expect(find.text('Herb Broth ×5'), findsOneWidget);
+      expect(find.byType(ActivityResultCard), findsOneWidget);
+      await capture(tester, 'gfcp_batch_craft_summary', settle: false);
+      await tester.pumpAndSettle();
 
-    // The ambient dwell, mid-scene: the lifecycle seam on, ~9 s in — deep
-    // inside the first full scene's held loop, the Traveler actually
-    // being there. Captured without settling (the cadence is endless by
-    // design while resumed).
-    // The equipped loadout, visible as its own art: the worn pieces' 48 px
-    // icons on the Character sheet's combat block — equipment made real
-    // with existing assets while the on-figure variants wait for their
-    // PixelLab rounds (item 5).
-    final SessionController sessions = SessionScope.read(
-      tester.element(find.byType(StrideTabBar)),
-    );
-    await tester.runAsync(() async {
-      await sessions.equip(trainingSword);
-      await sessions.equip(tunic);
-    });
-    await tester.pumpAndSettle();
-    await open(tester, 'Character');
-    await tester.dragUntilVisible(
-      find.text('WEAPON'),
-      find.byType(ListView).first,
-      const Offset(0, -300),
-    );
-    await tester.pumpAndSettle();
-    await capture(tester, 'gfcp_equipped_icons');
+      // The level-up composed with its result: broths seven through nine
+      // cross Cooking 2 mid-run, and the held layer carries BOTH truths —
+      // the crafted beat and the universal level-up card.
+      await runQueue(3);
+      await tester.pumpAndSettle();
+      expect(find.text('LEVEL UP'), findsOneWidget);
+      expect(find.text('CRAFTED'), findsOneWidget);
+      await capture(tester, 'gfcp_levelup_with_result');
+      await tester.tap(find.text('Continue'));
+      await tester.pumpAndSettle();
 
-    await open(tester, 'Adventure');
-    // Nothing is selected here (the drives moved the player to Stonefall),
-    // so the stage is already the living location.
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    addTearDown(tester.binding.resetInternalState);
-    for (int i = 0; i < 90; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    await capture(tester, 'gfcp_ambient_dwell', settle: false);
-  });
+      final SessionController drives = SessionScope.read(
+        tester.element(find.byType(StrideTabBar)),
+      );
+
+      // The bonus proc, visible: the boot's gathers put Foraging at level 2,
+      // where the meadow patch's deterministic 10 % per-index roll is live —
+      // gather until it pays, then the card says so on its own line with
+      // the reward light. On the surface first: a settle after the
+      // completion would run the card's readable life out before the look.
+      await open(tester, 'Adventure');
+      bool bonusSeen = false;
+      for (int i = 0; i < 25 && !bonusSeen; i++) {
+        await tester.runAsync(() => drives.gather(kNode));
+        bonusSeen = (drives.lastAction?.bonusYield ?? 0) > 0;
+        await tester.pump();
+      }
+      expect(bonusSeen, isTrue, reason: 'a bonus roll pays within 25 gathers');
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.textContaining('bonus yield'), findsOneWidget);
+      await capture(tester, 'gfcp_bonus_yield', settle: false);
+      await tester.pumpAndSettle();
+
+      // The other professions' verbs, on their own ground: chop an oak in
+      // the Whispering Woods, mine a copper seam at Stonefall — the same
+      // one card language, the profession's colour and verb.
+      await tester.runAsync(() async {
+        await drives.equip(ContentId.unchecked('item.training_axe'));
+        await drives.travel(ContentId.unchecked('location.whispering_woods'));
+        await drives.gather(ContentId.unchecked('resource_node.oak_stand'));
+      });
+      // Three pumps: the build, the ticker's epoch frame, and the frame
+      // that carries the entrance past its rise — a zero-duration pump
+      // leaves the card at its first instant otherwise.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('CHOPPED'), findsOneWidget);
+      expect(find.textContaining('Woodcutting XP'), findsOneWidget);
+      await capture(tester, 'gfcp_woodcut_result', settle: false);
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {
+        await drives.equip(ContentId.unchecked('item.training_pickaxe'));
+        await drives.travelJourney(<ContentId>[
+          ContentId.unchecked('location.havens_rest'),
+          ContentId.unchecked('location.stonefall_mine'),
+        ]);
+        await drives.gather(ContentId.unchecked('resource_node.copper_seam'));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('MINED'), findsOneWidget);
+      expect(find.textContaining('Mining XP'), findsOneWidget);
+      await capture(tester, 'gfcp_mining_result', settle: false);
+      expect(
+        find.text('MINED'),
+        findsOneWidget,
+        reason: 'the card survives to capture time',
+      );
+      await tester.pumpAndSettle();
+
+      // The ambient dwell, mid-scene: the lifecycle seam on, ~9 s in — deep
+      // inside the first full scene's held loop, the Traveler actually
+      // being there. Captured without settling (the cadence is endless by
+      // design while resumed).
+      // The equipped loadout, visible as its own art: the worn pieces' 48 px
+      // icons on the Character sheet's combat block — equipment made real
+      // with existing assets while the on-figure variants wait for their
+      // PixelLab rounds (item 5).
+      final SessionController sessions = SessionScope.read(
+        tester.element(find.byType(StrideTabBar)),
+      );
+      await tester.runAsync(() async {
+        await sessions.equip(trainingSword);
+        await sessions.equip(tunic);
+      });
+      await tester.pumpAndSettle();
+      await open(tester, 'Character');
+      await tester.dragUntilVisible(
+        find.text('WEAPON'),
+        find.byType(ListView).first,
+        const Offset(0, -300),
+      );
+      await tester.pumpAndSettle();
+      await capture(tester, 'gfcp_equipped_icons');
+
+      await open(tester, 'Adventure');
+      // Nothing is selected here (the drives moved the player to Stonefall),
+      // so the stage is already the living location.
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      addTearDown(tester.binding.resetInternalState);
+      for (int i = 0; i < 90; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await capture(tester, 'gfcp_ambient_dwell', settle: false);
+    },
+  );
 }

@@ -37,6 +37,8 @@ import 'package:stride/ui/components/sprite_animation.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/icons/sprite_footprints.dart';
+import 'package:stride/ui/screens/skills/skills_screen.dart';
+import 'package:stride/ui/screens/world/atlas/atlas_place_info.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/world_screen.dart';
 import 'package:stride/ui/state/activity_controller.dart';
@@ -178,6 +180,29 @@ void main() {
     );
     await tester.runAsync(() => baseline(session));
     return session;
+  }
+
+  /// Opens the Skills tab and pushes Foraging's roadmap — where the per-skill
+  /// XP figures live since FMPO02 (`ART-12` §3, §4).
+  ///
+  /// Both taps are scoped, because the shell keeps every tab mounted in an
+  /// `IndexedStack`: `Skills` is a word on the tab bar and on the Character
+  /// sheet, and `Foraging` is a word on both spine lists.
+  Future<void> openForagingRoadmap(WidgetTester tester) async {
+    await tester.tap(
+      find.descendant(
+        of: find.byType(StrideTabBar),
+        matching: find.text('Skills'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SkillsScreen, skipOffstage: false),
+        matching: find.text('Foraging'),
+      ),
+    );
+    await tester.pumpAndSettle();
   }
 
   /// Taps, waits for the session to reach a condition, then settles.
@@ -547,10 +572,17 @@ void main() {
         until: () => session.inventoryCount(kHerb) == 1,
       );
 
-      await tester.tap(find.text('Character'));
-      await tester.pumpAndSettle();
-      expect(find.text('10 XP'), findsOneWidget);
+      // **In the skill's roadmap since FMPO02.** The per-skill XP figure left
+      // the Character sheet with the spine restructure (`ART-12` §3) and left
+      // the Skills list with §4: the spine answers "where am I", and the
+      // figures, the thresholds and what the level opens are the roadmap's
+      // answer. Same projection, same content curve — Foraging's second
+      // threshold is 100.
+      await openForagingRoadmap(tester);
+      expect(find.text('10 / 100 XP'), findsOneWidget);
 
+      await tester.tap(find.text('CLOSE'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Adventure'));
       await tester.pumpAndSettle();
       await gatherOnce(
@@ -558,10 +590,9 @@ void main() {
         fake,
         until: () => session.inventoryCount(kHerb) == 2,
       );
-      await tester.tap(find.text('Character'));
-      await tester.pumpAndSettle();
-      expect(find.text('20 XP'), findsOneWidget);
-      expect(find.text('10 XP'), findsNothing);
+      await openForagingRoadmap(tester);
+      expect(find.text('20 / 100 XP'), findsOneWidget);
+      expect(find.text('10 / 100 XP'), findsNothing);
     });
   });
 
@@ -967,23 +998,46 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // The header carries the selected destination's label, so finding it
-        // there is what proves the shell actually moved.
-        //
-        // It is the **eyebrow** since PRESENTATION_COMBAT_EVOLUTION_01, and
-        // therefore uppercased: the header was inverted so the *place* takes
-        // the title and the section name is demoted to a breadcrumb. The
-        // navigation claim is unchanged and just as strict — one widget, in
-        // the header, naming the tab that was tapped.
+        // **The tab's name is no longer in the header at all** (FMPO02,
+        // `ART-12` §8). It was the title until
+        // PRESENTATION_COMBAT_EVOLUTION_01 and the eyebrow after it; both
+        // reprinted, four dp above the lit nav plate, the word the nav plate
+        // was already saying. So the navigation claim is made against the
+        // bar's own selection instead — which is the fact "the shell moved"
+        // actually consists of — and the header is asserted for what it now
+        // carries.
+        expect(
+          tester.widget<StrideTabBar>(find.byType(StrideTabBar)).selected.label,
+          tab,
+          reason:
+              'tapping $tab did not select $tab; the shell did not navigate, '
+              'or the destination has no screen',
+        );
         expect(
           find.descendant(
             of: find.byType(ScreenHeader),
             matching: find.text(tab.toUpperCase()),
           ),
-          findsOneWidget,
+          findsNothing,
           reason:
-              'tapping $tab did not put $tab in the header; the shell did not '
-              'navigate, or the destination has no screen',
+              'the header is reprinting the tab name. Both lines of it are '
+              'the place; the nav plate says which tab this is.',
+        );
+
+        // The eyebrow is the place's own descriptor, in the atlas
+        // inspector's words — `SETTLEMENT · GRASSLAND` at Haven's Rest.
+        final PlaceIdentity identity = session.placeIdentityOf(
+          session.currentLocation!,
+        )!;
+        expect(
+          find.descendant(
+            of: find.byType(ScreenHeader),
+            matching: find.text(
+              AtlasPlaceInfo.descriptorFor(identity).toUpperCase(),
+            ),
+          ),
+          findsOneWidget,
+          reason: 'the header on $tab does not describe the place',
         );
 
         // And the header's TITLE is the place, on every tab.
@@ -1041,12 +1095,35 @@ void main() {
       // A fresh save is level 1 in everything, and Foraging's second threshold
       // is 100 — the figure that proves the span came from the curve rather
       // than from a placeholder.
-      expect(find.text('LV 1', skipOffstage: false), findsNWidgets(5));
-      expect(find.text('0 / 100 XP', skipOffstage: false), findsWidgets);
+      // Scoped to this screen since FMPO02: the Character sheet's skill block
+      // is the same spine list now (`ART-12` §3), and the shell keeps every
+      // tab mounted — so an unscoped `skipOffstage: false` finder counts both
+      // screens' spines and reports ten.
+      expect(
+        find.descendant(
+          of: find.byType(SkillsScreen, skipOffstage: false),
+          matching: find.text('LV 1', skipOffstage: false),
+          skipOffstage: false,
+        ),
+        findsNWidgets(5),
+      );
+      // **The XP span moved to the roadmap** (`ART-12` §4). The spine says
+      // where you are; what the next level costs is the pushed route's
+      // answer, and the route is one tap from any spine. Foraging's second
+      // threshold is 100 — the figure that proves the span came from the
+      // content curve rather than from a placeholder.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SkillsScreen, skipOffstage: false),
+          matching: find.text('Foraging'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('0 / 100 XP'), findsOneWidget);
       expect(
         find.textContaining('to level 2'),
         findsWidgets,
-        reason: 'the screen must say what the next level costs',
+        reason: 'the roadmap must say what the next level costs',
       );
     });
 
@@ -1064,20 +1141,24 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // From recipes.json, not written into the widget — compact rows since
-      // the Craft restructure (PRESENTATION_WORLD_REWARD_FEEL_01 §19).
-      expect(find.text('Herb Broth'), findsWidgets);
+      // From recipes.json, not written into the widget. The **station** is
+      // the screen's axis since FMPO02 (`ART-12` §1), so a fresh save stands
+      // at the forge and sees the ingot; the broth is a walk away at the
+      // cookfire, and the strip is how the player takes that walk.
       expect(find.text('Bronze Ingot'), findsWidgets);
 
-      // A fresh save holds no materials: the census is honest, and the
-      // shortfall sentence lives on the selected recipe's expanded detail.
+      // A fresh save holds no materials: the census is honest.
       expect(
         find.textContaining('0 craftable · '),
         findsOneWidget,
         reason: 'the census is two figures in one shape at every count (§8)',
       );
-      await tester.tap(find.text('Herb Broth').first);
+
+      await tester.tap(find.text('Cookfire'));
       await tester.pumpAndSettle();
+      expect(find.text('Herb Broth'), findsWidgets);
+      // The cookfire's folio opens on the nearest thing to a meal, already
+      // expanded, and its button carries the shortfall sentence.
       expect(
         find.textContaining('Needs 2 more Meadow Herb'),
         findsOneWidget,

@@ -114,8 +114,12 @@ void main() {
     },
   );
 
-  testWidgets('bands render as sections and the chain jump goes and comes '
-      'back', (WidgetTester tester) async {
+  testWidgets('the workshop: stations, folio, tiles, ledger, and the chain '
+      'jump inside the sheet', (WidgetTester tester) async {
+    // FMPO02 (`ART-12_ux_brief.md` §1). The bands survive as headings over
+    // 2-column tiles, but the screen's PRIMARY axis is the station, so a
+    // band is now a band *within a station*: the same 39 recipes, sorted by
+    // the place they are made rather than by nothing at all.
     tester.view.physicalSize = const Size(393 * 3, 852 * 3);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -139,41 +143,71 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // The section headers, in planning order (SectionHeading renders
-    // uppercase) — and the empty READY band is skipped entirely on an
-    // empty-bagged fresh save, exactly the rule.
+    // Three stations, always, whatever the bag holds — the strip is the
+    // screen's map of the workshop and never hides a bench.
+    expect(find.text('Forge'), findsOneWidget);
+    expect(find.text('Bench'), findsOneWidget);
+    expect(find.text('Cookfire'), findsOneWidget);
+    // The census on each plate is over the whole station.
+    expect(find.text('23 recipes'), findsOneWidget);
+    expect(find.text('3 recipes'), findsOneWidget);
+    expect(find.text('10 recipes'), findsOneWidget);
+    expect(find.text('0 ready'), findsNWidgets(3));
+
+    // A fresh save can make nothing, so the strip defaults to the forge and
+    // the forge's own bands are what shows: no READY, the ingot MISSING,
+    // and everything gated behind a level in the ledger.
     expect(find.text('READY'), findsNothing);
-    expect(find.text('ONE INGREDIENT AWAY'), findsOneWidget);
     expect(find.text('MISSING MATERIALS'), findsOneWidget);
     expect(find.text('LOCKED'), findsOneWidget);
-    // The one-away row names its single missing material on the row.
-    expect(find.textContaining('needs 2 more Oak Log'), findsOneWidget);
 
-    // Open the ingot: its short ores carry sourcing lines (gathered
-    // materials, so no chain link on them).
+    // A tile opens the sheet rather than expanding in place: the list does
+    // not move, and the short ores carry their sourcing lines.
     await tester.tap(find.text('Bronze Ingot'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Copper Seam'), findsWidgets);
 
-    // The chain: Bronze Sword's short Bronze Ingot line is a door to the
-    // ingot recipe, and the back chip is the way home. Reach the sword
-    // through the Gear filter — the shorter list keeps it and its detail
-    // on screen the way a player would find it — and the jump itself must
-    // clear the filter (an ingot is Materials, not Gear).
-    await tester.tap(find.text('Gear'));
+    // The scrim dismisses it.
+    await tester.tapAt(const Offset(196, 30));
     await tester.pumpAndSettle();
+    expect(find.textContaining('Copper Seam'), findsNothing);
+
+    // The locked ledger is one line per GATE, not one row per recipe, and
+    // it names no lock — it names the level. Opening it yields the tiles.
+    expect(find.text('Bronze Sword'), findsNothing);
+    await tester.tap(find.textContaining('more at Smithing 3'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bronze Sword'), findsOneWidget);
+
+    // The chain: the sword's short Bronze Ingot line is a door to the
+    // ingot's recipe, and it replaces the sheet's content in place.
     await tester.tap(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
+    expect(find.textContaining('Needs Smithing 3'), findsOneWidget);
     expect(find.text('CRAFT ›'), findsWidgets);
     await tester.tap(find.text('CRAFT ›').first, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.textContaining('Back to Bronze Sword'), findsOneWidget);
-    // The jumped-to detail is the ingot's (its ores and their sources).
     expect(find.textContaining('Copper Seam'), findsWidgets);
     await tester.tap(find.textContaining('Back to Bronze Sword'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Back to Bronze Sword'), findsNothing);
-    // Back on the sword's detail: its skill sentence is on the button.
     expect(find.textContaining('Needs Smithing 3'), findsOneWidget);
+    await tester.tapAt(const Offset(196, 30));
+    await tester.pumpAndSettle();
+
+    // Walk to the cookfire: a different station, a different census, and a
+    // folio open at the nearest thing to a meal — with its shortfall on the
+    // button, which is the whole point of showing a one-away recipe big.
+    await tester.tap(find.text('Cookfire'));
+    await tester.pumpAndSettle();
+    expect(find.text('0 craftable · 10 known'), findsOneWidget);
+    expect(find.text('Herb Broth'), findsOneWidget);
+    // The folio's tray states held over required, and its button states the
+    // shortfall — the one sentence that says why, unchanged.
+    expect(find.text('0 / 2'), findsOneWidget);
+    expect(find.text('Needs 2 more Meadow Herb'), findsOneWidget);
+    // And the folio's own recipe is not repeated as a tile beneath itself.
+    expect(find.text('ONE INGREDIENT AWAY'), findsNothing);
   });
 }

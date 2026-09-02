@@ -349,6 +349,54 @@ abstract final class PixelIcons {
   /// not change what [itemFor] returns.
   static bool hasItemIcon(ContentId item) => _itemIcons.containsKey(item.value);
 
+  // ---------------------------------------------------------------- recipes
+
+  /// Recipe-level art, for the recipes whose OUTPUT ITEM does not name the
+  /// job (`ART-07_item_brief.md` §3).
+  ///
+  /// Three recipes need this and no others: the reclaims all output
+  /// `item.bronze_ingot`, so the bench drew the same plain ingot on three
+  /// rows with no cue to which piece was being salvaged. The brief's answer
+  /// is a salvage crate stamped with the reclaimed item's silhouette —
+  /// process, not output — which matches the model `stride_session.dart`
+  /// already keeps (reclaims are carved out of the lineage graph).
+  ///
+  /// This is a **presentation** path and nothing else: the recipe's output,
+  /// its ingredients and its lineage are unchanged, and `itemFor` still
+  /// answers everywhere `item.bronze_ingot` is the literal thing on screen.
+  static const Map<String, String> _recipeIcons = <String, String>{
+    'recipe.reclaim_bronze_axe': '$_art/item/reclaim_axe.png',
+    'recipe.reclaim_bronze_pickaxe': '$_art/item/reclaim_pickaxe.png',
+    'recipe.reclaim_bronze_chestplate': '$_art/item/reclaim_chestplate.png',
+  };
+
+  /// Which of [_recipeIcons] is actually **packaged** — present on disk and
+  /// declared in `pubspec.yaml`.
+  ///
+  /// Deliberately separate from the path table, and deliberately empty until
+  /// the art lands. A path is a promise the bundle has to keep: naming an
+  /// undeclared asset renders a silent blank where a recognisable ingot used
+  /// to be, which is a worse screen than the one the brief is fixing. So the
+  /// table records the intent, this set records the fact, and the integrator
+  /// flips one row on per accepted crate — the same two-list discipline
+  /// `item_icon_resolution_test.dart` exists to enforce for items.
+  static const Set<String> _packagedRecipeIcons = <String>{};
+
+  /// Whether [recipe] has recipe-level art that is packaged and safe to draw.
+  static bool hasRecipeIcon(ContentId recipe) =>
+      _packagedRecipeIcons.contains(recipe.value) &&
+      _recipeIcons.containsKey(recipe.value);
+
+  /// The icon a recipe row draws: its own art where that exists and is
+  /// packaged, and otherwise the output item's icon — the rule every
+  /// non-reclaim recipe has always followed.
+  ///
+  /// Two ids rather than a `RecipeOption`, because this file names no type
+  /// from `stride_session.dart` and must not start: it is a lookup table, and
+  /// the caller already holds both ids.
+  static String recipeIconFor(ContentId recipe, ContentId outputItem) =>
+      hasRecipeIcon(recipe) ? _recipeIcons[recipe.value]! : itemFor(outputItem);
+
   // ------------------------------------------------------------- navigation
 
   static const String navAdventure = '$_base/nav_adventure.png';
