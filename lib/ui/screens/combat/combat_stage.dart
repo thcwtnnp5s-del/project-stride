@@ -84,7 +84,15 @@ class CombatStage extends StatefulWidget {
     this.idleVisit = const Duration(seconds: 8),
     this.scale = 2,
     this.equipment = EquipmentVisualState.none,
+    this.narration,
   });
+
+  /// The round's one narration line, drawn as a strip along the picture's
+  /// bottom edge (`ART-09_combat_brief.md` §4) instead of as a block on the
+  /// command card. The stage owns the *position* and nothing else: what the
+  /// line says, and what a tap on it reveals, is the parent's — the stage has
+  /// never read a beat for its words and does not start here.
+  final Widget? narration;
 
   /// The loadout's visual facts at encounter start, resolved through
   /// `TravelerArt` when the art binds (GAME_FEEL_CHARACTER_PRESENTATION_01,
@@ -270,9 +278,27 @@ class _CombatStageState extends State<CombatStage>
     _telegraph = v.telegraph;
   }
 
+  /// Reduce Motion, read the way every other screen in the product reads it
+  /// (`craft_screen.dart`, `skills_screen.dart`, `_EnemyIdle`): the
+  /// `MediaQuery` flag, not a setting of our own.
+  ///
+  /// It zeroes the two things on this stage that are **motion rather than
+  /// depiction** — the recoil jerk and the heavy blow's flash. The authored
+  /// tracks keep playing: a fight whose blows do not animate is not a fight,
+  /// and reduced motion asks for no vestibular jolts, not for a still image
+  /// (`ART-09_combat_brief.md` §6). The figures the beats carry, the HP
+  /// tweens and the choreography's timings are untouched either way, so
+  /// nothing the fight *means* depends on this flag.
+  bool _reduceMotion = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final bool reduce = MediaQuery.disableAnimationsOf(context);
+    if (reduce != _reduceMotion) {
+      _reduceMotion = reduce;
+      _refresh(_elapsed);
+    }
     if (_precached) return;
     _precached = true;
     for (final String frame in CombatAssets.framesFor(
@@ -361,6 +387,13 @@ class _CombatStageState extends State<CombatStage>
     // segment's start and never per frame. The skip path (`_applyRemaining`)
     // deliberately stays silent: a fast-forwarded round is not a moment.
     _heavyHapticPending = s.heavyImpactAt;
+    // Brace lands in the hand at the moment the player sets their feet — the
+    // segment's own start, because a held idle has no strike frame to wait
+    // for (`ART-11_audio_brief.md` §4). Light, not heavy: the heavy pulse is
+    // the blow that gets through, and two weights that mean the same thing
+    // mean nothing. The skip path never reaches here, so a fast-forwarded
+    // round stays silent exactly as the heavy pulse does.
+    if (s.braced) AudioScope.maybeRead(context)?.hapticLight();
     _controller
       ..duration = s.duration
       ..forward(from: 0);
@@ -562,7 +595,11 @@ class _CombatStageState extends State<CombatStage>
         if (since < Duration.zero || since >= e.art.duration) continue;
         effects.add((e.art, e.at, e.art.frameAt(since)));
       }
-      switch (s.recoil) {
+      // The recoil is a translate-shake, so Reduce Motion zeroes it. The
+      // flinch it stands in for is *information* — this figure was hit — and
+      // that information is not lost: the HP tween, the impact burst and the
+      // narration all still say so.
+      switch (_reduceMotion ? null : s.recoil) {
         case StageActor.enemy:
           enemyDx = _recoilAt(elapsed - s.recoilStart);
         case StageActor.traveler:
@@ -577,7 +614,14 @@ class _CombatStageState extends State<CombatStage>
         healRise = (12 * elapsed.inMicroseconds / s.duration.inMicroseconds)
             .round();
       }
-      flash = s.heavyFlash && elapsed < const Duration(milliseconds: 400);
+      // The heavy blow's flash: a 400 ms brightening of the telegraph line.
+      // Reduce Motion drops it — a flash is the one presentation choice that
+      // is purely a flicker, and the line it brightens stays on screen at
+      // full contrast either way, so nothing is withheld.
+      flash =
+          !_reduceMotion &&
+          s.heavyFlash &&
+          elapsed < const Duration(milliseconds: 400);
       if (s.enemyFallOut) {
         // Linear over the fall-out window, then held at gone. Deliberately
         // not eased: this is a deterministic presentation of a committed
@@ -659,6 +703,7 @@ class _CombatStageState extends State<CombatStage>
                             shot: shot,
                             turn: _turn,
                             boss: v.isBoss,
+                            narration: widget.narration,
                           ),
                         ),
                         _Hud(
@@ -693,7 +738,11 @@ class _Scene extends StatelessWidget {
     required this.shot,
     required this.turn,
     required this.boss,
+    this.narration,
   });
+
+  /// The narration strip, pinned to the picture's bottom edge.
+  final Widget? narration;
 
   final double width;
   final int scale;
@@ -828,6 +877,19 @@ class _Scene extends StatelessWidget {
                 ),
               ),
             ),
+          // The round's one line, on the picture rather than on the card
+          // beneath it (`ART-09` §4). Position is the heading the block used
+          // to need: a line along the fight's own bottom edge says "now"
+          // without a word spent saying so.
+          //
+          // It is drawn last, so it sits over the figures, and it is pinned
+          // to the bottom, so it costs the command card nothing. Until the
+          // taller 192 × 128 backdrop family lands (`ART-09` §2) the strip
+          // overlaps the lowest ~20 dp of the picture, which is the contact
+          // shadow band; the strip is translucent for exactly that reason
+          // and the taller canvas is what removes the overlap.
+          if (narration case final Widget strip)
+            Positioned(left: 0, right: 0, bottom: 0, child: strip),
         ],
       ),
     );

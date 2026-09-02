@@ -1,0 +1,57 @@
+# set	track	verdict	note
+plate_bronze	idle	ACCEPT	armour + bronze blade in all 8, single component
+plate_bronze	attack	ACCEPT	full overhead arc, blade in all 8
+plate_bronze	hit	ACCEPT	blade gripped through recoil; foot row 75 (1 low)
+plate_bronze	stagger	ACCEPT	drops to knee, blade clear of ground
+plate_steel	idle	ACCEPT	steel census 45-62/frame
+plate_steel	attack	ACCEPT	RE-ROLL 1: first take lost the blade (steel 2-4px f3-f5)
+plate_steel	hit	ACCEPT	RE-ROLL 1: first take had 1437 detached px f4/f5
+plate_steel	stagger	ACCEPT	blade present all 8
+plate_unarmed	idle	ACCEPT	no weapon (steel census 0), fists up
+plate_unarmed	attack	ACCEPT	RE-ROLL 1: first take turned away from east
+plate_unarmed	hit	ACCEPT	RE-ROLL 1: first take drifted scale (bronze 297->557)
+plate_unarmed	stagger	ACCEPT	drops to knee, fists raised
+jerkin_bronze	idle	ACCEPT	fur jerkin + bronze blade all 8
+jerkin_bronze	attack	ACCEPT	blade present all 8
+jerkin_bronze	hit	ACCEPT	blade gripped, slight forward drift
+jerkin_bronze	stagger	ACCEPT	drops to knee
+jerkin_steel	idle	ACCEPT	steel census 26-41/frame
+jerkin_steel	attack	ACCEPT	RE-ROLL 1: first take lost the blade entirely (steel 0 at f2)
+jerkin_steel	hit	ACCEPT	blade present all 6
+jerkin_steel	stagger	ACCEPT	blade present all 8
+jerkin_unarmed	idle	ACCEPT	no weapon, east-facing throughout
+jerkin_unarmed	attack	ACCEPT	punch reads f3-f5
+jerkin_unarmed	hit	ACCEPT	fists up through recoil
+jerkin_unarmed	stagger	ACCEPT	drops to knee
+coat_bronze	idle	ACCEPT	heavy coat + bronze blade all 8
+coat_bronze	attack	ACCEPT	RE-ROLL 1: first take shrank blade to a stub (bronze 288->161)
+coat_bronze	hit	ACCEPT	blade present all 6
+coat_bronze	stagger	ACCEPT	drops to knee
+coat_steel	idle	ACCEPT	92x92 canvas, foot row 77
+coat_steel	attack	ACCEPT	blade present all 8; arc weaker than the bronze sets
+coat_steel	hit	ACCEPT	RE-ROLL 1: first take added a detached impact spark (28px f3)
+coat_steel	stagger	ACCEPT	RE-ROLL 1: first take had detached debris (65/97px f6/f7)
+coat_unarmed	idle	ACCEPT	hood up; same garment class as coat_bronze/steel (hood down)
+coat_unarmed	attack	ACCEPT	punch extends f2
+coat_unarmed	hit	ACCEPT	coat present; hood drops mid-track
+coat_unarmed	stagger	ACCEPT	drops to knee
+plate_pick	mine	DEFECT	pre-existing probe. 104x104, union 69 ROWS > 64 target; 4 detached px f4 (swing VFX). Needs a taller declared canvas or a re-author.
+jerkin_pick	mine	ACCEPT	jerkin + bronze pick all 8, no VFX, single component
+coat_pick	mine	REJECT	2 attempts. Both added a large white swing-arc VFX (f1-f3). Recorded and left per PRODUCTION_RULES.
+base_pick	mine	REJECT	2 attempts. Swing arc + orange spark particles; 1312 detached px f6. Recorded and left.
+plate_axe	woodcut	REJECT	2 attempts. Baked a separate tree stump (1346/1440 detached px f6/f7) and, on the re-roll, fire VFX too. Recorded and left.
+jerkin_axe	woodcut	ACCEPT	jerkin + bronze axe all 8, no props, no VFX
+coat_axe	woodcut	ACCEPT	coat + bronze axe all 8; axe occluded but present at f3
+base_axe	woodcut	ACCEPT	base + bronze axe all 8, clean
+plate_bare	forage	ACCEPT	kneels and picks; plant connected to hand
+plate_bare	look_around	ACCEPT	south, head turns left then right
+plate_bare	walk_west	ACCEPT	plate + pack, west
+plate_bare	idle_breathe	ACCEPT	pre-existing group 6da74245, reused not re-ordered
+jerkin_bare	forage	ACCEPT	kneels and picks
+jerkin_bare	look_around	ACCEPT	south
+jerkin_bare	walk_west	ACCEPT	west
+jerkin_bare	idle_breathe	ACCEPT	south; hands rise toward face late in the loop
+coat_bare	forage	ACCEPT	kneels and picks
+coat_bare	look_around	ACCEPT	south
+coat_bare	walk_west	ACCEPT	west
+coat_bare	idle_breathe	ACCEPT	south

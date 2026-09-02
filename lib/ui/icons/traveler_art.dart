@@ -222,24 +222,155 @@ abstract final class TravelerArt {
         _pair(baseBody, weaponSteel): CombatAssets.traveler,
         _pair(baseBody, weaponUnarmed): CombatAssets.travelerUnarmed,
         _pair(baseBody, weaponBronze): CombatAssets.travelerBronze,
+        // The nine FMPO02 loadouts: three armoured bodies × three weapon
+        // classes, keyed identically.
+        ...CombatAssets.armouredLoadouts,
       };
+
+  static const String _ambient = 'assets/art/v1/ambient';
+
+  static List<String> _strip(String id, int n) => List<String>.generate(
+    n,
+    (int i) => '$_ambient/${id}_f$i.png',
+    growable: false,
+  );
+
+  /// A nine-frame kneel played down and back up through the same frames —
+  /// the base forage loop's own frame-order authoring, for the same reason:
+  /// the source ends crouched and a hard wrap to standing would pop.
+  static List<String> _forage(String body) {
+    final List<String> f = _strip('traveler_${body}_forage', 9);
+    return <String>[...f, for (int i = 7; i >= 1; i--) f[i]];
+  }
 
   /// (gather) `'<skill>|<bodyClass>|<toolClass>'` → the working loop.
   ///
   /// Foraging carries no tool and keys as `'skill.foraging|<bodyClass>'`.
   /// The base body's steel rows are the shipped `activity_*` loops, so they
   /// are not listed: an absent row resolves to `AmbientAssets` exactly as
-  /// before this table existed.
-  static final Map<String, GatherStrip> gatherVariants = <String, GatherStrip>{};
+  /// before this table existed. Strike frames are measured
+  /// (`FMPO02/tools/measure-reach.js`): the frame on which the tool head
+  /// reaches furthest west, where the prop stands.
+  ///
+  /// **Named gaps** (PROD-EQUIPMENT, two rolls each, v3 kept inventing a
+  /// detached stump or a swing-arc effect): plate + bronze axe, coat + bronze
+  /// pick, base + bronze pick. Those loadouts resolve one axis down — the
+  /// armour stays on with the steel tool, or the base body with the bronze
+  /// tool — never to a hole and never to the shirt.
+  static final Map<String, GatherStrip> gatherVariants = <String, GatherStrip>{
+    'skill.woodcutting|armor.jerkin|tool.axe.bronze': GatherStrip(
+      frames: _strip('traveler_jerkin_bronzeaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerJerkinBronzeaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.woodcutting|armor.coat|tool.axe.bronze': GatherStrip(
+      frames: _strip('traveler_coat_bronzeaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerCoatBronzeaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 1,
+    ),
+    'skill.woodcutting|base|tool.axe.bronze': GatherStrip(
+      frames: _strip('traveler_base_bronzeaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerBaseBronzeaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|armor.jerkin|tool.pick.bronze': GatherStrip(
+      frames: _strip('traveler_jerkin_bronzepick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerJerkinBronzepickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|armor.plate|tool.pick.bronze': GatherStrip(
+      frames: _strip('traveler_plate_bronzepick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerPlateBronzepickMine,
+      canvasWidth: 80,
+      strikeFrame: 0,
+    ),
+    'skill.foraging|armor.plate': GatherStrip(
+      frames: _forage('plate'),
+      footprint: SpriteFootprints.ambientTravelerPlateForage,
+      canvasWidth: 64,
+      strikeFrame: 8,
+    ),
+    'skill.foraging|armor.jerkin': GatherStrip(
+      frames: _forage('jerkin'),
+      footprint: SpriteFootprints.ambientTravelerJerkinForage,
+      canvasWidth: 64,
+      strikeFrame: 8,
+    ),
+    'skill.foraging|armor.coat': GatherStrip(
+      frames: _forage('coat'),
+      footprint: SpriteFootprints.ambientTravelerCoatForage,
+      canvasWidth: 64,
+      strikeFrame: 8,
+    ),
+  };
+
+  static List<AmbientScene> _idles(
+    String body,
+    SpriteFootprint breathe,
+    SpriteFootprint look,
+  ) => <AmbientScene>[
+    AmbientScene(
+      id: '${body}_idle_breathe',
+      traveler: AmbientTrack(
+        frames: _strip('traveler_${body}_idle_breathe', 8),
+        fps: 6,
+        loop: AmbientLoop.pingpong,
+        repeats: 3,
+      ),
+      footprint: breathe,
+      weight: 2,
+      idleWeight: 2,
+    ),
+    AmbientScene(
+      id: '${body}_look_around',
+      traveler: AmbientTrack(
+        frames: _strip('traveler_${body}_look_around', 7),
+        fps: 6,
+        loop: AmbientLoop.pingpong,
+        repeats: 2,
+      ),
+      footprint: look,
+      idleWeight: 1,
+    ),
+  ];
 
   /// (idle) body class → the ambient scenes authored for that body. The
-  /// base body uses `AmbientAssets.scenes` and is not listed.
+  /// base body uses `AmbientAssets.scenes` and is not listed. Two scenes per
+  /// armour — breathing and looking around — which is fewer than the base
+  /// figure's fifteen, and deliberately so: the base set is a living
+  /// character study, and an armoured Traveler standing at rest is the same
+  /// man in the clothes he chose. The companion and prop scenes that draw no
+  /// Traveler come along from the base table by construction.
   static final Map<String, List<AmbientScene>> idleVariants =
-      <String, List<AmbientScene>>{};
+      <String, List<AmbientScene>>{
+        'armor.plate': _idles(
+          'plate',
+          SpriteFootprints.ambientTravelerPlateIdleBreathe,
+          SpriteFootprints.ambientTravelerPlateLookAround,
+        ),
+        'armor.jerkin': _idles(
+          'jerkin',
+          SpriteFootprints.ambientTravelerJerkinIdleBreathe,
+          SpriteFootprints.ambientTravelerJerkinLookAround,
+        ),
+        'armor.coat': _idles(
+          'coat',
+          SpriteFootprints.ambientTravelerCoatIdleBreathe,
+          SpriteFootprints.ambientTravelerCoatLookAround,
+        ),
+      };
 
   /// (walk) body class → a six-frame west walk. The base is not listed.
-  static const Map<String, List<String>> walkWestVariants =
-      <String, List<String>>{};
+  static final Map<String, List<String>> walkWestVariants =
+      <String, List<String>>{
+        'armor.plate': _strip('traveler_plate_walk_west', 6),
+        'armor.jerkin': _strip('traveler_jerkin_walk_west', 6),
+        'armor.coat': _strip('traveler_coat_walk_west', 6),
+      };
 
   static String? _variantOf(String? itemId) =>
       itemId == null ? null : variantOfItem[itemId];
@@ -320,6 +451,22 @@ abstract final class TravelerArt {
   static List<String> walkWestFor(EquipmentVisualState visual) =>
       walkWestVariants[_variantOf(visual.armor?.itemId)] ??
       travelerWalkWestFrames;
+
+  /// The frame the Traveler rests on between scenes, for [visual]: the
+  /// armoured body's own breathing rest, or null for the base (the caller's
+  /// `AmbientAssets.restFrame`). Without this an armoured figure would pop
+  /// back into the shirt for the beat between a scene ending and the next
+  /// beginning — the revert, in the one place the eye is waiting for it.
+  static String? restFrameFor(EquipmentVisualState visual) {
+    final List<AmbientScene>? own = idleVariants[bodyClassOf(visual)];
+    return own == null || own.isEmpty ? null : own.first.traveler.frames.first;
+  }
+
+  /// The footprint that goes with [restFrameFor], or null likewise.
+  static SpriteFootprint? restFootprintFor(EquipmentVisualState visual) {
+    final List<AmbientScene>? own = idleVariants[bodyClassOf(visual)];
+    return own == null || own.isEmpty ? null : own.first.footprint;
+  }
 
   /// Whether any FMPO02 gather row exists — the stage test uses it to know
   /// whether the equipment axis is live.

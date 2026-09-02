@@ -92,10 +92,39 @@ void main() {
 
     // The same totality for the weapon family: every mapped weapon reaches an
     // authored combat set rather than the base's baked steel blade.
+    //
+    // FMPO02: the table is two-axis, `'<body>|<weapon>'`. The base body's
+    // row is the one every weapon class must have — it is what a weapon
+    // resolves to when the armour's own row is missing — and every armoured
+    // body must have every weapon class too, or an armoured Traveler would
+    // fight in his shirt for that blade (the revert the owner banned).
+    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+      if (!e.value.startsWith('weapon.')) continue;
+      for (final String body in <String>[
+        TravelerArt.baseBody,
+        ...TravelerArt.armorFigures.keys,
+      ]) {
+        expect(
+          TravelerArt.combatVariants['$body|${e.value}'],
+          isNotNull,
+          reason: '${e.key} maps to ${e.value}, which has no combat set for $body',
+        );
+      }
+    }
+    // Tools: a bronze class must reach an authored loop on at least one body;
+    // the steel classes are the shipped base loops and need no row.
+    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+      if (!e.value.startsWith('tool.') || e.value.endsWith('.steel')) continue;
+      expect(
+        TravelerArt.gatherVariants.keys.any((String k) => k.endsWith('|${e.value}')),
+        isTrue,
+        reason: '${e.key} maps to ${e.value}, which has no working loop',
+      );
+    }
     for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
       if (!e.value.startsWith('weapon.')) continue;
       expect(
-        TravelerArt.combatVariants[e.value],
+        TravelerArt.combatVariants['${TravelerArt.baseBody}|${e.value}'],
         isNotNull,
         reason: '${e.key} is mapped to ${e.value}, which has no combat set',
       );

@@ -15,7 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
+import 'package:stride/ui/icons/encounter_habitat.dart';
 import 'package:stride/ui/screens/adventure/encounter_card.dart';
+import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride_core/stride_core.dart';
@@ -316,5 +318,114 @@ void main() {
     );
     expect(start.onPressed, isNull);
     expect(start.subLabel, 'Driven off — returns after you travel');
+  });
+
+  /// The band the creature stands on, measured on screen.
+  double bandHeight(WidgetTester tester) => tester
+      .getSize(
+        find
+            .ancestor(
+              of: find.byType(GroundedSprite),
+              matching: find.byType(Container),
+            )
+            .first,
+      )
+      .height;
+
+  testWidgets('the band is the creature\'s own size, not one constant — the '
+      'empty box the owner named', (WidgetTester tester) async {
+    // The defect: "a small wolf in a giant blank rectangle". Every band was
+    // 152 dp because the guardian needs 152, so the wolf — 29 rows of content
+    // — sat under 82 dp of nothing. The height is derived now
+    // (`ART-12_ux_brief.md` §7), and the roster's ordering, which is the one
+    // thing the band exists to say, is preserved by construction.
+    final SessionController c = await boot(tester);
+    final Map<String, double> bands = <String, double>{};
+    for (final (String id, String name, double expected)
+        in <(String, String, double)>[
+          ('enemy.forest_wolf', 'Forest Wolf', 76), // 29 rows, at the floor
+          ('enemy.scree_crawler', 'Scree Crawler', 82),
+          ('enemy.salamander', 'Salamander', 104),
+          ('enemy.oakback_bear', 'Oakback Bear', 112),
+          ('enemy.hollow_guardian', 'Hollow Guardian', 152), // at the ceiling
+        ]) {
+      await tester.pumpWidget(shell(c, option(enemy: id, name: name)));
+      await tester.pumpAndSettle();
+      expect(bandHeight(tester), expected, reason: id);
+      bands[id] = expected;
+      // Nothing clips: the figure, drawn at ×2 from its own ground line,
+      // still fits inside the band it was measured for.
+      final GroundedSprite g = tester.widget<GroundedSprite>(
+        find.byType(GroundedSprite),
+      );
+      expect(g.scale, 2, reason: 'one scale for the roster, still');
+    }
+    final List<double> ordered = bands.values.toList();
+    for (int i = 1; i < ordered.length; i++) {
+      expect(
+        ordered[i],
+        greaterThanOrEqualTo(ordered[i - 1]),
+        reason: 'a larger creature took a smaller band: $bands',
+      );
+    }
+  });
+
+  testWidgets('the band is tinted by the region, not one flat block', (
+    WidgetTester tester,
+  ) async {
+    final SessionController c = await boot(tester);
+    await tester.pumpWidget(shell(c, option()));
+    await tester.pumpAndSettle();
+    final ContentId here = c.session.currentLocation!;
+    final Container band = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.byType(GroundedSprite),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    expect(
+      (band.decoration! as BoxDecoration).color,
+      StrideColors.forRegionDeep(here),
+      reason: 'the strip should read as this place\'s ground',
+    );
+  });
+
+  test('the habitat table maps regions to plates and stays switched off', () {
+    // The five plates are in production (`ART-08` §2). Until they land, and
+    // until they have been seen on a device, nothing is mapped: a plate holds
+    // the band at its full 152 dp because the plate *is* the ground, so a
+    // missing PNG behind a switched-on row would restore the exact empty
+    // rectangle this wave removed.
+    expect(EncounterHabitat.enabled, isEmpty);
+    for (final ContentId place in <ContentId>[
+      ContentId.unchecked('location.whispering_woods'),
+      ContentId.unchecked('location.stonefall_mine'),
+      ContentId.unchecked('location.frostmere'),
+      ContentId.unchecked('location.forgotten_hollow'),
+      ContentId.unchecked('location.havens_rest'),
+    ]) {
+      expect(EncounterHabitat.plateFor(place), isNull, reason: place.value);
+    }
+    // The mapping itself is complete and points at the authored names, so
+    // switching it on is one const set and never a scavenger hunt.
+    expect(
+      EncounterHabitat.byPlace.map(
+        (String place, HabitatPlate plate) =>
+            MapEntry<String, String>(place, plate.assetPath),
+      ),
+      <String, String>{
+        'location.whispering_woods':
+            'assets/art/v1/combat/habitat_forest.png',
+        'location.stonefall_mine': 'assets/art/v1/combat/habitat_ledge.png',
+        'location.frostmere': 'assets/art/v1/combat/habitat_snowbank.png',
+        'location.forgotten_hollow':
+            'assets/art/v1/combat/habitat_rootbed.png',
+      },
+    );
+    // 192 × 76 at ×2 lands on the band's own ceiling exactly — no new density
+    // plane, no L-18a exception.
+    expect(HabitatPlate.displayHeight, 152);
   });
 }

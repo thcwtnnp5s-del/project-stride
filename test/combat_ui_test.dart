@@ -14,12 +14,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
+import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/adventure/encounter_card.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
 import 'package:stride_core/stride_core.dart';
 import 'package:stride_health/stride_health.dart';
+
+import 'support/real_font.dart';
 
 final ContentId woods = ContentId.unchecked('location.whispering_woods');
 final ContentId wolf = ContentId.unchecked('enemy.forest_wolf');
@@ -60,6 +63,10 @@ SyncFetch page(int steps) => SyncFetch(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // Real type, because this file now asserts a layout budget in dp and the
+  // harness's square fallback font measures the harness rather than the UI
+  // (test/support/real_font.dart).
+  setUpAll(loadRealFont);
 
   late Directory root;
   setUp(() => root = Directory.systemTemp.createTempSync('stride_combat_ui'));
@@ -275,19 +282,25 @@ void main() {
     expect(find.text('${v.enemyHp} / 20'), findsOneWidget);
     expect(find.text('${v.playerHp} / 40'), findsOneWidget);
     expect(find.text('20 / 20'), findsNothing, reason: 'the wolf was hit');
-    // The log narrates the round from the report, not from state — and
-    // names the blow's quality from the event's own roll
-    // (PLAYABLE_POLISH_01 §8): one of three phrasings each way.
-    expect(
-      find.textContaining(RegExp(r'^(You strike|A strong hit|A glancing blow) for [0-9]+')),
-      findsOneWidget,
+    // The narration is one line now, on the stage's own bottom edge
+    // (`ART-09` §4) — the most recent beat of the round, which against a
+    // flurry is the wolf's second strike.
+    final Finder enemyLine = find.textContaining(
+      RegExp(r'^Forest Wolf (strikes|hits hard|grazes you) for [0-9]+'),
     );
+    expect(enemyLine, findsOneWidget);
+    // …and the rest of the round is one tap away, not gone: the strip opens
+    // to the same lines the block used to print, from the report and never
+    // from state, naming each blow's quality from the event's own roll
+    // (PLAYABLE_POLISH_01 §8).
+    await tapAndSettle(tester, enemyLine);
     expect(
       find.textContaining(
-        RegExp(r'^Forest Wolf (strikes|hits hard|grazes you) for [0-9]+'),
+        RegExp(r'^(You strike|A strong hit|A glancing blow) for [0-9]+'),
       ),
-      findsNWidgets(2),
+      findsOneWidget,
     );
+    expect(enemyLine, findsNWidgets(2));
 
     // Fight on through the controller until it resolves.
     final SessionController c = controller();
@@ -321,9 +334,19 @@ void main() {
     // The drops are rows now, not a `Drops: …` sentence.
     expect(find.textContaining('Drops:'), findsNothing);
     // The stage stays up behind the panel with the wolf felled and the
-    // controls gone.
+    // command grid locked.
+    //
+    // Locked, not relabelled: the cells used to read "Fighting…" while held,
+    // which in a 2 × 2 grid is four identical words where three verbs were,
+    // so the wait is stated once on the intent line and the cells keep their
+    // names and lose their callbacks (`ART-12` §6). `onPressed == null` is
+    // also the assertion that actually protects the player — a label cannot
+    // dispatch a command.
     expect(find.text('0 / 20'), findsOneWidget);
-    expect(find.widgetWithText(StrideButton, 'Attack'), findsNothing);
+    final Finder attack = find.widgetWithText(StrideButton, 'Attack');
+    expect(attack, findsOneWidget);
+    expect((tester.widget(attack) as StrideButton).onPressed, isNull);
+    expect(find.text('Fighting…'), findsOneWidget);
     expect(find.text('Start Combat'), findsNothing);
     await tester.tap(find.widgetWithText(StrideButton, 'Continue'));
     await tester.pumpAndSettle();
@@ -373,6 +396,88 @@ void main() {
     expect(start, findsOneWidget);
     expect((tester.widget(start) as StrideButton).onPressed, isNull);
     expect(find.text('Driven off — returns after you travel'), findsOneWidget);
+  });
+
+  testWidgets('the command card fits its 210 dp budget and the grid is 2 × 2', (
+    WidgetTester tester,
+  ) async {
+    // The owner's verdict on 4d9a81f: "the giant lower command frame
+    // dominates the fight." It was four full-width buttons, a log block and a
+    // heading — about 276 dp of an 852 dp screen. `ART-12_ux_brief.md` §6
+    // budgets 210 for the whole card and gives the rest back to the stage;
+    // this is the number that keeps it given back.
+    final StrideSession s = await boot(tester, atWoods: true);
+    await show(tester, s);
+    await tapAndSettle(tester, find.text('Forest Wolf'));
+    await tapAndSettle(
+      tester,
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Forest Wolf'),
+          matching: find.byType(EncounterCard),
+        ),
+        matching: find.widgetWithText(StrideButton, 'Start Combat'),
+      ),
+    );
+
+    final Finder attack = find.widgetWithText(StrideButton, 'Attack');
+    final Finder brace = find.widgetWithText(StrideButton, 'Brace');
+    final Finder eat = find.widgetWithText(StrideButton, 'Eat');
+    final Finder card = find
+        .ancestor(of: attack, matching: find.byType(SectionCard))
+        .first;
+    // The measured card is **219**, against the brief's 210, and the 9 dp are
+    // two terms §6's arithmetic left out rather than anything this build
+    // added. Stated in full so the next reader argues with the sum instead of
+    // rediscovering it:
+    //
+    //   card padding      12
+    //   intent line       13   (§6 allowed 16 for one `micro` line; it is 13)
+    //   gap                8
+    //   Attack / Brace    56
+    //   gap                8
+    //   Eat / (empty)     56
+    //   gap                8
+    //   Retreat           44   (§6 budgeted its 34 dp *visual*; the widget is
+    //                           its 44 dp hit region, which is the floor and
+    //                           is not negotiable)
+    //   card padding      12
+    //   card border        2   (`SectionCard`'s own 1 px, top and bottom)
+    //   ---------------------
+    //                    219
+    //
+    // Against ~276 before, with the log block and its heading gone from the
+    // card entirely. The ceiling is asserted at 220 — one dp of slack, so a
+    // rounding change is not a failure and a new row is.
+    expect(
+      tester.getSize(card).height,
+      lessThanOrEqualTo(220),
+      reason: 'the command card outgrew its budget',
+    );
+
+    // 2 × 2: Attack and Brace share a row, Eat opens the next one, and the
+    // fourth place is empty because the fight has no fourth action.
+    final Size attackSize = tester.getSize(attack);
+    expect(attackSize.height, 56);
+    expect(tester.getSize(brace), attackSize);
+    expect(tester.getSize(eat), attackSize);
+    expect(tester.getTopLeft(attack).dy, tester.getTopLeft(brace).dy);
+    expect(tester.getTopLeft(attack).dx, tester.getTopLeft(eat).dx);
+    expect(tester.getTopLeft(eat).dy, greaterThan(tester.getTopLeft(brace).dy));
+    // 163.5, not §6's 176: (361 − 2 border − 24 card padding − 8 gap) / 2. The
+    // brief measured the grid against the screen's content width and did not
+    // subtract the card the grid sits inside. Every cell is still three times
+    // the 44 dp floor in both dimensions.
+    expect(attackSize.width, 163.5);
+    // Retreat's own hit region clears the floor too — 34 dp of visual inside
+    // 44, the pattern `StrideButton.secondary` already implements.
+    final Finder retreat = find.widgetWithText(
+      StrideButton,
+      'Retreat — nothing is lost',
+    );
+    expect(tester.getSize(retreat).height, greaterThanOrEqualTo(44));
+    // The log block is gone from the card entirely: its heading with it.
+    expect(find.text('This round'), findsNothing);
   });
 
   testWidgets('the Character screen shows the combat figures and follows the '

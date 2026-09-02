@@ -2382,6 +2382,77 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
     console.log(`  atlas stamp belts: ${JSON.stringify(counts)}`);
   }
 
+  // ------------------------- FMPO02_ATLAS_REGIONS (ART-03 regional terrain)
+  //
+  // The owner's #1 complaint: roughly 40% of the canvas — the northern
+  // cracked-plate field, the western dead acreage, the southern latitude
+  // layer-cake — reads as surface rather than country. ART-03 answers it the
+  // one way with a record here: re-author whole geographic regions by
+  // `inpaint_image` over a wide crop of THIS composite with frozen margins,
+  // one region at a time, each carried through composite -> guards -> full
+  // atlas + x2 perimeter + 197x426 phone FOV -> an explicit verdict before
+  // the next opens (`WORLD_ATLAS_REMASTER_01/README.md` §10).
+  //
+  // Placed after the stamp belts deliberately: the belts are baked into the
+  // composite each region was cropped from, so a region already contains
+  // them and must supersede them under its own mask. Placed before the
+  // flotsam fills and the global ocean conform, so any generated deep water
+  // folds into the one sea.
+  //
+  // Boundary authoring is the whole game (M-12/M-14/M-15 all died here), so
+  // no boundary is drawn by this loop at all. Each region ships with a
+  // committed graded mask built deterministically by
+  // `GAME_BIBLE/ART/exploration/FMPO02/tools/atlas-mask.js`: 24 px alpha ramp
+  // on a free edge, 32 px where the boundary crosses a texture change, the
+  // ramp midline hash-jittered +/-10 px by a low-frequency value noise so no
+  // straight lattice line exists on any edge, alpha forced to 0 inside the
+  // A-4 core beyond its rim and within 20 px of any landmark golden (ramping
+  // back over a further 24 px, so a keepout never prints the golden's own
+  // rectangle onto the terrain). Compositing is hash dither-SELECT, never an
+  // average: every output pixel is one of the two approved images' own
+  // pixels (A-2). The A-4 rim clip and both guards below apply unchanged.
+  {
+    const FMPO02 = path.join(EXPLORE, 'FMPO02', 'out', 'atlas');
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(FMPO02, 'manifest.json'), 'utf8'));
+    for (const region of manifest.regions) {
+      if (region.status !== 'accepted') {
+        throw new Error(`FMPO02 atlas region ${region.id}: status ` +
+          `'${region.status}' — only accepted regions may ship`);
+      }
+      const gen = png.load(path.join(FMPO02, `${region.id}.png`));
+      const mask = png.load(path.join(FMPO02, `${region.id}_mask.png`));
+      if (gen.width !== region.w || gen.height !== region.h ||
+          mask.width !== region.w || mask.height !== region.h) {
+        throw new Error(`FMPO02 atlas region ${region.id}: expected ` +
+          `${region.w}x${region.h}, got gen ${gen.width}x${gen.height}, ` +
+          `mask ${mask.width}x${mask.height}`);
+      }
+      for (let sy = 0; sy < region.h; sy++) {
+        for (let sx = 0; sx < region.w; sx++) {
+          const m = mask.data[mask.idx(sx, sy)];
+          if (m === 0) continue;
+          const tx = region.x + sx, ty = region.y + sy;
+          if (tx < 0 || ty < 0 || tx >= 1024 || ty >= 1024) continue;
+          // Selection, not blending: the mask is a probability, and the
+          // pixel that wins is whole.
+          if (m < 255 && hash(tx, ty, region.salt) >= m / 255) continue;
+          const si = gen.idx(sx, sy);
+          // A transparent source pixel is crop padding past the canvas, not
+          // authored terrain.
+          if (gen.data[si + 3] === 0) continue;
+          const d = protDepth(tx, ty);
+          if (d > 0 && !keepRepair(tx, ty, d)) continue;
+          const ai = base.idx(tx, ty);
+          for (let k = 0; k < 4; k++) base.data[ai + k] = gen.data[si + k];
+        }
+      }
+    }
+    if (manifest.regions.length) {
+      console.log(`  atlas FMPO02 regions: ${manifest.regions.map((r) => r.id).join(', ')}`);
+    }
+  }
+
   // Flotsam cleanup (deterministic, A-2): two pre-existing generation
   // artifacts sit in open water — a dark scribble blob at (886..910, 622..662)
   // and whitecap marks at (866..906, 760..784) that read as tiny printed text
@@ -2863,6 +2934,98 @@ for (const [id, donor] of Object.entries({
   const bytes = emitted.get(`node/${donor}.png`);
   if (!bytes) throw new Error(`depth offensive plate donor missing: node/${donor}.png`);
   emit(`node/${id}.png`, bytes);
+}
+
+// -------------------------------------------------- FMPO02 equipment matrix
+/**
+ * THE TRAVELER WEARS WHAT HE EQUIPPED, EVERYWHERE.
+ *
+ * VAWO01 put the armour on the Inventory figure and left the shirt on every
+ * other surface; the owner's device found the contradiction at once. FMPO02
+ * authors the matrix `ART-05_equipment_brief.md` costs out: three armoured
+ * bodies (plate, jerkin, coat) × three weapon classes (bronze, steel, unarmed)
+ * in combat, plus per-body forage / idle-breathe / look-around / walk-west
+ * strips and five bronze-tool working loops. 52 of 56 ordered tracks were
+ * accepted (`MILESTONES/evidence/FMPO02/wave2/EQUIPMENT_report.md`); the
+ * plate + bronze pick probe joins them.
+ *
+ * ## Deterministic preparation (`RULES.md` A-2)
+ *
+ * `FMPO02/tools/equip-prep.js` cropped every v3 square (88–104²) to one
+ * window per strip — `canvasWidth` × 64, the **modal** foot row on row 62 —
+ * and keyed the detached specks the model leaves; the window is one per
+ * strip, never per frame, so nothing jumps. Three raised sword tips lose
+ * 1–14 px off the top of one frame each and are accepted; the numbers are in
+ * `out/equip/tracks/PREP_SUMMARY.json`.
+ *
+ * The three forage strips were animated west and turned east to kneel —
+ * the model's own choice — while the stage stands the plant to the west, so
+ * they are **mirrored** here. A mirror is a transform of authored frames, not
+ * a drawing; the light flips with it, which is invisible on a crouching
+ * figure and is recorded rather than hidden.
+ *
+ * The single-component assertion is the same ghost-gear guard the VAWO01
+ * sets ship under: a frame whose opaque pixels are not one piece is a weapon
+ * off the hand or a floating artifact, and neither may ship.
+ */
+const FMPO_EQUIP_SRC = path.join(EXPLORE, 'FMPO02', 'out', 'equip', 'tracks');
+const FMPO_COMBAT_TRACKS = [['idle', 8], ['attack', 8], ['hit', 6], ['stagger', 8]];
+const FMPO_COMBAT_SETS = [];
+for (const body of ['plate', 'jerkin', 'coat']) {
+  for (const held of ['bronze', 'steel', 'unarmed']) {
+    for (const [track, frames] of FMPO_COMBAT_TRACKS) {
+      FMPO_COMBAT_SETS.push([`traveler_${body}_${held}_${track}`, frames]);
+    }
+  }
+}
+// [id, frames, width, mirror]
+const FMPO_AMBIENT_STRIPS = [
+  ['traveler_jerkin_bronzeaxe_woodcut', 8, 80, false],
+  ['traveler_coat_bronzeaxe_woodcut', 8, 80, false],
+  ['traveler_base_bronzeaxe_woodcut', 8, 80, false],
+  ['traveler_jerkin_bronzepick_mine', 8, 80, false],
+  ['traveler_plate_bronzepick_mine', 8, 80, false],
+  ['traveler_plate_forage', 9, 64, true],
+  ['traveler_jerkin_forage', 9, 64, true],
+  ['traveler_coat_forage', 9, 64, true],
+  ['traveler_plate_idle_breathe', 8, 64, false],
+  ['traveler_jerkin_idle_breathe', 8, 64, false],
+  ['traveler_coat_idle_breathe', 8, 64, false],
+  ['traveler_plate_look_around', 7, 64, false],
+  ['traveler_jerkin_look_around', 7, 64, false],
+  ['traveler_coat_look_around', 7, 64, false],
+  ['traveler_plate_walk_west', 6, 64, false],
+  ['traveler_jerkin_walk_west', 6, 64, false],
+  ['traveler_coat_walk_west', 6, 64, false],
+];
+function fmpoStrip(id, frames, width, mirror, dest, footprints) {
+  for (let i = 0; i < frames; i++) {
+    let frame = png.load(path.join(FMPO_EQUIP_SRC, `${id}_f${i}.png`));
+    if (frame.width !== width || frame.height !== 64) {
+      throw new Error(
+        `FMPO02 ${id} f${i}: expected ${width}x64, got ${frame.width}x${frame.height}`,
+      );
+    }
+    if (mirror) frame = flipX(frame);
+    let opaque = 0;
+    for (let p = 3; p < frame.data.length; p += 4) {
+      if (frame.data[p] !== 0) opaque++;
+    }
+    if (attachedPixelCount(frame) !== opaque) {
+      throw new Error(
+        `FMPO02 ${id} f${i}: ${opaque - attachedPixelCount(frame)} px are not ` +
+          'attached to the standing figure (ghost gear or a floating artifact).',
+      );
+    }
+    if (i === 0) footprints[`${dest}_${id}`] = png.footprint(frame);
+    emit(`${dest}/${id}_f${i}.png`, encode(frame));
+  }
+}
+for (const [id, frames] of FMPO_COMBAT_SETS) {
+  fmpoStrip(id, frames, 80, false, 'combat', combatFootprints);
+}
+for (const [id, frames, width, mirror] of FMPO_AMBIENT_STRIPS) {
+  fmpoStrip(id, frames, width, mirror, 'ambient', ambientFootprints);
 }
 
 // -------------------------------------------------------- footprint metrics

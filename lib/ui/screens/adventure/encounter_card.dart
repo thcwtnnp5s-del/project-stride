@@ -11,8 +11,9 @@
 /// on a small stage band — so the tab says "this creature is here, and I can
 /// choose to fight it" rather than listing one (`ACTIVITY_FEEL_PRESENTATION_01`
 /// §1.3). It is deliberately **not** an inventory icon and not a boss overlay:
-/// the same art the combat stage will fell, at the same grounding rule, on the
-/// same `surfaceBlock` band the gather card stands its figure on. The idle
+/// the same art the combat stage will fell, at the same grounding rule, on a
+/// band the size of the creature standing on it and tinted with the region's
+/// own deep ink (`ART-12` §7) — a strip, still, not a scene. The idle
 /// loops for one bounded visit and then holds its first frame — a figure that
 /// never stops moving implies something is happening, and nothing is — and
 /// resumes on a return to the app, exactly as `CombatStage` and
@@ -29,8 +30,10 @@ import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/grounded_sprite.dart';
 import '../../components/rarity_item_title.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/surfaces.dart';
 import '../../icons/combat_assets.dart';
+import '../../icons/encounter_habitat.dart';
 import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -225,7 +228,10 @@ class EncounterCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         if (art != null) ...<Widget>[
-          _EnemyStage(art: art),
+          // The band's ground and tint belong to the *place*, not to the
+          // creature: an enemy is standing somewhere, and the somewhere is
+          // where the player is.
+          _EnemyStage(art: art, place: c.session.currentLocation),
           const SizedBox(height: StrideSpace.s10),
         ],
         Text(o.name, style: StrideType.cardTitle, maxLines: 2),
@@ -390,27 +396,42 @@ class EncounterCard extends StatelessWidget {
 /// The creature on its ground: a small stage band carrying the enemy's combat
 /// idle, grounded, bottom-aligned, with the headroom above it.
 ///
-/// The band is the gather stage's visual language at encounter size —
-/// `surfaceBlock` (a multiply contact shadow needs something bright enough to
-/// darken, `gather_node_card.dart` records the finding), the default border,
-/// the inner radius, the figure seated low. It is a strip, not a scene: no
-/// backdrop, no position, no camera.
+/// The band is the gather stage's visual language at encounter size — a
+/// ground tone bright enough for a multiply contact shadow to darken (the
+/// finding `gather_node_card.dart` records), the default border, the inner
+/// radius, the figure seated low. It is a strip, not a scene: no backdrop, no
+/// position, no camera.
+///
+/// FMPO02 changed two things about it and neither is decoration:
+///
+/// * **Its height is the creature's** ([heightFor]), not one constant sized
+///   for the boss. That is the owner's "a small wolf in a giant blank
+///   rectangle" answered at its cause.
+/// * **Its tone is the region's** deep ink, and it has a slot for an authored
+///   **habitat plate** (`encounter_habitat.dart`) under the figure. The plate
+///   is a flat ground plane — contact and material — never the "full battle
+///   background per card" the owner ruled out.
 class _EnemyStage extends StatelessWidget {
-  const _EnemyStage({required this.art});
+  const _EnemyStage({required this.art, this.place});
 
   final CombatantArt art;
 
-  /// The band's interior height.
+  /// Where the player is standing — the band's tint and its habitat plate.
+  /// Null before the game starts, which draws the untinted band rather than
+  /// guessing a region.
+  final ContentId? place;
+
+  /// The tallest the band is ever drawn, and the height it takes whenever a
+  /// habitat plate carries the ground.
   ///
-  /// **152, and every creature is drawn at ×2** — because the previous rule
+  /// **152, and every creature is drawn at ×2** — because the rule before that
   /// inverted the roster's size ordering, which is the one thing this band
   /// exists to communicate.
   ///
   /// The old rule seated the 56-canvas figures at ×2 in a 120 band and dropped
   /// anything larger to ×1, on the reasoning that a 96 canvas would otherwise
   /// need 200 dp. That reasoning measured the **canvas**, and a combat canvas
-  /// is mostly empty. Measured content heights are: wolf 29 rows, crawler 33,
-  /// salamander 46, bear 50, guardian 71. Under the old rule the player saw
+  /// is mostly empty. Under it the player saw
   ///
   /// * wolf, ×2 → 58 dp of creature
   /// * **bear, demoted to ×1 → 50 dp** — the largest land animal in the game
@@ -418,11 +439,60 @@ class _EnemyStage extends StatelessWidget {
   /// * **guardian, demoted to ×1 → 71 dp** — the boss drawn smaller than the
   ///   salamander's 92
   ///
-  /// At ×2 the *content* needs (71 + 4) × 2 = 150 dp at worst, so one band of
-  /// 152 seats the entire roster with nothing clipped, and the sizes come out
-  /// in the right order: 66, 74, 100, 108, 150. The card grows by 32 dp and
-  /// stops lying about what the player is about to fight.
+  /// At ×2 the *content* needs (73 + 4) × 2 at worst, so 152 seats the entire
+  /// roster with nothing clipped and in the right order. What it does **not**
+  /// do is fit the roster: the wolf's 29 rows of content left 82 dp of empty
+  /// rectangle above it, which is the owner's "a small wolf in a giant blank
+  /// rectangle" verbatim. Hence [heightFor].
   static const double height = 152;
+
+  /// The floor. Below this the band stops reading as ground and starts reading
+  /// as a rule under a picture.
+  static const double minHeight = 76;
+
+  /// The band's height for one creature: its own content, doubled, plus 12 dp
+  /// of headroom, inside [minHeight]..[height] (`ART-12_ux_brief.md` §7).
+  ///
+  /// Wolf 76, ram 80, crawler 82, boar 84, goblin 90, salamander 104, bear
+  /// 112, guardian 152 — the ordering the 152 band was introduced to protect,
+  /// now stated in the band itself rather than only in the figure inside it.
+  ///
+  /// A plate is the exception: an authored ground is 152 dp of art and it
+  /// carries the floor, so a band with one takes the plate's height whatever
+  /// stands on it.
+  static double heightFor(CombatantArt art, {bool plated = false}) {
+    if (plated) return height;
+    final double derived = (_contentRows(art.idle) * scale + 12).toDouble();
+    return derived.clamp(minHeight, height);
+  }
+
+  /// A track's opaque content height, in source rows.
+  ///
+  /// Measured off the PNGs — `png.bounds` over every frame of each idle track,
+  /// the same measurement `Scripts/art/package-art.js` takes for the
+  /// footprints — because [CombatTrack] carries the ground row and the contact
+  /// span but not the opaque top, and a band derived from the canvas would be
+  /// derived from mostly empty space, which is the defect this replaces.
+  ///
+  /// A track absent from the table falls back to its footprint's own bottom
+  /// row, which assumes content all the way to row 0: taller than the truth,
+  /// never shorter, so an enemy authored tomorrow is loose in its band rather
+  /// than clipped by it.
+  static int _contentRows(CombatTrack idle) =>
+      _idleContentRows[idle.id] ?? (idle.footprint.bottom + 1);
+
+  /// `top..bottom` inclusive, per idle track, from the union of its frames.
+  static const Map<String, int> _idleContentRows = <String, int>{
+    'wolf_idle': 29, // 56², rows 12..40
+    'lynx_idle': 30, // 56², rows 10..39
+    'ram_idle': 34, // 56², rows 9..42
+    'crawler_idle': 35, // 48², rows 6..40
+    'boar_idle': 36, // 56², rows 8..43
+    'goblin_idle': 39, // 56², rows 8..46
+    'salamander_idle': 46, // 56², rows 5..50
+    'bear_idle': 50, // 76², rows 12..61
+    'guardian_idle': 73, // 96², rows 11..83
+  };
 
   /// The combat stage's own scale, for every creature without exception, so
   /// the thing on the card and the thing in the fight are the same size of
@@ -441,27 +511,64 @@ class _EnemyStage extends StatelessWidget {
       (idle.canvasHeight - 1 - idle.footprint.bottom) * scale.toDouble();
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    height: height,
-    decoration: BoxDecoration(
-      color: StrideColors.surfaceBlock,
-      border: Border.all(color: StrideColors.borderDefault),
-      borderRadius: StrideRadius.inner,
-    ),
-    // Clipped at the band's own rounded edge, as the gather stage is: a
-    // figure exactly the band's height must not paint over the border.
-    child: ClipRRect(
-      borderRadius: StrideRadius.inner,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Transform.translate(
-          offset: Offset(0, groundOffset(art.idle)),
-          child: _EnemyIdle(track: art.idle, scale: scale),
+  Widget build(BuildContext context) {
+    final ContentId? here = place;
+    final HabitatPlate? plate = here == null
+        ? null
+        : EncounterHabitat.plateFor(here);
+    return Container(
+      width: double.infinity,
+      height: heightFor(art, plated: plate != null),
+      decoration: BoxDecoration(
+        // The region's deep ink rather than one flat `surfaceBlock`
+        // everywhere: the band still has to be bright enough for the
+        // figure's multiply contact shadow to darken (the finding
+        // `gather_node_card.dart` records), and every region deep is, so the
+        // strip reads as this place's ground without becoming a scene.
+        color: here == null
+            ? StrideColors.surfaceBlock
+            : StrideColors.forRegionDeep(here),
+        border: Border.all(color: StrideColors.borderDefault),
+        borderRadius: StrideRadius.inner,
+      ),
+      // Clipped at the band's own rounded edge, as the gather stage is: a
+      // figure exactly the band's height must not paint over the border.
+      child: ClipRRect(
+        borderRadius: StrideRadius.inner,
+        child: Stack(
+          children: <Widget>[
+            // The ground, when this region has one authored and switched on.
+            // 384 dp of plate in a ~345 dp band, so it is drawn through
+            // `PixelScene`, which clips and never rescales — the plate's
+            // framing keeps nothing load-bearing at its flanks, exactly as
+            // the combat backdrop's does. A plate whose PNG is missing
+            // decodes to nothing and leaves the tinted band: no plate, no
+            // hole, no crash (`RULES.md` E-5).
+            if (plate != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: PixelScene(
+                  assetPath: plate.assetPath,
+                  nativeWidth: HabitatPlate.nativeWidth,
+                  nativeHeight: HabitatPlate.nativeHeight,
+                  scale: HabitatPlate.scale,
+                  alignment: Alignment.bottomCenter,
+                ),
+              ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Transform.translate(
+                offset: Offset(0, groundOffset(art.idle)),
+                child: _EnemyIdle(track: art.idle, scale: scale),
+              ),
+            ),
+          ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// The enemy's idle track, played as a bounded visit.

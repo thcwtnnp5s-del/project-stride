@@ -1,14 +1,26 @@
-/// The encounter in progress: the animated stage, this round's log, the three
-/// controls, and the outcome panel.
+/// The encounter in progress: the animated stage with its narration strip, the
+/// 2 × 2 command grid, and the outcome panel.
 ///
 /// ## Shape
 ///
 /// The Adventure tab renders this in place of the location's cards while
 /// `session.encounter != null`, and keeps it up while an outcome report is
 /// waiting to be acknowledged (`GAME_BIBLE/COMBAT/02` §10). The stage
-/// (`combat_stage.dart`) sits above; the log, the controls, the Eat chooser
-/// and the result panel are the boundary it sits on, and they read the same
+/// (`combat_stage.dart`) sits above and now carries the round's one narration
+/// line on its own bottom edge; the command grid, the Eat chooser and the
+/// result panel are the boundary it sits on, and they read the same
 /// projections it does.
+///
+/// ## The ratio this screen exists to invert (FMPO02)
+///
+/// The owner's device verdict on 4d9a81f was that "the giant lower command
+/// frame dominates the fight": four full-width buttons, three sub-labels and a
+/// log block under a heading, about 276 dp of an 852 dp screen against the
+/// stage's 192. `ART-09_combat_brief.md` §1 and `ART-12_ux_brief.md` §6
+/// answer that here — the log becomes one line **on** the picture, the
+/// sub-labels collapse into one micro line, and the controls become a 2 × 2
+/// grid of 56 dp cells with Retreat as a quiet link. The whole card is 219 dp
+/// and every combat semantic, timing and outcome flow is untouched.
 ///
 /// ## What it never does
 ///
@@ -84,6 +96,10 @@ class _CombatScreenState extends State<CombatScreen> {
   /// Counts fights beginning on screen; keys the entrance reveal so it
   /// plays once per fight. Presentation memory only.
   int _fightArrival = 0;
+
+  /// Whether the narration strip is showing the whole round rather than its
+  /// last line. Ephemeral, like the Eat chooser's own flag.
+  bool _logOpen = false;
 
   void _onPlayingChanged(bool playing) {
     if (playing == _playing) return;
@@ -199,25 +215,31 @@ class _CombatScreenState extends State<CombatScreen> {
             // The loadout's visual facts, snapshotted by the stage at its
             // first bell (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5).
             equipment: c.session.equipmentVisualState,
+            // The round's narration, on the picture's own bottom edge rather
+            // than as a block on the card below it (`ART-09` §4). The stage
+            // places it; this screen still decides every word.
+            narration: _CombatLog(
+              report: report,
+              enemyName: view.enemyName,
+              intent: view.intentLine,
+              playing: _playing,
+              open: _logOpen,
+              onToggle: () => setState(() => _logOpen = !_logOpen),
+            ),
           ),
+          // The command kit: an oiled-leather surface, no frame. `combatFrame`
+          // is a surface role now (`panel_skin.dart` — the frame belongs to
+          // the one thing a screen is about, and here that is the stage), so
+          // this differs from its neighbours by material and never by a
+          // second border.
           SectionCard(
             role: PanelRole.combatFrame,
+            surface: PanelSurface.leather,
             padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _CombatLog(
-                  report: report,
-                  enemyName: view.enemyName,
-                  playing: _playing,
-                ),
-                const SizedBox(height: StrideSpace.s12),
-                _CombatControls(
-                  view: view,
-                  controller: c,
-                  locked: _playing || ended,
-                ),
-              ],
+            child: _CombatControls(
+              view: view,
+              controller: c,
+              locked: _playing || ended,
             ),
           ),
         ],
@@ -226,66 +248,136 @@ class _CombatScreenState extends State<CombatScreen> {
   }
 }
 
-/// The round's beats as plain lines, most recent round only. Ephemeral by
-/// construction — it is the last report, not a history.
+/// The round's narration: **one line**, on the fight's own bottom edge.
 ///
-/// Held back while the stage replays the round: the lines would otherwise
-/// tell the ending before the blows land. They appear, complete, when the
-/// replay ends or is skipped.
+/// ## What changed, and what did not
+///
+/// This used to be a heading and up to four lines on the command card — 40 to
+/// 100 dp of the 252 dp column the owner's device read as "a giant lower
+/// command frame dominating the fight" (`ART-09` §4, §1). The words are
+/// unchanged and every one of them is still reachable: the strip shows the
+/// most recent line, and a tap opens the whole round. Position replaces the
+/// heading — a line along the picture's base says "now" without spending a
+/// row on the word.
+///
+/// Held back while the stage replays the round, exactly as before: the lines
+/// would otherwise tell the ending before the blows land. They appear,
+/// complete, when the replay ends or is skipped.
+///
+/// Between rounds, with nothing to narrate, the strip carries the creature's
+/// **intent** — the prose the knowledge tiers earn (`DECISIONS/0027`). That
+/// is where a tell as long as "Scarred and patient, it feints where the young
+/// ones snapped — two strikes, always." belongs: it is a sentence, and the
+/// command card's one micro line is for the figures it implies, which is the
+/// only reading of "collapse the sub-labels" that does not clip prose.
 class _CombatLog extends StatelessWidget {
   const _CombatLog({
     required this.report,
     required this.enemyName,
+    required this.intent,
     required this.playing,
+    required this.open,
+    required this.onToggle,
   });
 
   final CombatReport? report;
   final String enemyName;
+
+  /// What the creature will do this round, when knowledge has earned it.
+  final String? intent;
+
   final bool playing;
+
+  /// Whether the strip is showing the whole round.
+  final bool open;
+  final VoidCallback onToggle;
+
+  /// The round as lines, in order, plus the one the strip shows closed.
+  ///
+  /// The list is unchanged from the block this replaces, so nothing about
+  /// *what is said* moved with the layout. The headline is the last line that
+  /// earns the strip: a plain `Turn 3.` does not, because the stage's own TURN
+  /// chip is already saying it two hundred pixels above and the strip would
+  /// then narrate nothing at all. A telegraph turn — "Turn 3. The Forest Wolf
+  /// gathers itself…" — is the opposite case and keeps its place.
+  ({List<String> lines, String headline}) _content() {
+    final CombatReport? r = report;
+    ({List<String> lines, String headline}) one(String line) =>
+        (lines: <String>[line], headline: line);
+    if (playing) return one('Tap the stage to skip.');
+    if (r == null) return one(intent ?? 'Choose your action.');
+    if (!r.succeeded) return one(_refusalText(r));
+    final List<String> lines = <String>[];
+    String? headline;
+    for (final CombatBeat b in r.events) {
+      // The outcome itself is the layer's; the log beneath it keeps the
+      // round's blows and never narrates the ending twice.
+      if (b is WonBeat || b is LostBeat || b is RetreatedBeat) continue;
+      final String line = describeBeat(b, enemyName);
+      lines.add(line);
+      if (b is RoundEndedBeat && !b.telegraph) continue;
+      headline = line;
+    }
+    if (lines.isEmpty) return one(intent ?? 'Choose your action.');
+    return (lines: lines, headline: headline ?? lines.last);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final CombatReport? r = report;
-    if (playing) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeading(label: 'This round'),
-          const SizedBox(height: StrideSpace.s6),
-          Text('Tap the stage to skip.', style: StrideType.micro),
-        ],
-      );
-    }
-    final List<String> lines = r == null
-        ? const <String>[]
-        : !r.succeeded
-        ? <String>[_refusalText(r)]
-        : <String>[
-            // The outcome itself is the layer's; the log beneath it keeps
-            // the round's blows and never narrates the ending twice.
-            for (final CombatBeat b in r.events)
-              if (b is! WonBeat && b is! LostBeat && b is! RetreatedBeat)
-                describeBeat(b, enemyName),
-          ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SectionHeading(label: 'This round'),
-        const SizedBox(height: StrideSpace.s6),
-        if (lines.isEmpty)
-          Text('Choose your action.', style: StrideType.micro)
-        else
-          for (final String line in lines)
-            Padding(
-              padding: const EdgeInsets.only(bottom: StrideSpace.s2),
-              child: Text(
-                line,
-                style: StrideType.micro.copyWith(
-                  color: StrideColors.textPrimary,
+    final (:List<String> lines, :String headline) = _content();
+    final bool expandable = lines.length > 1 && !playing;
+    final TextStyle style = StrideType.micro.copyWith(
+      // Never `textMuted`: this is the fight's own narration and it sits on
+      // a picture, which is the hardest ground the palette has.
+      color: StrideColors.textPrimary,
+    );
+    final Widget text = open
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (final String line in lines)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: StrideSpace.s2),
+                  child: Text(line, style: style),
                 ),
-              ),
+            ],
+          )
+        : Text(
+            headline,
+            style: style,
+            maxLines: 1,
+            // The one place in the product where a line may be shortened on
+            // screen, and it is allowed here only because the full text is
+            // one tap away — `AdaptiveText`'s rule is that no character may
+            // be *lost*, and none is (D-01).
+            overflow: TextOverflow.ellipsis,
+          );
+
+    return Semantics(
+      button: expandable,
+      label: expandable
+          ? '$headline. Tap to read the whole round.'
+          : headline,
+      excludeSemantics: true,
+      child: GestureDetector(
+        // Null while the replay runs, so the stage's own tap-to-skip keeps
+        // the whole picture, this strip included.
+        onTap: expandable ? onToggle : null,
+        behavior: HitTestBehavior.opaque,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: StrideColors.surfaceGround.withValues(alpha: 0.72),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: StrideSpace.s8,
+              vertical: 3,
             ),
-      ],
+            child: text,
+          ),
+        ),
+      ),
     );
   }
 
@@ -347,8 +439,31 @@ String dropsText(List<RewardLine> drops) => drops
     )
     .join(', ');
 
-/// Attack · Eat · Retreat, all disabled while a command is in flight and
-/// while the stage replays the last round ([locked]).
+/// The command grid: Attack, Brace, Eat as 176 × 56 cells in a 2 × 2, one
+/// micro intent line above them, and Retreat as a quiet link beneath. All
+/// disabled while a command is in flight and while the stage replays the last
+/// round ([locked]).
+///
+/// ## The budget this obeys
+///
+/// 12 + 13 (intent) + 8 + 56 + 8 + 56 + 8 + 44 (Retreat's 34 dp visual in its
+/// 44 dp hit region) + 12 + 2 (the card's own border) = **219 dp** at scale
+/// 1.0, against roughly 276 before. `ART-12_ux_brief.md` §6 says 210 because
+/// it budgeted Retreat's visual rather than the hit region the accessibility
+/// floor requires, and did not count the border; the structure it specifies
+/// is implemented exactly. `combat_ui_test` holds the figure and writes the
+/// sum out — it is the one number in this file a future addition must argue
+/// with rather than quietly exceed.
+///
+/// ## The fourth cell is empty on purpose
+///
+/// The grid has four places and the fight has three actions: `combatAttack`,
+/// `combatBrace`, `combatEat`, plus Retreat, which the brief puts *beneath*
+/// the grid as a link rather than in it. There is no skip, wait or item
+/// action in `SessionController`, so the bottom-right cell draws nothing. An
+/// invented fourth action would be a design decision smuggled in as a layout
+/// fix (`RULES.md` G-3), and a stretched Eat would say the grid is about
+/// filling itself.
 class _CombatControls extends StatefulWidget {
   const _CombatControls({
     required this.view,
@@ -402,105 +517,133 @@ class _CombatControlsState extends State<_CombatControls> {
         ? 'Your armour takes the heavy blow to ${g.takenLabel}.'
         : 'Your armour takes it to ${g.takenLabel}.';
 
+    // The one micro line, and the whole of what used to be three rows of
+    // sub-label (`ART-12` §6: "sub-labels collapse into one micro intent
+    // line above the grid").
+    //
+    // What it says, in priority order:
+    //
+    // * **Held** — the round is playing out. It says so here, once, instead
+    //   of four cells all relabelling themselves "Fighting…" and the grid
+    //   losing the three words that tell the player what it does.
+    // * **Brace is the suggested action** — the Brace sub-label's figure
+    //   moves here verbatim ("Take 6 instead of 13", or the lethal warning).
+    //   `worthwhile` is the engine's own judgement and is deliberately not
+    //   re-derived; it already refuses to recommend a brace that costs more
+    //   than it saves.
+    // * **Otherwise, with a reading** — the armour sentence, unchanged, word
+    //   for word, including its heavy variant.
+    // * **Otherwise** — the creature's intent, which below Studied is the one
+    //   short sentence ("It will strike twice.") this line was written for.
+    //
+    // The *prose* tell at Studied and above stays on the stage's narration
+    // strip. Concatenating a 90-character tellLine onto the armour figures
+    // would need a second line at scale 1.0 — over the §6 budget — or an
+    // `AdaptiveText` shrunk past legibility, and the strip already carries it
+    // one row above, unclipped.
+    final CombatGuardReading? reading = view.guardReading;
+    final String? intentLine = held
+        ? 'Fighting…'
+        : reading != null && reading.worthwhile
+        ? reading.braceLabel
+        : reading != null
+        ? guardSentence(reading)
+        : view.intentLine;
+
+    // One cell: 56 dp tall, half the card wide — 163.5 dp at 393, which is
+    // §6's 176 minus the card padding the brief's arithmetic did not
+    // subtract. `StrideButton` renders at the cell's height because its own
+    // box is a *minimum* (48), so there is no new control type, no edit to
+    // `data_display.dart`, and the press, disable, variant and semantics
+    // behaviour is the product's one button verbatim.
+    Widget cell(Widget child) => SizedBox(height: _cellHeight, child: child);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        // The intent line — what the creature will do this round, in words
-        // earned by knowledge (`DECISIONS/0027`). Absent while unseen; the
-        // projection is truthful because the resolver is deterministic.
-        if (view.intentLine case final String intent) ...<Widget>[
+        if (intentLine case final String line) ...<Widget>[
           // A telegraph turn speaks in the danger rust (Fable V2 Iteration
           // 02) — the one hue combat threat owns — so the round to brace
           // against is unmissable without reading a word.
-          Text(
-            intent,
-            style: StrideType.micro.copyWith(
-              color: view.telegraph
-                  ? StrideColors.danger
-                  : StrideColors.textSecondary,
-            ),
+          //
+          // `AdaptiveText`, not `Text`: this is the one line, so it shrinks
+          // within its bounded range rather than taking a second row out of
+          // the budget, and it never loses a character (D-01).
+          AdaptiveText(
+            line,
+            style: StrideType.micro,
+            color: view.telegraph && !held
+                ? StrideColors.danger
+                // Never `textMuted`: it fails WCAG AA on all four surfaces,
+                // and this is the one number the game volunteers.
+                : StrideColors.textSecondary,
           ),
-          const SizedBox(height: StrideSpace.s4),
+          const SizedBox(height: StrideSpace.rhythmRow),
         ],
-        // The figure the words above imply, stated against the armour the
-        // player is actually wearing — the Studied tier's mechanical payoff.
-        //
-        // Three review notes shaped this into what it is:
-        //
-        // - **Say it once.** A first pass printed the number here *and* in the
-        //   Brace sub-label, under an intent line already narrating the same
-        //   blow — three statements of one fact, two of them containing the
-        //   same integer. That is the "spreadsheet" the UX bible refuses. The
-        //   armour line keeps the *taken* figure; the button keeps the
-        //   *braced* one; neither repeats the other.
-        // - **Make the armour the subject.** "It strikes for 3–5 against your
-        //   guard" put the creature's voice on a number and used "guard",
-        //   which already means two other things in this game (an enemy's
-        //   `guarded` behaviour, and `frostGuard`). Naming the worn piece
-        //   states the design thesis inside the sentence rather than beside
-        //   it, and reads as the journal the bible asks for.
-        // - **Not while the round is animating.** The view is frozen during a
-        //   command, so an ungated line asserts the *previous* round's figures
-        //   over the blows currently landing.
-        if (view.guardReading case final CombatGuardReading g when !held) ...<Widget>[
-          Text(
-            guardSentence(g),
-            style: StrideType.micro.copyWith(
-              // Never `textMuted`: it fails WCAG AA on all four surfaces, and
-              // this is the one number the game volunteers.
-              color: view.telegraph
-                  ? StrideColors.danger
-                  : StrideColors.textSecondary,
+        // Row one: Attack, then Brace. Attack sits top-left — thumb-nearest
+        // on the reach the brief measures from — and both cells are 176 × 56,
+        // far above the 44 dp floor.
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: cell(
+                StrideButton(
+                  label: 'Attack',
+                  // Offense wears the danger accent inside the encounter —
+                  // scope-amended on the token by the owner's brief
+                  // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
+                  variant: StrideButtonVariant.attack,
+                  onPressed: held ? null : c.combatAttack,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: StrideSpace.s8),
-        ] else
-          const SizedBox(height: StrideSpace.s4),
-        StrideButton(
-          label: held ? 'Fighting…' : 'Attack',
-          // Offense wears the danger accent inside the encounter —
-          // scope-amended on the token by the owner's brief
-          // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
-          variant: StrideButtonVariant.attack,
-          onPressed: held ? null : c.combatAttack,
+            const SizedBox(width: StrideSpace.rhythmRow),
+            // Brace (`DECISIONS/0027`, experimental — Q-06's candidate): deal
+            // nothing, take the reply at half. Always offered; reading the
+            // telegraph and spending the round well is the player's craft.
+            //
+            // Its figures — "Take 6 instead of 13", computed from the armour
+            // actually worn — moved to the intent line above when bracing is
+            // the suggested play. That is the same one-fact-said-once rule
+            // that put the *taken* figure in the armour sentence and the
+            // *braced* figure on the button: there is still exactly one
+            // statement of each, and now there is one row of them instead of
+            // three.
+            Expanded(
+              child: cell(
+                StrideButton(
+                  label: 'Brace',
+                  // Defense at the opposite temperature — cool steel line and
+                  // edge, so offense and defense read apart at a glance
+                  // without a rainbow.
+                  variant: StrideButtonVariant.defense,
+                  onPressed: held ? null : c.combatBrace,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: StrideSpace.s8),
-        // Brace (`DECISIONS/0027`, experimental — Q-06's candidate): deal
-        // nothing, take the reply at half. Always offered; reading the
-        // telegraph and spending the round well is the player's craft.
-        StrideButton(
-          label: held ? 'Fighting…' : 'Brace',
-          // Defense at the opposite temperature — cool steel line and
-          // edge, so offense and defense read apart at a glance without a
-          // rainbow.
-          variant: StrideButtonVariant.defense,
-          // The button states its own worth in figures once the creature is
-          // Studied (PRESENTATION_COMBAT_EVOLUTION_01): "Take 6 instead of
-          // 13", computed from the armour actually worn. This is the whole
-          // answer to two of the owner's asks at once — equipment mattering,
-          // and knowledge being mechanically valuable — without a single new
-          // stat or a roll changed. Swap the coat and the number moves.
-          //
-          // It is also allowed to say bracing is NOT worth it, because
-          // sometimes it is not: halving 2–3 against a wolf saves one point
-          // and forfeits a round. A button that only ever recommended itself
-          // would be selling a bad decision.
-          //
-          // Below Studied there is no reading, and the line falls back to the
-          // rule rather than inventing a figure the player has not earned.
-          subLabel: held
-              ? null
-              : (view.guardReading?.braceLabel ??
-                    'Half damage, deal none — the answer to a heavy blow'),
-          onPressed: held ? null : c.combatBrace,
-        ),
-        const SizedBox(height: StrideSpace.s8),
-        StrideButton(
-          label: _choosing ? 'Eat — choose' : 'Eat',
-          subLabel: held ? null : eatReason,
-          onPressed: held || eatReason != null
-              ? null
-              : () => setState(() => _choosing = !_choosing),
+        const SizedBox(height: StrideSpace.rhythmRow),
+        // Row two: Eat, and the empty fourth place. Eat keeps its reason —
+        // "a disabled control must say why" is not a sub-label the intent
+        // line may absorb, because it belongs to one control and not to the
+        // round.
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: cell(
+                StrideButton(
+                  label: _choosing ? 'Eat — choose' : 'Eat',
+                  subLabel: held ? null : eatReason,
+                  onPressed: held || eatReason != null
+                      ? null
+                      : () => setState(() => _choosing = !_choosing),
+                ),
+              ),
+            ),
+            const SizedBox(width: StrideSpace.rhythmRow),
+            const Expanded(child: SizedBox.shrink()),
+          ],
         ),
         if (_choosing && eatReason == null) ...<Widget>[
           const SizedBox(height: StrideSpace.s6),
@@ -521,9 +664,11 @@ class _CombatControlsState extends State<_CombatControls> {
             ],
           ),
         ],
-        const SizedBox(height: StrideSpace.s8),
-        // No confirm step: retreating loses nothing, and the label says so,
-        // so a second tap would guard against nothing.
+        const SizedBox(height: StrideSpace.rhythmRow),
+        // Beneath the grid, quiet, and not a plate: leaving is not one of the
+        // four things you do in a fight. No confirm step either — retreating
+        // loses nothing, and the label says so, so a second tap would guard
+        // against nothing.
         StrideButton.secondary(
           label: 'Retreat — nothing is lost',
           onPressed: held ? null : c.combatRetreat,
@@ -532,6 +677,11 @@ class _CombatControlsState extends State<_CombatControls> {
     );
   }
 }
+
+/// One command cell's height (`ART-12` §6). The width is whatever half the
+/// card is — 176 dp at 393 — because a cell that fixed its width would be the
+/// one thing on this screen that could not follow the phone.
+const double _cellHeight = 56;
 
 /// Victory, defeat or retreat, once, with a Continue that acknowledges it.
 ///

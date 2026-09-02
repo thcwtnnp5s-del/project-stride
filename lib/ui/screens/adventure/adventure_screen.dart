@@ -226,6 +226,10 @@ class _AdventureScreenState extends State<AdventureScreen> {
             locationName: s.locationName,
             vignette: vignette,
             selectedNode: staged,
+            // The man on the stage wears what Inventory says he wears
+            // (FMPO02): the same read-time projection Combat and Inventory
+            // draw from, so three screens cannot disagree about his coat.
+            equipment: s.equipmentVisualState,
             activityActive: active != null && staged != null,
             playToken: playToken,
             locked: locked,

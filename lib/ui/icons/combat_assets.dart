@@ -418,6 +418,134 @@ abstract final class CombatAssets {
     impactRise: 34,
   );
 
+  // ------------------------------------------ FMPO02 armoured loadouts
+
+  /// One armoured loadout: a body class holding a weapon class, four tracks,
+  /// east-facing, 80 × 64 with the feet on row 62 — the same geometry as the
+  /// VAWO01 sets, from the same canonical Traveler. Frame counts are what
+  /// PixelLab v3 returned for every set (8 / 8 / 6 / 8); the strike frame is
+  /// measured per set from the blade's reach and is the one figure that
+  /// differs between loadouts.
+  static CombatantArt _loadout(
+    String body,
+    String held, {
+    required int strikeFrame,
+    required SpriteFootprint idle,
+    required SpriteFootprint attack,
+    required SpriteFootprint hit,
+    required SpriteFootprint stagger,
+  }) {
+    CombatTrack t(String track, int frames, double fps, AmbientLoop loop,
+            SpriteFootprint footprint) =>
+        _track(
+          'traveler_${body}_${held}_$track',
+          frames,
+          fps,
+          loop,
+          canvasWidth: 80,
+          canvasHeight: 64,
+          anchorRow: 62,
+          footprint: footprint,
+        );
+    return CombatantArt(
+      idle: t('idle', 8, 6, AmbientLoop.pingpong, idle),
+      attack: t('attack', 8, 10, AmbientLoop.once, attack),
+      strikeFrame: strikeFrame,
+      hit: t('hit', 6, 8, AmbientLoop.once, hit),
+      stagger: t('stagger', 8, 8, AmbientLoop.once, stagger),
+      impactRise: 34,
+    );
+  }
+
+  /// `'<bodyClass>|<weaponClass>'` → the loadout. Strike frames from
+  /// `FMPO02/tools/measure-reach.js` over the packaged strips: the blade's
+  /// reach per frame, the blow on its furthest extension (or the first of
+  /// two equal peaks, so the strip keeps follow-through where it has any).
+  static final Map<String, CombatantArt> armouredLoadouts =
+      <String, CombatantArt>{
+        'armor.plate|weapon.bronze': _loadout(
+          'plate',
+          'bronze',
+          strikeFrame: 6,
+          idle: SpriteFootprints.combatTravelerPlateBronzeIdle,
+          attack: SpriteFootprints.combatTravelerPlateBronzeAttack,
+          hit: SpriteFootprints.combatTravelerPlateBronzeHit,
+          stagger: SpriteFootprints.combatTravelerPlateBronzeStagger,
+        ),
+        'armor.plate|weapon.steel': _loadout(
+          'plate',
+          'steel',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerPlateSteelIdle,
+          attack: SpriteFootprints.combatTravelerPlateSteelAttack,
+          hit: SpriteFootprints.combatTravelerPlateSteelHit,
+          stagger: SpriteFootprints.combatTravelerPlateSteelStagger,
+        ),
+        'armor.plate|weapon.unarmed': _loadout(
+          'plate',
+          'unarmed',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerPlateUnarmedIdle,
+          attack: SpriteFootprints.combatTravelerPlateUnarmedAttack,
+          hit: SpriteFootprints.combatTravelerPlateUnarmedHit,
+          stagger: SpriteFootprints.combatTravelerPlateUnarmedStagger,
+        ),
+        'armor.jerkin|weapon.bronze': _loadout(
+          'jerkin',
+          'bronze',
+          strikeFrame: 2,
+          idle: SpriteFootprints.combatTravelerJerkinBronzeIdle,
+          attack: SpriteFootprints.combatTravelerJerkinBronzeAttack,
+          hit: SpriteFootprints.combatTravelerJerkinBronzeHit,
+          stagger: SpriteFootprints.combatTravelerJerkinBronzeStagger,
+        ),
+        'armor.jerkin|weapon.steel': _loadout(
+          'jerkin',
+          'steel',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerJerkinSteelIdle,
+          attack: SpriteFootprints.combatTravelerJerkinSteelAttack,
+          hit: SpriteFootprints.combatTravelerJerkinSteelHit,
+          stagger: SpriteFootprints.combatTravelerJerkinSteelStagger,
+        ),
+        'armor.jerkin|weapon.unarmed': _loadout(
+          'jerkin',
+          'unarmed',
+          strikeFrame: 3,
+          idle: SpriteFootprints.combatTravelerJerkinUnarmedIdle,
+          attack: SpriteFootprints.combatTravelerJerkinUnarmedAttack,
+          hit: SpriteFootprints.combatTravelerJerkinUnarmedHit,
+          stagger: SpriteFootprints.combatTravelerJerkinUnarmedStagger,
+        ),
+        'armor.coat|weapon.bronze': _loadout(
+          'coat',
+          'bronze',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerCoatBronzeIdle,
+          attack: SpriteFootprints.combatTravelerCoatBronzeAttack,
+          hit: SpriteFootprints.combatTravelerCoatBronzeHit,
+          stagger: SpriteFootprints.combatTravelerCoatBronzeStagger,
+        ),
+        'armor.coat|weapon.steel': _loadout(
+          'coat',
+          'steel',
+          strikeFrame: 2,
+          idle: SpriteFootprints.combatTravelerCoatSteelIdle,
+          attack: SpriteFootprints.combatTravelerCoatSteelAttack,
+          hit: SpriteFootprints.combatTravelerCoatSteelHit,
+          stagger: SpriteFootprints.combatTravelerCoatSteelStagger,
+        ),
+        'armor.coat|weapon.unarmed': _loadout(
+          'coat',
+          'unarmed',
+          strikeFrame: 2,
+          idle: SpriteFootprints.combatTravelerCoatUnarmedIdle,
+          attack: SpriteFootprints.combatTravelerCoatUnarmedAttack,
+          hit: SpriteFootprints.combatTravelerCoatUnarmedHit,
+          stagger: SpriteFootprints.combatTravelerCoatUnarmedStagger,
+        ),
+      };
+
   // --------------------------------------------------------------- enemies
 
   static final CombatantArt wolf = CombatantArt(

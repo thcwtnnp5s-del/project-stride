@@ -1,0 +1,83 @@
+{
+  "comment": "FMPO02 ART-03 accepted atlas regions, in blit order. A region appears here ONLY after it has passed the mandated per-region loop (generate -> composite -> guards -> full atlas + x2 perimeter + 197x426 phone FOV -> ACCEPT). `x,y` is the crop origin on the 1024^2 atlas; `<id>.png` and `<id>_mask.png` in this directory are both exactly `w x h`. `salt` feeds package-art.js's shared integer hash for the dither SELECT (never an average, A-2). Anything but status 'accepted' throws at packaging time. Per-region evidence: ../../ATLAS_REGION_LOG.md.",
+  "regions": [
+    {
+      "id": "W1",
+      "x": 128,
+      "y": 228,
+      "w": 196,
+      "h": 298,
+      "salt": 20,
+      "status": "accepted",
+      "job": "14236bc8-09a1-4584-8961-f6101c354284",
+      "seed": 701,
+      "atlas": "176-276 x 276-460",
+      "review": "ATLAS_REGION_LOG.md — W1"
+    },
+    {
+      "id": "W2",
+      "x": 0,
+      "y": 210,
+      "w": 228,
+      "h": 338,
+      "salt": 21,
+      "status": "accepted",
+      "job": "6bd327c0-4022-4e19-883e-8c4abad6c39b",
+      "seed": 702,
+      "atlas": "8-180 x 258-470",
+      "review": "ATLAS_REGION_LOG.md — W2"
+    },
+    {
+      "id": "W3",
+      "x": 0,
+      "y": 556,
+      "w": 248,
+      "h": 290,
+      "salt": 22,
+      "status": "accepted",
+      "job": "bd3a4faf-4902-4786-9511-84a5ab3b3dda",
+      "seed": 713,
+      "atlas": "8-200 x 596-786",
+      "review": "ATLAS_REGION_LOG.md — W3"
+    },
+    {
+      "id": "N1",
+      "x": 0,
+      "y": 0,
+      "w": 300,
+      "h": 298,
+      "salt": 23,
+      "status": "accepted",
+      "job": "fbff25c6-13e8-499a-b176-1321e9c7e297",
+      "seed": 704,
+      "atlas": "0-252 x 0-272",
+      "review": "ATLAS_REGION_LOG.md — N1"
+    },
+    {
+      "id": "N2",
+      "x": 196,
+      "y": 0,
+      "w": 372,
+      "h": 300,
+      "salt": 24,
+      "status": "accepted",
+      "job": "d416d1b9-8da5-481d-834e-0114f52ad63d",
+      "seed": 715,
+      "atlas": "240-520 x 0-236",
+      "review": "ATLAS_REGION_LOG.md — N2"
+    },
+    {
+      "id": "NB1",
+      "x": 180,
+      "y": 0,
+      "w": 160,
+      "h": 300,
+      "salt": 29,
+      "status": "accepted",
+      "job": "afcd4512-e318-4abf-a269-c3d819fce180",
+      "seed": 716,
+      "atlas": "224-296 x 0-250",
+      "review": "ATLAS_REGION_LOG.md — NB1 (N1/N2 bridge)"
+    }
+  ]
+}

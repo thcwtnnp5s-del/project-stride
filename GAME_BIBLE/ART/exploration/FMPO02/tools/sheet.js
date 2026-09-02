@@ -10,7 +10,7 @@ const png = require(path.resolve(__dirname, '../../../../../Scripts/art/png.js')
 const [out, scaleS, colsS, bg, ...files] = process.argv.slice(2);
 const scale = Number(scaleS);
 const cols = Number(colsS);
-const frames = files.map((f) => ({ f, r: png.load(f) }));
+const frames = files.map((f) => ({ f, r: png.loadAny(f) }));
 const cw = Math.max(...frames.map((x) => x.r.width));
 const ch = Math.max(...frames.map((x) => x.r.height));
 const rows = Math.ceil(frames.length / cols);

@@ -55,11 +55,13 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ResourceNodeDefinition;
 
+import '../../../runtime/stride_session.dart' show EquipmentVisualState;
 import '../../components/ambient_stage.dart';
 import '../../components/pixel_asset.dart';
 import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
+import '../../icons/traveler_art.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../components/data_display.dart';
@@ -76,7 +78,15 @@ class LocationStage extends StatelessWidget {
     this.lockReason,
     this.onActivityBeat,
     this.onGatherCue,
+    this.equipment = EquipmentVisualState.none,
   });
+
+  /// What the Traveler is wearing and holding (FMPO02). Every strip the
+  /// stage draws — the rest frame, the idle scenes, the working loop and its
+  /// one-shot — resolves through `TravelerArt` on this, so the armour the
+  /// player equipped in Inventory is the armour he mines in. A read-time
+  /// projection of `Equipment.bySlot`; nothing here persists.
+  final EquipmentVisualState equipment;
 
   /// The audio layer's action beats, passed through to [AmbientStage]:
   /// the working loop crossing its strike frame, and the one-shot gather
@@ -155,6 +165,15 @@ class LocationStage extends StatelessWidget {
             nodeArt: nodeArt,
           );
 
+    // What the Traveler is wearing and holding, resolved once for every
+    // strip the stage draws (FMPO02). A null strip is the base loop —
+    // honest for the base body with a steel tool, and the E-5 degradation
+    // for a loadout with no authored art yet.
+    final GatherStrip? strip = skill == null
+        ? null
+        : TravelerArt.gatherStripFor(skill, equipment);
+    final String? restFrame = TravelerArt.restFrameFor(equipment);
+
     final Widget figures = AmbientStage(
       // The completion one-shot is the skill's **own** action.
       //
@@ -168,24 +187,33 @@ class LocationStage extends StatelessWidget {
       // is the generic "picked something up" beat.
       gatherFrames: skill == null
           ? PixelIcons.gatherFrames
-          : AmbientAssets.activityLoopFor(skill),
+          : strip?.frames ?? AmbientAssets.activityLoopFor(skill),
       gatherFootprint: skill == null
           ? SpriteFootprints.gather
-          : AmbientAssets.activityFootprintFor(skill),
+          : strip?.footprint ?? AmbientAssets.activityFootprintFor(skill),
       gatherCanvas: skill == null
           ? 64
-          : AmbientAssets.activityCanvasFor(skill),
+          : strip?.canvasWidth ?? AmbientAssets.activityCanvasFor(skill),
       playToken: playToken,
       // Work mode drops the companion scenes — the cat is a companion, not a
       // fixture, and a rock face is not where it sits (§6). The living
       // location composes the region's creature in (Fable V2 Iteration 02):
       // a hare at Haven, a songbird in the Woods — same key the backdrop
       // resolves by, so the two cannot disagree about where we are.
-      scenes: working
-          ? AmbientAssets.soloScenes
-          : AmbientAssets.scenesFor(vignette),
-      restFrame: AmbientAssets.restFrame,
-      restFootprint: AmbientAssets.restFootprint,
+      //
+      // An armoured body idles in its own scenes (FMPO02): the base table is
+      // fifteen studies of the man in his shirt, and every one of them would
+      // be the revert.
+      scenes: TravelerArt.idleScenesFor(
+        equipment,
+        base: working
+            ? AmbientAssets.soloScenes
+            : AmbientAssets.scenesFor(vignette),
+      ),
+      restFrame: restFrame ?? AmbientAssets.restFrame,
+      restFootprint:
+          TravelerArt.restFootprintFor(equipment) ??
+          AmbientAssets.restFootprint,
       // The far scenery slot stays empty in both modes now. It is the slot
       // that put the ore boulder against the left edge of a scene composed
       // for the Traveler and his cat; the resource belongs in `prop`, on the
@@ -194,20 +222,20 @@ class LocationStage extends StatelessWidget {
       propEast: skill != null && AmbientAssets.worksEast(skill),
       activityFrames: skill == null
           ? null
-          : AmbientAssets.activityLoopFor(skill),
+          : strip?.frames ?? AmbientAssets.activityLoopFor(skill),
       activityFootprint: skill == null
           ? null
-          : AmbientAssets.activityFootprintFor(skill),
+          : strip?.footprint ?? AmbientAssets.activityFootprintFor(skill),
       activityCanvas: skill == null
           ? 64
-          : AmbientAssets.activityCanvasFor(skill),
+          : strip?.canvasWidth ?? AmbientAssets.activityCanvasFor(skill),
       // A locked selection never works, whatever the queue says — and the
       // queue cannot say anything, because the control that starts it is
       // disabled on the same projection. Defence in depth, not a second rule.
       activityActive: activityActive && !locked,
       activityStrikeFrame: skill == null
           ? 0
-          : AmbientAssets.strikeFrameFor(skill),
+          : strip?.strikeFrame ?? AmbientAssets.strikeFrameFor(skill),
       onActivityBeat: onActivityBeat,
       onGatherCue: onGatherCue,
     );

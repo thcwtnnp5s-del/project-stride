@@ -1212,3 +1212,138 @@ ART-07 §2 records the wood-family language now (grey-blue bark and frost-rimed
 rings for frostpine; deep amber-red bark and dense dark rings for heartwood) so
 the icons will not collide *when* the items land. Whether they become craftable
 materials is a systems decision, not an art one.
+
+## Q-20 — Does craft completion get its own mark after all?
+
+**Raised:** 2026-09-02, FMPO02 wave2, PROD-REWARDS.
+**UNRESOLVED** — a direct instruction conflict, not adjudicated either way.
+
+The task brief for this round asked for `mark_craft_done` (24², "a small
+finished-item tag — wooden tag on a cord") alongside `mark_rare_drop`,
+`seal_signature` and `seal_masterwork`. But `ART-10_reward_brief.md` §1,
+the canonical brief this round was told to read first, rules against exactly
+this asset by name:
+
+> "Craft completion" gets no new asset — the record's notable escalation
+> (rarity ink + bracket) already is that language... A mark per craft
+> repeats "eleven unrelated borders" (§7) one family later.
+
+Per `CLAUDE.md`'s stated conflict order, an approved decision in the current
+milestone's brief outranks an individual task instruction, so `mark_craft_done`
+was **not generated** this round — see
+`GAME_BIBLE/ART/exploration/FMPO02/ledger/REWARDS.md` and
+`MILESTONES/evidence/FMPO02/wave2/REWARDS_report.md`. No generations were
+spent either confirming or overturning ART-10's reasoning.
+
+The two live readings, both left for the owner:
+
+1. **ART-10 is still right.** The rarity-ink-plus-bracket escalation already
+   distinguishes a notable craft result; a fourth mark (`mark_rare_drop`,
+   `seal_signature`, `seal_masterwork` are the other three "new" marks this
+   round) risks exactly the "eleven unrelated borders" failure the record
+   names in §7. Nothing changes; the task instruction was simply stale.
+2. **Something changed since ART-10 was written** that the task instruction
+   knows about and the brief doesn't — e.g. a decision to give *every*
+   completion type (contract, project, craft) a parallel mark now that
+   `mark_rare_drop` exists for drops. If so, ART-10 §1 needs an owner
+   amendment before any future round spends generations on
+   `mark_craft_done`, and the placement question (which surface, which
+   widget, is it 24² beside type or its own beat) still needs answering —
+   ART-10 never designed one.
+
+## Q-21 — Stonefall has two grounds and one region key
+
+**Raised:** 2026-09-02, FMPO02 wave2, UI-IMPL-COMBAT-ENCOUNTER.
+**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
+**Target:** Enemy Art Director / Creative Director, before the five habitat
+plates are switched on.
+
+`ART-08_enemy_brief.md` §2 authors **five** habitat plates and maps them to
+enemies by location *and*, inside Stonefall, by family: the goblins and the
+scree crawler stand on `habitat_rocky_ledge`, the salamander in
+`habitat_cave_shadow`. The implemented table
+(`lib/ui/icons/encounter_habitat.dart`) is keyed by **place**, as the wave2
+task specified, and a place cannot express that split: `location.stonefall_mine`
+resolves to one plate for every creature in it.
+
+Four regions therefore map cleanly — Whispering Woods → forest, Stonefall →
+ledge, Frostmere → snowbank, Forgotten Hollow → rootbed — and `caveShadow` is
+authored, named and deliberately **unmapped**. Haven's Rest has no enemies in
+`enemies.json` and so needs no plate at all.
+
+The three answers, none of them an implementation detail:
+
+1. **Stonefall is a ledge.** The salamander loses its ember chamber and the
+   fifth plate is never generated. Cheapest, and the one the region key
+   already implies.
+2. **The table gains an enemy override**, one row deep: place first, then a
+   named exception for `enemy.salamander`. Small, but it makes the table two
+   things and invites a second exception.
+3. **The salamander moves**, or Stonefall splits into two locations in
+   content. A world decision with save and travel consequences, far past art.
+
+Nothing renders either way until `EncounterHabitat.enabled` is filled, so this
+blocks the plates' switch-on and nothing else.
+
+## Q-22 — Combat HUD asset sizes: ART-09 brief vs wave2 dispatch disagree
+
+**Raised:** 2026-09-02, FMPO02 wave2, PROD-COMBAT-STAGE.
+**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
+**Target:** Combat Designer / Creative Director, before the HUD assets are
+wired into `combat_assets.dart` or `combat_stage.dart`.
+
+`ART-09_combat_brief.md` §3 specifies one set of native canvases and
+nine-patch geometry for the combat HUD; this session's direct wave2 dispatch
+instructions specified a different set. Built to the dispatch instructions
+(the more recent, task-specific authority), but the mismatch was never
+reconciled on paper:
+
+| Asset | ART-09 §3 | Wave2 dispatch (built) |
+|---|---|---|
+| HP gauge frame | 96x16, corner 8 / band 4 | 96x16, corner 6 / band 3 |
+| Turn/round marker | 32x16 bar, corner 6 / band 3 | 24x24 tab (not a bar) |
+| Narration strip | 96x20, corner 6 / band 4 | 64x16 tile |
+| Command plates | 64x64 native, corner 14 / band 6 | 64x32 |
+
+Delivered files: `GAME_BIBLE/ART/exploration/FMPO02/out/combat/ui/*.png` (+
+matching `.json` geometry), built to the dispatch sizes above. Whichever
+spec is authoritative, `ART-09_combat_brief.md` §3 should be amended rather
+than left silently contradicted (the brief's own §8 rule for exactly this
+situation), and the integrator needs a decision before wiring layout math
+that assumes one set of numbers over the other.
+
+## Q-23 — `habitat_cave_shadow` still reads as a wall, not a floor
+
+**Raised:** 2026-09-02, FMPO02 wave2, PROD-ENEMIES.
+**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
+**Target:** Environment Pixel Artist / Creative Director, before the
+Stonefall-deep encounter plate is treated as final.
+
+ART-08's encounter-habitat plates (5 regions, 192×76, `out/enemies/
+habitat_<region>.png`) all shipped, but `habitat_cave_shadow` carries a known
+compositional weakness. Producer review of the first accept
+(`b16a55cb-e6dd-4b85-accf-fe55a0ba09e8`) named it directly: it reads as "a
+cobbled wall seen face-on rather than a floor a creature stands on." One
+reroll of 3 candidates, explicitly aimed at a clear floor band in the lower
+third with the wall receding behind, produced nothing usable instead:
+
+- one candidate's warm glow turned out to be a small standing torch/brazier
+  with an open flame (violates the no-fire rule for this plate),
+- one was a full architectural doorway/tunnel rendered in true perspective
+  (breaks the "flat ground plane, no depth" convention every other plate
+  keeps), 
+- one had the right floor-in-lower-third shape but the wall texture read as
+  vine/leaf material rather than basalt rock.
+
+Kept the original (`b16a55cb`) rather than ship a worse defect. The
+underlying tension: "dark cave floor, rock wall receding behind, lantern
+glow, no fire, no perspective depth" is a harder ask for a single `pixen`
+still than the other four regions, and two rounds of prompting variation
+have not resolved it. Options for whoever picks this back up: accept the
+current plate as "good enough at a glance, weak on close inspection" (it
+does pass the no-sky/no-fire/no-teal gates), or try a fundamentally different
+composition (e.g. author the floor and the wall as two separate flat colour
+bands with no receding-perspective cue at all, closer to how
+`habitat_rocky_ledge` and `habitat_snowbank` separate their ground from their
+background). Evidence: `GAME_BIBLE/ART/exploration/FMPO02/review/enemies/
+cave_compare_x4.png`.

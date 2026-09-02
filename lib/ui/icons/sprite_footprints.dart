@@ -309,6 +309,125 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_traveler_jerkin_bronzeaxe_woodcut` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerJerkinBronzeaxeWoodcut = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_bronzeaxe_woodcut` — 13 px of contact, 35..47.
+  static const SpriteFootprint ambientTravelerCoatBronzeaxeWoodcut = SpriteFootprint(
+    left: 35,
+    right: 47,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_base_bronzeaxe_woodcut` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerBaseBronzeaxeWoodcut = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_bronzepick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerJerkinBronzepickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_plate_bronzepick_mine` — 11 px of contact, 30..40.
+  static const SpriteFootprint ambientTravelerPlateBronzepickMine = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_plate_forage` — 11 px of contact, 27..37.
+  static const SpriteFootprint ambientTravelerPlateForage = SpriteFootprint(
+    left: 27,
+    right: 37,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_forage` — 13 px of contact, 27..39.
+  static const SpriteFootprint ambientTravelerJerkinForage = SpriteFootprint(
+    left: 27,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_forage` — 13 px of contact, 26..38.
+  static const SpriteFootprint ambientTravelerCoatForage = SpriteFootprint(
+    left: 26,
+    right: 38,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_plate_idle_breathe` — 24 px of contact, 20..43.
+  static const SpriteFootprint ambientTravelerPlateIdleBreathe = SpriteFootprint(
+    left: 20,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_idle_breathe` — 24 px of contact, 20..43.
+  static const SpriteFootprint ambientTravelerJerkinIdleBreathe = SpriteFootprint(
+    left: 20,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_idle_breathe` — 24 px of contact, 20..43.
+  static const SpriteFootprint ambientTravelerCoatIdleBreathe = SpriteFootprint(
+    left: 20,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_plate_look_around` — 24 px of contact, 20..43.
+  static const SpriteFootprint ambientTravelerPlateLookAround = SpriteFootprint(
+    left: 20,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_look_around` — 24 px of contact, 20..43.
+  static const SpriteFootprint ambientTravelerJerkinLookAround = SpriteFootprint(
+    left: 20,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_look_around` — 24 px of contact, 20..43.
+  static const SpriteFootprint ambientTravelerCoatLookAround = SpriteFootprint(
+    left: 20,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_plate_walk_west` — 11 px of contact, 30..40.
+  static const SpriteFootprint ambientTravelerPlateWalkWest = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_walk_west` — 12 px of contact, 31..42.
+  static const SpriteFootprint ambientTravelerJerkinWalkWest = SpriteFootprint(
+    left: 31,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_walk_west` — 13 px of contact, 30..42.
+  static const SpriteFootprint ambientTravelerCoatWalkWest = SpriteFootprint(
+    left: 30,
+    right: 42,
+    bottom: 63,
+  );
+
   /// `combat_traveler_attack` — 12 px of contact, 34..45.
   static const SpriteFootprint combatTravelerAttack = SpriteFootprint(
     left: 34,
@@ -600,6 +719,258 @@ abstract final class SpriteFootprints {
   static const SpriteFootprint combatTravelerCombatIdle = SpriteFootprint(
     left: 31,
     right: 41,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_bronze_idle` — 30 px of contact, 30..59.
+  static const SpriteFootprint combatTravelerPlateBronzeIdle = SpriteFootprint(
+    left: 30,
+    right: 59,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_bronze_attack` — 11 px of contact, 30..40.
+  static const SpriteFootprint combatTravelerPlateBronzeAttack = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_bronze_hit` — 27 px of contact, 34..60.
+  static const SpriteFootprint combatTravelerPlateBronzeHit = SpriteFootprint(
+    left: 34,
+    right: 60,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_bronze_stagger` — 35 px of contact, 25..59.
+  static const SpriteFootprint combatTravelerPlateBronzeStagger = SpriteFootprint(
+    left: 25,
+    right: 59,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_plate_steel_idle` — 11 px of contact, 30..40.
+  static const SpriteFootprint combatTravelerPlateSteelIdle = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_steel_attack` — 11 px of contact, 33..43.
+  static const SpriteFootprint combatTravelerPlateSteelAttack = SpriteFootprint(
+    left: 33,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_steel_hit` — 11 px of contact, 31..41.
+  static const SpriteFootprint combatTravelerPlateSteelHit = SpriteFootprint(
+    left: 31,
+    right: 41,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_steel_stagger` — 10 px of contact, 28..37.
+  static const SpriteFootprint combatTravelerPlateSteelStagger = SpriteFootprint(
+    left: 28,
+    right: 37,
+    bottom: 61,
+  );
+
+  /// `combat_traveler_plate_unarmed_idle` — 11 px of contact, 30..40.
+  static const SpriteFootprint combatTravelerPlateUnarmedIdle = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_unarmed_attack` — 12 px of contact, 30..41.
+  static const SpriteFootprint combatTravelerPlateUnarmedAttack = SpriteFootprint(
+    left: 30,
+    right: 41,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_unarmed_hit` — 11 px of contact, 32..42.
+  static const SpriteFootprint combatTravelerPlateUnarmedHit = SpriteFootprint(
+    left: 32,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_unarmed_stagger` — 10 px of contact, 32..41.
+  static const SpriteFootprint combatTravelerPlateUnarmedStagger = SpriteFootprint(
+    left: 32,
+    right: 41,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_jerkin_bronze_idle` — 10 px of contact, 30..39.
+  static const SpriteFootprint combatTravelerJerkinBronzeIdle = SpriteFootprint(
+    left: 30,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_bronze_attack` — 10 px of contact, 30..39.
+  static const SpriteFootprint combatTravelerJerkinBronzeAttack = SpriteFootprint(
+    left: 30,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_bronze_hit` — 10 px of contact, 34..43.
+  static const SpriteFootprint combatTravelerJerkinBronzeHit = SpriteFootprint(
+    left: 34,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_bronze_stagger` — 10 px of contact, 30..39.
+  static const SpriteFootprint combatTravelerJerkinBronzeStagger = SpriteFootprint(
+    left: 30,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_steel_idle` — 12 px of contact, 30..41.
+  static const SpriteFootprint combatTravelerJerkinSteelIdle = SpriteFootprint(
+    left: 30,
+    right: 41,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_steel_attack` — 12 px of contact, 32..43.
+  static const SpriteFootprint combatTravelerJerkinSteelAttack = SpriteFootprint(
+    left: 32,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_steel_hit` — 12 px of contact, 35..46.
+  static const SpriteFootprint combatTravelerJerkinSteelHit = SpriteFootprint(
+    left: 35,
+    right: 46,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_steel_stagger` — 11 px of contact, 30..40.
+  static const SpriteFootprint combatTravelerJerkinSteelStagger = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_jerkin_unarmed_idle` — 11 px of contact, 28..38.
+  static const SpriteFootprint combatTravelerJerkinUnarmedIdle = SpriteFootprint(
+    left: 28,
+    right: 38,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_unarmed_attack` — 11 px of contact, 25..35.
+  static const SpriteFootprint combatTravelerJerkinUnarmedAttack = SpriteFootprint(
+    left: 25,
+    right: 35,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_unarmed_hit` — 11 px of contact, 29..39.
+  static const SpriteFootprint combatTravelerJerkinUnarmedHit = SpriteFootprint(
+    left: 29,
+    right: 39,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_unarmed_stagger` — 11 px of contact, 29..39.
+  static const SpriteFootprint combatTravelerJerkinUnarmedStagger = SpriteFootprint(
+    left: 29,
+    right: 39,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_coat_bronze_idle` — 12 px of contact, 30..41.
+  static const SpriteFootprint combatTravelerCoatBronzeIdle = SpriteFootprint(
+    left: 30,
+    right: 41,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_bronze_attack` — 12 px of contact, 32..43.
+  static const SpriteFootprint combatTravelerCoatBronzeAttack = SpriteFootprint(
+    left: 32,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_bronze_hit` — 12 px of contact, 35..46.
+  static const SpriteFootprint combatTravelerCoatBronzeHit = SpriteFootprint(
+    left: 35,
+    right: 46,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_bronze_stagger` — 12 px of contact, 34..45.
+  static const SpriteFootprint combatTravelerCoatBronzeStagger = SpriteFootprint(
+    left: 34,
+    right: 45,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_coat_steel_idle` — 9 px of contact, 29..37.
+  static const SpriteFootprint combatTravelerCoatSteelIdle = SpriteFootprint(
+    left: 29,
+    right: 37,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_steel_attack` — 9 px of contact, 35..43.
+  static const SpriteFootprint combatTravelerCoatSteelAttack = SpriteFootprint(
+    left: 35,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_steel_hit` — 9 px of contact, 34..42.
+  static const SpriteFootprint combatTravelerCoatSteelHit = SpriteFootprint(
+    left: 34,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_steel_stagger` — 8 px of contact, 37..44.
+  static const SpriteFootprint combatTravelerCoatSteelStagger = SpriteFootprint(
+    left: 37,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_unarmed_idle` — 10 px of contact, 28..37.
+  static const SpriteFootprint combatTravelerCoatUnarmedIdle = SpriteFootprint(
+    left: 28,
+    right: 37,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_unarmed_attack` — 10 px of contact, 28..37.
+  static const SpriteFootprint combatTravelerCoatUnarmedAttack = SpriteFootprint(
+    left: 28,
+    right: 37,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_unarmed_hit` — 9 px of contact, 34..42.
+  static const SpriteFootprint combatTravelerCoatUnarmedHit = SpriteFootprint(
+    left: 34,
+    right: 42,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_coat_unarmed_stagger` — 10 px of contact, 29..38.
+  static const SpriteFootprint combatTravelerCoatUnarmedStagger = SpriteFootprint(
+    left: 29,
+    right: 38,
     bottom: 62,
   );
 

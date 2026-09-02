@@ -102,8 +102,12 @@ int shownHp(WidgetTester tester, int max) {
   return hits.single;
 }
 
-Widget host(Widget child, {bool tickers = true}) => MediaQuery(
-  data: const MediaQueryData(size: Size(393, 852)),
+Widget host(Widget child, {bool tickers = true, bool reduceMotion = false}) =>
+    MediaQuery(
+  data: MediaQueryData(
+    size: const Size(393, 852),
+    disableAnimations: reduceMotion,
+  ),
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: TickerMode(
@@ -654,6 +658,102 @@ void main() {
       expect(seg.hpTweenEnd, lessThanOrEqualTo(seg.duration));
       expect(seg.hpTweenStart, lessThanOrEqualTo(seg.hpTweenEnd));
     }
+  });
+
+  testWidgets('Reduce Motion zeroes the recoil and keeps every fact', (
+    WidgetTester tester,
+  ) async {
+    // `combat_stage.dart` had no `disableAnimationsOf` branch at all
+    // (PCE01 §4, `ART-09` §6). The wolf has no flinch track, so a landed blow
+    // jerks its figure 6 dp — the one translate on this stage — and that is
+    // the motion the flag is about. What the blow *means* is not: the burst,
+    // the HP tween and the narration all still say the wolf was hit.
+    double wolfLeft() => tester
+        .widget<Positioned>(
+          find
+              .ancestor(
+                of: find.byWidget(
+                  tester.widgetList<GroundedSprite>(
+                    find.byType(GroundedSprite),
+                  ).last,
+                ),
+                matching: find.byType(Positioned),
+              )
+              .first,
+        )
+        .left!;
+
+    Future<double> leftAtImpact({required bool reduceMotion}) async {
+      await tester.pumpWidget(
+        host(
+          CombatStage(equipment: _armed, view: view(), report: null),
+          reduceMotion: reduceMotion,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final double idle = wolfLeft();
+      await tester.pumpWidget(
+        host(
+          CombatStage(
+            equipment: _armed,
+            view: view(turn: 2, playerHp: 36, enemyHp: 13),
+            report: round,
+          ),
+          reduceMotion: reduceMotion,
+        ),
+      );
+      await tester.pump();
+      // 210 ms: the slash frame, where the impact lands and the recoil is at
+      // its widest.
+      await tester.pump(const Duration(milliseconds: 210));
+      final double atImpact = wolfLeft();
+      // The blow itself is still presented either way.
+      expect(
+        tester
+            .widgetList<PixelAsset>(find.byType(PixelAsset))
+            .where((PixelAsset p) => p.assetPath.contains('fx_impact')),
+        isNotEmpty,
+      );
+      await tester.pumpAndSettle();
+      return atImpact - idle;
+    }
+
+    expect(await leftAtImpact(reduceMotion: false), isNot(0));
+    expect(await leftAtImpact(reduceMotion: true), 0);
+  });
+
+  test('the braced hold is marked, and it is the only segment that is', () {
+    // Brace was the one cue in `GAME_BIBLE` §2.1's combat table marked "new
+    // `hapticLight`" and the one the code never fired
+    // (`ART-11_audio_brief.md` §4). The stage plays segments and deliberately
+    // does not know what a `CombatBeat` is, so the flag is how the pulse
+    // finds the moment: at the held stance's start, where the player commits.
+    final List<StageSegment> braced = choreograph(
+      const <CombatBeat>[
+        BracedBeat(),
+        EnemyStruckBeat(
+          damage: 2,
+          playerHpAfter: 38,
+          heavy: false,
+          strikeIndex: 0,
+        ),
+        RoundEndedBeat(turn: 2, telegraph: false),
+      ],
+      traveler: CombatAssets.traveler,
+      enemy: CombatAssets.wolf,
+      strikeEffect: CombatAssets.fxBite,
+    );
+    expect(braced.where((StageSegment s) => s.braced), hasLength(1));
+    expect(braced.first.braced, isTrue);
+    // A round without a brace stays silent — a pulse on every held idle would
+    // be a phone that buzzes for nothing.
+    final List<StageSegment> ordinary = choreograph(
+      flurryRound.events,
+      traveler: CombatAssets.traveler,
+      enemy: CombatAssets.wolf,
+      strikeEffect: CombatAssets.fxBite,
+    );
+    expect(ordinary.any((StageSegment s) => s.braced), isFalse);
   });
 
   test('replays() agrees exactly with choreograph() emitting segments', () {

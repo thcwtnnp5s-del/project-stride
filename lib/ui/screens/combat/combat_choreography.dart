@@ -64,6 +64,7 @@ final class StageSegment {
     this.heavyFlash = false,
     this.heavyImpactAt,
     this.enemyFallOut = false,
+    this.braced = false,
   }) : assert(duration > Duration.zero, 'a segment must take time');
 
   final Duration duration;
@@ -129,6 +130,17 @@ final class StageSegment {
   /// This is the same `lands` offset the effect burst, the recoil and the HP
   /// tween already use, so all four now agree on when the hit happened.
   final Duration? heavyImpactAt;
+
+  /// The player set their feet: this segment **is** the brace.
+  ///
+  /// Brace has no authored stance pose, so on screen it is a held idle — the
+  /// one commitment in the fight the player cannot see themselves make
+  /// (`ART-11_audio_brief.md` §4, the one real haptic gap). The stage answers
+  /// it in the hand instead, one light pulse at the segment's start, which is
+  /// also where the queued `combat.brace.01` cue will play. A flag rather
+  /// than a beat type because the stage plays segments and has deliberately
+  /// never known what a `CombatBeat` is.
+  final bool braced;
 }
 
 /// How long a figure without a flinch track recoils.
@@ -234,7 +246,11 @@ List<StageSegment> choreograph(
         // held, planted idle beat — a moment of stillness before the halved
         // reply lands, which the halved figures then say out loud.
         out.add(
-          StageSegment(duration: _bracedHold, travelerTrack: traveler.idle),
+          StageSegment(
+            duration: _bracedHold,
+            travelerTrack: traveler.idle,
+            braced: true,
+          ),
         );
 
       case EnemyStruckBeat():
