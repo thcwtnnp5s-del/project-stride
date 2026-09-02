@@ -1,4 +1,23 @@
 {
   "comment": "EPO03 accepted atlas regions for team west, in blit order. A region appears here ONLY after the single-defect loop ACCEPT (generate -> composite -> guards -> full atlas + x2 perimeter + 197x426 phone FOV -> verdict). Fields: id, x, y, w, h (crop origin/size on the 1024^2 atlas; <id>.png and <id>_mask.png are exactly w x h), salt (>= 40, unique across all five manifests), status, job, seed, atlas, review, team, reauthorizes (landmark golden ids this region overwrites; each is re-extracted in the same commit — DECISIONS/0033).",
-  "regions": []
+  "regions": [
+    {
+      "id": "WA",
+      "name": "core_face_upper",
+      "x": 176,
+      "y": 260,
+      "w": 160,
+      "h": 280,
+      "salt": 80,
+      "status": "accepted",
+      "job": "7fb79946-a866-484d-a52a-1700e4f04c77",
+      "seed": 801,
+      "atlas": "216-296 x 300-494",
+      "review": "GAME_BIBLE/ART/exploration/EPO03/review/atlas/WA_preview_fov_x2.png",
+      "team": "west",
+      "coreAuthor": true,
+      "reauthorizes": [],
+      "intent": "The core forest's west face above the road (the vertical wall at x~256, y 300-494, inside the A-4 rim FMPO02 could not write) breaks westward into bays, promontories and stepping copses that meet W1's meadow copses; firs at the top, oaks below; the wood east of x 296 stays unbroken for the fairy glade; Greenwatch (286,431) keeps a forest edge."
+    }
+  ]
 }

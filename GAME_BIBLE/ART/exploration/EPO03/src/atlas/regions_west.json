@@ -4,38 +4,106 @@
     {
       "id": "WA",
       "name": "core_face_upper",
-      "x": 176, "y": 260, "w": 160, "h": 280,
+      "x": 176,
+      "y": 260,
+      "w": 160,
+      "h": 280,
       "atlas": "216-296 x 300-494",
-      "rect": { "x0": 40, "y0": 40, "x1": 120, "y1": 234 },
-      "ramps": { "left": 32, "right": 24, "top": 32, "bottom": 32 },
-      "inpaint": { "x": 40, "y": 40, "w": 80, "h": 194 },
-      "salt": 80, "seed": 0, "status": "pending",
+      "rect": {
+        "x0": 40,
+        "y0": 40,
+        "x1": 120,
+        "y1": 234
+      },
+      "ramps": {
+        "left": 32,
+        "right": 24,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 40,
+        "y": 40,
+        "w": 80,
+        "h": 194
+      },
+      "salt": 80,
+      "seed": 801,
+      "status": "accepted",
       "coreAuthor": true,
-      "reauthorizes": ["roadjoin_corridor_west"],
-      "intent": "The core forest's west face above the road (the vertical wall at x~256, y 300-494, inside the A-4 rim FMPO02 could not write) breaks westward into bays, promontories and stepping copses that meet W1's meadow copses; firs at the top, oaks below; the wood east of x 296 stays unbroken for the fairy glade; Greenwatch (286,431) keeps a forest edge."
+      "reauthorizes": [
+        "roadjoin_corridor_west"
+      ],
+      "intent": "The core forest's west face above the road (the vertical wall at x~256, y 300-494, inside the A-4 rim FMPO02 could not write) breaks westward into bays, promontories and stepping copses that meet W1's meadow copses; firs at the top, oaks below; the wood east of x 296 stays unbroken for the fairy glade; Greenwatch (286,431) keeps a forest edge.",
+      "job": "7fb79946-a866-484d-a52a-1700e4f04c77"
     },
     {
       "id": "WB",
       "name": "pass_road_foothills",
-      "x": 0, "y": 420, "w": 344, "h": 252,
+      "x": 0,
+      "y": 420,
+      "w": 344,
+      "h": 252,
       "atlas": "0-304 x 460-632",
-      "rect": { "x0": 0, "y0": 40, "x1": 304, "y1": 212 },
-      "ramps": { "left": 0, "right": 24, "top": 32, "bottom": 32 },
-      "inpaint": { "x": 0, "y": 40, "w": 304, "h": 172 },
-      "salt": 81, "seed": 0, "status": "pending",
+      "rect": {
+        "x0": 0,
+        "y0": 40,
+        "x1": 304,
+        "y1": 212
+      },
+      "ramps": {
+        "left": 0,
+        "right": 24,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 0,
+        "y": 40,
+        "w": 304,
+        "h": 172
+      },
+      "salt": 81,
+      "seed": 0,
+      "status": "pending",
       "coreAuthor": true,
-      "reauthorizes": ["roadjoin_corridor_west", "west_caravan_road", "caravan_corridor", "stag_box"],
+      "reauthorizes": [
+        "roadjoin_corridor_west",
+        "west_caravan_road",
+        "caravan_corridor",
+        "stag_box"
+      ],
       "intent": "One hand: the caravan road leaves the wood's west bays at (256,515), runs west through the caravan corridor (199-245 x 506-532 keeps road), threads a col between two rock shoulders at Wayfarer's Pass (187,542), fords a beck and switchbacks up into the Worldspine's foothills to leave the west edge; the far-west grey slab becomes scree fans, rock knolls and a snow-line; the pasted peak (210,590) becomes part of the range; the beck turns south past it; the lower core face (256-304 x 460-590) breaks into bays; Deepwood Shrine (304,556) stays deep wood; the stag (156-184 x 493-515) keeps meadow."
     },
     {
       "id": "WC",
       "name": "wall_foot_downs",
-      "x": 0, "y": 560, "w": 240, "h": 180,
+      "x": 0,
+      "y": 560,
+      "w": 240,
+      "h": 180,
       "atlas": "0-200 x 600-700",
-      "rect": { "x0": 0, "y0": 40, "x1": 200, "y1": 140 },
-      "ramps": { "left": 0, "right": 24, "top": 32, "bottom": 24 },
-      "inpaint": { "x": 0, "y": 40, "w": 200, "h": 100 },
-      "salt": 82, "seed": 0, "status": "pending",
+      "rect": {
+        "x0": 0,
+        "y0": 40,
+        "x1": 200,
+        "y1": 140
+      },
+      "ramps": {
+        "left": 0,
+        "right": 24,
+        "top": 32,
+        "bottom": 24
+      },
+      "inpaint": {
+        "x": 0,
+        "y": 40,
+        "w": 200,
+        "h": 100
+      },
+      "salt": 82,
+      "seed": 0,
+      "status": "pending",
       "intent": "W3's downs retouched: the Worldspine's foot continues south from WB as scree and boulder outcrops along the west edge down to y 700 (SOUTH's edge), and the beck WB turned south runs on through the gorse downs to leave at y 700 for SOUTH's SW shore; the downs' gorse and outcrops east of the beck kept in W3's hand."
     }
   ]
