@@ -45,13 +45,62 @@
 /// measured deterministically — it is a creative judgment, which A-1 gives
 /// to PixelLab. Precomposed variant strips ride the existing pipeline
 /// unchanged instead.
+///
+/// ## FMPO02 — two axes, every context
+///
+/// The owner's device found the contradiction VAWO01 left: Inventory showed
+/// the Bronze Chestplate, and Adventure, the mine, the grove and the fight
+/// showed the white shirt. So the tables here become **two-axis** — body
+/// class × held-item class — and the resolver answers for every context that
+/// draws the man: combat, the three gather loops, the ambient idles, the
+/// travel walk, the standing figure. Each answer is a precomposed PixelLab
+/// state animated for that context (`ART-05_equipment_brief.md`).
+///
+/// The fallthrough order is the honest one, and it is the same on every
+/// axis: the exact pair, then the body with the base held item, then the base
+/// body with the held item, then the base. A missing pair degrades one axis at
+/// a time, never both, and never to a hole. `equipment_projection_test.dart`
+/// asserts that for every equippable armour the resolved art's body class
+/// equals the armour's class — "no revert to base clothes", as code.
 library;
 
 import '../../runtime/stride_session.dart' show EquipmentVisualState;
+import '../components/ambient_scene.dart';
 import 'combat_assets.dart';
+import 'sprite_footprints.dart';
+
+/// One authored working loop for a (skill, body, tool) triple: the frames
+/// and the geometry the stage needs, because a new strip owns its own canvas
+/// and footprint rather than borrowing the base loop's.
+final class GatherStrip {
+  const GatherStrip({
+    required this.frames,
+    required this.footprint,
+    required this.canvasWidth,
+    required this.strikeFrame,
+  });
+
+  final List<String> frames;
+  final SpriteFootprint footprint;
+  final int canvasWidth;
+  final int strikeFrame;
+}
 
 abstract final class TravelerArt {
   const TravelerArt._();
+
+  /// The body class of the base figure — the shirt and vest, and the row
+  /// every unmapped armour degrades to.
+  static const String baseBody = 'base';
+
+  /// Held-item classes. Coarse by tier, never per item (ART-05 §1).
+  static const String weaponUnarmed = 'weapon.unarmed';
+  static const String weaponSteel = 'weapon.steel';
+  static const String weaponBronze = 'weapon.bronze';
+  static const String toolAxeSteel = 'tool.axe.steel';
+  static const String toolAxeBronze = 'tool.axe.bronze';
+  static const String toolPickSteel = 'tool.pick.steel';
+  static const String toolPickBronze = 'tool.pick.bronze';
 
   /// The base six-frame west walk — the travel card's cycle, canonical
   /// here so the card and any future variant table cannot drift apart.
@@ -85,14 +134,61 @@ abstract final class TravelerArt {
     'item.bearhide_coat': 'armor.coat',
     'item.clawguard_coat': 'armor.coat',
     'item.frostwarden_coat': 'armor.coat',
-    // Weapons. `item.training_sword` is deliberately unmapped — the base
-    // figure's baked blade is a plain steel training sword already, so it is
-    // the one item the base set tells the truth about. The three bronze-tier
-    // blades share a class because they share a silhouette.
-    'item.bronze_sword': 'weapon.bronze',
-    'item.bronze_longsword': 'weapon.bronze',
-    'item.fanghilt_sword': 'weapon.bronze',
+    // Weapons. `item.training_sword` **is mapped now** (FMPO02): its absence
+    // was honest only on the base body, whose baked blade is a plain steel
+    // sword. On a plated body the same fallthrough drew the base clothes —
+    // exactly the revert the owner banned — so the steel class exists and
+    // the base body's row for it resolves to the shipped base set.
+    'item.training_sword': weaponSteel,
+    'item.bronze_sword': weaponBronze,
+    'item.bronze_longsword': weaponBronze,
+    'item.fanghilt_sword': weaponBronze,
+    // Tools, by head material. The training tools are the base loops'
+    // baked steel heads; the bronze family covers every forged and
+    // improved tool, which all read as one bronze head at sprite scale.
+    'item.training_axe': toolAxeSteel,
+    'item.bronze_axe': toolAxeBronze,
+    'item.hornbound_bronze_axe': toolAxeBronze,
+    'item.goblin_toothed_axe': toolAxeBronze,
+    'item.training_pickaxe': toolPickSteel,
+    'item.bronze_pickaxe': toolPickBronze,
+    'item.reinforced_pickaxe': toolPickBronze,
+    'item.hornpoint_pickaxe': toolPickBronze,
+    'item.tinbraced_pickaxe': toolPickBronze,
   };
+
+  /// The body class [visual] wears: an armour's class, or [baseBody] for
+  /// nothing equipped or an armour with no authored class.
+  static String bodyClassOf(EquipmentVisualState visual) =>
+      variantOfItem[visual.armor?.itemId] ?? baseBody;
+
+  /// The weapon class [visual] holds. **An empty slot is a value, not a
+  /// miss** — it resolves to [weaponUnarmed] before any table is consulted.
+  /// An equipped weapon with no authored class reads as [weaponSteel]: the
+  /// base set's baked blade is the honest picture of "some sword".
+  static String weaponClassOf(EquipmentVisualState visual) {
+    final String? id = visual.weapon?.itemId;
+    if (id == null) return weaponUnarmed;
+    return variantOfItem[id] ?? weaponSteel;
+  }
+
+  /// The tool class [visual] carries for [skill] — a pick for mining, an axe
+  /// for woodcutting — or null when the equipped tool is not that
+  /// profession's (or nothing is equipped), in which case the loop draws the
+  /// profession's steel training tool, which is what the base loops bake.
+  static String? toolClassOf(EquipmentVisualState visual, String skill) {
+    final String? cls = variantOfItem[visual.tool?.itemId];
+    if (cls == null) return null;
+    final bool isPick = cls.startsWith('tool.pick');
+    final bool isAxe = cls.startsWith('tool.axe');
+    return switch (skill) {
+      'skill.mining' when isPick => cls,
+      'skill.woodcutting' when isAxe => cls,
+      _ => null,
+    };
+  }
+
+  static String _pair(String body, String held) => '$body|$held';
 
   /// Armour class → the standing figure that wears it.
   ///
@@ -114,51 +210,118 @@ abstract final class TravelerArt {
       armorFigures[_variantOf(visual.armor?.itemId)] ??
       'assets/art/v1/sprite/traveler_south.png';
 
-  /// (combat) weapon-variant class → the full combatant set for it.
+  /// (combat) `'<bodyClass>|<weaponClass>'` → the full combatant set.
   ///
-  /// Two classes cover every weapon in the game, which is what makes the
-  /// coarse mapping complete here rather than merely cheap:
-  ///
-  /// - `weapon.unarmed` — nothing equipped. This is the row the round existed
-  ///   to add. The base set bakes a sword into all 28 of its frames, so before
-  ///   this the interface showed a blade the player did not own.
-  /// - `weapon.bronze` — the three bronze-tier blades, which read as one
-  ///   weapon at 2× on a phone and differ only in numbers.
-  ///
-  /// `item.training_sword` is absent on purpose, not by omission: the base
-  /// set's pale-steel blade already *is* a plain training sword, so falling
-  /// through to the base is the honest answer for it.
+  /// The three base-body rows are VAWO01's: the shipped base set *is* the
+  /// base body with a steel sword, and the unarmed and bronze sets are its
+  /// empty-handed and bronze-armed siblings. The armoured rows land from
+  /// FMPO02's state matrix — nine states, four tracks each — and are
+  /// registered in `CombatAssets` as they are accepted.
   static final Map<String, CombatantArt> combatVariants =
       <String, CombatantArt>{
-        'weapon.unarmed': CombatAssets.travelerUnarmed,
-        'weapon.bronze': CombatAssets.travelerBronze,
+        _pair(baseBody, weaponSteel): CombatAssets.traveler,
+        _pair(baseBody, weaponUnarmed): CombatAssets.travelerUnarmed,
+        _pair(baseBody, weaponBronze): CombatAssets.travelerBronze,
       };
 
-  /// (walk) armor-variant class → a six-frame west walk. Empty likewise.
+  /// (gather) `'<skill>|<bodyClass>|<toolClass>'` → the working loop.
+  ///
+  /// Foraging carries no tool and keys as `'skill.foraging|<bodyClass>'`.
+  /// The base body's steel rows are the shipped `activity_*` loops, so they
+  /// are not listed: an absent row resolves to `AmbientAssets` exactly as
+  /// before this table existed.
+  static final Map<String, GatherStrip> gatherVariants = <String, GatherStrip>{};
+
+  /// (idle) body class → the ambient scenes authored for that body. The
+  /// base body uses `AmbientAssets.scenes` and is not listed.
+  static final Map<String, List<AmbientScene>> idleVariants =
+      <String, List<AmbientScene>>{};
+
+  /// (walk) body class → a six-frame west walk. The base is not listed.
   static const Map<String, List<String>> walkWestVariants =
       <String, List<String>>{};
 
   static String? _variantOf(String? itemId) =>
       itemId == null ? null : variantOfItem[itemId];
 
-  /// The combat set for [visual] — what the Traveler is actually holding. A
-  /// fight's loadout is honest to snapshot at encounter start.
+  /// The combat set for [visual] — what the Traveler is wearing **and**
+  /// holding. A fight's loadout is honest to snapshot at encounter start.
   ///
-  /// **An empty weapon slot is a value, not a miss.** It resolves to the
-  /// unarmed set rather than falling through to the base, because the base is
-  /// the one answer that is definitely wrong for it. Only an *equipped* item
-  /// with no authored class falls through, which keeps `RULES.md` E-5 intact:
-  /// a content pack that adds a weapon before its art exists still draws a
-  /// Traveler with a sword, never a hole.
+  /// Resolution: the exact pair; then the same body holding the weapon it
+  /// has art for closest to the truth (an armoured body never falls to the
+  /// base body while any armoured row for it exists — that is the revert the
+  /// owner banned); then the base body with the same weapon; then the base.
   static CombatantArt combatantFor(EquipmentVisualState visual) {
-    final String? weapon = visual.weapon?.itemId;
-    if (weapon == null) return CombatAssets.travelerUnarmed;
-    return combatVariants[variantOfItem[weapon]] ?? CombatAssets.traveler;
+    final String body = bodyClassOf(visual);
+    final String weapon = weaponClassOf(visual);
+    return combatVariants[_pair(body, weapon)] ??
+        _nearestArmed(body, weapon) ??
+        combatVariants[_pair(baseBody, weapon)] ??
+        CombatAssets.traveler;
   }
 
-  /// The travel walk for [visual] — the base west cycle until an armor
-  /// round lands.
+  /// The same body with another weapon class, preferring the truthful
+  /// neighbour: an unmapped blade shows as steel, a missing bronze shows as
+  /// steel, a missing steel shows as bronze — never as empty hands, and
+  /// never as another body.
+  static CombatantArt? _nearestArmed(String body, String weapon) {
+    if (body == baseBody || weapon == weaponUnarmed) return null;
+    for (final String alt in <String>[weaponSteel, weaponBronze]) {
+      if (alt == weapon) continue;
+      final CombatantArt? art = combatVariants[_pair(body, alt)];
+      if (art != null) return art;
+    }
+    return null;
+  }
+
+  /// The working loop for [skill] on [visual], or null when the base loop
+  /// (`AmbientAssets.activityLoopFor`) is the answer. Null is a value the
+  /// stage understands: it means "the shipped base loop", which is honest for
+  /// the base body with a steel tool and is the E-5 degradation for
+  /// everything not yet authored.
+  ///
+  /// Resolution: the exact triple; then the body with its steel tool (the
+  /// armour stays on, the tool tier is the axis that degrades); then the base
+  /// body with the equipped tool tier; then null.
+  static GatherStrip? gatherStripFor(String skill, EquipmentVisualState visual) {
+    final String body = bodyClassOf(visual);
+    final String? tool = toolClassOf(visual, skill);
+    if (skill == 'skill.foraging') {
+      return gatherVariants['$skill|$body'];
+    }
+    final String steel = skill == 'skill.mining' ? toolPickSteel : toolAxeSteel;
+    final String held = tool ?? steel;
+    return gatherVariants['$skill|$body|$held'] ??
+        gatherVariants['$skill|$body|$steel'] ??
+        gatherVariants['$skill|$baseBody|$held'];
+  }
+
+  /// The ambient idle set for [visual]: the base table for the base body,
+  /// and for an armoured body its own authored scenes **plus** every base
+  /// scene that draws no Traveler at all (the cat alone, the fire, the yarn)
+  /// — derived from the one list by what each scene draws, never from a
+  /// second hand-kept list that can drift.
+  static AmbientSceneSet idleScenesFor(
+    EquipmentVisualState visual, {
+    required AmbientSceneSet base,
+  }) {
+    final List<AmbientScene>? own = idleVariants[bodyClassOf(visual)];
+    if (own == null || own.isEmpty) return base;
+    return AmbientSceneSet(<AmbientScene>[
+      ...own,
+      for (final AmbientScene s in base.scenes)
+        if (!s.traveler.frames.any((String f) => f.contains('traveler_')) &&
+            !s.traveler.frames.any((String f) => f.contains('pair_')))
+          s,
+    ]);
+  }
+
+  /// The travel walk for [visual] — the body's own cycle, or the base.
   static List<String> walkWestFor(EquipmentVisualState visual) =>
       walkWestVariants[_variantOf(visual.armor?.itemId)] ??
       travelerWalkWestFrames;
+
+  /// Whether any FMPO02 gather row exists — the stage test uses it to know
+  /// whether the equipment axis is live.
+  static bool get hasGatherVariants => gatherVariants.isNotEmpty;
 }
