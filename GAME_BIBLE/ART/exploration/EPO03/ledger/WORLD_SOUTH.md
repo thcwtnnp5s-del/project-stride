@@ -125,4 +125,49 @@ fix and is affordable within the cap.
 
 | # | region / roll | tool | job id | canvas / mask / seed | cost line | verdict | reason |
 |---|---|---|---|---|---|---|---|
-| 6 | SA1 roll 1 — the Sunward Strand anchor | inpaint_image | b62a9726-829a-413d-881d-af0239f38883 | crop 160x130 @ (440,800) (2cc17ba, cut from the shipped composite) / mask 72x50 @ (44,40) / seed 6004 | cost: ~20 generations | _pending_ | Its own region entry, not a re-touch of S1 (the loop's rule). S1 left the marker at (511,860) on the dune/machair lip with the beach ~30 px south; sand in the 20x20 marker box measured 2.8% after vs 2.3% before. Intent: the dune field reaches inland in rounded tongues so sand and machair interlock and the anchor stands on the strand |
+| 6 | SA1 roll 1 — the Sunward Strand anchor | inpaint_image | b62a9726-829a-413d-881d-af0239f38883 | crop 160x130 @ (440,800) (2cc17ba, cut from the shipped composite) / mask 72x50 @ (44,40) / seed 6004 | cost: ~20 generations | **ACCEPT** | Its own region entry, not a re-touch of S1 (the loop's rule). S1 left the marker at (511,860) on the dune/machair lip with the beach ~30 px south; sand in the 20x20 marker box measured 2.8% after vs 2.3% before. Intent: the dune field reaches inland in rounded tongues so sand and machair interlock and the anchor stands on the strand |
+
+## SA1 — the Sunward Strand anchor (ACCEPTED)
+
+| | |
+|---|---|
+| Crop | `src/atlas/SA1_crop.png`, origin (440,800), 160×130, cut from the shipped composite, published at `2cc17ba` |
+| Inpaint | 72×50 at (44,40) — frozen margins 44 / 40 / 44 / 40 |
+| Authored rect | atlas **484–556 × 840–890** · ramps **14** all round · salt **63** · `coreAuthor: false` |
+| Why 14 px and not the nominal 32 | Measured, not assumed. Two one-sided 32 px ramps across a 72×50 rect leave 8 px of full alpha: the first mask built **363 authorized px and 702 selected**, which could not move the anchor at all. At 14 px the ramp still carries the ±60 % width wander, so the half-alpha contour is never straight, and both sides of it are the same sand/machair language, so the agreement grading dithers freely instead of drawing a contour. Rebuilt mask: 1,308 authorized · 1,780 feathered · **2,009 selected**. Recorded in `regions_south.json` as `rampNote`. This cost 0 generations — the roll was right, the geometry was mine. |
+| Containment | changed-inside-mask 2,350; changed-outside-mask 1,240 (frozen margin, blocked at packaging); changed bbox = the inpaint rectangle |
+| Goldens re-authored | `south_strand_w` **and** `south_strand_e` (the rect straddles their seam at x=512) — both re-extracted from `raw/atlas/SA1_pre_guard.png` in this commit |
+| Guards | `package-art.js` green; **`--check` fully green, 1,971 files up to date**; core drift 0; all 15 goldens held |
+| `atlas-qa.js` | repeated 10×10 sprite pairs **0**; orphan flecks 130 |
+| Straight runs | longest vertical in 460–580 × 810–910 is **11 px** at x=472 — under the ~12 px bar. The 22–24 px horizontal runs at y 817–834 are the pre-existing flats/machair contour, byte-identical before and after SA1. |
+| **Anchor, measured** | sand-family coverage in the marker box **501–521 × 850–870: 2.8 % → 49.5 %**; in the wider 40² box **12.3 % → 53.5 %** (the original master measured 28.2 % there). The Sunward Strand marker now stands on sand. |
+| Evidence | `review/atlas/SA1_r1_x4.png`, `SA1_ba_x4.png`, `SA1_preview_fov_x2.png`, `SA1_after_{full,x2,fov}.png` |
+
+**Read.** A dune blow-out pushes inland from the beach in two rounded tongues
+with marram tufts on their lips, so beach and machair interlock instead of
+meeting on a line. At 197×426 ×2 it reads as dune country, not as a patch.
+
+---
+
+## Totals
+
+| | |
+|---|---:|
+| Cap | **440** |
+| Jobs requested | **6**, all `inpaint_image` |
+| Accepted | **4** — S1 40 · S2 40 · S3 40 · SA1 20 = **140** |
+| Rejected | **2** — S1 r1 40 · S3 r1 40 = **80** |
+| **Territory total (sum of the tool's own cost lines)** | **220** of the 440 cap |
+| Deterministic work at 0 generations | the S3 water conform; the SA1 mask-geometry fix; every measurement in this ledger |
+
+Never a balance delta (M-17). The cap was not spent out: after SA1 every defect
+DIR-01 named for this territory had a verdict, and further rolls would have
+risked accepted terrain for no named defect.
+
+## Guards, final state
+
+`node Scripts/art/package-art.js` green · `--check` **1,971 files up to date** ·
+protected-interior drift **0** · all **15** landmark goldens held (three of them
+re-authored under D0033 and re-extracted in the commits that overwrote them) ·
+`check-art-palette.js` green · `check-tile-seam.js` green ·
+`atlas-qa.js` repeated sprite pairs **0** in every region.

@@ -66,6 +66,28 @@
       "review": "review/atlas/S3_r2_x2.png, S3_preview_x2.png, S3_r2_fov160_x2.png, S3_r2_fov_seam_x2.png, S3_after_*.png",
       "postprocess": "tools/conform-region-water.js — the open-water interior of the generation is remapped to the atlas sea dialect (ocean_unify TGT palette, mean/std + nearest-palette snap, 9x9 >=80% deep guard). Deterministic, A-2. Roll 1 (seed 6003) rejected: the SW wood was cleared into a dead zone.",
       "intent": "The SW corner: the vertical turquoise shore becomes a curving coast with a rocky headland, a bay, varying sand width, surf, angled dune ridges, machair and a creek; the wood is kept and only its straight western and northern edges break into copses; the lime slab becomes textured heath; the reserved storm-knoll pocket left plain."
+    },
+    {
+      "id": "SA1",
+      "x": 440,
+      "y": 800,
+      "w": 160,
+      "h": 130,
+      "salt": 63,
+      "status": "accepted",
+      "job": "b62a9726-829a-413d-881d-af0239f38883",
+      "seed": 6004,
+      "tool": "inpaint_image",
+      "cost": 20,
+      "atlas": "484-556 x 840-890",
+      "team": "south",
+      "coreAuthor": false,
+      "reauthorizes": [
+        "south_strand_w",
+        "south_strand_e"
+      ],
+      "review": "review/atlas/SA1_r1_x4.png, SA1_ba_x4.png, SA1_preview_fov_x2.png, SA1_after_*.png",
+      "intent": "Close the Sunward Strand identity anchor (D0033 3): the dune field reaches inland in rounded tongues with marram tufts so sand and machair interlock and the marker at (511,860) stands on the strand. Its own region entry, not a re-touch of S1. Ramps 14 px, not 32 — see regions_south.json rampNote."
     }
   ]
 }

@@ -119,10 +119,10 @@
         "y1": 90
       },
       "ramps": {
-        "left": 32,
-        "right": 32,
-        "top": 32,
-        "bottom": 32
+        "left": 14,
+        "right": 14,
+        "top": 14,
+        "bottom": 14
       },
       "inpaint": {
         "x": 44,
@@ -132,13 +132,14 @@
       },
       "salt": 63,
       "seed": 6004,
-      "status": "pending",
+      "status": "accepted",
       "coreAuthor": false,
       "reauthorizes": [
         "south_strand_w",
         "south_strand_e"
       ],
-      "intent": "Close the Sunward Strand identity anchor (D0033 3): widen the dune sand landward so the beach reaches the marker at atlas (511,860) instead of stopping ~30 px south of it. S1 is otherwise untouched — this is its own region entry, not a re-touch."
+      "intent": "Close the Sunward Strand identity anchor (D0033 3): widen the dune sand landward so the beach reaches the marker at atlas (511,860) instead of stopping ~30 px south of it. S1 is otherwise untouched — this is its own region entry, not a re-touch.",
+      "rampNote": "14 px, not the nominal 32 for a texture change: the authored rect is only 72x50, and two 32 px one-sided ramps leave 8 px of full alpha across it (measured: 363 authorized px, 702 selected). The ramp still carries the +/-60% width wander, so the half-alpha contour is never straight, and either side of it is the same sand/machair language, so the agreement grading dithers freely rather than drawing a contour."
     }
   ]
 }
