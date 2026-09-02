@@ -13,6 +13,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/surfaces.dart';
+import 'package:stride/ui/screens/skills/journey_model.dart';
 import 'package:stride/ui/screens/skills/skill_detail_screen.dart';
 import 'package:stride/ui/screens/skills/skills_screen.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -101,7 +103,71 @@ void main() {
     }
   });
 
-  testWidgets('the spine opens the route; the ladder reads as a plan', (
+  // ---------------------------------------------------------------------
+  // The journey model (EPO03, `DIR-07`): the grouping the road is placed
+  // from, tested as the pure function it now is rather than through a
+  // pumped screen.
+  // ---------------------------------------------------------------------
+
+  test('the journey folds empty runs and caps the road', () async {
+    final StrideSession s = await StrideSession.start(
+      overrideRoot: root,
+      source: MockStepSource(),
+    );
+    final SkillRoadmap mining = s.skillRoadmapFor(
+      ContentId.unchecked('skill.mining'),
+    )!;
+    final List<JourneyStop> stops = JourneyModel.from(mining);
+
+    // Every joint the model places is a level the projection gave it, in the
+    // projection's order, and no level number is invented or skipped.
+    final List<int> covered = <int>[
+      for (final JourneyStop stop in stops)
+        if (stop is MilestoneStop)
+          stop.level
+        else if (stop is FoldStop)
+          ...<int>[
+            for (int l = stop.fromLevel; l <= stop.toLevel; l++) l,
+          ],
+    ];
+    expect(covered, equals(List<int>.generate(10, (int i) => i + 1)));
+
+    // The walker is at level 1, so exactly one joint is the lit cairn and
+    // exactly one is the bronze-rimmed next stone carrying the distance.
+    final List<MilestoneStop> milestones = stops.whereType<MilestoneStop>()
+        .toList();
+    expect(
+      milestones.where((MilestoneStop m) => m.join == JoinState.current),
+      hasLength(1),
+    );
+    final MilestoneStop nextStop = milestones.singleWhere(
+      (MilestoneStop m) => m.join == JoinState.next,
+    );
+    expect(nextStop.level, 2);
+    expect(nextStop.xpAway, 120);
+    // A distance belongs to the next joint alone.
+    expect(
+      milestones.where((MilestoneStop m) => m.xpAway != null),
+      hasLength(1),
+    );
+
+    // The road ends where content ends, with the projection's own sentence.
+    expect(stops.last, isA<EndStop>());
+    expect(
+      (stops.last as EndStop).sentence,
+      contains('The road runs out here'),
+    );
+
+    // Nothing is behind a level-1 walker, so there is no walked fold.
+    expect(
+      stops.whereType<FoldStop>().where(
+        (FoldStop f) => f.kind == FoldKind.passed,
+      ),
+      isEmpty,
+    );
+  });
+
+  testWidgets('the spine opens the route; the road reads as a journey', (
     WidgetTester tester,
   ) async {
     final SessionController c = await boot(tester);
@@ -117,30 +183,33 @@ void main() {
     await tester.tap(find.text('Mining'));
     await tester.pumpAndSettle();
     expect(find.byType(SkillDetailScreen), findsOneWidget);
-    // The route's own heading (SectionHeading renders uppercase).
-    expect(find.text('ROADMAP'), findsOneWidget);
 
-    // The three lines the spine gave up are the first thing the route says.
-    expect(find.text('NEXT'), findsOneWidget);
-    expect(find.textContaining('opens '), findsWidgets);
+    // **No card on the route at all** (EPO03, `DIR-07`): the owner's device
+    // read named this screen for stacking rounded rectangles, and the two
+    // `SectionCard`s and the box round every unlock are what it meant. The
+    // page is the overview's own buckram, and the roadmap is a road.
+    expect(find.byType(SectionCard), findsNothing);
+    expect(find.byType(PageGround), findsOneWidget);
+    expect(find.byType(JourneyTrack), findsOneWidget);
 
-    // The current band, the next band's distance, and the honest end of
-    // the road are all on screen. (The collapsed dead-run line used to be
-    // asserted here; Fable Depth Offensive 01 filled Mining's last dead
-    // levels — `DECISIONS/0028` — so the ladder is dense to its horizon
-    // and the end-cap line is now the plan's closing statement.)
-    expect(find.text('NOW'), findsOneWidget);
+    // Position is said in words as well as in shape: the lit joint, the
+    // bronze one's true distance, and the honest end of the road.
+    expect(find.text('YOU ARE HERE'), findsOneWidget);
     expect(find.text('120 XP away'), findsOneWidget);
     expect(find.textContaining('The road runs out here'), findsOneWidget);
 
-    // Expanding an unlock shows its pre-capped story and the Pursuit
-    // control. `.last`, not `.first`: the NEXT block above the ladder names
-    // this same unlock in its own sentence — `Level 2 opens Tin Seam at
-    // Stonefall Mine` — and that line is a statement, not a control. The
-    // ladder's row is the later of the two in tree order.
+    // The trade's gauge is the head of the road, and the census line under
+    // it is the projection's, not a count made here.
+    expect(find.byType(TradeGauge), findsOneWidget);
+    expect(find.textContaining('unlocks open'), findsOneWidget);
+
+    // An entry carries its effect line collapsed — the roadmap is a plan you
+    // read, not a list of names you have to open one at a time — and opening
+    // it adds the rest of the projection's story and the Pursuit control.
+    expect(find.textContaining('Yields Tin Ore'), findsWidgets);
+    expect(find.text('Track as Pursuit'), findsNothing);
     await tester.tap(find.textContaining('Tin Seam at Stonefall').last);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Yields Tin Ore'), findsOneWidget);
     expect(find.text('Track as Pursuit'), findsOneWidget);
 
     // CLOSE pops back to the five trades.
