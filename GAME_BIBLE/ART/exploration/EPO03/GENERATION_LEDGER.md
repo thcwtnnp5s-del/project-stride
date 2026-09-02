@@ -33,6 +33,7 @@ never repeats them (M-05).
 | open, 2026-09-02 | 7,989 | 0 | Tier 3, resets 2026-10-01 |
 | wave 2 launched (19 teams), 2026-09-02 | 7,962 | 27 | first probes in flight |
 | after the session-limit outage, all 19 teams resumed | 7,624 | 365 | every team had committed sources; no active jobs lost |
+| second outage; L3 landed and committed; batching to 4 teams at a time | 7,536 | 453 | 19 concurrent agents exhaust the session limit in minutes — the round now runs in batches |
 
 ## Family totals (each lead's own sum of cost lines)
 
