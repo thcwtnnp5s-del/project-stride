@@ -3782,6 +3782,100 @@ for (const body of ['plate', 'jerkin', 'coat', 'base']) {
   }
 }
 
+/**
+ * **P3 — the Waywarden's Tunic gets a body of its own** (DIR-08 failure 3 and
+ * its new `armor.warden` class).
+ *
+ * Two rare and epic chest pieces — `waywarden_tunic` and `frostwarden_coat` —
+ * shared a class with garments they do not look like: the tunic had no row at
+ * all and drew the starting shirt in all ten contexts, and the Frostwarden
+ * Coat borrowed the bearhide coat. The warden is the fifth body: a **pointed
+ * hood up**, a tiered cloth mantle wider than the shoulders, a knee-length
+ * coat split up the front so both legs show, and tall boots — a silhouette
+ * that separates from plate, jerkin, coat and the base shirt at arm's length,
+ * which is DIR-08's own success criterion.
+ *
+ * ## One state, thirty strips
+ *
+ * `create_character_state` on the canonical Traveler at 80 x 64 (job
+ * `76bf1ace`) — so this is the same individual, and its eight rotations come
+ * back already 80 x 64 with the feet on **row 62**, which is the shipped
+ * anchor with no cropping at all. Everything else derives from those three
+ * rotations:
+ *
+ * - **combat**, four held classes x five tracks. The east rotation *is* the
+ *   unarmed pose; the steel, bronze and longsword poses are one-generation
+ *   `edit_image_pixen` edits of it that change only what is in his hands
+ *   (measured: the opaque box grows to the right by 13, 13 and 27 px). Each
+ *   is then the `custom_start_frame_url` of one v3 animation per track.
+ * - **bare**: idle-breathe and look-around from the south rotation, walk-west
+ *   and forage from the west rotation, animated directly.
+ * - **gather**: the west rotation with each of the four tool heads put in his
+ *   hands by a one-generation edit, then one v3 loop each.
+ * - **craft**: the shipped `activity_smith` / `activity_cook` frames
+ *   re-dressed by a 7-frame `edit_image` text edit, the pose, the hammer, the
+ *   spoon, the pack and the foot row kept — the FMPO02 craft route.
+ * - **figure and bust**: the south rotation centre-cropped to 64 x 64 (a
+ *   window, not a redraw), and the shipped coat portrait re-hooded by one
+ *   edit so the face at the top of the Character folio is the same man.
+ *
+ * ## What was rejected on the reading
+ *
+ * The unarmed punch came back with a black-and-white checkerboard where the
+ * fist should be, and both the steel and longsword overhead cuts swung the
+ * blade clean out of the 64-row window (19 and 38 px above it, and the
+ * longsword's union box measured 84 px across an 80-wide canvas). All three
+ * were re-rolled: the punch as "a bare hand plainly a hand in every frame",
+ * the two cuts as "a flat horizontal sweep at waist height, the blade never
+ * rising above his shoulder" — which is the same lever that fixed the coat's
+ * longsword brace. The mining loop's impact sparks (29 px across two frames)
+ * are keyed by `equip-prep`'s largest-component rule, as every strip's are.
+ */
+const EPO_WARDEN_SRC = path.join(EXPLORE, 'EPO03', 'out', 'equip', 'warden');
+const EPO_WARDEN_SPRITE = path.join(
+  EXPLORE, 'EPO03', 'out', 'equip', 'warden_sprite',
+);
+for (const held of ['unarmed', 'steel', 'bronze', 'longsword']) {
+  for (const [track, frames] of EPO_LONGSWORD_TRACKS) {
+    epoStrip(`traveler_warden_${held}_${track}`, frames, 80, 'combat',
+      combatFootprints, EPO_WARDEN_SRC);
+  }
+}
+// [id, frames, width]. Forage is authored west and kneels west, which is the
+// side the stage stands the plant on, so unlike the FMPO02 forage strips it
+// is **not** mirrored.
+const EPO_WARDEN_AMBIENT = [
+  ['traveler_warden_bronzepick_mine', 8, 80],
+  ['traveler_warden_steelpick_mine', 8, 80],
+  ['traveler_warden_bronzeaxe_woodcut', 8, 80],
+  ['traveler_warden_steelaxe_woodcut', 8, 80],
+  ['traveler_warden_forage', 9, 64],
+  ['traveler_warden_idle_breathe', 8, 64],
+  ['traveler_warden_look_around', 7, 64],
+  ['traveler_warden_walk_west', 6, 64],
+  ['traveler_warden_smith', 7, 74],
+  ['traveler_warden_cook', 7, 46],
+];
+for (const [id, frames, width] of EPO_WARDEN_AMBIENT) {
+  epoStrip(id, frames, width, 'ambient', ambientFootprints, EPO_WARDEN_SRC);
+}
+{
+  const figure = png.load(
+    path.join(EPO_WARDEN_SPRITE, 'traveler_south_warden.png'),
+  );
+  if (figure.width !== 64 || figure.height !== 64) {
+    throw new Error('EPO03 warden figure: expected 64x64');
+  }
+  emit('sprite/traveler_south_warden.png', encode(figure));
+  const bust = png.load(
+    path.join(EPO_WARDEN_SPRITE, 'traveler_warden_portrait.png'),
+  );
+  if (bust.width !== 64 || bust.height !== 64) {
+    throw new Error('EPO03 warden portrait: expected 64x64');
+  }
+  emit('portrait/traveler_warden.png', encode(bust));
+}
+
 // ----------------------------------------- EPO03 LANDMARKS (PROD-WORLD-LANDMARKS)
 /**
  * EPO03 wave 2, the fantasy-landmark family — DIR-03.
@@ -3828,6 +3922,71 @@ for (const entry of epoLandmarks.assets) {
     }
     emit(`env/${entry.name}_f${i}.png`, encode(frame));
   }
+}
+
+// ---------------------------------------------- EPO03 UI-SKILLS (PROD-UI-SKILLS)
+/**
+ * EPO03 wave 2, the Skills journey family (`DIR-07`) — the marks the rebuilt
+ * roadmap hangs on its road. Consumed through
+ * `lib/ui/screens/skills/track_art.dart`, which is SKILLS' own registry: the
+ * journey names in the shared kit contract are deliberately left unregistered
+ * this round (`KIT_CONTRACT` §8), so nothing here is NAV's.
+ *
+ * Two rules this block enforces, because both are the kind of thing that is
+ * invisible until it is on a phone:
+ *
+ * - **the declared canvas.** A joint is 24 x 24 drawn at x2 and an emblem is
+ *   64 x 64 drawn at x1; `PixelAsset` asserts on a mismatch at run time, and a
+ *   packaging step that lets the wrong size through only moves the failure to
+ *   the device.
+ * - **transparency.** Every mark is placed on the page's own buckram, so an
+ *   opaque background box would draw a rectangle on a screen whose entire
+ *   point is that it has none.
+ *
+ * What is NOT here, and why: the road strip itself. Two `pixen` rolls at 32²
+ * (`2c2607ad`, `3c09d3dd`) came back as a wood-plank fence and as a
+ * two-colour orange/grey checkerboard dither — the tool's flat-tileable-chrome
+ * boundary the kit owner measured at 31 rejected rolls
+ * (`ledger/UI_KIT.md`, `KIT_CONTRACT` §8). The road, the folds, the caps and
+ * the badge plates stay Flutter-painted in `skill_detail_screen.dart`, at
+ * exactly the geometry `TrackArt` declares, so a strip that lands later needs
+ * no reflow.
+ */
+const EPO_SKILLS_SRC = path.join(EXPLORE, 'EPO03', 'out', 'skills');
+const EPO_SKILLS_MARKS = [
+  ['joint_reached', 24],
+  ['joint_here', 24],
+  ['joint_next', 24],
+  ['joint_far', 24],
+  ['gate_seal', 24],
+  ['emblem_mining', 64],
+  ['emblem_foraging', 64],
+  ['emblem_smithing', 64],
+  ['emblem_woodcutting', 64],
+  ['emblem_cooking', 64],
+];
+for (const [name, extent] of EPO_SKILLS_MARKS) {
+  const mark = png.load(path.join(EPO_SKILLS_SRC, `${name}.png`));
+  if (mark.width !== extent || mark.height !== extent) {
+    throw new Error(
+      `EPO03 track ${name}: expected ${extent}x${extent}, got ` +
+        `${mark.width}x${mark.height}`,
+    );
+  }
+  let opaqueEdge = 0;
+  for (let x = 0; x < mark.width; x++) {
+    if (mark.data[(0 * mark.width + x) * 4 + 3] === 255) opaqueEdge++;
+    if (mark.data[((mark.height - 1) * mark.width + x) * 4 + 3] === 255) {
+      opaqueEdge++;
+    }
+  }
+  if (opaqueEdge === mark.width * 2) {
+    throw new Error(
+      `EPO03 track ${name}: the top and bottom rows are fully opaque — this ` +
+        'is a mark on the page, not a plate with a background.',
+    );
+  }
+  emit(`track/${name}.png`, encode(mark));
 }
 
 // -------------------------------------------------------- footprint metrics

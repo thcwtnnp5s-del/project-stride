@@ -1014,4 +1014,49 @@ void main() {
       await capture(tester, 'gfcp_ambient_dwell', settle: false);
     },
   );
+  // ---------------------------------------------------------------------
+  // EPO03 (`DIR-07`): the Skills road with a stretch of it behind the
+  // walker. Every other run in this file starts every trade at level 1, so
+  // the reached waystone, the walked fold and the road *above* the lantern
+  // had no render at all — and "where am I" is the one question this screen
+  // exists to answer.
+  // ---------------------------------------------------------------------
+  testWidgets('EPO03: the Skills road at mid-journey', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(120000)],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      for (int i = 0; i < 40; i++) {
+        await s.gather(kNode);
+      }
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+    await open(tester, 'Skills');
+    await capture(tester, 'epo_skills_overview');
+    await tester.tap(find.text('Foraging'));
+    await tester.pumpAndSettle();
+    await capture(tester, 'epo_skill_foraging_midroad');
+    // The road already walked, unfolded.
+    if (find.text('UNFOLD').evaluate().isNotEmpty) {
+      await tester.tap(find.text('UNFOLD'));
+      await tester.pumpAndSettle();
+      await capture(tester, 'epo_skill_foraging_unfolded');
+    }
+  });
 }

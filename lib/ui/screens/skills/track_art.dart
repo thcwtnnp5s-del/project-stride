@@ -109,7 +109,23 @@ abstract final class TrackArt {
   /// name is added here — one line, after the render has been looked at. A
   /// name absent from this set resolves to null and the widget paints the
   /// fallback it was built with, at the same size.
-  static const Set<String> _landed = <String>{};
+  static const Set<String> _landed = <String>{
+    // EPO03 wave 2, read on the 393 x 852 evidence renders: the four joints,
+    // the seal and the five hero emblems. The road strip, the folds, the caps
+    // and the badge plates are **not** here and are painted instead — `pixen`
+    // draws flat tileable chrome as perspective objects or two-colour dither
+    // (`KIT_CONTRACT` §8, and this family's own two road rolls).
+    '$_dir/joint_reached.png',
+    '$_dir/joint_here.png',
+    '$_dir/joint_next.png',
+    '$_dir/joint_far.png',
+    '$_dir/gate_seal.png',
+    '$_dir/emblem_mining.png',
+    '$_dir/emblem_foraging.png',
+    '$_dir/emblem_smithing.png',
+    '$_dir/emblem_woodcutting.png',
+    '$_dir/emblem_cooking.png',
+  };
 
   static bool _has(String path) => _landed.contains(path);
 
