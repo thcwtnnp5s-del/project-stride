@@ -20,7 +20,9 @@ const REPO = path.join(ROOT, '..', '..', '..', '..');
 const png = require(path.join(REPO, 'Scripts', 'art', 'png.js'));
 
 const id = process.argv[2];
-const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', 'regions.json'), 'utf8'));
+const team = process.argv[3];
+const cfgFile = team ? `regions_${team}.json` : 'regions.json';
+const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', cfgFile), 'utf8'));
 const region = cfg.regions.find((r) => r.id === id);
 if (!region) throw new Error(`unknown region ${id}`);
 const atlas = png.load(path.join(REPO, 'assets', 'art', 'v1', 'world', 'atlas_base.png'));

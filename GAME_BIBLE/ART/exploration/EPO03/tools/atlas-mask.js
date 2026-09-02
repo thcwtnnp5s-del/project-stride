@@ -258,14 +258,17 @@ function buildMask(spec) {
 
 module.exports = { buildMask, forbidden, protDepth, PROT, GOLDENS, hash };
 
-// CLI: node atlas-mask.js <regionId> — reads regions.json, writes the mask.
+// CLI: node atlas-mask.js <regionId> [team] — reads src/atlas/regions_<team>.json
+// (regions.json without a team), writes out/atlas/<id>_mask.png.
 if (require.main === module) {
   const fs = require('fs');
   const ROOT = path.join(__dirname, '..');
   const id = process.argv[2];
-  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', 'regions.json'), 'utf8'));
+  const team = process.argv[3];
+  const cfgFile = team ? `regions_${team}.json` : 'regions.json';
+  const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', cfgFile), 'utf8'));
   const region = cfg.regions.find((r) => r.id === id);
-  if (!region) throw new Error(`unknown region ${id}`);
+  if (!region) throw new Error(`unknown region ${id} in ${cfgFile}`);
   // Grade by agreement once the generation exists; before that (mask preview)
   // fall back to the purely geometric ramp.
   const genPath = path.join(ROOT, 'out', 'atlas', `${id}.png`);
@@ -275,6 +278,8 @@ if (require.main === module) {
     w: region.w, h: region.h, ox: region.x, oy: region.y,
     rect: region.rect, ramps: region.ramps, salt: region.salt,
     rimBlock: region.rimBlock === true,
+    coreAuthor: region.coreAuthor === true,
+    reauthorizes: region.reauthorizes || [],
     gen: graded ? png.load(genPath) : null,
     src: graded ? png.load(srcPath) : null,
   });

@@ -8,7 +8,7 @@
 //   <id>_fov.png    a 197x426 phone-FOV crop centred on the region, at x1 —
 //                   the opening-zoom viewport the owner actually sees.
 //
-// Usage: node atlas-review.js <regionId> [tag]     (tag: before | after | ...)
+// Usage: node atlas-review.js <regionId> <tag> [team]     (tag: before | after | ...; team -> regions_<team>.json)
 'use strict';
 
 const fs = require('fs');
@@ -19,7 +19,9 @@ const png = require(path.join(REPO, 'Scripts', 'art', 'png.js'));
 
 const id = process.argv[2];
 const tag = process.argv[3] || 'after';
-const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', 'regions.json'), 'utf8'));
+const team = process.argv[4];
+const cfgFile = team ? `regions_${team}.json` : 'regions.json';
+const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', cfgFile), 'utf8'));
 const region = cfg.regions.find((r) => r.id === id);
 if (!region) throw new Error(`unknown region ${id}`);
 

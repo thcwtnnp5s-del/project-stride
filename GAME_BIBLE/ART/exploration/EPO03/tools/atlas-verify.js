@@ -10,7 +10,7 @@
 //   3. reports how far the drift extends if it does, so a re-roll or a mask
 //      shrink is an informed choice rather than a guess.
 //
-// Usage: node atlas-verify.js <regionId> <candidate.png>
+// Usage: node atlas-verify.js <regionId> <candidate.png> [team]   (candidate path: absolute or cwd-relative)
 'use strict';
 
 const fs = require('fs');
@@ -20,13 +20,15 @@ const REPO = path.join(ROOT, '..', '..', '..', '..');
 const png = require(path.join(REPO, 'Scripts', 'art', 'png.js'));
 
 const id = process.argv[2];
-const file = process.argv[3];
-const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', 'regions.json'), 'utf8'));
+const file = path.isAbsolute(process.argv[3]) ? process.argv[3] : path.resolve(process.cwd(), process.argv[3]);
+const team = process.argv[4];
+const cfgFile = team ? `regions_${team}.json` : 'regions.json';
+const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'atlas', cfgFile), 'utf8'));
 const region = cfg.regions.find((r) => r.id === id);
 if (!region) throw new Error(`unknown region ${id}`);
 
 const src = png.load(path.join(ROOT, 'src', 'atlas', `${id}_crop.png`));
-const gen = png.load(path.isAbsolute(file) ? file : path.join(ROOT, file));
+const gen = png.load(path.isAbsolute(file) ? file : file);
 const mask = png.load(path.join(ROOT, 'out', 'atlas', `${id}_mask.png`));
 
 if (gen.width !== src.width || gen.height !== src.height) {
