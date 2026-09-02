@@ -689,7 +689,7 @@ void main() {
       expect(clippedLines(tester), isEmpty);
     });
 
-    testWidgets('the equipped summary spells the rank out', (
+    testWidgets('the equipment case carries the rank as ink', (
       WidgetTester tester,
     ) async {
       // Equipped through the product's own control rather than a direct
@@ -703,9 +703,23 @@ void main() {
 
       final EquippedSummary worn = session.equippedSummary.single;
       expect(worn.rarity, isNotNull);
-      // The word, not only the ink: the summary is a full-width row and has
-      // the space the grid cell does not.
-      expect(find.text(worn.rarity!.label.toUpperCase()), findsWidgets);
+      // **The ink, not the word, since FMPO02.** The stacked summary that
+      // spelled the rank out is now the equipment case's slot plate, and a
+      // plate says four things — icon, slot, name, stat (`ART-12` §2). The
+      // word is still carried by every surface that gives a piece a full row:
+      // the Character sheet's equipped line (tested below), the victory panel,
+      // the craft card.
+      final Finder name = find.byWidgetPredicate(
+        (Widget w) =>
+            w is Text &&
+            w.data == worn.displayName &&
+            w.style?.fontSize == StrideType.itemName.fontSize,
+      );
+      expect(name, findsWidgets);
+      expect(
+        (tester.widget(name.first) as Text).style!.color,
+        RarityStyle.of(worn.rarity!).ink,
+      );
       expect(clippedLines(tester), isEmpty);
     });
 

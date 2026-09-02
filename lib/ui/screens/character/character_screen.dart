@@ -20,11 +20,13 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show EquipmentSlot;
+import 'package:stride_core/stride_core.dart' show EquipmentSlot, SkillStanding;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/loadout_readout.dart';
+import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
@@ -50,6 +52,7 @@ class CharacterScreen extends StatelessWidget {
     final SessionController c = SessionScope.of(context);
     final StrideSession s = c.session;
     final List<SkillSummary> skills = s.skillSummaries;
+    final StepHistory history = s.stepHistory();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -61,7 +64,7 @@ class CharacterScreen extends StatelessWidget {
       children: <Widget>[
         if (s.isStale) ...<Widget>[
           StaleBanner(busy: c.busy, onReload: c.reload),
-          const SizedBox(height: StrideSpace.cardGap),
+          const SizedBox(height: StrideSpace.rhythmRow),
         ],
 
         // Identity and standing, in one card.
@@ -83,92 +86,123 @@ class CharacterScreen extends StatelessWidget {
         // and the skill totals sum `skillSummaries`, whose levels already came
         // from the content curve's own `levelAt`.
         SectionCard(
+          role: PanelRole.heroPlate,
+          surface: PanelSurface.journalLeaf,
           padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              // **The portrait, not the figure.** VAWO01 first put the
-              // equipped armour's standing rotation here, to answer the
-              // owner's "I want to see what I'm wearing". Side by side at
-              // phone size that was a downgrade and the device evidence shows
-              // it plainly: a 64² full body in a 128 dp portrait well leaves
-              // the face a handful of pixels, and the Character screen's
-              // portrait is the one place the Traveler is a person rather
-              // than a sprite. The armour classes are barely separable at
-              // that size anyway.
-              //
-              // So the bust stays, and the figure moved to where a full body
-              // belongs — beside the equipment it depicts, in Inventory's
-              // `_EquippedSummary`.
-              InsetWell.square(
-                contentSize: StrideGeometry.portraitContent,
-                child: PixelAsset.portrait(PixelIcons.portraitTraveler),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  // **The portrait, not the figure.** VAWO01 first put the
+                  // equipped armour's standing rotation here, to answer the
+                  // owner's "I want to see what I'm wearing". Side by side at
+                  // phone size that was a downgrade and the device evidence shows
+                  // it plainly: a 64² full body in a 128 dp portrait well leaves
+                  // the face a handful of pixels, and the Character screen's
+                  // portrait is the one place the Traveler is a person rather
+                  // than a sprite. The armour classes are barely separable at
+                  // that size anyway.
+                  //
+                  // So the bust stays, and the figure moved to where a full body
+                  // belongs — beside the equipment it depicts, in Inventory's
+                  // equipment case.
+                  InsetWell.square(
+                    contentSize: StrideGeometry.portraitContent,
+                    child: PixelAsset.portrait(PixelIcons.portraitTraveler),
+                  ),
+                  const SizedBox(width: StrideSpace.s12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const AdaptiveText(
+                          'Traveler',
+                          style: StrideType.numericHero,
+                          minScale: 0.7,
+                        ),
+                        const SizedBox(height: StrideSpace.s8),
+
+                        // A rule, not a gap. The name is the character; the two
+                        // facts under it are the sheet. Without the separator the
+                        // owner read the whole right column as metadata beside a
+                        // portrait, which is a fair description of four unrelated
+                        // text runs stacked at the same weight.
+                        const _Rule(),
+                        const SizedBox(height: StrideSpace.s8),
+                        _IdentityFact(
+                          // `Level`, not `Character level`. The longer wording read
+                          // better and then needed 151 dp at text scale 1.4 in the
+                          // 120 this column has beside the portrait at 320 dp — a
+                          // clearer label that clips is not clearer. `Skill levels`
+                          // directly beneath it supplies the contrast.
+                          label: 'Level',
+                          value: '${s.characterLevel}',
+                          // The label already says which level this is; `character`
+                          // beside the numeral was a qualifier reading as a
+                          // sentence fragment.
+                          unit: '',
+                        ),
+                        const SizedBox(height: StrideSpace.s8),
+                        _IdentityFact(
+                          label: 'Skill levels',
+                          value:
+                              '${skills.fold(0, (int a, SkillSummary k) => a + k.level)}'
+                              ' / '
+                              '${skills.fold(0, (int a, SkillSummary k) => a + k.maxLevel)}',
+                          unit: '${skills.length} skills',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: StrideSpace.s12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const AdaptiveText(
-                      'Traveler',
-                      style: StrideType.numericHero,
-                      minScale: 0.7,
-                    ),
-                    const SizedBox(height: StrideSpace.s8),
-                    // A rule, not a gap. The name is the character; the two
-                    // facts under it are the sheet. Without the separator the
-                    // owner read the whole right column as metadata beside a
-                    // portrait, which is a fair description of four unrelated
-                    // text runs stacked at the same weight.
-                    const _Rule(),
-                    const SizedBox(height: StrideSpace.s8),
-                    _IdentityFact(
-                      // `Level`, not `Character level`. The longer wording read
-                      // better and then needed 151 dp at text scale 1.4 in the
-                      // 120 this column has beside the portrait at 320 dp — a
-                      // clearer label that clips is not clearer. `Skill levels`
-                      // directly beneath it supplies the contrast.
-                      label: 'Level',
-                      value: '${s.characterLevel}',
-                      // The label already says which level this is; `character`
-                      // beside the numeral was a qualifier reading as a
-                      // sentence fragment.
-                      unit: '',
-                    ),
-                    const SizedBox(height: StrideSpace.s8),
-                    _IdentityFact(
-                      label: 'Skill levels',
-                      value:
-                          '${skills.fold(0, (int a, SkillSummary k) => a + k.level)}'
-                          ' / '
-                          '${skills.fold(0, (int a, SkillSummary k) => a + k.maxLevel)}',
-                      unit: '${skills.length} skills',
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(height: StrideSpace.rhythmRow),
+              // What the traveller is dressed in, on the sheet that is about
+              // the traveller (ART-12 §3). A readout: the pack owns the
+              // controls, and this says only what is worn.
+              _DressingStrip(equipped: s.equippedSummary),
             ],
           ),
         ),
-        const SizedBox(height: StrideSpace.cardGap),
+        const SizedBox(height: StrideSpace.rhythmHero),
 
-        // STEPS — today, this week, and the tracker behind them (the
-        // physical-device polish pass, item 1; `DECISIONS/0026`). Above the
-        // lifetime card because "did today count?" is the question a player
-        // opens this tab with after a walk.
-        const StepsBlock(),
-        const SizedBox(height: StrideSpace.cardGap),
-
+        // THE STEPS LEDGER — one ruled list where two rows of value tiles
+        // used to sit (ART-12 §3).
+        //
+        // The tiles were four filled blocks carrying four figures of the same
+        // kind, and a filled block is the app's way of saying "this one thing
+        // matters". Four of them side by side says it four times and therefore
+        // says nothing. A ledger is what a column of like figures looks like
+        // when it is a record rather than a dashboard, and it is the shape the
+        // Step Tracker behind it already uses.
+        //
+        // Every figure is a projection, and teal marks a walking figure and
+        // nothing else — the skill XP total below them is deliberately not
+        // teal, because it is not steps.
         SectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SectionHeading(label: 'What walking has built'),
-              const SizedBox(height: StrideSpace.s10),
-              ValueTileRow(
-                tiles: <LabeledValueTile>[
-                  LabeledValueTile(
+              const SizedBox(height: StrideSpace.rhythmRow),
+              RuledLedger(
+                rows: <Widget>[
+                  LedgerRow(
+                    label: 'Today',
+                    value: formatSteps(history.today.granted),
+                    leading: const WalkingGlyph(role: WalkingRole.stock),
+                    valueColor: StrideColors.accentSteps,
+                  ),
+                  LedgerRow(
+                    label: 'This week',
+                    value: formatSteps(history.week),
+                    note: 'last 7 days',
+                    valueColor: StrideColors.accentSteps,
+                  ),
+                  LedgerRow(
                     label: 'Total walked',
                     // Since the last playtest reset, or lifetime when there
                     // has been none (`DECISIONS/0025`). The lifetime figure
@@ -179,60 +213,70 @@ class CharacterScreen extends StatelessWidget {
                     // been credited: a persisted count (never an identity)
                     // that explains a bank two devices both contributed to.
                     // This line is its one home on any surface.
-                    unit: <String>[
+                    note: <String>[
                       'steps earned',
                       if (s.walkedBaselineMoved)
                         'lifetime ${formatSteps(s.totalGranted)}',
                       if (s.ledgerOriginCount > 1)
                         '${s.ledgerOriginCount} sources',
                     ].join(' · '),
-                    leading: const WalkingGlyph(role: WalkingRole.stock),
                     valueColor: StrideColors.accentSteps,
                   ),
-                  LabeledValueTile(
+                  LedgerRow(
                     label: 'Total skill XP',
                     value: formatSteps(s.totalSkillExperience),
-                    unit: 'across every skill',
+                    note: 'across every skill',
                   ),
-                ],
-              ),
-              // The lifetime accounting, named as such, only once a reset
-              // has made "this playtest" and "ever" two different figures
-              // (`DECISIONS/0025`). The Adventure band shows this playtest's
-              // spend; this is the one place the lifetime spend is read.
-              if (s.walkedBaselineMoved) ...<Widget>[
-                const SizedBox(height: StrideSpace.s8),
-                ValueTileRow(
-                  tiles: <LabeledValueTile>[
-                    LabeledValueTile(
+                  // The lifetime accounting, named as such, only once a reset
+                  // has made "this playtest" and "ever" two different figures
+                  // (`DECISIONS/0025`). The Adventure band shows this
+                  // playtest's spend; this is the one place the lifetime spend
+                  // is read.
+                  if (s.walkedBaselineMoved) ...<Widget>[
+                    LedgerRow(
                       label: 'Spent this playtest',
                       value: formatSteps(s.spentThisEpoch),
-                      unit: 'steps',
+                      note: 'steps',
+                      valueColor: StrideColors.accentSteps,
                     ),
-                    LabeledValueTile(
+                    LedgerRow(
                       label: 'Lifetime spent',
                       value: formatSteps(s.totalSpent),
-                      unit: 'every playtest',
+                      note: 'every playtest',
+                      valueColor: StrideColors.accentSteps,
                     ),
                   ],
-                ),
-              ],
+                ],
+              ),
             ],
           ),
         ),
-        const SizedBox(height: StrideSpace.cardGap),
+        const SizedBox(height: StrideSpace.rhythmRow),
 
+        // The tracker's door and the sync mark, directly under the figures
+        // they are about (the physical-device polish pass, item 1;
+        // `DECISIONS/0026`). Today and this week are in the ledger above now;
+        // showing them twice on one screen was the duplication the ledger
+        // exists to end.
+        const StepsBlock(),
+        const SizedBox(height: StrideSpace.rhythmGroup),
+
+        // The skills, as spines rather than as five near-identical rows of
+        // figures (ART-12 §3, §4): a plate, the name in the skill's own ink,
+        // the level, and the progress rule flush to the bottom edge. What a
+        // level *opens* is the Skills tab's answer, not this sheet's.
         SectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SectionHeading(label: 'Skills'),
-              const SizedBox(height: StrideSpace.s10),
-              for (final SkillSummary skill in skills) _SkillRow(skill: skill),
+              const SizedBox(height: StrideSpace.rhythmRow),
+              for (final SkillStanding standing in s.skillStandings)
+                _SkillSpine(standing: standing),
             ],
           ),
         ),
-        const SizedBox(height: StrideSpace.cardGap),
+        const SizedBox(height: StrideSpace.rhythmGroup),
 
         // COMBAT — the figures the next encounter will be snapshotted from.
         //
@@ -246,13 +290,13 @@ class CharacterScreen extends StatelessWidget {
         // has built and stays above the fold at 393 dp; where this block sits
         // in the sheet's order is the owner's call once the slice is played.
         _CombatBlock(figures: s.combatFigures, equipped: s.equippedSummary),
-        const SizedBox(height: StrideSpace.cardGap),
+        const SizedBox(height: StrideSpace.rhythmGroup),
 
         // The audio preferences (AUDIO_PRESENTATION_01): sound on/off and
         // the two bus volumes. Player-facing but quiet, above the owner's
         // instrument below.
         const AudioBlock(),
-        const SizedBox(height: StrideSpace.cardGap),
+        const SizedBox(height: StrideSpace.rhythmGroup),
 
         // The owner's playtest controls, last and quiet (`DECISIONS/0025`).
         const PlaytestBlock(),
@@ -456,84 +500,152 @@ class _IdentityFact extends StatelessWidget {
   );
 }
 
-class _SkillRow extends StatelessWidget {
-  const _SkillRow({required this.skill});
+/// The three worn slots as chips, under the portrait row (ART-12 §3).
+///
+/// ## Where the strip sits, and why not in the right column
+///
+/// The brief puts the dressing strip in the folio's right column. Measured,
+/// that column is what is left of the card after a 130 dp portrait well and a
+/// 12 dp gap: about 175 dp at the 393 reference and **102 at 320**, which
+/// gives three side-by-side chips 29 dp each — narrower than the icon they
+/// carry. Spanning the card instead gives each chip ~100 dp at the reference
+/// and 76 at 320, which a two-line wrapped name fits. The strip stays inside
+/// the folio, under the row it belongs to; it is the arithmetic that moved it,
+/// not a preference.
+class _DressingStrip extends StatelessWidget {
+  const _DressingStrip({required this.equipped});
 
-  final SkillSummary skill;
+  final List<EquippedSummary> equipped;
+
+  static const List<(EquipmentSlot, String)> _slots = <(EquipmentSlot, String)>[
+    (EquipmentSlot.weapon, 'Weapon'),
+    (EquipmentSlot.armor, 'Armour'),
+    (EquipmentSlot.tool, 'Tool'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final String? icon = PixelIcons.skillFor(skill.id);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: StrideSpace.s10),
-      child: Row(
-        children: <Widget>[
-          // The rail is reserved whether or not this skill has an icon. A row
-          // that collapsed when the icon was null would give the list two
-          // different left margins and no alignment rail — which is exactly
-          // what Visual QA found when only one of five skills had a sprite.
-          SizedBox(
-            width: 26,
-            height: 26,
-            child: icon == null
-                ? null
-                : InsetWell.square(
-                    contentSize: 24,
-                    child: PixelAsset.skill(icon),
-                  ),
-          ),
-          const SizedBox(width: StrideSpace.s10),
+    final Map<EquipmentSlot, EquippedSummary> worn =
+        <EquipmentSlot, EquippedSummary>{
+          for (final EquippedSummary e in equipped) e.slot: e,
+        };
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final (EquipmentSlot slot, String label) in _slots) ...<Widget>[
+          if (slot != _slots.first.$1)
+            const SizedBox(width: StrideSpace.rhythmRow),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  skill.displayName,
-                  style: StrideType.sub.copyWith(
-                    color: StrideColors.forSkill(skill.id),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.clip,
-                ),
-                // The XP figure is the only per-skill number that moves, and it
-                // was set in the same muted 11 px as an inline caption. Tabular
-                // and in the secondary text colour, it reads as a value in a
-                // column of values.
-                Text(
-                  '${formatSteps(skill.experience)} XP',
-                  style: StrideType.micro.copyWith(
-                    color: StrideColors.textSecondary,
-                    fontFeatures: StrideType.tabularFigures,
-                  ),
-                  maxLines: 1,
-                ),
-              ],
+            child: DressingChip(
+              slot: label,
+              itemName: worn[slot]?.displayName,
+              rarity: worn[slot]?.rarity,
+              iconPath: worn[slot] == null
+                  ? null
+                  : PixelIcons.itemFor(worn[slot]!.itemId),
             ),
           ),
-          // `LEVEL 1 / 20`, on one line, with the level the only emphasised
-          // part.
-          //
-          // It was a stacked 22 px `1` over a muted `/ 20`, five rows deep —
-          // and with every skill at level 1 that produced a column of five
-          // identical bold numerals that were the loudest thing on the card
-          // while saying the least. The XP figure beside them is the datum that
-          // actually varies. Same numbers, same source, one line, and the
-          // stripe is gone.
+        ],
+      ],
+    );
+  }
+}
+
+/// One skill, as a spine (ART-12 §3, §4).
+///
+/// ## What left the row, and where it went
+///
+/// The row carried a name, an XP figure, `LEVEL n / 20` and a 26 dp icon rail —
+/// four runs of type per skill, five skills deep, on a sheet whose subject is
+/// the character rather than the skills. The spine keeps the two facts that
+/// answer "where am I": the name in the skill's ink and the level. The XP
+/// figures, the thresholds and what a level opens are the Skills tab's
+/// answer, and this block defers to it rather than restating a third of it.
+///
+/// The progress rule is `SkillStanding.progress` — computed by
+/// `SkillDefinition.standingAt` in `stride_core`, never by a fraction assembled
+/// here. A widget indexing the XP curve is the defect this file's own header
+/// exists to warn about.
+class _SkillSpine extends StatelessWidget {
+  const _SkillSpine({required this.standing});
+
+  final SkillStanding standing;
+
+  /// The plate's edge. The skill family is 24 native at ×1 (a documented
+  /// density exception), so the plate is 32 and the sprite inside it stays on
+  /// its own grid — a 32 dp *icon* would mean a fractional rescale.
+  static const double _plate = 32;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? icon = PixelIcons.skillFor(standing.skill);
+    final Color accent = StrideColors.forSkill(standing.skill);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: StrideSpace.rhythmRow),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
           Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: <Widget>[
-              Text('LEVEL', style: StrideType.microLabel),
-              const SizedBox(width: StrideSpace.s6),
-              Text(
-                '${skill.level}',
-                style: StrideType.sectionHeading.copyWith(
-                  fontFeatures: StrideType.tabularFigures,
+              // The rail is reserved whether or not this skill has an icon. A
+              // row that collapsed when the icon was null would give the list
+              // two different left margins and no alignment rail — which is
+              // exactly what Visual QA found when only one of five skills had
+              // a sprite.
+              SizedBox(
+                width: _plate + 2,
+                height: _plate + 2,
+                child: icon == null
+                    ? null
+                    : InsetWell.square(
+                        contentSize: _plate,
+                        child: PixelAsset.skill(icon),
+                      ),
+              ),
+              const SizedBox(width: StrideSpace.s10),
+              Expanded(
+                child: AdaptiveText(
+                  standing.displayName,
+                  style: StrideType.cardTitle,
+                  color: accent,
+                  minScale: 0.8,
                 ),
               ),
-              Text(' / ${skill.maxLevel}', style: StrideType.micro),
+              const SizedBox(width: StrideSpace.s8),
+              Text(
+                standing.isMaxLevel ? 'MAX' : 'LV ${standing.level}',
+                style: StrideType.microLabel.copyWith(
+                  fontFeatures: StrideType.tabularFigures,
+                ),
+                maxLines: 1,
+              ),
             ],
+          ),
+          const SizedBox(height: StrideSpace.s6),
+          // 4 dp, full bleed, flush to the spine's bottom edge: the one mark
+          // that separates two spines, and it says something while doing it.
+          // Not type, so it does not scale.
+          ClipRRect(
+            borderRadius: StrideRadius.chip,
+            child: SizedBox(
+              height: 4,
+              child: Stack(
+                children: <Widget>[
+                  const ColoredBox(
+                    color: StrideColors.surfaceBlock,
+                    child: SizedBox.expand(),
+                  ),
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: standing.progress.clamp(0.0, 1.0),
+                    child: ColoredBox(
+                      color: accent,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

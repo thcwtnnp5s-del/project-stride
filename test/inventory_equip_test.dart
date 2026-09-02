@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/components/loadout_readout.dart' show kEmptySlotWord;
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -83,12 +84,20 @@ void main() {
     // `itemName.copyWith(color: …)` and never the bare role. Size, weight and
     // height still have to match, which is what distinguishes a grid cell's
     // label from the slot summary's.
-    final Finder name = find.byWidgetPredicate(
-      (Widget w) =>
-          w is Text &&
-          w.data == item &&
-          w.style?.copyWith(color: StrideType.itemName.color) ==
-              StrideType.itemName,
+    //
+    // **Scoped to the grid since FMPO02.** The equipment case's slot plates
+    // draw the worn item's name in the same `itemName` role, so the predicate
+    // alone now matches the plate above the grid as well as the tile in it —
+    // and the plate is a readout with no control inside it to tap.
+    final Finder name = find.descendant(
+      of: find.byType(GridView),
+      matching: find.byWidgetPredicate(
+        (Widget w) =>
+            w is Text &&
+            w.data == item &&
+            w.style?.copyWith(color: StrideType.itemName.color) ==
+                StrideType.itemName,
+      ),
     );
     final Finder tile = find.ancestor(
       of: name,
@@ -140,11 +149,13 @@ void main() {
     expect(find.text('ATK 3'), findsOneWidget);
     expect(find.text('DEF 2'), findsOneWidget);
 
-    // The three slot labels, each over an em dash.
+    // The equipment case's three slot plates, each over the word an unfilled
+    // slot uses. Never a lock glyph: nothing here is locked
+    // (`ART-12_ux_brief.md` §2).
     for (final String slot in <String>['WEAPON', 'ARMOUR', 'TOOL']) {
       expect(find.text(slot), findsOneWidget);
     }
-    expect(find.text('—'), findsNWidgets(3));
+    expect(find.text(kEmptySlotWord), findsNWidgets(3));
     for (final EquipmentSlot slot in EquipmentSlot.values) {
       expect(session.equippedIn(slot), isNull);
     }
@@ -166,7 +177,7 @@ void main() {
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(3));
     // The tile name and the slot summary both say Training Axe now.
     expect(find.text('Training Axe'), findsNWidgets(2));
-    expect(find.text('—'), findsNWidgets(2));
+    expect(find.text(kEmptySlotWord), findsNWidgets(2));
     expect(find.text('Equipped Training Axe.'), findsOneWidget);
     expect(session.isEquipped(kAxe), isTrue);
   });
@@ -204,7 +215,7 @@ void main() {
 
     expect(find.widgetWithText(StrideButton, 'Unequip'), findsNothing);
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(4));
-    expect(find.text('—'), findsNWidgets(3));
+    expect(find.text(kEmptySlotWord), findsNWidgets(3));
     expect(find.text('Set Training Pickaxe aside.'), findsOneWidget);
   });
 }

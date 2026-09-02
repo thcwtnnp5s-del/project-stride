@@ -1,8 +1,29 @@
-/// Everything the player holds.
+/// An equipment case, and then a pack.
 ///
 /// Icon + label + count is the complete semantic unit (`ART_DIRECTION.md`
 /// **L-17**). The icon lets the eye sort the grid; the label removes the
 /// remaining ambiguity.
+///
+/// ## The case (FMPO02, `ART-12_ux_brief.md` §2)
+///
+/// The screen opens on what the player is *wearing*: the standing Traveler at
+/// ×2 beside three slot plates. It replaces a summary block that sat buried in
+/// the middle of the Equipment group, where the one thing a player checks a bag
+/// for was below the fold behind two rows of materials.
+///
+/// The case is a **readout**. Equip and Unequip stay on the pack tile, which is
+/// the only surface with room for the engine's refusal sentence; tapping a
+/// plate scrolls to that item's tile and selects it, so the case points at the
+/// control rather than becoming a second one.
+///
+/// ## Two grids, and why the materials one drops its labels
+///
+/// Materials run five across at 66 dp, where a two-line name does not fit, so
+/// the name becomes the tile's Semantics label and the detail block under the
+/// grid. That is a trade with a stated limit: the moment the ambient text
+/// scaler grows past the point a 66 dp tile can carry, the grid drops to four
+/// or three columns and the names come back. Gear runs three across at 114,
+/// which is what the Equip control needs.
 ///
 /// ## Equipping
 ///
@@ -10,8 +31,8 @@
 /// nothing is equipped on a new game — and gathering nodes require an
 /// **equipped** tool, so without a control here Woodcutting and Mining were
 /// unreachable on the phone. Each equipment tile therefore carries a compact
-/// `Equip` / `Unequip` control and an `EQUIPPED` marker, and the Equipment
-/// group opens with a one-line summary of the three slots. All of it is read
+/// `Equip` / `Unequip` control and an `EQUIPPED` marker, and the case above the
+/// pack reads the three slots back. All of it is read
 /// from the session's projections (`equippedIn`, `isEquipped`) and dispatched
 /// through `SessionController` — the screen decides nothing about what may be
 /// worn; the engine refuses, and the refusal is rendered (`RULES.md` E-2).
@@ -30,14 +51,14 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart'
-    show ContentId, EquipmentSlot, ItemCategory, Rarity;
+    show ContentId, EquipmentSlot, ItemCategory;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/gear_stats.dart';
+import '../../components/loadout_readout.dart';
 import '../../components/pixel_asset.dart';
-import '../../components/rarity_badge.dart';
 import '../../components/rarity_item_title.dart';
 import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
@@ -78,17 +99,37 @@ class _InventoryScreenState extends State<InventoryScreen> {
   /// looked like it did nothing (Fable V2 UX audit S5).
   final GlobalKey _detailKey = GlobalKey();
 
-  void _reveal() {
+  /// One key per item tile, so the equipment case can scroll the pack to the
+  /// piece a slot plate names. Created on demand and kept: an item leaves the
+  /// bag rarely, and a stale key with no context is inert.
+  final Map<String, GlobalKey> _tileKeys = <String, GlobalKey>{};
+
+  GlobalKey _tileKey(ContentId id) =>
+      _tileKeys.putIfAbsent(id.value, GlobalKey.new);
+
+  void _reveal() => _scrollTo(() => _detailKey.currentContext, 0.2);
+
+  void _scrollTo(ValueGetter<BuildContext?> target, double alignment) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final BuildContext? detail = _detailKey.currentContext;
-      if (detail == null || !mounted) return;
+      final BuildContext? at = target();
+      if (at == null || !mounted) return;
       Scrollable.ensureVisible(
-        detail,
+        at,
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOutCubic,
-        alignment: 0.2,
+        alignment: alignment,
       );
     });
+  }
+
+  /// A slot plate names a piece; this is what tapping it does. The plate is a
+  /// readout, so the tap moves the player to the control rather than acting.
+  void _openFromSlot(ContentId id) {
+    setState(() {
+      _itemDetail = null;
+      _gearDetail = id;
+    });
+    _scrollTo(() => _tileKeys[id.value]?.currentContext, 0.3);
   }
 
   @override
@@ -110,11 +151,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
       children: <Widget>[
         if (c.session.isStale) ...<Widget>[
           StaleBanner(busy: c.busy, onReload: c.reload),
-          const SizedBox(height: StrideSpace.cardGap),
+          const SizedBox(height: StrideSpace.rhythmRow),
         ],
+        // The case, whether or not the pack has anything in it: the loadout is
+        // a fact about the player, not about the bag, and a new game whose
+        // three slots are empty is exactly the state the case exists to show.
+        _EquipmentCase(onSelect: _openFromSlot),
+        const SizedBox(height: StrideSpace.rhythmHero),
         if (entries.isEmpty)
           const SectionCard(
             role: PanelRole.kitTray,
+            surface: PanelSurface.oilcloth,
             child: Text('You are carrying nothing.', style: StrideType.body),
           )
         else
@@ -130,6 +177,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           // like.
           SectionCard(
             role: PanelRole.kitTray,
+            surface: PanelSurface.oilcloth,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -147,25 +195,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   ),
                 ),
                 for (final _Group group in groups) ...<Widget>[
-                  const SizedBox(height: StrideSpace.s10),
+                  // 16 between named groups, 8 between peers inside one — the
+                  // three rhythms of ART-12 §0, never one value twice.
+                  const SizedBox(height: StrideSpace.rhythmGroup),
                   // The group's name, only where there is more than one group.
                   // With a single kind of thing a divider label is noise.
                   if (groups.length > 1) ...<Widget>[
-                    Text(
-                      group.label.toUpperCase(),
-                      style: StrideType.compactLabel,
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: StrideSpace.s6),
+                    SectionHeading(label: group.label),
+                    const SizedBox(height: StrideSpace.rhythmRow),
                   ],
-                  if (group.equipment) ...<Widget>[
-                    const _EquippedSummary(),
+                  if (group.equipment)
                     if (c.lastEquip case final EquipReport report) ...<Widget>[
-                      const SizedBox(height: StrideSpace.s6),
                       _EquipResult(report: report, removed: c.lastEquipRemoved),
+                      const SizedBox(height: StrideSpace.rhythmRow),
                     ],
-                    const SizedBox(height: StrideSpace.s8),
-                  ],
                   if (group.consumable) ...<Widget>[
                     // Where food matters now: persistent HP, restored between
                     // encounters by eating (`DECISIONS/0023` §4).
@@ -176,15 +219,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       ),
                     ),
                     if (c.lastFood case final FoodReport report) ...<Widget>[
-                      const SizedBox(height: StrideSpace.s6),
+                      const SizedBox(height: StrideSpace.rhythmRow),
                       _FoodResult(report: report),
                     ],
-                    const SizedBox(height: StrideSpace.s6),
+                    const SizedBox(height: StrideSpace.rhythmRow),
                   ],
                   _ItemGrid(
                     entries: group.entries,
                     equipment: group.equipment,
                     consumable: group.consumable,
+                    material: group.material,
+                    keyOf: _tileKey,
                     selected: group.equipment ? _gearDetail : _itemDetail,
                     // One detail open at a time, whichever kind: two blocks
                     // at once would be two answers to one tap, and the one
@@ -213,7 +258,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   if (group.equipment && _gearDetail != null)
                     if (c.session.gearStatsOf(_gearDetail!)
                         case final GearStats g) ...<Widget>[
-                      const SizedBox(height: StrideSpace.s8),
+                      const SizedBox(height: StrideSpace.rhythmRow),
                       KeyedSubtree(
                         key: _detailKey,
                         child: GearStatsBlock(stats: g),
@@ -223,18 +268,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   // comes from, what it makes possible (Fable V2). Only in
                   // the group that owns the selected tile, so the block
                   // opens beside its trigger.
+                  //
+                  // **The name renders whether or not a purpose exists.** In a
+                  // five-across materials grid the tile has no room for a
+                  // label, so this block is where the name is said; gating it
+                  // on the purpose would leave a tapped tile with nothing to
+                  // show and no way to learn what it is.
                   if (!group.equipment && _itemDetail != null)
                     if (group.entries.any(
-                          (InventoryEntry e) => e.id == _itemDetail,
-                        ) &&
-                        c.session.itemPurposeOf(_itemDetail!) !=
-                            null) ...<Widget>[
-                      const SizedBox(height: StrideSpace.s8),
+                      (InventoryEntry e) => e.id == _itemDetail,
+                    )) ...<Widget>[
+                      const SizedBox(height: StrideSpace.rhythmRow),
                       KeyedSubtree(
                         key: _detailKey,
                         child: _ItemPurposeBlock(
                           name: c.session.displayNameOf(_itemDetail!),
-                          purpose: c.session.itemPurposeOf(_itemDetail!)!,
+                          purpose: c.session.itemPurposeOf(_itemDetail!),
                         ),
                       ),
                     ],
@@ -274,6 +323,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             label: names[category]!,
             equipment: category == ItemCategory.equipment,
             consumable: category == ItemCategory.consumable,
+            material: category == ItemCategory.material,
             entries: entries
                 .where((InventoryEntry e) => e.category == category)
                 .toList(growable: false),
@@ -283,6 +333,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           label: 'Other',
           equipment: false,
           consumable: false,
+          material: false,
           entries: entries
               .where((InventoryEntry e) => e.category == null)
               .toList(growable: false),
@@ -296,6 +347,7 @@ class _Group {
     required this.label,
     required this.equipment,
     required this.consumable,
+    required this.material,
     required this.entries,
   });
 
@@ -307,6 +359,12 @@ class _Group {
 
   /// Whether these tiles carry the eat control (`DECISIONS/0023` §4).
   final bool consumable;
+
+  /// Whether this group takes the dense five-across grid (ART-12 §2). Only
+  /// materials do: they are the group a player holds forty of, and the only
+  /// one whose tile has nothing to carry but a picture and a count.
+  final bool material;
+
   final List<InventoryEntry> entries;
 }
 
@@ -321,10 +379,30 @@ class _ItemPurposeBlock extends StatelessWidget {
   const _ItemPurposeBlock({required this.name, required this.purpose});
 
   final String name;
-  final ItemPurposeView purpose;
+
+  /// Null when the content pack says nothing about this item. The block still
+  /// renders: in the five-across materials grid it is the only place the name
+  /// appears (ART-12 §2).
+  final ItemPurposeView? purpose;
 
   @override
   Widget build(BuildContext context) {
+    final ItemPurposeView? purpose = this.purpose;
+    if (purpose == null) {
+      return SurfaceBlock(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            AdaptiveText(name, style: StrideType.itemName),
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              'Nothing in the world asks for this yet.',
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
     final List<(String, String)> lines = <(String, String)>[
       if (purpose.healing > 0) ('EATS AS', '+${purpose.healing} HP'),
       // The derived lineage (`DECISIONS/0028` §6): a piece's future stated
@@ -420,13 +498,27 @@ class _FoodResult extends StatelessWidget {
   };
 }
 
-/// The three slots and what is in each — `—` when empty.
+/// The equipment case: the Traveler as they stand, and the three slots as
+/// plates beside them (ART-12 §2).
 ///
-/// A summary, not a second control: the tiles below carry the buttons. It is
-/// here so the player can see at a glance what they are wielding without
-/// scanning the grid for markers.
-class _EquippedSummary extends StatelessWidget {
-  const _EquippedSummary();
+/// ## What replaced what
+///
+/// This was a summary block sitting *inside* the Equipment group, three
+/// text columns wide, under a 64 dp figure at ×1. Two things were wrong with
+/// it: the loadout — the first thing a player opens a bag to check — was
+/// below two rows of materials, and the figure was drawn small enough that
+/// the armour classes it exists to distinguish were not separable.
+///
+/// So it is the screen's hero now: the figure at ×2 in a well, and the slots
+/// as plates rather than as columns of running text. Still a readout — the
+/// grid keeps the buttons ([SlotPlate] says why) — and still every fact from
+/// the same projections the engine reads.
+class _EquipmentCase extends StatelessWidget {
+  const _EquipmentCase({required this.onSelect});
+
+  /// What a plate's tap does: select this item's tile in the pack below and
+  /// scroll it into view.
+  final ValueChanged<ContentId> onSelect;
 
   static const List<(EquipmentSlot, String)> _slots = <(EquipmentSlot, String)>[
     (EquipmentSlot.weapon, 'Weapon'),
@@ -434,97 +526,125 @@ class _EquippedSummary extends StatelessWidget {
     (EquipmentSlot.tool, 'Tool'),
   ];
 
+  /// The narrowest a plate may be and still hold its own type beside the
+  /// figure: plate padding 8 + icon well 50 + gap 8, and 60 dp of type — which
+  /// is `ARMOUR` at 37.3 with room for the enlarged case rather than exactly
+  /// none. Below this the case stacks.
+  static const double _plateFloor = 126;
+
   @override
   Widget build(BuildContext context) {
     final StrideSession session = SessionScope.of(context).session;
     // Slot → what is in it, with its rarity, from the projection the engine's
-    // own `Equipment.bySlot` backs. Read once rather than per column.
+    // own `Equipment.bySlot` backs. Read once rather than per plate.
     final Map<EquipmentSlot, EquippedSummary> worn =
         <EquipmentSlot, EquippedSummary>{
           for (final EquippedSummary e in session.equippedSummary) e.slot: e,
         };
-    return SurfaceBlock(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // **What the player is wearing, as a figure** (VAWO01, Q-14). Three
-          // authored armour classes on the canonical Traveler, resolved
-          // through `TravelerArt` from the session's existing projection —
-          // `equipmentVisualState` is a getter over `equipment.bySlot` that
-          // holds nothing, and an unmapped item falls back to the base.
+    final Set<String> held = <String>{
+      for (final InventoryEntry e in session.inventoryEntries) e.id.value,
+    };
+
+    // **What the player is wearing, as a figure** (VAWO01, Q-14), now at ×2 —
+    // 64 native doubled, never a fractional fit to the well. Resolved through
+    // `TravelerArt` from the session's existing projection; an unmapped item
+    // falls back to the base Traveler.
+    //
+    // Decorative: the plates state every fact it shows.
+    final Widget figure = ExcludeSemantics(
+      child: InsetWell.square(
+        contentSize: StrideGeometry.portraitContent,
+        child: PixelAsset(
+          assetPath: TravelerArt.figureFor(session.equipmentVisualState),
+          nativeWidth: 64,
+          nativeHeight: 64,
+          scale: 2,
+        ),
+      ),
+    );
+
+    final List<Widget> plates = <Widget>[
+      for (final (EquipmentSlot slot, String label) in _slots) ...<Widget>[
+        if (slot != _slots.first.$1)
+          const SizedBox(height: StrideSpace.rhythmRow),
+        SlotPlate(
+          slot: label,
+          itemName: worn[slot]?.displayName,
+          rarity: worn[slot]?.rarity,
+          iconPath: worn[slot] == null
+              ? null
+              : PixelIcons.itemFor(worn[slot]!.itemId),
+          // The figure combat reads, or what the tool opens — the same line
+          // the tile carries, from the same projection, so the case and the
+          // grid cannot disagree about a piece.
+          stat: switch (worn[slot]) {
+            final EquippedSummary e => switch (session.gearStatsOf(e.itemId)) {
+              final GearStats g => GearStatLine.textOf(g),
+              _ => null,
+            },
+            _ => null,
+          },
+          // Only where there is a tile to scroll to. An equipped piece the
+          // pack no longer lists cannot be pointed at, and a tap that scrolls
+          // nowhere is worse than no tap.
+          onTap: worn[slot] == null || !held.contains(worn[slot]!.itemId.value)
+              ? null
+              : () => onSelect(worn[slot]!.itemId),
+        ),
+      ],
+    ];
+
+    return SectionCard(
+      role: PanelRole.heroPlate,
+      surface: PanelSurface.oilcloth,
+      padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          // **The narrow branch, and it is measured rather than chosen.**
           //
-          // **Above** the three columns rather than beside them, deliberately.
-          // The block is about 320 dp and each column already runs to roughly
-          // 76 — narrower than a plated rarity badge, which is why the compact
-          // badge exists at all. Taking 64 dp off that width for a picture
-          // would squeeze three text columns to pay for one, and this repo has
-          // shipped label overflow before. Vertical room is cheap; horizontal
-          // room here is not.
+          // Beside a 130 dp well the plates get whatever the card has left. At
+          // the 393 reference that is 175 dp, which a plate spends as icon 50 +
+          // gap 8 + 109 of type. At 320 the card itself is 244 wide inside the
+          // frame, the plates get 102, and the type column falls to **36** —
+          // where `WEAPON` needs 37.6 and clips, which is what
+          // `ui_responsive_test` measured the first time this was a plain Row.
           //
-          // Decorative: the three columns beneath state every fact it shows.
-          Center(
-            child: ExcludeSemantics(
-              child: PixelAsset(
-                assetPath: TravelerArt.figureFor(session.equipmentVisualState),
-                nativeWidth: 64,
-                nativeHeight: 64,
-                scale: 1,
-              ),
-            ),
-          ),
-          const SizedBox(height: StrideSpace.s6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              for (final (EquipmentSlot slot, String label) in _slots)
+          // So below the width a plate's type actually needs, the case stacks:
+          // the figure keeps its integer ×2 (shrinking it is not available —
+          // L-18), and the plates take the card's whole width instead of a
+          // third of it. Nothing is dropped and nothing is rescaled; the two
+          // things simply stop competing for one line.
+          final double forPlates =
+              constraints.maxWidth -
+              StrideGeometry.portraitContent -
+              2 -
+              StrideSpace.s12;
+          if (forPlates >= _plateFloor) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                figure,
+                const SizedBox(width: StrideSpace.s12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        label.toUpperCase(),
-                        style: StrideType.compactLabel,
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: StrideSpace.s2),
-                      RarityName(
-                        name: worn[slot]?.displayName ?? '—',
-                        rarity: worn[slot]?.rarity,
-                        style: StrideType.sub,
-                        fallback: worn.containsKey(slot)
-                            ? StrideColors.textPrimary
-                            : StrideColors.textMuted,
-                      ),
-                      // The rarity word under the name, compact: each of these
-                      // three columns is a third of the block, which at 320 dp is
-                      // about 76 dp — narrower than the plated badge, and the
-                      // reason the compact form exists.
-                      if (worn[slot]?.rarity case final Rarity r) ...<Widget>[
-                        const SizedBox(height: StrideSpace.s2),
-                        RarityBadge.compact(rarity: r),
-                      ],
-                      // The figure combat reads, or what the tool opens — the
-                      // same line the tile carries, so the summary and the grid
-                      // never disagree about a piece.
-                      if (worn[slot] case final EquippedSummary e)
-                        if (session.gearStatsOf(e.itemId)
-                            case final GearStats g) ...<Widget>[
-                          const SizedBox(height: StrideSpace.s2),
-                          Text(
-                            GearStatLine.textOf(g),
-                            style: StrideType.compactLabel.copyWith(
-                              color: StrideColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                          ),
-                        ],
-                    ],
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: plates,
                   ),
                 ),
+              ],
+            );
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(child: figure),
+              const SizedBox(height: StrideSpace.rhythmRow),
+              ...plates,
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -593,7 +713,9 @@ class _ItemGrid extends StatelessWidget {
   const _ItemGrid({
     required this.entries,
     required this.equipment,
+    required this.keyOf,
     this.consumable = false,
+    this.material = false,
     this.selected,
     this.onSelect,
   });
@@ -602,27 +724,66 @@ class _ItemGrid extends StatelessWidget {
   final bool equipment;
   final bool consumable;
 
+  /// Whether this group takes the dense grid (ART-12 §2).
+  final bool material;
+
+  /// The key the equipment case scrolls to for a given item.
+  final GlobalKey Function(ContentId) keyOf;
+
   /// The tile whose evaluation is open beneath the grid, and the tap that
   /// toggles it. Null for groups whose tiles have nothing to expand.
   final ContentId? selected;
   final ValueChanged<ContentId>? onSelect;
 
+  /// The narrowest column a 48 dp icon and its 3 dp tile padding can sit in
+  /// with anything left over. Below this the grid takes fewer columns rather
+  /// than rescaling the sprite (ART-12 §2).
+  static const double _columnFloor = 56;
+
+  /// The materials floor: a picture and a count, and nothing that wraps.
+  static const double _denseFloor = 84;
+
+  /// The gear floor: what a 114 dp tile spends on two name lines, the stat
+  /// line and the Equip control.
+  static const double _gearFloor = 132;
+
+  /// How many columns this group takes at [width].
+  ///
+  /// **Only materials are dense**, and only while the type is small enough to
+  /// live in a 66 dp tile. The scaler test is the whole reason the rule is a
+  /// rule and not a constant: at an enlarged text scale a five-across tile can
+  /// carry neither the count nor a name, so the grid gives up a column and
+  /// hands the names back rather than clipping either.
+  static int _columnsFor(
+    double width,
+    TextScaler scaler, {
+    required bool dense,
+  }) {
+    if (!dense) return 3;
+    final bool enlarged = scaler.scale(11) > 13;
+    for (final int n in const <int>[5, 4, 3]) {
+      if (n == 5 && enlarged) continue;
+      if ((width - _gapFor(n) * (n - 1)) / n >= _columnFloor) return n;
+    }
+    return 3;
+  }
+
+  /// 6 at five columns, 8 at four or fewer (ART-12 §0).
+  static double _gapFor(int columns) =>
+      columns >= 5 ? StrideSpace.rowGap : StrideSpace.gridGap;
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (BuildContext context, BoxConstraints constraints) {
-      // Fluid columns, not the prototype's fixed 84 px. Four fixed columns plus
-      // gaps and gutters total 392, which is tuned to a 393 dp reference and to
-      // nothing else — on a 360 dp Android phone it overflows.
-      const int wanted = 4;
-      final double raw =
-          (constraints.maxWidth - StrideSpace.gridGap * (wanted - 1)) / wanted;
-
-      // Floored to an even number so a 40 px icon centred in the tile lands on a
-      // whole logical pixel rather than a fractional x, which would antialias a
-      // sprite that is meant to be crisp. Costs at most 2 dp of grid width.
-      final double column = (raw / 2).floorToDouble() * 2;
-
-      final int columns = column >= StrideGeometry.gridColumnFloor ? wanted : 3;
+      final TextScaler scaler = MediaQuery.textScalerOf(context);
+      final int columns = _columnsFor(
+        constraints.maxWidth,
+        scaler,
+        dense: material,
+      );
+      // A tile only loses its name where the name cannot fit — five across.
+      // At four or three the materials tile is an ordinary tile again.
+      final bool compact = material && columns >= 5;
 
       return GridView.builder(
         shrinkWrap: true,
@@ -650,8 +811,8 @@ class _ItemGrid extends StatelessWidget {
         itemCount: entries.length,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: columns,
-          crossAxisSpacing: StrideSpace.gridGap,
-          mainAxisSpacing: StrideSpace.gridGap,
+          crossAxisSpacing: _gapFor(columns),
+          mainAxisSpacing: _gapFor(columns),
           // mainAxisExtent, not childAspectRatio: an aspect ratio forces a
           // height derived from the width, and a wrapped two-line item name
           // then clips instead of growing the row.
@@ -669,14 +830,22 @@ class _ItemGrid extends StatelessWidget {
           // floored at the designed value so nothing shrinks below the
           // approved proportion.
           mainAxisExtent: _tileExtent(
-            MediaQuery.textScalerOf(context),
+            scaler,
+            withName: !compact,
             withControl: equipment || consumable,
+            floor: compact
+                ? _denseFloor
+                : material
+                ? StrideGeometry.itemTileMinHeight
+                : _gearFloor,
           ),
         ),
         itemBuilder: (BuildContext context, int i) => _ItemTile(
+          key: keyOf(entries[i].id),
           entry: entries[i],
           equipment: equipment,
           consumable: consumable,
+          compact: compact,
           selected: selected == entries[i].id,
           onTap: onSelect == null ? null : () => onSelect!(entries[i].id),
         ),
@@ -700,25 +869,34 @@ class _ItemGrid extends StatelessWidget {
   /// that item a definition — an unreserved rule is the same defect the two
   /// name lines exist to avoid, since a grid has one height for all its cells.
   /// It does not scale: a 2 dp mark is a mark, not type.
-  static double _tileExtent(TextScaler scaler, {required bool withControl}) {
+  ///
+  /// A dense cell ([withName] false) spends neither name line, and its [floor]
+  /// is the materials figure rather than the gear one — but it is derived the
+  /// same way, from the same terms, under the same scaler. A constant
+  /// `mainAxisExtent` is the defect, whatever number it holds (D-01).
+  static double _tileExtent(
+    TextScaler scaler, {
+    required bool withName,
+    required bool withControl,
+    required double floor,
+  }) {
     double lineOf(TextStyle style) =>
         scaler.scale(style.fontSize!) * (style.height ?? 1);
 
     const double iconEdge = 48; // PixelAsset.item at x1.
     const double padding = _tilePadTop + _tilePadBottom;
-    const double gaps = StrideSpace.s6 * 3; // spaceBetween, at minimum.
+    // spaceBetween, at minimum: one gap fewer when the name is not drawn.
+    final double gaps = StrideSpace.s6 * (withName ? 3 : 2);
 
     final double needed =
         padding +
         RarityRule.thickness +
         iconEdge +
         gaps +
-        lineOf(StrideType.itemName) * 2 +
+        (withName ? lineOf(StrideType.itemName) * 2 : 0) +
         lineOf(StrideType.itemCount);
 
-    final double base = needed > StrideGeometry.itemTileMinHeight
-        ? needed
-        : StrideGeometry.itemTileMinHeight;
+    final double base = needed > floor ? needed : floor;
 
     if (!withControl) return base;
 
@@ -739,9 +917,11 @@ const double _tilePadBottom = 8;
 
 class _ItemTile extends StatelessWidget {
   const _ItemTile({
+    super.key,
     required this.entry,
     required this.equipment,
     this.consumable = false,
+    this.compact = false,
     this.selected = false,
     this.onTap,
   });
@@ -753,6 +933,10 @@ class _ItemTile extends StatelessWidget {
 
   /// Whether this tile carries the eat control (`DECISIONS/0023` §4).
   final bool consumable;
+
+  /// Whether this tile is in the dense five-across grid, where the name is
+  /// the Semantics label and the detail block rather than a line of type.
+  final bool compact;
 
   /// Whether this tile's evaluation is open beneath the grid, and the tap
   /// that toggles it. The tap wraps the whole tile; the equip control
@@ -795,18 +979,25 @@ class _ItemTile extends StatelessWidget {
         // directly above this grid, the victory panel, the craft card.
         RarityRule(rarity: entry.rarity),
         PixelAsset.item(PixelIcons.itemFor(entry.id)),
-        Text(
-          entry.displayName,
-          style: StrideType.itemName.copyWith(
-            // The rarity recolours the name and changes nothing else about it
-            // — same size, same weight, same two-line clamp. A rank is not a
-            // promotion (`rarity_item_title.dart`).
-            color: RarityStyle.inkOr(entry.rarity, StrideColors.textSecondary),
+        // In the dense grid the name is the Semantics label and the detail
+        // block under the grid; a 66 dp tile cannot hold a two-line name at
+        // any size this system is willing to set one in.
+        if (!compact)
+          Text(
+            entry.displayName,
+            style: StrideType.itemName.copyWith(
+              // The rarity recolours the name and changes nothing else about
+              // it — same size, same weight, same two-line clamp. A rank is
+              // not a promotion (`rarity_item_title.dart`).
+              color: RarityStyle.inkOr(
+                entry.rarity,
+                StrideColors.textSecondary,
+              ),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.clip,
           ),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.clip,
-        ),
         // `×24` in the primary text colour, one step up from the name beside
         // it. Icon leads, count confirms, name disambiguates — the L-17 unit
         // with a hierarchy inside it instead of three flat runs.

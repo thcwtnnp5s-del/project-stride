@@ -11,9 +11,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
 import '../../components/data_display.dart';
-import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
-import '../../components/walking_glyph.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
@@ -41,37 +39,25 @@ class StepsBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final StepHistory history =
-        SessionScope.of(context).session.stepHistory();
+    final StepHistory history = SessionScope.of(context).session.stepHistory();
 
     return SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const SectionHeading(label: 'Steps'),
-          const SizedBox(height: StrideSpace.s10),
-          ValueTileRow(
-            tiles: <LabeledValueTile>[
-              LabeledValueTile(
-                label: 'Today',
-                value: formatSteps(history.today.granted),
-                unit: 'steps',
-                leading: const WalkingGlyph(role: WalkingRole.stock),
-                valueColor: StrideColors.accentSteps,
-              ),
-              LabeledValueTile(
-                label: 'This week',
-                value: formatSteps(history.week),
-                unit: 'last 7 days',
-              ),
-            ],
-          ),
-          const SizedBox(height: StrideSpace.s8),
+          const SizedBox(height: StrideSpace.rhythmRow),
+          // Today and this week moved into the ledger above (ART-12 §3).
+          // They were two value tiles here and two more figures of the same
+          // kind in the card directly beneath, and a screen that says TODAY
+          // twice has not made the figure more important — it has made the
+          // screen a list of boxes. What is left is what this card is
+          // actually for: whether the count is current, and the door to the
+          // tracker.
           Text(
             <String>[
               syncedLabel(history),
-              if (history.originCount > 1)
-                '${history.originCount} sources',
+              if (history.originCount > 1) '${history.originCount} sources',
             ].join(' · '),
             style: StrideType.micro.copyWith(color: StrideColors.textMuted),
             maxLines: 1,
