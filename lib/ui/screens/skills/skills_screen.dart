@@ -19,9 +19,15 @@
 /// are now five **spines** of one card: 64 dp each, hairline separated, with
 /// the level's progress dyed into the spine's own lower edge.
 ///
-/// The unlock lines went with them — to [SkillDetailScreen], which is the
-/// route that already exists to answer *what next* and now opens with them.
-/// The spine answers *where am I*; nothing is lost and ~660 dp is returned.
+/// The unlock lines went with them — and wave 3 brought three of them back.
+/// Sending every roadmap line to [SkillDetailScreen] left five names, five
+/// levels and roughly 55 % of the screen as bare ground, which the adversarial
+/// review measured as an information-hierarchy regression against the very card
+/// the spine replaced (FINAL-01 #3, FINAL-10 #2). A spine now carries the next
+/// three unlocks and the XP caption under its rule: still one card, still
+/// hairline separated, roughly 300 dp shorter than the five posters and no
+/// longer a list of names in a void. The detail screen keeps the *whole*
+/// roadmap; the spine carries the part a player decides on.
 ///
 /// ## Every number here is derived in the domain
 ///
@@ -96,7 +102,7 @@ class SkillsScreen extends StatelessWidget {
                   if (i > 0) const HairlineRule(),
                   SkillSpine(
                     standing: standing,
-                    next: _nextUnlock(session, standing.skill),
+                    upcoming: _nextUnlocks(session, standing.skill),
                   ),
                 ],
               ],
@@ -108,12 +114,29 @@ class SkillsScreen extends StatelessWidget {
   }
 }
 
-/// The first unlock still ahead for [skill], in roadmap order.
-SkillUnlock? _nextUnlock(StrideSession session, ContentId skill) {
+/// The unlocks still ahead for [skill], in roadmap order, capped at [take].
+///
+/// Three, because three is what the card carried before FMPO02 collapsed it to
+/// a spine and the review called the result a hierarchy regression: five bare
+/// icon-and-level rows over roughly 55 % empty ground, with the roadmap a tap
+/// away instead of on the screen (FINAL-01 #3, FINAL-10 #2). One line answers
+/// "what next"; three answer "where is this going", which is the question a
+/// player asks before deciding what to walk toward today.
+///
+/// Capped **here**, in the one place that reads the projection, so a widget
+/// cannot quietly grow the cap (`RULES.md` E-2).
+List<SkillUnlock> _nextUnlocks(
+  StrideSession session,
+  ContentId skill, {
+  int take = 3,
+}) {
+  final List<SkillUnlock> ahead = <SkillUnlock>[];
   for (final SkillUnlock u in session.unlocksFor(skill)) {
-    if (!u.unlocked) return u;
+    if (u.unlocked) continue;
+    ahead.add(u);
+    if (ahead.length == take) break;
   }
-  return null;
+  return ahead;
 }
 
 /// One profession, as a 64 dp spine of the handbook.
@@ -123,21 +146,34 @@ SkillUnlock? _nextUnlock(StrideSession session, ContentId skill) {
 /// text hint is gone — a row that is entirely a button does not need a word
 /// saying so.
 ///
-/// A `Stack`, not a `Column`, and that is load-bearing. The rule has to sit on
-/// the spine's bottom edge while the spine grows with the text scaler; a
-/// `Column` would need a bounded height to pin it there, and a fixed 64 dp box
-/// around scaling type is D-01's shape. Here the padded row sizes the stack,
-/// `minHeight` holds the rhythm at scale 1.0, and the rule stays on the bottom
-/// edge wherever that edge lands.
+/// The **face** is a `Stack`, not a `Column`, and that is load-bearing. The
+/// rule has to sit on the face's bottom edge while the face grows with the text
+/// scaler; a `Column` would need a bounded height to pin it there, and a fixed
+/// 64 dp box around scaling type is D-01's shape. Here the padded row sizes the
+/// stack, `minHeight` holds the rhythm at scale 1.0, and the rule stays on the
+/// bottom edge wherever that edge lands.
+///
+/// Beneath the rule, and outside that stack, sits the XP caption (FMPO02
+/// wave 3). It is the one part of the spine whose height is not the face's, so
+/// it is the one part that is a plain `Column` child.
 class SkillSpine extends StatelessWidget {
-  const SkillSpine({super.key, required this.standing, this.next});
+  const SkillSpine({
+    super.key,
+    required this.standing,
+    this.upcoming = const <SkillUnlock>[],
+  });
 
   final SkillStanding standing;
 
-  /// The first unlock still ahead, or null when everything is open — one
-  /// micro line under the name, so the spine says what walking earns next
-  /// and the screen is not five names in a void (FMPO02 producer review).
-  final SkillUnlock? next;
+  /// The unlocks still ahead, in roadmap order and already capped at three by
+  /// [_nextUnlocks]; empty when everything is open.
+  ///
+  /// One micro line each under the name — `Level 2 opens Oak Stand` — so the
+  /// spine says where the trade is going and the screen is not five names in a
+  /// void (FMPO02 producer review, restored to three lines in wave 3 after
+  /// FINAL-01 #3 measured the collapse to one as a regression against the card
+  /// this replaced).
+  final List<SkillUnlock> upcoming;
 
   /// The spine's rhythm height, and its touch target.
   static const double height = 64;
@@ -147,8 +183,6 @@ class SkillSpine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = StrideColors.forSkill(standing.skill);
-
     return Semantics(
       button: true,
       // The glance the spine answers, said in full: the roadmap it opens and
@@ -161,77 +195,107 @@ class SkillSpine extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => SkillDetailScreen.open(context, standing.skill),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: height),
-          child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: height),
+              child: _face(context),
+            ),
+            // The figures, under the rule that draws them (FMPO02 wave 3).
+            // The spine already carries the position as a *shape*; a shape
+            // with no number is the half of the old card that got lost, and
+            // "1,240 to level 6" is the sentence that makes walking toward
+            // this trade a decision rather than a guess. Same widget as the
+            // roadmap's own header, so the two surfaces cannot disagree.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                StrideSpace.s12,
+                StrideSpace.s6,
+                StrideSpace.s12,
+                StrideSpace.s10,
+              ),
+              child: SkillProgressCaption(standing: standing),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The spine's own face: crest, name, roadmap lines, level, and the rule
+  /// pinned to the face's lower edge.
+  ///
+  /// A `Stack`, not a `Column`, and that is load-bearing — see the class doc.
+  Widget _face(BuildContext context) {
+    final Color accent = StrideColors.forSkill(standing.skill);
+    return Stack(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            StrideSpace.s12,
+            StrideSpace.s12,
+            StrideSpace.s12,
+            StrideSpace.s12 + ruleHeight,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  StrideSpace.s12,
-                  StrideSpace.s12,
-                  StrideSpace.s12,
-                  StrideSpace.s12 + ruleHeight,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+              SkillPlate(skill: standing.skill),
+              const SizedBox(width: StrideSpace.iconLabelGap),
+              Expanded(
+                // Wraps rather than shrinks. At 320 dp with the
+                // accessibility scale at 1.4, `Woodcutting` needs
+                // 170 dp of the 168 the spine can give it beside a
+                // 32 dp crest and `LV 1` — two and a half pixels
+                // short, and `AdaptiveText` is already at its floor
+                // there. A `minScale` low enough to absorb that is
+                // the illegibility trade `adaptive_text.dart`
+                // refuses; the spine is a **minimum** 64 dp and can
+                // simply be taller.
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    SkillPlate(skill: standing.skill),
-                    const SizedBox(width: StrideSpace.iconLabelGap),
-                    Expanded(
-                      // Wraps rather than shrinks. At 320 dp with the
-                      // accessibility scale at 1.4, `Woodcutting` needs
-                      // 170 dp of the 168 the spine can give it beside a
-                      // 32 dp crest and `LV 1` — two and a half pixels
-                      // short, and `AdaptiveText` is already at its floor
-                      // there. A `minScale` low enough to absorb that is
-                      // the illegibility trade `adaptive_text.dart`
-                      // refuses; the spine is a **minimum** 64 dp and can
-                      // simply be taller.
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            standing.displayName,
-                            style: StrideType.cardTitle.copyWith(color: accent),
-                            maxLines: 2,
-                          ),
-                          if (next case final SkillUnlock u)
-                            Text(
-                              'Level ${u.requiredLevel} opens ${u.displayName}',
-                              // Wraps rather than clips: the 320 dp guard
-                              // (ui_responsive_test) forbids an ellipsis.
-                              style: StrideType.micro,
-                              maxLines: 2,
-                            ),
-                        ],
+                    Text(
+                      standing.displayName,
+                      style: StrideType.cardTitle.copyWith(color: accent),
+                      maxLines: 2,
+                    ),
+                    for (final SkillUnlock u in upcoming)
+                      Text(
+                        'Level ${u.requiredLevel} opens ${u.displayName}',
+                        // Wraps rather than clips: the 320 dp guard
+                        // (ui_responsive_test) forbids an ellipsis.
+                        style: StrideType.micro,
+                        maxLines: 2,
                       ),
-                    ),
-                    const SizedBox(width: StrideSpace.s8),
-                    AdaptiveText(
-                      standing.isMaxLevel ? 'MAX' : 'LV ${standing.level}',
-                      style: StrideType.numericValue,
-                    ),
                   ],
                 ),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                // Keyed by level so a level-up snaps to the new ladder
-                // rather than rewinding through it.
-                child: ProgressRule(
-                  key: ValueKey<int>(standing.level),
-                  fraction: standing.progress,
-                  ink: accent,
-                  height: ruleHeight,
-                ),
+              const SizedBox(width: StrideSpace.s8),
+              AdaptiveText(
+                standing.isMaxLevel ? 'MAX' : 'LV ${standing.level}',
+                style: StrideType.numericValue,
               ),
             ],
           ),
         ),
-      ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          // Keyed by level so a level-up snaps to the new ladder
+          // rather than rewinding through it.
+          child: ProgressRule(
+            key: ValueKey<int>(standing.level),
+            fraction: standing.progress,
+            ink: accent,
+            height: ruleHeight,
+          ),
+        ),
+      ],
     );
   }
 }

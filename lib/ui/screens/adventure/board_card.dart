@@ -109,7 +109,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
       await showRewardLayer(
         context,
         tier: report.projectCompleted ? RewardTier.major : RewardTier.medium,
-        accent: StrideColors.accentSteps,
+        accent: StrideColors.rewardLightInk,
         beats: projectRewardBeats(report),
         // Only a *finished* project earns the seal; a stage is progress, and
         // stamping it would spend the mark before the moment it names.
@@ -174,7 +174,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
                     standing,
                     style: StrideType.microLabel.copyWith(
                       color: ready > 0
-                          ? StrideColors.accentSteps
+                          ? StrideColors.positiveReady
                           : StrideColors.textSecondary,
                     ),
                   ),
@@ -329,7 +329,7 @@ List<Widget> projectRewardBeats(ProjectReport r) => <Widget>[
       tier: RewardTier.major,
       eyebrow: 'PROJECT COMPLETE',
       title: r.completionHeadline ?? r.projectName,
-      accent: StrideColors.accentSteps,
+      accent: StrideColors.rewardLightInk,
       lines: <String>[
         if (r.completionHeadline != null) r.projectName,
         if (r.developmentChanged)
@@ -342,7 +342,7 @@ List<Widget> projectRewardBeats(ProjectReport r) => <Widget>[
       tier: RewardTier.medium,
       eyebrow: 'STAGE COMPLETE',
       title: r.stageName,
-      accent: StrideColors.accentSteps,
+      accent: StrideColors.rewardLightInk,
       lines: <String>[r.projectName],
     ),
   if (r.contributed.isNotEmpty)
@@ -444,7 +444,7 @@ class _ContractRow extends StatelessWidget {
   /// What state the job is in, in one word, on the right of the row.
   static (String, Color) state(ContractView c) {
     if (c.isCompletedOneTime) return ('DONE', StrideColors.textMuted);
-    if (c.canComplete) return ('READY', StrideColors.accentSteps);
+    if (c.canComplete) return ('READY', StrideColors.positiveReady);
     if (c.bounty?.accepted ?? false) {
       return ('ACCEPTED', StrideColors.textSecondary);
     }
@@ -460,10 +460,12 @@ class _ContractRow extends StatelessWidget {
     final (String word, Color ink) = state(c);
     final ContentId? iconItem = rowIconItem(c);
     // A finishable job is the one thing on the board worth finding at a
-    // glance, so its frame takes the dim step accent along with the word;
-    // everything else keeps the one border weight.
+    // glance, so its frame takes the dim ready moss along with the word;
+    // everything else keeps the one border weight. Moss and not teal since
+    // FMPO02 wave 3: L-16 reserves the walking accent for step figures, and
+    // READY is a state, not a step count.
     final Color frame = c.canComplete && !done
-        ? StrideColors.accentStepsDim
+        ? StrideColors.positiveReadyDim
         : StrideColors.borderDefault;
 
     // The open row's head is raised; its detail beneath sits on the block
@@ -558,7 +560,7 @@ class _ContractRow extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: const BoxDecoration(
-                        color: StrideColors.accentStepsDim,
+                        color: StrideColors.positiveReadyDim,
                         borderRadius: StrideRadius.chip,
                       ),
                       child: Text(
@@ -574,7 +576,7 @@ class _ContractRow extends StatelessWidget {
                   Text(
                     'TRACKED',
                     style: StrideType.compactLabel.copyWith(
-                      color: StrideColors.accentSteps,
+                      color: StrideColors.goalActive,
                     ),
                   ),
                 ],
@@ -714,16 +716,16 @@ class _TypeChip extends StatelessWidget {
   };
 
   static Color inkOf(ContractClass c) => switch (c) {
-    ContractClass.localNeed => StrideColors.accentStepsDim,
+    ContractClass.localNeed => StrideColors.positiveReadyDim,
     ContractClass.bounty => StrideColors.rarityRare,
     ContractClass.regional => StrideColors.categoryQuest,
   };
 
   /// The same three inks at reveal strength: the layer's frame and eyebrow
-  /// for a completion of this type. An ORDER's dimmed accent is right for a
-  /// 6 px mark and wrong for a frame, so it takes the full step accent.
+  /// for a completion of this type. An ORDER's dimmed moss is right for a
+  /// 6 px mark and wrong for a frame, so it takes the full ready moss.
   static Color rewardInkOf(ContractClass c) => switch (c) {
-    ContractClass.localNeed => StrideColors.accentSteps,
+    ContractClass.localNeed => StrideColors.positiveReady,
     ContractClass.bounty => StrideColors.rarityRare,
     ContractClass.regional => StrideColors.categoryQuest,
   };
@@ -1038,7 +1040,7 @@ class _ProjectTileState extends State<_ProjectTile> {
                 Text(
                   'TRACKED',
                   style: StrideType.compactLabel.copyWith(
-                    color: StrideColors.accentSteps,
+                    color: StrideColors.goalActive,
                   ),
                 ),
               ],
@@ -1180,7 +1182,7 @@ class _StagePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color ink = done ? StrideColors.textMuted : StrideColors.accentSteps;
+    final Color ink = done ? StrideColors.textMuted : StrideColors.goalActive;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: StrideSpace.s6,
@@ -1285,7 +1287,7 @@ class _MaterialProgressRow extends StatelessWidget {
                   widthFactor: value,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: StrideColors.accentSteps,
+                      color: StrideColors.goalActive,
                       borderRadius: StrideRadius.gate,
                     ),
                   ),

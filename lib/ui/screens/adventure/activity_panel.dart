@@ -86,6 +86,14 @@ class ActivityPanel extends StatelessWidget {
       );
     }
 
+    final ContentId? here = s.currentLocation;
+    final PlaceIdentity? identity = here == null
+        ? null
+        : s.placeIdentityOf(here);
+    final StrideBand? band = identity == null
+        ? null
+        : StrideBands.forPlace(identity);
+
     // `padding: zero`, because the entries' separators are full bleed — a
     // rule that stopped short of the panel's edge would read as an underline
     // on the entry above it rather than as the leaf between two. The clip is
@@ -103,10 +111,17 @@ class ActivityPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            // The road out, over the kit that walks it (FMPO02). The card is
-            // padded to zero and clipped, so the band goes edge to edge of it
-            // rather than floating inside a margin.
-            const BandPlate(band: StrideBand.adventureTrail),
+            // The ground the kit is packed for (FMPO02, region-aware in
+            // wave 3). The card is padded to zero and clipped, so the band
+            // goes edge to edge of it rather than floating inside a margin.
+            //
+            // `StrideBands.forPlace` reads the same `(kind, terrain)` pair the
+            // header's breadcrumb prints two rows above, so the strip and the
+            // words cannot disagree: a mine gets the cut face, a wood gets the
+            // hedgerow, and the Hollow gets nothing. Null before the content
+            // pack has loaded, and null for the boss's ground — both draw the
+            // card exactly as it drew before a band existed.
+            if (band case final StrideBand b) BandPlate(band: b),
             const Padding(
               padding: EdgeInsets.fromLTRB(
                 StrideSpace.s12,

@@ -747,6 +747,15 @@ void main() {
     );
     expect(braced.where((StageSegment s) => s.braced), hasLength(1));
     expect(braced.first.braced, isTrue);
+    // And it is held long enough to read as a decision (FMPO02 wave 3,
+    // FINAL-06): at 350 ms the round the player chose to spend on defence was
+    // shorter than the settle an incidental knockdown gets for free, so the
+    // deliberate act read as the smaller event.
+    expect(
+      braced.first.duration,
+      greaterThanOrEqualTo(const Duration(milliseconds: 500)),
+      reason: 'a chosen stance outlasts an incidental beat',
+    );
     // A round without a brace stays silent — a pulse on every held idle would
     // be a phone that buzzes for nothing.
     final List<StageSegment> ordinary = choreograph(

@@ -42,6 +42,7 @@ import '../../../../runtime/stride_session.dart';
 import '../../../components/adaptive_text.dart';
 import '../../../components/band_plate.dart';
 import '../../../components/data_display.dart';
+import '../../../components/panel_skin.dart';
 import '../../../components/pixel_asset.dart';
 import '../../../components/reward_beat.dart';
 import '../../../components/reward_layer.dart';
@@ -455,6 +456,11 @@ class AtlasInspector extends StatelessWidget {
     return bare
         ? content
         : SectionCard(
+            // The navigator's linen backing, under the chart table it already
+            // wears at its head (FMPO02 wave 3, FINAL-11 #7 — authored,
+            // registered, and painted nowhere until now). Only on the opaque
+            // form, for the same reason the band is.
+            surface: PanelSurface.chartVellum,
             padding: EdgeInsets.zero,
             child: ClipRRect(
               borderRadius: StrideRadius.card,

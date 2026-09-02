@@ -1466,3 +1466,27 @@ are independent of this question and did ship.
 minimum square) and `pixen` goes smaller but only in multiples of four. The
 candidates were authored at 16 × 16 on `pixen`, cropped to content and centred in
 14 — a crop, never a rescale.
+
+---
+
+## Q-27 — What is a "masterwork", and which completions earn its seal?
+
+**Raised by:** FINAL-09 (identity guardian), FMPO02 Wave 3
+**Date:** 2026-09-02
+**Target:** Systems Designer + owner, before the seal is shown on a device build
+
+### The question
+
+The owner's FMPO02 directive lists "Masterwork completion" among the reward
+moments, and `seal_masterwork` (a dark-wood plate with a bronze smith's stamp)
+was authored for it. Nothing in the content pack is called a masterwork.
+`RewardLayer` currently raises the seal when a craft's `CraftSignificance` is
+`major` — in practice an Epic-or-better output — which covers seven repeatable
+recipes. That is an implementation detail standing in for a design decision
+(`RULES.md` G-3).
+
+### What is being asked
+
+Is "masterwork" a rarity tier (Epic+ output, as shipped), a one-time
+first-completion of a lineage's top item, or a future system? Until ruled,
+the seal shows on Epic+ crafts and the record says so.

@@ -159,12 +159,14 @@ class _EncounterRow extends StatelessWidget {
                 : StrideColors.surfaceBlock,
             // One border weight and one border colour, by the palette's own
             // rule — the open row is distinguished by its raised fill, a
-            // quiet left rule in the walking accent's dim form, and by the
-            // detail beneath it; no colour is invented for this list
-            // (PLAYABLE_EXPERIENCE_REFINEMENT_01 §20).
+            // quiet rule in the commit control's own edge, and by the detail
+            // beneath it; no colour is invented for this list
+            // (PLAYABLE_EXPERIENCE_REFINEMENT_01 §20). The edge and not the
+            // walking accent's dim form since FMPO02 wave 3: L-16 reserves
+            // teal for step figures, and a selection is not one.
             border: Border.all(
               color: selected
-                  ? StrideColors.accentStepsDim
+                  ? StrideColors.actionEdge
                   : StrideColors.borderDefault,
             ),
             borderRadius: StrideRadius.inner,
@@ -504,6 +506,17 @@ class _EnemyStage extends StatelessWidget {
     'salamander_idle': 46, // 56², rows 5..50
     'bear_idle': 50, // 76², rows 12..61
     'guardian_idle': 73, // 96², rows 11..83
+    // The four Veteran Hunt elites (FMPO02 wave 3, FINAL-05 #2). Omitted when
+    // the elites shipped, so each fell through to `footprint.bottom + 1` —
+    // "taller than the truth, never shorter" — and three of the four reopened
+    // the giant-blank-rectangle defect `_EnemyStage` exists to close: Old Grey
+    // 41 rows against a true 28, the Foreman 47 against 39, the Matriarch 41
+    // against 32. Measured with the same `png.bounds` union pass over the
+    // shipped strips that produced every row above.
+    'old_grey_idle': 28, // 56², rows 13..40
+    'gallery_foreman_idle': 39, // 56², rows 8..46
+    'rimeclaw_matriarch_idle': 32, // 56², rows 10..41
+    'guardian_awakened_idle': 73, // 96², rows 11..83
   };
 
   /// The combat stage's own scale, for every creature without exception, so

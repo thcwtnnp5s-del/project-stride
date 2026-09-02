@@ -26,6 +26,8 @@ import 'package:stride/ui/icons/traveler_art.dart';
 import 'package:stride/ui/screens/combat/combat_stage.dart';
 import 'package:stride_core/stride_core.dart';
 
+import 'support/real_font.dart';
+
 EncounterView _view({int turn = 1, int playerHp = 40, int enemyHp = 20}) =>
     EncounterView(
       enemyId: ContentId.unchecked('enemy.forest_wolf'),
@@ -72,6 +74,7 @@ EquipmentVisualState _holding(String? itemId) => itemId == null
       );
 
 void main() {
+  setUpAll(loadRealFont);
   final String? dir = Platform.environment['COMBAT_EVIDENCE_DIR'];
 
   Future<void> shot(WidgetTester tester, String name) async {

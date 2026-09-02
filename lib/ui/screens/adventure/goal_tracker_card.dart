@@ -202,7 +202,7 @@ class _JourneyBody extends StatelessWidget {
           status,
           style: StrideType.sub.copyWith(
             color: view.ready && !view.arrived
-                ? StrideColors.accentSteps
+                ? StrideColors.positiveReady
                 : StrideColors.textSecondary,
           ),
         ),
@@ -253,7 +253,7 @@ class _PursuitBody extends StatelessWidget {
         ] else
           Text(
             'Everything needed is in hand — craft it.',
-            style: StrideType.sub.copyWith(color: StrideColors.accentSteps),
+            style: StrideType.sub.copyWith(color: StrideColors.positiveReady),
           ),
       ],
     ],
@@ -297,7 +297,7 @@ class _ContractBody extends StatelessWidget {
       if (view.readyToAdvance && !view.complete)
         Text(
           'Ready to advance.',
-          style: StrideType.sub.copyWith(color: StrideColors.accentSteps),
+          style: StrideType.sub.copyWith(color: StrideColors.positiveReady),
         ),
     ],
   );

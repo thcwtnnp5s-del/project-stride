@@ -24,22 +24,22 @@
 /// its base species' ground for free, and the table cannot disagree with
 /// itself about two creatures sharing a floor.
 ///
-/// The one thing this shape cannot express is the brief's split *within*
-/// Stonefall — the goblins on a rocky ledge and the salamander in its ember
-/// cave. [caveShadow] is authored and named for that plate and is deliberately
-/// left unmapped rather than quietly reassigned: which of the two Stonefall
-/// grounds a card shows is a design decision, not an implementation detail
-/// (`RULES.md` G-3), and it is recorded as **Q-21** in
-/// `JOURNAL/OPEN_QUESTIONS.md` rather than guessed here.
+/// The brief's split *within* Stonefall — the goblins on a rocky ledge and the
+/// salamander in its ember cave — is the one thing the place key cannot say on
+/// its own, so [byEnemy] is consulted first and carries exactly that one
+/// override. Which of the two Stonefall grounds a card shows was a design
+/// decision and not an implementation detail (`RULES.md` G-3); it was recorded
+/// as **Q-21** and answered there.
 ///
-/// ## Why nothing renders yet
+/// ## All five plates are live
 ///
-/// [enabled] is **empty**. The five PNGs are in production and the widget path
-/// is complete, so landing them is adding their slugs to one const set — and
-/// removing them again is the same edit. Until then every band takes its
-/// derived height (`_EnemyStage`), which is the defect this wave exists to
-/// fix; a mapped-but-missing plate would hold the band at its full 152 dp and
-/// re-open the empty rectangle with nothing in it.
+/// [enabled] holds every slug: `forest_floor`, `rocky_ledge`, `cave_shadow`,
+/// `snowbank`, `hollow_rootbed` shipped in FMPO02 and render. The set is still
+/// the switch — removing a slug puts that region's cards back on the derived
+/// band height (`_EnemyStage`) — but nothing here is waiting on art any more.
+/// The art debt that remains is the *content* of two plates: `snowbank` and
+/// `cave_shadow` read as a treeline and a wall rather than the flat ground
+/// plane this file's own rule below demands (FMPO02 wave 3, FINAL-05 #3).
 library;
 
 import 'package:stride_core/stride_core.dart' show ContentId;
@@ -112,11 +112,11 @@ abstract final class EncounterHabitat {
 
   /// The slugs whose art has landed and been accepted on device.
   ///
-  /// **This is the switch.** Empty is "no plate anywhere", which is what the
-  /// product ships until the five PNGs exist; adding `'forest'` lights every
-  /// Whispering Woods card at once and removing it puts them back. Nothing
-  /// else in the widget path is conditional, so neither direction is a
-  /// redesign.
+  /// **This is the switch, and it is on.** Empty would be "no plate
+  /// anywhere"; all five slugs are listed, so every region's cards draw their
+  /// authored ground. Removing one puts that region back on the derived band
+  /// height at once, and adding it lights them again — nothing else in the
+  /// widget path is conditional, so neither direction is a redesign.
   static const Set<String> enabled = <String>{
     'forest_floor',
     'rocky_ledge',

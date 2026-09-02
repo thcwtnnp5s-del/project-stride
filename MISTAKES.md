@@ -21,6 +21,82 @@ to `M-02` stays valid.
 
 ---
 
+## M-18 — A "standing figure" flood that starts from the lowest pixel starts from the chip under the sole
+
+**Date:** 2026-09-02 · **Category:** asset tooling / keying heuristics
+
+### What happened
+
+Two FMPO02 tools decided which pixels were "the figure" by flooding from the
+lowest opaque pixel — the foot, in every frame the tool was written against.
+The first, `equip-prep.js`, deleted the entire Traveler from a plate-and-axe
+frame because a one-pixel chip sat one row under the sole: the flood filled
+the chip, kept it, and discarded the 1,300-pixel man above it. The second was
+the packager's ghost-gear guard on the same family: after a swing streak was
+keyed out of a mining frame, one pixel of the streak's shadow remained on row
+63, below the feet, and the guard reported the whole figure as "not attached
+to the standing figure".
+
+### Why nothing caught it
+
+Both tools were right on the frames they were built against, and both fail in
+the same direction — a tiny artifact wins and the figure loses — which reads
+in a report as "the frame has 1,337 detached pixels", a number that looks
+like ghost gear and points away from the real cause.
+
+### Cost
+
+One deleted frame diagnosed by hand; one packaging run blocked twice at the
+end of a wave; ~1 hour across two agents.
+
+### What prevents recurrence
+
+- Both tools now keep the **largest 8-connected component** and, on the strips
+  where a keyed effect or an edit is known to leave chips, drop components
+  under four pixels first (`despeckle` in `Scripts/art/package-art.js`).
+- The durable rule: a figure heuristic must be anchored to **mass**, never to
+  an extreme coordinate. The lowest, leftmost or brightest pixel is the pixel
+  most likely to be an artifact.
+
+## M-17 — A lead recorded the shared account's delta as its own spend, and the wrong number drove the round's biggest cut
+
+**Date:** 2026-09-02 · **Category:** production accounting / decision inputs
+
+### What happened
+
+FMPO02 ran nine PixelLab production leads against one account. The Equipment
+lead recorded its spend as the difference between two `get_balance` readings
+taken while eight other leads were generating (9,551 → 8,642 = 909). Its real
+spend, by subtraction from the reconciled totals, was ≈500. From the inflated
+figure the lead derived a unit cost of ≈120 generations per 80×64 character
+state; the real cost was ≈44. On that unit cost the steel tool column — twelve
+strips — was cut as unaffordable, then closed later with ≈120 generations of
+text edits on the bronze strips.
+
+### Why nothing caught it
+
+The ledger's own header warned every lead to record per-job cost, and the
+lead's report was internally consistent: a balance delta *is* a spend, on an
+account with one user. Nobody compared the family sum against the live delta
+until the council's cost auditor (FINAL-11) did, ~640 generations apart.
+
+### Cost
+
+A wrong unit cost in the record; one production decision (the steel column)
+made on a figure three times too high; a ledger that does not reconcile, and a
+closeout that has to say so.
+
+### What prevents recurrence
+
+- `GENERATION_LEDGER.md` now states that only balance checkpoints are facts and
+  every family row is a lead's own report, and carries the reconciliation.
+- Per-family spend is recorded as the **sum of the tool's own cost lines**
+  (`cost: ~20 generations`), never as a balance delta, while more than one
+  agent holds the account. A balance delta is the round's figure, not a
+  family's.
+- A unit cost that will drive a cut is checked against **one isolated job**
+  before the cut is made.
+
 ## M-16 — A cue driven by an animation ticker is a cue an accessibility toggle can delete
 
 **Date:** 2026-08-31 · **Category:** presentation coupling / accessibility /

@@ -23,6 +23,7 @@ import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show KnowledgeTier;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart';
 import '../../components/surfaces.dart';
@@ -121,6 +122,13 @@ class BestiaryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: StrideSpace.s8),
                   SectionCard(
+                    // Slate — the bestiary board (FMPO02 wave 3, FINAL-11 #7).
+                    // The tile was authored for exactly this list and shipped
+                    // registered and painted nowhere; a registry entry nothing
+                    // paints is the next integrator's trap. It resolves to
+                    // null if the PNG ever goes missing and the card then
+                    // paints the flat fill it painted before.
+                    surface: PanelSurface.slate,
                     padding: const EdgeInsets.all(
                       StrideSpace.cardPaddingCompact,
                     ),
@@ -214,7 +222,7 @@ class _BestiaryRow extends StatelessWidget {
                 tierWord.toUpperCase(),
                 style: StrideType.microLabel.copyWith(
                   color: entry.knowledge == KnowledgeTier.known
-                      ? StrideColors.accentSteps
+                      ? StrideColors.positiveReady
                       : StrideColors.textSecondary,
                 ),
               ),

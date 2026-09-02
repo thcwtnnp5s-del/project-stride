@@ -514,14 +514,46 @@ void main() {
       expect(tester.getSize(art(icon)), const Size(32, 32));
     }
     // Eat is disabled in this fixture — the Traveler is carrying nothing
-    // edible — so it is also the disabled case: no plate and no glyph, the
-    // same rule the authored button plate already obeys, and the reason it
-    // cannot be pressed keeps the room the dressing would have taken.
+    // edible — so it is also the disabled case.
+    //
+    // **The plate stays, dimmed** (FMPO02 wave 3, FINAL-01 #1). It used to go,
+    // under the rule the authored button plate obeys, and the result was four
+    // cells that changed shape twice a round: flat and unframed on turn 1,
+    // plated on turn 2, for the same four controls. A cell whose identity
+    // depends on whether it is your turn cannot be learned. So it recedes to
+    // `StrideButton.disabledDressing` instead of vanishing.
+    //
+    // The **glyph** still goes, and only because this control grew a
+    // [subLabel]: 32 dp of icon beside two lines of type does not fit the
+    // cluster's 56 dp cell, and the line that says why is never the one
+    // squeezed out.
     expect(tester.widget<StrideButton>(eat).onPressed, isNull);
     expect(find.text('Nothing to eat'), findsOneWidget);
+    final Finder eatPlate = find.descendant(
+      of: eat,
+      matching: find.byWidgetPredicate(
+        (Widget w) => w is PixelAsset && w.assetPath == CombatHudAssets.plateEat,
+      ),
+    );
+    expect(eatPlate, findsOneWidget, reason: 'the cell keeps its identity');
     expect(
-      find.descendant(of: eat, matching: find.byType(PixelAsset)),
+      tester
+          .widget<Opacity>(
+            find.ancestor(of: eatPlate, matching: find.byType(Opacity)).first,
+          )
+          .opacity,
+      closeTo(StrideButton.disabledDressing, 0.001),
+    );
+    expect(
+      find.descendant(
+        of: eat,
+        matching: find.byWidgetPredicate(
+          (Widget w) =>
+              w is PixelAsset && w.assetPath == CombatHudAssets.iconEat,
+        ),
+      ),
       findsNothing,
+      reason: 'the words that say why outrank the icon',
     );
     // Retreat is the quiet secondary: no plate, no glyph, and its icon was
     // never authored (`COMBAT_STAGE_report.md` — four candidates, dropped).
@@ -562,6 +594,77 @@ void main() {
     expect(s.combatFigures.attack, 3);
     expect(find.text('unarmed'), findsNothing);
     expect(find.text('Training Sword'), findsOneWidget);
+  });
+
+  testWidgets('the command emblems clear AA under their own labels', (
+    WidgetTester tester,
+  ) async {
+    // FMPO02 wave 3, FINAL-10 #1: "Attack and Brace carry raster emblems
+    // sitting behind and colliding with their own labels." The plate stays
+    // behind the word — it is the cell's identity, and dropping it left four
+    // rectangles of one size reading as four accidents — but it is now drawn
+    // at `_emblemBehindText` over the control's own face rather than at full
+    // strength over a hole.
+    //
+    // The measurement is of the shipped PNGs, not of a claim about them: each
+    // plate's **brightest** pixel, composited at that opacity over the face
+    // the button now paints, against the label ink. A re-roll with a hotter
+    // core fails here rather than on a device.
+    //
+    // 4.5:1 is the same WCAG AA floor every readable surface in this app is
+    // held to, and the same one the narration strip failed at 2.90 below.
+    late final Map<String, double> worst;
+    await tester.runAsync(() async {
+      final Map<String, double> out = <String, double>{};
+      for (final String path in <String>[
+        CombatHudAssets.plateAttack,
+        CombatHudAssets.plateBrace,
+        CombatHudAssets.plateEat,
+      ]) {
+        final ByteData bytes = await rootBundle.load(path);
+        final ui.Codec codec = await ui.instantiateImageCodec(
+          bytes.buffer.asUint8List(),
+        );
+        final ui.Image image = (await codec.getNextFrame()).image;
+        expect(image.width, CombatHudAssets.plateNativeWidth);
+        expect(image.height, CombatHudAssets.plateNativeHeight);
+        final ByteData px = (await image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!;
+        double brightest = -1;
+        for (int i = 0; i < px.lengthInBytes; i += 4) {
+          // `rawRgba` is premultiplied, so the plate over the face is
+          // `src + face × (1 − a)`; the ornament's own opacity multiplies
+          // both the source and the alpha it hides the face with.
+          final double a =
+              (px.getUint8(i + 3) / 255) * StrideButton.emblemBehindText;
+          double channel(int o, double faceChannel) =>
+              px.getUint8(i + o) * StrideButton.emblemBehindText +
+              faceChannel * 255 * (1 - a);
+          final double l = _luminance(
+            channel(0, StrideColors.surfaceRaised.r),
+            channel(1, StrideColors.surfaceRaised.g),
+            channel(2, StrideColors.surfaceRaised.b),
+          );
+          if (l > brightest) brightest = l;
+        }
+        out[path] = brightest;
+        image.dispose();
+        codec.dispose();
+      }
+      worst = out;
+    });
+
+    final double ink = _luminance(0xF0, 0xE7, 0xD8); // textPrimary
+    for (final MapEntry<String, double> e in worst.entries) {
+      expect(
+        (ink + 0.05) / (e.value + 0.05),
+        greaterThanOrEqualTo(4.5),
+        reason:
+            '${e.key} is too bright under its label: lower '
+            '`_emblemBehindText` or re-author the plate darker',
+      );
+    }
   });
 
   testWidgets('the narration keeps its translucent fill: the authored '

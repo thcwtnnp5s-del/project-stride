@@ -17,7 +17,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/reward_beat.dart';
 import 'package:stride/ui/components/reward_layer.dart';
+import 'package:stride/ui/screens/adventure/board_card.dart' show projectRewardBeats;
+import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -166,9 +169,68 @@ void main() {
     // The board beneath did not print the result into itself.
     expect(find.text('HERBAL SUPPLIES COMPLETE'), findsNothing);
 
+    // ART_DIRECTION L-16, on the surface FINAL-01 caught it on: the delivery
+    // layer wore a full teal glow border and a teal ORDER chip, and teal is
+    // the walking accent — steps only, never decoration. Every accent the
+    // raised layer carries is read off the live tree rather than off the
+    // source, because the leak was a *value routed in*, not a literal in the
+    // widget that painted it. Mirrors `test/rarity_ui_test.dart`'s rank guard.
+    for (final RewardLayer l in tester.widgetList<RewardLayer>(
+      find.byType(RewardLayer),
+    )) {
+      expectNotTeal(l.accent, 'RewardLayer');
+    }
+    for (final RewardBeat b in tester.widgetList<RewardBeat>(
+      find.byType(RewardBeat),
+    )) {
+      expectNotTeal(b.accent, 'RewardBeat "${b.eyebrow}"');
+    }
+
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
     expect(find.byType(RewardLayer), findsNothing);
     expect(find.text('CLOSE'), findsOneWidget, reason: 'still on the board');
   });
+
+  test('a completed project and stage do not raise in the walking accent', () {
+    // The static half of the same guard, over the two beats a construction
+    // project raises — `board_card.dart` 332 and 345, the sites FINAL-10 #3
+    // named. Every other leak (112, 447, 717, 726, `reward_beat.dart` 250)
+    // is behind a private widget and is caught on the live tree above and in
+    // `test/goal_board_test.dart`'s rendered board.
+    for (final bool completed in <bool>[true, false]) {
+      for (final Widget w in projectRewardBeats(
+        ProjectReport(
+          succeeded: true,
+          projectName: 'The Mill Race',
+          stageName: 'Cut the channel',
+          stageCompleted: true,
+          projectCompleted: completed,
+          developmentBefore: 'Struggling',
+          developmentAfter: 'Recovering',
+        ),
+      )) {
+        if (w is RewardBeat) expectNotTeal(w.accent, 'project ${w.eyebrow}');
+      }
+    }
+    // Not vacuous: the predicate catches the colour it is about.
+    expect(readsAsTeal(StrideColors.accentSteps), isTrue);
+  });
+}
+
+/// Whether a colour carries the walking accent's signature: green **and** blue
+/// well above red, and the two of them close to each other.
+///
+/// The same predicate `test/rarity_ui_test.dart` uses, and for the same reason:
+/// a plain RGB distance is the wrong test. This is the shape of the hue L-16
+/// reserves, stated directly, so a "different constant" that still reads as
+/// walking fails too.
+bool readsAsTeal(Color c) =>
+    c.g - c.r > 0.2 && c.b - c.r > 0.2 && (c.g - c.b).abs() < 0.2;
+
+void expectNotTeal(Color? c, String what) {
+  if (c == null) return;
+  expect(c, isNot(StrideColors.accentSteps), reason: what);
+  expect(c, isNot(StrideColors.accentStepsDim), reason: what);
+  expect(readsAsTeal(c), isFalse, reason: '$what reads as the walking accent');
 }

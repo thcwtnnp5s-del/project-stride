@@ -243,7 +243,7 @@ class _NotePlate extends StatelessWidget {
             status,
             style: StrideType.micro.copyWith(
               color: emphasised
-                  ? StrideColors.accentSteps
+                  ? StrideColors.positiveReady
                   : StrideColors.textSecondary,
             ),
           ),

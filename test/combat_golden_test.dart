@@ -285,13 +285,33 @@ void main() {
   testWidgets('evidence: the guardian in the Hollow, idle and landing the '
       'heavy blow', (WidgetTester tester) async {
     if ((Platform.environment['COMBAT_EVIDENCE_DIR'] ?? '').isEmpty) return;
-    tester.view.physicalSize = const Size(393, 400);
+    // **393 × 852, the phone's own frame, and not 400 tall.**
+    //
+    // The old host boxed the stage at 400 dp minus 32 of padding. The stage is
+    // `CombatAssets.backdropHeight × 2` = 256 dp of backdrop plus its HUD —
+    // the boss ribbon, the two HP rows and the telegraph line — and at 368 dp
+    // of usable height that column overflowed. Flutter paints an overflow as a
+    // yellow-and-black hazard band with red ruler ticks, so all three guardian
+    // evidence PNGs shipped with the framework's own debug stripe painted
+    // across the HP numerals: "40/40" and "60/60" clipped mid-glyph
+    // (FINAL-02 #1, FINAL-05 #1). Three reviewers read that as production art.
+    //
+    // The fight itself was never broken — the wolf golden at 393 × 852 renders
+    // the same widget clean, and does here too. It was the harness. Sized from
+    // the real device frame now, so an evidence render cannot disagree with
+    // the screen it claims to be evidence of.
+    const Size frame = Size(393, 852);
+    assert(
+      frame.height > CombatAssets.backdropHeight * 2 + 200,
+      'the stage plus its HUD must fit, or the evidence bakes in an overflow',
+    );
+    tester.view.physicalSize = frame;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     Widget host(EncounterView v, CombatReport? r) => MediaQuery(
-      data: const MediaQueryData(size: Size(393, 400)),
+      data: const MediaQueryData(size: frame),
       child: Directionality(
         textDirection: TextDirection.ltr,
         // The app's theme names Roboto for it; this bare host must say so.

@@ -64,6 +64,7 @@ import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/traveler_art.dart';
+import '../../../audio/audio_events.dart';
 import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -964,7 +965,7 @@ class _ItemTile extends StatelessWidget {
     decoration: BoxDecoration(
       color: selected ? StrideColors.surfaceRaised : StrideColors.surfaceCard,
       border: Border.all(
-        color: selected ? StrideColors.accentSteps : StrideColors.borderDefault,
+        color: selected ? StrideColors.actionEdge : StrideColors.borderDefault,
       ),
       borderRadius: StrideRadius.inner,
     ),
@@ -1113,6 +1114,8 @@ class _EquipControl extends StatelessWidget {
                     if (context.mounted &&
                         (controller.lastEquip?.succeeded ?? false)) {
                       AudioScope.maybeRead(context)?.hapticSelection();
+                      // The commit sound beside the pulse (QUEUE_03 §8).
+                      AudioEvents.commit(AudioScope.maybeRead(context));
                     }
                   },
           ),

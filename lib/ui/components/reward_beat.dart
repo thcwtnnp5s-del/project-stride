@@ -234,7 +234,9 @@ class LevelUpCard extends StatelessWidget {
   final String name;
   final int level;
 
-  /// The skill, for its hue; null colours the beat with the step accent.
+  /// The skill, for its hue; null colours the beat with the reward light ink
+  /// (FMPO02 wave 3 — it took the step accent, and a character LEVEL UP is
+  /// not a step figure; `ART_DIRECTION.md` L-16).
   final ContentId? skill;
 
   /// What this level opened, by display name.
@@ -247,7 +249,7 @@ class LevelUpCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color accent = skill == null
-        ? StrideColors.accentSteps
+        ? StrideColors.rewardLightInk
         : StrideColors.forSkill(skill!);
     return RewardBeat(
       tier: RewardTier.medium,

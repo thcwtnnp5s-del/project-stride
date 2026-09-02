@@ -60,6 +60,8 @@ import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart'
     show ContentId, ItemCategory, Rarity;
 
+import '../../../audio/audio_controller.dart';
+import '../../../audio/audio_events.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/band_plate.dart';
@@ -78,6 +80,7 @@ import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/reward_art.dart';
 import '../../icons/sprite_footprints.dart';
+import '../../icons/traveler_art.dart';
 import '../../components/ambient_stage.dart';
 import '../../components/activity_result.dart';
 import '../../state/audio_scope.dart';
@@ -198,6 +201,41 @@ class _CraftScreenState extends State<CraftScreen> {
   /// Which locked gates the player has opened. Presentation only.
   final Set<String> _openGates = <String>{};
 
+  /// The finished queue whose completion sound has already played, by the
+  /// same token the result presentation itself is keyed to. Presentation
+  /// memory of nothing durable.
+  Object? _cuedCompletion;
+
+  /// The sound a finished craft makes, fired once as its result is presented
+  /// — the held summary's raise, or the transient card's arrival, whichever
+  /// this completion earned.
+  ///
+  /// Sorted by what was **made**, not by how loudly it is shown: the queue's
+  /// briefs are a quenching hiss for finished metal, a lid onto a pot for
+  /// food, one dry knock for everything else
+  /// (`AUDIO/AUDIO_PRODUCTION_QUEUE_02.md` §5.3). A tool is gear here — a
+  /// finished bronze pick comes off the same anvil as a sword, and
+  /// `CraftCategory` splits them for a filter row, not for the ear.
+  void _cueCraftCompletion(Object token, RecipeOption? recipe) {
+    if (token == _cuedCompletion) return;
+    _cuedCompletion = token;
+    final AudioController? audio = AudioScope.maybeRead(context);
+    if (audio == null) return;
+    // A completion whose recipe cannot be resolved is still a completion;
+    // the quiet knock is the honest answer, never silence and never a ring.
+    switch (recipe == null
+        ? CraftCategory.materials
+        : CraftCategory.of(recipe)) {
+      case CraftCategory.gear:
+      case CraftCategory.tools:
+        audio.playEvent('craft.complete.gear');
+      case CraftCategory.food:
+        audio.playEvent('craft.complete.food');
+      case CraftCategory.materials:
+        audio.playEvent('craft.complete.minor');
+    }
+  }
+
   void _openSheet(RecipeOption recipe) {
     // Opening detail clears a transient result; a held one has its own
     // Continue.
@@ -299,6 +337,28 @@ class _CraftScreenState extends State<CraftScreen> {
           ':${craft.completed}:${craft.quantity}';
     }
 
+    // The completion's sound, at the moment the completion is presented: the
+    // held summary's raise (MEDIUM/MAJOR) or the transient card's arrival
+    // (MINOR) — the two are mutually exclusive above, so a completion is
+    // heard exactly once. Gated on the queue being **finished**: a run of ten
+    // planks is one knock at the end, not ten, and the bench already sounds
+    // while it works (`playSkillCue`, `_ActiveCraftPanel`).
+    if (!craft.active && craft.completed > 0) {
+      final Object? completion = held ? craft.lastReport : craftToken;
+      final ContentId? made = craft.summaryRecipe ?? craft.activeRecipe;
+      if (completion != null) {
+        _cueCraftCompletion(
+          completion,
+          made == null
+              ? pinnedRecipe
+              : recipes.cast<RecipeOption?>().firstWhere(
+                  (RecipeOption? r) => r!.id == made,
+                  orElse: () => null,
+                ),
+        );
+      }
+    }
+
     final RecipeOption? sheetRecipe = _sheetRecipe == null
         ? null
         : recipes.cast<RecipeOption?>().firstWhere(
@@ -369,17 +429,29 @@ class _CraftScreenState extends State<CraftScreen> {
                   // station, never the filtered view: a plate answers "what
                   // is over there", and a category filter is a question you
                   // ask after you have walked over.
-                  StationStrip(
-                    stations: <StationEntry>[
-                      for (final (String kind, String label) in _stations)
-                        _census(recipes, kind, label),
-                    ],
-                    selected: station,
-                    onSelect: (String kind) => setState(() {
-                      _station = kind;
-                      _sheetRecipe = null;
-                      _chainStack.clear();
-                    }),
+                  // Dark bench oak under the three plates (FMPO02 wave 3,
+                  // FINAL-11 #7): the tile was authored as "the crafting
+                  // station header" and shipped registered and painted
+                  // nowhere. The strip is that header, so it gets the bench
+                  // it names — a compact card, so the plates keep their own
+                  // rhythm and only gain a workbench to stand on.
+                  SectionCard(
+                    surface: PanelSurface.benchOak,
+                    padding: const EdgeInsets.all(
+                      StrideSpace.cardPaddingCompact,
+                    ),
+                    child: StationStrip(
+                      stations: <StationEntry>[
+                        for (final (String kind, String label) in _stations)
+                          _census(recipes, kind, label),
+                      ],
+                      selected: station,
+                      onSelect: (String kind) => setState(() {
+                        _station = kind;
+                        _sheetRecipe = null;
+                        _chainStack.clear();
+                      }),
+                    ),
                   ),
                   const SizedBox(height: StrideSpace.rhythmGroup),
 
@@ -748,6 +820,8 @@ class _HeroFolioState extends State<_HeroFolio> {
                       // One light pulse per commitment, as Gather and Set
                       // out — never per repetition loop beat.
                       AudioScope.read(context).hapticLight();
+                      // The commit sound beside the pulse (QUEUE_03 §8).
+                      AudioEvents.commit(AudioScope.read(context));
                       CraftScope.read(context).start(recipe, count);
                     },
             ),
@@ -1580,6 +1654,8 @@ class _RecipeDetailState extends State<_RecipeDetail> {
                       // One light pulse per commitment, as Gather and
                       // Set out — never per repetition loop beat.
                       AudioScope.read(context).hapticLight();
+                      // The commit sound beside the pulse (QUEUE_03 §8).
+                      AudioEvents.commit(AudioScope.read(context));
                       CraftScope.read(context).start(recipe, count);
                       widget.onCraftStarted?.call();
                     },
@@ -1651,9 +1727,19 @@ class _ActiveCraftPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final CraftController craft = CraftScope.of(context);
     final String skill = recipe.skill.value;
-    final List<String>? loop = AmbientAssets.hasActivityLoop(skill)
-        ? AmbientAssets.activityLoopFor(skill)
-        : null;
+    // The Traveler works in what he equipped (FMPO02, FINAL-03 blocker 1:
+    // Craft drew the base body while every other stage wore the armour).
+    // The armoured craft loop is the same seven frames re-dressed, so its
+    // ping-pong, canvas and strike index are the base loop's; only the
+    // frames, the footprint and the rest pose change.
+    final EquipmentVisualState visual =
+        SessionScope.of(context).session.equipmentVisualState;
+    final GatherStrip? dressed = TravelerArt.craftLoopFor(skill, visual);
+    final List<String>? loop =
+        dressed?.frames ??
+        (AmbientAssets.hasActivityLoop(skill)
+            ? AmbientAssets.activityLoopFor(skill)
+            : null);
     // The scene follows the recipe's authored workstation, with the skill
     // as fallback — an oak plank is bench work even though Smithing owns it
     // (`RecipeDefinition.station`, this pass, item 2).
@@ -1732,15 +1818,24 @@ class _ActiveCraftPanel extends StatelessWidget {
                         gatherFrames: PixelIcons.gatherFrames,
                         gatherFootprint: SpriteFootprints.gather,
                         playToken: null,
-                        scenes: AmbientAssets.scenes,
-                        restFrame: AmbientAssets.restFrame,
-                        restFootprint: AmbientAssets.restFootprint,
+                        scenes: TravelerArt.idleScenesFor(
+                          visual,
+                          base: AmbientAssets.scenes,
+                        ),
+                        restFrame:
+                            TravelerArt.restFrameFor(visual) ??
+                            AmbientAssets.restFrame,
+                        restFootprint:
+                            TravelerArt.restFootprintFor(visual) ??
+                            AmbientAssets.restFootprint,
                         prop: AmbientAssets.stationFor(station),
                         activityFrames: loop,
-                        activityFootprint: AmbientAssets.activityFootprintFor(
-                          skill,
-                        ),
-                        activityCanvas: AmbientAssets.activityCanvasFor(skill),
+                        activityFootprint:
+                            dressed?.footprint ??
+                            AmbientAssets.activityFootprintFor(skill),
+                        activityCanvas:
+                            dressed?.canvasWidth ??
+                            AmbientAssets.activityCanvasFor(skill),
                         activityActive: true,
                         // The craft beats (AUDIO_PRESENTATION_01): the hammer
                         // lands, the stir turns — the one accepted cue per

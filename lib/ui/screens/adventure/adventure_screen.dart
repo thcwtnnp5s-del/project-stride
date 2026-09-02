@@ -74,6 +74,25 @@ class _AdventureScreenState extends State<AdventureScreen> {
   /// reading an enemy's drops has not stopped considering a gather.
   ContentId? _selectedEnemy;
 
+  /// The completed gather whose sound has already played, by the same token
+  /// the card itself is keyed to.
+  Object? _cuedGather;
+
+  /// The sound a completed gather makes, fired as its result card arrives —
+  /// beside the card's own light haptic, never instead of it.
+  ///
+  /// One id covers every profession here (`gather.complete.01`, "something
+  /// dropped into a pack"): the *working* sound is already per-profession
+  /// through `playSkillCue`, so a second per-profession family at the
+  /// boundary would say the same thing twice. Silent-safe — no [AudioScope]
+  /// above this screen is silence, and the id is unproduced today, which is
+  /// silence too.
+  void _cueGather(Object token) {
+    if (token == _cuedGather) return;
+    _cuedGather = token;
+    AudioScope.maybeRead(context)?.playEvent('gather.complete');
+  }
+
   @override
   Widget build(BuildContext context) {
     final SessionController c = SessionScope.of(context);
@@ -208,6 +227,11 @@ class _AdventureScreenState extends State<AdventureScreen> {
       );
       activityToken = gathered;
     }
+
+    // The card's arrival is the gather's completion, so it is where the
+    // completion sounds. Identity-guarded, so the rebuilds that follow — and
+    // the merges a rapid tapper produces under one token — stay quiet.
+    if (activityToken != null) _cueGather(activityToken);
 
     return ActivityResultHost(
       result: activityResult,

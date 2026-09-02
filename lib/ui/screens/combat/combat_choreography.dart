@@ -32,6 +32,34 @@ import '../../icons/combat_assets.dart';
 /// Which figure a track, effect or recoil applies to.
 enum StageActor { traveler, enemy }
 
+/// Which semantic audio event a segment carries, and nothing about the sound
+/// itself.
+///
+/// ## Why an enum and not the event id string
+///
+/// The stage turns each of these into exactly one `playEvent('<id>')` call
+/// with a literal id (`combat_stage.dart`), which is what
+/// `test/audio/event_call_sites_test.dart` greps for. An id threaded through
+/// here as a `String` would satisfy the compiler and leave that grep — and so
+/// the guard against `MISTAKES.md` M-16, a cue whose caller quietly went away
+/// — with nothing to find. The analyzer's exhaustiveness check over this enum
+/// is what keeps the two files in step.
+///
+/// The choreography therefore says *what happened*; only the stage says what
+/// it sounds like.
+enum StageCue {
+  playerSwing,
+  playerImpact,
+  enemyAttack,
+  enemyImpact,
+  heavyTelegraph,
+  heavyImpact,
+  brace,
+  braceAbsorb,
+  heal,
+  enemyDefeated,
+}
+
 /// A one-shot effect burst at a figure, starting [start] into the segment.
 final class StageEffect {
   const StageEffect({required this.art, required this.at, required this.start});
@@ -65,6 +93,9 @@ final class StageSegment {
     this.heavyImpactAt,
     this.enemyFallOut = false,
     this.braced = false,
+    this.startCue,
+    this.impactCue,
+    this.impactCueAt = Duration.zero,
   }) : assert(duration > Duration.zero, 'a segment must take time');
 
   final Duration duration;
@@ -141,6 +172,25 @@ final class StageSegment {
   /// than a beat type because the stage plays segments and has deliberately
   /// never known what a `CombatBeat` is.
   final bool braced;
+
+  /// The event this segment **begins** with — the swing leaving the shoulder,
+  /// the enemy's lunge, the wind-up of a heavy blow, the feet being set, the
+  /// stopper coming out of the flask, the body going down.
+  ///
+  /// Fired from `_startSegment`, which is the state machine's own transition
+  /// and not a frame callback (`MISTAKES.md` M-16).
+  final StageCue? startCue;
+
+  /// The event fired at the instant the blow **lands**, [impactCueAt] into
+  /// the segment.
+  ///
+  /// Separate from [startCue] because intent and impact are two different
+  /// sounds at two different times: the swing is the segment's start, the
+  /// thud is the strike frame the manifest names — the same `lands` offset
+  /// the effect burst, the recoil, the HP tween and [heavyImpactAt] already
+  /// share, so all six agree on when the hit happened.
+  final StageCue? impactCue;
+  final Duration impactCueAt;
 }
 
 /// How long a figure without a flinch track recoils.
@@ -173,7 +223,13 @@ const Duration _lostSettle = Duration(milliseconds: 500);
 
 /// The planted beat a brace holds before the enemy's halved reply — long
 /// enough to read as a chosen stance, short enough not to slow the round.
-const Duration _bracedHold = Duration(milliseconds: 350);
+///
+/// 500 ms since FMPO02 wave 3 (FINAL-06). At 350 the one round the player
+/// *chose* to spend on defence was held for less time than [_lostSettle]
+/// gives an incidental knockdown, so the deliberate act read as the smaller
+/// event. The stance is now the longest single held pose in an ordinary
+/// round, which is what "I braced" is supposed to feel like.
+const Duration _bracedHold = Duration(milliseconds: 500);
 
 Duration _frameTime(CombatTrack t, int frame) =>
     Duration(microseconds: (frame / t.track.fps * 1000000).round());
@@ -205,6 +261,12 @@ List<StageSegment> choreograph(
   required EffectArt strikeEffect,
 }) {
   final List<StageSegment> out = <StageSegment>[];
+  // Whether the player set their feet this round. Every enemy strike after a
+  // `BracedBeat` lands at half damage (`DECISIONS/0027`, the beat's own doc),
+  // so from here on the reply is a blow *arriving into a guard* rather than a
+  // blow arriving — which is a different sound, and the only place the player
+  // is told their choice worked.
+  bool braced = false;
   for (final CombatBeat b in beats) {
     switch (b) {
       case EncounterStartedBeat():
@@ -237,6 +299,9 @@ List<StageSegment> choreograph(
             enemyHpTo: b.enemyHpAfter,
             hpTweenStart: lands,
             hpTweenEnd: lands + _hpTween,
+            startCue: StageCue.playerSwing,
+            impactCue: StageCue.playerImpact,
+            impactCueAt: lands,
           ),
         );
 
@@ -247,6 +312,7 @@ List<StageSegment> choreograph(
         // The shipped base + steel set predates PixelLab and has none, so it
         // keeps the held, planted idle that every set used before.
         final CombatTrack? brace = traveler.brace;
+        braced = true;
         out.add(
           StageSegment(
             duration: brace == null || brace.duration < _bracedHold
@@ -255,6 +321,7 @@ List<StageSegment> choreograph(
             travelerTrack: brace ?? traveler.idle,
             travelerHoldsPose: brace != null,
             braced: true,
+            startCue: StageCue.brace,
           ),
         );
 
@@ -288,6 +355,21 @@ List<StageSegment> choreograph(
             hpTweenEnd: lands + _hpTween,
             heavyFlash: b.heavy,
             heavyImpactAt: b.heavy ? lands : null,
+            startCue: b.heavy
+                ? StageCue.heavyTelegraph
+                : StageCue.enemyAttack,
+            // A heavy blow stays a heavy blow even into a guard: the wrist
+            // fires `hapticHeavy` here either way (`heavyImpactAt` above is
+            // set on `b.heavy` alone), and a sound that disagreed with the
+            // hand about what just landed would be worse than either alone.
+            // The brace's own answer is therefore the *ordinary* reply it
+            // halves, which is also the common case — brace exists to be the
+            // counter to a telegraphed heavy, so keying `braceAbsorb` to
+            // heavies would have starved `combat.heavy.impact` instead.
+            impactCue: b.heavy
+                ? StageCue.heavyImpact
+                : (braced ? StageCue.braceAbsorb : StageCue.enemyImpact),
+            impactCueAt: lands,
           ),
         );
 
@@ -299,6 +381,7 @@ List<StageSegment> choreograph(
             hpTweenStart: Duration.zero,
             hpTweenEnd: const Duration(milliseconds: 300),
             heal: b.healed,
+            startCue: StageCue.heal,
           ),
         );
 
@@ -339,6 +422,7 @@ List<StageSegment> choreograph(
             enemyHpTo: 0,
             hpTweenEnd: const Duration(milliseconds: 150),
             telegraph: false,
+            startCue: StageCue.enemyDefeated,
           ),
         );
 

@@ -59,6 +59,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:stride_core/stride_core.dart' show KnowledgeTier;
 
+import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
@@ -69,6 +70,7 @@ import '../../components/pixel_asset.dart';
 import '../../components/surfaces.dart';
 import '../../icons/combat_assets.dart';
 import '../../icons/reward_art.dart';
+import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -104,9 +106,51 @@ class _CombatScreenState extends State<CombatScreen> {
   /// last line. Ephemeral, like the Eat chooser's own flag.
   bool _logOpen = false;
 
+  /// The outcome whose sound has already been fired, by identity — the
+  /// report's own beat object, so a rebuild cannot play a victory twice and
+  /// a new fight's outcome is a different object.
+  CombatBeat? _cuedOutcome;
+
   void _onPlayingChanged(bool playing) {
     if (playing == _playing) return;
     setState(() => _playing = playing);
+  }
+
+  /// The one sound the end of a fight makes, fired as the result panel is
+  /// raised — beside the tier haptic `showRewardLayer` already fires, never
+  /// instead of it.
+  ///
+  /// **One cue, not four.** All five reward ids share priority 30 and a
+  /// 400 ms gap floor, so a victory that also levelled would voice the first
+  /// and silently drop the rest (`AudioController.playEvent`); stacking them
+  /// would only make the arbitration decide what the panel means. The
+  /// precedence below is the panel's own reading, largest first: a character
+  /// level is the biggest thing that can happen in a fight, then a signature
+  /// item finally revealed, then a contract closing, then the win itself.
+  ///
+  /// Being driven back and retreating share `reward.retreat` by design — the
+  /// queue's brief calls it "a *result*, not a punishment", and the two are
+  /// the same result reached two ways.
+  void _cueOutcome(CombatBeat outcome) {
+    if (identical(outcome, _cuedOutcome)) return;
+    _cuedOutcome = outcome;
+    final AudioController? audio = AudioScope.maybeRead(context);
+    if (audio == null) return;
+    if (outcome is WonBeat) {
+      if (outcome.levelledUp) {
+        audio.playEvent('reward.levelup');
+      } else if (_ResultPanel.signatureAwarded(outcome)) {
+        audio.playEvent('reward.discovery');
+      } else if (outcome.bountyProgress.any(
+        (BountyProgressLine b) => b.progress >= b.required,
+      )) {
+        audio.playEvent('reward.milestone');
+      } else {
+        audio.playEvent('reward.victory');
+      }
+    } else if (outcome is LostBeat || outcome is RetreatedBeat) {
+      audio.playEvent('reward.retreat');
+    }
   }
 
   @override
@@ -179,6 +223,9 @@ class _CombatScreenState extends State<CombatScreen> {
     // is `acknowledgeCombat`, as before.
     if (view == null) {
       if (outcome == null || report == null) return const SizedBox.shrink();
+      // The panel stands alone (a relaunch holding an unacknowledged
+      // result): it is raised on this build, so this is its raise.
+      _cueOutcome(outcome);
       final bool signature = _ResultPanel.signatureAwarded(outcome);
       return RewardRaise(
         token: outcome,
@@ -200,6 +247,12 @@ class _CombatScreenState extends State<CombatScreen> {
         ended && outcome != null && report != null && !_playing;
     final bool signature =
         resolved && _ResultPanel.signatureAwarded(outcome);
+    // `resolved` is exactly the condition `RewardRaise` raises on, and it
+    // becomes true on the build after the stage stops playing — so the sound
+    // and the panel answer the same frame. Identity-guarded inside, so the
+    // rebuilds that follow are silent.
+    // (`resolved` carries `outcome != null`, which flow analysis propagates.)
+    if (resolved) _cueOutcome(outcome);
     return RewardRaise(
       token: resolved ? outcome : null,
       tier: signature ? RewardTier.major : RewardTier.medium,

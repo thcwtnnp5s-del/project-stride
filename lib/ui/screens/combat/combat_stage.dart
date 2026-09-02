@@ -68,6 +68,7 @@ library;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/widgets.dart';
 
+import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/grounded_sprite.dart';
@@ -258,6 +259,47 @@ class _CombatStageState extends State<CombatStage>
   bool _precached = false;
   bool _heldByLifecycle = false;
 
+  /// Whether `combat.enter` has been fired for this mount — see
+  /// [didChangeDependencies], which runs again on any dependency change.
+  bool _enterCued = false;
+
+  /// The semantic event for [StageCue], fired now.
+  ///
+  /// Every id in the game lives at exactly one such literal, which is what
+  /// `test/audio/event_call_sites_test.dart` scans for: the round that
+  /// authored these tables shipped with **no** caller for any of them, and a
+  /// table-consistency suite is structurally incapable of noticing that
+  /// (`MISTAKES.md` M-16). Silent-safe by the same contract as every haptic
+  /// here — no [AudioScope] above the stage (a bare component test) is
+  /// silence, and an id whose file has not been produced is silence too
+  /// (`AudioCues.fileFor`).
+  void _fireCue(StageCue cue) {
+    final AudioController? audio = AudioScope.maybeRead(context);
+    if (audio == null) return;
+    switch (cue) {
+      case StageCue.playerSwing:
+        audio.playEvent('combat.player.swing');
+      case StageCue.playerImpact:
+        audio.playEvent('combat.player.impact');
+      case StageCue.enemyAttack:
+        audio.playEvent('combat.enemy.attack');
+      case StageCue.enemyImpact:
+        audio.playEvent('combat.enemy.impact');
+      case StageCue.heavyTelegraph:
+        audio.playEvent('combat.heavy.telegraph');
+      case StageCue.heavyImpact:
+        audio.playEvent('combat.heavy.impact');
+      case StageCue.brace:
+        audio.playEvent('combat.brace');
+      case StageCue.braceAbsorb:
+        audio.playEvent('combat.brace.absorb');
+      case StageCue.heal:
+        audio.playEvent('combat.heal');
+      case StageCue.enemyDefeated:
+        audio.playEvent('combat.enemy.defeated');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -305,6 +347,22 @@ class _CombatStageState extends State<CombatStage>
     if (reduce != _reduceMotion) {
       _reduceMotion = reduce;
       _refresh(_elapsed);
+    }
+    // The bell. One fight is one mount of this widget — the screen re-keys
+    // the stage's subtree per fight (`combat_screen.dart`, `_fightArrival`) —
+    // so first sight of an `AudioScope` is the encounter beginning, and this
+    // is the earliest frame at which an inherited widget may be read.
+    // `initState` cannot; a `didUpdateWidget` would fire it again on every
+    // report.
+    //
+    // Never for a stage that mounts already [CombatStage.ended] — that is a
+    // finished fight being staged for its outcome panel, and a bell there
+    // would announce an encounter that is over.
+    if (!_enterCued) {
+      _enterCued = true;
+      if (!widget.ended) {
+        AudioScope.maybeRead(context)?.playEvent('combat.enter');
+      }
     }
     if (_precached) return;
     _precached = true;
@@ -394,6 +452,14 @@ class _CombatStageState extends State<CombatStage>
     // segment's start and never per frame. The skip path (`_applyRemaining`)
     // deliberately stays silent: a fast-forwarded round is not a moment.
     _heavyHapticPending = s.heavyImpactAt;
+    // The blow's sound owes the same debt on the same terms: it is claimed by
+    // the tick that crosses the strike frame, not by this transition, because
+    // that is when the arm comes down. Dropped by the skip path exactly as
+    // the heavy haptic is.
+    _impactCuePending = switch (s.impactCue) {
+      final StageCue cue => (cue, s.impactCueAt),
+      null => null,
+    };
     // Brace lands in the hand at the moment the player sets their feet — the
     // segment's own start, because a held idle has no strike frame to wait
     // for (`ART-11_audio_brief.md` §4). Light, not heavy: the heavy pulse is
@@ -401,6 +467,12 @@ class _CombatStageState extends State<CombatStage>
     // mean nothing. The skip path never reaches here, so a fast-forwarded
     // round stays silent exactly as the heavy pulse does.
     if (s.braced) AudioScope.maybeRead(context)?.hapticLight();
+    // The segment's own event — the swing leaving the shoulder, the lunge,
+    // the heavy's wind-up, the feet being set, the flask, the fall. Fired
+    // from this transition and never from `_onTick`, so a player with Reduce
+    // Motion on (or a `TickerMode`-muted tab) still hears the fight advance
+    // (`MISTAKES.md` M-16, `DECISIONS/0032`).
+    if (s.startCue case final StageCue cue) _fireCue(cue);
     _controller
       ..duration = s.duration
       ..forward(from: 0);
@@ -438,9 +510,12 @@ class _CombatStageState extends State<CombatStage>
 
   /// Every remaining segment's end state, at once — the skip.
   void _applyRemaining() {
-    // A fast-forwarded round is not a moment: drop the owed heavy haptic
-    // rather than firing it late, or firing several at once.
+    // A fast-forwarded round is not a moment: drop the owed heavy haptic —
+    // and the owed impact cue — rather than firing them late, or firing
+    // several at once. Nothing here calls `_startSegment`, so the skipped
+    // segments' start cues never sound either: one rule for both channels.
     _heavyHapticPending = null;
+    _impactCuePending = null;
     for (int i = _index; i < _segments.length; i++) {
       _applySegmentEnd(_segments[i]);
     }
@@ -505,11 +580,30 @@ class _CombatStageState extends State<CombatStage>
   /// owed, or null once it has fired (or when this segment has no heavy blow).
   Duration? _heavyHapticPending;
 
+  /// The blow this segment still owes a sound, and how far into the segment
+  /// it lands — null once it has fired, and on every segment that lands no
+  /// blow. The sound's mirror of [_heavyHapticPending], on the same clock.
+  ///
+  /// It carries the cue rather than an index into [_segments], so a debt left
+  /// standing when a sequence ends can never be paid against a list that has
+  /// since been emptied.
+  (StageCue, Duration)? _impactCuePending;
+
   void _onTick() {
     final Duration elapsed = _elapsed;
     if (_heavyHapticPending case final Duration at when elapsed >= at) {
       _heavyHapticPending = null;
       AudioScope.maybeRead(context)?.hapticHeavy();
+    }
+    if (_impactCuePending case (final StageCue cue, final Duration at)
+        when elapsed >= at) {
+      _impactCuePending = null;
+      // Safe here, unlike the ambient stage's loop (`MISTAKES.md` M-16):
+      // this controller is **not** stopped under Reduce Motion — the flag
+      // zeroes the recoil jerk and the heavy flash and nothing else (see
+      // `_reduceMotion`) — so no accessibility toggle can delete this cue.
+      // The segment's *start* cue does not depend on the ticker at all.
+      _fireCue(cue);
     }
     _refresh(elapsed);
   }
@@ -857,28 +951,18 @@ class _Scene extends StatelessWidget {
           // the guardian's crown (opaque right edge 318 dp of the backdrop)
           // stops short of a top-right chip.
           //
-          // The turn now wears the authored leather tab beside it
-          // (`turn_marker.png`, 24² at ×2). It is an **ornament** and carries
-          // nothing: the number is type on the chip, exactly as before, so a
-          // failed decode costs the fight a decoration and not a fact
-          // (`DECISIONS/0029`).
+          // **No ornament beside the numeral.** FMPO02 briefly drew the
+          // authored `turn_marker.png` here as a leather tab; on the device
+          // it read as a round copper disc with a rim — a coin next to a
+          // number, which is the casino register L-16/L-17 forbid outright.
+          // The chip already carries the whole fact, so the repair is a
+          // deletion rather than a redraw. The asset stays packaged and
+          // unwired (`CombatHudAssets.turnMarker`); its manifest row records
+          // why it is not drawn.
           Positioned(
             left: StrideSpace.s8,
             top: StrideSpace.s8,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                const PixelAsset(
-                  assetPath: CombatHudAssets.turnMarker,
-                  nativeWidth: CombatHudAssets.turnMarkerNative,
-                  nativeHeight: CombatHudAssets.turnMarkerNative,
-                  scale: 2,
-                ),
-                const SizedBox(width: StrideSpace.s4),
-                _Chip('TURN $turn'),
-              ],
-            ),
+            child: _Chip('TURN $turn'),
           ),
           if (boss)
             const Positioned(

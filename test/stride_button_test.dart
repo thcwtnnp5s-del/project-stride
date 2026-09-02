@@ -4,8 +4,12 @@
 /// semantics contract, and the geometry floors.
 library;
 
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:stride/ui/components/adaptive_text.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/theme/stride_colors.dart';
@@ -240,6 +244,208 @@ void main() {
         ),
       );
       semantics.dispose();
+    });
+  });
+
+  // =========================================================================
+  // The face under the plate (FMPO02 wave 3, FINAL-10 #1)
+  // =========================================================================
+
+  group('the interior is a face, not a hole', () {
+    /// The control's own pixels, with the authored plate actually decoded.
+    ///
+    /// This is the only kind of test that could have caught the defect. Every
+    /// assertion above reads the *painted* construction — `plateOf` returns
+    /// `PixelFrame.fallback`, the rectangle drawn while the raster is in
+    /// flight — and that rectangle was always `surfaceRaised` and always
+    /// right. What shipped to the device was the other path: the nine-patch
+    /// arrived, the fallback switched off, and the frame's transparent middle
+    /// let `surfaceGround` through. So the raster is precached first and the
+    /// answer is read off the rendered image.
+    Future<(ui.Image, ByteData)> render(
+      WidgetTester tester,
+      Widget button,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        // On the page's own ground, because that is the whole defect: an
+        // interior that draws nothing composites to whatever is behind it,
+        // and behind it is `surfaceGround`.
+        host(
+          ColoredBox(
+            color: StrideColors.surfaceGround,
+            child: RepaintBoundary(
+              key: const ValueKey<String>('b'),
+              child: button,
+            ),
+          ),
+        ),
+      );
+      await tester.runAsync(() async {
+        for (final Element e in find.byType(PixelFrame).evaluate()) {
+          await precacheImage(
+            AssetImage((e.widget as PixelFrame).skin.assetPath),
+            e,
+          );
+        }
+      });
+      await tester.pumpAndSettle();
+      final ui.Image image = (await tester.runAsync(
+        () => captureImage(
+          find.byKey(const ValueKey<String>('b')).evaluate().single,
+        ),
+      ))!;
+      final ByteData bytes = (await tester.runAsync(
+        () async =>
+            (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!,
+      ))!;
+      return (image, bytes);
+    }
+
+    Color at(ui.Image image, ByteData px, int x, int y) {
+      final int i = (y * image.width + x) * 4;
+      return Color.fromARGB(
+        px.getUint8(i + 3),
+        px.getUint8(i),
+        px.getUint8(i + 1),
+        px.getUint8(i + 2),
+      );
+    }
+
+    /// Every distinct colour inside the control's face.
+    ///
+    /// Inset past the 6 dp corner radius, past the plate's own rim, and past
+    /// the 2 px the under-ledge occupies at the bottom of the box — so what is
+    /// counted is the interior the label sits on and nothing else.
+    Set<Color> interior(ui.Image image, ByteData px) => <Color>{
+      for (int y = 8; y < image.height - 8; y++)
+        for (int x = 12; x < image.width - 12; x++) at(image, px, x, y),
+    };
+
+    testWidgets('a commit primary paints a lit face, not the page ground', (
+      WidgetTester tester,
+    ) async {
+      final (ui.Image image, ByteData px) = await render(
+        tester,
+        StrideButton(label: 'Travel', onPressed: () {}),
+      );
+      // The pixel the review sampled: row 539 of the world inspector was one
+      // flat run of #14120F across the whole of the Travel button.
+      expect(
+        at(image, px, image.width ~/ 2, image.height ~/ 2),
+        isNot(StrideColors.surfaceGround),
+        reason: 'the commit control is a window onto the page background',
+      );
+      final Set<Color> inks = interior(image, px);
+      expect(
+        inks,
+        isNot(contains(StrideColors.surfaceGround)),
+        reason: 'not one interior pixel may be the page ground',
+      );
+      expect(
+        inks,
+        contains(StrideColors.surfaceRaised),
+        reason: 'the raised face is what the plate frames',
+      );
+      image.dispose();
+    });
+
+    testWidgets('the ready variant keeps its moss', (
+      WidgetTester tester,
+    ) async {
+      final (ui.Image image, ByteData px) = await render(
+        tester,
+        StrideButton(
+          label: 'Craft',
+          variant: StrideButtonVariant.ready,
+          onPressed: () {},
+        ),
+      );
+      final Set<Color> inks = interior(image, px);
+      // The one register that already read as a face rather than a hole, and
+      // the reason: `ready`'s ledge is the same moss, so what showed through
+      // the transparent middle was moss too. This holds the token now that the
+      // fill is painted deliberately rather than leaking from below.
+      expect(inks, contains(StrideColors.positiveReadyDim));
+      expect(inks, isNot(contains(StrideColors.surfaceGround)));
+      image.dispose();
+    });
+
+    testWidgets('the utility control is lighter than nothing, and darker '
+        'than the primary', (WidgetTester tester) async {
+      final (ui.Image image, ByteData px) = await render(
+        tester,
+        StrideButton.secondary(label: 'Sync steps', onPressed: () {}),
+      );
+      final Set<Color> inks = interior(image, px);
+      // The hierarchy the review found inverted: the secondary sat on
+      // `surfaceBlock` while the primary above it showed the page through.
+      expect(inks, contains(StrideColors.surfaceBlock));
+      expect(inks, isNot(contains(StrideColors.surfaceGround)));
+      image.dispose();
+    });
+  });
+
+  // =========================================================================
+  // The dressing survives disablement (FMPO02 wave 3, FINAL-01 #1)
+  // =========================================================================
+
+  group('a held control keeps its identity', () {
+    testWidgets('the emblem and the glyph are dimmed, not dropped', (
+      WidgetTester tester,
+    ) async {
+      const Key emblem = ValueKey<String>('emblem');
+      const Key glyph = ValueKey<String>('glyph');
+      Widget command({required bool enabled}) => StrideButton(
+        label: 'Attack',
+        variant: StrideButtonVariant.attack,
+        emblem: const SizedBox(key: emblem, width: 64, height: 32),
+        leading: const SizedBox(key: glyph, width: 32, height: 32),
+        onPressed: enabled ? () {} : null,
+      );
+
+      await tester.pumpWidget(host(command(enabled: true)));
+      expect(find.byKey(emblem), findsOneWidget);
+      expect(find.byKey(glyph), findsOneWidget);
+
+      await tester.pumpWidget(host(command(enabled: false)));
+      // Both still there — the four combat cells stop changing shape between
+      // turns — and both quieter.
+      expect(find.byKey(emblem), findsOneWidget);
+      expect(find.byKey(glyph), findsOneWidget);
+      for (final Key k in <Key>[emblem, glyph]) {
+        final Opacity o = tester.widget<Opacity>(
+          find
+              .ancestor(of: find.byKey(k), matching: find.byType(Opacity))
+              .first,
+        );
+        expect(o.opacity, closeTo(StrideButton.disabledDressing, 0.001), reason: '$k');
+      }
+      // And the words still carry the state.
+      expect(
+        tester.widget<AdaptiveText>(find.byType(AdaptiveText).first).color,
+        StrideColors.textMuted,
+      );
+    });
+
+    testWidgets('a disabled control that says why keeps the words, not the '
+        'glyph', (WidgetTester tester) async {
+      const Key glyph = ValueKey<String>('glyph');
+      await tester.pumpWidget(
+        host(
+          const StrideButton(
+            label: 'Eat',
+            subLabel: 'No food in the bag',
+            leading: SizedBox(key: glyph, width: 32, height: 32),
+            onPressed: null,
+          ),
+        ),
+      );
+      // A 32 dp icon row plus two lines does not fit the combat cluster's
+      // 56 dp cell, and the line that says why is never the one squeezed out.
+      expect(find.byKey(glyph), findsNothing);
+      expect(find.text('No food in the bag'), findsOneWidget);
     });
   });
 }

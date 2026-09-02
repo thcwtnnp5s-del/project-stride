@@ -44,7 +44,9 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:stride_core/stride_core.dart' show LocationKind, Terrain;
 
+import '../../runtime/stride_session.dart' show PlaceIdentity;
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
@@ -135,6 +137,40 @@ abstract final class StrideBands {
     'smithing' => StrideBand.forge,
     'cooking' => StrideBand.cookfire,
     _ => null,
+  };
+
+  /// The band for the **place the player is standing in** — Adventure's
+  /// expedition kit (FMPO02 wave 3, FINAL-10 #2).
+  ///
+  /// The kit shipped with `adventureTrail` nailed above it everywhere, and the
+  /// review's diff found the strip **100.0 % pixel-identical** between a
+  /// grassland settlement, a deep forest and the inside of a mine: a
+  /// green-grass-and-split-rail shelf above the ore seams. One band above
+  /// every location is the clearest single proof a chassis was applied rather
+  /// than designed, so the location now owns its own.
+  ///
+  /// Read from [PlaceIdentity] — the same pair the header's breadcrumb prints
+  /// (`AtlasPlaceInfo.descriptorFor`) — so the band cannot disagree with the
+  /// two words directly above it. Kind is asked first because it is the
+  /// stronger fact: a worksite is a cut face whatever ground it sits on, and a
+  /// **perilous** place gets no band at all. The Hollow is a threshold, and a
+  /// cheerful strip of trail over the one location with a boss in it would be
+  /// the same mistake at a different address.
+  ///
+  /// No new art: the five outcomes are bands the round already authored.
+  static StrideBand? forPlace(PlaceIdentity identity) => switch (identity) {
+    // The boss's ground. Nothing.
+    (kind: LocationKind.perilous, terrain: _) => null,
+    // A cutting is a cutting: Stonefall reads as the mine it is, and so would
+    // a quarry laid on grass.
+    (kind: LocationKind.worksite, terrain: _) => StrideBand.mining,
+    (kind: _, terrain: Terrain.grassland) => StrideBand.adventureTrail,
+    (kind: _, terrain: Terrain.forest) => StrideBand.foraging,
+    (kind: _, terrain: Terrain.foothills) => StrideBand.mining,
+    // Frostmere: hedgerow and herb is the closest authored ground to a place
+    // whose work is gathering under snow. The alpine strip is `§6` art debt,
+    // not a plate this round may invent.
+    (kind: _, terrain: Terrain.alpine) => StrideBand.foraging,
   };
 }
 

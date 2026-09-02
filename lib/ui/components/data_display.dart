@@ -191,7 +191,9 @@ class ValueTileRow extends StatelessWidget {
           // tiles without a unit reserve the line — an empty one — rather
           // than the row measuring intrinsics, which the tile's adaptive
           // text cannot supply.
-          final bool anyUnit = tiles.any((LabeledValueTile t) => t.unit != null);
+          final bool anyUnit = tiles.any(
+            (LabeledValueTile t) => t.unit != null,
+          );
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -423,12 +425,14 @@ class StrideButton extends StatefulWidget {
   /// `Flexible` beside it, so an enlarged text scale wraps the words rather
   /// than pushing the glyph out of the control (D-01).
   ///
-  /// **Absent when the control is disabled**, with [emblem] and the authored
-  /// plate. That is not only consistency: a disabled control is the one that
-  /// grows a [subLabel] saying why, and a 32 dp glyph beside a two-line stack
-  /// does not fit the combat cluster's 56 dp cell. The dressing goes, the
-  /// words stay, and the line that says why a thing cannot be pressed is never
-  /// the one squeezed out.
+  /// **Dimmed, not dropped, when the control is disabled** (FMPO02 wave 3):
+  /// the combat cluster is held between turns, and four cells that lost their
+  /// icons on every held frame read as four different controls twice a round.
+  ///
+  /// It does still stand down for a disabled control that grew a [subLabel]
+  /// saying why: a 32 dp glyph beside a two-line stack does not fit the combat
+  /// cluster's 56 dp cell, and the line that says why a thing cannot be
+  /// pressed is never the one squeezed out.
   final Widget? leading;
 
   /// An **ornament drawn behind the whole face**, clipped to the control, for
@@ -437,10 +441,42 @@ class StrideButton extends StatefulWidget {
   /// [PanelSkin] (`combat_assets.dart`, `CombatHudAssets`).
   ///
   /// Behind the plate and inside the press transform, so it travels with the
-  /// control; **absent when the control is disabled**, which is the same rule
-  /// the authored plate itself obeys — an unpressable thing has no thickness.
-  /// Null at every call site outside combat.
+  /// control — and **above the control's own face**, which FMPO02 wave 3 put
+  /// back underneath it, so the ornament reads as drawn on the button rather
+  /// than as the page showing through a hole in it.
+  ///
+  /// Drawn at 60 % under the label and at 45 % when the control is disabled;
+  /// see [leading] for why disablement dims the dressing rather than deleting
+  /// it. Null at every call site outside combat and the reward seals.
   final Widget? emblem;
+
+  /// The volume the authored dressing keeps on a control that cannot be
+  /// pressed.
+  ///
+  /// Low enough that the cell is plainly out of reach, high enough that its
+  /// identity — which of the four commands this is — survives the held frame.
+  static const double disabledDressing = 0.45;
+
+  /// The volume of an [emblem] drawn behind a label.
+  ///
+  /// The plate is the one raster in the app that sits under type. At full
+  /// strength its bright arc crossed the letterforms and both lost — the
+  /// review's words were "raster emblems sitting behind and colliding with
+  /// their own labels". Dimmed, it reads as material under the word instead of
+  /// a second thing competing with it.
+  ///
+  /// **0.35 is measured, not chosen.** Composited over the `surfaceRaised`
+  /// face the control now paints, `plate_attack` and `plate_eat` clear WCAG AA
+  /// against the label ink at 7.8 : 1 and 8.5 : 1 even at 0.6 — but
+  /// `plate_brace`'s lit steel core is far brighter and sits at 3.02 : 1
+  /// there, and 0.4 is still short. 0.35 puts the worst of the three at
+  /// 4.90 : 1. One value for all three, because three opacities on three
+  /// members of one cluster is the inconsistency this round is closing.
+  ///
+  /// Public because `test/combat_ui_test.dart` composites the shipped plates
+  /// at exactly this value: the guard has to use the number the widget uses,
+  /// not a copy of it.
+  static const double emblemBehindText = 0.35;
 
   @override
   State<StrideButton> createState() => _StrideButtonState();
@@ -472,8 +508,11 @@ class _StrideButtonState extends State<StrideButton> {
     // and the under-ledge. Attack warms the ledge with the danger dim;
     // defense flips the temperature; ready wears the moss the recipe rows
     // already mean "can do" with.
-    final (Color topLight, Color outline, Color ledge) =
-        switch (widget.variant) {
+    final (
+      Color topLight,
+      Color outline,
+      Color ledge,
+    ) = switch (widget.variant) {
       StrideButtonVariant.commit => (
         StrideColors.actionSheen,
         StrideColors.actionEdge,
@@ -495,6 +534,74 @@ class _StrideButtonState extends State<StrideButton> {
         StrideColors.positiveReadyDim,
       ),
     };
+
+    // **The interior, under the plate** (FMPO02 wave 3, FINAL-10 #1).
+    //
+    // `btn_plate` and `btn_compact` are nine-patches: an authored rim with a
+    // *transparent* middle. Drawn alone over the page they turned the screen's
+    // commit action into a window cut through the card to `surfaceGround`
+    // (#14120F) — the darkest value in the app, and the same one the page
+    // ground 165 px below already wears. The secondary beneath it, still on
+    // its painted `surfaceBlock`, then read as the *lighter* of the two and
+    // the hierarchy inverted.
+    //
+    // So the raster keeps the rim and Flutter supplies the face beneath it.
+    // The registers stay tokens as `DECISIONS/0029` requires — no tint is
+    // applied to the plate itself — and `ready` keeps the moss the recipe rows
+    // already mean "can do" with, which is the one register that was already
+    // reading as a lit face rather than a hole.
+    //
+    // Null when disabled: the disabled path draws its own opaque Container
+    // (`painted`, `surfaceBlock`) and has never had a hole to fill.
+    final Color? interiorFill = !enabled
+        ? null
+        : secondary
+        ? StrideColors.surfaceBlock
+        : widget.variant == StrideButtonVariant.ready
+        ? StrideColors.positiveReadyDim
+        : StrideColors.surfaceRaised;
+
+    // **The dressing survives disablement** (FMPO02 wave 3, FINAL-01 #1).
+    //
+    // The combat command cluster is four cells that are held between turns.
+    // Dropping the plate and the glyph on every held frame made the same four
+    // controls change shape twice a round — "flat/unframed on turn 1, framed
+    // with rivets on turn 2" — so the cell's identity was never constant long
+    // enough to learn. It is kept and *dimmed* instead: an `Opacity`, never a
+    // colour remap, so the art is the same art at a quieter volume and the
+    // label carries the state in words (`textMuted`) as it always did.
+    //
+    // The glyph still stands down for a control that grew a [subLabel]: a
+    // 32 dp icon row plus two lines of type does not fit the cluster's 56 dp
+    // cell, and the line that says *why* a thing cannot be pressed is never
+    // the one squeezed out.
+    final Widget? leadingGlyph = widget.leading == null
+        ? null
+        : enabled
+        ? widget.leading
+        : subLabel == null
+        ? Opacity(opacity: StrideButton.disabledDressing, child: widget.leading)
+        : null;
+
+    // Over an emblem the label needs a floor under it. The plate is the one
+    // ornament drawn *behind type* in the app, and a 1 px hard shadow in the
+    // page ground is the cheapest way to keep the glyph edges from dissolving
+    // into the blob's brightest arc (FINAL-10 #1, "the emblem goes beside the
+    // word, never under it" — it now does both: beside as [leading], and the
+    // plate that remains behind is dimmed and underpainted).
+    final TextStyle labelStyle = () {
+      final TextStyle base = secondary
+          ? StrideType.buttonLabelSecondary
+          : StrideType.buttonLabel;
+      return widget.emblem == null
+          ? base
+          : base.copyWith(
+              shadows: const <Shadow>[
+                Shadow(color: StrideColors.surfaceGround, offset: Offset(0, 1)),
+                Shadow(color: StrideColors.surfaceGround, offset: Offset(1, 0)),
+              ],
+            );
+    }();
 
     final Widget body = Container(
       // Minimums. The label is composed — `Gather — 9,999,999 steps` at an
@@ -521,7 +628,7 @@ class _StrideButtonState extends State<StrideButton> {
           // glyph: at an enlarged text scale the words wrap and the glyph
           // keeps its integer-scaled size, because a pixel asset that shrinks
           // to fit has stopped being pixel art (L-18).
-          if ((enabled ? widget.leading : null) case final Widget glyph)
+          if (leadingGlyph case final Widget glyph)
             Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
@@ -531,9 +638,7 @@ class _StrideButtonState extends State<StrideButton> {
                 Flexible(
                   child: AdaptiveText(
                     label,
-                    style: secondary
-                        ? StrideType.buttonLabelSecondary
-                        : StrideType.buttonLabel,
+                    style: labelStyle,
                     color: enabled ? null : StrideColors.textMuted,
                     textAlign: TextAlign.center,
                   ),
@@ -543,9 +648,7 @@ class _StrideButtonState extends State<StrideButton> {
           else
             AdaptiveText(
               label,
-              style: secondary
-                  ? StrideType.buttonLabelSecondary
-                  : StrideType.buttonLabel,
+              style: labelStyle,
               color: enabled ? null : StrideColors.textMuted,
               textAlign: TextAlign.center,
             ),
@@ -638,14 +741,40 @@ class _StrideButtonState extends State<StrideButton> {
     // own transparent margin top and bottom and none of its drawn pixels.
     // Disabled controls get none, for the reason the authored plate is also
     // absent then.
-    final Widget faced = widget.emblem == null || !enabled
+    //
+    // Two changes in FMPO02 wave 3. It is **kept when disabled**, at
+    // [StrideButton.disabledDressing], for the identity reason [leadingGlyph] carries; and
+    // when enabled it is drawn at [StrideButton.emblemBehindText] rather than full, so the
+    // blob's bright arc sits under the label as a texture and not as a
+    // competing value. Both are `Opacity` over the same art.
+    final Widget emblemed = widget.emblem == null
         ? unadorned
         : Stack(
             alignment: Alignment.center,
             children: <Widget>[
-              Positioned.fill(child: ClipRect(child: widget.emblem!)),
+              Positioned.fill(
+                child: ClipRect(
+                  child: Opacity(
+                    opacity: enabled ? StrideButton.emblemBehindText : StrideButton.disabledDressing,
+                    child: widget.emblem!,
+                  ),
+                ),
+              ),
               unadorned,
             ],
+          );
+
+    // The face beneath everything (FINAL-10 #1). Below the emblem, so the
+    // ornament still reads as drawn *on* the control rather than punched
+    // through it, and below the plate, whose rim covers the fill's edge.
+    final Widget faced = interiorFill == null
+        ? emblemed
+        : DecoratedBox(
+            decoration: BoxDecoration(
+              color: interiorFill,
+              borderRadius: secondary ? StrideRadius.inner : StrideRadius.gate,
+            ),
+            child: emblemed,
           );
 
     // The under-ledge and the one warm glow are Flutter's on both paths: the

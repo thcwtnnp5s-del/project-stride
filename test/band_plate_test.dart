@@ -28,6 +28,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/ui/components/band_plate.dart';
+import 'package:stride_core/stride_core.dart' show LocationKind, Terrain;
 import 'package:stride/ui/components/screen_header.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
 import 'package:stride/ui/shell/stride_destination.dart';
@@ -179,6 +180,47 @@ void main() {
       expect(StrideBands.forSkill('smithing'), StrideBand.forge);
       expect(StrideBands.forSkill('cooking'), StrideBand.cookfire);
       expect(StrideBands.forSkill('alchemy'), isNull);
+    });
+
+    test('the expedition kit takes the band of the place it is packed for', () {
+      // FMPO02 wave 3, FINAL-10 #2. The strip above `Expedition kit` was
+      // `adventureTrail` everywhere, and the review's diff found it
+      // **100.0 % pixel-identical** between a grassland settlement, a deep
+      // forest and the inside of a mine — a split-rail fence nailed above the
+      // ore seams. These five outcomes are the routing that ended that, and
+      // they are the whole function: `PlaceIdentity` has four terrains and
+      // four kinds, and every combination lands on a row below.
+      StrideBand? at(LocationKind kind, Terrain terrain) =>
+          StrideBands.forPlace((kind: kind, terrain: terrain));
+
+      // Haven's Rest: a settlement on open ground keeps the road out.
+      expect(at(LocationKind.haven, Terrain.grassland),
+          StrideBand.adventureTrail);
+      // The Whispering Woods: hedgerow and herb, not a fence.
+      expect(at(LocationKind.wilds, Terrain.forest), StrideBand.foraging);
+      // Stonefall: the cut face, whichever way it is asked.
+      expect(at(LocationKind.worksite, Terrain.foothills), StrideBand.mining);
+      expect(at(LocationKind.wilds, Terrain.foothills), StrideBand.mining);
+      // A quarry laid on grass is still a cutting: kind beats terrain.
+      expect(at(LocationKind.worksite, Terrain.grassland), StrideBand.mining);
+      // Frostmere: gathering under snow, on the closest authored ground.
+      expect(at(LocationKind.wilds, Terrain.alpine), StrideBand.foraging);
+      // The Forgotten Hollow: the boss's ground gets nothing. A cheerful
+      // strip of trail over the one location with a boss in it would be the
+      // same mistake at a different address.
+      for (final Terrain t in Terrain.values) {
+        expect(at(LocationKind.perilous, t), isNull, reason: t.name);
+      }
+      // Exhaustive: no pair falls through to a null the caller did not mean.
+      for (final LocationKind k in LocationKind.values) {
+        for (final Terrain t in Terrain.values) {
+          expect(
+            at(k, t),
+            k == LocationKind.perilous ? isNull : isNotNull,
+            reason: '${k.name} · ${t.name}',
+          );
+        }
+      }
     });
 
     testWidgets('a band is drawn ×1 as a picture, never scaled to fit', (

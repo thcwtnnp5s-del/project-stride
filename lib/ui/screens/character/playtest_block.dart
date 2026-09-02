@@ -64,13 +64,13 @@ class _PlaytestBlockState extends State<PlaytestBlock> {
     await showRewardLayer(
       context,
       tier: RewardTier.medium,
-      accent: StrideColors.accentSteps,
+      accent: StrideColors.rewardLightInk,
       beats: <Widget>[
         RewardBeat(
           tier: RewardTier.medium,
           eyebrow: freshStart ? 'FRESH PLAYTEST' : 'BASELINE RESET',
           title: freshStart ? 'The game begins again' : 'Walking starts again',
-          accent: StrideColors.accentSteps,
+          accent: StrideColors.rewardLightInk,
           lines: <String>[
             'Banked steps 0 · Total walked 0',
             '${formatSteps(walked)} walked and '
