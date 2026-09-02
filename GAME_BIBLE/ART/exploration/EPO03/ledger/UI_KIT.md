@@ -17,16 +17,30 @@ recorded as `—` so the re-issue is not mistaken for a re-roll.
 | Batch 2 — the kit's first real pass | 14 | **14** |
 | Batch 3 — sheets to cut from | 2 | **2** |
 | Batch 4 — the welt, deterministic post-work | 0 | **0** |
-| **Spent** | **32** | **32** |
-| Remaining under cap | | **288** |
+| Batch 5 — `create_image_pro`, three frames | 3 calls / 36 candidates | **60** |
+| Batch 6 — the four brightness rejects, remapped | 0 | **0** |
+| **Spent** | | **92** |
+| Remaining under cap | | **228** |
 
-**Shipped: one asset from thirty-two rolls.** That ratio is the round's real
-finding and it is not a prompt-quality problem — it is where `pixen` stops.
-The 288 left unspent are deliberately unspent: four strategies against the
-frame/ornament class all failed the same way, and M-05 forbids paying again
-for a reason already written down. What the budget bought instead is a kit
-whose every name works today without art (`d32a01f`) and a nav rebuilt out of
-the one material class the model does succeed at.
+**Shipped: eight assets.** The first thirty-two rolls produced one, and the
+conclusion drawn from them — "the frame class is closed" — **was wrong, and the
+producer was right to send it back.** Two corrections, both cheap:
+
+1. **Brightness is a remap, not a rejection.** Four candidates were marked
+   CHECK for being over the ceiling while the drawing itself was right.
+   Deterministic post-work resolved all four for **zero generations** (batch 6).
+   The repo already knew how — `ceiling-clamp.js` is VAWO01's `chassis_64`
+   operation, and keying a ground is `package-art.js`'s `keyBorderWhite`.
+2. **The tool was never changed.** All thirty-two rolls were `create_image_pixen`.
+   `create_image_pro` takes labelled reference images; given an accepted grain
+   tile as the style and `chassis_64` as the construction, it drew flat,
+   axis-aligned, hollow, stud-free nine-patches **in the first call for all
+   three families** (batch 5). What thirty-two pixen rolls could not do, three
+   pro calls did.
+
+The honest reading of batch 2–3 is therefore narrower than it was written:
+**pixen** cannot draw a flat hollow frame. That is still true and still
+recorded. It was not evidence about the frame class.
 
 ---
 
@@ -118,3 +132,47 @@ Deterministic post-work on the batch-2 master, A-2 throughout:
 **ACCEPT.** Reads as a continuous saddle stitch at phone scale with no visible
 join. Shipped to `assets/ui/v1/nav/nav_welt_v2.png`; drawn by both the nav bar
 and the header shelf.
+
+
+## Batch 5 — `create_image_pro`, the frames
+
+Three calls, 20 generations each, **60 total**. Each carried
+`style_image_url` = an accepted grain tile (`grain_leather`, `grain_bench_oak`)
+with `style_copy` = palette + shading + detail, plus two labelled
+`reference_images`: the same grain ("the material this is cut from") and
+`chassis_64` ("the flat straight-on square nine-patch construction to copy").
+Cost is per call, so the small canvases returned 16 candidates each.
+
+| job | family | canvas | candidates | cost | verdict |
+|---|---|---|---:|---:|---|
+| e2f51423 | `inset_well` | 64² | 16 | 20 | **ACCEPT** candidate 1 — band 15/15/15/15, spread 0, max L 0.0484. 9 of 16 usable, 3 blank, 3 asymmetric |
+| e7fdfe47 | `slot_well` | 48² | 16 | 20 | **ACCEPT** candidate 6 — band 5/4/5/4, spread 1, max L 0.0791. 11 of 16 usable |
+| 23986e06 | `stage_frame` | 128² | 4 | 20 | **ACCEPT** candidate 3 — band 19/19/19/19, spread 0, max L 0.0855. Candidates 0 and 1 rejected: **band 0**, i.e. the top run is transparent at mid-span — the `modal_128` geometry failure exactly |
+
+Sheets: `review/ui/pro_insetwell_x4.png`, `pro_finalists_x3.png`. Every
+candidate measured by `tools/frame-measure.js` (**new**) — which crops to
+content first, because measuring a band from the canvas edge reads 0 on every
+side when the frame sits inside a transparent margin.
+
+**The corner is 26, not 19, and `tools/ninepatch-proof.js` (new) is why.** The
+stage frame's band measures 19, but its iron corner cap is wider than its band.
+Declaring corner 19 puts the cap inside the edge strip, and the painter then
+tiles the cap along every beam — visible in `review/ui/np_stage19.png`, invisible
+in the source PNG and in every numeric measurement. At corner 26 the cap draws
+once per corner and the beams run unbroken (`np_stage26.png`). This is the
+defect `PIXELLAB_UI_PRODUCTION_PLAN` §3.2.1 warns about, caught by rendering
+the patch the way `_FramePainter` will rather than by trusting the numbers.
+
+## Batch 6 — the four brightness rejects, resolved for zero generations
+
+| asset | was | operation | result |
+|---|---|---|---|
+| `rule_journal` | 96.9 % over ceiling — an ink line on cream paper | `rule-cut.js --key 0.09`: paper keyed to alpha 0, 95 px of ink kept, rows 12–17, best-wrapping 8-wide window | 8 × 6 tile, transparent ground, max L 0.0699, **clean** |
+| `rule_chart` | 95.4 % over ceiling — a sepia rule with ticks on vellum | `rule-cut.js --key 0.16 --band 0.02`, rows 14–17 so the ticks standing on the line survive | 8 × 4 tile, max L 0.0486, **clean** |
+| `rail_shelf` | 23.8 % over ceiling | `ceiling-clamp.js` (4 colours), then cropped to rows 17–48 — the stone wall the model drew above and below the plank is not the shelf | 384 × 32 picture rail, max L 0.1710, **clean** |
+| `tab_plate` | **already under the ceiling** (max L 0.1462) | none needed — the CHECK was about geometry, and the measurement settled it: band 19/1/28/1, wildly asymmetric, so it cannot carry one inset | ships as a **discrete ornament**, 48 × 32 at ×1 — the third thing `DECISIONS/0029` allows |
+
+`rule-cut.js` learned one thing worth keeping: crop to the inked **band**, not
+the inked **extent**. Two stray specks in the corners of the chart's sheet made
+the extent the whole 32-row canvas, and a rule eight times taller than its own
+line is not a rule.

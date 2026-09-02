@@ -304,3 +304,41 @@ item, or a step cost.
   `StrideDestination.glyphActive` and the six `PixelIcons.nav*Active`
   constants are **gone**: one glyph per destination, the plate carries the
   state (Q-26). The `_hi` PNGs and their CI guard stay untouched.
+- 2026-09-02 — **the previous amendment is superseded: §1 and §3 are no longer
+  empty** (`5b92ef6`). The producer sent the "declared and empty" verdict back
+  on two counts and was right on both. `create_image_pro` with an accepted grain
+  tile as the style reference drew flat, axis-aligned, hollow, stud-free
+  nine-patches **in the first call for all three families**, and four of the
+  earlier rejects failed on brightness alone, which is a deterministic remap
+  this repo already knows how to do. Eight assets now ship.
+
+  **Landed rows — code against these:**
+
+  | Name | Asset | Native | corner / band | scale | **inset dp** |
+  |---|---|---|---|---|---|
+  | `KitFrame.insetWell` | `kit/inset_well.png` | 61 × 61 | 16 / 15 | 1 | **15** |
+  | `KitFrame.slotWell` | `kit/slot_well.png` | 32 × 32 | 6 / 4 | 2 | **8** |
+  | `KitFrame.stageFrame` | `kit/stage_frame.png` | 114 × 114 | **26** / 19 | 1 | **19** |
+  | `KitTile.ruleJournal` | `kit/rule_journal.png` | 8 × 6 | period 8 | 2 | **12** thick |
+  | `KitTile.ruleChart` | `kit/rule_chart.png` | 8 × 4 | period 8 | 2 | **8** thick |
+  | `KitTile.railShelf` | `kit/rail_shelf.png` | 384 × 32 | picture | 1 | **32** thick |
+  | `KitMark.tabPlate` | `kit/tab_plate.png` | 48 × 32 | ornament | 1 | 48 × 32 |
+
+  **Four declared figures moved**, and this is the one thing to re-read if you
+  have already laid out against §1: `insetWell` 8 → **15**, `slotWell` 6 → **8**,
+  `stageFrame` 16 → **19**, `ruleJournal` 8 → **12** thick, `railShelf` 72 → **32**
+  thick. The declared numbers now equal what the art measures, so from here the
+  "same figure either way" promise holds exactly; it could not hold while the
+  declared figures were guesses. Nothing else in §1–§3 changed, and every
+  unlanded name still returns its declared geometry and paints its fallback.
+
+  **`tabPlate` moved from §1 to §3** — it is a `KitMark`, not a `KitFrame`. Its
+  authored rim measures 19/1/28/1, so it cannot carry one inset and cannot be a
+  nine-patch; an index tab is a fixed object anyway. Call it with
+  `KitOrnament(mark: KitMark.tabPlate)`.
+
+  Still empty and still honest: `insetStage`, `pageSealed`, `slipPinned`,
+  `ribbonLabel`, `peekPlate`, `labelPlate`, `labelPlateSelected`, `navWell`,
+  `navPlateActive`, `btnPlateV2`, the remaining tiles, and every `KitMark` but
+  `tabPlate`. Pro is now the proven route for them and the budget is there;
+  they were not authorised this pass.
