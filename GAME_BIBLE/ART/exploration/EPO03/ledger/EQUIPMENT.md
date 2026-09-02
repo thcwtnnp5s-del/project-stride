@@ -32,3 +32,35 @@ Sheet for rows 4–7: `review/equip/longsword_f0_pair_x4.png`,
   frames at that width), so a whole strip goes in one call — never per frame.
 - The `toneBronze` remap in `package-art.js` is worth mirroring locally
   (`tools/tone-bronze.js`) so a candidate is reviewed as it will ship.
+
+## Rows, continued — P2 the longsword class
+
+| # | what was asked | tool | job id | cost line | verdict | reason |
+|---|---|---|---|---:|---|---|
+| 8–12 | plate longsword idle 8 / attack 8 / hit 6 / stagger 8 / brace 6, v3 east from the plate start frame | `animate_character` v3 | `4ee8574a` `2e82a666` `d738b612` `01a9dd07` `30e4ed54` | 5 | 4 ACCEPT, stagger RE-ROLL | stagger walked backwards instead of going down |
+| 13–17 | jerkin, same five | `animate_character` v3 | `1dc65748` `ef4433bf` `033e233e` `8338fefd` `91d58aa2` | 5 | 3 ACCEPT, hit + stagger RE-ROLL | the flinch lunged forward almost horizontal; the stagger walked backwards |
+| 18–22 | coat, same five | `animate_character` v3 | `fc5de18e` `86e6f504` `0bae29fa` `127f01dd` `7a492326` | 5 | 4 ACCEPT, brace RE-ROLL | the brace raised the blade overhead: union box 70 rows, 19 px clipped at f4 — it does not fit the 64-row canvas |
+| 23–27 | base, same five | `animate_character` v3 | `1b98b86f` `a14eb7e0` `922f3031` `cf4cce45` `35f71d78` | 5 | 2 ACCEPT, attack + hit + stagger RE-ROLL | the attack shouldered the blade and walked; the flinch lost the blade entirely at f3 (the documented v3 dissolve) and drifted to three-quarter view; the stagger walked backwards |
+| 28 | plate stagger, re-rolled describing the END POSE ("down on one knee, head low") | `animate_character` v3 | `e34adfa3` | 1 | **ACCEPT** | knees buckle, down on a knee by f5–f7, blade clear of the ground |
+| 29 | jerkin hit, re-rolled ("feet planted, torso rocks back, standing upright") | `animate_character` v3 | `8ce16168` | 1 | **ACCEPT** | upright recoil, blade visible in all 6 |
+| 30 | jerkin stagger, re-rolled as above | `animate_character` v3 | `59eb31ac` | 1 | **ACCEPT** | sinks to a kneel by f4 |
+| 31 | base attack, re-rolled ("feet planted… never walking") | `animate_character` v3 | `6aef2221` | 1 | **ACCEPT** | two-handed windup and cut, blade in all 8 |
+| 32 | base stagger, re-rolled | `animate_character` v3 | `264de4fc` | 1 | **ACCEPT** | down on a knee by f5 |
+| 33 | base hit, re-rolled | `animate_character` v3 | `7d97383a` | 1 | **ACCEPT** | upright, blade in all 6 |
+| 34 | coat brace, re-rolled ("level across his chest… never raised above his head") | `animate_character` v3 | `378d11d2` | 1 | **ACCEPT** | horizontal guard, cross-guard readable, fits the 64-row window with 0 clipped |
+
+**P2 subtotal 25 v3 rolls + 5 pixen start frames = 30 generations for 20 shipped
+tracks.** The FMPO02 route (`create_character_state` + animate) would have been
+≈245 for the same five-track sets on five bodies.
+
+Census over all 20 accepted strips: 0 gold-leaning pixels, 0 detached
+components, 0 partial-alpha pixels; every strip windowed by `equip-prep` to a
+single window per strip with the modal foot row on 62. Sheets `review/equip/ls_*`;
+device proof `review/device/equip/gear_longsword_{idle,swing}.png` beside
+`gear_bronze_*`.
+
+## Rows, continued — P3 the warden body
+
+| # | what was asked | tool | job id | cost line | verdict | reason |
+|---|---|---|---|---:|---|---|
+| 35 | Waywarden body state on the canonical Traveler, 80×64: tiered shoulder mantle wider than the shoulders, pointed hood up, knee-length split skirt showing both legs, tall boots, cloak tail, empty hands | `create_character_state` | `76bf1ace` | ~44 | pending | |
