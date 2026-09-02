@@ -31,7 +31,6 @@ import '../../components/rarity_item_title.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
-import '../../icons/traveler_art.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -88,22 +87,22 @@ class CharacterScreen extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
-              // **What the player is wearing**, not a fixed bust (VAWO01,
-              // Q-14). The Character screen is the one surface whose whole
-              // subject is the Traveler, and it showed the same picture
-              // whatever was equipped — the owner's "no ghost gear, I want to
-              // see what I'm wearing".
+              // **The portrait, not the figure.** VAWO01 first put the
+              // equipped armour's standing rotation here, to answer the
+              // owner's "I want to see what I'm wearing". Side by side at
+              // phone size that was a downgrade and the device evidence shows
+              // it plainly: a 64² full body in a 128 dp portrait well leaves
+              // the face a handful of pixels, and the Character screen's
+              // portrait is the one place the Traveler is a person rather
+              // than a sprite. The armour classes are barely separable at
+              // that size anyway.
               //
-              // The figure is the equipped armour class's standing rotation,
-              // resolved through `TravelerArt` from the session's existing
-              // projection. Nothing new persists: `equipmentVisualState` is a
-              // getter over `equipment.bySlot` that holds nothing, and an
-              // unmapped item falls back to the base Traveler.
+              // So the bust stays, and the figure moved to where a full body
+              // belongs — beside the equipment it depicts, in Inventory's
+              // `_EquippedSummary`.
               InsetWell.square(
                 contentSize: StrideGeometry.portraitContent,
-                child: PixelAsset.portrait(
-                  TravelerArt.figureFor(c.session.equipmentVisualState),
-                ),
+                child: PixelAsset.portrait(PixelIcons.portraitTraveler),
               ),
               const SizedBox(width: StrideSpace.s12),
               Expanded(

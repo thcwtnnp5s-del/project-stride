@@ -1,57 +1,85 @@
 # Project Stride — Project State
 
-**Version:** 2.37
-**Status:** 🧪 **VISUAL / AUDIO / WORLD OVERHAUL 01 — the production rounds
-landed, on `visual-audio-world-overhaul-01` (from
+**Version:** 2.38
+**Status:** 🧪 **VISUAL / AUDIO / WORLD OVERHAUL 01 — the second production
+wave landed, on `visual-audio-world-overhaul-01` (from
 `presentation-combat-evolution-01` @ `6d41bce`), awaiting the owner's device
 acceptance.** Records: `MILESTONES/VISUAL_AUDIO_WORLD_OVERHAUL_01.md` (the
 thesis, with the implementation table and acceptance criteria),
 `DECISIONS/0030` (**owner ruling — PixelLab reopens at 10,000; audio reopens;
 Q-14 closes**), `DECISIONS/0031` (**L-18a — density is a property of a plane**),
 `DECISIONS/0032` (**Q-16 — Reduce Motion reduces motion, not audio**), twelve
-forensic audits in `MILESTONES/evidence/VAWO01/wave0/`, and four round records
-in `GAME_BIBLE/ART/exploration/VAWO01/`.
+forensic audits in `MILESTONES/evidence/VAWO01/wave0/`, and **seven** round
+records in `GAME_BIBLE/ART/exploration/VAWO01/`.
 
-**PixelLab: 179 of 10,000 generations used.** Budget was never the constraint;
+**PixelLab: 226 of 10,000 generations used.** Budget was never the constraint;
 blind review was, exactly as the production plan predicted.
 
 What a player will see that they could not before:
 
 - **Every panel in the app is leather.** One authored chassis frame, every
   `PanelRole`, ~34 call sites, no call site edited.
-- **All 22 gather nodes are a distinct scene**, up from 12. Twenty-eight new
-  plates: seven region×skill backdrops, seven project-built variants, fourteen
-  working faces. Backdrops were keyed by *skill* before, so every foraging node
-  in the game showed Haven's meadow.
-- **The gather subject is grounded.** `AmbientStage._prop` built a bare
-  `PixelAsset` while the Traveler beside it went through `GroundedSprite` —
-  every scene grounded the man and floated the ore.
-- **The Character screen shows what you are wearing** — three armour classes,
-  zero new persisted state, state stays v9.
-- **Zero byte-identical item icons**, down from eleven pairs; copper and tin
-  are no longer one boulder in two colours.
-- **A red wyrm and a storm drake fly the atlas**, with three original landmarks
-  — an ice-accreted stave tower, a standing-stone fairy court, a storm-dark
-  croft. All original; none uses the reserved teal.
-- **The bear is no longer the smallest creature in the game** on the encounter
-  card.
+- **The app is set in its own type.** Cinzel for the display register, Alegreya
+  Sans for reading and every numeral, both SIL OFL and packaged locally — 292
+  sites that were rendering in the platform's system font.
+- **An unarmed Traveler fights unarmed.** Two authored combat sets, four tracks
+  each, covering every weapon in the game. The base set bakes a steel sword
+  into all 28 of its frames and was drawn for *every* loadout, so an empty
+  weapon slot swung a blade the player had never acquired.
+- **A Bronze Sword no longer looks like a bowl of broth.** Ten reward marks,
+  and a notable result gains its rarity's ink and a bronze corner bracket —
+  material, not motion; nothing flashes or counts up.
+- **The Frost Lynx is a lynx.** It shared 74 % of its silhouette with the wolf,
+  because it had been authored with the wolf's exact method; it is now a
+  tuft-eared, stump-tailed, spotted cat at 51 %.
+- **All 22 gather nodes are a distinct scene**, up from 12.
+- **The gather subject is grounded**, where every scene grounded the man and
+  floated the ore.
+- **Inventory shows what you are wearing** — three armour classes above the
+  equipment columns, zero new persisted state, state stays v9.
+- **Zero byte-identical item icons**, down from eleven pairs.
+- **A red wyrm and a storm drake fly the atlas**, with three original
+  landmarks. All original; none uses the reserved teal.
 
 Under the surface: two guards that had never existed (**L-16 has been
-system-wide since it was written and nothing had ever measured it** — 924 PNGs
-now scanned), the image cache sized before the art arrived rather than after,
-and a full combat/reward audio architecture — twenty cues, a voice cap,
-priority bands and a music duck — wired and deliberately silent.
+system-wide since it was written and nothing had ever measured it** — 995 PNGs
+now scanned), a **ghost-gear guard** that fails any combat-variant frame
+arriving in more than one piece, the image cache sized before the art arrived
+rather than after, and a full combat/reward audio architecture — twenty cues, a
+voice cap, priority bands and a music duck — wired, proven ready, and
+deliberately silent.
 
-**Not done, and named rather than implied:** an unarmed player still sees a
-baked steel sword in combat (PixelLab template animations discard held props —
-the finding and the fix are in `EQUIPMENT_ROUND_RECORD_01.md`); **no new audio
-files exist**, because both provider keys are unset; **there is still no
-typeface**, which is the largest remaining "generated" tell and costs zero
-generations; and enemy silhouettes, atlas seams and UI batches C–I are
-unstarted.
+**Not done, and named rather than implied:**
 
-**983 tests pass, analyze clean, goldens deterministic, packaging idempotent.**
-Nothing here has been seen on the iPhone.
+- **No audio files exist.** The provider keys are unset. The architecture, the
+  mixer parameters, the exact generation queue
+  (`AUDIO/AUDIO_PRODUCTION_QUEUE_02.md`) and a test proving the last mile is a
+  single table row all landed; zero sounds were produced.
+- **The UI frame family (batches C–I) failed and was not shipped.** Thirteen
+  generations, three rounds, nothing registered: the rolls either broke the
+  nine-patch or read as busier and less crafted than the chassis they would
+  replace. `PanelSkins` stays on one family everywhere. The recorded next step
+  is the *surface* lever, which `PixelFrame` does not render yet.
+- **The atlas master was not repainted.** The owner's seam defects are real and
+  visible in `review/atlas_life_review.png` — a hard forest wall on the west
+  edge, southern layer-cake banding, patch rectangles. It was left alone
+  deliberately: four passes have failed there (M-12/M-14/M-15), the owner's own
+  mandated repair loop is single-defect and **device-verified**, and no device
+  was available. World is consequently the one named surface that improved by
+  typography alone.
+- **The lynx attack travels 3 px where the old one travelled ~10.**
+  `animate_image` animates largely in place. Recorded as a limit of the method
+  rather than faked with a translation nobody authored.
+- **Four reward marks are authored but unplaced** — the skills ledger, the
+  knowledge track and the milestone and profession payoffs are not part of this
+  round's wiring.
+
+**1003 tests pass, analyze clean, palette guard green, packaging idempotent,
+goldens regenerated.** Nothing here has been seen on the iPhone.
+
+Device-visible acceptance evidence — every named surface at 393 × 852, rendered
+from `6d41bce` and from HEAD and set side by side — is in
+`GAME_BIBLE/ART/exploration/VAWO01/review/device/`.
 
 <details>
 <summary>Previous status — Presentation &amp; Combat Evolution 01 (v2.35)</summary>

@@ -42,6 +42,7 @@ import '../../components/rarity_item_title.dart';
 import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
+import '../../icons/traveler_art.dart';
 import '../../state/audio_scope.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -443,54 +444,86 @@ class _EquippedSummary extends StatelessWidget {
           for (final EquippedSummary e in session.equippedSummary) e.slot: e,
         };
     return SurfaceBlock(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          for (final (EquipmentSlot slot, String label) in _slots)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    label.toUpperCase(),
-                    style: StrideType.compactLabel,
-                    maxLines: 1,
-                  ),
-                  const SizedBox(height: StrideSpace.s2),
-                  RarityName(
-                    name: worn[slot]?.displayName ?? '—',
-                    rarity: worn[slot]?.rarity,
-                    style: StrideType.sub,
-                    fallback: worn.containsKey(slot)
-                        ? StrideColors.textPrimary
-                        : StrideColors.textMuted,
-                  ),
-                  // The rarity word under the name, compact: each of these
-                  // three columns is a third of the block, which at 320 dp is
-                  // about 76 dp — narrower than the plated badge, and the
-                  // reason the compact form exists.
-                  if (worn[slot]?.rarity case final Rarity r) ...<Widget>[
-                    const SizedBox(height: StrideSpace.s2),
-                    RarityBadge.compact(rarity: r),
-                  ],
-                  // The figure combat reads, or what the tool opens — the
-                  // same line the tile carries, so the summary and the grid
-                  // never disagree about a piece.
-                  if (worn[slot] case final EquippedSummary e)
-                    if (session.gearStatsOf(e.itemId)
-                        case final GearStats g) ...<Widget>[
-                      const SizedBox(height: StrideSpace.s2),
-                      Text(
-                        GearStatLine.textOf(g),
-                        style: StrideType.compactLabel.copyWith(
-                          color: StrideColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                      ),
-                    ],
-                ],
+          // **What the player is wearing, as a figure** (VAWO01, Q-14). Three
+          // authored armour classes on the canonical Traveler, resolved
+          // through `TravelerArt` from the session's existing projection —
+          // `equipmentVisualState` is a getter over `equipment.bySlot` that
+          // holds nothing, and an unmapped item falls back to the base.
+          //
+          // **Above** the three columns rather than beside them, deliberately.
+          // The block is about 320 dp and each column already runs to roughly
+          // 76 — narrower than a plated rarity badge, which is why the compact
+          // badge exists at all. Taking 64 dp off that width for a picture
+          // would squeeze three text columns to pay for one, and this repo has
+          // shipped label overflow before. Vertical room is cheap; horizontal
+          // room here is not.
+          //
+          // Decorative: the three columns beneath state every fact it shows.
+          Center(
+            child: ExcludeSemantics(
+              child: PixelAsset(
+                assetPath: TravelerArt.figureFor(session.equipmentVisualState),
+                nativeWidth: 64,
+                nativeHeight: 64,
+                scale: 1,
               ),
             ),
+          ),
+          const SizedBox(height: StrideSpace.s6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (final (EquipmentSlot slot, String label) in _slots)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        label.toUpperCase(),
+                        style: StrideType.compactLabel,
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: StrideSpace.s2),
+                      RarityName(
+                        name: worn[slot]?.displayName ?? '—',
+                        rarity: worn[slot]?.rarity,
+                        style: StrideType.sub,
+                        fallback: worn.containsKey(slot)
+                            ? StrideColors.textPrimary
+                            : StrideColors.textMuted,
+                      ),
+                      // The rarity word under the name, compact: each of these
+                      // three columns is a third of the block, which at 320 dp is
+                      // about 76 dp — narrower than the plated badge, and the
+                      // reason the compact form exists.
+                      if (worn[slot]?.rarity case final Rarity r) ...<Widget>[
+                        const SizedBox(height: StrideSpace.s2),
+                        RarityBadge.compact(rarity: r),
+                      ],
+                      // The figure combat reads, or what the tool opens — the
+                      // same line the tile carries, so the summary and the grid
+                      // never disagree about a piece.
+                      if (worn[slot] case final EquippedSummary e)
+                        if (session.gearStatsOf(e.itemId)
+                            case final GearStats g) ...<Widget>[
+                          const SizedBox(height: StrideSpace.s2),
+                          Text(
+                            GearStatLine.textOf(g),
+                            style: StrideType.compactLabel.copyWith(
+                              color: StrideColors.textSecondary,
+                            ),
+                            maxLines: 1,
+                          ),
+                        ],
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

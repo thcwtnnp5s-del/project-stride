@@ -364,12 +364,12 @@ player still sees a baked steel sword in combat.**
 
 **Landed and machine-verified**
 
-1. `flutter analyze` clean; **983 tests pass**.
-2. `check-art-palette` green across **924 PNGs** — no teal collision outside the
+1. `flutter analyze` clean; **1003 tests pass**.
+2. `check-art-palette` green across **995 PNGs** — no teal collision outside the
    one allowlisted step glyph, zero semi-transparent pixels, chrome under the
    `textMuted` ceiling. L-16 had never been measured before this workstream.
 3. `check-tile-seam` green: all four chassis runs wrap at their declared period.
-4. `package-art.js --check` green at **903 files**, and idempotent.
+4. `package-art.js --check` green at **974 files**, and idempotent.
 5. Goldens are **deterministic** — the suite re-run twice produces no diff.
 6. **All 22 gather nodes are a distinct scene** (was 12 of 22), and every
    subject has a *measured* footprint, so every one is grounded.
@@ -382,29 +382,72 @@ player still sees a baked steel sword in combat.**
 10. Save format untouched — **state stays v9**, no migration, and
     `visible_equipment_test` pins that reading the equipment projection commits
     nothing.
+11. **The app ships its own type.** Cinzel and Alegreya Sans, both SIL OFL 1.1,
+    packaged locally with their licences; no remote font loading. The test
+    harness registers the shipped families, so no golden is evidence about a
+    font the product does not use.
+12. **An empty weapon slot draws empty hands.** `combat_gear_variant_test`
+    proves no variant shares a frame with the sword-baked base set, that each
+    owns its own defeat on the base's beat, and that the stage precaches the
+    resolved set rather than the base — without which the gear would decode
+    late and visibly flicker in.
+13. **No combat-variant frame arrives in more than one piece.** The packager's
+    connected-component assertion is the ghost-gear check.
+14. **Wolf and lynx no longer read as one animal**: in-place silhouette overlap
+    74.0% → **51.1%**, measured on the sprites as the stage draws them.
+15. **Every audio event can accept its file with no code change.**
+    `event_cue_readiness_test` proves the naming convention, that no two events
+    share a sound, that every ID resolves to a real file or to silence, that
+    priority/gap/duck/trim are authored ahead of the audio, and that
+    `AUDIO_PRODUCTION_QUEUE_02.md` and the cue tables cannot drift apart.
 
 **Requires the iPhone, and is not claimed until then**
 
-11. The chassis reads as authored leather at device scale on all six tabs and
+16. The chassis reads as authored leather at device scale on all six tabs and
     does not crowd text on the smallest supported width.
-12. Mining, woodcutting and foraging read as *places being worked in*, and the
+17. The two type families read at device scale and at ×1.4 text — Cinzel is
+    ~16% wider than the system font and was metric-compensated, not shrunk.
+18. Mining, woodcutting and foraging read as *places being worked in*, and the
     five regions are tellable apart without reading a word.
-13. Equipping a chestplate, a jerkin or a coat visibly changes the Traveler on
-    the Character screen.
-14. The Oakback Bear reads as larger than the Grey Wolf on the encounter card.
-15. The red wyrm and the storm drake read as different creatures on the world
+19. Equipping a chestplate, a jerkin or a coat visibly changes the figure above
+    the Inventory equipment columns.
+20. A Bronze Sword's result card feels more significant than Herb Broth's, and
+    neither feels like a slot machine.
+21. The Oakback Bear reads as larger than the Grey Wolf on the encounter card.
+22. The red wyrm and the storm drake read as different creatures on the world
     map, and neither obscures a settlement or a route.
-16. No frame-rate or battery regression on the Adventure and World tabs.
+23. No frame-rate or battery regression on the Adventure and World tabs.
 
 **Known and not fixed** — named rather than implied:
 
-- **An unarmed player still sees a baked steel sword in combat** (§ 17 row 10).
-- **No new audio exists.** Twenty event cues are wired and silent; both provider
-  keys are unset.
-- **No typeface.** 292 text sites still render in the iOS system font — the
-  single largest remaining "generated" tell, and it costs zero generations.
-- Enemy silhouette collisions, the atlas seams, and UI batches C–I are
-  unstarted.
+- **No new audio exists.** Twenty event cues are wired, proven ready and
+  silent; both provider keys are unset. The exact queue is
+  `AUDIO/AUDIO_PRODUCTION_QUEUE_02.md`.
+- **UI batches C–I failed and were not shipped.** Thirteen generations, three
+  rounds, nothing registered — the rolls either broke the nine-patch (runs
+  inset from the canvas edge by corner ornaments, so the edge strips could not
+  tile) or read as busier and less crafted than the chassis they would replace.
+  Shipping the tray frame would have made Inventory worse. The recorded next
+  step is the *surface* lever, which `PixelFrame` does not render yet.
+- **The atlas master was not repainted.** The seam defects are real and
+  photographed (`review/atlas_life_review.png`): a hard forest wall on the west
+  edge, southern layer-cake banding, patch rectangles. Left alone deliberately —
+  four passes have failed there (M-12/M-14/M-15) and the owner's own mandated
+  repair loop is single-defect and **device-verified**, with no device
+  available this session. World is the one named surface that improved by
+  typography alone.
+- **World life was reviewed and nothing was added.** The atlas already carries
+  32 overlays with sound hierarchy — the dragon on the volcano is the largest
+  and is earned; the whale, ship and serpent are small. Two rolls at a magic
+  mote were rejected (saturated cyan squares that read as UI gems and sat near
+  the reserved walking teal; then an amber roll that drew a whole scene). Not
+  adding is the correct answer to *"do not turn the atlas into a sticker
+  sheet."*
+- **The lynx attack travels 3 px where the old one travelled ~10.**
+  `animate_image` animates largely in place, across two prompts. Recorded
+  rather than faked with a per-frame translation nobody authored.
+- **Four reward marks are authored but unplaced**: `mark_skill_xp`,
+  `mark_knowledge`, `badge_milestone`, `marker_profession`.
 
 ## Open questions this workstream must not answer silently
 
