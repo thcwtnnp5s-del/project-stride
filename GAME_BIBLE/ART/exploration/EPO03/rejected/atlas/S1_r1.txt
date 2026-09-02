@@ -1,0 +1,12 @@
+S1 roll 1 (job 3fec50bc-8563-4445-a185-2d3d20f4cdca, seed 6001, 40 gens) — REJECT.
+The coast itself is right: the layer-cake stripe is gone, the shore runs
+diagonally and bends, surf/sand/shallows/rock headland read, dune ridges sit at
+an angle, the delta braids into flats and one trunk reaches the sea, the spit
+hooks south. It fails on ONE hard rule, not on drawing: the tidal flats run too
+far south, so at the Sunward Strand landmark (atlas 511,860) the beach is
+replaced by silt flats and creeks. D0033 §3 / GOV-03 §3: "Sunward Strand must
+still have a beach under its marker" — an identity anchor, not a preference.
+Evidence: rejected/atlas/S1_r1_sunward_x4.png (before | after at (451,800) 120² ×4);
+review/atlas/S1_r1_x2.png, S1_preview_x2.png, S1_preview_fov_x2.png.
+Intent changed for roll 2 (not the seed): the flats are confined to the upper
+third and a broad sand beach with dunes is named across the middle of the crop.
