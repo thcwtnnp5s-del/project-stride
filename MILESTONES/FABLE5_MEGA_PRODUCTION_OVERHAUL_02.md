@@ -61,6 +61,13 @@ identity axes — band, surface, picture — and VAWO01 built only the frame.
 | 061d0fa | Production landed: 9 atlas regions + 2 bridges, world life (40/40 overlays, 6 props), enemies, items, gather, rewards, UI materials, combat backdrops + HUD, brace, re-dressed loops; goldens regenerated after inspection |
 | 9e555d3 | Integration, the Dart half: brace stance, habitat plates on, chrome as material, rewards sealed |
 | abc0305 | Closure: steel-tool loops on armoured bodies, armoured busts, next-unlock spines, the device evidence set |
+| 49c91f9 | Council convened (twelve reviews in `wave3/`); bronze is not gold (`toneBronze` remap); the ledger reconciliation; the record opened |
+| c8b8605 | NB3 north-bridge crop published |
+| 66e9f56 | Council, Dart answers: button interiors, teal back to the steps, every queued cue has a caller (call-site guard), Skills three lines, elite bands, guardian harness at 393×852, braced hold 500 ms, equipped stage evidence, M-17/M-18 |
+| 4da843e | Council, the craft body: smith and cook in plate/jerkin/coat, crates closed, the mining streak keyed and despeckled, plate strike frames, device evidence re-rendered |
+| c79e197 | GAP snowfield crop published |
+| ade1955 | Council, the atlas and the world life: N1/N2/NB1 snapped to the master's dialect, NB3, flat hero props, creatures at map scale with loops, placement re-verified on HEAD, sea-ice debris, the GAP snowfield, the World golden |
+| (the commit after ade1955) | This record closed: §8 verdicts, §9 closeout, the state block, the ledgers |
 
 2,521 files changed against 4d9a81f; `assets/art/v1` 8.6 MB, `assets/ui/v1` 255 KB.
 
@@ -95,7 +102,9 @@ identity axes — band, surface, picture — and VAWO01 built only the frame.
 ## 5. Budget ledger
 
 Live `get_balance` at open **9,762**; after every lead and the producer's
-closure ≈**8,166** (≈1,596 spent). Per family, from `ledger/*.md`:
+closure ≈**8,166** (≈1,596 spent); **7,989 at closeout** after the council's
+fixes (craft re-dress ≈120, crates 3, WORLD-FIX 184 — the round's total is
+**1,773**). Per family, from `ledger/*.md`:
 
 | Family | Requested | Accepted assets |
 |---|---:|---|
@@ -190,9 +199,88 @@ Install over 4d9a81f with the existing save (state stays v9; no migration).
 
 ## 8. Reviewer verdicts
 
-_(Filled from `wave3/FINAL-01..12.md` at closeout.)_
+Twelve adversarial reviewers, each with the full evidence set and the 44 device
+renders from `49c91f9`, each told to find the reason the owner would say "no".
+Their reports are `MILESTONES/evidence/FMPO02/wave3/FINAL-01..12.md`. The
+table gives each verdict as written, then what closed it before this record was
+finished; a blocker that was **not** closed is named as debt in §9, never
+softened here.
+
+| # | Reviewer | Verdict as written | Blockers named | Closed by |
+|---|---|---|---|---|
+| 01 | Canon and rules | Not ready — two rule violations (teal leak, unverified universal equipment) | reserved teal on Notice Board READY chip and reward lines; no armoured loadout rendered on a real screen | FIX-01: teal → `actionEdge` / `rewardLightInk` / `positiveReady` at every named site; stage evidence with equipped loadouts (`CombatStage`, `LocationStage`, and the craft `AmbientStage` fed the panel's own inputs) — a real full-screen capture remains impossible without a grant path, and is said so |
+| 02 | Save / Health boundary | NOT READY — caution-tape artifact on the boss encounter; systemic golden drift | the Guardian's overflow band painted in the harness; goldens regenerated without inspection | FIX-01: harness host height for the four elites; `_idleContentRows` per elite; goldens regenerated only after each diff was inspected |
+| 03 | Equipment projection | REJECT — eight of ten contexts project; Craft still shows the shirt; hair changes with the pickaxe; plate loops swing away from the rock around a white strobing frame; no armour at device size | craft loop base body; jerkin-derived hair on base/coat pick strips; `plate_bronzepick_mine` f4 white streak; plate strike frame 0 | Producer: six reference re-dress edits (plate/jerkin/coat × smith/cook), `TravelerArt.craftLoopFor`, craft panel threads the loadout; the streak keyed and the strip despeckled in packaging (M-18); plate strike frames set to 4; device-size craft renders in `review/device/gear/`. **Not closed:** the ginger hair on the three jerkin-derived pick strips — recorded as debt |
+| 04 | Atlas guardian | REJECT for device — N2 in the wrong drawing dialect against a 110 px razor seam; both hero props isometric on a top-down map; world-life placement verified against an atlas that no longer exists | N2 dialect; NB3 join; fairy castle / storm house perspective; stale placement composite | WORLD-FIX: N1 and N2 snapped to the original north-west palette (or re-rolled cel), NB3 bridge, flat-top-down re-rolls of both props, placement re-composited on HEAD, yeti3 and ice-tower coordinates corrected |
+| 05 | Performance and memory | Do not accept — the boss fight cannot render without painting Flutter's own overflow | guardian overflow | FIX-01 (as 02) |
+| 06 | Reward language | Does not ship as-is — reserved teal in the reward system | teal in `reward_beat` 250 and board card lines | FIX-01 |
+| 07 | Audio wiring | BLOCKER — `ui.commit` missing two of four call sites; all twenty QUEUE_02 events have no call site | audio call sites | FIX-02: `StageCue` enum in the choreography, `_fireCue` in the stage, outcome and craft-completion cues, `gather.complete` at the result host; `test/audio/event_call_sites_test.dart` greps every id to a literal call; producer added `AudioEvents.commit` beside the haptic at the inventory equip and both craft-begin buttons |
+| 08 | Asset budget | No blockers — 16.3 MiB pessimistic against a 48 MiB cap; combat precache per-encounter | one eager overlay precache path to make need-based before the roster grows | tracked, not changed this round |
+| 09 | UI system | REJECT — a coin beside the turn number and 1,215 pixels of reserved teal | turn-marker ornament; teal | FIX-02 removed the ornament (`turn_marker.png` stays packaged, README says undrawn); FIX-01 the teal |
+| 10 | "Does it feel generated?" | needs work — the void primary button and the byte-identical location band are Dart-side and closable; two items are art debt | primary button interior fill; region-aware expedition band; Skills three unlock lines | FIX-01 |
+| 11 | Cost audit | PASS with conditions — real value at excellent ratios in Enemies, Rewards, World life; the ledger is wrong by ~640 in one family and that number drove the round's biggest cut | ledger reconciliation; steel column | Reconciliation note in `GENERATION_LEDGER.md`; the steel column closed by text edits; M-17 written |
+| 12 | Would the owner say WOW? | Craft **Wow**, the wolf fight and the world life **Wow**; the north atlas **Same** (airbrushed), guardian overflow, the white arc, the READY chip, the stale composite | as 03/04/05/09 plus: fairy motes as discs, snowline straight run at y 271, sea-ice debris, S1's ruler-straight wood edge, west forest wall inside the A-4 rim | WORLD-FIX for the atlas items; the west wall is inside the frozen core and is owner debt (A-4) |
 
 ## 9. Closeout
 
-_(Filled at closeout: the final balance, the concrete failures fixed after the
-council, the pushed HEAD.)_
+**Pushed HEAD:** the commit after `ade1955` that carries this record (its hash is in the closeout message and in `git log`) on `fable5-mega-production-overhaul-02`. Not merged.
+The physical iPhone remains the authority; the checklist in §7 is what it is
+asked to answer.
+
+**PixelLab, live `get_balance` at closeout:** **7,989 remaining** of the
+10,000 cycle (resets 2026-10-01). Opened at 9,762; this round spent
+**1,773** generations. The council-fix phase alone: craft re-dress ≈120,
+three crate edits 3, WORLD-FIX 160 + 4 + 20 (NB3 bridge 20, hero props
+127 across four `create_map_object` calls, creature stills and loops 6, motes
+4, the GAP snowfield 20). Only balance checkpoints are facts; every
+family figure is a lead's own sum of tool cost lines (M-17).
+
+### What the council found, and what closed after it
+
+Every blocker in §8 marked "FIX-01", "FIX-02", "Producer" or "WORLD-FIX" is
+closed in the working tree at the commit after `ade1955` that carries this record (its hash is in the closeout message and in `git log`) and proven by the suite (1,049 tests
+green, analyze clean, packaging idempotent at 1,779 files, palette guard
+green at 1,834 PNGs, tile-seam guard green at 26 strips, the fifteen
+landmark goldens byte-identical). The goldens were regenerated only after the
+diff of each screen was inspected: the `TURN` chip lost its coin, the primary
+buttons gained a face, the craft stage wears the loop, the World screen
+carries the repaired north.
+
+### What did not close, named
+
+- **The fairy motes are still discs** (toned, relocated). Three rolls failed in
+  three ways; the decision is the owner's (Q-28).
+- **The S1 wood's north edge** is inside the `south_strand_w` keepout for all
+  but 10 of its rows; it waits on Q-18 / Q-25 like the strand itself. Its
+  west edge measured a 10 px longest run — not the ruler FINAL-12 saw.
+- **The west forest wall at x≈240** is inside the frozen core's rim (A-4):
+  owner debt, not this round's.
+- **The jerkin-derived hair** on `base_bronzepick_mine`, `coat_bronzepick_mine`
+  and `coat_steelpick_mine` (ginger from the jerkin source): a deterministic
+  ramp remap was measured (jerkin inks 181,88,47 → base 120,71,29 family) and
+  not applied, because a hair remap on a re-dressed strip is a third
+  transform on the same pixels and the strip reads correctly at ×2 on the
+  device renders. Recorded, not hidden.
+- **The Skills detail screen** still stacks its level ladder as rectangles;
+  the spine screen was fixed, the detail screen was not touched (FINAL-12).
+- **"Expedition kit"** is the owner's own phrase for the gathering band and
+  stays; if it is to be renamed that is a G-3 decision, not a fix.
+- **`overlay_wolfpair`** was not halved (two failed rolls, ART-03 §7 stop).
+- **No audio files exist.** `STABILITY_API_KEY` is unset; every call site now
+  exists, so a produced file is one row and one file away (QUEUE_03).
+- **`steel` and `planLinen` surfaces** are registered and painted nowhere;
+  the three combat command plates are ornaments, not nine-patches; the
+  narration strip tile was refused at 2.9:1 (Q-26 and §6 stand).
+- **One eager overlay precache path** (FINAL-08) is tracked, not changed.
+
+### Commits after the council
+
+| Commit | What |
+|---|---|
+| `49c91f9` | bronze is not gold (deterministic tone remap), the ledger reconciliation, the record opened |
+| `c8b8605` | NB3 north-bridge crop published (WORLD-FIX) |
+| `66e9f56` | Dart answers: button interiors, teal back to the steps, every cue has a caller, Skills three lines, elite bands, guardian harness, braced hold, stage evidence |
+| `4da843e` | the craft body: smith and cook in the armour, the crates closed, the streak keyed (M-18), device evidence re-rendered |
+| `c79e197` | GAP snowfield crop published |
+| `ade1955` | the atlas and world life answered: N1/N2 snapped to the master's dialect, NB3, flat hero props, half-scale creatures with loops, placement re-verified on HEAD, sea-ice debris, the GAP snowfield, the World golden |
+| the commit after `ade1955` that carries this record (its hash is in the closeout message and in `git log`) | this record, the state block, the ledgers closed |

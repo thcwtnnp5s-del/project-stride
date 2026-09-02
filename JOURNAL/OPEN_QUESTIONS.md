@@ -1490,3 +1490,24 @@ recipes. That is an implementation detail standing in for a design decision
 Is "masterwork" a rarity tier (Epic+ output, as shipped), a one-time
 first-completion of a lineage's top item, or a future system? Until ruled,
 the seal shows on Epic+ crafts and the record says so.
+
+## Q-28 — The fairy motes: a particle field, or the toned discs as final?
+
+**Raised by:** WORLD-FIX (FMPO02 council fixes), 2026-09-02
+**Target:** owner + Environment Pixel Artist, before the next atlas round
+
+### The question
+
+FINAL-12 asked for the Fairy Castle's motes to read as winged silhouettes
+rather than discs. Three PixelLab rolls failed in three different ways (an
+opaque scene at 32×32; six 8×5 orange insects; one fairy *character* with a
+face at 16×16 — a figure, which the world-life brief forbids). The discs ship
+toned honey-green and moved off the scree onto canopy beside the castle.
+
+### What is being asked
+
+Author the motes as a particle field (scattered 1–2 px specks with a forced
+palette, `create_image_pixflux`, no creature at all), or accept the toned
+discs as the final read. The former is a small authored asset and a
+`Scripts/art` rule about what a "mote" is; the latter is a decision that the
+glade's magic is light, not fairies. Neither is an implementation detail.

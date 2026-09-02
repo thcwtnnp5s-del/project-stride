@@ -1,5 +1,74 @@
 # Project Stride — Project State
 
+**Version:** 2.40
+**Status:** 🧪 **FABLE 5 MEGA PRODUCTION OVERHAUL 02 — production landed,
+the twelve-reviewer council answered, on `fable5-mega-production-overhaul-02`
+(from `visual-audio-world-overhaul-01` @ `4d9a81f`), pushed at the commit after `ade1955` that carries this record (its hash is in the closeout message and in `git log`),
+awaiting the owner's physical iPhone acceptance. Not merged.** Record:
+`MILESTONES/FABLE5_MEGA_PRODUCTION_OVERHAUL_02.md` (doctrine, commit table,
+ledger, named gaps, the device checklist in §7, the twelve verdicts and what
+closed each in §8, the closeout in §9). Evidence:
+`MILESTONES/evidence/FMPO02/wave0..3/` and the device renders from HEAD in
+`GAME_BIBLE/ART/exploration/FMPO02/review/device/` (41 screens, the gear and
+stage sets, the armoured craft stage).
+
+**PixelLab: 1,773 generations this round (9,762 → 7,989, live).** The
+target was 2,000–3,000; every family stopped when its accepted art covered the
+owner's named failure, and the council's own fixes cost ≈310 more.
+Only balance checkpoints are facts (M-17).
+
+What a player will see that they could not at v2.38:
+
+- **The world is a place, and the north is drawn in the map's own hand.**
+  Nine atlas regions and three bridges repainted under the mandated loop; N1
+  and N2 snapped to the original master's palette so the snow is outlined cel
+  again, not airbrush; the NB3 lead winds where a razor column stood; the GAP
+  snowfield slab is repainted as a drifted snowfield breaking into a diagonal treeline. The frozen core and all fifteen landmark goldens
+  are byte-identical throughout.
+- **Something is always happening on it.** Forty overlays and six props: the
+  red fire dragon over the volcano, the blue storm dragon over Frostmere with
+  lightning breath, the Fairy Castle and the Storm House now flat top-down
+  objects at map scale, the Ice-Mage Tower at the crag's foot with its beacon,
+  deer, a yeti and a wagon at half scale with their own loops, wolves, a bear,
+  crows, a fishing boat, chimney smoke, a lantern; placement verified against
+  the packaged atlas, not a stale sheet.
+- **The Traveler wears what he equipped, everywhere — including the forge and
+  the cookfire.** Three armoured bodies × three weapon classes in combat with
+  a real Brace stance; bronze and steel tool loops on every body; forage, idle,
+  walk, rest and bust per armour; and now the smith and the cook in plate,
+  jerkin and coat. `equipment_projection_test` walks every armour through
+  every station and fails on any path back to the shirt.
+- **The frame left the list, and the buttons have a face.** The chassis frames
+  only a screen's picture and its modals; every other panel is a material;
+  primary and command buttons have an interior under the plate and keep their
+  emblem when disabled; the turn chip lost its coin; reserved teal is on step
+  figures and nowhere else, guarded.
+- **Craft is a workshop; Skills say what is next.** Station strip, hero folio,
+  ingredient tray, one ledger line per locked level, and on each spine the
+  next three unlocks with an XP caption, wrapping, no ellipsis.
+- **The fight takes the screen** on a 384 × 256 stage; the boss encounter
+  renders without painting the harness's overflow; every combat, reward,
+  craft and gather moment has a named audio cue with a literal call site
+  (`test/audio/event_call_sites_test.dart`) — the files are one key away.
+- **Twelve items read as different things**, the reclaim crates are closed
+  crates, seven gather scenes stopped being staged, and rewards seal.
+
+**Not done, and named rather than implied (§9 of the record):** no audio
+files (`STABILITY_API_KEY` unset); the fairy motes are toned discs, not
+silhouettes (Q-28); the S1 wood's north edge and the south strand wait on the
+owner's golden decision (Q-18/Q-25); the west forest wall is inside the frozen
+core (A-4); the jerkin-derived hair on three pick strips; the Skills detail
+ladder; `overlay_wolfpair` at full scale; `steel`/`planLinen` unpainted;
+the command plates as ornaments; Q-19…Q-28 in `JOURNAL/OPEN_QUESTIONS.md`.
+
+**1,049 tests pass, analyze clean, palette guard green at 1,834 PNGs,
+tile-seam guard green at 26 strips, packaging idempotent at 1,779 files,
+fifteen landmark goldens byte-held, goldens regenerated after every changed
+screen was inspected.** Nothing here has been seen on the iPhone.
+
+<details>
+<summary>Previous status — FMPO02 before the council (v2.39)</summary>
+
 **Version:** 2.39
 **Status:** 🧪 **FABLE 5 MEGA PRODUCTION OVERHAUL 02 — the second production
 offensive landed, on `fable5-mega-production-overhaul-02` (from
@@ -74,6 +143,8 @@ What a player will see that they could not before:
 guard green at 26 strips, packaging idempotent at 1,741 files, goldens
 regenerated after every screen was inspected.** Nothing here has been seen on
 the iPhone.
+
+</details>
 
 <details>
 <summary>Previous status — Visual / Audio / World Overhaul 01 (v2.38)</summary>

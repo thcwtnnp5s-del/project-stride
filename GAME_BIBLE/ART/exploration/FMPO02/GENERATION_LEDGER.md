@@ -25,6 +25,7 @@ Per-family ledgers: `ledger/<FAMILY>.md` (written by each PROD lead). Probe verd
 | after all PROD leads + integrators | 8,297 | 1,465 | terrain 455 (9 regions + 2 bridges), equipment 909 + 11 brace + 3 re-dress edits (60) + 1 tool swap (20), UI 95, items 72, gather 180, enemies 43, world life 60, rewards 21, combat stage 130, NB2 20 |
 | producer closure (steel column, busts) | — | +~131 | 6 steel-head text edits (~120) on the accepted bronze strips; 4 portrait edits (jerkin, coat accepted first roll; plate re-rolled once for gold→bronze) |
 | council fixes in flight (craft re-dress ≈120, crates 3, WORLD-FIX partway) | 8,018 | 1,744 | live get_balance 2026-09-02 |
+| closeout, 2026-09-02 | 7,989 | 1,773 | craft re-dress ≈120, crates 3, WORLD-FIX 184 (see ledger/WORLD_FIX.md) |
 
 Closing figure recorded at closeout (see §9 of the milestone record).
 
