@@ -75,20 +75,28 @@ abstract final class EncounterHabitat {
   const EncounterHabitat._();
 
   /// Leaf litter, a fallen log, dappled shade: the Whispering Woods floor.
-  static const HabitatPlate forestFloor = HabitatPlate(slug: 'forest');
+  static const HabitatPlate forestFloor = HabitatPlate(slug: 'forest_floor');
 
   /// Flat grey shelf rock and rubble: the Stonefall workings.
-  static const HabitatPlate rockyLedge = HabitatPlate(slug: 'ledge');
+  static const HabitatPlate rockyLedge = HabitatPlate(slug: 'rocky_ledge');
 
-  /// Dark basalt with an ember rim glow — the salamander's chamber. Authored,
-  /// not mapped: see the library doc.
-  static const HabitatPlate caveShadow = HabitatPlate(slug: 'cave');
+  /// Dark basalt with an ember rim glow — the salamander's chamber. Mapped
+  /// by **enemy family**, not by place: see [plateFor]'s producer ruling on
+  /// Q-21.
+  static const HabitatPlate caveShadow = HabitatPlate(slug: 'cave_shadow');
 
   /// Packed snow and one wind-carved ridge: Frostmere.
   static const HabitatPlate snowbank = HabitatPlate(slug: 'snowbank');
 
   /// Dark loam crossed by pale roots: the Forgotten Hollow.
-  static const HabitatPlate hollowRootbed = HabitatPlate(slug: 'rootbed');
+  static const HabitatPlate hollowRootbed = HabitatPlate(slug: 'hollow_rootbed');
+
+  /// The one within-region split the brief asked for: the salamander lives
+  /// in the mine's ember chamber, not on its working ledge. Keyed by the
+  /// species id so the elite of a species stands on its species' ground.
+  static const Map<String, HabitatPlate> byEnemy = <String, HabitatPlate>{
+    'enemy.salamander': caveShadow,
+  };
 
   /// Every plate by the region whose ground it is.
   ///
@@ -109,12 +117,25 @@ abstract final class EncounterHabitat {
   /// Whispering Woods card at once and removing it puts them back. Nothing
   /// else in the widget path is conditional, so neither direction is a
   /// redesign.
-  static const Set<String> enabled = <String>{};
+  static const Set<String> enabled = <String>{
+    'forest_floor',
+    'rocky_ledge',
+    'cave_shadow',
+    'snowbank',
+    'hollow_rootbed',
+  };
 
-  /// The plate for [place], or null when that region has no ground authored —
-  /// or has one that is not switched on yet.
-  static HabitatPlate? plateFor(ContentId place) {
-    final HabitatPlate? plate = byPlace[place.value];
+  /// The plate for [enemy] at [place], or null when neither has ground
+  /// authored — or the ground is not switched on.
+  ///
+  /// **Q-21, ruled by the producer (FMPO02):** the table stays keyed by place
+  /// — a habitat is where the player is standing — with one species-level
+  /// override for the creature whose habitat the brief named as different
+  /// from its region's. The species map is consulted first, so an elite of
+  /// that species inherits it; every other creature stands on its region.
+  static HabitatPlate? plateFor(ContentId place, {ContentId? enemy}) {
+    final HabitatPlate? plate =
+        (enemy == null ? null : byEnemy[enemy.value]) ?? byPlace[place.value];
     if (plate == null || !enabled.contains(plate.slug)) return null;
     return plate;
   }

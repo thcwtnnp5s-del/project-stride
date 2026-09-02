@@ -42,6 +42,7 @@ import '../../components/pixel_asset.dart';
 import '../../components/rules.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
+import '../../icons/reward_art.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -93,7 +94,10 @@ class SkillsScreen extends StatelessWidget {
                 for (final (int i, SkillStanding standing)
                     in standings.indexed) ...<Widget>[
                   if (i > 0) const HairlineRule(),
-                  SkillSpine(standing: standing),
+                  SkillSpine(
+                    standing: standing,
+                    next: _nextUnlock(session, standing.skill),
+                  ),
                 ],
               ],
             ),
@@ -102,6 +106,14 @@ class SkillsScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The first unlock still ahead for [skill], in roadmap order.
+SkillUnlock? _nextUnlock(StrideSession session, ContentId skill) {
+  for (final SkillUnlock u in session.unlocksFor(skill)) {
+    if (!u.unlocked) return u;
+  }
+  return null;
 }
 
 /// One profession, as a 64 dp spine of the handbook.
@@ -118,9 +130,14 @@ class SkillsScreen extends StatelessWidget {
 /// `minHeight` holds the rhythm at scale 1.0, and the rule stays on the bottom
 /// edge wherever that edge lands.
 class SkillSpine extends StatelessWidget {
-  const SkillSpine({super.key, required this.standing});
+  const SkillSpine({super.key, required this.standing, this.next});
 
   final SkillStanding standing;
+
+  /// The first unlock still ahead, or null when everything is open — one
+  /// micro line under the name, so the spine says what walking earns next
+  /// and the screen is not five names in a void (FMPO02 producer review).
+  final SkillUnlock? next;
 
   /// The spine's rhythm height, and its touch target.
   static const double height = 64;
@@ -170,10 +187,24 @@ class SkillSpine extends StatelessWidget {
                       // the illegibility trade `adaptive_text.dart`
                       // refuses; the spine is a **minimum** 64 dp and can
                       // simply be taller.
-                      child: Text(
-                        standing.displayName,
-                        style: StrideType.cardTitle.copyWith(color: accent),
-                        maxLines: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(
+                            standing.displayName,
+                            style: StrideType.cardTitle.copyWith(color: accent),
+                            maxLines: 2,
+                          ),
+                          if (next case final SkillUnlock u)
+                            Text(
+                              'Level ${u.requiredLevel} opens ${u.displayName}',
+                              // Wraps rather than clips: the 320 dp guard
+                              // (ui_responsive_test) forbids an ellipsis.
+                              style: StrideType.micro,
+                              maxLines: 2,
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: StrideSpace.s8),
@@ -354,6 +385,19 @@ class SkillProgressCaption extends StatelessWidget {
 
     return Row(
       children: <Widget>[
+        // The skill's own progress, distinct from a run's `mark_exp`
+        // (`RewardArt`, ART-10 §1) — this bar advances on the skill's own
+        // curve, not the session's. Decorative: the figures beside it
+        // already state the fact.
+        const ExcludeSemantics(
+          child: PixelAsset(
+            assetPath: RewardArt.markSkillXp,
+            nativeWidth: 24,
+            nativeHeight: 24,
+            scale: 1,
+          ),
+        ),
+        const SizedBox(width: StrideSpace.s6),
         Flexible(child: AdaptiveText(left, style: StrideType.micro)),
         SizedBox(width: StrideSpace.s8),
         Flexible(

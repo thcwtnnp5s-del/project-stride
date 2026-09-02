@@ -27,6 +27,7 @@ import 'package:stride_core/stride_core.dart'
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
+import '../../components/band_plate.dart';
 import '../../components/data_display.dart';
 import '../../components/grounded_sprite.dart';
 import '../../components/rarity_item_title.dart';
@@ -87,6 +88,9 @@ class EncounterPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const SectionHeading(label: 'Encounters'),
+          const SizedBox(height: StrideSpace.s6),
+          // Trodden ground, under the list of what walks it (FMPO02).
+          const BandPlate(band: StrideBand.encounterGround),
           const SizedBox(height: StrideSpace.s6),
           for (final EncounterOption o in options) ...<Widget>[
             _EncounterRow(
@@ -231,7 +235,11 @@ class EncounterCard extends StatelessWidget {
           // The band's ground and tint belong to the *place*, not to the
           // creature: an enemy is standing somewhere, and the somewhere is
           // where the player is.
-          _EnemyStage(art: art, place: c.session.currentLocation),
+          _EnemyStage(
+            art: art,
+            place: c.session.currentLocation,
+            enemy: o.enemyId,
+          ),
           const SizedBox(height: StrideSpace.s10),
         ],
         Text(o.name, style: StrideType.cardTitle, maxLines: 2),
@@ -412,7 +420,11 @@ class EncounterCard extends StatelessWidget {
 ///   is a flat ground plane — contact and material — never the "full battle
 ///   background per card" the owner ruled out.
 class _EnemyStage extends StatelessWidget {
-  const _EnemyStage({required this.art, this.place});
+  const _EnemyStage({required this.art, this.place, this.enemy});
+
+  /// The species on the card, for the one habitat keyed by species (the
+  /// salamander's ember chamber, Q-21).
+  final ContentId? enemy;
 
   final CombatantArt art;
 
@@ -515,7 +527,7 @@ class _EnemyStage extends StatelessWidget {
     final ContentId? here = place;
     final HabitatPlate? plate = here == null
         ? null
-        : EncounterHabitat.plateFor(here);
+        : EncounterHabitat.plateFor(here, enemy: enemy);
     return Container(
       width: double.infinity,
       height: heightFor(art, plated: plate != null),

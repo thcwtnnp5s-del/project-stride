@@ -276,6 +276,15 @@ abstract final class TravelerArt {
       canvasWidth: 80,
       strikeFrame: 7,
     ),
+    // The plate + pick strip with the pick head swapped for an axe head by a
+    // text edit — the breastplate is certain because the body never changed.
+    // Its strike is the pick strip's.
+    'skill.woodcutting|armor.plate|tool.axe.bronze': GatherStrip(
+      frames: _strip('traveler_plate_bronzeaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerPlateBronzeaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 0,
+    ),
     'skill.mining|armor.jerkin|tool.pick.bronze': GatherStrip(
       frames: _strip('traveler_jerkin_bronzepick_mine', 8),
       footprint: SpriteFootprints.ambientTravelerJerkinBronzepickMine,
@@ -287,6 +296,21 @@ abstract final class TravelerArt {
       footprint: SpriteFootprints.ambientTravelerPlateBronzepickMine,
       canvasWidth: 80,
       strikeFrame: 0,
+    ),
+    // Re-dressed from the jerkin strip with a reference edit (the garment
+    // swapped, the pose and the pick kept), after two v3 rolls each invented
+    // detached scenery. The strike frame is the jerkin strip's.
+    'skill.mining|armor.coat|tool.pick.bronze': GatherStrip(
+      frames: _strip('traveler_coat_bronzepick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerCoatBronzepickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|base|tool.pick.bronze': GatherStrip(
+      frames: _strip('traveler_base_bronzepick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerBaseBronzepickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
     ),
     'skill.foraging|armor.plate': GatherStrip(
       frames: _forage('plate'),
@@ -411,19 +435,25 @@ abstract final class TravelerArt {
   /// the base body with a steel tool and is the E-5 degradation for
   /// everything not yet authored.
   ///
-  /// Resolution: the exact triple; then the body with its steel tool (the
-  /// armour stays on, the tool tier is the axis that degrades); then the base
-  /// body with the equipped tool tier; then null.
+  /// Resolution: the exact triple; then the same body with the other tool
+  /// tier (the armour stays on, the tool tier is the axis that degrades —
+  /// a bronze head on a training pick is a smaller lie than the shirt); then
+  /// the base body with the equipped tool tier; then null.
   static GatherStrip? gatherStripFor(String skill, EquipmentVisualState visual) {
     final String body = bodyClassOf(visual);
     final String? tool = toolClassOf(visual, skill);
     if (skill == 'skill.foraging') {
       return gatherVariants['$skill|$body'];
     }
-    final String steel = skill == 'skill.mining' ? toolPickSteel : toolAxeSteel;
+    final bool pick = skill == 'skill.mining';
+    final String steel = pick ? toolPickSteel : toolAxeSteel;
+    final String bronze = pick ? toolPickBronze : toolAxeBronze;
     final String held = tool ?? steel;
     return gatherVariants['$skill|$body|$held'] ??
         gatherVariants['$skill|$body|$steel'] ??
+        // Only an armoured body borrows the other tier: the base body with
+        // a steel tool has an honest base loop, and null is that answer.
+        (body == baseBody ? null : gatherVariants['$skill|$body|$bronze']) ??
         gatherVariants['$skill|$baseBody|$held'];
   }
 

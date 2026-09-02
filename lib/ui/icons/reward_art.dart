@@ -47,6 +47,12 @@ abstract final class RewardArt {
   /// Something learned: a recipe, a rumour, a route.
   static const String markKnowledge = '$_root/mark_knowledge.png';
 
+  /// A rare-or-better output — a cloth sack cinched at the neck, not a gem
+  /// or a coin. Rarity-neutral so the same mark reads for Rare, Epic and
+  /// Legendary alike; the word beside it, not the mark, names the rank
+  /// (FMPO02 wave2, `REWARDS_report.md`).
+  static const String markRareDrop = '$_root/mark_rare_drop.png';
+
   // ------------------------------------------------ 48², standing on its own
 
   /// A level gained.
@@ -56,6 +62,12 @@ abstract final class RewardArt {
   static const String badgeMilestone = '$_root/badge_milestone.png';
 
   /// A profession's own advancement.
+  ///
+  /// **UNRESOLVED, unplaced** (`JOURNAL/OPEN_QUESTIONS.md` Q-24): no beat in
+  /// the game currently names a whole-roadmap event distinct from an
+  /// ordinary level-up, so wiring this to a guessed surface would be a
+  /// silent design decision (`RULES.md` G-3). The asset exists; the
+  /// occasion it marks does not yet.
   static const String markerProfession = '$_root/marker_profession.png';
 
   /// A contract closed.
@@ -63,6 +75,20 @@ abstract final class RewardArt {
 
   /// A project completed.
   static const String sealProject = '$_root/seal_project.png';
+
+  // ------------------------------------------------------- 96×48, a banner
+
+  /// A signature drop — one of a kind, not merely a rarity tier. A
+  /// rectangular leather plate, riveted and stitched, wide enough that it
+  /// never shares a slot with the 48² seals it stands beside in kind but not
+  /// in size (`RewardLayer.emblemSize`, FMPO02 wave2).
+  static const String sealSignature = '$_root/seal_signature.png';
+
+  /// A masterwork completion — the ceiling of craft quality, not a rung on
+  /// the rarity ladder. A dark wood plank stamped with a bronze
+  /// hammer-and-tongs medallion. One of only two marks wide enough to need
+  /// [RewardLayer.emblemSize] (`ART-10_reward_brief.md` §1, §3).
+  static const String sealMasterwork = '$_root/seal_masterwork.png';
 
   // ------------------------------------------------------------- ornament
 
@@ -75,11 +101,14 @@ abstract final class RewardArt {
     markSkillXp,
     markBonusYield,
     markKnowledge,
+    markRareDrop,
     plateLevelUp,
     badgeMilestone,
     markerProfession,
     sealContract,
     sealProject,
+    sealSignature,
+    sealMasterwork,
     ornamentCorner,
   ];
 }

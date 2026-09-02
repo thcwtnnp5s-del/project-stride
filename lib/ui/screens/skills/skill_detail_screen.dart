@@ -43,10 +43,13 @@ import 'package:stride_core/stride_core.dart' show ContentId;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
+import '../../components/band_plate.dart';
 import '../../components/data_display.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart';
 import '../../components/stride_scaffold.dart';
 import '../../components/surfaces.dart';
+import '../../icons/reward_art.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -126,6 +129,17 @@ class _SkillDetailScreenState extends State<SkillDetailScreen> {
                 StrideSpace.s16,
               ),
               children: <Widget>[
+                // The trade's own place, at the head of its roadmap
+                // (FMPO02). Untitled: the header two lines above already
+                // names the skill, and a band under a heading it repeats is
+                // the same word twice. Smithing meets the Craft screen's
+                // forge and Woodcutting its bench — the same picture in both
+                // places, deliberately.
+                if (StrideBands.forSkill(widget.skill.value)
+                    case final StrideBand b) ...<Widget>[
+                  BandPlate(band: b),
+                  const SizedBox(height: StrideSpace.cardGap),
+                ],
                 SectionCard(
                   wash: StrideColors.forSkillDeep(widget.skill),
                   child: Column(
@@ -525,7 +539,7 @@ class _UnlockRow extends StatelessWidget {
         : StrideColors.textPrimary;
     final bool expandable = unlock.detailLines.isNotEmpty;
 
-    final Widget head = Column(
+    final Widget names = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         AdaptiveText(
@@ -542,6 +556,27 @@ class _UnlockRow extends StatelessWidget {
           ),
       ],
     );
+    // A milestone is a cairn, not a site or a recipe (`RewardArt.badgeMilestone`,
+    // ART-10 §1) — the one unlock kind that gets the 48² plate rather than a
+    // 24² inline mark, because it stands for the level itself and not a
+    // thing the level merely opens. Decorative: the row's own text names it.
+    final Widget head = unlock.kind != SkillUnlockKind.milestone
+        ? names
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              const ExcludeSemantics(
+                child: PixelAsset(
+                  assetPath: RewardArt.badgeMilestone,
+                  nativeWidth: 48,
+                  nativeHeight: 48,
+                  scale: 1,
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s10),
+              Expanded(child: names),
+            ],
+          );
 
     return Semantics(
       button: expandable,

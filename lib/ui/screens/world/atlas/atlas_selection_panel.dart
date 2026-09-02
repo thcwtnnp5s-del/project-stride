@@ -40,6 +40,7 @@ import 'package:stride_core/stride_core.dart' show ContentId, GoalSlot, Terrain;
 import '../../../../audio/audio_events.dart';
 import '../../../../runtime/stride_session.dart';
 import '../../../components/adaptive_text.dart';
+import '../../../components/band_plate.dart';
 import '../../../components/data_display.dart';
 import '../../../components/pixel_asset.dart';
 import '../../../components/reward_beat.dart';
@@ -447,7 +448,29 @@ class AtlasInspector extends StatelessWidget {
       ],
     );
 
-    return bare ? content : SectionCard(child: content);
+    // The chart table, at the head of the inspector (FMPO02). Only on the
+    // opaque form: the bare form is a translucent overlay on the map itself,
+    // and a picture over a picture is the doubling `band, surface, picture`
+    // exists to avoid.
+    return bare
+        ? content
+        : SectionCard(
+            padding: EdgeInsets.zero,
+            child: ClipRRect(
+              borderRadius: StrideRadius.card,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const BandPlate(band: StrideBand.worldChart),
+                  Padding(
+                    padding: const EdgeInsets.all(StrideSpace.cardPadding),
+                    child: content,
+                  ),
+                ],
+              ),
+            ),
+          );
   }
 
   /// `You are here · Safe`, `Reached · Struggling`, `Not yet reached`.

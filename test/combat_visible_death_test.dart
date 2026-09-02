@@ -1,7 +1,9 @@
 /// No creature may die off-screen.
 ///
-/// The Scree Crawler is the only enemy in the game with **neither a defeat
-/// track nor a flinch track**. On the killing blow that meant `held` was null,
+/// The Scree Crawler *was* the only enemy in the game with **neither a defeat
+/// track nor a flinch track** — FMPO02 wave 2 authored both, so it now dies on
+/// its own art and the fall-out is exercised here on a constructed combatant
+/// instead. On the killing blow that meant `held` was null,
 /// the victory segment collapsed to a bare 400 ms, and the stage went on
 /// drawing its *idle* until the reward panel covered it. The player struck the
 /// last blow and watched the thing keep breathing until a modal hid it.
@@ -69,11 +71,46 @@ void main() {
     }
   });
 
-  test('the crawler, specifically, now falls', () {
-    // The named case, pinned so a refactor cannot quietly drop it back to the
-    // 400 ms nothing it used to be.
+  test('the crawler now dies on its own art, not on the fall-out', () {
+    // The named case moved on. FMPO02 wave 2 authored `crawler_defeat` (and a
+    // flinch), so the enemy this file is named after no longer reaches the
+    // fallback: it plays a defeat track like every other creature with one.
+    // The test is kept rather than deleted because it is the pin on the
+    // original defect — the crawler must never again resolve its death with
+    // nothing on screen, and now it must do it with the better of the two
+    // answers.
     final StageSegment won = victoryFor('enemy.scree_crawler').last;
-    expect(won.enemyTrack, isNull, reason: 'it still has no defeat art');
+    expect(won.enemyTrack, isNotNull, reason: 'it has authored defeat art now');
+    expect(won.enemyHoldsPose, isTrue);
+    expect(won.enemyFallOut, isFalse);
+    expect(
+      won.duration.inMilliseconds,
+      greaterThanOrEqualTo(1000),
+      reason: 'the defeat plus the hold must outlast the old bare 400 ms',
+    );
+  });
+
+  test('the fall-out still answers a combatant with neither track', () {
+    // No enemy in the shipped table reaches the fall-out any more, which is
+    // exactly why this case is constructed rather than named: the fallback
+    // exists for the next content pack that arrives with partial art, and a
+    // path nothing exercises is a path that rots. Real tracks, deliberately
+    // no `hit` and no `defeat`.
+    final List<StageSegment> segments = choreograph(
+      <CombatBeat>[
+        const WonBeat(xp: 10, levelBefore: 1, levelAfter: 1, drops: <RewardLine>[]),
+      ],
+      traveler: CombatAssets.traveler,
+      enemy: CombatantArt(
+        idle: CombatAssets.crawler.idle,
+        attack: CombatAssets.crawler.attack,
+        strikeFrame: 4,
+        impactRise: 17,
+      ),
+      strikeEffect: CombatAssets.fxImpact,
+    );
+    final StageSegment won = segments.last;
+    expect(won.enemyTrack, isNull);
     expect(won.enemyFallOut, isTrue);
     expect(
       won.duration.inMilliseconds,

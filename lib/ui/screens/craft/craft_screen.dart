@@ -62,6 +62,7 @@ import 'package:stride_core/stride_core.dart'
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
+import '../../components/band_plate.dart';
 import '../../components/bottom_sheet.dart';
 import '../../components/data_display.dart';
 import '../../components/gear_stats.dart';
@@ -75,6 +76,7 @@ import '../../components/station_strip.dart';
 import '../../components/surfaces.dart';
 import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
+import '../../icons/reward_art.dart';
 import '../../icons/sprite_footprints.dart';
 import '../../components/ambient_stage.dart';
 import '../../components/activity_result.dart';
@@ -313,6 +315,14 @@ class _CraftScreenState extends State<CraftScreen> {
       tier: craft.significance == CraftSignificance.major
           ? RewardTier.major
           : RewardTier.medium,
+      // The ceiling of craft quality (an Epic-or-better output, the same
+      // test `craftSignificanceOf` already made) wears the masterwork seal
+      // — a banner, not the 48² plate, so it needs the layer's own slot
+      // size (ART-10 §1, §3).
+      emblem: held && craft.significance == CraftSignificance.major
+          ? RewardArt.sealMasterwork
+          : null,
+      emblemSize: const Size(96, 48),
       accent: held ? _CraftSummary.heldAccent(craft, pinnedRecipe) : null,
       announcement: held ? 'Crafted ${pinnedRecipe.outputName}' : null,
       beats: held
@@ -372,6 +382,17 @@ class _CraftScreenState extends State<CraftScreen> {
                     }),
                   ),
                   const SizedBox(height: StrideSpace.rhythmGroup),
+
+                  // The chosen station's own place, under its name (FMPO02).
+                  // Untitled on purpose: the strip above already labels the
+                  // plate the player just tapped, and a band repeating that
+                  // word is the same heading twice. Absent for a kind with no
+                  // authored band rather than borrowing another's.
+                  if (StrideBands.forStation(station) case final StrideBand b)
+                    ...<Widget>[
+                      BandPlate(band: b),
+                      const SizedBox(height: StrideSpace.rhythmRow),
+                    ],
 
                   _CategoryChips(
                     selected: _category,

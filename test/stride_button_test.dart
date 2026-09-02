@@ -7,6 +7,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/ui/components/data_display.dart';
+import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/theme/stride_colors.dart';
 
 void main() {
@@ -20,9 +21,24 @@ void main() {
     ),
   );
 
-  /// The plate's decorated container: the one carrying a BoxDecoration
-  /// with a border or a fill, nearest the button root.
+  /// The plate's fill and outline.
+  ///
+  /// **Two homes since FMPO02, and the same rectangle in both.** An enabled
+  /// control now draws its face through PixelFrame against an authored plate,
+  /// and hands the painted construction over as that frame's `fallback` —
+  /// what it degrades to while the raster is in flight, and forever if the
+  /// raster never decodes. A disabled control has no plate and keeps its own
+  /// Container. Both are searched, so every assertion below still tests the
+  /// construction rather than where it happens to live.
   BoxDecoration? plateOf(WidgetTester tester) {
+    for (final PixelFrame f in tester.widgetList<PixelFrame>(
+      find.descendant(
+        of: find.byType(StrideButton),
+        matching: find.byType(PixelFrame),
+      ),
+    )) {
+      if (f.fallback case final BoxDecoration d) return d;
+    }
     for (final Container c in tester.widgetList<Container>(
       find.descendant(
         of: find.byType(StrideButton),
@@ -32,6 +48,28 @@ void main() {
       if (c.decoration is BoxDecoration) return c.decoration! as BoxDecoration;
     }
     return null;
+  }
+
+  /// The under-ledge and the one glow — the drawn thickness BELOW the plate.
+  ///
+  /// Flutter's on both paths, and outside anything the authored raster covers.
+  /// That is what lets the variant registers stay legible without tinting art:
+  /// attack, defense and ready differ here. Empty while the control is pressed
+  /// (it is sitting on the ledge) and while it is disabled (an unpressable
+  /// thing has no thickness).
+  List<BoxShadow> ledgeOf(WidgetTester tester) {
+    for (final DecoratedBox box in tester.widgetList<DecoratedBox>(
+      find.descendant(
+        of: find.byType(StrideButton),
+        matching: find.byType(DecoratedBox),
+      ),
+    )) {
+      final Decoration deco = box.decoration;
+      if (deco is BoxDecoration && deco.boxShadow != null) {
+        return deco.boxShadow!;
+      }
+    }
+    return const <BoxShadow>[];
   }
 
   group('construction', () {
@@ -68,7 +106,7 @@ void main() {
         expect(deco.color, StrideColors.surfaceRaised, reason: '${e.key}');
         expect((deco.border! as Border).top.color, e.value.$1,
             reason: '${e.key} outline');
-        final BoxShadow ledge = deco.boxShadow!.first;
+        final BoxShadow ledge = ledgeOf(tester).first;
         expect(ledge.color, e.value.$2, reason: '${e.key} ledge');
         expect(ledge.blurRadius, 0, reason: 'a drawn ledge, not a glow');
         expect(ledge.offset, const Offset(0, 2), reason: '${e.key}');
@@ -80,7 +118,7 @@ void main() {
         host(StrideButton(label: 'Set out', glow: true, onPressed: () {})),
       );
       expect(
-        plateOf(tester)!.boxShadow!.any(
+        ledgeOf(tester).any(
           (BoxShadow s) => s.color == StrideColors.actionGlow,
         ),
         isTrue,
@@ -89,7 +127,7 @@ void main() {
         host(StrideButton(label: 'Gather', onPressed: () {})),
       );
       expect(
-        plateOf(tester)!.boxShadow!.any(
+        ledgeOf(tester).any(
           (BoxShadow s) => s.color == StrideColors.actionGlow,
         ),
         isFalse,
@@ -106,7 +144,7 @@ void main() {
       final BoxDecoration deco = plateOf(tester)!;
       expect(deco.color, StrideColors.surfaceBlock);
       expect(deco.border, isNull);
-      expect(deco.boxShadow, isNull);
+      expect(ledgeOf(tester), isEmpty);
     });
   });
 
@@ -135,7 +173,7 @@ void main() {
       );
       await tester.pump();
       expect(travel(), const Offset(0, 2), reason: 'down onto the ledge');
-      expect(plateOf(tester)!.boxShadow, isEmpty,
+      expect(ledgeOf(tester), isEmpty,
           reason: 'the ledge is what it sits on');
       await gesture.up();
       await tester.pump();

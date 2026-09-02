@@ -23,8 +23,10 @@ import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show KnowledgeTier;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart';
 import '../../components/surfaces.dart';
+import '../../icons/reward_art.dart';
 import '../../state/activity_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -227,10 +229,30 @@ class _BestiaryRow extends StatelessWidget {
             ),
           ] else if (progress != null) ...<Widget>[
             const SizedBox(height: StrideSpace.s2),
-            Text(
-              progress,
-              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-              maxLines: 1,
+            Row(
+              children: <Widget>[
+                // Enemy knowledge advancing, the same 24² mark as any other
+                // in-line progress fact (`RewardArt.markKnowledge`, ART-10
+                // §1). Decorative: the line beside it already says the fact.
+                const ExcludeSemantics(
+                  child: PixelAsset(
+                    assetPath: RewardArt.markKnowledge,
+                    nativeWidth: 24,
+                    nativeHeight: 24,
+                    scale: 1,
+                  ),
+                ),
+                const SizedBox(width: StrideSpace.s6),
+                Flexible(
+                  child: Text(
+                    progress,
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textMuted,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
             ),
           ],
           if (drops.isNotEmpty) ...<Widget>[

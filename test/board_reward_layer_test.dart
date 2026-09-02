@@ -133,6 +133,16 @@ void main() {
 
     await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
     await tester.pumpAndSettle();
+    // Scrolled to first, and this is not a workaround for a missing control.
+    // The Adventure screen is a ListView, and the Goal Board entry sits below
+    // the summary card near the bottom of it; since FMPO02 put the trail band
+    // over the expedition kit and the ground band under the encounter list,
+    // 393 x 852 no longer holds everything above the tab bar. A widget the
+    // player reaches by scrolling is one `tester.tap` cannot reach at all —
+    // it taps a coordinate, and an unscrolled coordinate lands on the tab bar.
+    // The claim this test makes is about the reward layer, and it is unchanged.
+    await tester.ensureVisible(find.text('Goal Board').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Goal Board').first);
     await tester.pumpAndSettle();
     await capture(tester, 'board_closed');

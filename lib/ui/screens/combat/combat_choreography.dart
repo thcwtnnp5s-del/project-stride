@@ -241,14 +241,19 @@ List<StageSegment> choreograph(
         );
 
       case BracedBeat():
-        // Brace (`DECISIONS/0027`): no authored stance pose exists and the
-        // stage draws no invented art (`RULES.md` A-1), so the stance is a
-        // held, planted idle beat — a moment of stillness before the halved
-        // reply lands, which the halved figures then say out loud.
+        // Brace (`DECISIONS/0027`). FMPO02 authored a stance for every
+        // PixelLab loadout — the sword across the body, or forearms crossed
+        // — played once and held on its last frame for the rest of the beat.
+        // The shipped base + steel set predates PixelLab and has none, so it
+        // keeps the held, planted idle that every set used before.
+        final CombatTrack? brace = traveler.brace;
         out.add(
           StageSegment(
-            duration: _bracedHold,
-            travelerTrack: traveler.idle,
+            duration: brace == null || brace.duration < _bracedHold
+                ? _bracedHold
+                : brace.duration,
+            travelerTrack: brace ?? traveler.idle,
+            travelerHoldsPose: brace != null,
             braced: true,
           ),
         );

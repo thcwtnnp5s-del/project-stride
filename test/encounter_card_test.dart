@@ -341,13 +341,17 @@ void main() {
     // thing the band exists to say, is preserved by construction.
     final SessionController c = await boot(tester);
     final Map<String, double> bands = <String, double>{};
+    // The test boots at Haven's Rest, which has no habitat plate, so every
+    // band here is the derived height — except the salamander, whose plate is
+    // keyed by species (Q-21) and follows it anywhere: a plate *is* the
+    // ground, so its band is the plate's own 152.
     for (final (String id, String name, double expected)
         in <(String, String, double)>[
           ('enemy.forest_wolf', 'Forest Wolf', 76), // 29 rows, at the floor
           ('enemy.scree_crawler', 'Scree Crawler', 82),
-          ('enemy.salamander', 'Salamander', 104),
           ('enemy.oakback_bear', 'Oakback Bear', 112),
           ('enemy.hollow_guardian', 'Hollow Guardian', 152), // at the ceiling
+          ('enemy.salamander', 'Salamander', 152), // plated by species
         ]) {
       await tester.pumpWidget(shell(c, option(enemy: id, name: name)));
       await tester.pumpAndSettle();
@@ -392,24 +396,49 @@ void main() {
     );
   });
 
-  test('the habitat table maps regions to plates and stays switched off', () {
-    // The five plates are in production (`ART-08` §2). Until they land, and
-    // until they have been seen on a device, nothing is mapped: a plate holds
-    // the band at its full 152 dp because the plate *is* the ground, so a
-    // missing PNG behind a switched-on row would restore the exact empty
-    // rectangle this wave removed.
-    expect(EncounterHabitat.enabled, isEmpty);
+  test('every switched-on habitat plate exists, and the species split holds', () {
+    // The five plates landed in FMPO02 (`ENEMIES_report.md`). A switched-on
+    // slug whose PNG is missing would hold the band at its full 152 dp with
+    // nothing in it — the exact empty rectangle this wave removed — so the
+    // switch and the files are held to each other here.
+    for (final String slug in EncounterHabitat.enabled) {
+      expect(
+        File('assets/art/v1/combat/habitat_$slug.png').existsSync(),
+        isTrue,
+        reason: 'switched on, not packaged: $slug',
+      );
+    }
     for (final ContentId place in <ContentId>[
       ContentId.unchecked('location.whispering_woods'),
       ContentId.unchecked('location.stonefall_mine'),
       ContentId.unchecked('location.frostmere'),
       ContentId.unchecked('location.forgotten_hollow'),
-      ContentId.unchecked('location.havens_rest'),
     ]) {
-      expect(EncounterHabitat.plateFor(place), isNull, reason: place.value);
+      expect(EncounterHabitat.plateFor(place), isNotNull, reason: place.value);
     }
-    // The mapping itself is complete and points at the authored names, so
-    // switching it on is one const set and never a scavenger hunt.
+    // No enemy lives at Haven's Rest; no plate is authored for a card that is
+    // never drawn.
+    expect(
+      EncounterHabitat.plateFor(ContentId.unchecked('location.havens_rest')),
+      isNull,
+    );
+    // Q-21: the salamander's chamber follows the species, not the place, and
+    // the other Stonefall creatures keep the ledge.
+    final ContentId mine = ContentId.unchecked('location.stonefall_mine');
+    expect(
+      EncounterHabitat.plateFor(
+        mine,
+        enemy: ContentId.unchecked('enemy.salamander'),
+      ),
+      EncounterHabitat.caveShadow,
+    );
+    expect(
+      EncounterHabitat.plateFor(
+        mine,
+        enemy: ContentId.unchecked('enemy.cave_goblin'),
+      ),
+      EncounterHabitat.rockyLedge,
+    );
     expect(
       EncounterHabitat.byPlace.map(
         (String place, HabitatPlate plate) =>
@@ -417,11 +446,12 @@ void main() {
       ),
       <String, String>{
         'location.whispering_woods':
-            'assets/art/v1/combat/habitat_forest.png',
-        'location.stonefall_mine': 'assets/art/v1/combat/habitat_ledge.png',
+            'assets/art/v1/combat/habitat_forest_floor.png',
+        'location.stonefall_mine':
+            'assets/art/v1/combat/habitat_rocky_ledge.png',
         'location.frostmere': 'assets/art/v1/combat/habitat_snowbank.png',
         'location.forgotten_hollow':
-            'assets/art/v1/combat/habitat_rootbed.png',
+            'assets/art/v1/combat/habitat_hollow_rootbed.png',
       },
     );
     // 192 × 76 at ×2 lands on the band's own ceiling exactly — no new density

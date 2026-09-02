@@ -210,6 +210,12 @@ enum PanelSurface {
 
   /// Chalked slate — the construction ledger (Projects).
   planLinen,
+
+  /// Warm dark parchment, mirror-folded and seamless — the notable-result
+  /// plate (`ActivityResultCard`, FMPO02 wave2). Low-contrast by
+  /// authoring, since this is the one surface tile drawn directly under
+  /// body type rather than a section's background.
+  notable,
 }
 
 /// A seamless interior tile: drawn at integer scale from a panel's inner
@@ -287,6 +293,10 @@ abstract final class PanelSurfaces {
         ),
         PanelSurface.planLinen: SurfaceTile(
           assetPath: '$_dir/grain_plan_linen.png',
+          native: 32,
+        ),
+        PanelSurface.notable: SurfaceTile(
+          assetPath: '$_dir/grain_notable_plate.png',
           native: 32,
         ),
       };
@@ -372,4 +382,62 @@ abstract final class PanelSkins {
     PanelRole.heroPlate: 16,
     PanelRole.modalFrame: 16,
   };
+}
+
+/// The two authored **button plates** (FMPO02 wave 2).
+///
+/// ## Why these are not rows in [PanelSkins]
+///
+/// [PanelRole] names kinds of *panel*, and the registry's whole property is
+/// that emptying it reverts every panel in one commit. A button is not a
+/// panel: it is a control with a hit region, a pressed state and a disabled
+/// state, and folding it into the panel registry would mean the panel
+/// kill-switch also silently unstyles every action in the product. Two named
+/// constants keep both reversions separate and both one-line.
+///
+/// ## The geometry is what the model drew, not what the brief asked for
+///
+/// `ART-02_ui_brief.md` asked for corner 8 / band 4 on the plate and corner 6 /
+/// band 3 on the compact. PixelLab drew a thinner rim than that on every
+/// candidate, and the sidecars beside the PNGs carry the **measured** figures.
+/// Declaring the brief over the asset is the exact defect
+/// `PIXELLAB_UI_PRODUCTION_PLAN.md` § 3.2.1 exists to prevent — a frame whose
+/// declared geometry disagrees with its pixels renders wrong in a way that
+/// looks like a layout bug.
+abstract final class ButtonPlates {
+  const ButtonPlates._();
+
+  static const String _dir = 'assets/ui/v1/button';
+
+  /// The screen's game action — `Gather`, `Set out`, `Craft`.
+  ///
+  /// **`band` is 1, and the asset's measured band is 0.** That is not a
+  /// disagreement with the sidecar; it is [PanelSkin]'s own invariant, which
+  /// asserts `band > 0` because a frame with no material depth is a surface
+  /// rather than a frame. The measurement stands: `btn_plate.json` records 0,
+  /// and PROD-UI's integration note says a 0 band is legal *for a button and
+  /// only for a button*, because a button's interior is a face with a label on
+  /// it and the inset is Flutter's padding. Declaring 1 spends two logical
+  /// pixels of inset the label already had to spare, and keeps the assert
+  /// honest for every panel that comes after. **Do not carry a 0 band to a
+  /// panel, and do not weaken the assert to allow one.**
+  static const PanelSkin primary = PanelSkin(
+    assetPath: '$_dir/btn_plate.png',
+    nativeWidth: 58,
+    nativeHeight: 26,
+    corner: 4,
+    band: 1,
+    scale: 2,
+  );
+
+  /// The utility control — `Sync steps`, `Cancel`, `Retreat`. Measured corner
+  /// 5 / band 2, exactly as the sidecar records them.
+  static const PanelSkin compact = PanelSkin(
+    assetPath: '$_dir/btn_compact.png',
+    nativeWidth: 46,
+    nativeHeight: 22,
+    corner: 5,
+    band: 2,
+    scale: 2,
+  );
 }

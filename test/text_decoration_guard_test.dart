@@ -131,6 +131,10 @@ void main() {
       findsWidgets,
       reason: 'Adventure must offer the one-press entry (§8)',
     );
+    // Below the fold since FMPO02 put the location stage and the journal
+    // above it; scrolled to, the way a thumb would.
+    await tester.ensureVisible(open.first);
+    await tester.pumpAndSettle();
     await tester.tap(open.first);
     await tester.pumpAndSettle();
 

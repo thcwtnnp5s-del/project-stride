@@ -48,6 +48,7 @@ import '../theme/rarity_style.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
+import 'panel_skin.dart';
 import 'pixel_asset.dart';
 import 'rarity_item_title.dart';
 
@@ -143,28 +144,9 @@ class ActivityResultCard extends StatelessWidget {
     final Color skillInk = result.skill == null
         ? StrideColors.textSecondary
         : StrideColors.forSkill(result.skill!);
-    final Widget card = Container(
-      constraints: const BoxConstraints(maxWidth: 361),
-      padding: const EdgeInsets.all(StrideSpace.blockPadding),
-      decoration: BoxDecoration(
-        color: StrideColors.surfaceCard,
-        borderRadius: StrideRadius.inner,
-        border: Border.all(color: frame, width: notable ? 2 : 1),
-        boxShadow: <BoxShadow>[
-          // A floating card needs an edge against whatever scrolls beneath
-          // it; the notable tier adds the one warm glow family.
-          const BoxShadow(
-            color: Color(0x8014120F),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-          if (notable)
-            const BoxShadow(color: StrideColors.rewardGlow, blurRadius: 14),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
+    final Widget content = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
           if (result.itemId case final ContentId id) ...<Widget>[
             PixelAsset.item(PixelIcons.itemFor(id)),
             const SizedBox(width: StrideSpace.s10),
@@ -197,6 +179,17 @@ class ActivityResultCard extends StatelessWidget {
                     ink: StrideColors.positiveReady,
                   ),
                 ],
+                if (result.rarity != null &&
+                    result.rarity!.rank >= Rarity.rare.rank) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s2),
+                  _MarkedLine(
+                    mark: RewardArt.markRareDrop,
+                    text: '${result.rarity!.label} drop',
+                    ink:
+                        RarityStyle.maybe(result.rarity)?.accent ??
+                        StrideColors.rewardLightInk,
+                  ),
+                ],
                 if (result.xp > 0 && result.skillName != null) ...<Widget>[
                   const SizedBox(height: StrideSpace.s2),
                   _MarkedLine(
@@ -209,7 +202,43 @@ class ActivityResultCard extends StatelessWidget {
             ),
           ),
         ],
+      );
+    // Notable results sit on the one plate tile authored for this escalation
+    // (`PanelSurface.notable`, FMPO02 wave2) — grain under the row, never a
+    // second border; the flat fill still paints first, so a tile that fails
+    // to load is the plain card underneath it.
+    final Widget card = Container(
+      constraints: const BoxConstraints(maxWidth: 361),
+      decoration: BoxDecoration(
+        color: StrideColors.surfaceCard,
+        borderRadius: StrideRadius.inner,
+        border: Border.all(color: frame, width: notable ? 2 : 1),
+        boxShadow: <BoxShadow>[
+          // A floating card needs an edge against whatever scrolls beneath
+          // it; the notable tier adds the one warm glow family.
+          const BoxShadow(
+            color: Color(0x8014120F),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+          if (notable)
+            const BoxShadow(color: StrideColors.rewardGlow, blurRadius: 14),
+        ],
       ),
+      child: notable
+          ? SurfaceFill(
+              tile: PanelSurfaces.of(PanelSurface.notable)!,
+              fill: StrideColors.surfaceCard,
+              radius: StrideRadius.inner,
+              child: Padding(
+                padding: const EdgeInsets.all(StrideSpace.blockPadding),
+                child: content,
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(StrideSpace.blockPadding),
+              child: content,
+            ),
     );
     if (!notable) return card;
     // The notable escalation is **material, not motion** — a bronze bracket

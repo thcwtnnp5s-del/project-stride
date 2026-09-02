@@ -36,26 +36,33 @@
 ///
 /// ## Geometry
 ///
-/// The backdrop is 192 × 96 drawn at ×2 — 384 × 192 dp — and the stage is as
-/// wide as its parent up to 384. On a 393 dp phone inside the tab's 16 dp
-/// gutters that is 361, so the backdrop is clipped, centred, by 11–12 dp a
-/// side (`(361 − 384) / 2`); on 320 dp it is 288 and the flanks lose 48 dp
+/// The backdrop is 192 × 128 drawn at ×2 — 384 × 256 dp — and the stage is as
+/// wide as its parent up to 384. **Only the height changed** in FMPO02 wave 2
+/// (`ART-09_combat_brief.md` §2): the canvas is 32 rows taller, the width and
+/// both standing columns are untouched, and the clipping behaviour below is
+/// therefore exactly what it was. On a 393 dp phone inside the tab's 16 dp
+/// gutters the stage is 361, so the backdrop is clipped, centred, by 11–12 dp
+/// a side (`(361 − 384) / 2`); on 320 dp it is 288 and the flanks lose 48 dp
 /// each; on 430 dp the stage is the full 384 with 7 dp of app ground either
-/// side. Nothing is ever resampled: the backdrop stays pixel-exact at ×2 and
-/// the figures stand on fixed backdrop columns (`CombatAssets.travelerColumn`,
-/// `enemyColumn` — 116 dp and 276 dp from the backdrop's left) so on every
-/// width both are fully visible: the guardian's opaque box spans backdrop
-/// columns 120..159 native = 240..318 dp, and at 288 dp of stage the offset is
-/// −48, so its right edge sits at 270 dp. The ground row is 88 native =
-/// 176 dp from the top; every figure's contact shadow, 8–9 dp deep, ends above
-/// the backdrop's 192 dp bottom, and the guardian's head, 144 dp above the
-/// ground, sits 32 dp below the top — no headroom band is needed.
+/// side. Nothing is ever resampled — the taller family is drawn at ×2 like the
+/// short one, never scaled to fit a phone — and the figures stand on fixed
+/// backdrop columns (`CombatAssets.travelerColumn`, `enemyColumn` — 116 dp and
+/// 276 dp from the backdrop's left) so on every width both are fully visible:
+/// the guardian's opaque box spans backdrop columns 120..159 native =
+/// 240..318 dp, and at 288 dp of stage the offset is −48, so its right edge
+/// sits at 270 dp. The ground row is 120 native = 240 dp from the top; every
+/// figure's contact shadow, 8–9 dp deep, ends above the backdrop's 256 dp
+/// bottom, and the guardian's head, 144 dp above the ground, now sits 96 dp
+/// below the top rather than 32 — which is the whole point of the taller
+/// canvas, and it is sky, not a headroom band.
 ///
-/// The HUD is a strip **beneath** the backdrop, not an overlay: the guardian's
-/// head reaches within 32 dp of the top, so bars over the sky would collide
-/// with it on the one enemy the player fights last. Only the turn chip (and
-/// BOSS) sit on the picture, in the two top corners, which every backdrop and
-/// every figure leave clear.
+/// The HUD is a strip **beneath** the backdrop, not an overlay, and stays
+/// there now that there is room above the guardian's crown: the gauges are a
+/// 32 dp authored chassis each and the narration already owns the picture's
+/// bottom edge, so bars on the sky would spend the 64 dp the fight just
+/// gained on chrome. Only the turn marker and chip (and BOSS) sit on the
+/// picture, in the two top corners, which every backdrop and every figure
+/// leave clear.
 library;
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
@@ -849,10 +856,29 @@ class _Scene extends StatelessWidget {
           // 60 dp is clear above the Traveler's head on every backdrop, and
           // the guardian's crown (opaque right edge 318 dp of the backdrop)
           // stops short of a top-right chip.
+          //
+          // The turn now wears the authored leather tab beside it
+          // (`turn_marker.png`, 24² at ×2). It is an **ornament** and carries
+          // nothing: the number is type on the chip, exactly as before, so a
+          // failed decode costs the fight a decoration and not a fact
+          // (`DECISIONS/0029`).
           Positioned(
             left: StrideSpace.s8,
             top: StrideSpace.s8,
-            child: _Chip('TURN $turn'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                const PixelAsset(
+                  assetPath: CombatHudAssets.turnMarker,
+                  nativeWidth: CombatHudAssets.turnMarkerNative,
+                  nativeHeight: CombatHudAssets.turnMarkerNative,
+                  scale: 2,
+                ),
+                const SizedBox(width: StrideSpace.s4),
+                _Chip('TURN $turn'),
+              ],
+            ),
           ),
           if (boss)
             const Positioned(
@@ -883,11 +909,16 @@ class _Scene extends StatelessWidget {
           // without a word spent saying so.
           //
           // It is drawn last, so it sits over the figures, and it is pinned
-          // to the bottom, so it costs the command card nothing. Until the
-          // taller 192 × 128 backdrop family lands (`ART-09` §2) the strip
-          // overlaps the lowest ~20 dp of the picture, which is the contact
-          // shadow band; the strip is translucent for exactly that reason
-          // and the taller canvas is what removes the overlap.
+          // to the bottom, so it costs the command card nothing.
+          //
+          // The taller 192 × 128 family has landed and **did not remove the
+          // overlap `ART-09` §2 expected it to**: the re-authored canvases
+          // added their 32 rows above the old row 32, and the ground stayed 8
+          // rows up from the canvas bottom (row 88 of 96 → row 120 of 128), so
+          // there are still only 16 dp of picture below the feet. The strip
+          // still covers the contact-shadow band, and it is still translucent
+          // for exactly that reason. What the taller canvas bought is sky
+          // above the figures, which is where the guardian needed it.
           if (narration case final Widget strip)
             Positioned(left: 0, right: 0, bottom: 0, child: strip),
         ],
@@ -1043,10 +1074,29 @@ class _Combatant extends StatelessWidget {
   );
 }
 
-/// A 6 dp bar. The player's fill stays on the text ladder — never the teal:
-/// teal is walking and banked steps only (`ART_DIRECTION.md` L-16), and
-/// health is neither. The enemy's fill is [StrideColors.danger] — combat
-/// threat is the one place that hue may appear.
+/// The HP gauge: an **authored chassis with a Flutter-painted fill inside it**
+/// (FMPO02 wave 2).
+///
+/// It was a 6 dp hand-rolled rectangle with no frame — "the one part of the
+/// screen still reading as an application displaying RPG data"
+/// (`ART-09_combat_brief.md` §3). It is now `hp_gauge_frame.png` drawn through
+/// [PixelFrame] as the horizontal nine-patch its sidecar measures, at ×2, so
+/// the whole 16-row canvas reproduces pixel-for-pixel at 32 dp and only the
+/// long band between the end caps tiles.
+///
+/// **The raster is the chassis and never the reading.** The fill is a
+/// rectangle this widget paints, its width is the committed fraction, and the
+/// frame is drawn *over* it so the pill's own tapered rows always sit on the
+/// fill's edge rather than the fill spilling past them. That is
+/// `DECISIONS/0029`'s boundary read literally: a raster may be an edge, a
+/// surface or an ornament, and may never carry a state. A frame that fails to
+/// decode leaves the track and the fill exactly where they were and costs the
+/// gauge its rim — never its figure.
+///
+/// The player's fill stays on the text ladder — never the teal: teal is
+/// walking and banked steps only (`ART_DIRECTION.md` L-16), and health is
+/// neither. The enemy's fill is [StrideColors.danger] — combat threat is the
+/// one place that hue may appear.
 class _HpBar extends StatelessWidget {
   const _HpBar({required this.fraction, this.threat = false});
 
@@ -1054,44 +1104,46 @@ class _HpBar extends StatelessWidget {
   final bool threat;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (BuildContext context, BoxConstraints c) {
-      final double w = c.maxWidth.isFinite ? c.maxWidth : 96;
-      // Whole dp, so the fill edge is crisp; a bar with any health shows at
-      // least 2 dp of it.
-      final double fill = fraction <= 0
-          ? 0
-          : (w * fraction).round().clamp(2, w.round()).toDouble();
-      return SizedBox(
-        width: w,
-        height: 6,
-        child: Stack(
+  Widget build(BuildContext context) => SizedBox(
+    height: CombatHudAssets.gaugeHeight,
+    child: LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints c) {
+        const double inset = CombatHudAssets.gaugeFillInset;
+        final double w = c.maxWidth.isFinite ? c.maxWidth : 192;
+        // The pill's flat interior, inset past both end caps — the sidecar's
+        // columns 7..88 of 96 and rows 5..10 of 16, at ×2.
+        final double track = w - inset * 2;
+        // Whole dp, so the fill edge is crisp; a bar with any health shows at
+        // least 2 dp of it.
+        final double fill = fraction <= 0 || track < 2
+            ? 0
+            : (track * fraction).round().clamp(2, track.round()).toDouble();
+        Widget band(double width, Color color) => Positioned(
+          left: inset,
+          top: CombatHudAssets.gaugeFillTop,
+          width: width,
+          height: CombatHudAssets.gaugeFillHeight,
+          child: ColoredBox(color: color),
+        );
+        return Stack(
           children: <Widget>[
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: StrideColors.surfaceBlock,
-                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                ),
+            if (track > 0) band(track, StrideColors.surfaceBlock),
+            if (fill > 0)
+              band(
+                fill,
+                threat ? StrideColors.danger : StrideColors.textSecondary,
               ),
-            ),
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: fill,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: threat
-                      ? StrideColors.danger
-                      : StrideColors.textSecondary,
-                  borderRadius: const BorderRadius.all(Radius.circular(3)),
-                ),
+            // Over the fill, and with no `fallback`: an undecoded frame must
+            // leave the gauge readable, not paint a slab across it.
+            const Positioned.fill(
+              child: PixelFrame(
+                skin: CombatHudAssets.gaugeFrame,
+                child: SizedBox.expand(),
               ),
             ),
           ],
-        ),
-      );
-    },
+        );
+      },
+    ),
   );
 }

@@ -380,7 +380,16 @@ abstract final class PixelIcons {
   /// table records the intent, this set records the fact, and the integrator
   /// flips one row on per accepted crate — the same two-list discipline
   /// `item_icon_resolution_test.dart` exists to enforce for items.
-  static const Set<String> _packagedRecipeIcons = <String>{};
+  ///
+  /// All three crates landed in FMPO02 wave 2 (`ITEMS_report.md`): packaged by
+  /// `Scripts/art/package-art.js` into `assets/art/v1/item/` and declared file
+  /// by file in `pubspec.yaml`, so the promise the path table makes is now one
+  /// the bundle keeps.
+  static const Set<String> _packagedRecipeIcons = <String>{
+    'recipe.reclaim_bronze_axe',
+    'recipe.reclaim_bronze_pickaxe',
+    'recipe.reclaim_bronze_chestplate',
+  };
 
   /// Whether [recipe] has recipe-level art that is packaged and safe to draw.
   static bool hasRecipeIcon(ContentId recipe) =>

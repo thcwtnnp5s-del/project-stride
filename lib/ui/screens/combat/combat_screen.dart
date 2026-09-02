@@ -65,7 +65,10 @@ import '../../components/data_display.dart';
 import '../../components/reward_beat.dart';
 import '../../components/reward_layer.dart';
 import '../../components/panel_skin.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/surfaces.dart';
+import '../../icons/combat_assets.dart';
+import '../../icons/reward_art.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -176,11 +179,17 @@ class _CombatScreenState extends State<CombatScreen> {
     // is `acknowledgeCombat`, as before.
     if (view == null) {
       if (outcome == null || report == null) return const SizedBox.shrink();
+      final bool signature = _ResultPanel.signatureAwarded(outcome);
       return RewardRaise(
         token: outcome,
-        tier: RewardTier.medium,
+        // A signature drop is major (ART-10 §3: "masterwork/signature drop
+        // classify as RewardTier.major for hapticHeavy"); an ordinary
+        // victory keeps the medium frame and haptic it always had.
+        tier: signature ? RewardTier.major : RewardTier.medium,
         accent: _ResultPanel.accentOf(outcome),
         beats: _ResultPanel.beatsOf(report, outcome),
+        emblem: signature ? RewardArt.sealSignature : null,
+        emblemSize: const Size(96, 48),
         onDismiss: c.acknowledgeCombat,
         child: const SizedBox.shrink(),
       );
@@ -189,13 +198,17 @@ class _CombatScreenState extends State<CombatScreen> {
     final bool ended = live == null;
     final bool resolved =
         ended && outcome != null && report != null && !_playing;
+    final bool signature =
+        resolved && _ResultPanel.signatureAwarded(outcome);
     return RewardRaise(
       token: resolved ? outcome : null,
-      tier: RewardTier.medium,
+      tier: signature ? RewardTier.major : RewardTier.medium,
       accent: resolved ? _ResultPanel.accentOf(outcome) : null,
       beats: resolved
           ? _ResultPanel.beatsOf(report, outcome)
           : const <Widget>[],
+      emblem: signature ? RewardArt.sealSignature : null,
+      emblemSize: const Size(96, 48),
       onDismiss: c.acknowledgeCombat,
       // The fight's entrance (Fable V2 Iteration 02): the stage resolves
       // first, the controls follow a beat later — the same reveal grammar
@@ -270,6 +283,30 @@ class _CombatScreenState extends State<CombatScreen> {
 /// ones snapped — two strikes, always." belongs: it is a sentence, and the
 /// command card's one micro line is for the figures it implies, which is the
 /// only reading of "collapse the sub-labels" that does not clip prose.
+///
+/// ## Why the authored parchment strip is not behind this line
+///
+/// FMPO02 wave 2 produced `narration_strip.png` for exactly this ground, and
+/// it is packaged and unused. Measured (`test/combat_ui_test.dart`, the
+/// contrast guard), composited over the stage:
+///
+/// | rows | mean relative luminance | contrast vs `textPrimary` |
+/// |---|---|---|
+/// | 0–15, the whole canvas | 0.111 | **5.32 : 1** |
+/// | 4–10, the drawn body | 0.246 | **2.90 : 1** |
+/// | 6–9, the bright core | 0.414 | **1.85 : 1** |
+///
+/// The canvas figure passes AA and is the wrong figure: nine of the sixteen
+/// rows are fully transparent, and averaging them in measures the stage
+/// showing through rather than the parchment a line of type would sit on. The
+/// rows the text actually crosses are 3.22 : 1, and its brightest pixels reach
+/// #EBE9CB — 1.00 : 1 against `textPrimary`, which is to say invisible.
+///
+/// So the strip keeps the translucent `surfaceGround` fill it shipped with.
+/// Never `textMuted` and never a pale ground: this is the fight's own
+/// narration and it sits on a picture, which is the hardest ground the palette
+/// has. The guard holds the measured figures so a darker re-authored strip
+/// swaps in on a measurement rather than on a redesign.
 class _CombatLog extends StatelessWidget {
   const _CombatLog({
     required this.report,
@@ -558,6 +595,37 @@ class _CombatControlsState extends State<_CombatControls> {
     // behaviour is the product's one button verbatim.
     Widget cell(Widget child) => SizedBox(height: _cellHeight, child: child);
 
+    // The command ornament, drawn at ×2 behind the label and never stretched.
+    //
+    // `plate_attack/brace/eat.png` are **not** the nine-patches `ART-09` §5
+    // commissioned — measured, each is a centred blob on a transparent 64 × 32
+    // field whose corner blocks and edge strips are entirely empty, so a
+    // nine-patch would tile the blob's arc across the cell and draw nothing in
+    // the middle. `CombatHudAssets` carries the measurement. They are
+    // integrated as ornaments instead, which is the third thing
+    // `DECISIONS/0029` allows a raster to be, and the 56 dp cell clips 4 dp of
+    // each plate's own transparent margin top and bottom and none of its drawn
+    // pixels.
+    Widget plate(String path) => OverflowBox(
+      minWidth: _plateWidth,
+      maxWidth: _plateWidth,
+      minHeight: _plateHeight,
+      maxHeight: _plateHeight,
+      child: PixelAsset(
+        assetPath: path,
+        nativeWidth: CombatHudAssets.plateNativeWidth,
+        nativeHeight: CombatHudAssets.plateNativeHeight,
+      ),
+    );
+
+    // The 16 × 16 glyph at ×2, before the label. Decoration: the word still
+    // says what the control does, and Retreat has no glyph at all.
+    Widget glyph(String path) => PixelAsset(
+      assetPath: path,
+      nativeWidth: CombatHudAssets.iconNative,
+      nativeHeight: CombatHudAssets.iconNative,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -589,6 +657,8 @@ class _CombatControlsState extends State<_CombatControls> {
               child: cell(
                 StrideButton(
                   label: 'Attack',
+                  emblem: plate(CombatHudAssets.plateAttack),
+                  leading: glyph(CombatHudAssets.iconAttack),
                   // Offense wears the danger accent inside the encounter —
                   // scope-amended on the token by the owner's brief
                   // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
@@ -613,6 +683,8 @@ class _CombatControlsState extends State<_CombatControls> {
               child: cell(
                 StrideButton(
                   label: 'Brace',
+                  emblem: plate(CombatHudAssets.plateBrace),
+                  leading: glyph(CombatHudAssets.iconBrace),
                   // Defense at the opposite temperature — cool steel line and
                   // edge, so offense and defense read apart at a glance
                   // without a rainbow.
@@ -634,6 +706,8 @@ class _CombatControlsState extends State<_CombatControls> {
               child: cell(
                 StrideButton(
                   label: _choosing ? 'Eat — choose' : 'Eat',
+                  emblem: plate(CombatHudAssets.plateEat),
+                  leading: glyph(CombatHudAssets.iconEat),
                   subLabel: held ? null : eatReason,
                   onPressed: held || eatReason != null
                       ? null
@@ -682,6 +756,13 @@ class _CombatControlsState extends State<_CombatControls> {
 /// card is — 176 dp at 393 — because a cell that fixed its width would be the
 /// one thing on this screen that could not follow the phone.
 const double _cellHeight = 56;
+
+/// The command ornament's drawn size: `CombatHudAssets.plateNativeWidth` ×
+/// `plateNativeHeight` (64 × 32) at ×2. Written out rather than computed so
+/// they are `const` doubles the `OverflowBox` can take directly; the assets'
+/// own figures are the constants beside them and a test holds the two equal.
+const double _plateWidth = 128;
+const double _plateHeight = 64;
 
 /// Victory, defeat or retreat, once, with a Continue that acknowledges it.
 ///
@@ -737,6 +818,21 @@ class _ResultPanel {
   /// event to celebrate and not one to punish.
   static Color? accentOf(CombatBeat outcome) =>
       outcome is WonBeat ? StrideColors.rewardLightInk : null;
+
+  /// Whether this victory actually put a signature item in the player's
+  /// hand — not merely that the enemy has one, which `signatureDrops`
+  /// carries whether or not the roll landed this fight. Cross-referencing
+  /// the round's own awarded [WonBeat.drops] against the names
+  /// [WonBeat.signatureDrops] reveals is a read of two facts the report
+  /// already states, never a third source of truth (`RULES.md` E-2). Only
+  /// true once the enemy is Known — the same gate that lets the names be
+  /// shown at all rather than `???` (`DECISIONS/0023` §5).
+  static bool signatureAwarded(CombatBeat? outcome) =>
+      outcome is WonBeat &&
+      outcome.knowledgeAfter == KnowledgeTier.known &&
+      outcome.drops.any(
+        (RewardLine d) => outcome.signatureDrops.contains(d.name),
+      );
 
   List<Widget> _victory(WonBeat o) => <Widget>[
     // The headline, with the fall beneath it — the card title weight a win

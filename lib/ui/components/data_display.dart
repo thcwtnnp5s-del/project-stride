@@ -10,6 +10,7 @@ import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
+import 'panel_skin.dart';
 import 'pixel_asset.dart';
 import 'surfaces.dart';
 
@@ -368,6 +369,8 @@ class StrideButton extends StatefulWidget {
     this.subLabel,
     this.variant = StrideButtonVariant.commit,
     this.glow = false,
+    this.leading,
+    this.emblem,
   }) : secondary = false;
 
   /// A **utility** control, not the screen's game action.
@@ -389,7 +392,9 @@ class StrideButton extends StatefulWidget {
   }) : subLabel = null,
        secondary = true,
        variant = StrideButtonVariant.commit,
-       glow = false;
+       glow = false,
+       leading = null,
+       emblem = null;
 
   final String label;
 
@@ -409,6 +414,34 @@ class StrideButton extends StatefulWidget {
   /// the game's central currency — `Set out` — and nothing else.
   final bool glow;
 
+  /// A glyph drawn immediately before the label, inside the same centred line
+  /// (FMPO02 wave 2, the combat command cluster).
+  ///
+  /// It is decoration and never information: [label] still says the whole
+  /// thing, semantics still announce only [label], and a glyph that fails to
+  /// decode leaves a control that reads exactly as it did before. The label is
+  /// `Flexible` beside it, so an enlarged text scale wraps the words rather
+  /// than pushing the glyph out of the control (D-01).
+  ///
+  /// **Absent when the control is disabled**, with [emblem] and the authored
+  /// plate. That is not only consistency: a disabled control is the one that
+  /// grows a [subLabel] saying why, and a 32 dp glyph beside a two-line stack
+  /// does not fit the combat cluster's 56 dp cell. The dressing goes, the
+  /// words stay, and the line that says why a thing cannot be pressed is never
+  /// the one squeezed out.
+  final Widget? leading;
+
+  /// An **ornament drawn behind the whole face**, clipped to the control, for
+  /// a raster that is a picture rather than a nine-patch — the three combat
+  /// command plates are centred blobs on a transparent field and cannot be a
+  /// [PanelSkin] (`combat_assets.dart`, `CombatHudAssets`).
+  ///
+  /// Behind the plate and inside the press transform, so it travels with the
+  /// control; **absent when the control is disabled**, which is the same rule
+  /// the authored plate itself obeys — an unpressable thing has no thickness.
+  /// Null at every call site outside combat.
+  final Widget? emblem;
+
   @override
   State<StrideButton> createState() => _StrideButtonState();
 }
@@ -426,6 +459,14 @@ class _StrideButtonState extends State<StrideButton> {
     final bool enabled = onPressed != null;
     final bool plate = enabled && !secondary;
     final bool down = plate && _pressed;
+
+    // The authored plate (FMPO02). Primary takes `btn_plate`, the utility
+    // control takes `btn_compact`, and a **disabled** control takes neither:
+    // "an unpressable thing has no thickness" was true of the painted
+    // construction and is true of the raster one for the same reason.
+    final PanelSkin? plateSkin = enabled
+        ? (secondary ? ButtonPlates.compact : ButtonPlates.primary)
+        : null;
 
     // The variant's construction tokens: the lit top edge, the outline,
     // and the under-ledge. Attack warms the ledge with the danger dim;
@@ -475,14 +516,39 @@ class _StrideButtonState extends State<StrideButton> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          AdaptiveText(
-            label,
-            style: secondary
-                ? StrideType.buttonLabelSecondary
-                : StrideType.buttonLabel,
-            color: enabled ? null : StrideColors.textMuted,
-            textAlign: TextAlign.center,
-          ),
+          // The label, alone as it always was, or preceded by a glyph on the
+          // same centred line. `Flexible` around the text and not around the
+          // glyph: at an enlarged text scale the words wrap and the glyph
+          // keeps its integer-scaled size, because a pixel asset that shrinks
+          // to fit has stopped being pixel art (L-18).
+          if ((enabled ? widget.leading : null) case final Widget glyph)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                glyph,
+                const SizedBox(width: StrideSpace.s8),
+                Flexible(
+                  child: AdaptiveText(
+                    label,
+                    style: secondary
+                        ? StrideType.buttonLabelSecondary
+                        : StrideType.buttonLabel,
+                    color: enabled ? null : StrideColors.textMuted,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            )
+          else
+            AdaptiveText(
+              label,
+              style: secondary
+                  ? StrideType.buttonLabelSecondary
+                  : StrideType.buttonLabel,
+              color: enabled ? null : StrideColors.textMuted,
+              textAlign: TextAlign.center,
+            ),
           if (subLabel case final String s) ...<Widget>[
             const SizedBox(height: StrideSpace.s2),
             AdaptiveText(
@@ -500,11 +566,94 @@ class _StrideButtonState extends State<StrideButton> {
     // swap, not a motion, so reduced motion loses nothing. Disabled and
     // secondary keep their flat surfaces; an unpressable thing has no
     // thickness.
+    // The painted construction, unchanged in every line — and now the
+    // **fallback**. `PixelFrame` paints this until the plate's raster decodes
+    // and forever if it never does, so a missing asset degrades to the control
+    // that shipped before FMPO02 rather than to a bare label.
+    final BoxDecoration painted = plate
+        ? BoxDecoration(
+            color: StrideColors.surfaceRaised,
+            border: Border.all(color: outline),
+            borderRadius: StrideRadius.gate,
+          )
+        : BoxDecoration(
+            color: StrideColors.surfaceBlock,
+            border: secondary && enabled
+                ? Border.all(color: StrideColors.borderDefault)
+                : null,
+            borderRadius: secondary ? StrideRadius.inner : StrideRadius.gate,
+          );
+
+    // The face: the authored plate where there is one, the painted rectangle
+    // where there is not.
+    //
+    // **The variant registers stay tokens, not raster.** `DECISIONS/0029` calls
+    // every register and both states index remaps of the one plate, and PROD-UI
+    // authored none of them: attack, defense and ready differ by the `outline`
+    // and `ledge` tokens above. Tinting the raster with a `ColorFilter` was the
+    // obvious alternative and is refused — a multiply over a four-ink plate
+    // authored under the `#7C7263` ceiling has nowhere left to go but darker,
+    // so the loud registers would read *quieter* than the neutral one. So the
+    // plate stays neutral, the ledge below it carries the register, and the
+    // outline carries it in the fallback.
+    final Widget unadorned = plateSkin == null
+        ? Container(decoration: painted, child: body)
+        : PixelFrame(
+            skin: plateSkin,
+            fallback: painted,
+            child: body,
+            // The lit top edge belongs to the painted construction and to it
+            // alone: over the authored plate's own rim it would be a second
+            // highlight on the same edge, which is the doubling `fallback`
+            // exists to prevent one layer out. Pressed, the light is out on
+            // both paths.
+            //
+            // It draws inside the frame's reserved band — 2 logical px in —
+            // because `PixelFrame` insets its child whether or not the raster
+            // arrived, which is the `PanelSkins.insetFor` doctrine: art
+            // landing later changes the material, never the layout.
+            childBuilder: (BuildContext context, bool framed) =>
+                framed || down || !plate
+                ? body
+                : ClipRRect(
+                    borderRadius: StrideRadius.gate,
+                    child: Stack(
+                      children: <Widget>[
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: 2,
+                          child: ColoredBox(color: topLight),
+                        ),
+                        body,
+                      ],
+                    ),
+                  ),
+          );
+
+    // The ornament, behind the whole face and clipped to the control
+    // (FMPO02 wave 2). It sits outside `PixelFrame`'s reserved band rather
+    // than inside it, so a 64 dp-tall plate in a 56 dp cell loses 4 dp of its
+    // own transparent margin top and bottom and none of its drawn pixels.
+    // Disabled controls get none, for the reason the authored plate is also
+    // absent then.
+    final Widget faced = widget.emblem == null || !enabled
+        ? unadorned
+        : Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              Positioned.fill(child: ClipRect(child: widget.emblem!)),
+              unadorned,
+            ],
+          );
+
+    // The under-ledge and the one warm glow are Flutter's on both paths: the
+    // ledge is drawn thickness *below* the plate, outside anything the raster
+    // covers, and it is where the variant's temperature lives.
     final Widget surfaced = plate
-        ? Container(
+        ? DecoratedBox(
             decoration: BoxDecoration(
-              color: StrideColors.surfaceRaised,
-              border: Border.all(color: outline),
               borderRadius: StrideRadius.gate,
               boxShadow: <BoxShadow>[
                 if (!down) BoxShadow(color: ledge, offset: const Offset(0, 2)),
@@ -516,31 +665,9 @@ class _StrideButtonState extends State<StrideButton> {
                   ),
               ],
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              children: <Widget>[
-                if (!down)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 2,
-                    child: ColoredBox(color: topLight),
-                  ),
-                body,
-              ],
-            ),
+            child: faced,
           )
-        : Container(
-            decoration: BoxDecoration(
-              color: StrideColors.surfaceBlock,
-              border: secondary && enabled
-                  ? Border.all(color: StrideColors.borderDefault)
-                  : null,
-              borderRadius: secondary ? StrideRadius.inner : StrideRadius.gate,
-            ),
-            child: body,
-          );
+        : faced;
 
     // The 2 px press travel — the plate onto its ledge.
     final Widget pressable = Transform.translate(

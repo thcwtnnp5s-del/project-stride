@@ -24,6 +24,7 @@ import 'package:flutter/material.dart' show MaterialPageRoute;
 import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
+import '../../components/band_plate.dart';
 import '../../components/screen_header.dart';
 import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
@@ -100,6 +101,15 @@ class GoalBoardScreen extends StatelessWidget {
                 StrideSpace.s16 + inset.bottom,
               ),
               children: <Widget>[
+                // The board's own battens, over everything pinned to it
+                // (FMPO02). Titled with this place's name for the board,
+                // which is the screen's identity.
+                BandPlate(
+                  band: StrideBand.boardsBatten,
+                  title: board?.boardName ?? 'Goal Board',
+                ),
+                const SizedBox(height: StrideSpace.cardGap),
+
                 // WHAT I AM WORKING TOWARDS — the full three-slot tracker,
                 // with its material breakdowns and clear controls.
                 const GoalTrackerCard(),

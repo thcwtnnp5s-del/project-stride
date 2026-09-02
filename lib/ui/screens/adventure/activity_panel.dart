@@ -36,6 +36,7 @@ import 'package:stride_core/stride_core.dart'
     show ContentId, ResourceNodeDefinition, ToolKind;
 
 import '../../../runtime/stride_session.dart';
+import '../../components/band_plate.dart';
 import '../../components/ambient_stage.dart' show StageScenery;
 import '../../components/data_display.dart';
 import '../../components/panel_skin.dart';
@@ -102,6 +103,10 @@ class ActivityPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            // The road out, over the kit that walks it (FMPO02). The card is
+            // padded to zero and clipped, so the band goes edge to edge of it
+            // rather than floating inside a margin.
+            const BandPlate(band: StrideBand.adventureTrail),
             const Padding(
               padding: EdgeInsets.fromLTRB(
                 StrideSpace.s12,

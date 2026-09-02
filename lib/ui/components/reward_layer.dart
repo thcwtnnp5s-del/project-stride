@@ -63,6 +63,7 @@ Future<void> showRewardLayer(
   Widget? trailing,
   String? announcement,
   String? emblem,
+  Size emblemSize = RewardLayer.defaultEmblemSize,
 }) {
   final bool reduced = MediaQuery.disableAnimationsOf(context);
   // The one haptic per payoff, scaled to the layer's own tier — here, so no
@@ -103,6 +104,7 @@ Future<void> showRewardLayer(
           continueLabel: continueLabel,
           trailing: trailing,
           emblem: emblem,
+          emblemSize: emblemSize,
           onContinue: () {
             onContinue?.call();
             Navigator.of(ctx).pop();
@@ -127,7 +129,16 @@ Future<void> showRewardLayer(
                 begin: const Offset(0, 0.04),
                 end: Offset.zero,
               ).animate(curve),
-              child: child,
+              // The settle: 0.94 → 1.0 on the same curve and clock as the
+              // rise (ART-10 §3) — never `easeOutBack`, whose overshoot
+              // reads as a jackpot "ding" the owner explicitly ruled out.
+              // Reduce Motion arrives at `a.value == 1` immediately
+              // (`transitionDuration: Duration.zero` above), so this widget
+              // is never built mid-scale for that player.
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.94, end: 1).animate(curve),
+                child: child,
+              ),
             ),
           );
         },
@@ -164,6 +175,7 @@ class RewardLayer extends StatelessWidget {
     this.continueLabel = 'Continue',
     this.trailing,
     this.emblem,
+    this.emblemSize = defaultEmblemSize,
   });
 
   /// Decides the frame weight and the eyebrow rule: MEDIUM a 1 px frame,
@@ -191,6 +203,17 @@ class RewardLayer extends StatelessWidget {
   /// Decorative — the beats beneath state the fact, so a screen reader must
   /// not hear it twice.
   final String? emblem;
+
+  /// [emblem]'s native footprint. Every emblem before FMPO02 was the item
+  /// icons' own 48² convention; `sealSignature` and `sealMasterwork` are
+  /// wide banners instead (`RewardArt`, ART-10 §3), so this is a parameter
+  /// rather than a second hardcoded constant — one slot, sized to what it
+  /// holds.
+  final Size emblemSize;
+
+  /// The slot's size before a caller says otherwise: the 48² every seal and
+  /// plate before FMPO02 used.
+  static const Size defaultEmblemSize = Size(48, 48);
 
   /// A second control beside Continue — `Equip`, for a finished piece of
   /// gear. Secondary placement: the layer's one job is to be acknowledged.
@@ -258,8 +281,8 @@ class RewardLayer extends StatelessWidget {
                                   child: ExcludeSemantics(
                                     child: PixelAsset(
                                       assetPath: mark,
-                                      nativeWidth: 48,
-                                      nativeHeight: 48,
+                                      nativeWidth: emblemSize.width.round(),
+                                      nativeHeight: emblemSize.height.round(),
                                       scale: 1,
                                     ),
                                   ),
@@ -332,6 +355,8 @@ class RewardRaise extends StatefulWidget {
     this.continueLabel = 'Continue',
     this.trailing,
     this.announcement,
+    this.emblem,
+    this.emblemSize = RewardLayer.defaultEmblemSize,
   });
 
   final Object? token;
@@ -345,6 +370,12 @@ class RewardRaise extends StatefulWidget {
 
   /// Announced once when the layer rises — see [showRewardLayer].
   final String? announcement;
+
+  /// The authored mark this raised payoff *is* — see [RewardLayer.emblem].
+  final String? emblem;
+
+  /// [emblem]'s native footprint — see [RewardLayer.emblemSize].
+  final Size emblemSize;
 
   @override
   State<RewardRaise> createState() => _RewardRaiseState();
@@ -390,6 +421,8 @@ class _RewardRaiseState extends State<RewardRaise> {
         continueLabel: widget.continueLabel,
         trailing: widget.trailing,
         announcement: widget.announcement,
+        emblem: widget.emblem,
+        emblemSize: widget.emblemSize,
         onContinue: widget.onDismiss,
       );
       _showing = false;
@@ -418,6 +451,8 @@ class _RewardRaiseState extends State<RewardRaise> {
             accent: widget.accent,
             continueLabel: widget.continueLabel,
             trailing: widget.trailing,
+            emblem: widget.emblem,
+            emblemSize: widget.emblemSize,
             onContinue: widget.onDismiss,
           ),
       ],

@@ -223,6 +223,8 @@ void main() {
     // the row — so the sheet is dismissed before the next tab is reached.
     await tester.tap(find.text('Forge'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.textContaining('more at Smithing 3'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('more at Smithing 3'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword').first);
@@ -230,7 +232,7 @@ void main() {
     expect(find.text('ATTACK'), findsOneWidget);
     expect(find.text('UPGRADE'), findsOneWidget);
     await capture(tester, 'craft_gear_open');
-    await tester.tapAt(const Offset(196, 30));
+    await tester.tapAt(const Offset(196, 130));
     await tester.pumpAndSettle();
 
     await open(tester, 'Character');
@@ -473,18 +475,24 @@ void main() {
 
     /// The sheet's scrim, well above the panel's 70 % ceiling.
     Future<void> dismissSheet() async {
-      await tester.tapAt(const Offset(196, 30));
+      await tester.tapAt(const Offset(196, 130));
       await tester.pumpAndSettle();
     }
 
     await tester.tap(find.text('Forge'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Bronze Ingot'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Ingot'));
     await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_sourcing');
     await dismissSheet();
 
+    await tester.ensureVisible(find.textContaining('more at Smithing 3'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('more at Smithing 3'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
@@ -517,7 +525,9 @@ void main() {
 
     // Inventory: the purpose block under a held material.
     await open(tester, 'Inventory');
-    await tester.tap(find.text('Meadow Herb'));
+    // Five-column materials carry the name as the tile's semantics label
+    // (FMPO02 Inventory), not as text.
+    await tester.tap(find.bySemanticsLabel(RegExp('Meadow Herb')).first);
     await tester.pumpAndSettle();
     await capture(tester, 'v3_inventory_purpose');
   });

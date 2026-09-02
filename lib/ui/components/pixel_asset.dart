@@ -319,10 +319,24 @@ class PixelFrame extends StatefulWidget {
     required this.child,
     this.fallback,
     this.surface,
+    this.childBuilder,
   });
 
   final PanelSkin skin;
   final Widget child;
+
+  /// Built instead of [child], told whether the frame image is actually
+  /// drawing.
+  ///
+  /// [fallback] already switches a caller's painted **decoration** off the
+  /// moment the raster arrives, because two edges in the same place is the
+  /// obvious defect. A control whose painted construction is not a decoration
+  /// has the same problem and no lever for it: `StrideButton` draws a lit top
+  /// edge as a child widget, and left in place it would sit on top of the
+  /// authored plate's own rim. So this is the same switch, one layer in.
+  ///
+  /// Null — the default — is every existing call site: [child], always.
+  final Widget Function(BuildContext context, bool framed)? childBuilder;
 
   /// Painted while the image is in flight, and forever if it fails to load. A
   /// missing frame must degrade to the rectangle it replaced, never to a hole.
@@ -438,7 +452,11 @@ class _PixelFrameState extends State<PixelFrame> {
         decoration: image == null
             ? (widget.fallback ?? const BoxDecoration())
             : const BoxDecoration(),
-        child: Padding(padding: EdgeInsets.all(c), child: widget.child),
+        child: Padding(
+          padding: EdgeInsets.all(c),
+          child:
+              widget.childBuilder?.call(context, image != null) ?? widget.child,
+        ),
       ),
     );
   }
@@ -793,4 +811,177 @@ class _RenderExactSizeBox extends RenderProxyBox {
   double computeMinIntrinsicHeight(double width) => _height;
   @override
   double computeMaxIntrinsicHeight(double width) => _height;
+}
+
+/// A longitudinal strip tiled along one **horizontal** edge — the nav bar's
+/// welt and the header's shelf.
+///
+/// ## Why chrome's edges are a widget and not a `Border`
+///
+/// A `Border` is one flat line in one colour, and both edges this replaces
+/// were exactly that: a 1 px `borderDefault` rule across the top of the tab
+/// bar, and the header's 24 %-alpha region hairline. `DECISIONS/0029` allows a
+/// panel's **edge** to be authored raster, and an edge is the one place the
+/// amended L-18 is unambiguous — no word, no number, no boundary Flutter has
+/// to measure, just material where a line used to be.
+///
+/// Tiles horizontally only, at integer scale, from the left. The last tile is
+/// clipped and never rescaled, which is why `check-tile-seam.js` measures these
+/// two strips at their declared period before they ship: a join that beats
+/// every 16 logical px along the bottom of every screen is the most visible
+/// possible place to get it wrong.
+///
+/// ## The room is reserved whether or not the art decodes
+///
+/// [displayHeight] is the caller's layout figure, and the caller must spend it
+/// unconditionally — the same doctrine as `PanelSkins.insetFor`. Until the
+/// image resolves, and forever if it fails, the strip paints [fallbackColor] as
+/// the one-logical-pixel line it replaced. So a missing raster changes the
+/// material and not the layout, and the bar it terminates never briefly loses
+/// its edge.
+class EdgeStrip extends StatefulWidget {
+  const EdgeStrip({
+    super.key,
+    required this.assetPath,
+    required this.nativeWidth,
+    required this.nativeHeight,
+    this.scale = 2,
+    this.fallbackColor,
+    this.fallbackAtBottom = false,
+  }) : assert(scale >= 1, 'integer multiples only, and at least 1');
+
+  /// The nav bar's top welt — 8 × 4, period 8, drawn ×2. The boundary it
+  /// replaces is the bar's top, so the fallback line is drawn there.
+  const EdgeStrip.navWelt({super.key, this.fallbackColor, this.scale = 2})
+    : assetPath = 'assets/ui/v1/nav/nav_welt.png',
+      nativeWidth = 8,
+      nativeHeight = 4,
+      fallbackAtBottom = false;
+
+  /// The screen header's bottom shelf — 8 × 6, period 8, drawn ×2. The
+  /// boundary it replaces is the header's bottom, so the fallback line goes
+  /// along the strip's last row rather than its first.
+  const EdgeStrip.headerShelf({super.key, this.fallbackColor, this.scale = 2})
+    : assetPath = 'assets/ui/v1/header/header_shelf.png',
+      nativeWidth = 8,
+      nativeHeight = 6,
+      fallbackAtBottom = true;
+
+  final String assetPath;
+
+  /// The tile's own width — its repeat period, in source pixels.
+  final int nativeWidth;
+  final int nativeHeight;
+  final int scale;
+
+  /// The line drawn in the strip's place while the raster is absent. Null
+  /// leaves the edge blank, which only a caller that draws its own line wants.
+  final Color? fallbackColor;
+
+  /// Which row of the reserved strip the fallback line sits on — the boundary
+  /// the strip replaces. False is the strip's first row, true its last.
+  final bool fallbackAtBottom;
+
+  /// The strip's height in logical pixels. **Reserve this, always.**
+  double get displayHeight => (nativeHeight * scale).toDouble();
+
+  @override
+  State<EdgeStrip> createState() => _EdgeStripState();
+}
+
+class _EdgeStripState extends State<EdgeStrip> {
+  late final _AssetImageSlot _slot = _AssetImageSlot(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _slot.resolve(context, widget.assetPath);
+  }
+
+  @override
+  void didUpdateWidget(EdgeStrip old) {
+    super.didUpdateWidget(old);
+    if (old.assetPath != widget.assetPath) {
+      _slot.resolve(context, widget.assetPath);
+    }
+  }
+
+  @override
+  void dispose() {
+    _slot.detach();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    height: widget.displayHeight,
+    child: CustomPaint(
+      painter: _EdgeStripPainter(
+        image: _slot.image,
+        scale: widget.scale.toDouble(),
+        fallbackColor: widget.fallbackColor,
+        fallbackAtBottom: widget.fallbackAtBottom,
+      ),
+    ),
+  );
+}
+
+class _EdgeStripPainter extends CustomPainter {
+  _EdgeStripPainter({
+    required this.image,
+    required this.scale,
+    required this.fallbackColor,
+    required this.fallbackAtBottom,
+  });
+
+  final ui.Image? image;
+  final double scale;
+  final Color? fallbackColor;
+  final bool fallbackAtBottom;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final ui.Image? img = image;
+    if (img == null) {
+      if (fallbackColor case final Color c) {
+        canvas.drawRect(
+          Rect.fromLTWH(
+            0,
+            fallbackAtBottom ? size.height - 1 : 0,
+            size.width,
+            1,
+          ),
+          Paint()..color = c,
+        );
+      }
+      return;
+    }
+    final Paint paint = Paint()
+      ..filterQuality = FilterQuality.none
+      ..isAntiAlias = false;
+    final Rect src = Rect.fromLTWH(
+      0,
+      0,
+      img.width.toDouble(),
+      img.height.toDouble(),
+    );
+    final double w = img.width * scale;
+    final double h = img.height * scale;
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
+    for (double x = 0; x < size.width; x += w) {
+      canvas.drawImageRect(img, src, Rect.fromLTWH(x, 0, w, h), paint);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_EdgeStripPainter old) =>
+      old.image != image ||
+      old.scale != scale ||
+      old.fallbackColor != fallbackColor ||
+      old.fallbackAtBottom != fallbackAtBottom;
 }

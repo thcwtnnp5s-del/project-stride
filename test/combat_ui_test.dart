@@ -9,11 +9,18 @@ library;
 
 import 'dart:io';
 
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show ByteData, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
+import 'package:stride/ui/components/pixel_asset.dart';
+import 'package:stride/ui/icons/combat_assets.dart';
+import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/adventure/encounter_card.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -478,6 +485,50 @@ void main() {
     expect(tester.getSize(retreat).height, greaterThanOrEqualTo(44));
     // The log block is gone from the card entirely: its heading with it.
     expect(find.text('This round'), findsNothing);
+
+    // The authored command dressing (FMPO02 wave 2): one ornament and one
+    // glyph per *enabled* command cell, both at ×2, and neither on Retreat.
+    //
+    // The plate is drawn 128 × 64 — its native 64 × 32 at ×2 — inside a 56 dp
+    // cell, so the cell clips 4 dp top and bottom. That is the plate's own
+    // transparent margin and none of its drawn pixels: the three files' opaque
+    // content spans native rows 2..29 at worst (`CombatHudAssets`).
+    for (final (Finder cell, String plate, String icon)
+        in <(Finder, String, String)>[
+          (attack, CombatHudAssets.plateAttack, CombatHudAssets.iconAttack),
+          (brace, CombatHudAssets.plateBrace, CombatHudAssets.iconBrace),
+        ]) {
+      Finder art(String path) => find.descendant(
+        of: cell,
+        matching: find.byWidgetPredicate(
+          (Widget w) => w is PixelAsset && w.assetPath == path,
+        ),
+      );
+      final PixelAsset p = tester.widget<PixelAsset>(art(plate));
+      expect(p.scale, 2, reason: 'integer scale only (L-18)');
+      expect(p.nativeWidth, CombatHudAssets.plateNativeWidth);
+      expect(p.nativeHeight, CombatHudAssets.plateNativeHeight);
+      expect(tester.getSize(art(plate)), const Size(128, 64));
+      final PixelAsset g = tester.widget<PixelAsset>(art(icon));
+      expect(g.scale, 2);
+      expect(tester.getSize(art(icon)), const Size(32, 32));
+    }
+    // Eat is disabled in this fixture — the Traveler is carrying nothing
+    // edible — so it is also the disabled case: no plate and no glyph, the
+    // same rule the authored button plate already obeys, and the reason it
+    // cannot be pressed keeps the room the dressing would have taken.
+    expect(tester.widget<StrideButton>(eat).onPressed, isNull);
+    expect(find.text('Nothing to eat'), findsOneWidget);
+    expect(
+      find.descendant(of: eat, matching: find.byType(PixelAsset)),
+      findsNothing,
+    );
+    // Retreat is the quiet secondary: no plate, no glyph, and its icon was
+    // never authored (`COMBAT_STAGE_report.md` — four candidates, dropped).
+    expect(
+      find.descendant(of: retreat, matching: find.byType(PixelAsset)),
+      findsNothing,
+    );
   });
 
   testWidgets('the Character screen shows the combat figures and follows the '
@@ -512,4 +563,90 @@ void main() {
     expect(find.text('unarmed'), findsNothing);
     expect(find.text('Training Sword'), findsOneWidget);
   });
+
+  testWidgets('the narration keeps its translucent fill: the authored '
+      'parchment strip fails AA on the rows the type sits on', (
+    WidgetTester tester,
+  ) async {
+    // `narration_strip.png` was authored for exactly this ground and is
+    // packaged and unused. This is the measurement that decided it, held so
+    // that a darker re-authored strip swaps in on a figure rather than on an
+    // argument — and so that the *misleading* figure cannot be quoted at the
+    // decision either.
+    //
+    // The whole-canvas mean passes AA and is the wrong number: nine of the
+    // sixteen rows are fully transparent, so averaging them in measures the
+    // stage showing through rather than the parchment a line of type sits on.
+    late final List<double> luminance;
+    await tester.runAsync(() async {
+      final ByteData bytes = await rootBundle.load(
+        CombatHudAssets.narrationStrip,
+      );
+      final ui.Codec codec = await ui.instantiateImageCodec(
+        bytes.buffer.asUint8List(),
+      );
+      final ui.Image image = (await codec.getNextFrame()).image;
+      expect(image.width, CombatHudAssets.narrationStripWidth);
+      expect(image.height, CombatHudAssets.narrationStripHeight);
+      final ByteData px = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
+      // Row means, each pixel composited over the stage's own ground. `rawRgba`
+      // is premultiplied, so `src + ground × (1 − a)` is the composite, exactly.
+      luminance = <double>[
+        for (int y = 0; y < image.height; y++)
+          () {
+                double sum = 0;
+                for (int x = 0; x < image.width; x++) {
+                  final int i = (y * image.width + x) * 4;
+                  final double a = px.getUint8(i + 3) / 255;
+                  sum += _luminance(
+                    px.getUint8(i) + StrideColors.surfaceGround.r * 255 * (1 - a),
+                    px.getUint8(i + 1) +
+                        StrideColors.surfaceGround.g * 255 * (1 - a),
+                    px.getUint8(i + 2) +
+                        StrideColors.surfaceGround.b * 255 * (1 - a),
+                  );
+                }
+                return sum / image.width;
+              }(),
+      ];
+      image.dispose();
+      codec.dispose();
+    });
+
+    double meanOf(int from, int to) {
+      double s = 0;
+      for (int y = from; y <= to; y++) {
+        s += luminance[y];
+      }
+      return s / (to - from + 1);
+    }
+
+    final double text = _luminance(0xF0, 0xE7, 0xD8);
+    double contrast(double ground) => (text + 0.05) / (ground + 0.05);
+
+    // The whole canvas: 5.32 : 1, and a pass — on nine rows of nothing.
+    expect(contrast(meanOf(0, 15)), closeTo(5.32, 0.05));
+    // The drawn body: 2.90 : 1. The rows a line of type actually crosses.
+    expect(
+      contrast(meanOf(4, 10)),
+      closeTo(2.90, 0.05),
+      reason: 'if this rose above 4.5 the strip may be drawn: swap the '
+          'translucent fill in `_CombatLog` for the tiled parchment',
+    );
+    expect(contrast(meanOf(4, 10)), lessThan(4.5));
+    // Its bright core is 1.85 : 1 — parchment as pale as the ink on it.
+    expect(contrast(meanOf(6, 9)), closeTo(1.85, 0.05));
+  });
+}
+
+/// sRGB relative luminance (WCAG 2.1), on 0..255 channels.
+double _luminance(double r, double g, double b) {
+  double c(double v) {
+    final double s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : math.pow((s + 0.055) / 1.055, 2.4) as double;
+  }
+
+  return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
 }

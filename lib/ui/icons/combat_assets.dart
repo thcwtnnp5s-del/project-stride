@@ -30,8 +30,13 @@
 ///
 /// ## Geometry, once
 ///
-/// The backdrop is 192 × 96 with the ground on row 88; the stage draws it at
-/// ×2. Every figure stands with its anchor row on that ground row, its
+/// The backdrop is 192 × 128 with the ground on row 120; the stage draws it
+/// at ×2. It was 192 × 96 with the ground on row 88 until FMPO02 wave 2
+/// re-authored the four biome canvases 32 rows taller
+/// (`ART-09_combat_brief.md` §2, `COMBAT_STAGE_report.md`): the width and both
+/// standing columns are unchanged and the ground keeps its 8-row offset from
+/// the canvas bottom, so **only the sky grew** and no figure moved relative to
+/// the scene. Every figure stands with its anchor row on that ground row, its
 /// footprint centre on a fixed backdrop column — the Traveler on column 58
 /// (≈30 % of the width), the enemy on column 138 (≈72 %) — so the pair stand
 /// in the same place in the scene on every phone; a narrower phone sees less of
@@ -59,14 +64,17 @@
 /// ```
 ///
 /// The guardian's opaque top is row 11 with its anchor on 83, so its head
-/// stands 72 rows above the ground — 144 dp — and the ground is 176 dp down the
-/// 192 dp backdrop: the whole creature fits inside the backdrop with 32 dp to
-/// spare. Nothing needs to overflow the stage's top edge.
+/// stands 72 rows above the ground — 144 dp — and the ground is 240 dp down
+/// the 256 dp backdrop: the whole creature fits inside the backdrop with 96 dp
+/// of sky above its crown, against 32 dp on the old canvas. Nothing needs to
+/// overflow the stage's top edge, and the tallest figure in the game no longer
+/// crowds the two corner chips.
 library;
 
 import 'package:stride_core/stride_core.dart' show ContentId;
 
 import '../components/ambient_scene.dart';
+import '../components/panel_skin.dart';
 import 'sprite_footprints.dart';
 
 const String _art = 'assets/art/v1/combat';
@@ -124,9 +132,15 @@ final class CombatantArt {
     this.hit,
     this.defeat,
     this.stagger,
+    this.brace,
   });
 
   final CombatTrack idle;
+
+  /// The planted guard a Brace holds (FMPO02). `null` plays a held idle, as
+  /// every Traveler set did before a stance pose was authored; only the
+  /// Traveler carries one.
+  final CombatTrack? brace;
 
   /// The normal strike.
   final CombatTrack attack;
@@ -203,10 +217,16 @@ abstract final class CombatAssets {
   // -------------------------------------------------------------- backdrop
 
   static const int backdropWidth = 192;
-  static const int backdropHeight = 96;
 
-  /// The row both figures stand on (manifest `groundRow`).
-  static const int backdropGroundRow = 88;
+  /// 128 since FMPO02 wave 2. The `_128` files are the same four scenes with
+  /// 32 rows of sky, canopy or ceiling added above the old row 32; the 96-tall
+  /// originals stay packaged, and pointing the four constants below back at
+  /// them is the whole of a rollback.
+  static const int backdropHeight = 128;
+
+  /// The row both figures stand on (manifest `groundRow`) — 8 rows up from the
+  /// canvas bottom, as it was at 96 (row 88) and is at 128.
+  static const int backdropGroundRow = 120;
 
   /// The backdrop column the Traveler's footprint centre stands on.
   static const int travelerColumn = 58;
@@ -214,10 +234,10 @@ abstract final class CombatAssets {
   /// The backdrop column the enemy's footprint centre stands on.
   static const int enemyColumn = 138;
 
-  static const String backdropForest = '$_art/backdrop_forest.png';
-  static const String backdropMine = '$_art/backdrop_mine.png';
-  static const String backdropHollow = '$_art/backdrop_hollow.png';
-  static const String backdropFrostmere = '$_art/backdrop_frostmere.png';
+  static const String backdropForest = '$_art/backdrop_forest_128.png';
+  static const String backdropMine = '$_art/backdrop_mine_128.png';
+  static const String backdropHollow = '$_art/backdrop_hollow_128.png';
+  static const String backdropFrostmere = '$_art/backdrop_frostmere_128.png';
 
   /// The backdrop for a fight at [location]. Forest is the fallback: a new
   /// location arriving in a content pack must not crash the stage
@@ -354,6 +374,7 @@ abstract final class CombatAssets {
       anchorRow: 62,
       footprint: SpriteFootprints.combatTravelerUnarmedStagger,
     ),
+    brace: _baseBrace('unarmed', SpriteFootprints.combatTravelerBaseUnarmedBrace),
     // Opaque rows 1..62, the same standing height as the base figure, so the
     // impact still lands on the chest.
     impactRise: 34,
@@ -415,6 +436,7 @@ abstract final class CombatAssets {
       anchorRow: 62,
       footprint: SpriteFootprints.combatTravelerBronzeStagger,
     ),
+    brace: _baseBrace('bronze', SpriteFootprints.combatTravelerBaseBronzeBrace),
     impactRise: 34,
   );
 
@@ -434,6 +456,7 @@ abstract final class CombatAssets {
     required SpriteFootprint attack,
     required SpriteFootprint hit,
     required SpriteFootprint stagger,
+    required SpriteFootprint brace,
   }) {
     CombatTrack t(String track, int frames, double fps, AmbientLoop loop,
             SpriteFootprint footprint) =>
@@ -453,9 +476,24 @@ abstract final class CombatAssets {
       strikeFrame: strikeFrame,
       hit: t('hit', 6, 8, AmbientLoop.once, hit),
       stagger: t('stagger', 8, 8, AmbientLoop.once, stagger),
+      // Six frames into the guard, held on the last.
+      brace: t('brace', 6, 10, AmbientLoop.once, brace),
       impactRise: 34,
     );
   }
+
+  /// The brace track for a VAWO01 base-body set, authored in FMPO02.
+  static CombatTrack _baseBrace(String held, SpriteFootprint footprint) =>
+      _track(
+        'traveler_base_${held}_brace',
+        6,
+        10,
+        AmbientLoop.once,
+        canvasWidth: 80,
+        canvasHeight: 64,
+        anchorRow: 62,
+        footprint: footprint,
+      );
 
   /// `'<bodyClass>|<weaponClass>'` → the loadout. Strike frames from
   /// `FMPO02/tools/measure-reach.js` over the packaged strips: the blade's
@@ -471,6 +509,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerPlateBronzeAttack,
           hit: SpriteFootprints.combatTravelerPlateBronzeHit,
           stagger: SpriteFootprints.combatTravelerPlateBronzeStagger,
+          brace: SpriteFootprints.combatTravelerPlateBronzeBrace,
         ),
         'armor.plate|weapon.steel': _loadout(
           'plate',
@@ -480,6 +519,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerPlateSteelAttack,
           hit: SpriteFootprints.combatTravelerPlateSteelHit,
           stagger: SpriteFootprints.combatTravelerPlateSteelStagger,
+          brace: SpriteFootprints.combatTravelerPlateSteelBrace,
         ),
         'armor.plate|weapon.unarmed': _loadout(
           'plate',
@@ -489,6 +529,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerPlateUnarmedAttack,
           hit: SpriteFootprints.combatTravelerPlateUnarmedHit,
           stagger: SpriteFootprints.combatTravelerPlateUnarmedStagger,
+          brace: SpriteFootprints.combatTravelerPlateUnarmedBrace,
         ),
         'armor.jerkin|weapon.bronze': _loadout(
           'jerkin',
@@ -498,6 +539,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerJerkinBronzeAttack,
           hit: SpriteFootprints.combatTravelerJerkinBronzeHit,
           stagger: SpriteFootprints.combatTravelerJerkinBronzeStagger,
+          brace: SpriteFootprints.combatTravelerJerkinBronzeBrace,
         ),
         'armor.jerkin|weapon.steel': _loadout(
           'jerkin',
@@ -507,6 +549,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerJerkinSteelAttack,
           hit: SpriteFootprints.combatTravelerJerkinSteelHit,
           stagger: SpriteFootprints.combatTravelerJerkinSteelStagger,
+          brace: SpriteFootprints.combatTravelerJerkinSteelBrace,
         ),
         'armor.jerkin|weapon.unarmed': _loadout(
           'jerkin',
@@ -516,6 +559,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerJerkinUnarmedAttack,
           hit: SpriteFootprints.combatTravelerJerkinUnarmedHit,
           stagger: SpriteFootprints.combatTravelerJerkinUnarmedStagger,
+          brace: SpriteFootprints.combatTravelerJerkinUnarmedBrace,
         ),
         'armor.coat|weapon.bronze': _loadout(
           'coat',
@@ -525,6 +569,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerCoatBronzeAttack,
           hit: SpriteFootprints.combatTravelerCoatBronzeHit,
           stagger: SpriteFootprints.combatTravelerCoatBronzeStagger,
+          brace: SpriteFootprints.combatTravelerCoatBronzeBrace,
         ),
         'armor.coat|weapon.steel': _loadout(
           'coat',
@@ -534,6 +579,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerCoatSteelAttack,
           hit: SpriteFootprints.combatTravelerCoatSteelHit,
           stagger: SpriteFootprints.combatTravelerCoatSteelStagger,
+          brace: SpriteFootprints.combatTravelerCoatSteelBrace,
         ),
         'armor.coat|weapon.unarmed': _loadout(
           'coat',
@@ -543,6 +589,7 @@ abstract final class CombatAssets {
           attack: SpriteFootprints.combatTravelerCoatUnarmedAttack,
           hit: SpriteFootprints.combatTravelerCoatUnarmedHit,
           stagger: SpriteFootprints.combatTravelerCoatUnarmedStagger,
+          brace: SpriteFootprints.combatTravelerCoatUnarmedBrace,
         ),
       };
 
@@ -693,9 +740,10 @@ abstract final class CombatAssets {
 
   /// The Whispering Woods boar (Regional Content Pack 01, integrated by
   /// Exploration & Progression Loop 01). Pack blind QA accepted idle, attack
-  /// ("goring lunge f3–f6") and defeat ("sinks and lies from f4"); the pack
-  /// authored no hit track, so the stage recoils the figure, as for the wolf.
-  /// 56² canvas, anchor row 43.
+  /// ("goring lunge f3–f6") and defeat ("sinks and lies from f4"). The pack
+  /// authored no hit track and the stage recoiled the figure instead until
+  /// FMPO02 wave 2 (`ENEMIES_report.md` §2) authored one at the family's own
+  /// canvas and anchor row, so nothing here moved. 56² canvas, anchor row 43.
   static final CombatantArt boar = CombatantArt(
     idle: _track(
       'boar_idle',
@@ -719,6 +767,16 @@ abstract final class CombatAssets {
     ),
     // The goring lunge is f3–f6; the tusks connect on f4.
     strikeFrame: 4,
+    hit: _track(
+      'boar_hit',
+      6,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 43,
+      footprint: SpriteFootprints.combatBoarHit,
+    ),
     defeat: _track(
       'boar_defeat',
       7,
@@ -777,11 +835,12 @@ abstract final class CombatAssets {
 
   /// The Stonefall scree crawler (Regional Content Pack 01, integrated by
   /// Fable V2 Experiment 01 — `DECISIONS/0027`). Pack blind QA accepted idle
-  /// and attack ("mandibles gape f3–f6"); `crawler_defeat` stayed withheld
-  /// ("legs curl slightly; no collapse read"), so the stage holds the hit
-  /// pose on victory exactly as it does for the guardian, and the pack
-  /// authored no hit track, so the stage recoils the figure. 48² canvas,
-  /// anchor row 40 — a low armoured arthropod.
+  /// and attack ("mandibles gape f3–f6"). `crawler_defeat` stayed withheld
+  /// ("legs curl slightly; no collapse read") and the pack authored no hit
+  /// track, so the stage held the hit pose on victory and recoiled the figure
+  /// on a blow. FMPO02 wave 2 (`ENEMIES_report.md` §2) authored both, at the
+  /// same canvas and anchor row. 48² canvas, anchor row 40 — a low armoured
+  /// arthropod.
   static final CombatantArt crawler = CombatantArt(
     idle: _track(
       'crawler_idle',
@@ -805,12 +864,38 @@ abstract final class CombatAssets {
     ),
     // The mandibles gape f3–f6; the crushing grip closes on f4.
     strikeFrame: 4,
+    hit: _track(
+      'crawler_hit',
+      6,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 48,
+      canvasHeight: 48,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatCrawlerHit,
+    ),
+    // The defeat the pack withheld, re-authored in FMPO02 wave 2. Its own
+    // report is candid that the collapse is weak — the legs splay and the
+    // body settles, but the height drops only ~9 % across eight frames, and
+    // two rolls looked the same. It is shipped rather than faked, and it is
+    // still a clearer victory read than holding the hit pose.
+    defeat: _track(
+      'crawler_defeat',
+      8,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 48,
+      canvasHeight: 48,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatCrawlerDefeat,
+    ),
     // Opaque rows 6..40: the plated back's centre is about row 23.
     impactRise: 17,
   );
 
   /// The Stonefall deep-gallery salamander (Regional Content Pack 01). The
-  /// pack authored no hit track; the stage recoils the figure. 56² canvas,
+  /// pack authored no hit track and the stage recoiled the figure until
+  /// FMPO02 wave 2 authored one (`ENEMIES_report.md` §2). 56² canvas,
   /// anchor row 50 — a low-slung creature whose raised head carries the
   /// opaque top.
   static final CombatantArt salamander = CombatantArt(
@@ -836,6 +921,16 @@ abstract final class CombatAssets {
     ),
     // The mouth gapes with teeth f3–f6; the bite closes on f4.
     strikeFrame: 4,
+    hit: _track(
+      'salamander_hit',
+      6,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 50,
+      footprint: SpriteFootprints.combatSalamanderHit,
+    ),
     defeat: _track(
       'salamander_defeat',
       7,
@@ -853,8 +948,9 @@ abstract final class CombatAssets {
   /// The Oakback Bear (Regional Content Pack 01, the optional high-danger
   /// mark). The attack is the file called `bear_attack2` — the pack's round-2
   /// rear-up/roar/swipe, its QA_PASS_D ACCEPT; round 1 (`bear_attack`) is
-  /// withheld (blind QA read it as a walk). No hit track was authored; the
-  /// stage recoils the figure. 76² canvas, anchor row 61.
+  /// withheld (blind QA read it as a walk). The pack authored no hit track and
+  /// the stage recoiled the figure until FMPO02 wave 2 authored one
+  /// (`ENEMIES_report.md` §2). 76² canvas, anchor row 61.
   static final CombatantArt bear = CombatantArt(
     idle: _track(
       'bear_idle',
@@ -878,6 +974,16 @@ abstract final class CombatAssets {
     ),
     // Rear-up and roar f2–f4, the swipe comes down f5–f6.
     strikeFrame: 5,
+    hit: _track(
+      'bear_hit',
+      6,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 76,
+      canvasHeight: 76,
+      anchorRow: 61,
+      footprint: SpriteFootprints.combatBearHit,
+    ),
     defeat: _track(
       'bear_defeat',
       7,
@@ -945,6 +1051,154 @@ abstract final class CombatAssets {
     impactRise: 36,
   );
 
+  // ---------------------------------------------------------------- elites
+
+  // THE FOUR VETERAN HUNTS GET THEIR OWN SPRITES.
+  //
+  // `DECISIONS/0028` shipped the named elites pointing at their base species'
+  // files, which made a Veteran Hunt the same animal under a different label.
+  // FMPO02 wave 2 (`ENEMIES_report.md` §3) authored an **idle and an attack**
+  // for each — grey muzzle and scar on the wolf, iron helmet and bulk on the
+  // goblin, a dark frosted coat and white chest on the lynx, glowing rune
+  // cracks and lighter stone on the guardian. All four passed a blind
+  // side-by-side at card size: same species, something is different.
+  //
+  // **The other tracks are borrowed from the base family on purpose.** The
+  // round authored two tracks per elite, not five, so the flinch, the defeat
+  // and the guardian's heavy strike below are the base species' own
+  // `CombatTrack` objects, reused by reference. That is visible to a player
+  // only at the moment a blow lands or the fight ends, and the alternative —
+  // withholding them — would cost the elites the flinch and the defeat their
+  // own species already has. When a later round authors elite tracks, the
+  // borrowed lines are what it replaces.
+  //
+  // Canvases, anchor rows and strike frames are the report's measurements.
+  // Each elite carries its own footprint, measured from its own frame 0, so
+  // the matriarch sitting one row lower than the lynx (40 against 39, the
+  // edit made the cat huskier) needs no correction.
+
+  /// Old Grey — the veteran wolf. Hit is `null` as it is for the wolf, whose
+  /// own flinch stayed withheld; the stage recoils the figure.
+  static final CombatantArt oldGrey = CombatantArt(
+    idle: _track(
+      'old_grey_idle',
+      8,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatOldGreyIdle,
+    ),
+    attack: _track(
+      'old_grey_attack',
+      8,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatOldGreyAttack,
+    ),
+    // Leftmost reach, one frame before retraction (report §3).
+    strikeFrame: 3,
+    // Borrowed from the wolf.
+    defeat: wolf.defeat,
+    impactRise: 14,
+  );
+
+  /// The Gallery Foreman — the veteran cave goblin. Hit and defeat borrowed.
+  static final CombatantArt galleryForeman = CombatantArt(
+    idle: _track(
+      'gallery_foreman_idle',
+      8,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 46,
+      footprint: SpriteFootprints.combatGalleryForemanIdle,
+    ),
+    attack: _track(
+      'gallery_foreman_attack',
+      8,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 46,
+      footprint: SpriteFootprints.combatGalleryForemanAttack,
+    ),
+    strikeFrame: 5,
+    // Borrowed from the goblin.
+    hit: goblin.hit,
+    defeat: goblin.defeat,
+    impactRise: 18,
+  );
+
+  /// The Rimeclaw Matriarch — the veteran frost lynx. Hit is `null` as it is
+  /// for the lynx, whose flinch stayed withheld; defeat borrowed.
+  static final CombatantArt rimeclawMatriarch = CombatantArt(
+    idle: _track(
+      'rimeclaw_matriarch_idle',
+      8,
+      6,
+      AmbientLoop.pingpong,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatRimeclawMatriarchIdle,
+    ),
+    attack: _track(
+      'rimeclaw_matriarch_attack',
+      8,
+      10,
+      AmbientLoop.once,
+      canvasWidth: 56,
+      canvasHeight: 56,
+      anchorRow: 40,
+      footprint: SpriteFootprints.combatRimeclawMatriarchAttack,
+    ),
+    strikeFrame: 5,
+    // Borrowed from the lynx.
+    defeat: lynx.defeat,
+    impactRise: 13,
+  );
+
+  /// The Awakened Guardian. Heavy and hit borrowed from the guardian, whose
+  /// defeat is withheld, so this one holds the hit pose on victory too.
+  static final CombatantArt guardianAwakened = CombatantArt(
+    idle: _track(
+      'guardian_awakened_idle',
+      8,
+      4,
+      AmbientLoop.pingpong,
+      canvasWidth: 96,
+      canvasHeight: 96,
+      anchorRow: 83,
+      footprint: SpriteFootprints.combatGuardianAwakenedIdle,
+    ),
+    attack: _track(
+      'guardian_awakened_attack',
+      8,
+      8,
+      AmbientLoop.once,
+      canvasWidth: 96,
+      canvasHeight: 96,
+      anchorRow: 83,
+      footprint: SpriteFootprints.combatGuardianAwakenedAttack,
+    ),
+    // The heavy-swing extension (report §3).
+    strikeFrame: 5,
+    // Borrowed from the guardian, ids and all: `guardian_attack` is the
+    // telegraphed heavy, per this library's own doc note about the swapped
+    // guardian ids.
+    heavy: guardian.heavy,
+    heavyStrikeFrame: guardian.heavyStrikeFrame,
+    hit: guardian.hit,
+    impactRise: 36,
+  );
+
   /// The art for [enemy], or `null` for an enemy the table does not know —
   /// the stage then draws the Traveler alone against the backdrop, with the
   /// figures still exact, rather than crashing on a content pack's new enemy.
@@ -958,13 +1212,14 @@ abstract final class CombatAssets {
     'enemy.salamander' => salamander,
     'enemy.oakback_bear' => bear,
     'enemy.scree_crawler' => crawler,
-    // Veteran Hunts (`DECISIONS/0028`): named elites reuse their species'
-    // full combat set — zero generations; the hold-hit-pose precedent covers
-    // withheld frames.
-    'enemy.old_grey' => wolf,
-    'enemy.gallery_foreman' => goblin,
-    'enemy.rimeclaw_matriarch' => lynx,
-    'enemy.guardian_awakened' => guardian,
+    // Veteran Hunts (`DECISIONS/0028`). These four used to resolve to their
+    // base species, so a named elite was that species relabelled. FMPO02
+    // wave 2 gave each its own idle and attack; the rest of each set is still
+    // the base family's, borrowed by reference in the four entries above.
+    'enemy.old_grey' => oldGrey,
+    'enemy.gallery_foreman' => galleryForeman,
+    'enemy.rimeclaw_matriarch' => rimeclawMatriarch,
+    'enemy.guardian_awakened' => guardianAwakened,
     _ => null,
   };
 
@@ -1034,4 +1289,121 @@ abstract final class CombatAssets {
       ...fxBite.track.frames,
     ];
   }
+}
+
+/// The combat interface's own authored pieces (FMPO02 wave 2).
+///
+/// Sprites are above; these are the HUD and command-cluster rasters that
+/// PROD-COMBAT-STAGE produced alongside them, with the geometry taken from the
+/// `.json` sidecar beside each PNG rather than from the brief that
+/// commissioned it (`panel_skin.dart` — a frame whose declared geometry
+/// disagrees with its pixels renders wrong in a way that looks like a layout
+/// bug).
+///
+/// ## What the delivered art actually is, which is not what the brief assumed
+///
+/// `ART-09_combat_brief.md` §5 asked for three **plates**: rounded rectangles
+/// a nine-patch could stretch to a command cell. The sidecars duly record
+/// `corner 10 / band 12` for all three, and hedge it — "a nine-slice
+/// approximation … at the shipped 64 × 32 size no slicing is required".
+///
+/// Measured against the pixels, they are not nine-patches at all. Every one of
+/// the three is a **centred blob on a transparent 64 × 32 field**: Brace is a
+/// diamond spanning columns 9–53 and rows 3–28, Eat an oval, Attack a rough
+/// medallion — the four 10 × 10 corner blocks a nine-patch would sample are
+/// fully transparent in all three files, and so are the edge strips between
+/// them. Rendered through `PixelFrame` they would tile the blob's own arc
+/// across the cell and draw nothing in the middle.
+///
+/// So they are integrated as what they are: **ornaments Flutter positions**,
+/// the third of the three things `DECISIONS/0029` allows a raster to be, drawn
+/// at ×2 with no stretch and no resample. Their opaque content is 48–56 dp
+/// tall at ×2 and fits a 56 dp command cell; only transparent rows are
+/// clipped. The declared `corner 10 / band 12` is also **unrepresentable** as
+/// a [PanelSkin] — `band > corner` trips the assert that says the band is the
+/// material inside the corner block — which is a second, independent signal
+/// from the same measurement, and is not a rule to relax.
+///
+/// `hp_gauge_frame` is the one genuine nine-patch of the set and is used as
+/// one. `turn_marker`'s own sidecar already says `"type": "fixed"`.
+abstract final class CombatHudAssets {
+  const CombatHudAssets._();
+
+  static const String _ui = 'assets/ui/v1/combat';
+
+  // ------------------------------------------------------------- HP gauge
+
+  /// The gauge chassis: a horizontal nine-patch, `corner 6 / band 3` exactly
+  /// as `hp_gauge_frame.json` measures it, drawn at ×2 — so at its native
+  /// 32 dp height the whole 16-row canvas reproduces pixel-for-pixel and only
+  /// the horizontal band tiles.
+  static const PanelSkin gaugeFrame = PanelSkin(
+    assetPath: '$_ui/hp_gauge_frame.png',
+    nativeWidth: 96,
+    nativeHeight: 16,
+    corner: 6,
+    band: 3,
+    scale: 2,
+  );
+
+  /// The gauge's drawn height in logical pixels — its native 16 rows at ×2.
+  static const double gaugeHeight = 32;
+
+  /// Where the Flutter-painted fill lives inside the frame, in logical pixels
+  /// from the gauge's top-left. **These are the sidecar's figures, doubled**:
+  /// the visible pill occupies rows 4–11 of the 16-row canvas and its flat
+  /// section is rows 5–10, so the fill is inset to those rows and to columns
+  /// 7–88, "not the full 16 px height or full 96 px width"
+  /// (`hp_gauge_frame.json`, integration note).
+  ///
+  /// The fill is a rectangle Flutter paints and the frame is drawn **over**
+  /// it, so the pill's own tapered top and bottom rows always sit on the fill
+  /// rather than the fill spilling past them. `DECISIONS/0029`: the raster
+  /// carries the material, never the state.
+  static const double gaugeFillTop = 10;
+  static const double gaugeFillHeight = 12;
+  static const double gaugeFillInset = 14;
+
+  // ----------------------------------------------------------- turn marker
+
+  /// The leather tab beside the TURN chip. Fixed, never stretched
+  /// (`turn_marker.json`).
+  static const String turnMarker = '$_ui/turn_marker.png';
+  static const int turnMarkerNative = 24;
+
+  // --------------------------------------------------------------- plates
+
+  /// The command ornaments. 64 × 32 native, drawn at ×2 behind the label.
+  static const String plateAttack = '$_ui/plate_attack.png';
+  static const String plateBrace = '$_ui/plate_brace.png';
+  static const String plateEat = '$_ui/plate_eat.png';
+
+  static const int plateNativeWidth = 64;
+  static const int plateNativeHeight = 32;
+
+  /// The 16 × 16 glyphs, drawn at ×2 to the left of the label. Retreat has
+  /// none on purpose: four candidates never produced a readable footprint and
+  /// `ART-09` §5 had already specified it as a plain text link
+  /// (`COMBAT_STAGE_report.md`).
+  static const String iconAttack = '$_ui/icon_attack.png';
+  static const String iconBrace = '$_ui/icon_brace.png';
+  static const String iconEat = '$_ui/icon_eat.png';
+
+  static const int iconNative = 16;
+
+  // ------------------------------------------------------ narration strip
+
+  /// **Authored, packaged, and deliberately not drawn** — see
+  /// `combat_screen.dart`'s `_CombatLog` and `test/combat_ui_test.dart`'s
+  /// contrast guard.
+  ///
+  /// The strip is parchment. Composited over the stage, its drawn body (rows
+  /// 4–10) has a mean relative luminance of 0.246, which is 2.90 : 1 against
+  /// `textPrimary` — and its four brightest rows, the ones a line of type
+  /// actually sits on, are 1.85 : 1. The narration keeps the translucent fill
+  /// it shipped with until a darker strip is authored; the guard test holds
+  /// the figure so the swap is a measurement away rather than a redesign.
+  static const String narrationStrip = '$_ui/narration_strip.png';
+  static const int narrationStripWidth = 64;
+  static const int narrationStripHeight = 16;
 }

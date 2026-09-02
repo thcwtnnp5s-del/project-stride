@@ -7,6 +7,7 @@ import '../shell/stride_destination.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
+import 'panel_skin.dart';
 import 'pixel_asset.dart';
 
 class StrideTabBar extends StatelessWidget {
@@ -19,13 +20,24 @@ class StrideTabBar extends StatelessWidget {
   final StrideDestination selected;
   final ValueChanged<StrideDestination> onSelect;
 
+  /// The welt's room, reserved whether or not its raster decodes.
+  ///
+  /// 8 logical px — `nav_welt` is 8 × 4 native at ×2. It replaces the 1 px
+  /// `borderDefault` rule that used to be painted *over* the bar's top row, so
+  /// the six tabs are pushed down by exactly this much and the active plate's
+  /// 2 dp lit rule stays visible underneath rather than being covered by it.
+  /// The bar's overall height is unchanged: the tabs give up 8 of their 64.
+  static const double weltHeight = 8;
+
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: StrideColors.surfaceCard,
-        border: Border(top: BorderSide(color: StrideColors.borderDefault)),
-      ),
+    // Oiled leather behind the bar (FMPO02): the one piece of chrome the
+    // player sees on every screen, and the material the chassis is cut from.
+    // The flat `surfaceCard` fill is painted first, so a tile that fails to
+    // load is exactly today's bar.
+    final SurfaceTile? leather = PanelSurfaces.of(PanelSurface.leather);
+    return _Leather(
+      tile: leather,
       child: SizedBox(
         // Fixed rather than minimum, and legitimately so: the labels below run
         // under `withNoTextScaling`, so nothing inside this bar can grow. That
@@ -45,22 +57,60 @@ class StrideTabBar extends StatelessWidget {
           // the player already knows by glyph and position. Every content
           // surface — every figure, name, and sentence the player actually has to
           // read — keeps free scaling.
-          child: Row(
+          child: Column(
             children: <Widget>[
-              for (final StrideDestination d in StrideDestination.values)
-                Expanded(
-                  child: _Tab(
-                    destination: d,
-                    isSelected: d == selected,
-                    onTap: d.enabled ? () => onSelect(d) : null,
-                  ),
+              // The welt: an authored strip where a 1 px line was. Tiled at
+              // period 8, horizontally only, the last tile clipped — measured
+              // by `check-tile-seam.js` before it shipped, because a join that
+              // beats every 16 logical px across the bottom of every screen is
+              // the most visible possible place to get a seam wrong.
+              const EdgeStrip.navWelt(
+                fallbackColor: StrideColors.borderDefault,
+              ),
+              Expanded(
+                child: Row(
+                  children: <Widget>[
+                    for (final StrideDestination d in StrideDestination.values)
+                      Expanded(
+                        child: _Tab(
+                          destination: d,
+                          isSelected: d == selected,
+                          onTap: d.enabled ? () => onSelect(d) : null,
+                        ),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// The bar's material: the flat card fill, then oiled leather over it.
+///
+/// A private wrapper rather than a bare [SurfaceFill] because the tile may be
+/// absent — the registry is allowed to be empty, and an empty registry must
+/// paint exactly what shipped before.
+class _Leather extends StatelessWidget {
+  const _Leather({required this.tile, required this.child});
+
+  final SurfaceTile? tile;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => tile == null
+      ? DecoratedBox(
+          decoration: const BoxDecoration(color: StrideColors.surfaceCard),
+          child: child,
+        )
+      : SurfaceFill(
+          tile: tile!,
+          fill: StrideColors.surfaceCard,
+          child: child,
+        );
 }
 
 class _Tab extends StatelessWidget {

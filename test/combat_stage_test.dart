@@ -296,8 +296,10 @@ void main() {
     expect(guardian.assetPath, endsWith('guardian_idle_f0.png'));
     expect(guardian.canvas, 96);
     expect(guardian.canvasHeight, 96);
-    // Anchor row 83 on ground row 88, both ×2: the canvas top is 10 dp down
-    // the backdrop, and its foot row lands on 176.
+    // Anchor row 83 on ground row 120, both ×2: the canvas top is 74 dp
+    // down the 256 dp backdrop, and its foot row lands on 240. The ground row
+    // moved with the taller 192 × 128 family (FMPO02 wave 2) and the figure
+    // did not — it stands the same 8 native rows up from the canvas bottom.
     final Positioned placed = tester.widget<Positioned>(
       find
           .ancestor(
@@ -306,7 +308,7 @@ void main() {
           )
           .first,
     );
-    expect(placed.top, 176 - 83 * 2);
+    expect(placed.top, 240 - 83 * 2);
     // Column 138 of the backdrop, which is 12 dp left of the 361 dp stage
     // ((361 − 384) / 2 floored), minus the footprint centre (38..57 → 48).
     expect(placed.left, -12 + 138 * 2 - 48 * 2);
@@ -342,13 +344,13 @@ void main() {
         .last;
     expect(lynx.assetPath, endsWith('lynx_idle_f0.png'));
     expect(lynx.canvas, 56);
-    // Anchor row 39 on ground row 88, both ×2.
+    // Anchor row 39 on ground row 120, both ×2.
     final Positioned placed = tester.widget<Positioned>(
       find
           .ancestor(of: find.byWidget(lynx), matching: find.byType(Positioned))
           .first,
     );
-    expect(placed.top, 176 - 39 * 2);
+    expect(placed.top, 240 - 39 * 2);
     expect(find.text('Frost Lynx'), findsOneWidget);
   });
 

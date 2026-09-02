@@ -8,6 +8,7 @@ import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
+import 'pixel_asset.dart';
 import 'walking_glyph.dart';
 
 /// Eyebrow and title on the left, a trailing slot on the right.
@@ -52,39 +53,43 @@ class ScreenHeader extends StatelessWidget {
   final Color? regionInk;
   final Color? regionDeep;
 
+  /// The shelf's room — `header_shelf` is 8 × 6 native at ×2.
+  ///
+  /// **The bar does not grow by it at scale 1.** The eyebrow/title stack is 35
+  /// dp and the padding 6 + 6, so the content box is 47 inside a 61 dp minimum;
+  /// spending 12 of the 14 dp of slack on a bottom inset leaves 59, still under
+  /// the minimum. Above scale 1 the header grows by the shelf, which is
+  /// correct — a shelf that overlapped the title's descenders at ×1.4 would be
+  /// art reducing large-text support, which `DECISIONS/0029` forbids outright.
+  static const double shelfHeight = 12;
+
   @override
-  Widget build(BuildContext context) => Container(
-    // A minimum, not a fixed height. See `StrideGeometry.headerMinHeight`: a
-    // fixed 61 dp vertically clips the eyebrow/title stack under an enlarged
-    // text scale, which is D-01's shape on the other axis.
-    constraints: const BoxConstraints(
-      minHeight: StrideGeometry.headerMinHeight,
-    ),
-    padding: const EdgeInsets.symmetric(
-      horizontal: StrideSpace.screenGutter,
-      vertical: StrideSpace.s6,
-    ),
-    alignment: Alignment.center,
-    decoration: regionDeep == null && rule == null
-        ? null
-        : BoxDecoration(
-            gradient: regionDeep == null
-                ? null
-                : LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: <Color>[regionDeep!, StrideColors.surfaceGround],
-                  ),
-            // Beneath the wash, and inside the box: a `Border` is drawn within
-            // the container's own bounds, so the bar terminates without
-            // growing and `headerMinHeight` still resolves to 61 at scale 1.
-            border: rule == null
-                ? null
-                : Border(
-                    bottom: BorderSide(color: rule!.withValues(alpha: 0.24)),
-                  ),
-          ),
-    child: LayoutBuilder(
+  Widget build(BuildContext context) => Stack(
+    children: <Widget>[
+      Container(
+        // A minimum, not a fixed height. See `StrideGeometry.headerMinHeight`:
+        // a fixed 61 dp vertically clips the eyebrow/title stack under an
+        // enlarged text scale, which is D-01's shape on the other axis.
+        constraints: const BoxConstraints(
+          minHeight: StrideGeometry.headerMinHeight,
+        ),
+        padding: EdgeInsets.fromLTRB(
+          StrideSpace.screenGutter,
+          StrideSpace.s6,
+          StrideSpace.screenGutter,
+          rule == null ? StrideSpace.s6 : StrideSpace.s6 + shelfHeight,
+        ),
+        alignment: Alignment.center,
+        decoration: regionDeep == null
+            ? null
+            : BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[regionDeep!, StrideColors.surfaceGround],
+                ),
+              ),
+        child: LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) => Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
@@ -144,7 +149,26 @@ class ScreenHeader extends StatelessWidget {
           ],
         ],
       ),
-    ),
+        ),
+      ),
+
+      // The header needs an end, and the shelf is it (FMPO02).
+      //
+      // It replaces the 24 %-alpha hairline, and [rule] still decides whether
+      // there is an end at all — a pushed route is already a modal layer and
+      // does not need one. When the raster is absent the strip paints exactly
+      // that hairline along its last row, so the header terminates the same
+      // way it did with the art missing, in the same place.
+      if (rule case final Color ink)
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: EdgeStrip.headerShelf(
+            fallbackColor: ink.withValues(alpha: 0.24),
+          ),
+        ),
+    ],
   );
 }
 
