@@ -1,4 +1,28 @@
 {
   "comment": "EPO03 accepted atlas regions for team south, in blit order. A region appears here ONLY after the single-defect loop ACCEPT (generate -> composite -> guards -> full atlas + x2 perimeter + 197x426 phone FOV -> verdict). Fields: id, x, y, w, h (crop origin/size on the 1024^2 atlas; <id>.png and <id>_mask.png are exactly w x h), salt (>= 40, unique across all five manifests), status, job, seed, atlas, review, team, reauthorizes (landmark golden ids this region overwrites; each is re-extracted in the same commit — DECISIONS/0033).",
-  "regions": []
+  "regions": [
+    {
+      "id": "S1",
+      "x": 348,
+      "y": 700,
+      "w": 512,
+      "h": 324,
+      "salt": 60,
+      "status": "accepted",
+      "job": "7922d150-b123-4b7e-a389-8ba753f09d66",
+      "seed": 6011,
+      "tool": "inpaint_image",
+      "cost": 40,
+      "atlas": "392-820 x 740-1024",
+      "team": "south",
+      "coreAuthor": true,
+      "reauthorizes": [
+        "flock_south",
+        "south_strand_w",
+        "south_strand_e"
+      ],
+      "review": "review/atlas/S1_r2_x2.png, S1_preview_x2.png, S1_preview_fov_x2.png, S1_r2_fov_sunward_x2.png, S1_after_*.png",
+      "intent": "The delta shore: marsh wets into grey silt in fingers, braided channels converge into one trunk reaching the sea; a broad sand beach with angled dune ridges and machair runs across the middle, one creek cuts it at a rock headland, surf and shallows follow it; the wooded headland sand rim continues as a spit hooking south. Roll 1 (seed 6001) rejected: the flats ran too far south and drowned the Sunward Strand beach."
+    }
+  ]
 }
