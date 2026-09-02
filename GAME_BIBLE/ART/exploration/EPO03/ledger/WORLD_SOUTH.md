@@ -122,3 +122,7 @@ At the DIR-01 FOV (160,900) the stack reads wood → heath → dune → shore.
 heath meets S2's sward inside the right ramp. At 197×426 ×2
 (`S3_r2_fov_seam_x2.png`) it does not read. A bridge region is the prescribed
 fix and is affordable within the cap.
+
+| # | region / roll | tool | job id | canvas / mask / seed | cost line | verdict | reason |
+|---|---|---|---|---|---|---|---|
+| 6 | SA1 roll 1 — the Sunward Strand anchor | inpaint_image | b62a9726-829a-413d-881d-af0239f38883 | crop 160x130 @ (440,800) (2cc17ba, cut from the shipped composite) / mask 72x50 @ (44,40) / seed 6004 | cost: ~20 generations | _pending_ | Its own region entry, not a re-touch of S1 (the loop's rule). S1 left the marker at (511,860) on the dune/machair lip with the beach ~30 px south; sand in the 20x20 marker box measured 2.8% after vs 2.3% before. Intent: the dune field reaches inland in rounded tongues so sand and machair interlock and the anchor stands on the strand |
