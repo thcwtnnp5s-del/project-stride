@@ -61,20 +61,57 @@ abstract final class StrideSpace {
   static const double rhythmRow = s8;
 }
 
+/// The corner ladder — **square since EPO03**.
+///
+/// ## Why every one of these went to zero
+///
+/// The owner's device verdict on `59c4723` named "too systematised, too many
+/// repeated dark cards, some surfaces feel Claude generated". Wave 1 measured
+/// what that is, and the first item on `DIR-05`'s ranked failure list is
+/// **"radius-14 rectangles at 34 call sites"**: one corner, one weight, one
+/// fill, repeated down every screen. A rounded rectangle is the single most
+/// legible signature of an application drawn by a framework — no ledger, no
+/// case, no folio, no page in any of the reference material this product is
+/// built from has a 14 px radius on it, because paper is cut and leather is
+/// stitched.
+///
+/// So the radius is not retuned, it is **retired**. Content sits on a ground
+/// under rules, in wells, on slips; where an edge is still needed it is a
+/// square one in the single border weight the ladder already had. The tokens
+/// survive as names so that ~67 call sites did not have to be edited in one
+/// commit by eight teams at once — and so that this decision has one home
+/// that can be read, argued with, and reverted in one line.
+///
+/// [chip] and [gate] keep 2 rather than 0: both are being deleted screen by
+/// screen this round (`DIR-05`: "chips carry the meaning" is failure #3), and
+/// 2 is enough to keep a pill from reading as a mis-drawn square while it is
+/// still on screen. When the last one goes, so does the token.
 abstract final class StrideRadius {
   const StrideRadius._();
 
-  static const BorderRadius card = BorderRadius.all(Radius.circular(14));
-  static const BorderRadius inner = BorderRadius.all(Radius.circular(10));
-  static const BorderRadius chip = BorderRadius.all(Radius.circular(8));
-  static const BorderRadius gate = BorderRadius.all(Radius.circular(6));
+  /// Was 14. The panel corner, everywhere.
+  static const BorderRadius card = BorderRadius.zero;
 
-  /// Bottom corners only — the active tab's ground runs up to the bar's top
-  /// edge and rounds away from it.
-  static const BorderRadius tabActive = BorderRadius.only(
-    bottomLeft: Radius.circular(8),
-    bottomRight: Radius.circular(8),
-  );
+  /// Was 10. Nested blocks and wells — a well is cut, not moulded.
+  static const BorderRadius inner = BorderRadius.zero;
+
+  /// Was 8. Retiring with the chips themselves.
+  static const BorderRadius chip = BorderRadius.all(Radius.circular(2));
+
+  /// Was 6. Retiring with the gate rows.
+  static const BorderRadius gate = BorderRadius.all(Radius.circular(2));
+
+  /// The active tab's ground.
+  ///
+  /// **Deprecated and square.** The active tab is no longer a rounded fill
+  /// inside the bar; it is a plate raised out of the strap with a lit top edge
+  /// that breaks the welt (`stride_tab_bar.dart`, EPO03). Kept only so a
+  /// caller outside this round does not fail to compile.
+  @Deprecated(
+    'The active tab is a raised plate, not a rounded ground. '
+    'See stride_tab_bar.dart; this token has no consumers and will be removed.',
+  )
+  static const BorderRadius tabActive = BorderRadius.zero;
 }
 
 /// Fixed geometry, each value carrying the reason it is that number rather than
