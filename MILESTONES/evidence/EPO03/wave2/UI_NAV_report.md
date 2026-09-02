@@ -1,6 +1,6 @@
 # PROD-UI-NAV — the kit and the bottom nav (EPO03 Wave 2)
 
-Branch `fable5-executive-production-overhaul-03`. Cap **320**, spent **32**.
+Branch `fable5-executive-production-overhaul-03`. Cap **320**, spent **92**.
 Ledger `GAME_BIBLE/ART/exploration/EPO03/ledger/UI_KIT.md`. Contract
 `MILESTONES/evidence/EPO03/wave2/KIT_CONTRACT.md`. Requests
 `REQUESTS_NAV.md`.
@@ -16,44 +16,64 @@ Ledger `GAME_BIBLE/ART/exploration/EPO03/ledger/UI_KIT.md`. Contract
 | **`_hi` retired in code** — one glyph per destination; `glyphActive` and the six `PixelIcons.nav*Active` constants gone (Q-26) | `2db6fe6` |
 | **The corner radius retired** — `card`/`inner` square, `chip`/`gate` at 2, `tabActive` deprecated | `771930e` |
 
-**Assets: one accepted of thirty-two rolls.** `assets/ui/v1/nav/nav_welt_v2.png`
-(8 × 6, ×2, guard-clean, sidecar beside it), drawn by *both* the nav bar and the
-header shelf — one chassis, one stitch, layout-neutral.
+| **The kit's art** — three pro frames and four remapped rejects, registered | `5b92ef6` |
+
+**Assets: eight shipped.** `nav/nav_welt_v2.png` (8 × 6, ×2), drawn by *both* the
+nav bar and the header shelf — one chassis, one stitch, layout-neutral — plus
+`kit/`: `inset_well` (61², corner 16 / band 15, ×1), `slot_well` (32², 6 / 4,
+×2), `stage_frame` (114², **26** / 19, ×1), `rule_journal` (8 × 6 tile,
+transparent ground), `rule_chart` (8 × 4), `rail_shelf` (384 × 32 picture rail),
+`tab_plate` (48 × 32 ornament). All guard-clean, each with a measured sidecar.
 
 **Renders.** `GAME_BIBLE/ART/exploration/EPO03/review/device/nav/` (all six tabs
 + driven states), `nav_square/` (the same after the radius change).
 Judged crops: `review/ui/nav_header_six.png` (header + bar, six tabs),
 `nav_six_tabs_x2.png`, `radius_before_after.png`, `welt_run2_x4.png`.
 
-**Tests.** `panel_skin_test.dart`, `band_plate_test.dart`, `phase1_ui_test.dart`
+**Tests.** 2,034 PNGs pass the palette guard and 26 strips wrap cleanly at their declared period. `panel_skin_test.dart`, `band_plate_test.dart`, `phase1_ui_test.dart`
 — **51 passing**. `flutter analyze lib/ui/` clean.
 `check-art-palette.js`: 1,883 PNGs, no teal collision, no semi-transparent
 pixel, chrome under the ceiling. `nav-active-variant.js --check` still green.
 Goldens **not** regenerated — every tab's chrome changed, so all twelve will
 differ; the producer regenerates after inspecting the diff.
 
-## What was rejected, and the finding behind it
+## What was rejected, and the correction I had to be sent back for
 
-Thirty-one rolls rejected, each with a written reason in the ledger. They fail
-in **one** direction: asked for flat, plain, tileable chrome, `pixen` draws *a
-lit object in perspective, decorated with studs, above the `#7C7263` ceiling*.
-Four strategies were tried — direct request, request with the interior keyed,
-a 128² sheet of recesses to cut from, a 128² sheet of pads — and the two sheets
-came back **rotated on the diagonal**, so no axis-aligned crop exists and the
-production plan's window search cannot rescue them (rotating pixel art is not
-a deterministic post-step; A-2 forbids inventing the pixels it needs).
+Twenty-four rolls stand rejected with written reasons. They fail in **one**
+direction: asked for flat, plain, tileable chrome, `pixen` draws *a lit object
+in perspective, decorated with studs, above the ceiling*. Four prompt
+strategies were tried and the two "sheet to cut from" masters came back
+**rotated on the diagonal**, so no axis-aligned crop exists.
 
-FMPO02 measured this same boundary on `modal_128`, `strap_corner_64`,
-`corner_mark_48`, `tab_index_32x16` and `nav_plate_32` and shipped none of them.
-It is a capability boundary, not a prompt problem, and `MISTAKES.md` M-05
-forbids paying for it twice — so **`KitFrames` and `KitMarks` ship declared and
-empty**, the remaining 288 generations are deliberately unspent, and every
-consumer paints a square, one-weight fallback. Nothing a screen team codes
-against changes when a row eventually lands: the `…For()` lookups return the
-declared geometry either way.
+**I then drew the wrong conclusion from that** — "the frame class is closed" —
+and shipped the kit declared and empty. The producer sent it back on two
+counts and was right on both:
+
+1. **Over the ceiling is a deterministic remap, not a rejection**, with
+   precedent in this repo (VAWO01's `chassis_64` clamp; `keyBorderWhite` in
+   the packager). Four candidates I had marked CHECK were failing on
+   brightness alone while the drawing was right. All four now ship, for
+   **zero generations**. One of them, `tab_plate`, was never over the ceiling
+   at all — I had not measured it.
+2. **I never changed tool.** All thirty-two rolls were `create_image_pixen`.
+   `create_image_pro` takes labelled references; given an accepted grain tile
+   as the style and `chassis_64` as the construction reference, it drew clean
+   flat hollow nine-patches **in the first call for all three families**, 36
+   candidates for 60 generations.
+
+The finding that survives is narrower and correct: **`pixen` cannot draw a flat
+hollow frame; pro can.** The rest of the kit is unlanded because it was not
+authorised this pass, not because it is impossible.
+
+One defect worth carrying forward: the stage frame's corner is **26, not its
+band of 19**, because its iron cap is wider than its band and at 19 the painter
+tiles the cap along every beam. No numeric measurement shows this —
+`tools/ninepatch-proof.js` renders the patch the way `_FramePainter` will, and
+`review/ui/np_stage19.png` beside `np_stage26.png` is the whole argument.
 
 Sheets: `review/ui/frames_x3.png`, `nav_small_x6.png`, `strips_x3.png`,
-`sheets_x4.png`.
+`sheets_x4.png`, `pro_insetwell_x4.png`, `pro_finalists_x3.png`,
+`np_all_x2.png`, `remapped_four.png`.
 
 ## What the phone will show that it could not before
 
@@ -68,12 +88,16 @@ Sheets: `review/ui/frames_x3.png`, `nav_small_x6.png`, `strips_x3.png`,
 
 ## What did not close
 
-- **The frame and ornament families have no art.** Wells, ribbons, tabs, page
-  edges, stage frames, rules, rails and the quiet-button caps are all
-  fallbacks. Named, not softened: `DIR-05`'s kit is ~15 % delivered as raster.
-  Re-authoring needs a tool that will draw flat axis-aligned chrome — a
-  different model, or a hand-authored master — and that is a decision for the
-  producer, not a re-roll.
+- **Ten kit names still have no art**: `insetStage`, `pageSealed`, `slipPinned`,
+  `ribbonLabel`, `peekPlate`, `labelPlate`(`Selected`), `navWell`,
+  `navPlateActive`, `btnPlateV2`, plus `ruleBench`, `pocketRule`, `edgeTorn`,
+  `edgeSpine`, `caseStrap`, `railStrap`, `sheetEdge` and every `KitMark` but
+  `tabPlate`. They paint fallbacks. **This is now a budget question, not a
+  capability one** — pro is the proven route, 228 generations remain, and the
+  three families authorised this pass all succeeded on the first call.
+- **The three frames are not yet on a screen.** No screen consumes `KitFrame`
+  yet — the screens belong to other teams — so the proof is
+  `ninepatch-proof.js` at real panel sizes, not a device render.
 - **`StrideSheet.docked` is not built.** WORLD's peek/half/full sheet is
   specified in KIT_CONTRACT §5 and unimplemented; WORLD is unblocked for
   everything except the sheet itself.
