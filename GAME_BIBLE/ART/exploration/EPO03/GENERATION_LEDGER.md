@@ -34,6 +34,7 @@ never repeats them (M-05).
 | wave 2 launched (19 teams), 2026-09-02 | 7,962 | 27 | first probes in flight |
 | after the session-limit outage, all 19 teams resumed | 7,624 | 365 | every team had committed sources; no active jobs lost |
 | second outage; L3 landed and committed; batching to 4 teams at a time | 7,536 | 453 | 19 concurrent agents exhaust the session limit in minutes — the round now runs in batches |
+| south territory complete, kit frames landed, checkpoint 1 | 7,112 | 877 | 6 atlas regions accepted (S1,S2,S3,SA1,L3,L2); packaging 1,971 files |
 
 ## Family totals (each lead's own sum of cost lines)
 

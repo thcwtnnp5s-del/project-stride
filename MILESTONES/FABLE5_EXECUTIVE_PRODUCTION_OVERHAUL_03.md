@@ -104,6 +104,52 @@ Six guardians (`MILESTONES/evidence/EPO03/wave0/`), then sixteen directors
   reward 5, UI 1). Recorded once; DIR-14 named three zero-file improvements
   (haptics on Attack/Eat/Retreat, the telegraph cue's segment, a doc fix).
 
+## 4a. First executive checkpoint
+
+Taken with six atlas regions accepted and the interface kit landing.
+
+**Is enough visible production shipping?** Yes, and the largest item is the
+one the owner named first. The south territory is complete: four regions
+replaced the latitude stripe with a coast that follows terrain — measured,
+sand in the old belt 172–440 × 810–870 fell **31.9 % → 2.3 %**, and the
+Sunward Strand anchor went the other way, 2.3 % → 49.5 %, so the landmark
+still stands on a beach. The shore bends, with surf, angled dunes, machair,
+a creek at a rock headland, braided channels into flats and a spit hooking
+south. Three landmark goldens were re-extracted under `DECISIONS/0033`;
+all fifteen hold and protected-interior drift is 0.
+
+**Has the world materially changed?** Yes. Beyond the south: the Ice-Mage
+Tower is no longer an icon on flat snow but an ice bastion on a glacial
+foundation with a pillared causeway (L3), and the Storm House now sits in
+its own dark grove on a headland with lit windows (L2).
+
+**Has the UI structurally changed?** Partly, and this is the gap. The
+bottom navigation — which the owner called one of the least authored parts
+of the game — is rebuilt: a leather strap running into the home-indicator
+inset, stamped icon wells, and a raised lit plate that breaks the stitched
+welt. The shared kit is landing. **The screen rebuilds are the weakest area
+of the round so far** and are the next priority as capacity frees.
+
+**Was PixelLab used productively, and did weak work survive because
+replacement was inconvenient?** One correction was needed and made. The kit
+owner declared the frame and mark families closed after 31 rejected rolls,
+leaving 288 generations unspent — exactly the outcome the directive forbids.
+Two of the three failure reasons were sound tool limits; the third was not:
+four assets had been rejected for brightness alone, which this repository
+already fixes deterministically (`49c91f9`, and `RULES.md` A-2). Sent back,
+the four shipped for **zero generations**, and a tool the pass had never
+tried — `create_image_pro` with an accepted grain as a labelled style
+reference — produced all three frame families **on the first call**, 60
+generations for the set. The "frame class is closed" conclusion was
+retracted in the ledger in place. The measured tool facts are now in
+`wave2/PRODUCTION_RULES.md` §2a so no later team pays for them again.
+
+**Course correction applied.** Nineteen concurrent producers exhausted the
+session usage limit twice, killing every team mid-flight; the round now
+runs four at a time, and every team commits after each accepted item and
+records job ids at submission, because a submitted job survives the outage
+and can be re-fetched rather than re-rolled (§9a).
+
 ## 5. Budget ledger
 
 Opened at **7,989** (live). Family figures are leads' own cost-line sums;
