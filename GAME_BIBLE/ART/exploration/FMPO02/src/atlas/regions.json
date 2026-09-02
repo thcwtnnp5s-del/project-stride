@@ -344,6 +344,73 @@
       "rimBlock": true,
       "note": "Not an ART-03 region. N2 (mask to atlas x 520) and N3 (mask from atlas x 504) overlap by 16 px and their paired 10 px ramps stop the base leaking, but the terrain either side is a texture change a 10 px ramp cannot carry: flat drifted snow on the left, teal leads and floes on the right. At x2 the join read as a near-vertical edge at atlas x ~ 505-518 over y 90-236. Cut from the composite AFTER N2 and N3 landed so it carries both languages in its frozen margins (NB1 / WACUI bridge pattern). Crop published at commit 2bb50f0 so PixelLab could fetch it.",
       "goldenNote": "Mask bottom atlas y=230 keeps 6 px clear of frostmere_north_wall keepout, which starts at y=236."
+    },
+    {
+      "id": "NB3",
+      "x": 440,
+      "y": 0,
+      "w": 140,
+      "h": 150,
+      "atlas": "476-548 x 0-110",
+      "rect": {
+        "x0": 36,
+        "y0": -24,
+        "x1": 108,
+        "y1": 110
+      },
+      "ramps": {
+        "left": 32,
+        "right": 32,
+        "top": 0,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 36,
+        "y": 0,
+        "w": 72,
+        "h": 110
+      },
+      "salt": 31,
+      "seed": 746,
+      "status": "pending",
+      "intent": "Bridge: drifted snow fraying diagonally into worn floes and narrow leads, carried up the x~513 meridian from NB2’s top edge to the canvas edge, so N2’s snow and the surviving master pack ice stop meeting on a straight line.",
+      "rimBlock": true,
+      "note": "Not an ART-03 region. FINAL-04 #2: NB2 fixed this meridian only from y=90 down; above it a 110 px razor vertical survived at atlas x~513 (column mean L1 81.0 against a band median of 29.6), N2’s snow on the left and the untouched master pack ice on the right. Cut from the current composite AFTER the N1/N2 quantise and NB2 landed, so both languages sit frozen in its margins (NB1/NB2/WACUI bridge pattern). Crop published at commit c8b8605 so PixelLab could fetch it.",
+      "goldenNote": "Mask ends at atlas y=110, far above every golden in the north (frostmere_north_wall keepout starts y=236) and far above the A-4 core (y=256)."
+    },
+    {
+      "id": "GAP",
+      "x": 134,
+      "y": 124,
+      "w": 138,
+      "h": 202,
+      "atlas": "150-256 x 140-310",
+      "rect": {
+        "x0": 16,
+        "y0": 16,
+        "x1": 122,
+        "y1": 186
+      },
+      "ramps": {
+        "left": 32,
+        "right": 20,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 16,
+        "y": 16,
+        "w": 106,
+        "h": 170
+      },
+      "salt": 32,
+      "seed": 756,
+      "status": "pending",
+      "intent": "Repaint the grey-green slab of unclaimed master terrain between N1 and the A-4 core wall as one wind-drifted snowfield breaking up into heath, rock and a ragged conifer treeline, so its four straight edges stop being the strongest lines in the band.",
+      "rimBlock": true,
+      "note": "Not an ART-03 region. FINAL-04 #9 / the coordinator’s re-read: a drab olive-grey rectangle at roughly atlas 195-245 x 200-256. PROVENANCE CORRECTED BY MEASUREMENT before rolling: it is NOT unclaimed master terrain. N1’s mask reads 255 across it and the composite there is byte-identical to N1’s own generation; only 1.9% of the rect (54 of 2,856 px) still matches the 4d9a81f master. It is N1’s \"rime conifers on the south margin\" drawn as a slab, and the palette remap then snapped it flat. So this is a repaint of an accepted region, not a fill of a hole, and GAP composites AFTER N1 and NB1 to supersede them. Measured edges before: x=230 scores 93.9 and x=233 carries 27 px of unbroken run against a band median of 40.7; y=255 scores 133.4 with a 35 px run against 39.3. Crop cut from the current composite and published at commit c79e197 so PixelLab could fetch it.",
+      "goldenNote": "No golden lies in atlas 150-256 x 140-310 (the nearest, west_caravan_road and roadjoin_corridor_west, start at y=480). The rect’s right edge sits exactly on the A-4 core wall at x=256 and rimBlock forces alpha 0 from there in, so the frozen core and its dithered rim are untouched.",
+      "rampNote": "Right ramp chosen by sweep, not by convention. At the briefed 32 the ramp reached full alpha only at atlas ~224, so the old slab’s rightmost columns survived as a 7x28 grey rectangle at atlas 239-246 x 227-255 — the exact defect class being removed. Measured over 236-252 x 225-258 (surviving slab-grey px) and the worst straight run in columns 230-256: r8 1/14, r12 1/36, r16 3/14, r20 10/10, r24 61/23, r28 107/23, r32 155/18. 20 is the minimum of the straight-run metric with the sliver down 94%."
     }
   ],
   "deferred": [

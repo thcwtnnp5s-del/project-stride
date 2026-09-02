@@ -641,3 +641,303 @@ whole northern floe band runs unbroken from x ≈ 480 east.
    is still the last straight-ish thing on that meridian.
 
 **Verdict: ACCEPT** (desk). The physical iPhone remains the authority.
+
+---
+
+# WORLD_FIX pass — answering FINAL-04 and FINAL-12
+
+Cap **160 generations**; balance at start **8,173**, at close **8,013** —
+**spent exactly 160, and it bound.** Ledger: `ledger/WORLD_FIX.md`. Same
+mandated loop as above: one defect at a time, generate → composite → guards →
+×2 + phone FOV → explicit verdict. The physical iPhone remains the authority.
+
+## N1 / N2 dialect — **the deterministic fix worked; no re-roll spent**
+
+FINAL-04 #1 is correct and I could reproduce it before touching anything:
+`review/fix/BEFORE_N2_x6.png` beside `BEFORE_N1_x6.png` is smooth gradient
+against pixel staircase. FINAL-12 #9 is also correct — the shipped N1 is
+softer than the master it replaced.
+
+**Measured, not judged.** Over a fixed rect, per-scanline horizontal luma
+deltas classed as *hard* (≥10) or *soft gradient* (2–10):
+
+| | hard step % | soft gradient % |
+|---|---|---|
+| master `4d9a81f` NW (the reference dialect) | 16.56 | **16.73** |
+| N1 as shipped | 17.23 | **23.64** |
+| N2 as shipped | 17.75 | **20.69** |
+| N1 after the remap | 16.67 | **16.02** |
+| N2 after the remap | 16.14 | **13.96** |
+
+**Method.** `tools/atlas-quantise.js`: build a palette from the ORIGINAL master
+(`git show 4d9a81f:assets/art/v1/world/atlas_base.png`, kept at
+`src/atlas/MASTER_4d9a81f_atlas_base.png`) by taking its colours in frequency
+order and accepting each only if it is ≥ *spread* from every colour already
+accepted, then snap every pixel to the nearest entry. **No dithering** — a
+dither would put two colours where the generation put one and read as the
+noise this round exists to remove. A-2 holds: every output pixel is a colour
+that already exists in an approved image.
+
+**Two parameters were chosen by measurement, and both differ from the brief.**
+
+1. **Palette rect 0–300 × 0–200, not × 0–260.** The extra sixty rows reach the
+   master's southern vegetation margin and contribute seven olive/khaki
+   entries; snapping snow to those sprayed visible yellow-green flecks across
+   N1 (`review/fix/N1_quant16_x6.png`). At y<200 the palette carries one warm
+   entry and the flecks are gone.
+2. **Spread 7 (71 entries), not the flattest setting.** 13 and 16 look
+   handsome at ×6 but land at 1.7% soft gradient against the master's 16.7% —
+   *more* posterised than the reference. 7 lands on the master's own numbers.
+
+**Applied to N1, N2 and NB1** — the snow group — and **restricted to each
+region's own inpaint rect** (`--rect-only`), so the frozen crop margins stay
+byte-identical and the agreement grading still sees agreement at the edges.
+Masks rebuilt afterwards from the remapped generations.
+
+**Rejected for N3 and NB2.** `review/fix/N3_raw_vs_s7_x5.png`: the pack ice's
+teal is not in a snow palette, and snapping it speckled the floes and blotched
+the leads. Those two keep their own pixels; NB2 is now the graded transition
+between the remapped snow and the untouched floes, which is what a bridge is
+for.
+
+**Cost: 0 generations** — and that is the only reason items 3–6 fitted inside
+the cap at all.
+
+**Verdict: ACCEPT** (desk) for N1, N2, NB1. **REJECT** the remap for N3, NB2.
+
+## NB3 — the north razor bridge — **ACCEPTED**
+
+| | |
+|---|---|
+| Crop | `src/atlas/NB3_crop.png`, origin (440,0), 140×150 — cut from the composite **after** the N1/N2 remap, published at commit `c8b8605` |
+| Inpaint mask | 72×110 at (36,0) — frozen margins left 36, right 32, bottom 40; top is the canvas edge |
+| Job | `10666417-e4d7-4099-b910-566bfde431a3` · seed **746** · 20 generations |
+| Authored rect | atlas **476–548 × 0–110** · ramps left 32, right 32, top 0, bottom 32 · salt 31 · `rimBlock` |
+| Mask | 1,808 authorized · 4,337 feathered · 0 blocked |
+
+**Why.** FINAL-04 #2: NB2 fixed this meridian only from y=90 down. Above it
+the razor survived — `review/fix/RAZOR_before_x6.png` shows N2's snow meeting
+the untouched master pack ice on a straight vertical at atlas x≈513, over
+110 px, with two drawing hands either side.
+
+**Containment.** Changed bbox in crop coords (36,0)..(107,109) — exactly the
+inpaint rectangle. 1,764 px changed inside that rectangle but outside the
+graded mask (the ramp shoulders); the mask blocks them and none ship.
+
+**Guards.** `package-art.js` and `--check` green; protected-interior drift 0,
+15 goldens byte-held. The mask ends 126 px above the A-4 core and far above
+every keepout in the north.
+
+**Measured.** Per-column mean L1 over y 0–110: the old razor at x=513 falls
+from **81.0 to 59.7**, and the band median rises 29.6 → 38.1, so the peak-to-
+median ratio goes 2.74 → 2.22. The columns that now score highest (514, 524)
+are the *drawn lead itself*, not a join — `review/fix/NB3_after_razor_x6.png`.
+
+**Read.** The straight cut is gone. A winding dark lead runs down from the
+canvas edge and the snow interlocks with the floes along it. At 197×426 phone
+FOV (`review/fix/NB3_after_fov.png`) the shelf reads as one fraying edge.
+
+**Honestly bounded.** The floes NB3 draws are smaller and more tightly packed
+than N3's, the same mild scale step NB2 conceded. And D-22's crack net still
+survives east of x≈640 — the priced trade FINAL-04 #13 already names.
+
+**Verdict: ACCEPT** (desk).
+
+## Sea-ice sage debris — removed, 342 px
+
+FINAL-04 #7 measured correctly and the origin is worth recording: the sage
+patch (#6dc5b2, 343 px in atlas 620–790 × 90–235) is in **neither** the
+`4d9a81f` master **nor** N3's own generation. It is produced downstream, by
+the deterministic ocean conform, so a despeckle on the region source removed
+nothing. The cleanup now sits in `package-art.js` **after**
+`remWater.shoalRamp` — the same pattern as the flotsam and ghost-sail passes,
+each debris pixel taking the colour of the nearest clean pixel on a fixed
+offset list. Rect-gated, because the same predicate matches every blade of
+grass on the map.
+
+**The lavender half of #7 is not reproducible.** A loose predicate (blue ≥
+green and red > green) over atlas 500–800 × 90–240 finds **one** pixel. The
+smudge the review saw at 634–647 × 106–121 is grey-blue shelf ice, and I have
+recorded it as not-a-defect rather than invent a fix for it.
+
+## GAP snowline (FINAL-04 #9) — **NOT FIXED, and the cheap fix is disproved**
+
+After the N1 remap the numbers moved: the 72 px run at y=271 is down to
+**22 px**, but y=270 now scores 106.0 against a band median of 47.9, with a
+**43 px** run at x 89–131.
+
+The coordinator offered a ramp widening as the zero-generation alternative. I
+tried it: N1's bottom ramp 32 → 56, mask rebuilt, repackaged, re-measured —
+row 270 scored **106.0, run 43, unchanged to the digit**. The reason is that
+row 270 is *below* N1's authorization and inside W2's own top ramp: it is a
+terrain boundary the base composite already carries, not a join either region
+draws. A ramp cannot move it. It needs the authored fraying the coordinator
+budgeted, and the cap was spent. The ramp change was reverted.
+
+## S1 wood edge (FINAL-12 #10) — **NOT FIXED, and measured smaller than reported**
+
+Before spending on it I measured with the same row/column run test:
+
+- west edge, columns 84–136 over y 890–988: longest straight run **10 px** at
+  x=96, against a band median column score of 40.1. That is a content cliff,
+  not a ruler line;
+- north edge, rows 880–900 over x 96–300: longest run **31 px** at y=893.
+
+And most of that north band is unwritable: `south_strand_w` plus its 20 px
+keepout owns y ≤ 890, so an inpaint could only fray from y=890 down — the
+same UNRESOLVED strand-golden block this log already records. Recorded with
+its measurements so the next round can price it honestly.
+
+---
+
+## Cap-raise pass (+120) — items 1 and 4
+
+### 1. The grey-green rectangle at atlas 195–245 × 200–256 — **NOT ATTEMPTED, blocked on transport**
+
+The coordinator's re-read of the defect is right and my earlier row-270 framing
+was its bottom edge only. `review/fix/GAPRECT_before_x4.png` (atlas 150–300 ×
+130–320 at ×4) shows a drab olive-grey slab of master terrain sitting between
+N1 and the frozen core's rim, with spruce standing on its top edge — terrain no
+region's mask ever covered.
+
+**Measured before, so the after has something to be measured against.**
+
+| | score | band median | longest straight run |
+|---|---|---|---|
+| vertical, x=200 (y 150–260) | 55.0 | 40.7 | 17 px |
+| vertical, x=201 | 63.0 | 40.7 | 13 px |
+| vertical, x≈240 (the slab's true right edge) | 92.8 at x=233, 93.9 at x=230 | 40.7 | — |
+| horizontal, y=160 (x 150–256) | 15.2 | 39.3 | 8 px |
+| horizontal, y=255 (the slab's true bottom edge) | **133.4** | 39.3 | — |
+
+So the slab's hard edges measure at **x≈230–233** and **y=255**, not at the
+x≈200 / y=160 the brief names; x=200 and y=160 are inside it. The prescribed
+inpaint rect (atlas 150–256 × 140–310) covers all of it either way and is the
+right rect.
+
+**Why it was not rolled.** The mandated method inpaints over a crop of the
+current composite, and `inpaint_image` needs that crop by URL. The standing
+practice — and the explicit instruction for NB3 earlier in this same pass — is
+to commit and push the crop so PixelLab can fetch it by commit SHA. This pass
+was instructed to make **no commits**, so no URL exists. The only other
+transport is inline base64, and the crop is **38,024 base64 characters**
+(138×202 with 16 px frozen margins, already the smallest image that can carry
+the prescribed 106×170 mask). PixelLab's own tool note is that MCP clients
+routinely truncate inline base64 of that size, and every attempt to shrink it
+failed: RGB re-encode with Sub and Up filters came back *larger* (43.6k and
+47.6k), RGB with filter 0 saved 1.1% (37.6k), and max-level deflate saved
+nothing.
+
+The crop is cut and waiting at `src/atlas/GAP_crop.png` (origin 134,124,
+138×202; mask 16,16 106×170 = atlas 150–256 × 140–310). **One line unblocks
+it:** permission to commit and push that single file, exactly as `c8b8605`
+published NB3's. The roll is then ~20–25 generations.
+
+**The deterministic alternative stays disproved** — see the WORLD_FIX section
+above: N1's bottom ramp 32 → 56 moved row 270's score by 0.0, because none of
+this slab is inside any region's authorization.
+
+### 4. S1 north edge — **SKIPPED under the brief's own rule**
+
+The rule was: skip if the writable band is under 20 px tall. It is **10 px**,
+and even that is barely writable.
+
+`south_strand_w` (128,810,400×60) zeroes the mask within 20 px and then ramps
+back over a further 24, so on the column x=200:
+
+- alpha is **0.00** through y=889 — that is the whole top of the defect
+  (rows 886 and 889);
+- alpha reaches 0.04 at y=890 and only **0.42 by y=899**, the last defect row;
+- the first fully-authorized row is **y=913**, fourteen rows *below* the defect.
+
+So the writable band containing the defect is y 890–899 — **10 px, all of it
+under half authorization**. Skipped, 0 generations. It stays part of the
+standing UNRESOLVED strand-golden block: re-extracting that golden is the
+owner's authorization, not a producer's.
+
+---
+
+## GAP — the grey-green slab — **ACCEPTED**
+
+| | |
+|---|---|
+| Crop | `src/atlas/GAP_crop.png`, origin (134,124), 138×202 — cut from the composite **after** the N1/N2 palette remap, published at commit `c79e197` so PixelLab could fetch it |
+| Inpaint mask | 106×170 at (16,16) — frozen margins 16 on all four sides |
+| Job | `bb3ad9bf-d866-4f52-847c-b5d1c56b3cca` · seed **756** · 20 generations · **one roll, no re-roll needed** |
+| Authored rect | atlas **150–256 × 140–310** · ramps left 32, right **20**, top 32, bottom 32 · salt 32 · `rimBlock` |
+| Mask | 7,884 authorized · 7,050 feathered · 1,120 blocked |
+| Files | `out/atlas/GAP.png`, `out/atlas/GAP_mask.png` |
+| Evidence | `review/atlas/GAP_{before,after}_{full,x2,fov}.png`, `review/fix/GAPRECT_{before,after}_x4.png`, `GAP_rightjoin_x6.png`, `GAP_measure_{before,after}.txt` |
+
+**Provenance corrected before the roll, and it changes what this is.** The
+brief describes the slab as terrain no region's mask covered. Measured, it is
+not: N1's mask reads **255** across it and the composite there is
+**byte-identical to N1's own generation**; only **54 of 2,856 px (1.9%)** of
+the rect still match the `4d9a81f` master. The slab is N1's own "rime conifers
+on the south margin" drawn as a flat mass, which the palette remap then
+snapped flatter. So GAP is a **repaint of an accepted region**, not a fill of a
+hole, and it composites **after N1 and NB1** to supersede them. Recorded
+because it changes who owns the defect.
+
+**The measured edges, before and after** (`tools/gap-measure.js`, identical
+code both times; score = mean L1 across the line, run = longest unbroken stretch
+over threshold 28).
+
+| line | before | after |
+|---|---|---|
+| vertical x=200 | 55.0, run **17** | 26.4, run **6** |
+| vertical x=230 | 93.9, run **19** | 62.9, run **4** |
+| vertical x=233 | 92.8, run **27** | 60.0, run **4** |
+| horizontal y=160 | 15.2, run 8 | 37.4, run **6** |
+| horizontal y=255 | **133.4**, run **35** | 64.7, run **5** |
+| band medians | 40.7 / 39.3 | 38.4 / 37.1 |
+
+Every straight run collapsed — 17→6, 19→4, 27→4, 8→6, 35→5 — and y=255, the
+slab's bottom edge and the strongest horizontal in the band, fell from 133.4 to
+64.7. y=160 rose from 15.2 to 37.4, which is the point: it was *below* the band
+median before because it lay inside a flat slab, and it now sits at the median
+as ordinary texture.
+
+**The right ramp was chosen by sweep, not by convention — and roll 1 needed it.**
+At the conventional 32 the ramp reached full alpha only at atlas ≈224, so the
+slab's rightmost columns survived as a **7 × 28 grey rectangle at atlas
+239–246 × 227–255** — the exact defect class this round removes, smaller but
+crisper than what it replaced. That is a mask-coverage fault, not a generation
+fault, so a re-roll would not have touched it. Sweeping the right ramp
+(surviving slab-grey px in atlas 236–252 × 225–258 / worst straight run in
+columns 230–256):
+
+| ramp | 8 | 12 | 16 | **20** | 24 | 28 | 32 |
+|---|---|---|---|---|---|---|---|
+| sliver px | 1 | 1 | 3 | **10** | 61 | 107 | 155 |
+| worst run | 14 | 36 | 14 | **10** | 23 | 23 | 18 |
+
+**20** is the minimum of the straight-run metric with the sliver down **94%**
+(155 → 10 px, scattered and invisible at ×6). Fixed at 20; the re-roll
+allowance was not spent.
+
+**Containment.** `atlas-verify.js`: 14,702 px changed inside the mask; changed
+bbox in crop coords (16,16)..(121,185) — exactly the inpaint rectangle. 3,075
+px changed inside that rectangle but outside the graded mask (the ramp
+shoulders and the `rimBlock` zone); the mask blocks them and none ship.
+
+**Guards.** `package-art.js` and `--check` green (1,779 files up to date).
+Asserted directly rather than inferred: **15/15 landmark goldens held** under
+the guard's own rule (byte-equal, with its deep-water exemption), and the GAP
+mask covers 1,120 px of the A-4 protected rect at **max alpha 0** — `rimBlock`
+holding the frozen core and its dithered rim untouched. `check-art-palette.js`
+ok over 1,834 PNGs. `flutter test` on the three atlas suites: **71 passed**.
+
+**Read.** At ×4 the flat olive-grey rectangle is gone: a wind-drifted snowfield
+runs down from the north in sastrugi bands and breaks into a ragged conifer
+treeline with scrub lobes and rock outcrops, the treeline diagonal and
+interlocking rather than cut. At ×6 on the right join there is no vertical
+column, no rectangle and no dither stripe. At 197×426 phone FOV the snow grades
+into the western meadows as one slope, one drawing hand.
+
+**Honestly bounded.** The new worst columns in the band are 213 (84.5) and 232
+(79.1) with runs of 4–10 — drawn treeline edges, not seams. Ten slab-grey
+pixels survive inside atlas 236–252 × 225–258 and are below the despeckle
+threshold; they are recorded rather than swept.
+
+**Verdict: ACCEPT** (desk). The physical iPhone remains the authority.

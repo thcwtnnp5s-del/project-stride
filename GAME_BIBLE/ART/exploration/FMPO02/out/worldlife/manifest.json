@@ -11,9 +11,18 @@
       "frameMillis": 400,
       "playLoops": 2,
       "intervalMillis": 22000,
-      "travel": { "x": 22, "y": -4 },
-      "atlas": { "x": 700, "y": 240 },
-      "world": { "x": 4200, "y": 1440 },
+      "travel": {
+        "x": 22,
+        "y": -4
+      },
+      "atlas": {
+        "x": 700,
+        "y": 240
+      },
+      "world": {
+        "x": 4200,
+        "y": 1440
+      },
       "placement": "Volcano north shoulder, silhouetted against the ice shelf and teal water. MOVED from the shipped 736,306: at that spawn a red dragon on red volcanic rock is invisible (verified on the placement composite).",
       "dutyCycle": "7.2s active / 29.2s cycle = 24.7%"
     },
@@ -25,8 +34,14 @@
       "playLoops": 1,
       "intervalMillis": 31000,
       "travel": null,
-      "atlas": { "x": 780, "y": 300 },
-      "world": { "x": 4680, "y": 1800 },
+      "atlas": {
+        "x": 780,
+        "y": 300
+      },
+      "world": {
+        "x": 4680,
+        "y": 1800
+      },
       "placement": "Over open sea east of the volcano cliff, so the plume reads against blue water. Frames 0-2 are a hard-edged orange-white cone, 3-5 the plume balloons, 6-7 it collapses to dark smoke. Source frame 8 was DROPPED: the dragon itself vanishes from it.",
       "dutyCycle": "1.44s active / 32.4s cycle = 4.4%"
     },
@@ -38,9 +53,18 @@
       "frameMillis": 340,
       "playLoops": 2,
       "intervalMillis": 26000,
-      "travel": { "x": 30, "y": 6 },
-      "atlas": { "x": 350, "y": 190 },
-      "world": { "x": 2100, "y": 1140 },
+      "travel": {
+        "x": 30,
+        "y": 6
+      },
+      "atlas": {
+        "x": 350,
+        "y": 190
+      },
+      "world": {
+        "x": 2100,
+        "y": 1140
+      },
       "placement": "Frostmere circuit, over the ice shelf. New anatomy: long serpentine body, four feathered fin-wings, spined crest, slate blue-grey with a pale belly. Shifted 30px west of ART-03's 380,190 to clear the ice tower at atlas 452.",
       "dutyCycle": "6.1s active / 32.1s cycle = 19%"
     },
@@ -51,9 +75,18 @@
       "frameMillis": 340,
       "playLoops": 1,
       "intervalMillis": 34000,
-      "travel": { "x": -26, "y": 8 },
-      "atlas": { "x": 832, "y": 688 },
-      "world": { "x": 4992, "y": 4128 },
+      "travel": {
+        "x": -26,
+        "y": 8
+      },
+      "atlas": {
+        "x": 832,
+        "y": 688
+      },
+      "world": {
+        "x": 4992,
+        "y": 4128
+      },
       "placement": "The storm-coast play near the Storm House, in the slot the old stormdrake vacates when its primary path moves north. Forked white-core arc fires on frames 0-1, then the serpent flies on - use playLoops 1 so the strike reads as the entrance event.",
       "dutyCycle": "2.7s active / 36.7s cycle = 7.4%"
     },
@@ -62,11 +95,17 @@
       "kind": "prop",
       "canvas": "48x80",
       "frames": 1,
-      "world": { "x": 2712, "y": 1512 },
+      "world": {
+        "x": 2808,
+        "y": 1062
+      },
       "anchorX": 24,
       "anchorY": 79,
-      "atlasTopLeft": { "x": 452, "y": 172 },
-      "placement": "N2 crag on the ice shelf, north of and above the Glasslake. Original crystalline ice-mage tower: dark stone core with faceted ice spires and a pale blue summit beacon. The dark core is what makes it read against snow."
+      "atlasTopLeft": {
+        "x": 444,
+        "y": 98
+      },
+      "placement": "N2 crag on the ice shelf. MOVED for FINAL-04 #4: the shipped anchor put the tower’s base at atlas y=252, eighty pixels BELOW its named crag (measured at 452-490 x 153-178 on the current composite), so the crag floated above the spire. The anchor is now the crag foot, atlas (468,177)."
     },
     {
       "name": "overlay_ice_beacon",
@@ -75,20 +114,32 @@
       "frameMillis": 320,
       "playLoops": 2,
       "intervalMillis": 12000,
-      "atlas": { "x": 452, "y": 172 },
-      "world": { "x": 2712, "y": 1032 },
-      "placement": "Drawn at exactly the prop_ice_tower rect. overlay_ice_beacon_f0.png is BYTE-IDENTICAL to prop_ice_tower.png, so the tower never blinks: between plays the static prop shows, during a play the ice shimmers and the summit beacon pulses. Costs one prop slot plus one overlay slot; the one-slot alternative is a single continuous overlay, but atlas x 452 sits inside the J-3 restricted band x276-706, so the interval form is the safe default."
+      "atlas": {
+        "x": 444,
+        "y": 98
+      },
+      "world": {
+        "x": 2664,
+        "y": 588
+      },
+      "placement": "Drawn at exactly the prop_ice_tower rect, which moved with the tower. overlay_ice_beacon_f0.png stays BYTE-IDENTICAL to prop_ice_tower.png, so the tower never blinks."
     },
     {
       "name": "prop_fairy_castle",
       "kind": "prop",
-      "canvas": "96x80",
+      "canvas": "31x39",
       "frames": 1,
-      "world": { "x": 2010, "y": 2832 },
-      "anchorX": 48,
-      "anchorY": 79,
-      "atlasTopLeft": { "x": 287, "y": 393 },
-      "placement": "Whispering Woods glade NNW of the WW marker (383,509); clear of all three WW routes and of Haven's Rest. Carries its own painted glade ring, stream, mushrooms and lit windows. NOTE: 96 wide, not ART-03's 64 - the wider sprite was accepted on the atlas composite because the tree canopy inside it matches the forest canopy scale; at 64 it would have to be re-authored."
+      "world": {
+        "x": 2010,
+        "y": 2712
+      },
+      "anchorX": 15,
+      "anchorY": 38,
+      "atlasTopLeft": {
+        "x": 320,
+        "y": 414
+      },
+      "placement": "Whispering Woods canopy NNW of the WW marker, anchored at its own base. RE-AUTHORED for FINAL-04 #3: the 96x80 predecessor was an isometric diorama tile — four straight edges, an extruded soil side wall, and internal oak crowns at ~28 px against the map’s ~10 px canopy. This is a flat map keep with no plinth, no ground plate and no side wall, at 31x39 the smallest landmark prop on the atlas. Authored with create_map_object against a 64x48 crop of the site itself, so it carries the map’s own palette."
     },
     {
       "name": "overlay_fairy_motes",
@@ -97,20 +148,32 @@
       "frameMillis": 300,
       "playLoops": 4,
       "intervalMillis": 17000,
-      "atlas": { "x": 378, "y": 420 },
-      "world": { "x": 2268, "y": 2520 },
-      "placement": "Beside the castle, east edge of the glade. Warm honey-gold motes with a faint pale-green halo - not cyan, not UI squares, no faces, no figures. Interval form because atlas x 378 is inside the J-3 band. FRAME SELECTION: the 8-frame animate pass kept turning the motes into dark insect shapes on alternate frames; the shipped 4 frames are source frames 0,1,5,6 - the ones that stay lit. Deterministic selection only, no pixels altered."
+      "atlas": {
+        "x": 292,
+        "y": 424
+      },
+      "world": {
+        "x": 1752,
+        "y": 2544
+      },
+      "placement": "Whispering Woods canopy immediately west of the castle. MOVED off the brown scree at atlas 378-410 x 420-452 (FINAL-04 #6) and TONED: the four shipped frames are desaturated 35% toward their own luma with a honey-green cast, so six round gold bodies stop reading as struck coins. Deterministic remap, no pixel moved (tools/worldfix-prep.js). NOT FIXED: they are still discs rather than winged silhouettes — two re-authoring rolls were rejected (an opaque scene; six 8x5 orange insects) and the cap stopped a third. Next round: roll at 16x16, which forces a 2-3 px body."
     },
     {
       "name": "prop_storm_house",
       "kind": "prop",
-      "canvas": "56x64",
+      "canvas": "25x21",
       "frames": 1,
-      "world": { "x": 1308, "y": 5526 },
-      "anchorX": 28,
-      "anchorY": 63,
-      "atlasTopLeft": { "x": 190, "y": 858 },
-      "placement": "SW Gloaming knoll - the map's darkest pocket. Lone dark timber house, three lit amber windows, bent dead trees, a churning black cloud pocket over the roof. NOTE: ART-03 6 quotes world anchor (1140,5148), which is the rect's TOP-LEFT, not an anchor; under the shipped prop convention (prop_black_gable) the anchor for that same rect is (1308,5526). Integrator: confirm which the brief meant."
+      "world": {
+        "x": 1308,
+        "y": 5400
+      },
+      "anchorX": 12,
+      "anchorY": 20,
+      "atlasTopLeft": {
+        "x": 206,
+        "y": 880
+      },
+      "placement": "SW Gloaming knoll, anchored at its own base. RE-AUTHORED for FINAL-04 #3: the 56x64 predecessor was an isometric diorama on a soil plinth. This is one dark roof with a lit window seen from above, no plate, no side wall. overlay_storm_lightning moved with it so the bolt still ends on this roof."
     },
     {
       "name": "overlay_storm_lightning",
@@ -119,21 +182,33 @@
       "frameMillis": 110,
       "playLoops": 1,
       "intervalMillis": 13000,
-      "atlas": { "x": 208, "y": 838 },
-      "world": { "x": 1248, "y": 5028 },
-      "placement": "Over the storm house's cloud pocket. A forked branching bolt, NOT a full-box flash: frames 0-1 bright white fork with side branches, 2-4 dimming to violet, 5 nearly gone, 6-7 empty (155 opaque px of 2478). Most of the play is dark, so it reads as an occasional strike.",
+      "atlas": {
+        "x": 194,
+        "y": 818
+      },
+      "world": {
+        "x": 1164,
+        "y": 4908
+      },
+      "placement": "Over the storm house’s roof, MOVED with the house. The sprite is unchanged.",
       "dutyCycle": "0.88s active / 13.9s cycle = 6.3%"
     },
     {
       "name": "overlay_deer2",
-      "canvas": "48x40",
-      "frames": 9,
+      "canvas": "16x16",
+      "frames": 5,
       "frameMillis": 300,
-      "playLoops": 2,
-      "intervalMillis": 35000,
-      "atlas": { "x": 230, "y": 330 },
-      "world": { "x": 1380, "y": 1980 },
-      "placement": "W1 taper, woods EDGE not interior. Doe grazing with head down plus a standing fawn; the doe lifts and lowers her head, the fawn shifts and turns. No ground platform - the animals stand on painted terrain."
+      "atlas": {
+        "x": 246,
+        "y": 342
+      },
+      "world": {
+        "x": 1476,
+        "y": 2052
+      },
+      "placement": "W1 taper, woods EDGE. RE-AUTHORED at map scale for FINAL-04 #5 (48x40 -> 16x16, contact shadow baked in), and the loop restored once the cap was raised: animate_image d41aef2d, 5 frames, the doe lifting and lowering her head while the fawn shifts. No longer a static marker.",
+      "playLoops": 4,
+      "intervalMillis": 35000
     },
     {
       "name": "overlay_bear3",
@@ -142,20 +217,32 @@
       "frameMillis": 320,
       "playLoops": 2,
       "intervalMillis": 30000,
-      "atlas": { "x": 330, "y": 650 },
-      "world": { "x": 1980, "y": 3900 },
+      "atlas": {
+        "x": 330,
+        "y": 650
+      },
+      "world": {
+        "x": 1980,
+        "y": 3900
+      },
       "placement": "Longwood interior, south of the shipped overlay_bear2 (atlas 340,592). Full four-legged amble cycle."
     },
     {
       "name": "overlay_yeti3",
-      "canvas": "44x40",
-      "frames": 9,
+      "canvas": "16x17",
+      "frames": 5,
       "frameMillis": 350,
-      "playLoops": 2,
-      "intervalMillis": 28000,
-      "atlas": { "x": 600, "y": 160 },
-      "world": { "x": 3600, "y": 960 },
-      "placement": "New snow country, well clear of the shipped overlay_yeti2 (atlas 490,324). Bipedal shaggy snow ape striding; the animate pass cleaned off the still's loose snow spray."
+      "atlas": {
+        "x": 600,
+        "y": 190
+      },
+      "world": {
+        "x": 3600,
+        "y": 1140
+      },
+      "placement": "Snow field south of the floe leads, atlas 600,190 — MOVED off N3’s open lead (FINAL-04 #4) and RE-AUTHORED at map scale (44x40 -> 16x17, FINAL-04 #5). Loop restored: animate_image 5afb2ef9, 5 frames, a slow shoulder sway.",
+      "playLoops": 4,
+      "intervalMillis": 28000
     },
     {
       "name": "overlay_wolfpair",
@@ -164,21 +251,36 @@
       "frameMillis": 300,
       "playLoops": 2,
       "intervalMillis": 27000,
-      "atlas": { "x": 302, "y": 698 },
-      "world": { "x": 1812, "y": 4188 },
-      "placement": "Wolfwood, in place. Two clearly separated slate-grey wolves; the near one paces and lowers its head, the far one scans. Third attempt - the first two came back as a blob on a hard isometric dirt diamond."
+      "atlas": {
+        "x": 302,
+        "y": 698
+      },
+      "world": {
+        "x": 1812,
+        "y": 4188
+      },
+      "placement": "Wolfwood, in place and UNCHANGED at 56x44. FINAL-04 #5 asked for a halved canvas; two rolls at 28x28 both failed the same way the first round’s did — one came back on a hard isometric snow diamond, one as an unreadable grey blob — so the accepted full-size pair stays rather than shipping a plate the round exists to remove (ART-03 §7 two-failure stop)."
     },
     {
       "name": "overlay_wagon",
-      "canvas": "32x32",
-      "frames": 1,
-      "frameMillis": 12000,
-      "playLoops": 1,
+      "canvas": "14x13",
+      "frames": 5,
+      "frameMillis": 400,
+      "playLoops": 6,
       "intervalMillis": 48000,
-      "travel": { "x": -11, "y": 1 },
-      "atlas": { "x": 400, "y": 512 },
-      "world": { "x": 2400, "y": 3072 },
-      "placement": "HR-to-Whispering-Woods road. Covered wagon with a cream tilt and two harnessed oxen, facing west - travel is negative x to match. Still only: travel is the overlay's job, per brief."
+      "travel": {
+        "x": -11,
+        "y": 1
+      },
+      "atlas": {
+        "x": 409,
+        "y": 521
+      },
+      "world": {
+        "x": 2454,
+        "y": 3126
+      },
+      "placement": "HR-to-Whispering-Woods road. RE-AUTHORED at map scale (32x32 -> 14x13) and now ANIMATED: animate_image 017b3d4a, 5 frames of the oxen plodding and the wagon rocking, six loops per play so the 12 s of travel it had as a still is preserved."
     },
     {
       "name": "overlay_crows",
@@ -187,8 +289,14 @@
       "frameMillis": 260,
       "playLoops": 2,
       "intervalMillis": 24000,
-      "atlas": { "x": 536, "y": 506 },
-      "world": { "x": 3216, "y": 3036 },
+      "atlas": {
+        "x": 536,
+        "y": 506
+      },
+      "world": {
+        "x": 3216,
+        "y": 3036
+      },
       "placement": "Forgotten Hollow, over the standing stones. Verified legible on the atlas composite - dark bird marks read against the green, which is why they go here and not over dark forest."
     },
     {
@@ -198,9 +306,18 @@
       "frameMillis": 220,
       "playLoops": 1,
       "intervalMillis": 19000,
-      "drift": { "x": 6, "y": 0 },
-      "atlas": { "x": 330, "y": 150 },
-      "world": { "x": 1980, "y": 900 },
+      "drift": {
+        "x": 6,
+        "y": 0
+      },
+      "atlas": {
+        "x": 330,
+        "y": 150
+      },
+      "world": {
+        "x": 1980,
+        "y": 900
+      },
       "placement": "NW snow country. Powder curl lifts, scatters and settles to almost nothing by the last frame (1107 -> 486 opaque px)."
     },
     {
@@ -208,8 +325,14 @@
       "canvas": "16x16",
       "frames": 5,
       "frameMillis": 240,
-      "atlas": { "x": 450, "y": 520 },
-      "world": { "x": 2700, "y": 3120 },
+      "atlas": {
+        "x": 450,
+        "y": 520
+      },
+      "world": {
+        "x": 2700,
+        "y": 3120
+      },
       "placement": "Haven's Rest settlement life. Continuous is acceptable at this size, but atlas x 450 is inside the J-3 band - integrator may prefer playLoops 4 / intervalMillis 9000. Canvas is 16x16, not the requested 12x12: PixelLab rejects any side below 16."
     },
     {
@@ -219,8 +342,14 @@
       "frameMillis": 240,
       "playLoops": 3,
       "intervalMillis": 11000,
-      "atlas": { "x": 462, "y": 514 },
-      "world": { "x": 2772, "y": 3084 },
+      "atlas": {
+        "x": 462,
+        "y": 514
+      },
+      "world": {
+        "x": 2772,
+        "y": 3084
+      },
       "placement": "Haven's Rest rooftop. WARNING: this sprite includes a small chimney pot at its base, so it must sit ON a roofline, never on open ground."
     },
     {
@@ -230,9 +359,18 @@
       "frameMillis": 400,
       "playLoops": 3,
       "intervalMillis": 26000,
-      "travel": { "x": -5, "y": 2 },
-      "atlas": { "x": 740, "y": 660 },
-      "world": { "x": 4440, "y": 3960 },
+      "travel": {
+        "x": -5,
+        "y": 2
+      },
+      "atlas": {
+        "x": 740,
+        "y": 660
+      },
+      "world": {
+        "x": 4440,
+        "y": 3960
+      },
       "placement": "Open water east of the lighthouse headland - MOVED from 700,640, which put the hull on land. Rocks on the swell with a shifting waterline ripple."
     }
   ]

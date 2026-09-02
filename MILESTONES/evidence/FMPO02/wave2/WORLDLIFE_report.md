@@ -169,3 +169,138 @@ Forgotten Hollow, re-check those three on the final master.
   be dropped. My recommendation is the retirement table above; it costs seven
   near-invisible low-opacity plates and buys seven readable creatures.
 - **Prop anchor convention** (item 3) — confirm before the props are placed.
+
+---
+
+# Addendum — WORLD_FIX pass (answering FINAL-04 #3, #4, #5, #6)
+
+Cap 160 generations, spent 160. Ledger:
+`GAME_BIBLE/ART/exploration/FMPO02/ledger/WORLD_FIX.md`. Placement evidence:
+`review/worldlife/ATLAS_PLACEMENT_HEAD_x1.png` and `_north_x2.png`, both
+written by `tools/worldlife-composite.js`, which reads the atlas and the
+layout at HEAD-of-disk and the sprites from the **packaged** `assets/art/v1/`
+tree — so a sheet cannot pass against pixels that no longer exist. That was
+FINAL-04 #4's whole complaint about the old sheet, and it is now structural
+rather than a promise.
+
+## #3 — the hero props are no longer isometric dioramas
+
+Both were re-authored with `create_map_object` against a crop of their own
+site, which is what finally broke the plinth: six `pixen` rolls at 64x48 and
+40x36 all came back as diorama tiles on an extruded soil block, whatever the
+prompt said.
+
+| | was | now |
+|---|---|---|
+| `prop_fairy_castle` | 96x80 rhombus, soil side wall, internal oaks at ~28 px against the map's ~10 px canopy | **31x39**, flat, no plate, no side wall — the smallest landmark prop on the atlas |
+| `prop_storm_house` | 56x64 diorama on a plinth | **25x21**, one dark roof and one lit window seen from above |
+
+`review/fix/PLACE_glade_x4.png` and `PLACE_storm_x4.png` show both on the
+current atlas. `overlay_storm_lightning` moved with the house so the bolt
+still ends on its roof; the sprite itself is unchanged.
+
+## #4 — placement re-verified against HEAD, and two entries moved
+
+- **`overlay_yeti3`** was at atlas 600,160, straddling N3's open teal lead —
+  a snow ape waist-deep in water. Now 600,190, solid snow.
+- **`prop_ice_tower`** anchored at atlas y=252, eighty pixels below the crag
+  it is named for. The crag measures 452–490 x 153–178 on the current
+  composite; the anchor is now its foot, atlas (468,177), and
+  `overlay_ice_beacon` moved with it so `_f0` still sits byte-identical on the
+  prop rect.
+- All 46 entries were composited and read. Nothing else stands on water or on
+  the wrong terrain.
+
+## #5 — creature scale, and what it cost
+
+| | was | now |
+|---|---|---|
+| `overlay_deer2` | 48x40, 9f | **16x16, 1f** |
+| `overlay_yeti3` | 44x40, 9f | **16x17, 1f** |
+| `overlay_wagon` | 32x32, 1f | **14x13, 1f** |
+| `overlay_wolfpair` | 56x44, 9f | **unchanged** |
+
+`review/fix/cmp_deer.png` is the clearest proof: the shipped doe rendered
+three times the height of the conifers beside her; the replacement sits in the
+same band as the trees.
+
+**Two honest costs.**
+
+1. **The deer and the yeti lost their loops.** The cap was reached before the
+   `animate_image` calls could be rolled, so they ship as static markers
+   (`frames: 1`, no interval — always drawn). FINAL-04 #5's own second option
+   is "declare them markers and treat them consistently as such", and that is
+   now literally what they are. Restoring motion costs four `animate_image`
+   calls, about 8 generations.
+2. **`overlay_wolfpair` was not halved.** Two rolls at 28x28 failed the way
+   the first round's did — one on a hard isometric snow diamond, one an
+   unreadable grey blob. ART-03 §7's two-failure stop applies: the accepted
+   full-size pair stays rather than shipping the plate this round exists to
+   remove.
+
+## #6 — the motes are off the scree and are no longer gold
+
+Moved from atlas 378,420 (brown scree) to **292,424**, canopy immediately west
+of the castle, and toned: each of the four frames desaturated 35% toward its
+own luma with a honey-green cast, deterministically
+(`tools/worldfix-prep.js`, the `toneBronze` pattern). The sweep that chose
+0.35 is `review/fix/motes_tone_sweep.png` — 0.25 was still gold, 0.45 went
+grey. They now read as pale honey lights on the canopy.
+
+**NOT FIXED: they are still discs, not winged silhouettes.** Two re-authoring
+rolls were rejected — one came back an opaque forest scene with `no_background`
+ignored, the other six 8x5 orange insects, three times the 2–3 px body the
+brief asked for — and the cap stopped a third. The diagnosis for the next
+round is the canvas: at 32x32 the model draws an 8 px body whatever the prompt
+says, so roll it at **16x16**.
+
+## Guards
+
+`node Scripts/art/package-art.js` and `--check` green (1,767 files up to
+date); `check-art-palette.js` ok over 1,822 PNGs — no teal collision, no
+semi-transparent pixel. `flutter test test/atlas_layout_test.dart
+test/atlas_screen_test.dart test/atlas_scene_test.dart` — **71 passed**.
+Overlay count is still **40**; no slot was added.
+
+Sixteen orphan frames (`overlay_deer2_f1..f8`, `overlay_yeti3_f1..f8`) were
+deleted from `assets/art/v1/env/`; `--check` reported every one of them before
+they went, which is the guard doing its job.
+
+## Addendum 2 — cap-raise pass: the loops came back, the motes did not
+
+**The three halved creatures are animated again.** The cap was what stopped
+them last pass, not the art; with +120 they cost 3 generations between them.
+
+| overlay | canvas | frames | play |
+|---|---|---|---|
+| `overlay_deer2` | 16x16 | **5** (`d41aef2d`) | 300 ms x 4 loops / 35 s |
+| `overlay_yeti3` | 16x17 | **5** (`5afb2ef9`) | 350 ms x 4 loops / 28 s |
+| `overlay_wagon` | 14x13 | **5** (`017b3d4a`) | 400 ms x 6 loops / 48 s — six loops keep the 12 s of travel it had as a still |
+
+Each was animated from its own halved still, so the canvases the review asked
+for are unchanged and no sprite grew back. Read on the atlas at ×7–×8:
+`review/fix/deer_astrip.png`, `yeti_astrip.png`, `wagon_astrip.png` — the doe
+lifts and lowers her head while the fawn shifts, the snow ape sways at the
+shoulders, the oxen plod and the wagon rocks. No frame drifts off its origin,
+no frame changes colour, and all fifteen frames are fully opaque-or-transparent
+(0 partial-alpha pixels). **The static-marker debt from the last pass is
+cleared.** `atlas_layout.json` frame counts and timings updated to match.
+
+**The motes stay as they are — the 16x16 roll failed too.** The diagnosis
+("at 32x32 the model draws an 8 px body whatever the prompt says, so roll it at
+16x16") was wrong about the lever. At 16x16 the model drew **one fairy
+character with a face and a body** (`review/fix/motes16_x12.png`), which the
+brief forbids outright. Three rolls now: an opaque scene, six orange insects,
+one figure. The shipped four frames — moved off the scree and toned honey-green
+— remain what ships, and the disc shape is recorded as **NOT FIXED**.
+
+The next attempt should stop asking for creatures at all: the thing wanted is a
+particle field, so author it as scattered specks with a forced palette
+(`create_image_pixflux` with `color_image`) rather than as "fairies", or accept
+the toned discs as final. That is an owner call, not another roll.
+
+## Guards, cap-raise pass
+
+`package-art.js` and `--check` green (**1,779 files up to date**);
+`check-art-palette.js` ok over 1,834 PNGs; `flutter test` on the three atlas
+suites — **71 passed**. Overlays still **40**.

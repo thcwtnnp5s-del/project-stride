@@ -1,0 +1,9 @@
+--- BEFORE ---
+vertical band median   40.7   horizontal band median 39.3
+  x=200  score 55.0  run 17
+  x=230  score 93.9  run 19
+  x=233  score 92.8  run 27
+  y=160  score 15.2  run 8
+  y=255  score 133.4  run 35
+  worst columns 230:93.9 233:92.8 212:84.9
+  worst rows    255:133.4 201:86.7 198:83.6

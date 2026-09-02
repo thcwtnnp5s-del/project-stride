@@ -542,25 +542,25 @@
     {
       "asset": "env/prop_fairy_castle",
       "x": 2010,
-      "y": 2832,
-      "width": 96,
-      "height": 80,
-      "anchorX": 48,
-      "anchorY": 79
+      "y": 2712,
+      "width": 31,
+      "height": 39,
+      "anchorX": 15,
+      "anchorY": 38
     },
     {
       "asset": "env/prop_storm_house",
       "x": 1308,
-      "y": 5526,
-      "width": 56,
-      "height": 64,
-      "anchorX": 28,
-      "anchorY": 63
+      "y": 5400,
+      "width": 25,
+      "height": 21,
+      "anchorX": 12,
+      "anchorY": 20
     },
     {
       "asset": "env/prop_ice_tower",
-      "x": 2712,
-      "y": 1512,
+      "x": 2808,
+      "y": 1062,
       "width": 48,
       "height": 80,
       "anchorX": 24,
@@ -996,8 +996,8 @@
     },
     {
       "asset": "env/overlay_ice_beacon",
-      "x": 2712,
-      "y": 1032,
+      "x": 2664,
+      "y": 588,
       "width": 48,
       "height": 80,
       "frames": 7,
@@ -1012,8 +1012,8 @@
     },
     {
       "asset": "env/overlay_fairy_motes",
-      "x": 2268,
-      "y": 2520,
+      "x": 1752,
+      "y": 2544,
       "width": 32,
       "height": 32,
       "frames": 4,
@@ -1028,8 +1028,8 @@
     },
     {
       "asset": "env/overlay_storm_lightning",
-      "x": 1248,
-      "y": 5028,
+      "x": 1164,
+      "y": 4908,
       "width": 48,
       "height": 64,
       "frames": 8,
@@ -1044,19 +1044,19 @@
     },
     {
       "asset": "env/overlay_deer2",
-      "x": 1380,
-      "y": 1980,
-      "width": 48,
-      "height": 40,
-      "frames": 9,
+      "x": 1476,
+      "y": 2052,
+      "width": 16,
+      "height": 16,
+      "frames": 5,
       "frameMillis": 300,
-      "playLoops": 2,
-      "intervalMillis": 35000,
       "drift": {
         "x": 0,
         "y": 0
       },
-      "opacity": 1
+      "opacity": 1,
+      "playLoops": 4,
+      "intervalMillis": 35000
     },
     {
       "asset": "env/overlay_bear3",
@@ -1077,18 +1077,18 @@
     {
       "asset": "env/overlay_yeti3",
       "x": 3600,
-      "y": 960,
-      "width": 44,
-      "height": 40,
-      "frames": 9,
+      "y": 1140,
+      "width": 16,
+      "height": 17,
+      "frames": 5,
       "frameMillis": 350,
-      "playLoops": 2,
-      "intervalMillis": 28000,
       "drift": {
         "x": 0,
         "y": 0
       },
-      "opacity": 1
+      "opacity": 1,
+      "playLoops": 4,
+      "intervalMillis": 28000
     },
     {
       "asset": "env/overlay_wolfpair",
@@ -1108,13 +1108,13 @@
     },
     {
       "asset": "env/overlay_wagon",
-      "x": 2400,
-      "y": 3072,
-      "width": 32,
-      "height": 32,
-      "frames": 1,
-      "frameMillis": 12000,
-      "playLoops": 1,
+      "x": 2454,
+      "y": 3126,
+      "width": 14,
+      "height": 13,
+      "frames": 5,
+      "frameMillis": 400,
+      "playLoops": 6,
       "intervalMillis": 48000,
       "drift": {
         "x": 0,

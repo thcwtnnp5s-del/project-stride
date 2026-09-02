@@ -130,6 +130,32 @@
       "seed": 736,
       "atlas": "476-548 x 90-230",
       "review": "ATLAS_REGION_LOG.md — NB2 (N2/N3 bridge)"
+    },
+    {
+      "id": "NB3",
+      "x": 440,
+      "y": 0,
+      "w": 140,
+      "h": 150,
+      "salt": 31,
+      "status": "accepted",
+      "job": "10666417-e4d7-4099-b910-566bfde431a3",
+      "seed": 746,
+      "atlas": "476-548 x 0-110",
+      "review": "ATLAS_REGION_LOG.md — NB3 (north razor bridge)"
+    },
+    {
+      "id": "GAP",
+      "x": 134,
+      "y": 124,
+      "w": 138,
+      "h": 202,
+      "salt": 32,
+      "status": "accepted",
+      "job": "bb3ad9bf-d866-4f52-847c-b5d1c56b3cca",
+      "seed": 756,
+      "atlas": "150-256 x 140-310",
+      "review": "ATLAS_REGION_LOG.md — GAP (the grey-green slab)"
     }
   ]
 }
