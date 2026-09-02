@@ -12,3 +12,13 @@ Every row: what was asked, the tool, the cost class, and the verdict with reason
 | 4 | landmark probe | pixen 96x80 fairy castle | a8efddfd | 1 | pending | |
 | 5 | world life probe | pixen 96x64 red dragon still | b21f2836 | 1 | pending | |
 | 6 | encounter probe | pixen 192x76 forest floor band | 4f3d3a3d | 1 | pending | |
+
+## Balance checkpoints (live `get_balance`)
+
+| When | Remaining | Used this session | Note |
+|---|---:|---:|---|
+| open, 2026-09-02 | 9,762 | 0 | Tier 3, resets 2026-10-01 |
+| wave 2 launch + ~25 min | 9,217 | 545 | 8 production leads + combat stage lead running; 17 jobs active |
+
+Per-family ledgers: `ledger/<FAMILY>.md` (written by each PROD lead). Probe verdicts:
+1 ACCEPT (state carries tool; west mine swing keeps armor + pick in 8/8 frames), 2–3 REJECT (busy weave / directional stripe — not ≤6 L*), 4 ACCEPT (fairy castle glade reads at 96×80), 5 ACCEPT (+ wingbeat loop f87ddf27, 9f clean), 6 ACCEPT (forest floor band; handed to PROD-ENEMIES), plus two 32² tile rerolls REJECT (speckle, dither checkerboard).
