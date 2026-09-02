@@ -97,6 +97,13 @@ abstract final class TravelerArt {
   static const String weaponUnarmed = 'weapon.unarmed';
   static const String weaponSteel = 'weapon.steel';
   static const String weaponBronze = 'weapon.bronze';
+
+  /// The Bronze Longsword's own class (EPO03). Coarse-by-tier is the rule for
+  /// *material*; this is a rule about **shape**, which is the axis a player
+  /// reads at sprite scale. The epic longsword and the uncommon bronze sword
+  /// are the same metal and the same tier, and drawing them alike is what made
+  /// the reward at the end of a crafting chain look like its own ingredient.
+  static const String weaponLongsword = 'weapon.longsword';
   static const String toolAxeSteel = 'tool.axe.steel';
   static const String toolAxeBronze = 'tool.axe.bronze';
   static const String toolPickSteel = 'tool.pick.steel';
@@ -163,7 +170,9 @@ abstract final class TravelerArt {
     // the base body's row for it resolves to the shipped base set.
     'item.training_sword': weaponSteel,
     'item.bronze_sword': weaponBronze,
-    'item.bronze_longsword': weaponBronze,
+    // EPO03: the longsword has its own five-track set on all four authored
+    // bodies, so it stops borrowing the bronze sword's.
+    'item.bronze_longsword': weaponLongsword,
     'item.fanghilt_sword': weaponBronze,
     // Tools, by head material. The training tools are the base loops'
     // baked steel heads; the bronze family covers every forged and
@@ -260,6 +269,10 @@ abstract final class TravelerArt {
         // The nine FMPO02 loadouts: three armoured bodies × three weapon
         // classes, keyed identically.
         ...CombatAssets.armouredLoadouts,
+        // EPO03's fifth held class, on all four authored bodies (the base one
+        // included, which is why this map is not folded into
+        // `armouredLoadouts`).
+        ...CombatAssets.longswordLoadouts,
       };
 
   static const String _ambient = 'assets/art/v1/ambient';
@@ -500,7 +513,12 @@ abstract final class TravelerArt {
   /// never as another body.
   static CombatantArt? _nearestArmed(String body, String weapon) {
     if (body == baseBody || weapon == weaponUnarmed) return null;
-    for (final String alt in <String>[weaponSteel, weaponBronze]) {
+    // Bronze before longsword: a missing longsword shows as the bronze blade
+    // it is made of, which is a tier lie rather than a category one. The
+    // order is only reached when a class is unauthored for a body, and every
+    // class the table names is complete on every authored body today.
+    for (final String alt in <String>[weaponSteel, weaponBronze,
+      weaponLongsword]) {
       if (alt == weapon) continue;
       final CombatantArt? art = combatVariants[_pair(body, alt)];
       if (art != null) return art;

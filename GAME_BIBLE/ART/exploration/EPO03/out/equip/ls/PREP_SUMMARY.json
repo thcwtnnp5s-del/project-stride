@@ -1,0 +1,770 @@
+[
+  {
+    "id": "traveler_plate_longsword_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      7,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      8,
+      1,
+      70,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_plate_longsword_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      17,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      4,
+      -2,
+      74,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      2,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_plate_longsword_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      2,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      10,
+      1,
+      69,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_plate_longsword_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      11,
+      11
+    ],
+    "footRowSrc": 73,
+    "union": [
+      10,
+      2,
+      69,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_plate_longsword_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      14,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      13,
+      1,
+      66,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_jerkin_longsword_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      8,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      14,
+      1,
+      66,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_jerkin_longsword_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      15,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      2,
+      -1,
+      76,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      2,
+      2,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_jerkin_longsword_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      3,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      11,
+      1,
+      67,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_jerkin_longsword_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      10,
+      15
+    ],
+    "footRowSrc": 77,
+    "union": [
+      9,
+      2,
+      70,
+      65
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      6
+    ]
+  },
+  {
+    "id": "traveler_jerkin_longsword_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      9,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      6,
+      0,
+      72,
+      62
+    ],
+    "keyedPixels": 22,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_coat_longsword_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      21,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      12,
+      1,
+      66,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_coat_longsword_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      13,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      4,
+      -1,
+      75,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_coat_longsword_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      14,
+      13
+    ],
+    "footRowSrc": 75,
+    "union": [
+      2,
+      2,
+      77,
+      64
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      5,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_coat_longsword_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      8,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      9,
+      1,
+      69,
+      65
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      4
+    ]
+  },
+  {
+    "id": "traveler_coat_longsword_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      11,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      13,
+      1,
+      66,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_base_longsword_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      4,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      25,
+      1,
+      87,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_base_longsword_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      19,
+      11
+    ],
+    "footRowSrc": 73,
+    "union": [
+      3,
+      2,
+      100,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_base_longsword_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      4,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      15,
+      0,
+      87,
+      64
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      6,
+      6,
+      6
+    ]
+  },
+  {
+    "id": "traveler_base_longsword_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      13,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      11,
+      1,
+      91,
+      64
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1
+    ]
+  },
+  {
+    "id": "traveler_base_longsword_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      6,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      11,
+      1,
+      91,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+]

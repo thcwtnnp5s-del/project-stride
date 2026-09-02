@@ -468,6 +468,7 @@ abstract final class CombatAssets {
     required SpriteFootprint hit,
     required SpriteFootprint stagger,
     required SpriteFootprint brace,
+    int canvasWidth = 80,
   }) {
     CombatTrack t(String track, int frames, double fps, AmbientLoop loop,
             SpriteFootprint footprint) =>
@@ -476,7 +477,7 @@ abstract final class CombatAssets {
           frames,
           fps,
           loop,
-          canvasWidth: 80,
+          canvasWidth: canvasWidth,
           canvasHeight: 64,
           anchorRow: 62,
           footprint: footprint,
@@ -601,6 +602,77 @@ abstract final class CombatAssets {
           hit: SpriteFootprints.combatTravelerCoatUnarmedHit,
           stagger: SpriteFootprints.combatTravelerCoatUnarmedStagger,
           brace: SpriteFootprints.combatTravelerCoatUnarmedBrace,
+        ),
+      };
+
+  /// **The Bronze Longsword is a different weapon to look at** (EPO03,
+  /// DIR-08 failure 1).
+  ///
+  /// The epic Bronze Longsword and the uncommon Bronze Sword resolved to one
+  /// set, so the blade at the end of a long crafting chain was pixel-identical
+  /// to the blade that went into it. This is the fifth held class: a blade
+  /// half again as long, with a straight cross-guard and a two-hand grip,
+  /// whose tip passes the front foot in the idle. It is a *silhouette*
+  /// difference, which is what survives at sprite scale — a recolour would not
+  /// have been worth authoring.
+  ///
+  /// Four bodies, five tracks each, all twenty east-facing on row 62 and made
+  /// the way `package-art.js`'s EPO03 EQUIPMENT block records: a one-generation
+  /// `edit_image_pixen` on each body's own shipped bronze idle frame, then one
+  /// v3 animation per track from that frame.
+  ///
+  /// **The base body's tracks are 104 wide, not 80.** Its blade came back the
+  /// longest of the four and its attack measures 98 px across, so the declared
+  /// width grows and is recorded rather than the frames being re-cropped
+  /// (ART-05 §3). All five of its tracks share the wider canvas so the figure
+  /// cannot shift between them; the anchor row is 62 as everywhere else.
+  ///
+  /// Strike frames are the measured furthest extension of the blade across
+  /// the attack strip, as the armoured loadouts' are.
+  static final Map<String, CombatantArt> longswordLoadouts =
+      <String, CombatantArt>{
+        'armor.plate|weapon.longsword': _loadout(
+          'plate',
+          'longsword',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerPlateLongswordIdle,
+          attack: SpriteFootprints.combatTravelerPlateLongswordAttack,
+          hit: SpriteFootprints.combatTravelerPlateLongswordHit,
+          stagger: SpriteFootprints.combatTravelerPlateLongswordStagger,
+          brace: SpriteFootprints.combatTravelerPlateLongswordBrace,
+        ),
+        'armor.jerkin|weapon.longsword': _loadout(
+          'jerkin',
+          'longsword',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerJerkinLongswordIdle,
+          attack: SpriteFootprints.combatTravelerJerkinLongswordAttack,
+          hit: SpriteFootprints.combatTravelerJerkinLongswordHit,
+          stagger: SpriteFootprints.combatTravelerJerkinLongswordStagger,
+          brace: SpriteFootprints.combatTravelerJerkinLongswordBrace,
+        ),
+        'armor.coat|weapon.longsword': _loadout(
+          'coat',
+          'longsword',
+          // The coat's arc shoulders the blade and drives it forward rather
+          // than chopping from overhead, so its furthest reach is early.
+          strikeFrame: 2,
+          idle: SpriteFootprints.combatTravelerCoatLongswordIdle,
+          attack: SpriteFootprints.combatTravelerCoatLongswordAttack,
+          hit: SpriteFootprints.combatTravelerCoatLongswordHit,
+          stagger: SpriteFootprints.combatTravelerCoatLongswordStagger,
+          brace: SpriteFootprints.combatTravelerCoatLongswordBrace,
+        ),
+        'base|weapon.longsword': _loadout(
+          'base',
+          'longsword',
+          strikeFrame: 7,
+          canvasWidth: 104,
+          idle: SpriteFootprints.combatTravelerBaseLongswordIdle,
+          attack: SpriteFootprints.combatTravelerBaseLongswordAttack,
+          hit: SpriteFootprints.combatTravelerBaseLongswordHit,
+          stagger: SpriteFootprints.combatTravelerBaseLongswordStagger,
+          brace: SpriteFootprints.combatTravelerBaseLongswordBrace,
         ),
       };
 

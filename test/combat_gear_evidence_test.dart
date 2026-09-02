@@ -95,6 +95,9 @@ void main() {
     ('unarmed', null),
     ('training', 'item.training_sword'),
     ('bronze', 'item.bronze_sword'),
+    // EPO03: the fifth held class. The Bronze Longsword used to resolve to
+    // the bronze set, so this row and the one above it were the same picture.
+    ('longsword', 'item.bronze_longsword'),
   ]) {
     testWidgets('$label: the stage at 393 x 852, at rest and mid-swing', (
       WidgetTester tester,
@@ -133,6 +136,7 @@ void main() {
         contains(switch (label) {
           'unarmed' => 'traveler_unarmed_idle',
           'bronze' => 'traveler_bronze_idle',
+          'longsword' => 'traveler_base_longsword_idle',
           _ => 'traveler_combat_idle',
         }),
         reason: '$label drew $idleSprite at rest',

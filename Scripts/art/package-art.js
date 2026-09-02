@@ -3688,16 +3688,17 @@ for (const [id, frames, width, mirror] of FMPO_AMBIENT_STRIPS) {
  * block's record of what its own source needed.
  */
 const EPO_EQUIP_SRC = path.join(EXPLORE, 'EPO03', 'out', 'equip', 'tracks');
-function epoStrip(id, frames, width, dest, footprints) {
+const EPO_LS_SRC = path.join(EXPLORE, 'EPO03', 'out', 'equip', 'ls');
+function epoStrip(id, frames, width, dest, footprints, src = EPO_EQUIP_SRC) {
   for (let i = 0; i < frames; i++) {
-    const frame = png.load(path.join(EPO_EQUIP_SRC, `${id}_f${i}.png`));
+    const frame = png.load(path.join(src, `${id}_f${i}.png`));
     if (frame.width !== width || frame.height !== 64) {
       throw new Error(
         `EPO03 ${id} f${i}: expected ${width}x64, got ` +
           `${frame.width}x${frame.height}`,
       );
     }
-    if (/bronze/.test(id)) toneBronze(frame);
+    if (/bronze|longsword/.test(id)) toneBronze(frame);
     // The same ghost-gear guard every Traveler strip ships under: a frame
     // whose opaque pixels are not one 8-connected piece is a weapon off the
     // hand or a floating artifact (`RULES.md` A-1).
@@ -3722,6 +3723,63 @@ for (const [id, frames] of EPO_COMBAT_STRIPS) {
 }
 for (const [id, frames, width] of EPO_AMBIENT_STRIPS) {
   epoStrip(id, frames, width, 'ambient', ambientFootprints);
+}
+
+/**
+ * **P2 — the Bronze Longsword stops being the Bronze Sword** (DIR-08 failure
+ * 1; the owner's own words, "must visibly differ, not just colour").
+ *
+ * Four bodies × five combat tracks. The epic longsword and the uncommon
+ * bronze sword were one blade shape in one colour, so the reward for a long
+ * chain of crafting looked exactly like its own ingredient.
+ *
+ * ## How it was made, and why it cost 30 generations rather than 245
+ *
+ * The FMPO02 route to a new held item was `create_character_state` (≈44) per
+ * body plus one `animate_character` per track — ≈49 a body, ≈245 for five.
+ * This round found a cheaper one that is also more faithful:
+ *
+ * 1. `edit_image_pixen` (**1 generation**) on the body's own accepted
+ *    `traveler_<body>_bronze_idle_f0` — a shipped frame — replacing the short
+ *    leaf blade with a long straight one, cross-guard and two-hand grip. The
+ *    body, the armour, the pack and the foot row are the shipped frame's own
+ *    pixels; only the blade changes, and the opaque box grows to the right by
+ *    11–19 px, which is the silhouette difference, measured.
+ * 2. `animate_character` v3 (**1 generation** per track) with that PNG as
+ *    `custom_start_frame_url`, which the tool accepts in place of the
+ *    character's rotation. Identity comes from the canonical Traveler; the
+ *    gear comes from the frame.
+ *
+ * ## The canvas the base body needed
+ *
+ * The base figure's blade came back the longest of the four (its tip reaches
+ * x 79 of an 80-wide start frame), and three of its five tracks then measured
+ * a union box up to 98 px across. ART-05 §3 says the *declared* width grows
+ * and is recorded — never a per-frame re-crop — so **all five base tracks are
+ * 104 wide**, the whole set together so the figure cannot shift between
+ * tracks. The other three bodies stay at 80. `CombatTrack` has always carried
+ * width per track (the shipped base set is 80/64/56 across its own four), and
+ * every strip still stands on row 62.
+ *
+ * ## Judged, not assumed
+ *
+ * Twenty-five v3 rolls for twenty tracks. Five were rejected on the reading
+ * and re-rolled: four staggers that walked backwards instead of going down on
+ * a knee, and a `base` flinch that lost the blade entirely at f3 (the
+ * documented v3 failure). The re-roll wording is the FMPO02 fix — name the
+ * garment, name the blade "fully visible in every frame", "seen from the side
+ * facing right the whole time", "the figure staying the same size" — plus, for
+ * the staggers, describing the *end pose* rather than the motion. Sheets are
+ * in `EPO03/review/equip/ls_*`; the census over every accepted frame reads 0
+ * gold-leaning pixels, 0 detached components and 0 partial-alpha pixels.
+ */
+const EPO_LONGSWORD_TRACKS = [['idle', 8], ['attack', 8], ['hit', 6],
+  ['stagger', 8], ['brace', 6]];
+for (const body of ['plate', 'jerkin', 'coat', 'base']) {
+  for (const [track, frames] of EPO_LONGSWORD_TRACKS) {
+    epoStrip(`traveler_${body}_longsword_${track}`, frames,
+      body === 'base' ? 104 : 80, 'combat', combatFootprints, EPO_LS_SRC);
+  }
 }
 
 // ----------------------------------------- EPO03 LANDMARKS (PROD-WORLD-LANDMARKS)

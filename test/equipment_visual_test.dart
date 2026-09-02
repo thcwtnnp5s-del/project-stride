@@ -94,10 +94,17 @@ void main() {
       same(CombatAssets.traveler),
     );
 
-    // Every bronze-tier blade shares one authored set.
+    // The bronze-tier blades that share the bronze set — which, since EPO03,
+    // is no longer all of them. `item.bronze_longsword` moved to its own
+    // `weapon.longsword` class: DIR-08's first failure was that the epic
+    // longsword *was* the uncommon bronze sword, one blade shape in one
+    // colour, so the reward at the end of a crafting chain looked exactly
+    // like the ingredient that went into it. Its own assertion is below.
+    // `item.fanghilt_sword` is still honestly bronze — the fang class is
+    // named in the matrix and unauthored, and the bronze blade it is a
+    // variant of is the nearest true picture of it.
     for (final String id in <String>[
       'item.bronze_sword',
-      'item.bronze_longsword',
       'item.fanghilt_sword',
     ]) {
       expect(
@@ -110,6 +117,29 @@ void main() {
         reason: '$id draws the bronze blade it is',
       );
     }
+
+    // The longsword draws a longer blade, and it is a different strip — not
+    // the bronze set under another name, which is what the round exists to
+    // end. Checked as art rather than as identity so the assertion survives a
+    // re-author: no frame of the longsword idle may be a bronze-set frame.
+    final CombatantArt longsword = TravelerArt.combatantFor(
+      const EquipmentVisualState(
+        weapon: EquippedVisualFact(
+          itemId: 'item.bronze_longsword',
+          tier: 1,
+          toolKind: 'none',
+        ),
+      ),
+    );
+    expect(longsword, isNot(same(CombatAssets.travelerBronze)));
+    expect(longsword.idle.frame(0), contains('longsword'));
+    expect(
+      longsword.idle.track.frames.toSet().intersection(
+        CombatAssets.travelerBronze.idle.track.frames.toSet(),
+      ),
+      isEmpty,
+      reason: 'the longsword is still drawing the bronze sword\'s frames',
+    );
 
     // An *equipped* item no table knows still degrades to the base rather than
     // to a hole (`RULES.md` E-5) — unlike an empty slot, which is a value.

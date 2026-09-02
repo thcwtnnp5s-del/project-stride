@@ -1261,6 +1261,146 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `combat_traveler_plate_longsword_idle` — 40 px of contact, 29..68.
+  static const SpriteFootprint combatTravelerPlateLongswordIdle = SpriteFootprint(
+    left: 29,
+    right: 68,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_longsword_attack` — 41 px of contact, 27..67.
+  static const SpriteFootprint combatTravelerPlateLongswordAttack = SpriteFootprint(
+    left: 27,
+    right: 67,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_longsword_hit` — 40 px of contact, 30..69.
+  static const SpriteFootprint combatTravelerPlateLongswordHit = SpriteFootprint(
+    left: 30,
+    right: 69,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_plate_longsword_stagger` — 41 px of contact, 25..65.
+  static const SpriteFootprint combatTravelerPlateLongswordStagger = SpriteFootprint(
+    left: 25,
+    right: 65,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_plate_longsword_brace` — 41 px of contact, 24..64.
+  static const SpriteFootprint combatTravelerPlateLongswordBrace = SpriteFootprint(
+    left: 24,
+    right: 64,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_longsword_idle` — 41 px of contact, 26..66.
+  static const SpriteFootprint combatTravelerJerkinLongswordIdle = SpriteFootprint(
+    left: 26,
+    right: 66,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_longsword_attack` — 42 px of contact, 29..70.
+  static const SpriteFootprint combatTravelerJerkinLongswordAttack = SpriteFootprint(
+    left: 29,
+    right: 70,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_longsword_hit` — 39 px of contact, 29..67.
+  static const SpriteFootprint combatTravelerJerkinLongswordHit = SpriteFootprint(
+    left: 29,
+    right: 67,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_jerkin_longsword_stagger` — 39 px of contact, 28..66.
+  static const SpriteFootprint combatTravelerJerkinLongswordStagger = SpriteFootprint(
+    left: 28,
+    right: 66,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_jerkin_longsword_brace` — 40 px of contact, 33..72.
+  static const SpriteFootprint combatTravelerJerkinLongswordBrace = SpriteFootprint(
+    left: 33,
+    right: 72,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_longsword_idle` — 40 px of contact, 21..60.
+  static const SpriteFootprint combatTravelerCoatLongswordIdle = SpriteFootprint(
+    left: 21,
+    right: 60,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_longsword_attack` — 41 px of contact, 29..69.
+  static const SpriteFootprint combatTravelerCoatLongswordAttack = SpriteFootprint(
+    left: 29,
+    right: 69,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_longsword_hit` — 41 px of contact, 30..70.
+  static const SpriteFootprint combatTravelerCoatLongswordHit = SpriteFootprint(
+    left: 30,
+    right: 70,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_coat_longsword_stagger` — 42 px of contact, 28..69.
+  static const SpriteFootprint combatTravelerCoatLongswordStagger = SpriteFootprint(
+    left: 28,
+    right: 69,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_coat_longsword_brace` — 39 px of contact, 25..63.
+  static const SpriteFootprint combatTravelerCoatLongswordBrace = SpriteFootprint(
+    left: 25,
+    right: 63,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_base_longsword_idle` — 40 px of contact, 48..87.
+  static const SpriteFootprint combatTravelerBaseLongswordIdle = SpriteFootprint(
+    left: 48,
+    right: 87,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_base_longsword_attack` — 11 px of contact, 49..59.
+  static const SpriteFootprint combatTravelerBaseLongswordAttack = SpriteFootprint(
+    left: 49,
+    right: 59,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_base_longsword_hit` — 43 px of contact, 45..87.
+  static const SpriteFootprint combatTravelerBaseLongswordHit = SpriteFootprint(
+    left: 45,
+    right: 87,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_base_longsword_stagger` — 41 px of contact, 43..83.
+  static const SpriteFootprint combatTravelerBaseLongswordStagger = SpriteFootprint(
+    left: 43,
+    right: 83,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_base_longsword_brace` — 43 px of contact, 49..91.
+  static const SpriteFootprint combatTravelerBaseLongswordBrace = SpriteFootprint(
+    left: 49,
+    right: 91,
+    bottom: 62,
+  );
+
   /// Every gather-scene subject plate, keyed by the asset path the scene
   /// resolves.
   ///
