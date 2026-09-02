@@ -265,11 +265,16 @@ abstract final class TravelerArt {
   /// (`FMPO02/tools/measure-reach.js`): the frame on which the tool head
   /// reaches furthest west, where the prop stands.
   ///
-  /// **Named gaps** (PROD-EQUIPMENT, two rolls each, v3 kept inventing a
-  /// detached stump or a swing-arc effect): plate + bronze axe, coat + bronze
-  /// pick, base + bronze pick. Those loadouts resolve one axis down — the
-  /// armour stays on with the steel tool, or the base body with the bronze
-  /// tool — never to a hole and never to the shirt.
+  /// **No gaps remain.** Three loadouts — plate + bronze axe, coat + bronze
+  /// pick, base + bronze pick — were unauthored for a while, because two v3
+  /// rolls each kept inventing a detached stump or a swing-arc effect. All
+  /// three now have real strips below, **re-dressed** from a neighbouring
+  /// loadout by a reference edit rather than generated fresh: the garment or
+  /// the tool head swapped, the pose and the body kept, and the source
+  /// strip's own measured strike frame carried over (the per-entry comments
+  /// say which strip each came from). Re-skinned, not missing — a future
+  /// session must not read this paragraph and go looking for a fallback that
+  /// is no longer taken.
   static final Map<String, GatherStrip> gatherVariants = <String, GatherStrip>{
     'skill.woodcutting|armor.jerkin|tool.axe.bronze': GatherStrip(
       frames: _strip('traveler_jerkin_bronzeaxe_woodcut', 8),
@@ -296,7 +301,7 @@ abstract final class TravelerArt {
       frames: _strip('traveler_plate_bronzeaxe_woodcut', 8),
       footprint: SpriteFootprints.ambientTravelerPlateBronzeaxeWoodcut,
       canvasWidth: 80,
-      strikeFrame: 0,
+      strikeFrame: 4,
     ),
     'skill.mining|armor.jerkin|tool.pick.bronze': GatherStrip(
       frames: _strip('traveler_jerkin_bronzepick_mine', 8),
@@ -308,7 +313,7 @@ abstract final class TravelerArt {
       frames: _strip('traveler_plate_bronzepick_mine', 8),
       footprint: SpriteFootprints.ambientTravelerPlateBronzepickMine,
       canvasWidth: 80,
-      strikeFrame: 0,
+      strikeFrame: 4,
     ),
     // Re-dressed from the jerkin strip with a reference edit (the garment
     // swapped, the pose and the pick kept), after two v3 rolls each invented
@@ -332,7 +337,7 @@ abstract final class TravelerArt {
       frames: _strip('traveler_plate_steelpick_mine', 8),
       footprint: SpriteFootprints.ambientTravelerPlateSteelpickMine,
       canvasWidth: 80,
-      strikeFrame: 0,
+      strikeFrame: 4,
     ),
     'skill.mining|armor.jerkin|tool.pick.steel': GatherStrip(
       frames: _strip('traveler_jerkin_steelpick_mine', 8),
@@ -350,7 +355,7 @@ abstract final class TravelerArt {
       frames: _strip('traveler_plate_steelaxe_woodcut', 8),
       footprint: SpriteFootprints.ambientTravelerPlateSteelaxeWoodcut,
       canvasWidth: 80,
-      strikeFrame: 0,
+      strikeFrame: 4,
     ),
     'skill.woodcutting|armor.jerkin|tool.axe.steel': GatherStrip(
       frames: _strip('traveler_jerkin_steelaxe_woodcut', 8),
@@ -553,4 +558,59 @@ abstract final class TravelerArt {
   /// Whether any FMPO02 gather row exists — the stage test uses it to know
   /// whether the equipment axis is live.
   static bool get hasGatherVariants => gatherVariants.isNotEmpty;
+
+  /// The craft loops per armoured body — the smith at the anvil and the cook
+  /// at the pot, re-dressed from the shipped `activity_smith` /
+  /// `activity_cook` frames by reference edit (the garment swapped; the
+  /// hammer, the spoon, the pose and the foot row kept). Played ping-pong like
+  /// the base loops (`AmbientAssets`), with the same strike index, so the cue
+  /// lands on the same visible contact. Keyed `'<skill>|<body>'`; no tool
+  /// axis — the hammer and the spoon are the station's, not the loadout's.
+  static final Map<String, GatherStrip> craftVariants = <String, GatherStrip>{
+    for (final String body in <String>['plate', 'jerkin', 'coat'])
+      'skill.smithing|armor.$body': _craftLoop(
+        'traveler_${body}_smith',
+        canvasWidth: 74,
+        footprint: _craftFootprints['${body}_smith']!,
+      ),
+    for (final String body in <String>['plate', 'jerkin', 'coat'])
+      'skill.cooking|armor.$body': _craftLoop(
+        'traveler_${body}_cook',
+        canvasWidth: 46,
+        footprint: _craftFootprints['${body}_cook']!,
+      ),
+  };
+
+  static const Map<String, SpriteFootprint> _craftFootprints =
+      <String, SpriteFootprint>{
+        'plate_smith': SpriteFootprints.ambientTravelerPlateSmith,
+        'jerkin_smith': SpriteFootprints.ambientTravelerJerkinSmith,
+        'coat_smith': SpriteFootprints.ambientTravelerCoatSmith,
+        'plate_cook': SpriteFootprints.ambientTravelerPlateCook,
+        'jerkin_cook': SpriteFootprints.ambientTravelerJerkinCook,
+        'coat_cook': SpriteFootprints.ambientTravelerCoatCook,
+      };
+
+  /// Seven authored frames down and five back up, the tool low at the turn
+  /// — the base loops' own order (`AmbientAssets._activityLoops`), so the
+  /// stroke stays continuous. Frame-order authoring, not new frames (A-2).
+  static GatherStrip _craftLoop(
+    String id, {
+    required int canvasWidth,
+    required SpriteFootprint footprint,
+  }) {
+    final List<String> f = _strip(id, 7);
+    return GatherStrip(
+      frames: <String>[...f, for (int i = 5; i >= 1; i--) f[i]],
+      footprint: footprint,
+      canvasWidth: canvasWidth,
+      strikeFrame: 6,
+    );
+  }
+
+  /// The craft loop for [visual] at [skill], or null for the base body (the
+  /// caller's `AmbientAssets` loop is that answer). No tool fallback: a body
+  /// either has its loop or it does not.
+  static GatherStrip? craftLoopFor(String skill, EquipmentVisualState visual) =>
+      craftVariants['$skill|${bodyClassOf(visual)}'];
 }

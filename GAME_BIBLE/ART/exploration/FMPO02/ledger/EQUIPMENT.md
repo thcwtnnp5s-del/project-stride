@@ -112,3 +112,17 @@ Measured, not eyeballed (every pixel of every frame on disk, rejects included):
 cream collar (a garment highlight, not the blade). Bronze reads reddish-copper in
 every bronze set. Detached components: none in any accepted track except the
 pre-existing `plate_pick/mine` (4 px, f4).
+
+## Council closure (FINAL-03 blocker 1, 2026-09-02)
+
+Craft drew the base body while every other stage wore the armour. Six
+`edit_image` reference edits (~20 each, ≈120) re-dressed the shipped
+`activity_smith` (74×64, 7f) and `activity_cook` (46×64, 7f) frames with the
+plate / jerkin / coat walk_west f0 as garment reference. Job ids: plate smith
+efd95c40, jerkin smith 951cdd57, coat smith 82208e92, plate cook 2fef0d95,
+jerkin cook 3673034a, coat cook e1d5a546. Measured before packaging: 42/42
+frames binary alpha, foot row 62 identical to the source, bounding boxes within
+±2 px of the source except the coat's hem (f0/f1, 4–7 px wider, correct). All
+six ACCEPT first roll — hammer, spoon, pack and pose kept in every frame;
+review sheet `review/craft/craft_redress_sheet.png`. Jerkin smith keeps the
+ginger hair of the other jerkin strips (the same recorded hair debt).

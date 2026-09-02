@@ -2548,6 +2548,48 @@ const WMER02 = path.join(EXPLORE, 'WORLD_MAP_EXPANSION_REFINEMENT_02', 'out');
   oceanTool.unify(base, remWater.EXTRA_RECTS);
   remWater.shoalRamp(base, preConform, hash);
 
+  // Sea-ice sage cleanup (deterministic, A-2). FINAL-04 #7: a sage-green
+  // patch sits in the leads between the northern floes at roughly
+  // 700..750 x 160..220 — 343 px of #6dc5b2, a hue nothing in the pack ice is
+  // legitimately made of (the shelf teal runs the other way: blue leads
+  // green). It is in neither the 4d9a81f master nor N3's own generation, so
+  // it is compositor debris, not authored terrain, and it is removed here
+  // rather than in a region source for that reason. Each debris pixel takes
+  // the colour of the nearest clean pixel on a fixed offset list — nothing is
+  // invented and nothing is averaged. The rect is mandatory: the same
+  // predicate matches every blade of grass on the map.
+  {
+    const isSage = (i) => base.data[i + 1] > base.data[i] + 40
+      && base.data[i + 1] > base.data[i + 2] + 8;
+    const OFF = [[0, 2], [0, -2], [2, 0], [-2, 0], [0, 4], [0, -4],
+      [4, 0], [-4, 0], [3, 3], [-3, 3], [3, -3], [-3, -3]];
+    const [x0, y0, x1, y1] = [620, 90, 790, 240];
+    let removed = 0;
+    for (let pass = 0; pass < 24; pass++) {
+      const fills = [];
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const i = base.idx(x, y);
+          if (!isSage(i)) continue;
+          for (const [ox, oy] of OFF) {
+            const si = base.idx(x + ox, y + oy);
+            if (isSage(si)) continue;
+            fills.push([i, si]);
+            break;
+          }
+        }
+      }
+      if (!fills.length) break;
+      const snapshot = Buffer.from(base.data);
+      for (const [ai, si] of fills) {
+        for (let k = 0; k < 4; k++) base.data[ai + k] = snapshot[si + k];
+      }
+      removed += fills.length;
+    }
+    if (removed) console.log(`  atlas sea-ice sage cleanup: ${removed} px`);
+  }
+
+
   // Protected-interior guard: beyond the rim band, every pixel that is not
   // conformable open water must be byte-identical to the approved snapshot.
   // Any future repair layer that repaints the master interior fails packaging
@@ -3325,6 +3367,16 @@ const FMPO_AMBIENT_STRIPS = [
   ['traveler_plate_forage', 9, 64, true],
   ['traveler_jerkin_forage', 9, 64, true],
   ['traveler_coat_forage', 9, 64, true],
+  // The craft loops re-dressed by reference edit from the shipped
+  // activity_smith / activity_cook frames (74x64 and 46x64, foot row 62 kept
+  // by the edit; measured before packaging, no prep). FINAL-03 blocker 1:
+  // Craft drew the base body while every other stage wore the armour.
+  ['traveler_plate_smith', 7, 74, false],
+  ['traveler_jerkin_smith', 7, 74, false],
+  ['traveler_coat_smith', 7, 74, false],
+  ['traveler_plate_cook', 7, 46, false],
+  ['traveler_jerkin_cook', 7, 46, false],
+  ['traveler_coat_cook', 7, 46, false],
   ['traveler_plate_idle_breathe', 8, 64, false],
   ['traveler_jerkin_idle_breathe', 8, 64, false],
   ['traveler_coat_idle_breathe', 8, 64, false],
@@ -3365,6 +3417,35 @@ function toneBronze(frame) {
   }
   return n;
 }
+/** Drops every 8-connected opaque component smaller than [minPixels]. */
+function despeckle(frame, minPixels) {
+  const d = frame.data;
+  const W = frame.width;
+  const H = frame.height;
+  const seen = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) {
+    if (seen[i] || d[i * 4 + 3] === 0) continue;
+    const comp = [i];
+    seen[i] = 1;
+    for (let k = 0; k < comp.length; k++) {
+      const x = comp[k] % W;
+      const y = (comp[k] - x) / W;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          const j = ny * W + nx;
+          if (!seen[j] && d[j * 4 + 3] !== 0) {
+            seen[j] = 1;
+            comp.push(j);
+          }
+        }
+      }
+    }
+    if (comp.length < minPixels) for (const j of comp) d[j * 4 + 3] = 0;
+  }
+}
 function fmpoStrip(id, frames, width, mirror, dest, footprints) {
   const bronze = /bronze/.test(id);
   for (let i = 0; i < frames; i++) {
@@ -3376,6 +3457,26 @@ function fmpoStrip(id, frames, width, mirror, dest, footprints) {
     }
     if (mirror) frame = flipX(frame);
     if (bronze) toneBronze(frame);
+    // The plate + bronze pick probe kept its swing-streak effect: 217
+    // near-white pixels in f4 and none anywhere else in the strip or on the
+    // figure (no body colour has every channel >= 225). Keying them removes
+    // an effect the model drew; it draws nothing (A-2). FINAL-03/FINAL-12.
+    if (id === 'traveler_plate_bronzepick_mine') {
+      const d = frame.data;
+      for (let p = 0; p < d.length; p += 4) {
+        if (d[p + 3] !== 0 && Math.min(d[p], d[p + 1], d[p + 2]) >= 225) {
+          d[p + 3] = 0;
+        }
+      }
+    }
+    // Lone pixels are not ghost gear. The keyed streak above leaves two, one
+    // of them on row 63 under the feet — exactly where a "standing figure"
+    // flood starts (M-17) — and the cook re-dress edits leave a 2 px chip off
+    // the spoon in one frame. Any 8-connected component under four pixels is
+    // dropped on these strips only; the figure is one component of ≈1,300.
+    if (id === 'traveler_plate_bronzepick_mine' || /_(smith|cook)$/.test(id)) {
+      despeckle(frame, 4);
+    }
     let opaque = 0;
     for (let p = 3; p < frame.data.length; p += 4) {
       if (frame.data[p] !== 0) opaque++;

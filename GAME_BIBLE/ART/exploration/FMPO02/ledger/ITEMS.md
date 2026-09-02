@@ -120,3 +120,11 @@ as the shipped one did, so the register debt is pre-existing and the new
 silhouette (cinched dark cape, bone claw guards at the shoulders) separates it
 from `bearhide_coat` and `frostwarden_coat`, which was the defect named.
 `frostwarden_coat`, `heat_scale`, `frost_claw` stay as shipped (already correct).
+
+## Council closure (FINAL-12 loot-box read, 2026-09-02)
+
+The three reclaim crates were open-lidded and read as loot boxes. Three
+`edit_image_pixen` edits (1 each) closed the lids with the tool or plate
+strapped to the outside; jobs 4a1c526e (axe), 61c33456 (pickaxe), 8edf2a62
+(chestplate). ACCEPT ×3; the open-lid versions are kept under
+`rejected/items/*_openlid.png`.

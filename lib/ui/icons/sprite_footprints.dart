@@ -428,6 +428,48 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_traveler_plate_smith` — 13 px of contact, 30..42.
+  static const SpriteFootprint ambientTravelerPlateSmith = SpriteFootprint(
+    left: 30,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_smith` — 13 px of contact, 30..42.
+  static const SpriteFootprint ambientTravelerJerkinSmith = SpriteFootprint(
+    left: 30,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_smith` — 13 px of contact, 33..45.
+  static const SpriteFootprint ambientTravelerCoatSmith = SpriteFootprint(
+    left: 33,
+    right: 45,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_plate_cook` — 13 px of contact, 21..33.
+  static const SpriteFootprint ambientTravelerPlateCook = SpriteFootprint(
+    left: 21,
+    right: 33,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_cook` — 13 px of contact, 21..33.
+  static const SpriteFootprint ambientTravelerJerkinCook = SpriteFootprint(
+    left: 21,
+    right: 33,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_cook` — 13 px of contact, 21..33.
+  static const SpriteFootprint ambientTravelerCoatCook = SpriteFootprint(
+    left: 21,
+    right: 33,
+    bottom: 62,
+  );
+
   /// `ambient_traveler_plate_idle_breathe` — 24 px of contact, 20..43.
   static const SpriteFootprint ambientTravelerPlateIdleBreathe = SpriteFootprint(
     left: 20,

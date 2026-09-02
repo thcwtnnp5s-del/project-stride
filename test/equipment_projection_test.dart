@@ -110,6 +110,30 @@ void main() {
     }
   });
 
+  test('every armour smiths and cooks in its own class', () {
+    // FINAL-03 blocker 1: Craft drew the base body while every other stage
+    // wore the armour. The craft loop has no tool axis (the hammer and the
+    // spoon are the station's), so the body alone must resolve it.
+    for (final String armour in armours) {
+      final String token = _token(TravelerArt.variantOfItem[armour]!);
+      final EquipmentVisualState v = EquipmentVisualState(armor: _fact(armour));
+      for (final String skill in <String>['skill.smithing', 'skill.cooking']) {
+        final GatherStrip? loop = TravelerArt.craftLoopFor(skill, v);
+        expect(loop, isNotNull, reason: '$armour at $skill falls to the base');
+        expect(loop!.frames.first, contains(token));
+        // Ping-pong: 7 down, 5 back, the strike at the turn — the base
+        // loop's own shape, so the cue lands on the same contact.
+        expect(loop.frames.length, AmbientAssets.activityLoopFor(skill).length);
+        expect(loop.strikeFrame, AmbientAssets.strikeFrameFor(skill));
+        expect(loop.canvasWidth, AmbientAssets.activityCanvasFor(skill));
+      }
+    }
+    expect(
+      TravelerArt.craftLoopFor('skill.smithing', EquipmentVisualState.none),
+      isNull,
+    );
+  });
+
   test('the base body with a bronze tool holds a bronze tool', () {
     for (final (String skill, String tool) in <(String, String)>[
       ('skill.mining', 'item.bronze_pickaxe'),
