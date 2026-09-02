@@ -85,7 +85,15 @@ class _Tab extends StatelessWidget {
         const SizedBox(height: StrideSpace.iconLabelGap),
         Text(
           destination.label,
-          style: isSelected ? StrideType.tabLabelActive : StrideType.tabLabel,
+          // Inactive labels at `textSecondary`, not `textMuted`: six 9.5 px
+          // labels are the smallest type in the app and the owner's device
+          // read the bar as "extremely plain" — muted grey on a dark bar is
+          // most of why (ART-12 §8).
+          style: isSelected
+              ? StrideType.tabLabelActive.copyWith(
+                  color: StrideColors.textPrimary,
+                )
+              : StrideType.tabLabel.copyWith(color: StrideColors.textSecondary),
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.clip,
@@ -93,13 +101,30 @@ class _Tab extends StatelessWidget {
       ],
     );
 
-    final Widget body = DecoratedBox(
-      decoration: BoxDecoration(
-        color: isSelected ? StrideColors.surfaceBlock : const Color(0x00000000),
-        borderRadius: isSelected ? StrideRadius.tabActive : null,
-      ),
-      child: SizedBox.expand(child: content),
-    );
+    // The active tab is a lifted plate: inset from the bar's edges, raised
+    // fill, and a 2 dp lit rule along its top — the "you are here" mark. The
+    // fill alone was what read as plain; the rule is what makes it a
+    // bookmark rather than a highlight (ART-12 §8).
+    final Widget body = isSelected
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(
+              StrideSpace.s4,
+              0,
+              StrideSpace.s4,
+              StrideSpace.s4,
+            ),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: StrideColors.surfaceRaised,
+                borderRadius: StrideRadius.tabActive,
+                border: Border(
+                  top: BorderSide(color: StrideColors.actionEdge, width: 2),
+                ),
+              ),
+              child: SizedBox.expand(child: content),
+            ),
+          )
+        : SizedBox.expand(child: content);
 
     if (!destination.enabled) {
       // Not built yet, and honest about it. No snackbar, no dialog, no

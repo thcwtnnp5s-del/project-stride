@@ -318,6 +318,7 @@ class PixelFrame extends StatefulWidget {
     required this.skin,
     required this.child,
     this.fallback,
+    this.surface,
   });
 
   final PanelSkin skin;
@@ -327,14 +328,68 @@ class PixelFrame extends StatefulWidget {
   /// missing frame must degrade to the rectangle it replaced, never to a hole.
   final Decoration? fallback;
 
+  /// An optional interior tile, drawn **inside the band** and under the
+  /// child — the `surfacePath` lever `PanelSkin` declared in
+  /// PRESENTATION_COMBAT_EVOLUTION_01 and nothing rendered until FMPO02.
+  /// Integer-scaled from the interior's top-left, clipped at the far edges,
+  /// never rescaled. The panel's own fill stays underneath, so a tile that
+  /// fails to load degrades to the flat card.
+  final SurfaceTile? surface;
+
   @override
   State<PixelFrame> createState() => _PixelFrameState();
 }
 
-class _PixelFrameState extends State<PixelFrame> {
-  ui.Image? _image;
+/// Resolves one asset image and repaints its owner when it arrives; silent
+/// on failure, because a missing raster is a material change and never a
+/// crash. Shared by the frame and its interior surface, which are two
+/// images with one lifecycle.
+class _AssetImageSlot {
+  _AssetImageSlot(this.onChanged);
+
+  final VoidCallback onChanged;
+  ui.Image? image;
   ImageStream? _stream;
   ImageStreamListener? _listener;
+
+  void resolve(BuildContext context, String? assetPath) {
+    if (assetPath == null) {
+      detach();
+      if (image != null) {
+        image = null;
+        onChanged();
+      }
+      return;
+    }
+    final ImageStream stream = AssetImage(
+      assetPath,
+    ).resolve(createLocalImageConfiguration(context));
+    if (stream.key == _stream?.key) return;
+    detach();
+    _stream = stream;
+    _listener = ImageStreamListener((ImageInfo info, bool _) {
+      image = info.image;
+      onChanged();
+    }, onError: (Object _, StackTrace? _) {});
+    stream.addListener(_listener!);
+  }
+
+  void detach() {
+    if (_stream != null && _listener != null) {
+      _stream!.removeListener(_listener!);
+    }
+    _stream = null;
+    _listener = null;
+  }
+}
+
+class _PixelFrameState extends State<PixelFrame> {
+  late final _AssetImageSlot _frame = _AssetImageSlot(_changed);
+  late final _AssetImageSlot _surface = _AssetImageSlot(_changed);
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void didChangeDependencies() {
@@ -345,51 +400,38 @@ class _PixelFrameState extends State<PixelFrame> {
   @override
   void didUpdateWidget(PixelFrame old) {
     super.didUpdateWidget(old);
-    if (old.skin.assetPath != widget.skin.assetPath) _resolve();
+    if (old.skin.assetPath != widget.skin.assetPath ||
+        old.surface?.assetPath != widget.surface?.assetPath) {
+      _resolve();
+    }
   }
 
   void _resolve() {
-    final ImageStream stream = AssetImage(
-      widget.skin.assetPath,
-    ).resolve(createLocalImageConfiguration(context));
-    if (stream.key == _stream?.key) return;
-    _detach();
-    _stream = stream;
-    _listener = ImageStreamListener((ImageInfo info, bool _) {
-      if (!mounted) {
-        info.image.dispose();
-        return;
-      }
-      setState(() => _image = info.image);
-    }, onError: (Object _, StackTrace? _) {
-      // A frame that will not load is a panel without a frame, not a crash and
-      // not an empty box: the fallback decoration keeps painting.
-    });
-    stream.addListener(_listener!);
-  }
-
-  void _detach() {
-    if (_stream != null && _listener != null) {
-      _stream!.removeListener(_listener!);
-    }
-    _stream = null;
-    _listener = null;
+    _frame.resolve(context, widget.skin.assetPath);
+    _surface.resolve(context, widget.surface?.assetPath);
   }
 
   @override
   void dispose() {
-    _detach();
+    _frame.detach();
+    _surface.detach();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final double c = widget.skin.inset;
-    final ui.Image? image = _image;
+    final ui.Image? image = _frame.image;
+    final ui.Image? grain = widget.surface == null ? null : _surface.image;
     return CustomPaint(
       painter: image == null
           ? null
-          : _FramePainter(skin: widget.skin, image: image),
+          : _FramePainter(
+              skin: widget.skin,
+              image: image,
+              surface: widget.surface,
+              grain: grain,
+            ),
       foregroundPainter: null,
       child: DecoratedBox(
         // Once the frame paints, the fallback's border would double the edge.
@@ -400,6 +442,126 @@ class _PixelFrameState extends State<PixelFrame> {
       ),
     );
   }
+}
+
+/// Tiles a [SurfaceTile] across [rect] at integer scale: nearest neighbour,
+/// clipped at the far edges, never rescaled. Shared by the frame's interior
+/// and by [SurfaceFill].
+void paintSurfaceTile(Canvas canvas, Rect rect, SurfaceTile tile, ui.Image grain) {
+  final Paint paint = Paint()
+    ..filterQuality = FilterQuality.none
+    ..isAntiAlias = false;
+  final double e = tile.extent;
+  final Rect src = Rect.fromLTWH(
+    0,
+    0,
+    grain.width.toDouble(),
+    grain.height.toDouble(),
+  );
+  canvas.save();
+  canvas.clipRect(rect);
+  for (double y = rect.top; y < rect.bottom; y += e) {
+    for (double x = rect.left; x < rect.right; x += e) {
+      canvas.drawImageRect(grain, src, Rect.fromLTWH(x, y, e, e), paint);
+    }
+  }
+  canvas.restore();
+}
+
+/// A tiled material surface behind a child, for an **unframed** panel.
+///
+/// This is the surface roles' half of the family system: a card that has no
+/// frame still differs from its neighbour by what it is made of. Draws the
+/// flat [fill] first (so a tile that fails to load degrades to today's card),
+/// then the grain, clipped to [radius].
+class SurfaceFill extends StatefulWidget {
+  const SurfaceFill({
+    super.key,
+    required this.tile,
+    required this.fill,
+    required this.child,
+    this.radius,
+  });
+
+  final SurfaceTile tile;
+  final Color fill;
+  final BorderRadius? radius;
+  final Widget child;
+
+  @override
+  State<SurfaceFill> createState() => _SurfaceFillState();
+}
+
+class _SurfaceFillState extends State<SurfaceFill> {
+  late final _AssetImageSlot _slot = _AssetImageSlot(() {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _slot.resolve(context, widget.tile.assetPath);
+  }
+
+  @override
+  void didUpdateWidget(SurfaceFill old) {
+    super.didUpdateWidget(old);
+    if (old.tile.assetPath != widget.tile.assetPath) {
+      _slot.resolve(context, widget.tile.assetPath);
+    }
+  }
+
+  @override
+  void dispose() {
+    _slot.detach();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ui.Image? grain = _slot.image;
+    return CustomPaint(
+      painter: _SurfacePainter(
+        tile: widget.tile,
+        grain: grain,
+        fill: widget.fill,
+        radius: widget.radius,
+      ),
+      child: widget.child,
+    );
+  }
+}
+
+class _SurfacePainter extends CustomPainter {
+  _SurfacePainter({
+    required this.tile,
+    required this.grain,
+    required this.fill,
+    required this.radius,
+  });
+
+  final SurfaceTile tile;
+  final ui.Image? grain;
+  final Color fill;
+  final BorderRadius? radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    final RRect rrect = (radius ?? BorderRadius.zero).toRRect(rect);
+    canvas.save();
+    canvas.clipRRect(rrect);
+    canvas.drawRect(rect, Paint()..color = fill);
+    if (grain != null) paintSurfaceTile(canvas, rect, tile, grain!);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_SurfacePainter old) =>
+      old.grain != grain ||
+      old.tile.assetPath != tile.assetPath ||
+      old.fill != fill ||
+      old.radius != radius;
 }
 
 /// The frame painter, for a test that needs to paint into its own canvas and
@@ -417,16 +579,40 @@ CustomPainter debugFramePainter(PanelSkin skin, ui.Image image) =>
 /// Paints [PanelSkin]'s eight patches: four corners at integer scale, four
 /// tiled strips, and **no interior**.
 class _FramePainter extends CustomPainter {
-  _FramePainter({required this.skin, required this.image});
+  _FramePainter({
+    required this.skin,
+    required this.image,
+    this.surface,
+    this.grain,
+  });
 
   final PanelSkin skin;
   final ui.Image image;
+
+  /// The interior tile and its decoded image; either null paints no interior,
+  /// which is what every framed panel did before FMPO02.
+  final SurfaceTile? surface;
+  final ui.Image? grain;
 
   @override
   void paint(Canvas canvas, Size size) {
     final int n = skin.corner;
     final double s = skin.scale.toDouble();
     final double c = n * s;
+
+    // The interior first, under the band, so the frame's inner line always
+    // sits on top of the grain. Inset by the band (the material's depth), not
+    // the corner block — the same distinction `PanelSkin.band` documents.
+    if (surface != null && grain != null) {
+      final double b = skin.inset;
+      paintSurfaceTile(
+        canvas,
+        Rect.fromLTWH(b, b, size.width - 2 * b, size.height - 2 * b),
+        surface!,
+        grain!,
+      );
+    }
+
     // Nearest neighbour, no anti-aliasing: the same contract PixelAsset holds.
     final Paint paint = Paint()
       ..filterQuality = FilterQuality.none
@@ -509,7 +695,10 @@ class _FramePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FramePainter old) =>
-      old.image != image || old.skin.assetPath != skin.assetPath;
+      old.image != image ||
+      old.skin.assetPath != skin.assetPath ||
+      old.grain != grain ||
+      old.surface?.assetPath != surface?.assetPath;
 }
 
 /// A box of exactly [width] × [height] that complains, in debug, when its

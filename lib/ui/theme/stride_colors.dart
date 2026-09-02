@@ -286,16 +286,23 @@ abstract final class StrideColors {
   // None is teal (L-16); Frostmere's ice leans blue (218°), far off the
   // accent's 170°, and is banded, never chip-sized beside a step figure.
 
+  //
+  // **The deeps moved in FMPO02** (`ART-13_material_brief.md` §3). Measured,
+  // the originals sat 1.6–4.7 CIE L* from [surfaceCard] — less than one rung
+  // of the surface ladder itself (5.1 L*) — so a region wash read as noise,
+  // not weather. These sit 8–13 L* out with real chroma, so a place's header
+  // is visibly *that place's* header. They are still washes, never text
+  // grounds: type contrast is measured against [surfaceCard] as before.
   static const Color regionHaven = Color(0xFF93A968);
-  static const Color regionHavenDeep = Color(0xFF20261A);
+  static const Color regionHavenDeep = Color(0xFF313B22);
   static const Color regionWoods = Color(0xFF5F9070);
-  static const Color regionWoodsDeep = Color(0xFF182A20);
+  static const Color regionWoodsDeep = Color(0xFF213F2E);
   static const Color regionStonefall = Color(0xFFB3906B);
-  static const Color regionStonefallDeep = Color(0xFF292019);
+  static const Color regionStonefallDeep = Color(0xFF3D2C1D);
   static const Color regionFrostmere = Color(0xFF9FB6D8);
-  static const Color regionFrostmereDeep = Color(0xFF1C222E);
+  static const Color regionFrostmereDeep = Color(0xFF26364C);
   static const Color regionHollow = Color(0xFF8F87B5);
-  static const Color regionHollowDeep = Color(0xFF211E2B);
+  static const Color regionHollowDeep = Color(0xFF302949);
 
   /// The region ink for [place], by id.
   static Color forRegion(ContentId place) => switch (place.value) {

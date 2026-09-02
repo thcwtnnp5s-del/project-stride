@@ -53,12 +53,20 @@ class SectionCard extends StatelessWidget {
     this.padding,
     this.wash,
     this.role = PanelRole.card,
+    this.surface = PanelSurface.none,
   });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final Color? wash;
   final PanelRole role;
+
+  /// What the panel's interior is made of (FMPO02). [PanelSurface.none] is
+  /// the flat fill every card had before; an authored material is drawn as a
+  /// tiled grain under the child, inside the frame's band when the role is
+  /// framed and inside the rounded rectangle when it is not. This, not a
+  /// second border, is how two screens stop looking like one screen.
+  final PanelSurface surface;
 
   /// The painted rectangle: what every panel looks like until its role has
   /// art, and what every panel falls back to if that art fails to load.
@@ -81,23 +89,41 @@ class SectionCard extends StatelessWidget {
     final EdgeInsetsGeometry pad =
         padding ?? const EdgeInsets.all(StrideSpace.cardPadding);
     final PanelSkin? skin = PanelSkins.of(role);
+    final SurfaceTile? tile = PanelSurfaces.of(surface);
 
     if (skin == null) {
-      // The unskinned path reserves the room a frame of this role will take,
-      // so the day art lands the material changes and the layout does not.
-      // Without this the reserve is a comment rather than a behaviour, and
-      // every panel in the product reflows on the first asset — with the art
-      // taking the blame for a text-wrap regression it did not cause.
-      // `card` and `kitTray` reserve zero, so the overwhelming majority of
-      // panels are byte-identical to what shipped.
+      // The unframed path. A surface role reserves nothing (it is not
+      // waiting for a frame); a framed role whose asset is absent reserves
+      // its inset so the material changes and the layout does not.
       final double reserve = PanelSkins.insetFor(role);
+      final EdgeInsetsGeometry padding = reserve == 0
+          ? pad
+          : pad.add(EdgeInsets.all(reserve)).resolve(TextDirection.ltr);
+      if (tile == null || wash != null) {
+        // A wash is a gradient over the flat fill; a grain under a gradient
+        // is neither material nor atmosphere, so a washed card stays flat.
+        return Container(
+          width: double.infinity,
+          padding: padding,
+          decoration: _painted(),
+          child: child,
+        );
+      }
+      // Material: the grain tiles inside the same rounded rectangle, the
+      // border stays the one weight in the one colour, and the flat fill is
+      // painted first so a tile that fails to load is today's card.
       return Container(
         width: double.infinity,
-        padding: reserve == 0
-            ? pad
-            : pad.add(EdgeInsets.all(reserve)).resolve(TextDirection.ltr),
-        decoration: _painted(),
-        child: child,
+        decoration: BoxDecoration(
+          border: Border.all(color: StrideColors.borderDefault),
+          borderRadius: StrideRadius.card,
+        ),
+        child: SurfaceFill(
+          tile: tile,
+          fill: StrideColors.surfaceCard,
+          radius: StrideRadius.card,
+          child: Padding(padding: padding, child: child),
+        ),
       );
     }
     // The frame owns the edge; the fill still owns the middle, so body text
@@ -130,6 +156,7 @@ class SectionCard extends StatelessWidget {
       child: PixelFrame(
         skin: skin,
         fallback: _painted(),
+        surface: tile,
         child: DecoratedBox(
           decoration: BoxDecoration(color: StrideColors.surfaceCard),
           child: Padding(padding: interior, child: child),

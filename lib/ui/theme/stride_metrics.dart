@@ -42,6 +42,23 @@ abstract final class StrideSpace {
   static const double gridGap = s8;
   static const double rowGap = s6;
   static const double iconLabelGap = s6;
+
+  // ------------------------------------------------------- vertical rhythm
+  //
+  // FMPO02 (`ART-12_ux_brief.md` §0). A screen used to space everything by
+  // one value, and a column of equally spaced equally sized cards is what a
+  // database printout looks like. Three rhythms, one per hierarchy level: a
+  // vertical scan reads 24 → 16 → 8 and never repeats a value across two
+  // levels. [cardGap] stays for the call sites not yet recomposed.
+
+  /// After a hero or folio block, before the next group.
+  static const double rhythmHero = 24;
+
+  /// Between named groups inside a screen.
+  static const double rhythmGroup = s16;
+
+  /// Between peers inside one group.
+  static const double rhythmRow = s8;
 }
 
 abstract final class StrideRadius {

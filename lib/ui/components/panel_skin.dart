@@ -163,7 +163,139 @@ final class PanelSkin {
   double get cornerExtent => (corner * scale).toDouble();
 }
 
-/// Role → authored frame. **Empty by design.**
+/// What a panel's **interior** is made of — the second identity axis.
+///
+/// `DECISIONS/0029` gave a panel three ways to differ from its neighbour:
+/// **band, surface, picture.** VAWO01 built the frame and none of the other
+/// two, so one leather chassis carried every identity and became wallpaper —
+/// the owner's device verdict on 4d9a81f was "large leather frame containing
+/// ordinary rounded dark cards", everywhere. This enum is the surface axis.
+///
+/// It is **orthogonal** to [PanelRole]: a role selects a frame, a surface
+/// selects an interior, and no combination adds a border. Eleven screen
+/// families ride eight materials (`ART-13_material_brief.md`), and the
+/// materials are *materials* — grain, not pattern, no depicted object, no
+/// light source of their own — so body text can sit on any of them.
+enum PanelSurface {
+  /// The flat `surfaceCard` fill: what every panel had before FMPO02.
+  none,
+
+  /// Aged parchment — the field journal (Adventure), the recipe folio
+  /// (Craft), the traveler folio (Character), the field guide (Encounters).
+  journalLeaf,
+
+  /// Waxed canvas — the materials tray (Craft), the pack (Inventory).
+  oilcloth,
+
+  /// Vellum — the guild handbook (Skills).
+  buckram,
+
+  /// Oiled leather — the field combat kit.
+  leather,
+
+  /// Dark bench oak — the crafting station header.
+  benchOak,
+
+  /// Steel plate — combat command surfaces.
+  steel,
+
+  /// Slate — the bestiary board.
+  slate,
+
+  /// Linen backing — the navigator's atlas.
+  chartVellum,
+
+  /// Cork — pinned notices (Boards).
+  cork,
+
+  /// Chalked slate — the construction ledger (Projects).
+  planLinen,
+}
+
+/// A seamless interior tile: drawn at integer scale from a panel's inner
+/// top-left corner, clipped, never rescaled.
+@immutable
+final class SurfaceTile {
+  const SurfaceTile({
+    required this.assetPath,
+    required this.native,
+    this.scale = 2,
+  }) : assert(native > 0),
+       assert(scale >= 1, 'integer scale only (L-18)');
+
+  final String assetPath;
+
+  /// The square tile's native edge, in source pixels.
+  final int native;
+
+  /// Integer display scale (L-18).
+  final int scale;
+
+  /// The tile's drawn edge in logical pixels.
+  double get extent => (native * scale).toDouble();
+}
+
+/// Surface → authored tile.
+///
+/// A missing row is [PanelSurface.none] by construction: the panel paints the
+/// flat fill it always painted. Rows land with a device review, not a compile.
+abstract final class PanelSurfaces {
+  const PanelSurfaces._();
+
+  static const String _dir = 'assets/ui/v1/surface';
+
+  /// The registry. Every tile is 32² native at ×2 unless its row says
+  /// otherwise; geometry is measured from the PNG and mirrored in the
+  /// tile-seam guard's JSON.
+  static const Map<PanelSurface, SurfaceTile> authored =
+      <PanelSurface, SurfaceTile>{
+        PanelSurface.journalLeaf: SurfaceTile(
+          assetPath: '$_dir/grain_journal_leaf.png',
+          native: 32,
+        ),
+        PanelSurface.oilcloth: SurfaceTile(
+          assetPath: '$_dir/grain_oilcloth.png',
+          native: 32,
+        ),
+        PanelSurface.buckram: SurfaceTile(
+          assetPath: '$_dir/grain_buckram.png',
+          native: 32,
+        ),
+        PanelSurface.leather: SurfaceTile(
+          assetPath: '$_dir/grain_leather.png',
+          native: 32,
+        ),
+        PanelSurface.benchOak: SurfaceTile(
+          assetPath: '$_dir/grain_bench_oak.png',
+          native: 32,
+        ),
+        PanelSurface.steel: SurfaceTile(
+          assetPath: '$_dir/grain_steel.png',
+          native: 32,
+        ),
+        PanelSurface.slate: SurfaceTile(
+          assetPath: '$_dir/grain_slate.png',
+          native: 32,
+        ),
+        PanelSurface.chartVellum: SurfaceTile(
+          assetPath: '$_dir/grain_chart_vellum.png',
+          native: 32,
+        ),
+        PanelSurface.cork: SurfaceTile(
+          assetPath: '$_dir/grain_cork.png',
+          native: 32,
+        ),
+        PanelSurface.planLinen: SurfaceTile(
+          assetPath: '$_dir/grain_plan_linen.png',
+          native: 32,
+        ),
+      };
+
+  /// The tile for [surface], or null for the flat fill.
+  static SurfaceTile? of(PanelSurface surface) => authored[surface];
+}
+
+/// Role → authored frame.
 ///
 /// This is the whole integration surface of `DECISIONS/0029`. The
 /// post-refresh production queue in
@@ -178,30 +310,26 @@ abstract final class PanelSkins {
   /// That is the point, and it is also the risk: a row lands with a device
   /// review, not with a compile.
   ///
-  /// Authored in VAWO01 (`DECISIONS/0030`, which reopened the PixelLab budget
-  /// that `0029` recorded as exhausted).
+  /// ## One framed element per screen (FMPO02)
   ///
-  /// **Every role, one asset.** That is L-18 as amended read literally — "one
-  /// chassis family app-wide; screens differ by band, surface and picture,
-  /// never by eleven different borders" — and it is a correction to this
-  /// registry's first shape, which framed three roles and left three painted.
+  /// VAWO01 registered the chassis against **every** role, and the owner's
+  /// device verdict on that build was the exact failure `panel_skin.dart`'s
+  /// own header predicted: the frame became wallpaper. A leather welt around
+  /// a five-line list, a button pair and a portrait alike means nothing, and
+  /// the product read as "one big leather frame containing ordinary rounded
+  /// dark cards" on every tab.
   ///
-  /// Three framed and three painted was defensible per role and wrong as a
-  /// product: it put an authored leather edge on Skills, Character and
-  /// Adventure while Inventory and Combat kept the machine-drawn rectangle the
-  /// whole direction exists to remove. The player does not experience roles,
-  /// they experience screens, and half a chassis reads as an unfinished one.
+  /// So the registry is inverted on purpose. The frame belongs to the one
+  /// thing a screen is *about* — its picture ([PanelRole.heroPlate]) and an
+  /// interruption raised over the screen ([PanelRole.modalFrame]). Every
+  /// other role is a **surface**: it differs from its neighbour by material
+  /// ([PanelSurface]), by band, by picture — never by a second border. That
+  /// is L-18 as amended read literally, and it is the doctrine of
+  /// `MILESTONES/evidence/FMPO02/wave1/ART-01_executive_doctrine.md` §4 R1.
   ///
-  /// The per-role differentiation the production plan reserves — a heavier
-  /// modal band, combat's own scarred edge — remains the right destination. It
-  /// is a **later batch**, and until it exists the honest state is one family
-  /// everywhere rather than a family and a gap.
+  /// Removing four rows is delivered work here, not a regression.
   static const Map<PanelRole, PanelSkin> authored = <PanelRole, PanelSkin>{
-    PanelRole.card: _chassis,
     PanelRole.heroPlate: _chassis,
-    PanelRole.boardSlip: _chassis,
-    PanelRole.kitTray: _chassis,
-    PanelRole.combatFrame: _chassis,
     PanelRole.modalFrame: _chassis,
   };
 
@@ -234,18 +362,14 @@ abstract final class PanelSkins {
   static double insetFor(PanelRole role) =>
       authored[role]?.inset ?? _reserve[role] ?? 0;
 
-  /// The room each role keeps for a frame it does not have yet. Chosen to
-  /// match the geometry the production plan specifies, so the reserve is a
-  /// prediction the art must honour rather than a number the art will fight.
-  /// The fallback figure used if the asset fails to decode. Every role now
-  /// resolves to the chassis, so every reserve equals its real inset — which is
-  /// what makes a failed decode change the material and not the layout.
+  /// The room each role keeps for a frame it does not have. The two framed
+  /// roles reserve their real inset, so a failed decode changes the material
+  /// and not the layout. The surface roles reserve **zero**: they are not
+  /// waiting for a frame — a frame is the wrong answer for them — and a
+  /// reserve here would be sixteen logical pixels of air on every side of
+  /// every list in the app, kept for art that must never arrive.
   static const Map<PanelRole, double> _reserve = <PanelRole, double>{
-    PanelRole.card: 16,
-    PanelRole.kitTray: 16,
     PanelRole.heroPlate: 16,
-    PanelRole.boardSlip: 16,
-    PanelRole.combatFrame: 16,
     PanelRole.modalFrame: 16,
   };
 }

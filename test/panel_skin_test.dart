@@ -40,38 +40,55 @@ const PanelSkin _fixture = PanelSkin(
 
 void main() {
   group('the registry is exactly what was reviewed', () {
-    test('every role is authored, and all of them share one family', () {
-      // VAWO01 (`DECISIONS/0030`) landed one frame family. It first registered
-      // three roles and left three painted, which was defensible per role and
-      // wrong as a product: Skills and Character got an authored leather edge
-      // while Inventory and Combat kept the machine-drawn rectangle the whole
-      // direction exists to remove.
+    test('only the picture and the interruption are framed', () {
+      // VAWO01 registered the chassis against every role, and the owner's
+      // device verdict on that build was that the frame had become wallpaper:
+      // "large leather frame containing ordinary rounded dark cards",
+      // everywhere. FMPO02 inverted the registry — one framed element per
+      // screen (its picture, `heroPlate`) plus the raised interruption
+      // (`modalFrame`); every other role is a surface and differs by material.
       //
-      // The exact-set form is kept from when the registry was empty, because
-      // it does the same job in both directions: **if this fails without a
-      // device review having happened, the chassis moved by accident.**
-      expect(PanelSkins.authored.keys.toSet(), PanelRole.values.toSet());
+      // The exact-set form is kept: **if this fails without a device review
+      // having happened, the chassis moved by accident** — in either direction.
+      expect(PanelSkins.authored.keys.toSet(), <PanelRole>{
+        PanelRole.heroPlate,
+        PanelRole.modalFrame,
+      });
 
-      // One family app-wide (L-18 as amended). Every role shares a single
-      // asset; eleven unrelated borders is the failure mode this direction is
-      // most likely to produce, so it is pinned here.
+      // One family app-wide (L-18 as amended). Eleven unrelated borders is
+      // the failure mode this direction is most likely to produce.
       expect(
         PanelSkins.authored.values.map((PanelSkin s) => s.assetPath).toSet(),
         hasLength(1),
       );
     });
 
-    test('every reserve equals the inset it stands in for', () {
-      // The reserve is the figure used if the asset fails to decode. Keeping
-      // it equal to the real inset is what makes a failed decode change the
-      // material and not the layout — a panel is never briefly frameless *and*
-      // briefly reflowed.
+    test('a framed role reserves its inset; a surface role reserves nothing', () {
+      // The reserve is the figure used if the asset fails to decode. For a
+      // framed role it equals the real inset, so a failed decode changes the
+      // material and not the layout. For a surface role it is zero: a panel
+      // that is not waiting for a frame must not keep sixteen logical px of
+      // air on every side for art that will never come.
       for (final PanelRole role in PanelRole.values) {
+        final PanelSkin? skin = PanelSkins.of(role);
         expect(
           PanelSkins.insetFor(role),
-          PanelSkins.of(role)!.inset,
+          skin?.inset ?? 0,
           reason: role.name,
         );
+      }
+    });
+
+    test('every authored surface names a tile at integer scale', () {
+      // The surface axis is the half of `DECISIONS/0029` that VAWO01 never
+      // built. A row is a 32² native tile at ×2; a tile at a fractional scale
+      // is pixel art that has stopped being pixel art (L-18).
+      expect(PanelSurfaces.of(PanelSurface.none), isNull);
+      for (final MapEntry<PanelSurface, SurfaceTile> e
+          in PanelSurfaces.authored.entries) {
+        expect(e.value.assetPath, startsWith('assets/ui/v1/surface/grain_'));
+        expect(e.value.scale, 2, reason: e.key.name);
+        expect(e.value.extent, e.value.native * 2.0);
       }
     });
 
@@ -83,7 +100,7 @@ void main() {
       // `assets/ui/v1/frame/chassis_64.json` for the tile-seam guard, and the
       // band/corner distinction is the one § 3.2.1 of the production plan was
       // written about.
-      final PanelSkin chassis = PanelSkins.of(PanelRole.card)!;
+      final PanelSkin chassis = PanelSkins.of(PanelRole.heroPlate)!;
       expect(chassis.assetPath, 'assets/ui/v1/frame/chassis_64.png');
       expect(chassis.nativeWidth, 64);
       expect(chassis.nativeHeight, 64);
@@ -96,21 +113,21 @@ void main() {
       expect(chassis.cornerExtent, 32);
     });
 
-    testWidgets('a skinned panel still carries its painted fallback', (
+    testWidgets('a framed panel still carries its painted fallback', (
       WidgetTester tester,
     ) async {
-      // Every role is authored now, so no unskinned role remains to exercise
-      // the painted path directly. The property that test guarded is still
-      // load-bearing, so it is asserted at the seam instead: `SectionCard`
-      // hands `PixelFrame` exactly the rectangle it used to draw.
-      //
-      // That is what `DECISIONS/0029`'s reversibility rests on — a frame that
-      // fails to decode, or a registry emptied to revert the direction in one
-      // commit, degrades to what shipped rather than to a hole.
+      // `SectionCard` hands `PixelFrame` exactly the rectangle it used to
+      // draw. That is what `DECISIONS/0029`'s reversibility rests on — a
+      // frame that fails to decode, or a registry emptied to revert the
+      // direction in one commit, degrades to what shipped rather than to a
+      // hole.
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
-          child: SectionCard(child: SizedBox(width: 100, height: 20)),
+          child: SectionCard(
+            role: PanelRole.heroPlate,
+            child: SizedBox(width: 100, height: 20),
+          ),
         ),
       );
 
@@ -123,16 +140,63 @@ void main() {
       expect(d.border, Border.all(color: StrideColors.borderDefault));
     });
 
-    testWidgets('a skinned role routes through PixelFrame', (
-      WidgetTester tester,
-    ) async {
+    testWidgets('a framed role routes through PixelFrame; a surface role does '
+        'not', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SectionCard(
+            role: PanelRole.heroPlate,
+            child: SizedBox(width: 100, height: 20),
+          ),
+        ),
+      );
+      expect(find.byType(PixelFrame), findsOneWidget);
+
+      // The default card is a surface, and a surface has no frame — the
+      // whole correction FMPO02 made to VAWO01's registry.
       await tester.pumpWidget(
         const Directionality(
           textDirection: TextDirection.ltr,
           child: SectionCard(child: SizedBox(width: 100, height: 20)),
         ),
       );
-      expect(find.byType(PixelFrame), findsOneWidget);
+      expect(find.byType(PixelFrame), findsNothing);
+    });
+
+    testWidgets('an authored surface tiles under the child, framed or not', (
+      WidgetTester tester,
+    ) async {
+      // A surface is drawn by `SurfaceFill` on an unframed card and by the
+      // frame's own painter on a framed one. Either way the card's flat fill
+      // is painted first, so a missing tile is today's card and never a hole.
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SectionCard(
+            surface: PanelSurface.journalLeaf,
+            child: SizedBox(width: 100, height: 20),
+          ),
+        ),
+      );
+      expect(find.byType(SurfaceFill), findsOneWidget);
+      expect(find.byType(PixelFrame), findsNothing);
+
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: SectionCard(
+            role: PanelRole.heroPlate,
+            surface: PanelSurface.journalLeaf,
+            child: SizedBox(width: 100, height: 20),
+          ),
+        ),
+      );
+      final PixelFrame frame = tester.widget<PixelFrame>(
+        find.byType(PixelFrame),
+      );
+      expect(frame.surface, PanelSurfaces.of(PanelSurface.journalLeaf));
+      expect(find.byType(SurfaceFill), findsNothing);
     });
 
     testWidgets('every role still lays out at the same size', (
@@ -195,15 +259,14 @@ void main() {
         return tester.getSize(find.byKey(ValueKey<PanelRole>(role))).width;
       }
 
-      // Every role now resolves to the same chassis, so every role gives up
-      // the same width. The comparison that used to prove the reserve was
-      // applied — an unreserved role against the heaviest one — has no
-      // unreserved role left to use, so the property is asserted directly:
-      // the content box is actually narrower by the frame, not merely
-      // declared to be.
+      // A framed role's content box is actually narrower by the frame, not
+      // merely declared to be; a surface role's content box gives up nothing
+      // but the card's own padding. Both halves are asserted, because the
+      // second is the one that keeps a list's full width now that the frame
+      // has left it.
       for (final PanelRole role in PanelRole.values) {
         final double content = await contentWidthFor(role);
-        final double inset = PanelSkins.of(role)!.inset;
+        final double inset = PanelSkins.of(role)?.inset ?? 0;
         expect(
           content,
           lessThanOrEqualTo(320 - (inset * 2)),
