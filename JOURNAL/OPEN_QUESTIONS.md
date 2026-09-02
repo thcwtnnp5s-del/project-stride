@@ -948,6 +948,8 @@ persistent-HP bullet was answered by `DECISIONS/0023` §4 (state v7).
 
 ## Q-13 — The south coast's two greens: does the lime band stay?
 
+**Status (2026-09-02):** ✅ **RESOLVED → `DECISIONS/0033`** — the owner's EPO03 directive specifies the coast ("clean surf, sand, rock, shallows, no rectangular shoreline joins"); the south is re-authored as a terrain-following coast and the lime survives only as machair behind a dune belt, never as a latitude band.
+
 **Raised:** 2026-08-28, World Atlas Remaster 01 Iteration 02 (ATLAS-K
 hydrology audit, G-3 escalation).
 
@@ -1165,6 +1167,8 @@ punctuates nothing however it is timed. Its real answer is
 
 ## Q-18 — The south strand goldens block the south layer-cake fix
 
+**Status (2026-09-02):** ✅ **RESOLVED → `DECISIONS/0033`** — the owner's EPO03 directive ("some older terrain should not be protected merely because it exists") authorises re-authoring the strand and re-extracting both goldens in the same commit; the A-4 guard is re-baselined, never weakened.
+
 **Raised by:** ART-03 (World Atlas Art Director), FMPO02 Wave 1
 **Date:** 2026-09-02
 **Target:** the owner, before regions S1/S2/S4 of `ART-03_atlas_brief.md` are authored in full
@@ -1372,6 +1376,8 @@ mastery" is a real event before the asset is spent on a placement.
 
 ## Q-25 — The south strand goldens hold the P0 the owner is complaining about
 
+**Status (2026-09-02):** ✅ **RESOLVED → `DECISIONS/0033`** — same ruling as Q-18; the A-4 core zones named here (the west forest wall, the delta apron) may be recomposed by compositing before the approved snapshot so the new pixels become the protected state.
+
 **Raised:** 2026-09-02, FMPO02 wave2, PROD-WORLD-TERRAIN.
 **UNRESOLVED** — recorded rather than assumed (`RULES.md` G-3, A-4).
 **Target:** owner, before any further work on the southern atlas.
@@ -1492,6 +1498,8 @@ first-completion of a lineage's top item, or a future system? Until ruled,
 the seal shows on Epic+ crafts and the record says so.
 
 ## Q-28 — The fairy motes: a particle field, or the toned discs as final?
+
+**Status (2026-09-02):** ✅ **RESOLVED → `DECISIONS/0033`** — the directive rules "not just dots … tiny winged silhouettes, small warm-light figures, readable motion"; the discs are not final and are replaced by authored fairy silhouettes in EPO03.
 
 **Raised by:** WORLD-FIX (FMPO02 council fixes), 2026-09-02
 **Target:** owner + Environment Pixel Artist, before the next atlas round
