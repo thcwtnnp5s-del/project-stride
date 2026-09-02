@@ -60,12 +60,13 @@
         "h": 96
       },
       "salt": 121,
-      "seed": 0,
-      "status": "pending",
+      "seed": 1301,
+      "status": "accepted",
       "reauthorizes": [
         "south_strand_w"
       ],
-      "intent": "The Storm House: a pocket of NE-SW darkness at least 25 L* below the surrounding heath fading out at the edge, a black-gabled house 28-34 px at atlas (218,900) with three amber windows, blasted trees leaning away from it (one split and charred), a wet track; the pocket is painted into the terrain, not a prop on it."
+      "intent": "The Storm House: a pocket of NE-SW darkness at least 25 L* below the surrounding heath fading out at the edge, a black-gabled house 28-34 px at atlas (218,900) with three amber windows, blasted trees leaning away from it (one split and charred), a wet track; the pocket is painted into the terrain, not a prop on it.",
+      "job": "de827074"
     },
     {
       "id": "L1",

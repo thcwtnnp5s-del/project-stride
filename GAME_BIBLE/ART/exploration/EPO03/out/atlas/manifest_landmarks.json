@@ -19,6 +19,27 @@
       "team": "landmarks",
       "reauthorizes": [],
       "intent": "The Ice-Mage Tower rebuilt on a glacial foundation: an organic ice mound with blue south faces, a tall crystal spire with a dark gate, a pillared causeway winding up from the south-west (r3; r1 ziggurat rejected, r2 held)."
+    },
+    {
+      "id": "L2",
+      "name": "storm_pocket",
+      "x": 130,
+      "y": 816,
+      "w": 176,
+      "h": 176,
+      "salt": 121,
+      "status": "accepted",
+      "job": "de827074-e800-403f-96ef-af5bf84500e3",
+      "seed": 1301,
+      "tool": "inpaint_image",
+      "cost": 20,
+      "atlas": "170-266 x 856-952",
+      "review": "review/atlas/L2_r1_preview_x2.png, L2_after_x2.png, L2_after_fov.png",
+      "team": "landmarks",
+      "reauthorizes": [
+        "south_strand_w"
+      ],
+      "intent": "The Storm House painted into the heath: a gloom hollow with a black-gabled house 34 px wide, three amber windows, blasted leaning trees (one split and charred), a wet track with puddles. Cut from the composite after SOUTH S2; r2 (a whole-rect shadow) rejected as a generated rectangle."
     }
   ]
 }

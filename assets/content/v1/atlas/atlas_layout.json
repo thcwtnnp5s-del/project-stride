@@ -547,15 +547,6 @@
       "height": 39,
       "anchorX": 15,
       "anchorY": 38
-    },
-    {
-      "asset": "env/prop_storm_house",
-      "x": 1308,
-      "y": 5400,
-      "width": 25,
-      "height": 21,
-      "anchorX": 12,
-      "anchorY": 20
     }
   ],
   "overlays": [
