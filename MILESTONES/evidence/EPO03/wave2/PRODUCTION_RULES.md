@@ -127,6 +127,26 @@ and move on); no economy or step-cost change; no FOMO, streaks, decay,
 monetization; no background Health; no reserved teal outside step figures;
 the L* ceiling on chrome; every session command call site preserved.
 
+## 9a. Batching, and surviving an interruption
+
+Nineteen concurrent producers exhausted the session usage limit twice on
+2026-09-02, killing every team mid-flight. The round therefore runs **four
+teams at a time**, and every team works as if it will be cut off without
+warning:
+
+- **Commit after every accepted item**, not at the end. An uncommitted
+  candidate is lost work; a committed one is the next session’s starting
+  point.
+- **A submitted PixelLab job survives the interruption.** Its result stays
+  retrievable by `get_image(job_id)`, so record every job id in the ledger
+  the moment you submit it — the id is what makes a generation recoverable
+  rather than repeated, and re-rolling a lost job spends the cap twice.
+- **Re-read your ledger and `git log -5` on resume** before doing anything
+  else: another team, or the producer, may have landed work in your area
+  while you were stopped, and the atlas may have been rebuilt under you, so
+  re-cut any crop from the current composite.
+- **Never end a turn to wait** for a job or a neighbouring team; poll.
+
 ## 10. Report
 
 `MILESTONES/evidence/EPO03/wave2/<TEAM>_report.md`: what shipped (asset
