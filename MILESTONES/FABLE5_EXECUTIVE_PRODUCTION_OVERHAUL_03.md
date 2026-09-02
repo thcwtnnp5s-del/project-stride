@@ -61,8 +61,48 @@ Acceptance target: **"This feels like a much more finished game."**
 
 ## 4. Facts proven before spending
 
-_(filled from wave 0: locks, seams, protection mechanics, tool capability,
-audio go/no-go; the ADR that records the atlas replacement authority)_
+Six guardians (`MILESTONES/evidence/EPO03/wave0/`), then sixteen directors
+(`wave1/`), before any generation:
+
+- **Canon (GOV-01).** The directive is a rank-1 owner instruction; it answers
+  Q-18/Q-25 and changes *which state is approved*, not A-4. Recorded as
+  `DECISIONS/0033`. All five playable locations sit inside the core with
+  frozen coordinates; the Sunward Strand landmark must keep a beach; routes
+  are content and never edited to fit art. Equipment: 23 items (4 weapons,
+  10 armour, 4 axes, 5 pickaxes); per-item silhouettes are art; new items are
+  not this round. `waywarden_tunic` was unmapped in the resolver.
+- **Boundary (GOV-02).** Do-not-touch list verified at HEAD; every mutation
+  flows through `SessionController`; save state v9 cannot be reached by
+  assets, overlays, strips or layout JSON. Guards: core-purity,
+  single-writer, origin-privacy, backup-exclusions, dependency-policy PASS;
+  `check-ui-boundary.sh` fails on the pre-existing `craft_memory.dart`
+  violation (CI red before this round); `check-step-model.sh`'s production
+  scan carries 13 pre-existing false positives. 1,049 app / 738 core / 143
+  health tests green at 59c4723.
+- **Atlas mechanics (GOV-03).** The EPO03 layer must run after the ghost-sail
+  restore and before the water-only conform (so crops and substrate are the
+  same image), mark its pixels `claimed`, re-take `approved`, and the drift
+  guard must walk the whole canvas. Golden overlaps per candidate zone
+  measured; a golden is re-extracted from an `ATLAS_DUMP` pre-guard
+  composite. Build 6–7 s; concurrent builds corrupt reads → the build lock.
+- **Pipeline (GOV-04).** Real FMPO02 costs: pixen 1 at every size; pro 40;
+  edit_image ≈20 per call (whole frame grid); inpaint 20/25/40 by size;
+  animate_image 1–2; character state ≈44; map object ≈32. Hosting by commit
+  SHA on raw.githubusercontent; inline base64 caps ≈5 KB. Overlays: frame
+  loop, cadence, drift and straight travel exist; **no waypoint path, no
+  per-overlay scale** — DIR-04 specified the path schema LIFE builds.
+  Device render: `SCREEN_EVIDENCE_DIR=… flutter test test/screen_evidence_test.dart`
+  (393×852 @ DPR 1).
+- **UI (GOV-05).** Single-owner list for the kit files (PROD-UI-NAV); combat
+  is a child of Adventure's list, not a route (branch frozen); one golden test
+  renders all six tabs — producers prove with evidence renders, the producer
+  regenerates goldens once; registries are name-guarded.
+- **Audio (GOV-06).** **No-go.** `STABILITY_API_KEY` unset; ElevenLabs is
+  permitted by 0005/0030 but has no runner and no key; procedural synthesis
+  is forbidden by the locked direction; nothing in `AUDIO/evaluation/` is
+  packageable. 22 files owed (combat 11, craft 3 + 1 swap, gathering 1,
+  reward 5, UI 1). Recorded once; DIR-14 named three zero-file improvements
+  (haptics on Attack/Eat/Retreat, the telegraph cue's segment, a doc fix).
 
 ## 5. Budget ledger
 
