@@ -409,24 +409,33 @@ abstract final class PixelIcons {
   // ------------------------------------------------------------- navigation
 
   static const String navAdventure = '$_base/nav_adventure.png';
-  static const String navAdventureActive = '$_base/nav_adventure_hi.png';
   static const String navCharacter = '$_base/nav_character.png';
-  static const String navCharacterActive = '$_base/nav_character_hi.png';
   static const String navSkills = '$_base/nav_skills.png';
   static const String navInventory = '$_base/nav_inventory.png';
-  static const String navInventoryActive = '$_base/nav_inventory_hi.png';
   static const String navCraft = '$_base/nav_craft.png';
   static const String navWorld = '$_base/nav_world.png';
 
-  /// The three active variants derived by `Scripts/art/nav-active-variant.js`,
-  /// using the index remap measured from the three glyph pairs that already
-  /// shipped — so every selectable tab brightens exactly like the originals
-  /// rather than by a rule invented per glyph.
-  ///
-  /// The reference pairs are deliberately never widened to include these:
-  /// deriving the mapping from the script's own output would let one wrong
-  /// index entrench itself as evidence.
-  static const String navWorldActive = '$_base/nav_world_hi.png';
-  static const String navSkillsActive = '$_base/nav_skills_hi.png';
-  static const String navCraftActive = '$_base/nav_craft_hi.png';
+  // The six `_hi` active variants are **retired** (EPO03, `DIR-15` §2, Q-26).
+  //
+  // Three of them shipped from `gen_assets.js` and three were derived by
+  // `Scripts/art/nav-active-variant.js` from the index remap those three
+  // measured. They existed to answer one question — which tab am I on — and
+  // the bar now answers it with a **raised, lit plate** under the glyph
+  // instead (`stride_tab_bar.dart`).
+  //
+  // Q-26 is why the plate wins and the brighter glyph loses. A nav glyph sits
+  // on the type ladder, not under the chrome ceiling: the shipped silhouettes
+  // read at roughly 6:1 against the bar, and every attempt to author a pair
+  // inside the ceiling separated *less* than the derived remap did while
+  // costing legibility at 14 px (FMPO02 `UI_report.md` §5). With a lit plate
+  // carrying the state, a second brightened glyph says the same thing again,
+  // more weakly — and `nav_world_hi`, the one variant FMPO02 could never
+  // author at all, stops being a gap in the set.
+  //
+  // The PNGs and their `pubspec.yaml` rows stay for now, and so does
+  // `nav-active-variant.js` and its CI check: deleting a shipped asset and
+  // editing the workflow that guards it is a separate change with a separate
+  // owner, and a declared asset nothing draws costs a bundle entry, not a
+  // defect. Removing the constants is what makes the retirement real in code —
+  // nothing can reach for a brighter glyph by accident.
 }

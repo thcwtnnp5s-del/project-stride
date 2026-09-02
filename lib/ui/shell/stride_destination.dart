@@ -35,47 +35,27 @@ library;
 import '../icons/pixel_icons.dart';
 
 enum StrideDestination {
-  adventure(
-    'Adventure',
-    PixelIcons.navAdventure,
-    PixelIcons.navAdventureActive,
-    enabled: true,
-  ),
-  character(
-    'Character',
-    PixelIcons.navCharacter,
-    PixelIcons.navCharacterActive,
-    enabled: true,
-  ),
-  skills(
-    'Skills',
-    PixelIcons.navSkills,
-    PixelIcons.navSkillsActive,
-    enabled: true,
-  ),
-  inventory(
-    'Inventory',
-    PixelIcons.navInventory,
-    PixelIcons.navInventoryActive,
-    enabled: true,
-  ),
-  craft('Craft', PixelIcons.navCraft, PixelIcons.navCraftActive, enabled: true),
-  world('World', PixelIcons.navWorld, PixelIcons.navWorldActive, enabled: true);
+  adventure('Adventure', PixelIcons.navAdventure, enabled: true),
+  character('Character', PixelIcons.navCharacter, enabled: true),
+  skills('Skills', PixelIcons.navSkills, enabled: true),
+  inventory('Inventory', PixelIcons.navInventory, enabled: true),
+  craft('Craft', PixelIcons.navCraft, enabled: true),
+  world('World', PixelIcons.navWorld, enabled: true);
 
-  const StrideDestination(
-    this.label,
-    this.glyph,
-    this.glyphActive, {
-    this.enabled = false,
-  });
+  const StrideDestination(this.label, this.glyph, {this.enabled = false});
 
   final String label;
-  final String glyph;
 
-  /// The brighter variant, used only when this destination is selected. A
-  /// disabled destination never becomes active, so its two values are the same
-  /// asset.
-  final String glyphActive;
+  /// The tab's silhouette — **one glyph per destination, both states**.
+  ///
+  /// There used to be a second, brighter `_hi` variant per tab. It is retired
+  /// (EPO03, `DIR-15_mobile_ux.md` §2, Q-26): the active tab is now a raised
+  /// lit plate, and a brightened glyph on top of that says the same thing a
+  /// second time, more weakly. `pixel_icons.dart` records the measurement
+  /// behind that — a nav glyph belongs to the type ladder, its backing to the
+  /// chrome ceiling, and no authored pair ever separated as well as the plate
+  /// does.
+  final String glyph;
 
   /// Whether this destination has a screen behind it.
   ///
