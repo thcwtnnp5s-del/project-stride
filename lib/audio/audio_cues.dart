@@ -270,8 +270,8 @@ final class EventCue {
 /// `AUDIO/AUDIO_ASSET_MANIFEST.md`, no code change.
 ///
 /// Generation is blocked on credentials, not on design: both provider keys are
-/// unset (`DECISIONS/0030` § 4). `AUDIO/AUDIO_PRODUCTION_BRIEF_VAWO01.md`
-/// carries a ready-to-run brief for every id below.
+/// unset (`DECISIONS/0030` § 4). `AUDIO/AUDIO_PRODUCTION_QUEUE_02.md` § 5 (and
+/// `_03.md` § 5 for `ui.commit`) carry a ready-to-run brief for every id below.
 abstract final class EventCues {
   const EventCues._();
 

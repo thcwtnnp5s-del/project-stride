@@ -103,8 +103,10 @@ fewer moving pixels has not asked for fewer taps on the wrist.
 - Loot deliberately has **no id**: it resolves inside the victory layer, and a
   separate coin-or-bag flourish is the slot-machine register the locked
   creative direction forbids.
-- `AUDIO/AUDIO_PRODUCTION_BRIEF_VAWO01.md` carries a generation-ready brief per
-  id, so the round runs the moment a key exists.
+- `AUDIO/AUDIO_PRODUCTION_QUEUE_02.md` § 5 (and `_03.md` § 5 for `ui.commit`)
+  carry a generation-ready brief per id, so the round runs the moment a key
+  exists. *(Erratum, EPO03 2026-09-02: this bullet previously cited a
+  non-existent `AUDIO_PRODUCTION_BRIEF_VAWO01.md`.)*
 - **Q-16 closes.** Q-17 (mining is the loudness floor and `trimDb` can only
   attenuate) stays open — it needs a limiter re-master, which is a change of
   packaging class.
