@@ -1160,3 +1160,55 @@ Also open, and cheaper than any of them: the cooking cue is a
 transient-less 2 s sizzle plateau by its own provenance record, so it
 punctuates nothing however it is timed. Its real answer is
 `craft.cooking.stir.01` in the production queue, not a cooldown number.
+
+---
+
+## Q-18 — The south strand goldens block the south layer-cake fix
+
+**Raised by:** ART-03 (World Atlas Art Director), FMPO02 Wave 1
+**Date:** 2026-09-02
+**Target:** the owner, before regions S1/S2/S4 of `ART-03_atlas_brief.md` are authored in full
+
+### The question
+
+The owner named the "south layer-cake" as a known map defect to address. The
+sand band that produces it runs through the interior at y 810–870, and that
+exact band is byte-protected by two landmark goldens, `south_strand_w`
+(128–528 × 810–870) and `south_strand_e` (512–800 × 810–870), extracted in
+World Atlas Remaster 01 after M-15 to stop seam repairs destroying an accepted
+strand. Fixing the layer-cake means the strand stops being a latitude band —
+which means deliberately re-extracting those two goldens in the same commit.
+
+`RULES.md` A-4 makes a golden the owner's. So FMPO02 authors the south
+**around** the strand: regions S1, S2 and S4 stop 20 px short of both rects
+and the strand keeps its current form. The layer-cake is therefore reduced,
+not removed, until the owner rules.
+
+### What is being asked
+
+May the two strand goldens be re-extracted from a device-accepted S2 result?
+If yes, the strand becomes seaward machair with dune ridges and tidal creeks
+running *across* latitude (ART-03's recommended default, which also answers
+Q-13 without deciding it).
+
+---
+
+## Q-19 — Frostpine and Heartwood are places, not things
+
+**Raised by:** ART-07 (Item Art Director), FMPO02 Wave 1
+**Date:** 2026-09-02
+**Target:** Systems Designer, before any icon is authored
+
+### The question
+
+The owner's item acceptance list says Oak, Pine, **Frostpine** and
+**Heartwood** logs must not collapse visually. `items.json` has no
+`frostpine_log`, `heartwood_log` or matching planks; `frostpine_stand`,
+`oldgrowth_frostpine` and `heartwood_oak` exist only as gather nodes whose
+yields are oak and pine. Authoring an icon for an item that cannot exist is an
+icon nothing can render (`RULES.md` G-3).
+
+ART-07 §2 records the wood-family language now (grey-blue bark and frost-rimed
+rings for frostpine; deep amber-red bark and dense dark rings for heartwood) so
+the icons will not collide *when* the items land. Whether they become craftable
+materials is a systems decision, not an art one.
