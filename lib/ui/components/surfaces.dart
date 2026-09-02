@@ -21,6 +21,7 @@ import 'package:flutter/widgets.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
+import 'adaptive_text.dart';
 import 'panel_skin.dart';
 import 'pixel_asset.dart';
 
@@ -254,4 +255,334 @@ class SectionHeading extends StatelessWidget {
       ?trailing,
     ],
   );
+}
+
+// =============================================================================
+// EPO03 — THE KIT'S WIDGETS
+//
+// `panel_skin.dart` holds the three kit registries; these are what a screen
+// team actually writes. Each one takes a kit name, asks the registry for art,
+// and paints a declared fallback when there is none — so a screen built today
+// against `KitFrame.slotWell` looks deliberate today and gains material the
+// day the row lands, without moving.
+//
+// The fallbacks are not placeholders. They are the square-cornered, one-weight,
+// one-colour construction the product already ships, which is why a screen is
+// finished when it is built rather than when the art arrives.
+// =============================================================================
+
+/// A piece of kit furniture: a well, a plate, a ribbon, a tab.
+///
+/// Draws [KitFrames.of]'s nine-patch when the row has landed, and a square
+/// recess or plate in the token ladder when it has not. Either way the content
+/// is inset by [KitFrames.insetFor], which is the same figure in both cases.
+class KitPlate extends StatelessWidget {
+  const KitPlate({
+    super.key,
+    required this.frame,
+    required this.child,
+    this.fill = StrideColors.surfaceCard,
+    this.surface = PanelSurface.none,
+    this.padding,
+    this.width,
+    this.height,
+    this.raised = false,
+  });
+
+  /// A well sized to the content it holds, the way [InsetWell] is.
+  ///
+  /// The caller passes what the content needs and the plate is bigger than
+  /// that by its own frame — so `KitPlate.well(contentSize: 96)` around a
+  /// 96 dp sprite is correct rather than the bug it would be if the well were
+  /// sized to 96 itself. That arithmetic is the Flutter form of the fix that
+  /// cost Round 03 three diagnoses, and it is why the API has no `size`.
+  KitPlate.well({
+    super.key,
+    required this.frame,
+    required this.child,
+    required double contentWidth,
+    required double contentHeight,
+    this.fill = StrideColors.surfaceGround,
+    this.surface = PanelSurface.none,
+    this.raised = false,
+  }) : padding = EdgeInsets.zero,
+       width = contentWidth + (KitFrames.insetFor(frame) * 2),
+       height = contentHeight + (KitFrames.insetFor(frame) * 2);
+
+  final KitFrame frame;
+  final Widget child;
+
+  /// What the interior is painted. A well passes [StrideColors.surfaceGround]
+  /// — the page showing through, which is what makes a well read as recessed.
+  final Color fill;
+
+  /// An optional grain inside the frame's band.
+  final PanelSurface surface;
+
+  final EdgeInsetsGeometry? padding;
+  final double? width;
+  final double? height;
+
+  /// Whether the fallback reads as standing off the page rather than sunk into
+  /// it: a lit top edge instead of a shadowed one. Ignored once art lands —
+  /// the raster carries its own light.
+  final bool raised;
+
+  /// The fallback: a square recess or plate, one weight, one colour.
+  ///
+  /// The lit or shadowed top edge is the whole signal. It is the same
+  /// construction `StrideButton` uses for its own lit rim, so a kit plate and
+  /// a button agree about where the light comes from (upper left, always).
+  BoxDecoration _painted() => BoxDecoration(
+    color: fill,
+    border: Border(
+      top: BorderSide(
+        color: raised ? StrideColors.actionEdge : StrideColors.surfaceGround,
+        width: 2,
+      ),
+      left: const BorderSide(color: StrideColors.borderDefault),
+      right: const BorderSide(color: StrideColors.borderDefault),
+      bottom: BorderSide(
+        color: raised
+            ? StrideColors.borderDefault
+            : StrideColors.separator,
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final PanelSkin? skin = KitFrames.of(frame);
+    final SurfaceTile? tile = PanelSurfaces.of(surface);
+    final double inset = KitFrames.insetFor(frame);
+    final EdgeInsetsGeometry pad = padding ?? EdgeInsets.all(inset);
+
+    if (skin == null) {
+      // No art yet: spend the same inset, so the day the row lands the
+      // material changes and the layout does not.
+      final Widget body = Padding(padding: pad, child: child);
+      return SizedBox(
+        width: width,
+        height: height,
+        child: DecoratedBox(
+          decoration: _painted(),
+          child: tile == null
+              ? body
+              : SurfaceFill(tile: tile, fill: fill, child: body),
+        ),
+      );
+    }
+    return SizedBox(
+      width: width,
+      height: height,
+      child: PixelFrame(
+        skin: skin,
+        fallback: _painted(),
+        surface: tile,
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: fill),
+          child: Padding(padding: pad, child: child),
+        ),
+      ),
+    );
+  }
+}
+
+/// A kit strip, run along its axis.
+///
+/// Horizontal strips fill their width and are [KitTiles.thicknessFor] tall;
+/// vertical strips fill their height and are that wide. The room is reserved
+/// whether or not the raster decodes.
+class KitEdge extends StatelessWidget {
+  const KitEdge({
+    super.key,
+    required this.tile,
+    this.fallbackColor,
+    this.fallbackAtEnd = false,
+  });
+
+  final KitTile tile;
+
+  /// The line drawn in the strip's place while the raster is absent — the
+  /// boundary the strip replaces. Null leaves the run blank, which only a
+  /// caller drawing its own line wants.
+  final Color? fallbackColor;
+
+  /// Which edge of the reserved run the fallback line sits on.
+  final bool fallbackAtEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final KitStrip? strip = KitTiles.of(tile);
+    final double thickness = KitTiles.thicknessFor(tile);
+    final Axis axis = KitTiles.axisFor(tile);
+
+    if (strip == null) {
+      // Reserve the run and draw the line it replaces.
+      final Widget line = fallbackColor == null
+          ? const SizedBox.shrink()
+          : Align(
+              alignment: axis == Axis.horizontal
+                  ? (fallbackAtEnd
+                        ? Alignment.bottomCenter
+                        : Alignment.topCenter)
+                  : (fallbackAtEnd
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft),
+              child: SizedBox(
+                width: axis == Axis.horizontal ? double.infinity : 1,
+                height: axis == Axis.horizontal ? 1 : double.infinity,
+                child: ColoredBox(color: fallbackColor!),
+              ),
+            );
+      return SizedBox(
+        width: axis == Axis.horizontal ? double.infinity : thickness,
+        height: axis == Axis.horizontal ? thickness : double.infinity,
+        child: line,
+      );
+    }
+    return EdgeStrip(
+      assetPath: strip.assetPath,
+      nativeWidth: strip.nativeWidth,
+      nativeHeight: strip.nativeHeight,
+      scale: strip.scale,
+      fallbackColor: fallbackColor,
+      fallbackAtBottom: fallbackAtEnd,
+    );
+  }
+}
+
+/// A discrete kit ornament, drawn once at integer scale.
+///
+/// Reserves [KitMarks.sizeFor] whether or not the row has landed, so an
+/// ornament arriving later does not reflow the row it sits in.
+class KitOrnament extends StatelessWidget {
+  const KitOrnament({super.key, required this.mark, this.fallback});
+
+  final KitMark mark;
+
+  /// Drawn in the reserved box while the row is empty. Null draws nothing,
+  /// which is what an ornament that is pure decoration wants.
+  final Widget? fallback;
+
+  @override
+  Widget build(BuildContext context) {
+    final KitOrnamentArt? art = KitMarks.of(mark);
+    final Size size = KitMarks.sizeFor(mark);
+    if (art == null) {
+      return SizedBox.fromSize(size: size, child: fallback);
+    }
+    return PixelAsset(
+      assetPath: art.assetPath,
+      nativeWidth: art.nativeWidth,
+      nativeHeight: art.nativeHeight,
+      scale: art.scale,
+    );
+  }
+}
+
+/// Which page material a rule is drawn on.
+enum KitRuleStyle { journal, bench, chart }
+
+/// A ruled line across the page, with an optional title sitting on it.
+///
+/// One widget so that "a rule under a heading" cannot become nine different
+/// hand-assembled constructions across eight screens — which is the mechanism
+/// that produced the repeated-card rhythm this round exists to end. The caps
+/// are ornaments when they land; the run is a tile; the fallback is the one
+/// hairline the product already draws, at the same height, so nothing moves.
+class KitRule extends StatelessWidget {
+  const KitRule({super.key, this.style = KitRuleStyle.journal, this.title});
+
+  final KitRuleStyle style;
+
+  /// Drawn above the rule in the display face. Null draws the rule alone.
+  final String? title;
+
+  KitTile get _tile => switch (style) {
+    KitRuleStyle.journal => KitTile.ruleJournal,
+    KitRuleStyle.bench => KitTile.ruleBench,
+    KitRuleStyle.chart => KitTile.ruleChart,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget rule = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        const KitOrnament(mark: KitMark.ruleCapLeft),
+        Expanded(
+          child: KitEdge(
+            tile: _tile,
+            fallbackColor: StrideColors.separator,
+          ),
+        ),
+        const KitOrnament(mark: KitMark.ruleCapRight),
+      ],
+    );
+    if (title == null) return rule;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        AdaptiveText(title!, style: StrideType.sectionHeading),
+        const SizedBox(height: StrideSpace.rowGap),
+        rule,
+      ],
+    );
+  }
+}
+
+/// The page a screen is written on.
+///
+/// **This is the round's replacement for the card.** A tab root is one ground
+/// of one material, full-bleed, with content sitting directly on it under
+/// rules — not a column of dark rectangles. It has no border and no radius by
+/// construction, so a screen built on it cannot reproduce the rhythm the
+/// owner's device read named.
+///
+/// The flat fill is painted first, so a grain that fails to load is the ground
+/// the screen always had.
+class PageGround extends StatelessWidget {
+  const PageGround({
+    super.key,
+    required this.child,
+    this.surface = PanelSurface.journalLeaf,
+    this.spine = false,
+    this.fill = StrideColors.surfaceGround,
+  });
+
+  final Widget child;
+
+  /// The page's material. One per screen — that is the whole point of the
+  /// surface axis, and two materials on one page is two pages.
+  final PanelSurface surface;
+
+  /// Whether the page is bound: a spine down its left edge.
+  final bool spine;
+
+  final Color fill;
+
+  @override
+  Widget build(BuildContext context) {
+    final SurfaceTile? tile = PanelSurfaces.of(surface);
+    final Widget body = tile == null
+        ? ColoredBox(color: fill, child: child)
+        : SurfaceFill(tile: tile, fill: fill, child: child);
+    if (!spine) return body;
+    return Stack(
+      children: <Widget>[
+        Positioned.fill(child: body),
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          child: KitEdge(
+            tile: KitTile.edgeSpine,
+            fallbackColor: StrideColors.borderDefault,
+          ),
+        ),
+      ],
+    );
+  }
 }

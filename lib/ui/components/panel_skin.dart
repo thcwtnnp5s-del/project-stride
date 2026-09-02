@@ -441,3 +441,337 @@ abstract final class ButtonPlates {
     scale: 2,
   );
 }
+
+// =============================================================================
+// EPO03 — THE KIT
+//
+// `DECISIONS/0029` gives a raster exactly three jobs: a panel's **edge**, a
+// panel's interior as a low-variation tiled **surface**, and a discrete
+// **ornament** Flutter positions. The three registries below are those three
+// jobs, named, so that eight screen teams rebuilding in parallel reach for one
+// vocabulary instead of eight.
+//
+// ## Why these are not rows in [PanelSkins]
+//
+// [PanelSkins] answers "what is the frame around a **panel**", and
+// `test/panel_skin_test.dart` pins it to exactly two roles and exactly one
+// asset — because VAWO01 registered a frame against every role and the owner's
+// device verdict was that the frame had become wallpaper. That cap is a
+// finding, not an accident, and the kit must not route around it: a well cut
+// into leather, a ribbon behind a level, a tab on a folio's edge are **not
+// panels**, they are the furniture inside one. Separate registries keep the
+// panel kill-switch and the kit's own reversibility independent, exactly as
+// [ButtonPlates] does for controls.
+//
+// ## The property every row here has
+//
+// A missing row resolves to null, the widget paints its declared fallback, and
+// **the layout figure is the same either way** — the `...For()` lookups return
+// the declared geometry whether or not the art exists. So a screen team codes
+// against a name today, the art lands later, and nothing reflows on the day it
+// does. That is `PanelSkins.insetFor`'s doctrine applied to the whole kit, and
+// it is what the wave-2 contract
+// (`MILESTONES/evidence/EPO03/wave2/KIT_CONTRACT.md`) promises seven teams in
+// writing.
+// =============================================================================
+
+/// A piece of authored chrome cut as a nine-patch: corners drawn once, edges
+/// tiled, interior never drawn.
+///
+/// Every member is furniture inside a panel — a well, a plate, a ribbon, a tab.
+/// None of them is a panel's own border; that is [PanelRole]'s job and it is
+/// capped at one family on purpose.
+enum KitFrame {
+  /// A window cut into the page for a figure — the bust, the equipped
+  /// traveller. Inventory and Character.
+  insetWell,
+
+  /// A single compartment: an equipment slot, an item well, a station plinth.
+  slotWell,
+
+  /// A window that frames a picture rather than a panel — the gather stage,
+  /// the creature on an encounter plate.
+  insetStage,
+
+  /// Combat's heavy frame. The gauges hang from its lower band.
+  ///
+  /// **L-18a is why this is chrome and not a plane.** `DECISIONS/0031` fixes
+  /// density as a property of a plane: the stage's backdrop and figures share
+  /// this frame but not its plane. It draws at its own scale, shares no ground
+  /// line, overlaps no figure and is crossed by no tool arc, so it adds no
+  /// third density and needs no amendment to L-18a.
+  stageFrame,
+
+  /// A sealed page in the recipe book — Craft's locked tiers.
+  pageSealed,
+
+  /// A pinned slip. Adventure's goals.
+  slipPinned,
+
+  /// The plate behind a short label: a level, a rarity, a boss mark, a cost.
+  /// **The words are Flutter's**; this is only what they sit on.
+  ribbonLabel,
+
+  /// An index tab on a folio's edge (Craft), and the leather tab on the World
+  /// peek strip.
+  tabPlate,
+
+  /// The World peek strip's leather plate.
+  peekPlate,
+
+  /// An atlas marker's label plate, and its selected, ember-edged twin.
+  labelPlate,
+  labelPlateSelected,
+
+  /// The bottom nav's stamped well, and the raised lit plate on the active tab.
+  navWell,
+  navPlateActive,
+
+  /// The one primary action plate per screen. Replaces `btn_plate` when its
+  /// geometry is measured, not before.
+  btnPlateV2,
+}
+
+/// Frame to authored nine-patch.
+///
+/// Empty today by measurement rather than by plan. Fourteen `pixen` rolls
+/// across three prompt strategies produced no usable flat nine-patch: the model
+/// draws a lit object in perspective, decorated with studs, above the `#7C7263`
+/// ceiling. FMPO02 recorded the same boundary for `modal_128`,
+/// `strap_corner_64`, `corner_mark_48`, `tab_index_32x16` and `nav_plate_32`
+/// and shipped none of them. `MISTAKES.md` M-05 forbids re-rolling into a
+/// reason already written down, so the round spent its remaining budget where
+/// the model succeeds — material strips and material sheets — and every
+/// consumer below draws its declared fallback. The ledger is
+/// `GAME_BIBLE/ART/exploration/EPO03/ledger/UI_KIT.md`.
+abstract final class KitFrames {
+  const KitFrames._();
+
+  static const String _dir = 'assets/ui/v1/kit';
+
+  /// The registry. A row lands with a device read, never with a compile.
+  static const Map<KitFrame, PanelSkin> authored = <KitFrame, PanelSkin>{};
+
+  /// The geometry each frame is **declared** to have, whether or not it has
+  /// art. This is what a caller insets by, so the day a row lands nothing
+  /// moves — the material changes and the layout does not.
+  static const Map<KitFrame, double> _declaredInset = <KitFrame, double>{
+    KitFrame.insetWell: 8,
+    KitFrame.slotWell: 6,
+    KitFrame.insetStage: 12,
+    KitFrame.stageFrame: 16,
+    KitFrame.pageSealed: 12,
+    KitFrame.slipPinned: 10,
+    KitFrame.ribbonLabel: 6,
+    KitFrame.tabPlate: 6,
+    KitFrame.peekPlate: 16,
+    KitFrame.labelPlate: 4,
+    KitFrame.labelPlateSelected: 4,
+    KitFrame.navWell: 4,
+    KitFrame.navPlateActive: 8,
+    KitFrame.btnPlateV2: 8,
+  };
+
+  /// The frame for [frame], or null while it is still painted.
+  static PanelSkin? of(KitFrame frame) => authored[frame];
+
+  /// How much [frame] insets its content — the authored figure once art
+  /// exists, the declared one until then, and they are the same number.
+  static double insetFor(KitFrame frame) =>
+      authored[frame]?.inset ?? _declaredInset[frame] ?? 0;
+
+  /// Where a row's asset will live, so the contract and the tree cannot drift.
+  static String pathFor(KitFrame frame) => '$_dir/${frame.name}.png';
+}
+
+/// A strip repeated along one axis at integer scale, the last repeat clipped.
+///
+/// The class the model is actually good at, and the class [EdgeStrip] already
+/// renders: material where a painted line was.
+enum KitTile {
+  /// Ruled lines, one per page material: the journal, the bench, the chart.
+  ruleJournal,
+  ruleBench,
+  ruleChart,
+
+  /// A pocket divider on the pack (Inventory).
+  pocketRule,
+
+  /// A torn page foot — sealed pages, slips.
+  edgeTorn,
+
+  /// The book's spine, down a page's left edge. **Vertical.**
+  edgeSpine,
+
+  /// The equipment case's strap.
+  caseStrap,
+
+  /// The station shelf (Craft) and the command rail's ground (Combat).
+  railShelf,
+  railStrap,
+
+  /// The nav strap's stitch welt — and, at the same period and scale, the
+  /// header shelf's. One chassis, one stitch (DIR-15 section 2).
+  navWelt,
+
+  /// The docked sheet's top edge (World).
+  sheetEdge,
+}
+
+/// A longitudinal tile: its repeat period, its thickness, and which way it runs.
+@immutable
+final class KitStrip {
+  const KitStrip({
+    required this.assetPath,
+    required this.nativeWidth,
+    required this.nativeHeight,
+    this.scale = 2,
+    this.axis = Axis.horizontal,
+  }) : assert(scale >= 1, 'integer scale only (L-18)'),
+       assert(nativeWidth > 0 && nativeHeight > 0);
+
+  final String assetPath;
+
+  /// The tile's own width — its repeat period in source pixels when it runs
+  /// horizontally.
+  final int nativeWidth;
+  final int nativeHeight;
+  final int scale;
+
+  /// Horizontal strips repeat left to right and are [thickness] tall; vertical
+  /// strips repeat top to bottom and are [thickness] wide.
+  final Axis axis;
+
+  /// The strip's extent across its run, in logical pixels. **Reserve this
+  /// unconditionally** — the same doctrine as `EdgeStrip.displayHeight`.
+  double get thickness => axis == Axis.horizontal
+      ? (nativeHeight * scale).toDouble()
+      : (nativeWidth * scale).toDouble();
+}
+
+/// Tile to authored strip.
+abstract final class KitTiles {
+  const KitTiles._();
+
+  /// The registry.
+  ///
+  /// `navWelt` is the round's first landed row: a saddle stitch cut from a
+  /// `pixen` leather master, ceiling-clamped, then reduced to its
+  /// best-wrapping 8 x 6 window by the same deterministic search that produced
+  /// the shipped `nav_welt`. Sidecar and recipe:
+  /// `assets/ui/v1/nav/nav_welt_v2.json`.
+  static const Map<KitTile, KitStrip> authored = <KitTile, KitStrip>{
+    KitTile.navWelt: KitStrip(
+      assetPath: 'assets/ui/v1/nav/nav_welt_v2.png',
+      nativeWidth: 8,
+      nativeHeight: 6,
+    ),
+  };
+
+  /// What each strip is **declared** to cost across its run, art or no art.
+  static const Map<KitTile, double> _declaredThickness = <KitTile, double>{
+    KitTile.ruleJournal: 8,
+    KitTile.ruleBench: 8,
+    KitTile.ruleChart: 8,
+    KitTile.pocketRule: 12,
+    KitTile.edgeTorn: 12,
+    KitTile.edgeSpine: 32,
+    KitTile.caseStrap: 32,
+    KitTile.railShelf: 72,
+    KitTile.railStrap: 40,
+    KitTile.navWelt: 12,
+    KitTile.sheetEdge: 12,
+  };
+
+  static KitStrip? of(KitTile tile) => authored[tile];
+
+  /// The room [tile] takes across its run. Spend it whether or not the raster
+  /// decodes, so a strip that fails to load changes the material and not the
+  /// layout.
+  static double thicknessFor(KitTile tile) =>
+      authored[tile]?.thickness ?? _declaredThickness[tile] ?? 0;
+
+  /// Which way [tile] runs — declared here so a caller can lay out against a
+  /// row that has no art yet.
+  static Axis axisFor(KitTile tile) => switch (tile) {
+    KitTile.edgeSpine => Axis.vertical,
+    _ => Axis.horizontal,
+  };
+}
+
+/// A discrete ornament Flutter positions and draws once at integer scale.
+enum KitMark {
+  /// The ornate rule under a name — Character, an encounter species plate, a
+  /// chapter opening.
+  ruleOrnateA,
+  ruleOrnateB,
+
+  /// The two ends of a [KitTile] rule. **Authored, never mirrored**: a mirror
+  /// flips the key light to the upper right.
+  ruleCapLeft,
+  ruleCapRight,
+
+  /// Combat's gauge hangers, under the stage frame's lower band.
+  gaugeBracketLeft,
+  gaugeBracketRight,
+
+  /// The leather tab and the grip on the World peek strip and its sheet.
+  peekTab,
+  sheetGrip,
+
+  /// The ends of a quiet underlined action.
+  btnQuietCapLeft,
+  btnQuietCapRight,
+}
+
+/// A discrete ornament: drawn once, never tiled, never stretched.
+@immutable
+final class KitOrnamentArt {
+  const KitOrnamentArt({
+    required this.assetPath,
+    required this.nativeWidth,
+    required this.nativeHeight,
+    this.scale = 2,
+  }) : assert(scale >= 1, 'integer scale only (L-18)');
+
+  final String assetPath;
+  final int nativeWidth;
+  final int nativeHeight;
+  final int scale;
+
+  Size get size =>
+      Size((nativeWidth * scale).toDouble(), (nativeHeight * scale).toDouble());
+}
+
+/// Mark to authored ornament.
+///
+/// Empty for the same measured reason as [KitFrames]; every consumer reserves
+/// [KitMarks.sizeFor] and draws its own fallback until a row lands.
+abstract final class KitMarks {
+  const KitMarks._();
+
+  static const String _dir = 'assets/ui/v1/kit';
+
+  static const Map<KitMark, KitOrnamentArt> authored =
+      <KitMark, KitOrnamentArt>{};
+
+  static const Map<KitMark, Size> _declaredSize = <KitMark, Size>{
+    KitMark.ruleOrnateA: Size(192, 16),
+    KitMark.ruleOrnateB: Size(192, 16),
+    KitMark.ruleCapLeft: Size(24, 8),
+    KitMark.ruleCapRight: Size(24, 8),
+    KitMark.gaugeBracketLeft: Size(96, 32),
+    KitMark.gaugeBracketRight: Size(96, 32),
+    KitMark.peekTab: Size(96, 24),
+    KitMark.sheetGrip: Size(48, 12),
+    KitMark.btnQuietCapLeft: Size(32, 48),
+    KitMark.btnQuietCapRight: Size(32, 48),
+  };
+
+  static KitOrnamentArt? of(KitMark mark) => authored[mark];
+
+  static Size sizeFor(KitMark mark) =>
+      authored[mark]?.size ?? _declaredSize[mark] ?? Size.zero;
+
+  static String pathFor(KitMark mark) => '$_dir/${mark.name}.png';
+}

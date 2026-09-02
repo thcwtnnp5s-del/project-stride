@@ -146,6 +146,12 @@ flutter:
     # the nav bar's welt where a 1 px border was, and the header's shelf
     # where the 24 %-alpha region hairline was.
     - assets/ui/v1/nav/nav_welt.png
+    # EPO03 — the welt re-cut as the header shelf's own stitch (DIR-15 §2), 8 × 6
+    # at ×2 = 12 dp, the shelf's exact height, so the bar and the header are
+    # terminated by one chassis rather than by two different edges. nav_welt
+    # (8 × 4) stays declared until the tab bar's rebuild is accepted on the
+    # device; it is the fallback the registry reverts to.
+    - assets/ui/v1/nav/nav_welt_v2.png
     - assets/ui/v1/header/header_shelf.png
     # The notable-card grain (FMPO02 wave 2, PROD-REWARDS). A 32² seamless
     # parchment tile drawn under a card body only when the result is notable.
