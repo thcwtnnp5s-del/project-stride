@@ -1366,6 +1366,53 @@ for (const cls of ['plate', 'jerkin', 'coat']) {
   emit(`sprite/traveler_south_${cls}.png`, encode(raster));
 }
 
+// ------------------------------------------------------------ VAWO01 reward
+/**
+ * THE MARKS A PAYOFF IS MADE OF (`REWARD_ROUND_RECORD_01.md`).
+ *
+ * The universal result card carried no authored art of its own: an item icon,
+ * three lines of type, and a border that changed width when the result was
+ * notable. Crafting a Bronze Sword and cooking Herb Broth were the same
+ * picture with different words, which is the owner's "not casino-like, but it
+ * must feel more significant" problem stated from the other side.
+ *
+ * Ten marks, on the two canvases the icon families already use — 24² for a
+ * mark that sits beside a line of type (the skill-icon convention) and 48² for
+ * a plate, badge or seal that stands on its own (the item-icon convention).
+ * Both ship at ×1, so a mark keeps the same logical footprint in every row.
+ *
+ * The corner ornament is the one that does the heavy lifting. `DECISIONS/0029`
+ * permits a raster in a panel's outer edge, as a tiled surface, or as **a
+ * discrete ornament Flutter positions** — and after the frame batch failed to
+ * produce a nine-patch worth shipping, the ornament is the sanctioned
+ * mechanism that was left. It came back on an opaque white ground and was
+ * keyed by flooding near-white from the far corner, then cropped to the
+ * bracket: 596 px removed, nothing drawn.
+ */
+const VAWO_REWARD_SRC = path.join(EXPLORE, 'VAWO01', 'out', 'reward');
+const VAWO_REWARD = [
+  ['mark_exp', 24],
+  ['mark_skill_xp', 24],
+  ['mark_bonus_yield', 24],
+  ['mark_knowledge', 24],
+  ['ornament_corner', 32],
+  ['plate_level_up', 48],
+  ['badge_milestone', 48],
+  ['marker_profession', 48],
+  ['seal_contract', 48],
+  ['seal_project', 48],
+];
+for (const [id, size] of VAWO_REWARD) {
+  const raster = png.load(path.join(VAWO_REWARD_SRC, `${id}.png`));
+  if (raster.width !== size || raster.height !== size) {
+    throw new Error(
+      `reward ${id}: expected ${size}x${size}, got ` +
+        `${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`reward/${id}.png`, encode(raster));
+}
+
 // ----------------------------------------------- VAWO01 combat gear variants
 /**
  * THE TRAVELER FIGHTS WITH THE WEAPON HE IS ACTUALLY HOLDING.

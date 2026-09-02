@@ -35,6 +35,7 @@ import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ContentId, Rarity;
 
 import '../icons/pixel_icons.dart';
+import '../icons/reward_art.dart';
 import '../theme/rarity_style.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
@@ -129,7 +130,8 @@ class RewardBeat extends StatelessWidget {
     // carries is replaced by size, which is the hierarchy the layer wants.
     final TextStyle titleStyle = switch (tier) {
       RewardTier.minor => StrideType.sub,
-      RewardTier.medium => inLayer ? StrideType.cardTitle : StrideType.sectionHeading,
+      RewardTier.medium =>
+        inLayer ? StrideType.cardTitle : StrideType.sectionHeading,
       RewardTier.major => StrideType.cardTitle,
     };
 
@@ -169,8 +171,9 @@ class RewardBeat extends StatelessWidget {
           const SizedBox(height: StrideSpace.s2),
           Text(
             line,
-            style: (tier == RewardTier.minor ? StrideType.micro : StrideType.sub)
-                .copyWith(color: StrideColors.textSecondary),
+            style:
+                (tier == RewardTier.minor ? StrideType.micro : StrideType.sub)
+                    .copyWith(color: StrideColors.textSecondary),
             maxLines: 3,
           ),
         ],
@@ -204,10 +207,7 @@ class RewardBeat extends StatelessWidget {
         borderRadius: StrideRadius.inner,
         border: tier == RewardTier.minor
             ? null
-            : Border.all(
-                color: frame,
-                width: tier == RewardTier.major ? 2 : 1,
-              ),
+            : Border.all(color: frame, width: tier == RewardTier.major ? 2 : 1),
       ),
       child: body,
     );
@@ -254,6 +254,18 @@ class LevelUpCard extends StatelessWidget {
       eyebrow: 'LEVEL UP',
       title: '${name.toUpperCase()} LEVEL $level',
       accent: accent,
+      // The level-up plate, in the slot a crafted item's icon already uses.
+      // Every level-up in the game routes through this beat, so the mark
+      // lands here once rather than at each of the call sites that raise one
+      // (VAWO01). Decorative: the eyebrow and title state the fact.
+      icon: const ExcludeSemantics(
+        child: PixelAsset(
+          assetPath: RewardArt.plateLevelUp,
+          nativeWidth: 48,
+          nativeHeight: 48,
+          scale: 1,
+        ),
+      ),
       lines: <String>[?why],
       child: unlocked.isEmpty
           ? null
@@ -398,8 +410,7 @@ class RewardItemRow extends StatelessWidget {
     // keeps its rarity frame — the ink and the word say the item is worth
     // looking at, and the frame is the only box the layer allows inside
     // itself (finding E).
-    final bool plain =
-        rarity == null || rarity == Rarity.common;
+    final bool plain = rarity == null || rarity == Rarity.common;
     final Widget row = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

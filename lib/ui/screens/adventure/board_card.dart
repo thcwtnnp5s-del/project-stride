@@ -25,6 +25,7 @@ import '../../components/data_display.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/rarity_item_title.dart';
 import '../../components/reward_beat.dart';
+import '../../icons/reward_art.dart';
 import '../../components/reward_layer.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/panel_skin.dart';
@@ -74,6 +75,7 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
         tier: RewardTier.medium,
         accent: _TypeChip.rewardInkOf(job.contractClass),
         beats: contractRewardBeats(report, job.contractClass),
+        emblem: RewardArt.sealContract,
       );
       return;
     }
@@ -109,6 +111,9 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
         tier: report.projectCompleted ? RewardTier.major : RewardTier.medium,
         accent: StrideColors.accentSteps,
         beats: projectRewardBeats(report),
+        // Only a *finished* project earns the seal; a stage is progress, and
+        // stamping it would spend the mark before the moment it names.
+        emblem: report.projectCompleted ? RewardArt.sealProject : null,
       );
       return;
     }

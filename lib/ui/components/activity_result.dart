@@ -42,6 +42,7 @@ import 'package:stride_core/stride_core.dart' show ContentId, Rarity;
 
 import '../../audio/audio_controller.dart';
 import '../icons/pixel_icons.dart';
+import '../icons/reward_art.dart';
 import '../state/audio_scope.dart';
 import '../theme/rarity_style.dart';
 import '../theme/stride_colors.dart';
@@ -142,7 +143,7 @@ class ActivityResultCard extends StatelessWidget {
     final Color skillInk = result.skill == null
         ? StrideColors.textSecondary
         : StrideColors.forSkill(result.skill!);
-    return Container(
+    final Widget card = Container(
       constraints: const BoxConstraints(maxWidth: 361),
       padding: const EdgeInsets.all(StrideSpace.blockPadding),
       decoration: BoxDecoration(
@@ -190,18 +191,18 @@ class ActivityResultCard extends StatelessWidget {
                 ),
                 if (result.bonusQuantity > 0) ...<Widget>[
                   const SizedBox(height: StrideSpace.s2),
-                  Text(
-                    '+${result.bonusQuantity} bonus yield',
-                    style: StrideType.micro.copyWith(
-                      color: StrideColors.positiveReady,
-                    ),
+                  _MarkedLine(
+                    mark: RewardArt.markBonusYield,
+                    text: '+${result.bonusQuantity} bonus yield',
+                    ink: StrideColors.positiveReady,
                   ),
                 ],
                 if (result.xp > 0 && result.skillName != null) ...<Widget>[
                   const SizedBox(height: StrideSpace.s2),
-                  Text(
-                    '+${result.xp} ${result.skillName} XP',
-                    style: StrideType.micro.copyWith(color: skillInk),
+                  _MarkedLine(
+                    mark: RewardArt.markExp,
+                    text: '+${result.xp} ${result.skillName} XP',
+                    ink: skillInk,
                   ),
                 ],
               ],
@@ -210,7 +211,84 @@ class ActivityResultCard extends StatelessWidget {
         ],
       ),
     );
+    if (!notable) return card;
+    // The notable escalation is **material, not motion** — a bronze bracket
+    // in two corners and the rarity's ink, nothing that flashes or counts up.
+    // `DECISIONS/0029` allows a raster as a discrete ornament Flutter
+    // positions, which is what this is; it carries no word, number or state,
+    // and it is drawn outside the content box so it can never sit under type.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        card,
+        const Positioned(top: 0, left: 0, child: _Bracket(quarter: 0)),
+        const Positioned(bottom: 0, right: 0, child: _Bracket(quarter: 2)),
+      ],
+    );
   }
+}
+
+/// One reward line: its authored mark, then the words.
+///
+/// The mark is 24 logical px and the line is `micro`, so the row is
+/// mark-height. That is deliberate — the mark is the thing the eye catches on
+/// a card that scrolls past, and the words are the detail underneath it.
+class _MarkedLine extends StatelessWidget {
+  const _MarkedLine({
+    required this.mark,
+    required this.text,
+    required this.ink,
+  });
+
+  final String mark;
+  final String text;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: <Widget>[
+      // Decorative: the words beside it already say the whole fact, so a
+      // screen reader must not hear it twice.
+      ExcludeSemantics(
+        child: PixelAsset(
+          assetPath: mark,
+          nativeWidth: 24,
+          nativeHeight: 24,
+          scale: 1,
+        ),
+      ),
+      const SizedBox(width: StrideSpace.s6),
+      Flexible(
+        child: Text(text, style: StrideType.micro.copyWith(color: ink)),
+      ),
+    ],
+  );
+}
+
+/// One corner of the notable card's bracket, rotated into place.
+///
+/// One authored asset, four possible orientations — a transform of a drawing,
+/// never four drawings (`RULES.md` A-2).
+class _Bracket extends StatelessWidget {
+  const _Bracket({required this.quarter});
+
+  /// Quarter turns clockwise from the authored top-left orientation.
+  final int quarter;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: RotatedBox(
+      quarterTurns: quarter,
+      child: const PixelAsset(
+        assetPath: RewardArt.ornamentCorner,
+        nativeWidth: 32,
+        nativeHeight: 32,
+        scale: 1,
+      ),
+    ),
+  );
 }
 
 /// The overlay host: [child] is the surface; the latest result floats over
@@ -359,8 +437,8 @@ class _ActivityResultHostState extends State<ActivityResultHost>
                 // Entrance rise/fade-in, then the hold, then the fade-out.
                 // Reduced motion: full presence for the whole life — the
                 // information never depends on the motion.
-                final double riseMs =
-                    ActivityResultHost.rise.inMilliseconds.toDouble();
+                final double riseMs = ActivityResultHost.rise.inMilliseconds
+                    .toDouble();
                 final double fadeStart =
                     totalMs - ActivityResultHost.fade.inMilliseconds;
                 double opacity = 1;

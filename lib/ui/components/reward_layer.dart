@@ -42,6 +42,7 @@ import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'data_display.dart';
+import 'pixel_asset.dart';
 import 'reward_beat.dart';
 
 /// Raises [beats] over the current route and holds them until the player
@@ -61,6 +62,7 @@ Future<void> showRewardLayer(
   VoidCallback? onContinue,
   Widget? trailing,
   String? announcement,
+  String? emblem,
 }) {
   final bool reduced = MediaQuery.disableAnimationsOf(context);
   // The one haptic per payoff, scaled to the layer's own tier — here, so no
@@ -100,6 +102,7 @@ Future<void> showRewardLayer(
           accent: accent,
           continueLabel: continueLabel,
           trailing: trailing,
+          emblem: emblem,
           onContinue: () {
             onContinue?.call();
             Navigator.of(ctx).pop();
@@ -160,6 +163,7 @@ class RewardLayer extends StatelessWidget {
     this.accent,
     this.continueLabel = 'Continue',
     this.trailing,
+    this.emblem,
   });
 
   /// Decides the frame weight and the eyebrow rule: MEDIUM a 1 px frame,
@@ -176,6 +180,17 @@ class RewardLayer extends StatelessWidget {
 
   final String continueLabel;
   final VoidCallback onContinue;
+
+  /// The authored mark this payoff *is* — a level-up plate, a milestone
+  /// badge, a contract or project seal (`RewardArt`, VAWO01). 48 logical px,
+  /// centred above the beats.
+  ///
+  /// Null draws nothing, which is the honest answer for a payoff the art has
+  /// no mark for: the layer's frame and its words already carry the moment,
+  /// and a stand-in emblem would say something untrue about what happened.
+  /// Decorative — the beats beneath state the fact, so a screen reader must
+  /// not hear it twice.
+  final String? emblem;
 
   /// A second control beside Continue — `Equip`, for a finished piece of
   /// gear. Secondary placement: the layer's one job is to be acknowledged.
@@ -238,8 +253,21 @@ class RewardLayer extends StatelessWidget {
                           child: StaggeredReveal(
                             gap: StrideSpace.s10,
                             children: <Widget>[
+                              if (emblem case final String mark)
+                                Center(
+                                  child: ExcludeSemantics(
+                                    child: PixelAsset(
+                                      assetPath: mark,
+                                      nativeWidth: 48,
+                                      nativeHeight: 48,
+                                      scale: 1,
+                                    ),
+                                  ),
+                                ),
                               for (int i = 0; i < beats.length; i++)
-                                i == 0 ? beats[i] : _Ruled(child: beats[i]),
+                                i == 0 && emblem == null
+                                    ? beats[i]
+                                    : _Ruled(child: beats[i]),
                             ],
                           ),
                         ),
