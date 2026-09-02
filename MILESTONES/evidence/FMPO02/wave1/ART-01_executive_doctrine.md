@@ -17,21 +17,20 @@ about that screen**, built in the gather stage's proven three planes, and the in
 what sits *beneath* the picture. Craft gets a workshop; Inventory a pack laid open; Character
 the traveller in a place; Skills a worked surface; Encounter a lit clearing with a creature in
 it, not a blank rectangle holding a small wolf; Combat gets its stage back by demoting the
-command block from a framed panel to plain surface. Corollary, and the hardest instruction
-here: **subtract chrome.** The chassis sits on all six `PanelRole`s today; most of what it
-decorates should end with no raster edge at all, and removing frames is delivered work.
+command block from a framed panel to plain surface. Corollary, and the hardest instruction here:
+**subtract chrome.** The chassis sits on all six `PanelRole`s today; most of what it decorates
+should end with no raster edge at all, and removing frames is delivered work.
 
 **The enforcing test — every screen, every family, every review:** render at 393x852, view at
 25% or from arm's length. If it still reads as *a list of rectangles*, the art has not landed,
-whatever the asset quality. Six screens must read as six places in one world, not six borders
-around one list.
+whatever the quality. Six screens must read as six places in one world, not six borders on a list.
 
 ## 2. Production order — visible impact per generation
 
-**Track W runs continuously beside everything, from day one:** WORLD terrain. It is the owner's
-#1 complaint and cannot be front-loaded, because the repair mandate is single-region,
-device-evidenced and never batched — rate-limited by process, not budget. Start it first;
-expect it to finish last. Then, in strict order:
+**Track W runs continuously beside everything, from day one:** WORLD terrain. It is the owner's #1
+complaint and cannot be front-loaded, because the repair mandate is single-region,
+device-evidenced and never batched — rate-limited by process, not budget. Start it first; expect
+it to finish last. Then, in strict order:
 
 1. **UI scene architecture** — fewest assets, most pixels changed: picture plates, surfaces,
    header bands, demoted command block, encounter plate.
@@ -43,7 +42,7 @@ expect it to finish last. Then, in strict order:
    shortage. Stage first, roster second.
 5. **World life** — dragons, settlements, caravans, ambient magic: enormous payoff, one screen.
 6. **Gather naturalisation** — architecture approved; correct only the over-staged scenes.
-7. **Rewards** — already close. Polish, not rebuild.
+   **Rewards** last — already close. Polish, not rebuild.
 
 ## 3. Cross-family consistency rules — binding on every generation
 
@@ -56,8 +55,8 @@ expect it to finish last. Then, in strict order:
   alpha anywhere (`0<a<255` is guard-rejected).
 - **Outline.** Subjects — items, creatures, figures, props, ornaments — carry a selective outline
   one step darker than the *local hue*, never black, opened on the key side. Backdrop planes carry
-  **no** outline and separate by value clustering alone. This asymmetry is why the mine scene
-  reads: only the subject is drawn round. Do not outline scenery; do not un-outline subjects.
+  **no** outline and separate by value clustering alone: this asymmetry is why the mine scene
+  reads. Do not outline scenery; do not un-outline subjects.
 - **Light and shading.** One sun, upper-left, ~45°, in every family, forever; every free-standing
   subject sits on a contact shadow in its plane's own ground shade. The item sheet lights the
   sword from the left and the chestplate from above — that alone makes good icons look *found*.
@@ -78,21 +77,21 @@ expect it to finish last. Then, in strict order:
 
 **F1 — Frame inflation.** The swarm answers "too repetitive" with more borders; exactly how
 4d9a81f failed. **R1 — one framed element per screen, maximum.** The screen's picture gets the
-raster edge; everything else is surface, type and spacing. A second border is answered with a
-surface, or with nothing.
+raster edge; everything else is surface, type and spacing, and a second border is answered with
+a surface or with nothing.
 
 **F2 — Style drift across parallel families.** Eight directors generating at once produce eight
 houses; the item sheet already mixes outlines, light direction and fidelity inside one set.
-**R2 — the Anchor Sheet governs every call.** Before any family generates volume, one PNG
-carrying the palette anchor, outline rule, sun angle, 3-value ramp and one exemplar per family
-is committed **and pushed** (PixelLab reaches only `raw.githubusercontent.com` and its own
-results). Every `create_image_*` cites it or reuses its prompt stem verbatim.
+**R2 — the Anchor Sheet governs every call.** Before any family generates volume, one PNG carrying
+the palette anchor, outline rule, sun angle, 3-value ramp and one exemplar per family is committed
+**and pushed** (PixelLab reaches only `raw.githubusercontent.com` and its own results); every
+`create_image_*` cites it or reuses its prompt stem verbatim.
 
 **F3 — Volume without composition.** 2,400 generations spent on more, better-drawn boxes: more
 icons, creatures, overlays — same screens. **R3 — composition first, then volume.** A family's
-first spend is the staging asset that changes its screen from across the room, and no family
-spends past **40%** of its allocation until one 393x852 device render of its screen passes the
-squint test in §1. Failing it returns the family to planning, not to more generations.
+first spend is the staging asset that changes its screen from across the room, and none spends
+past **40%** of its allocation until one 393x852 device render of its screen passes the squint
+test in §1. Failing it returns the family to planning, not to more generations.
 
 ## 5. Generation allocation — 2,400
 
@@ -108,8 +107,7 @@ squint test in §1. Failing it returns the family to planning, not to more gener
 | **Reserve** | **240** | re-rolls, atlas repair-loop retries, anchor-pass failures |
 | **Total** | **2,400** | |
 
-Audio gets **0**: `STABILITY_API_KEY` is unset, so no audio can be produced this session
-(GOV-06). Do not spend art generations against it.
+Audio gets **0**: `STABILITY_API_KEY` is unset, so none can be produced this session (GOV-06).
 
 ## 6. Standing orders
 
@@ -119,5 +117,4 @@ Audio gets **0**: `STABILITY_API_KEY` is unset, so no audio can be produced this
 - No coins, timers, locks, durability, cooldowns, FOMO, dailies or streaks — a frame reading as a
   slot or a meter is refused however well it is drawn.
 - Text is never raster. With every frame asset deleted, the app must still lay out, read, navigate
-  and pass its accessibility assertions.
-- PixelLab authors; we art-direct, select and transform deterministically.
+  and pass its accessibility assertions. PixelLab authors; we art-direct and transform.

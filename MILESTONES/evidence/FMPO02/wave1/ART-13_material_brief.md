@@ -67,38 +67,20 @@ Measured (CIE L*, D65): `surfaceCard` L*=10.55. Current deeps sit only 1.6–4.7
 | Epic | `#A987D8` | dark-wood corner inlay |
 | Legendary | `#E0A63F` | brass corner inlay (echoes `rewardLightInk`, never gold-banded — L-19) |
 
-Ornament, not a second frame: same chassis, a small discrete corner asset
-swapped by rank, matching PIXELLAB_UI_PRODUCTION_PLAN's "discrete ornament"
-raster-chrome category. No new hex — all five inks are existing tokens.
+Ornament, not a second frame: same chassis, a small discrete corner asset swapped by rank, matching PIXELLAB_UI_PRODUCTION_PLAN's "discrete ornament" raster-chrome category. No new hex — all five inks are existing tokens.
 
 ## 5. PixelLab palette-anchoring method
 
-- **Surfaces** (the eleven ramps above): generate via `create_tiles_pro` or
-  `create_image_pixen` with `color_image` set to a small anchor swatch (a
-  committed, pushed 8×N px PNG holding that family's ramp, shadow→highlight)
-  so PixelLab's own shading never invents an off-ramp tone. Follow every
-  surface generation with `reduce_colors` snapped to the same ramp (N=4 or 5) —
-  the deterministic remap that makes "grain not pattern" enforceable, not
-  hoped-for.
-- **Sprites/props/creatures** (content art, not chrome): no restrictive
-  `color_image` — L-18/A-1 already governs those through the accepted
-  master's measured ramp at packaging time. Forcing the chassis ramp onto a
-  creature would flatten it into UI chrome.
-- Order per surface: generate tile → `reduce_colors` → tile-seam check (§3.5,
-  unchanged) → palette guard.
+- **Surfaces** (the eleven ramps above): generate via `create_tiles_pro` or `create_image_pixen` with `color_image` set to a small anchor swatch (a committed, pushed 8×N px PNG holding that family's ramp, shadow→highlight) so PixelLab's own shading never invents an off-ramp tone. Follow every surface generation with `reduce_colors` snapped to the same ramp (N=4 or 5) — the deterministic remap that makes "grain not pattern" enforceable, not hoped-for.
+- **Sprites/props/creatures** (content art, not chrome): no restrictive `color_image` — L-18/A-1 already governs those through the accepted master's measured ramp at packaging time. Forcing the chassis ramp onto a creature would flatten it into UI chrome.
+- Order per surface: generate tile → `reduce_colors` → tile-seam check (§3.5, unchanged) → palette guard.
 
 ## 6. Guard extension
 
-`Scripts/art/check-art-palette.js` `CHROME` currently lists
-`assets/ui/v1/{frame,surface,ornament}`. Add the new material directory these
-ramps will populate:
+`Scripts/art/check-art-palette.js` `CHROME` currently lists `assets/ui/v1/{frame,surface,ornament}`. Add the new material directory these ramps will populate:
 
 ```js
 const CHROME = ['assets/ui/v1/frame', 'assets/ui/v1/surface', 'assets/ui/v1/material', 'assets/ui/v1/ornament'];
 ```
 
-`assets/ui/v1/material/<family>/` holds the eleven tiles plus anchor swatches
-once committed. No change to `ALL_ART`, `FRAMES`, or teal/alpha/substrate —
-the new directory only needs the ceiling check: these are surfaces, not
-frames, and carry no substrate risk of their own (every family's darkest
-stop is deliberately not `surfaceCard`/`surfaceGround`, per the table above).
+`assets/ui/v1/material/<family>/` holds the eleven tiles plus anchor swatches once committed. No change to `ALL_ART`, `FRAMES`, or teal/alpha/substrate — the new directory only needs the ceiling check: these are surfaces, not frames, and carry no substrate risk of their own (every family's darkest stop is deliberately not `surfaceCard`/`surfaceGround`, per the table above).
