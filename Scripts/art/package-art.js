@@ -3310,6 +3310,15 @@ const FMPO_AMBIENT_STRIPS = [
   ['traveler_coat_bronzepick_mine', 8, 80, false],
   ['traveler_base_bronzepick_mine', 8, 80, false],
   ['traveler_plate_bronzeaxe_woodcut', 8, 80, false],
+  // The steel column: the bronze strips with the tool head recoloured to
+  // dull steel by a text edit (~20 gens each), so an armoured Traveler with a
+  // training tool shows the tool he holds rather than borrowing bronze.
+  ['traveler_plate_steelpick_mine', 8, 80, false],
+  ['traveler_jerkin_steelpick_mine', 8, 80, false],
+  ['traveler_coat_steelpick_mine', 8, 80, false],
+  ['traveler_plate_steelaxe_woodcut', 8, 80, false],
+  ['traveler_jerkin_steelaxe_woodcut', 8, 80, false],
+  ['traveler_coat_steelaxe_woodcut', 8, 80, false],
   ['traveler_plate_forage', 9, 64, true],
   ['traveler_jerkin_forage', 9, 64, true],
   ['traveler_coat_forage', 9, 64, true],
@@ -3348,6 +3357,18 @@ function fmpoStrip(id, frames, width, mirror, dest, footprints) {
 }
 for (const [id, frames] of FMPO_COMBAT_SETS) {
   fmpoStrip(id, frames, 80, false, 'combat', combatFootprints);
+}
+// The armoured busts for the Character folio: the shipped portrait with the
+// garment swapped by a single-frame edit, one per body class, so the face at
+// the top of the sheet wears what the figure below it wears.
+for (const body of ['plate', 'jerkin', 'coat']) {
+  const bust = png.load(
+    path.join(EXPLORE, 'FMPO02', 'out', 'portrait', `traveler_${body}.png`),
+  );
+  if (bust.width !== 64 || bust.height !== 64) {
+    throw new Error(`FMPO02 portrait ${body}: expected 64x64`);
+  }
+  emit(`portrait/traveler_${body}.png`, encode(bust));
 }
 for (const [id, frames, width, mirror] of FMPO_AMBIENT_STRIPS) {
   fmpoStrip(id, frames, width, mirror, 'ambient', ambientFootprints);

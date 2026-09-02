@@ -34,6 +34,7 @@ import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
 import '../../icons/pixel_icons.dart';
+import '../../icons/traveler_art.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -110,7 +111,11 @@ class CharacterScreen extends StatelessWidget {
                   // equipment case.
                   InsetWell.square(
                     contentSize: StrideGeometry.portraitContent,
-                    child: PixelAsset.portrait(PixelIcons.portraitTraveler),
+                    child: PixelAsset.portrait(
+                      // The bust wears the armour the figure wears (FMPO02).
+                      TravelerArt.portraitFor(s.equipmentVisualState) ??
+                          PixelIcons.portraitTraveler,
+                    ),
                   ),
                   const SizedBox(width: StrideSpace.s12),
                   Expanded(

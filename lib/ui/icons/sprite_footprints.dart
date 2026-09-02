@@ -365,6 +365,48 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_traveler_plate_steelpick_mine` — 11 px of contact, 30..40.
+  static const SpriteFootprint ambientTravelerPlateSteelpickMine = SpriteFootprint(
+    left: 30,
+    right: 40,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_steelpick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerJerkinSteelpickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_coat_steelpick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerCoatSteelpickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_plate_steelaxe_woodcut` — 11 px of contact, 27..37.
+  static const SpriteFootprint ambientTravelerPlateSteelaxeWoodcut = SpriteFootprint(
+    left: 27,
+    right: 37,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_steelaxe_woodcut` — 13 px of contact, 37..49.
+  static const SpriteFootprint ambientTravelerJerkinSteelaxeWoodcut = SpriteFootprint(
+    left: 37,
+    right: 49,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_steelaxe_woodcut` — 13 px of contact, 36..48.
+  static const SpriteFootprint ambientTravelerCoatSteelaxeWoodcut = SpriteFootprint(
+    left: 36,
+    right: 48,
+    bottom: 62,
+  );
+
   /// `ambient_traveler_plate_forage` — 11 px of contact, 27..37.
   static const SpriteFootprint ambientTravelerPlateForage = SpriteFootprint(
     left: 27,

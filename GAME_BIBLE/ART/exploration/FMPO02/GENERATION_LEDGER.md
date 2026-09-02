@@ -22,3 +22,7 @@ Every row: what was asked, the tool, the cost class, and the verdict with reason
 
 Per-family ledgers: `ledger/<FAMILY>.md` (written by each PROD lead). Probe verdicts:
 1 ACCEPT (state carries tool; west mine swing keeps armor + pick in 8/8 frames), 2–3 REJECT (busy weave / directional stripe — not ≤6 L*), 4 ACCEPT (fairy castle glade reads at 96×80), 5 ACCEPT (+ wingbeat loop f87ddf27, 9f clean), 6 ACCEPT (forest floor band; handed to PROD-ENEMIES), plus two 32² tile rerolls REJECT (speckle, dither checkerboard).
+| after all PROD leads + integrators | 8,297 | 1,465 | terrain 455 (9 regions + 2 bridges), equipment 909 + 11 brace + 3 re-dress edits (60) + 1 tool swap (20), UI 95, items 72, gather 180, enemies 43, world life 60, rewards 21, combat stage 130, NB2 20 |
+| producer closure (steel column, busts) | — | +~131 | 6 steel-head text edits (~120) on the accepted bronze strips; 4 portrait edits (jerkin, coat accepted first roll; plate re-rolled once for gold→bronze) |
+
+Closing figure recorded at closeout (see §9 of the milestone record).

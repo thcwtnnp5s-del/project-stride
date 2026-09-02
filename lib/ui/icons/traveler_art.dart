@@ -202,6 +202,19 @@ abstract final class TravelerArt {
     'armor.coat': 'assets/art/v1/sprite/traveler_south_coat.png',
   };
 
+  /// Armour class → the bust that wears it (FMPO02): the shipped portrait
+  /// with the garment swapped by a single-frame edit, so the Character
+  /// folio's face and its figure agree.
+  static const Map<String, String> portraitFigures = <String, String>{
+    'armor.plate': 'assets/art/v1/portrait/traveler_plate.png',
+    'armor.jerkin': 'assets/art/v1/portrait/traveler_jerkin.png',
+    'armor.coat': 'assets/art/v1/portrait/traveler_coat.png',
+  };
+
+  /// The bust for [visual], or null for the base portrait the caller owns.
+  static String? portraitFor(EquipmentVisualState visual) =>
+      portraitFigures[_variantOf(visual.armor?.itemId)];
+
   /// The standing figure for [visual] — what the player is wearing.
   ///
   /// The base Traveler when nothing is equipped, or when what is equipped has
@@ -311,6 +324,45 @@ abstract final class TravelerArt {
       footprint: SpriteFootprints.ambientTravelerBaseBronzepickMine,
       canvasWidth: 80,
       strikeFrame: 7,
+    ),
+    // The steel column (FMPO02, late): the bronze strips with the head
+    // recoloured to steel by a text edit, so a training tool on an armoured
+    // body is a training tool. Strike frames are the bronze strips'.
+    'skill.mining|armor.plate|tool.pick.steel': GatherStrip(
+      frames: _strip('traveler_plate_steelpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerPlateSteelpickMine,
+      canvasWidth: 80,
+      strikeFrame: 0,
+    ),
+    'skill.mining|armor.jerkin|tool.pick.steel': GatherStrip(
+      frames: _strip('traveler_jerkin_steelpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerJerkinSteelpickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|armor.coat|tool.pick.steel': GatherStrip(
+      frames: _strip('traveler_coat_steelpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerCoatSteelpickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.woodcutting|armor.plate|tool.axe.steel': GatherStrip(
+      frames: _strip('traveler_plate_steelaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerPlateSteelaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 0,
+    ),
+    'skill.woodcutting|armor.jerkin|tool.axe.steel': GatherStrip(
+      frames: _strip('traveler_jerkin_steelaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerJerkinSteelaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.woodcutting|armor.coat|tool.axe.steel': GatherStrip(
+      frames: _strip('traveler_coat_steelaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerCoatSteelaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 1,
     ),
     'skill.foraging|armor.plate': GatherStrip(
       frames: _forage('plate'),
