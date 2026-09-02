@@ -45,4 +45,28 @@ risks the best painting in the territory for ~20 px of sand.
 
 | # | region / roll | tool | job id | canvas / mask / seed | cost line | verdict | reason |
 |---|---|---|---|---|---|---|---|
-| 3 | S2 roll 1 — the interior sand stripe and the SW wood edge | inpaint_image | 24eb1233-afd0-4d8a-9ecf-63cd3b9c5242 | crop 512x324 @ (128,700) (b2ec6a3, cut from the composite S1 shipped into) / mask 268x284 @ (44,40) / seed 6002 | cost: ~40 generations | _pending_ | Measured first: inside the rect 172-440 x 740-1024 there are only scattered pond/beck pixels and NO sea, so the y 810-870 sand belt here is sand in the middle of the land. Intent: no sea, therefore no beach — heath, gorse, bracken and a beck replace the belt; the wood's straight top edge breaks into bays and copses; the blue-rimmed orchard becomes ordinary broadleaf; machair only at the far right where S1's dune belt starts; the reserved storm-knoll pocket (168-264 x 816-952) kept plain and open for LANDMARKS |
+| 3 | S2 roll 1 — the interior sand stripe and the SW wood edge | inpaint_image | 24eb1233-afd0-4d8a-9ecf-63cd3b9c5242 | crop 512x324 @ (128,700) (b2ec6a3, cut from the composite S1 shipped into) / mask 268x284 @ (44,40) / seed 6002 | cost: ~40 generations | **ACCEPT** | Measured first: inside the rect 172-440 x 740-1024 there are only scattered pond/beck pixels and NO sea, so the y 810-870 sand belt here is sand in the middle of the land. Intent: no sea, therefore no beach — heath, gorse, bracken and a beck replace the belt; the wood's straight top edge breaks into bays and copses; the blue-rimmed orchard becomes ordinary broadleaf; machair only at the far right where S1's dune belt starts; the reserved storm-knoll pocket (168-264 x 816-952) kept plain and open for LANDMARKS |
+
+## S2 — the interior sand stripe and the SW wood edge (ACCEPTED)
+
+| | |
+|---|---|
+| Crop | `src/atlas/S2_crop.png`, origin (128,700), 512×324, cut from the composite S1 shipped into, published at `b2ec6a3` |
+| Inpaint | 268×284 at (44,40) — frozen margins 44 left / 40 top / **200 right** (all of S1's new coast, so PixelLab re-seats against it) / 0 bottom (canvas edge) |
+| Authored rect | atlas **172–440 × 740–1024** · ramps left 32, right 32, top 32, bottom 0 · salt **61** · `coreAuthor: true` (256–440 × 740–768 is core rim) |
+| Mask | 54,013 authorized · 17,931 feathered · 21,528 blocked (all in the frozen margins — `south_strand_e`'s and `flock_south`'s keepouts; only 4,168 zero-alpha px fall inside the authored rect, and those are the ramp edges themselves) |
+| Containment | changed-inside-mask 71,934; changed-outside-mask 4,165 (frozen margin, blocked at packaging); changed bbox = the inpaint rectangle exactly |
+| Goldens re-authored | `south_strand_w` — declared and re-extracted from `raw/atlas/S2_pre_guard.png` in this commit. Registry rect unchanged. |
+| Guards | `package-art.js` green; `--check` **fully green, 1,827 files up to date**; core drift 0; 15 goldens held. `check-art-palette.js` and `check-tile-seam.js` green. |
+| `atlas-qa.js` | repeated 10×10 sprite pairs **0**; orphan flecks 1,017 (the same rect measured 1,370 before — the metric is dominated by the sea's authored white ticks) |
+| **Stripe kill, measured** | sand-family coverage in the old belt **172–440 × 810–870: before 31.9 %, after 2.3 %** |
+| Straight runs | no vertical run ≥14 px anywhere in the rect. Longest horizontal 19 px at y=828 x 172–191 — the ramp meeting the *untouched* old strand at the S2/S3 boundary; S3's rect (0–256) overwrites it. Next: 15 px at y=824 x 392, which is the beck's own bank (looked at ×6: `review/atlas/S2_r1_runs_x6.png`). |
+| Evidence | `review/atlas/S2_before_{fov,x2}.png`, `S2_r1_x2.png`, `S2_preview_{x2,fov_x2}.png`, `S2_r1_runs_x6.png`, `S2_after_{full,x2,fov}.png` |
+
+**Read.** The sand belt that ran across dry land is gone: rough grazing and
+heath, gorse clumps, bracken, boulders and a beck that winds east into the
+marsh. The wood no longer ends on a ruler — bays, promontories and stepping
+copses with lone oaks. The pale blue-rimmed orchard is ordinary broadleaf
+woodland in the map's own greens. The grass pales into machair only where S1's
+dune belt starts, and the S1/S2 join at x≈440 does not read. The reserved
+storm-knoll pocket (168–264 × 816–952) is plain open heath, ready for LANDMARKS.

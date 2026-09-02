@@ -23,6 +23,27 @@
       ],
       "review": "review/atlas/S1_r2_x2.png, S1_preview_x2.png, S1_preview_fov_x2.png, S1_r2_fov_sunward_x2.png, S1_after_*.png",
       "intent": "The delta shore: marsh wets into grey silt in fingers, braided channels converge into one trunk reaching the sea; a broad sand beach with angled dune ridges and machair runs across the middle, one creek cuts it at a rock headland, surf and shallows follow it; the wooded headland sand rim continues as a spit hooking south. Roll 1 (seed 6001) rejected: the flats ran too far south and drowned the Sunward Strand beach."
+    },
+    {
+      "id": "S2",
+      "x": 128,
+      "y": 700,
+      "w": 512,
+      "h": 324,
+      "salt": 61,
+      "status": "accepted",
+      "job": "24eb1233-afd0-4d8a-9ecf-63cd3b9c5242",
+      "seed": 6002,
+      "tool": "inpaint_image",
+      "cost": 40,
+      "atlas": "172-440 x 740-1024",
+      "team": "south",
+      "coreAuthor": true,
+      "reauthorizes": [
+        "south_strand_w"
+      ],
+      "review": "review/atlas/S2_r1_x2.png, S2_preview_x2.png, S2_preview_fov_x2.png, S2_after_*.png",
+      "intent": "No sea reaches this ground, so no beach: the interior sand belt becomes rough grazing, heath, gorse, bracken, boulders and a winding beck; the SW wood breaks out of its straight top edge into bays and stepping copses; the blue-rimmed orchard becomes ordinary broadleaf; machair only at the far right where S1 dune belt begins; the reserved storm-knoll pocket left plain."
     }
   ]
 }
