@@ -1,0 +1,41 @@
+{
+  "comment": "EPO03 PROD-WORLD-NORTH pending regions (never a manifest). Territory 0-600 x 0-300. x,y,w,h = crop origin/size on the 1024^2 atlas; rect = authored rect in CROP coords (half-open; a coordinate outside [0,w)/[0,h) is the canvas edge, ramp 0); ramps 24 free / 32 texture change, one-sided from the rect edge, width jittered +/-60%; inpaint = the rect handed to inpaint_image in crop coords (its edge equals the rect edge). Salts 40-59 are NORTH's. coreAuthor: true wherever the rect reaches (256..768)^2 or its rim (DECISIONS/0033).",
+  "regions": [
+    {
+      "id": "NA",
+      "x": 0,
+      "y": 176,
+      "w": 316,
+      "h": 164,
+      "atlas": "0-276 x 216-300",
+      "rect": { "x0": -24, "y0": 40, "x1": 276, "y1": 124 },
+      "ramps": { "left": 0, "right": 32, "top": 32, "bottom": 32 },
+      "inpaint": { "x": 0, "y": 40, "w": 276, "h": 84 },
+      "salt": 40,
+      "seed": 0,
+      "status": "pending",
+      "coreAuthor": true,
+      "reauthorizes": [],
+      "intent": "NW snowline RECOMPOSE (DIR-01 failure #4): the drifted snow of N1/GAP comes down onto the W2 foothill meadow and the core wood as altitude, not as a cut-line - melt tongues and drift lobes between rock knolls, a boulder moraine at the snow's foot, bare ground and bracken under the last drifts, firs thinning upward to rime-flagged singles, the meltwater beck running south; palette cooling green -> grey -> blue-white.",
+      "note": "Left is the canvas edge (x0=-24, ramp 0). Frozen margins: top 40 (atlas 176-216, N1 interior), right 40 (atlas 276-316, the core canopy), bottom 40 (atlas 300-340, W2 meadow and its beck). The rect reaches x=276 - through the A-4 rim (256-276) to the hard-core wall - so the join with the treeline region NB is authored by a 20 px rect overlap instead of two ramps meeting on the x=256 lattice (the NB1 lesson). coreAuthor: true for that rim strip. Top ramp 32 starts at 216 so N1's interior north of ~248 is kept; bottom ramp 32 fades out at y=300, the edge NORTH paints and hands to WEST (DIR-01). No golden within 44 px: nearest is roadjoin_corridor_west at y=480."
+    },
+    {
+      "id": "NB",
+      "x": 216,
+      "y": 186,
+      "w": 224,
+      "h": 154,
+      "atlas": "256-400 x 226-300",
+      "rect": { "x0": 40, "y0": 40, "x1": 184, "y1": 114 },
+      "ramps": { "left": 32, "right": 44, "top": 32, "bottom": 32 },
+      "inpaint": { "x": 40, "y": 40, "w": 144, "h": 74 },
+      "salt": 41,
+      "seed": 0,
+      "status": "pending",
+      "coreAuthor": true,
+      "reauthorizes": [],
+      "intent": "Core treeline RETOUCH (DIR-01 KEEP list, downgraded to RETOUCH; DIR-02 FOREST->SNOW): the canopy edge on its near-straight run at y~265-275 breaks upward into fingers with snow reaching down between them; the gridded outlier conifers become an uneven thinning; the honeycomb remnant at ~275-345 x 228-250 is painted out; N2's crag and the Frozen Shelf stay.",
+      "note": "Cut from the composite AFTER NA ships, so NA's accepted terrain sits frozen in the left margin (216-256) and the rect overlaps NA's rect by 20 px (256-276). coreAuthor: true - the rect lies in the A-4 rim (256-276) and the hard core (276+). Bottom at y=300 so the 32 px bottom ramp (268-300) lies in uniform canopy, not on the canopy/snow edge it re-authors; The Longwood (316,296) stays under forest. Right edge x=400 is the west edge of the frostmere_north_wall golden (400-560 x 256-276): the mask never enters it, so it is NOT declared and stays byte-exact - the builder's 20 px keepout + 24 px ramp zeroes 380-400 and fades 356-380; the region's own right ramp is widened to 44 so its +/-60% wander, not the straight keepout gradient, sets where the commit contour falls. Top margin 186-226 freezes N2's crag; the ice-tower foundation 412-540 x 96-224 (LANDMARKS) is outside the crop except a frozen sliver at 412-440 x 186-224."
+    }
+  ]
+}
