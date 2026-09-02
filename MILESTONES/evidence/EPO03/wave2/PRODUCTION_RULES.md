@@ -127,6 +127,44 @@ and move on); no economy or step-cost change; no FOMO, streaks, decay,
 monetization; no background Health; no reserved teal outside step figures;
 the L* ceiling on chrome; every session command call site preserved.
 
+## 2a. Chrome art: what the tool can and cannot do (measured, 2026-09-02)
+
+The kit owner spent 32 rolls on flat tileable interface chrome and shipped
+one. Do not re-learn this at your own cap’s expense.
+
+**`create_image_pixen` reliably fails on flat chrome at 32–128 px.** Its four
+failure modes are tool limits, not prompt faults, and a re-roll does not fix
+any of them:
+
+- it draws the piece in **perspective** — a foreshortened box whose four
+  sides differ, so no nine-patch can be cut from it;
+- it puts a **screw head or bolt at each corner** (the stud register the
+  material brief forbids by name);
+- asked for a **well**, it draws an object sitting inside the well; a well is
+  empty by definition;
+- asked for a **sheet to cut tiles from**, it returns the tiles rotated a few
+  degrees off axis, so no axis-aligned window contains one.
+
+Reject those and change strategy — do not spend a second roll on them.
+
+**Brightness over the L\* ceiling is NOT a rejection.** If the drawing is
+right and only the palette is too light, it is a **deterministic tone remap**,
+permitted by `RULES.md` A-2 and with precedent in this repo at commit
+`49c91f9` ("bronze is not gold"). Remap it down and ship it. Marking such a
+roll REJECT throws away a good asset and spends the cap again on its
+replacement.
+
+**When a family matters and pixen has failed twice, change tool, not seed.**
+`create_image_pro` accepts labelled reference images — pass an accepted grain
+(`assets/ui/v1/surface/grain_*.png`) as the style reference, generate larger,
+downscale. It costs 20–40 against pixen’s 1, so budget a small number and
+stop after two failures of the same kind.
+
+**Build the Dart structure first.** Every screen’s page model is mostly
+layout on materials that already ship. A screen rebuilt on existing grains
+and painted rules is transformed even if none of its new marks ever land;
+a screen waiting on art is not transformed at all.
+
 ## 9a. Batching, and surviving an interruption
 
 Nineteen concurrent producers exhausted the session usage limit twice on
