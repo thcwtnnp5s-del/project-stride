@@ -1,0 +1,27 @@
+{
+  "asset": "rail_shelf",
+  "kind": "picture-class rail, drawn once at x1 and clipped",
+  "corner": null,
+  "band": null,
+  "period": 384,
+  "scale": 1,
+  "master": "raw/ui/rail_shelf_b.png (pixen 384x72, job 62529e80)",
+  "recipe": {
+    "clamp": "tools/ceiling-clamp.js: 4 colours moved under the ceiling, linear-light rescale",
+    "crop": "rows 17-48, the plank front only - the stone wall the model drew above and below it is not the shelf"
+  },
+  "destination": "assets/ui/v1/kit/rail_shelf.png",
+  "canvas": [
+    384,
+    32
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 18,
+    "maxHex": "#797268",
+    "maxL": 0.171,
+    "verdict": "clean"
+  }
+}

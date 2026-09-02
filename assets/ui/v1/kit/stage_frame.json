@@ -1,0 +1,29 @@
+{
+  "asset": "stage_frame",
+  "kind": "nine-patch stage frame, drawn through PixelFrame",
+  "corner": 26,
+  "band": 19,
+  "period": null,
+  "scale": 1,
+  "master": "raw/ui/pro_stageframe_3.png (create_image_pro, job 23986e06, candidate 3 of 4)",
+  "recipe": {
+    "crop": "to content, 128x128 -> 114x114",
+    "geometry": "MEASURED: band 19/19/19/19, spread 0",
+    "corner": "corner 26, NOT 19, proved by tools/ninepatch-proof.js: at 26 the beams run unbroken; at 19 the iron corner cap falls inside the edge strip and repeats along every beam. review/ui/np_stage26.png vs np_stage19.png."
+  },
+  "note": "L-18a: this frames a picture and shares no ground line with the figures inside it, so it adds no third density (DECISIONS/0031).",
+  "destination": "assets/ui/v1/kit/stage_frame.png",
+  "canvas": [
+    114,
+    114
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 32,
+    "maxHex": "#4C5456",
+    "maxL": 0.0855,
+    "verdict": "clean"
+  }
+}

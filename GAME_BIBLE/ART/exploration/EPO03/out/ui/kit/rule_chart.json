@@ -1,0 +1,28 @@
+{
+  "asset": "rule_chart",
+  "kind": "longitudinal rule tile with scale ticks, transparent ground",
+  "corner": null,
+  "band": null,
+  "period": 8,
+  "scale": 2,
+  "tiles": "horizontally only; the last tile is clipped",
+  "master": "raw/ui/rule_chart_b.png (pixen 96x32, job a3bee939)",
+  "recipe": {
+    "key": "tools/rule-cut.js --key 0.16 --band 0.02: vellum keyed out, 119 px of ink kept",
+    "cut": "rows 14-17 (the rule and the ticks standing on it), 8-wide window at x=16, join 0.000"
+  },
+  "destination": "assets/ui/v1/kit/rule_chart.png",
+  "canvas": [
+    8,
+    4
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 1,
+    "maxHex": "#672E0A",
+    "maxL": 0.0486,
+    "verdict": "clean"
+  }
+}

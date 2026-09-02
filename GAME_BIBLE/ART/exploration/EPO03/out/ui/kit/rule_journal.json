@@ -1,0 +1,29 @@
+{
+  "asset": "rule_journal",
+  "kind": "longitudinal rule tile, transparent ground",
+  "corner": null,
+  "band": null,
+  "period": 8,
+  "scale": 2,
+  "tiles": "horizontally only; the last tile is clipped",
+  "master": "raw/ui/rule_journal_b.png (pixen 96x32, job 6ce69c34)",
+  "recipe": {
+    "key": "tools/rule-cut.js --key 0.09: the cream paper keyed to alpha 0, 95 px of ink kept",
+    "cut": "rows 12-17, best-wrapping 8-wide window at x=64, join 0.917"
+  },
+  "note": "The paper is not the asset; the LINE is. A rule is drawn over whatever page material the screen already has.",
+  "destination": "assets/ui/v1/kit/rule_journal.png",
+  "canvas": [
+    8,
+    6
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 2,
+    "maxHex": "#6C4026",
+    "maxL": 0.0699,
+    "verdict": "clean"
+  }
+}

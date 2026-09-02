@@ -152,6 +152,20 @@ flutter:
     # (8 × 4) stays declared until the tab bar's rebuild is accepted on the
     # device; it is the fallback the registry reverts to.
     - assets/ui/v1/nav/nav_welt_v2.png
+    # EPO03 — the kit. Furniture inside a panel, not a panel's own border: two
+    # wells, the combat stage frame, two rule tiles, the station rail and the
+    # folio index tab. The three frames came from create_image_pro with an
+    # accepted grain tile as the style reference — pixen could not draw a flat
+    # axis-aligned hollow frame in 32 attempts and pro did it in the first call.
+    # Geometry is MEASURED per file and mirrored in the .json sidecars beside
+    # them, which are build-time only and deliberately NOT declared here.
+    - assets/ui/v1/kit/inset_well.png
+    - assets/ui/v1/kit/slot_well.png
+    - assets/ui/v1/kit/stage_frame.png
+    - assets/ui/v1/kit/rule_journal.png
+    - assets/ui/v1/kit/rule_chart.png
+    - assets/ui/v1/kit/rail_shelf.png
+    - assets/ui/v1/kit/tab_plate.png
     - assets/ui/v1/header/header_shelf.png
     # The notable-card grain (FMPO02 wave 2, PROD-REWARDS). A 32² seamless
     # parchment tile drawn under a card body only when the result is notable.

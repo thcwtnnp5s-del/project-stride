@@ -1,0 +1,27 @@
+{
+  "asset": "tab_plate",
+  "kind": "discrete ornament, positioned by Flutter - NOT a nine-patch",
+  "corner": null,
+  "band": null,
+  "period": null,
+  "scale": 1,
+  "master": "raw/ui/tab_plate_b.png (pixen 48x32, job d28d7cfa)",
+  "recipe": {
+    "crop": "none needed; already under the ceiling at max #8C614A L=0.1462"
+  },
+  "note": "Measured band T/B/L/R 19/1/28/1 - wildly asymmetric, so it cannot carry one inset and cannot be a nine-patch (the FMPO02 banked_cartouche reject, same shape). It is a fixed index tab, which is the third thing DECISIONS/0029 allows a raster to be.",
+  "destination": "assets/ui/v1/kit/tab_plate.png",
+  "canvas": [
+    48,
+    32
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 42,
+    "maxHex": "#8C614A",
+    "maxL": 0.1462,
+    "verdict": "clean"
+  }
+}

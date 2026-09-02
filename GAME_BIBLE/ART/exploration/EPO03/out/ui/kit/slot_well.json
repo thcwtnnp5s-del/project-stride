@@ -1,0 +1,27 @@
+{
+  "asset": "slot_well",
+  "kind": "nine-patch compartment well, drawn through PixelFrame",
+  "corner": 6,
+  "band": 4,
+  "period": null,
+  "scale": 2,
+  "master": "raw/ui/pro_slotwell_6.png (create_image_pro, job e7fdfe47, candidate 6 of 16)",
+  "recipe": {
+    "crop": "to content, 48x48 -> 32x32",
+    "geometry": "MEASURED: band 5/4/5/4, spread 1; the MINIMUM is declared"
+  },
+  "destination": "assets/ui/v1/kit/slot_well.png",
+  "canvas": [
+    32,
+    32
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 23,
+    "maxHex": "#5F4B46",
+    "maxL": 0.0791,
+    "verdict": "clean"
+  }
+}

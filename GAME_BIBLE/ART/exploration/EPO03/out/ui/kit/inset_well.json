@@ -1,0 +1,28 @@
+{
+  "asset": "inset_well",
+  "kind": "nine-patch window frame, drawn through PixelFrame",
+  "corner": 16,
+  "band": 15,
+  "period": null,
+  "scale": 1,
+  "master": "raw/ui/pro_insetwell_1.png (create_image_pro, job e2f51423, candidate 1 of 16)",
+  "recipe": {
+    "crop": "to content, 64x64 -> 61x61",
+    "geometry": "MEASURED by tools/frame-measure.js: band 15/15/15/15, spread 0"
+  },
+  "note": "Drawn at x1. Band 15 at x2 would inset every well by 30 logical px a side.",
+  "destination": "assets/ui/v1/kit/inset_well.png",
+  "canvas": [
+    61,
+    61
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 10,
+    "maxHex": "#473C36",
+    "maxL": 0.0484,
+    "verdict": "clean"
+  }
+}

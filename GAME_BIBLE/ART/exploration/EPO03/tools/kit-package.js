@@ -65,3 +65,70 @@ emit(R('out/ui/nav/nav_welt_v2.png'), png.loadAny(R('out/ui/nav/nav_welt_v2.png'
     + 'white and its two stitch rows sat over the ceiling; the band cut and the clamp are why '
     + 'neither ships.',
 });
+
+// --- EPO03 batch 5: the pro frames, and the four remapped pixen assets -------
+for (const [file, meta] of [
+  ['out/ui/kit/inset_well.png', {
+    asset: 'inset_well', kind: 'nine-patch window frame, drawn through PixelFrame',
+    corner: 16, band: 15, period: null, scale: 1,
+    master: 'raw/ui/pro_insetwell_1.png (create_image_pro, job e2f51423, candidate 1 of 16)',
+    recipe: { crop: 'to content, 64x64 -> 61x61', geometry: 'MEASURED by tools/frame-measure.js: band 15/15/15/15, spread 0' },
+    note: 'Drawn at x1. Band 15 at x2 would inset every well by 30 logical px a side.',
+  }],
+  ['out/ui/kit/slot_well.png', {
+    asset: 'slot_well', kind: 'nine-patch compartment well, drawn through PixelFrame',
+    corner: 6, band: 4, period: null, scale: 2,
+    master: 'raw/ui/pro_slotwell_6.png (create_image_pro, job e7fdfe47, candidate 6 of 16)',
+    recipe: { crop: 'to content, 48x48 -> 32x32', geometry: 'MEASURED: band 5/4/5/4, spread 1; the MINIMUM is declared' },
+  }],
+  ['out/ui/kit/stage_frame.png', {
+    asset: 'stage_frame', kind: 'nine-patch stage frame, drawn through PixelFrame',
+    corner: 26, band: 19, period: null, scale: 1,
+    master: 'raw/ui/pro_stageframe_3.png (create_image_pro, job 23986e06, candidate 3 of 4)',
+    recipe: {
+      crop: 'to content, 128x128 -> 114x114',
+      geometry: 'MEASURED: band 19/19/19/19, spread 0',
+      corner: 'corner 26, NOT 19, proved by tools/ninepatch-proof.js: at 26 the beams run '
+        + 'unbroken; at 19 the iron corner cap falls inside the edge strip and repeats along '
+        + 'every beam. review/ui/np_stage26.png vs np_stage19.png.',
+    },
+    note: 'L-18a: this frames a picture and shares no ground line with the figures inside it, '
+      + 'so it adds no third density (DECISIONS/0031).',
+  }],
+  ['out/ui/kit/rule_journal.png', {
+    asset: 'rule_journal', kind: 'longitudinal rule tile, transparent ground',
+    corner: null, band: null, period: 8, scale: 2,
+    tiles: 'horizontally only; the last tile is clipped',
+    master: 'raw/ui/rule_journal_b.png (pixen 96x32, job 6ce69c34)',
+    recipe: { key: 'tools/rule-cut.js --key 0.09: the cream paper keyed to alpha 0, 95 px of ink kept', cut: 'rows 12-17, best-wrapping 8-wide window at x=64, join 0.917' },
+    note: 'The paper is not the asset; the LINE is. A rule is drawn over whatever page material '
+      + 'the screen already has.',
+  }],
+  ['out/ui/kit/rule_chart.png', {
+    asset: 'rule_chart', kind: 'longitudinal rule tile with scale ticks, transparent ground',
+    corner: null, band: null, period: 8, scale: 2,
+    tiles: 'horizontally only; the last tile is clipped',
+    master: 'raw/ui/rule_chart_b.png (pixen 96x32, job a3bee939)',
+    recipe: { key: 'tools/rule-cut.js --key 0.16 --band 0.02: vellum keyed out, 119 px of ink kept', cut: 'rows 14-17 (the rule and the ticks standing on it), 8-wide window at x=16, join 0.000' },
+  }],
+  ['out/ui/kit/rail_shelf.png', {
+    asset: 'rail_shelf', kind: 'picture-class rail, drawn once at x1 and clipped',
+    corner: null, band: null, period: 384, scale: 1,
+    master: 'raw/ui/rail_shelf_b.png (pixen 384x72, job 62529e80)',
+    recipe: {
+      clamp: 'tools/ceiling-clamp.js: 4 colours moved under the ceiling, linear-light rescale',
+      crop: 'rows 17-48, the plank front only - the stone wall the model drew above and below it is not the shelf',
+    },
+  }],
+  ['out/ui/kit/tab_plate.png', {
+    asset: 'tab_plate', kind: 'discrete ornament, positioned by Flutter - NOT a nine-patch',
+    corner: null, band: null, period: null, scale: 1,
+    master: 'raw/ui/tab_plate_b.png (pixen 48x32, job d28d7cfa)',
+    recipe: { crop: 'none needed; already under the ceiling at max #8C614A L=0.1462' },
+    note: 'Measured band T/B/L/R 19/1/28/1 - wildly asymmetric, so it cannot carry one inset and '
+      + 'cannot be a nine-patch (the FMPO02 banked_cartouche reject, same shape). It is a fixed '
+      + 'index tab, which is the third thing DECISIONS/0029 allows a raster to be.',
+  }],
+]) {
+  emit(R(file), png.loadAny(R(file)), { ...meta, destination: 'assets/ui/v1/kit/' + path.basename(file) });
+}

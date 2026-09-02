@@ -550,16 +550,56 @@ abstract final class KitFrames {
   static const String _dir = 'assets/ui/v1/kit';
 
   /// The registry. A row lands with a device read, never with a compile.
-  static const Map<KitFrame, PanelSkin> authored = <KitFrame, PanelSkin>{};
+  ///
+  /// Three rows, all from `create_image_pro` with an accepted grain tile as the
+  /// style reference and `chassis_64` as the construction reference. Every
+  /// figure below is **measured** — `tools/frame-measure.js` for the band,
+  /// `tools/ninepatch-proof.js` for the corner — never taken from the brief.
+  static const Map<KitFrame, PanelSkin> authored = <KitFrame, PanelSkin>{
+    KitFrame.insetWell: PanelSkin(
+      assetPath: '$_dir/inset_well.png',
+      nativeWidth: 61,
+      nativeHeight: 61,
+      corner: 16,
+      band: 15,
+      // ×1. Band 15 at ×2 would inset every well by 30 logical px a side.
+      scale: 1,
+    ),
+    KitFrame.slotWell: PanelSkin(
+      assetPath: '$_dir/slot_well.png',
+      nativeWidth: 32,
+      nativeHeight: 32,
+      corner: 6,
+      // Measured 5/4/5/4; the MINIMUM is declared, so the frame never draws
+      // over content on the two shallower sides.
+      band: 4,
+      scale: 2,
+    ),
+    KitFrame.stageFrame: PanelSkin(
+      assetPath: '$_dir/stage_frame.png',
+      nativeWidth: 114,
+      nativeHeight: 114,
+      // **26, not 19, and the difference is the whole asset.** The band is 19,
+      // but the iron corner cap is wider than that: with corner 19 the cap
+      // falls inside the edge strip and repeats along every beam, which
+      // `ninepatch-proof.js` renders and `review/ui/np_stage19.png` shows. At
+      // 26 the cap is drawn once per corner and the beams run unbroken.
+      corner: 26,
+      band: 19,
+      scale: 1,
+    ),
+  };
 
   /// The geometry each frame is **declared** to have, whether or not it has
   /// art. This is what a caller insets by, so the day a row lands nothing
   /// moves — the material changes and the layout does not.
   static const Map<KitFrame, double> _declaredInset = <KitFrame, double>{
-    KitFrame.insetWell: 8,
-    KitFrame.slotWell: 6,
+    // The three landed rows declare exactly what their art measures, so
+    // `insetFor` returns one number either way — see the class doc.
+    KitFrame.insetWell: 15,
+    KitFrame.slotWell: 8,
     KitFrame.insetStage: 12,
-    KitFrame.stageFrame: 16,
+    KitFrame.stageFrame: 19,
     KitFrame.pageSealed: 12,
     KitFrame.slipPinned: 10,
     KitFrame.ribbonLabel: 6,
@@ -653,6 +693,8 @@ final class KitStrip {
 abstract final class KitTiles {
   const KitTiles._();
 
+  static const String _kit = 'assets/ui/v1/kit';
+
   /// The registry.
   ///
   /// `navWelt` is the round's first landed row: a saddle stitch cut from a
@@ -666,18 +708,41 @@ abstract final class KitTiles {
       nativeWidth: 8,
       nativeHeight: 6,
     ),
+    // The two rules ship on a **transparent** ground: the model cannot draw a
+    // line on nothing, so it drew one on paper and the paper was keyed out
+    // (`tools/rule-cut.js`). What tiles is the ink, over whatever page
+    // material the screen already has.
+    KitTile.ruleJournal: KitStrip(
+      assetPath: '$_kit/rule_journal.png',
+      nativeWidth: 8,
+      nativeHeight: 6,
+    ),
+    KitTile.ruleChart: KitStrip(
+      assetPath: '$_kit/rule_chart.png',
+      nativeWidth: 8,
+      nativeHeight: 4,
+    ),
+    // Picture class: 384 wide at ×1, drawn once and clipped, exactly like a
+    // band. The stone wall the model drew above and below the plank is not the
+    // shelf and was cropped off.
+    KitTile.railShelf: KitStrip(
+      assetPath: '$_kit/rail_shelf.png',
+      nativeWidth: 384,
+      nativeHeight: 32,
+      scale: 1,
+    ),
   };
 
   /// What each strip is **declared** to cost across its run, art or no art.
   static const Map<KitTile, double> _declaredThickness = <KitTile, double>{
-    KitTile.ruleJournal: 8,
+    KitTile.ruleJournal: 12,
     KitTile.ruleBench: 8,
     KitTile.ruleChart: 8,
     KitTile.pocketRule: 12,
     KitTile.edgeTorn: 12,
     KitTile.edgeSpine: 32,
     KitTile.caseStrap: 32,
-    KitTile.railShelf: 72,
+    KitTile.railShelf: 32,
     KitTile.railStrap: 40,
     KitTile.navWelt: 12,
     KitTile.sheetEdge: 12,
@@ -722,6 +787,14 @@ enum KitMark {
   /// The ends of a quiet underlined action.
   btnQuietCapLeft,
   btnQuietCapRight,
+
+  /// A folio's index tab.
+  ///
+  /// **An ornament, not a frame**, and the measurement is why: the authored
+  /// tab's rim is 19/1/28/1 — wildly asymmetric — so it cannot carry one inset
+  /// and cannot be a nine-patch. FMPO02 rejected `banked_cartouche` for the
+  /// same shape. A tab is a fixed object anyway, so nothing is lost.
+  tabPlate,
 }
 
 /// A discrete ornament: drawn once, never tiled, never stretched.
@@ -753,7 +826,14 @@ abstract final class KitMarks {
   static const String _dir = 'assets/ui/v1/kit';
 
   static const Map<KitMark, KitOrnamentArt> authored =
-      <KitMark, KitOrnamentArt>{};
+      <KitMark, KitOrnamentArt>{
+        KitMark.tabPlate: KitOrnamentArt(
+          assetPath: '$_dir/tab_plate.png',
+          nativeWidth: 48,
+          nativeHeight: 32,
+          scale: 1,
+        ),
+      };
 
   static const Map<KitMark, Size> _declaredSize = <KitMark, Size>{
     KitMark.ruleOrnateA: Size(192, 16),
@@ -766,6 +846,7 @@ abstract final class KitMarks {
     KitMark.sheetGrip: Size(48, 12),
     KitMark.btnQuietCapLeft: Size(32, 48),
     KitMark.btnQuietCapRight: Size(32, 48),
+    KitMark.tabPlate: Size(48, 32),
   };
 
   static KitOrnamentArt? of(KitMark mark) => authored[mark];
