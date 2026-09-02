@@ -51,14 +51,16 @@ void main() {
   });
 
   test('every mapped item resolves through its own family', () {
-    // `variantOfItem` carries two families now — `armor.*` figures and
-    // `weapon.*` combat sets — so "mapped" no longer means "has a figure".
-    // Every row must belong to one of them; an unrecognised prefix would be a
-    // row that resolves to nothing anywhere, which is ghost gear by another
-    // name.
+    // `variantOfItem` carries three families now — `armor.*` figures,
+    // `weapon.*` combat sets and `tool.*` gather strips (FMPO02) — so
+    // "mapped" no longer means "has a figure". Every row must belong to one
+    // of them; an unrecognised prefix would be a row that resolves to nothing
+    // anywhere, which is ghost gear by another name.
     for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
       expect(
-        e.value.startsWith('armor.') || e.value.startsWith('weapon.'),
+        e.value.startsWith('armor.') ||
+            e.value.startsWith('weapon.') ||
+            e.value.startsWith('tool.'),
         isTrue,
         reason: '${e.key} maps to ${e.value}, which no resolver reads',
       );

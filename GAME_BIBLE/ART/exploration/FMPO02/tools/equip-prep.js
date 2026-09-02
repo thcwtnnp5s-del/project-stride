@@ -100,7 +100,10 @@ for (const set of sets) {
   for (const r of footRows) counts.set(r, (counts.get(r) || 0) + 1);
   const footRow = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0];
   const wy = footRow - ANCHOR_ROW;
-  const wx = Math.round(ux0 + (boxW - W) / 2);
+  // Centre the window on the union box, then clamp it into the source: a
+  // narrow figure on an 88-wide canvas must not push an 80-wide window off
+  // the edge, and the clamp changes nothing when the box is wide.
+  const wx = Math.max(0, Math.min(frames[0].width - W, Math.round(ux0 + (boxW - W) / 2)));
   const inSrc = wy >= 0 && wx >= 0 && wx + W <= frames[0].width && wy + ROWS <= frames[0].height;
   // Anything outside the window is clipped by the crop. Counted per frame and
   // reported, never silently: above the top it is a raised tool tip, below
