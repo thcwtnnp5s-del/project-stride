@@ -342,3 +342,30 @@ item, or a step cost.
   `navPlateActive`, `btnPlateV2`, the remaining tiles, and every `KitMark` but
   `tabPlate`. Pro is now the proven route for them and the budget is there;
   they were not authorised this pass.
+- 2026-09-02 — **three more rows land** (`80463ee`), the producer having
+  authorised the full cap. Eleven assets now ship.
+
+  | Name | Asset | Native | corner / band or period | scale | figure |
+  |---|---|---|---|---|---|
+  | `KitFrame.btnPlateV2` | `kit/btn_plate_v2.png` | 56 × 24 | **8** / 5 | 2 | inset **10** dp |
+  | `KitTile.edgeSpine` | `kit/edge_spine.png` | 32 × 7 | period 7, **vertical** | 1 | **32** dp wide |
+  | `KitMark.ribbonLabel` | `kit/ribbon_label.png` | 89 × 22 | ornament | 1 | 89 × 22 |
+
+  `btnPlateV2` is registered but **not yet wired**: `StrideButton` has 43 call
+  sites and repointing it is its own change with its own device read. Use it
+  through `KitPlate(frame: KitFrame.btnPlateV2)` if you want it now.
+
+  **`ribbonLabel` moved from §1 to §3**, like `tabPlate` before it, and for a
+  reason worth knowing: a ribbon is a **three**-patch — two fixed swallowtail
+  ends with a tiling middle — and `PixelFrame` only draws nine-patches. Its
+  left and right bands measure 0 because the notches are transparent at
+  mid-height. It ships at its authored size and holds a short label (a level,
+  a rarity, a boss mark, a cost). **A label wider than 89 dp needs a
+  three-patch painter** — file a request if you hit that and it will be
+  weighed as its own change.
+
+  Two rejects worth recording so nobody re-derives them: `ruleBench` came back
+  as a pure-black 1 px hairline that `StrideColors.separator` already draws
+  better, and `pocketRule` / `caseStrap` / `railStrap` came back as a
+  blue-grey checkerboard, an unreadably dark smear and grey rubble
+  respectively. Those four keep their fallbacks.
