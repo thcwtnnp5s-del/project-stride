@@ -44,11 +44,11 @@
       "y": 420,
       "w": 344,
       "h": 252,
-      "atlas": "0-304 x 460-632",
+      "atlas": "0-260 x 460-632",
       "rect": {
         "x0": 0,
         "y0": 40,
-        "x1": 304,
+        "x1": 260,
         "y1": 212
       },
       "ramps": {
@@ -60,7 +60,7 @@
       "inpaint": {
         "x": 0,
         "y": 40,
-        "w": 304,
+        "w": 260,
         "h": 172
       },
       "salt": 81,
@@ -73,7 +73,8 @@
         "caravan_corridor",
         "stag_box"
       ],
-      "intent": "One hand: the caravan road leaves the wood's west bays at (256,515), runs west through the caravan corridor (199-245 x 506-532 keeps road), threads a col between two rock shoulders at Wayfarer's Pass (187,542), fords a beck and switchbacks up into the Worldspine's foothills to leave the west edge; the far-west grey slab becomes scree fans, rock knolls and a snow-line; the pasted peak (210,590) becomes part of the range; the beck turns south past it; the lower core face (256-304 x 460-590) breaks into bays; Deepwood Shrine (304,556) stays deep wood; the stag (156-184 x 493-515) keeps meadow."
+      "intent": "PLAINS->MOUNTAIN (DIR-02): the road loop gets a reason. The existing road geometry is held (enters the west edge at y=602, col at Wayfarer's Pass 187,542, corridor 199-245 x 506-532 keeps road, leaves x=260 at y=517) and the terrain around it is re-authored: rock knolls and scree fans rising westward to the Worldspine's foot, boulders densest at the wall, a snow dusting on the SW shoulders; a beck out of the hills forded by the road and bending SW to leave the rect bottom for WC; the pasted peak (210,590) joined to the range by a rock-and-scree ridge. Rect stops at x=260 so the frozen core wood, Deepwood Shrine (304,556) and LANDMARKS' L1 glade (256-464 x 352-544) are untouched.",
+      "note": "Right margin frozen 84 px (crop x 260-344). Top/bottom frozen 40 px. Left is the canvas edge (ramp 0). All four west goldens lie inside the rect and are re-extracted in the ACCEPT commit (D0033 §5)."
     },
     {
       "id": "WC",
