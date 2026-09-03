@@ -15,6 +15,21 @@
       "review": "review/atlas/E1_preview_fov_x2.png, E1_after_x2.png",
       "team": "east",
       "reauthorizes": []
+    },
+    {
+      "id": "E2",
+      "x": 560,
+      "y": 188,
+      "w": 240,
+      "h": 172,
+      "salt": 101,
+      "status": "accepted",
+      "job": "none - deterministic (atlas-fleck.js --dither, 0 generations)",
+      "seed": 0,
+      "atlas": "600-760 x 228-320 (mask cut to the snow side by cut.freezeDark)",
+      "review": "review/atlas/E2_after_x2.png, E2_defleck_x3.png",
+      "team": "east",
+      "reauthorizes": []
     }
   ]
 }

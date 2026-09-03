@@ -1,0 +1,13 @@
+E2 roll 2 (job 370c32bc-38ec-4014-a78f-3bfa580bcf57, seed 1005, 20 gens) — REJECT.
+cut.freezeDark worked: the cone silhouette and both towers came back byte-exact
+and the tool stayed off the rock. But given a narrow band of snow beside a hard
+black silhouette it invented an OBJECT — the ash zone is drawn as a brown
+antler / driftwood shape with pointed prongs lying on the drift, with three
+look-alike pebble clusters beside it, and the dither smear it was sent to
+remove survives at the right. In the composite it reads worse than the butt
+joint it replaced.
+Two rolls on this defect, both a generator tell (rebuild the cone; invent an
+object). Intent changed a third time and OFF PixelLab: E2 ships as a
+deterministic region — the seam smear removed by atlas-fleck.js, no generation
+— and the authored ash/steam join is reported as not closed.
+Sheet: review/atlas/E2_r2_x3.png, review/atlas/E2_preview_x2.png

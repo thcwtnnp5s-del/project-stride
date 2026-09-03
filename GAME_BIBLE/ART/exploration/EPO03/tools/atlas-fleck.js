@@ -25,6 +25,16 @@ const flag = (n, d) => { const i = argv.indexOf(`--${n}`); return i < 0 ? d : ar
 const ODD = Number(flag('odd', 7));
 const PASSES = Number(flag('passes', 2));
 const rect = flag('rect', null);
+// --dither: the OTHER debris shape in this territory. The seam smear at atlas
+// 640-745 x 226-284 is not one-pixel islands but a low-contrast 50/50 dither
+// cloud of two adjacent snow values, so the island predicate above misses it
+// (measured: 138 px on a 7,250 px rect). This pass snaps a pixel to the modal
+// colour of its 5x5 neighbourhood when the pixel is a local minority and that
+// mode is clearly dominant — again an existing neighbouring colour, never an
+// average (A-2), and edges survive because a real edge has no dominant mode.
+const DITHER = argv.includes('--dither');
+const MINORITY = Number(flag('minority', 3));
+const DOMINANT = Number(flag('dominant', 9));
 const r = png.load(inFile);
 const [x0, y0, x1, y1] = rect ? rect.split(',').map(Number) : [0, 0, r.width, r.height];
 const far = (i, j) => Math.abs(r.data[i] - r.data[j]) + Math.abs(r.data[i + 1] - r.data[j + 1]) +
@@ -56,6 +66,35 @@ for (let pass = 0; pass < PASSES; pass++) {
   if (!fills.length) break;
   for (const [i, rr, gg, bb] of fills) { r.data[i] = rr; r.data[i + 1] = gg; r.data[i + 2] = bb; }
   removed += fills.length;
+}
+if (DITHER) {
+  let snapped = 0;
+  for (let pass = 0; pass < PASSES; pass++) {
+    const fills = [];
+    for (let y = Math.max(2, y0); y < Math.min(r.height - 2, y1); y++) {
+      for (let x = Math.max(2, x0); x < Math.min(r.width - 2, x1); x++) {
+        const i = r.idx(x, y);
+        const key = (r.data[i] << 16) | (r.data[i + 1] << 8) | r.data[i + 2];
+        const votes = new Map();
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            if (!dx && !dy) continue;
+            const j = r.idx(x + dx, y + dy);
+            const k = (r.data[j] << 16) | (r.data[j + 1] << 8) | r.data[j + 2];
+            votes.set(k, (votes.get(k) || 0) + 1);
+          }
+        }
+        let bk = -1, bn = -1;
+        for (const [k, n] of votes) if (n > bn || (n === bn && k > bk)) { bn = n; bk = k; }
+        if (bk === key || bn < DOMINANT || (votes.get(key) || 0) > MINORITY) continue;
+        fills.push([i, (bk >> 16) & 255, (bk >> 8) & 255, bk & 255]);
+      }
+    }
+    if (!fills.length) break;
+    for (const [i, rr, gg, bb] of fills) { r.data[i] = rr; r.data[i + 1] = gg; r.data[i + 2] = bb; }
+    snapped += fills.length;
+  }
+  console.log(`  --dither: ${snapped} px snapped to the local modal colour (minority<=${MINORITY}, dominant>=${DOMINANT})`);
 }
 png.save(outFile, r);
 console.log(`${inFile} -> ${outFile}: ${removed} one-pixel islands filled (odd>=${ODD}, ${PASSES} passes)`);
