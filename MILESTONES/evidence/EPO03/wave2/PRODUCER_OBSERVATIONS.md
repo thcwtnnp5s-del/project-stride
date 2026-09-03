@@ -73,3 +73,33 @@ wolf. The team wrote the fix, could not compile it while another team was
 mid-refactor on the same files, and **kept the verified render rather than
 committing an unverified one**. That is the correct call; the gap is named
 here so it is not mistaken for completeness.
+
+## Gather — the composed render overturned three sheet verdicts
+
+The strongest method finding of the round, and it belongs in the next round’s
+rules. PROD-GATHER passed three assets on the contact sheet and then failed
+them once composed into the actual scene: copper read mauve, the hardened
+seam’s orange spill read as **blood**, and a KEEP-verdict prop turned out to
+carry a black base bar that only appeared under the figure. A sheet read is
+necessary and is still not sufficient — the verdict belongs to the composed
+scene at the size the player sees it ( M-04 extended).
+
+The same team declined a Dart change it had been **pre-authorised** to make:
+the renders showed the plinth was the defect, not the shared ground line, so
+ was left untouched and no request was filed. Restraint
+on an authorised change, evidenced, is worth as much as the fixes.
+
+## Gather — tin still reads as a fin, and I funded the cause not the symptom
+
+I judged  myself and agree with the team against
+its own work:  reads as a pale angular blade standing in front
+of the wall, and the deep and hardened faces still read as discrete objects on
+a floor. The team correctly traced this to the backdrop — the seams composite
+against a flat  wall with no recess, so any wedge reads as
+an object placed in front of rock rather than a face cut into it.
+
+Re-rolling the prop cannot fix a backdrop problem, so I authorised the tier-2
+Stonefall recess (80 generations) rather than closing the family out. Mining is
+a P0 activity performed constantly; this was the round’s most visible remaining
+gathering weakness. If two intents do not solve it, the instruction is to stop
+and name it unfixed rather than roll a third time.
