@@ -237,7 +237,10 @@ class ActivityResultCard extends StatelessWidget {
               result.bonusQuantity == 0 &&
               (result.rarity?.rank ?? 0) < Rarity.rare.rank,
           mark: RewardArt.markExp,
-          label: '${result.skillName} experience',
+          // , not : the label shares its line
+          // with a right-aligned figure, and the shorter label leaves the
+          // figure room at text scale 1.4 on a 320 dp phone.
+          label: '${result.skillName} XP',
           figure: '+${result.xp}',
           ink: skillInk,
         ),

@@ -289,12 +289,18 @@ void main() {
     expect(session.totalSpent, 160, reason: 'exactly the two completions');
     expect(session.inventoryCount(kHerb), 2);
     expect(find.text('GATHERING COMPLETE'), findsOneWidget);
-    expect(find.text('Meadow Herb ×2'), findsOneWidget);
+    // The name and its quantity are two widgets, not one string: the result
+    // card is a tally slip now, and a ledger writes the name on the left and
+    // the figure down the right margin (EPO03, DIR-13). Same two claims —
+    // this item, this many — read off the layout that replaced the toast.
+    expect(find.text('Meadow Herb'), findsOneWidget);
+    expect(find.text('×2'), findsOneWidget);
 
     // And the card decays on its own; the panel is back to the idle
     // control with nothing pinned.
     await tester.pumpAndSettle();
     expect(find.textContaining('Gather ×'), findsOneWidget);
-    expect(find.text('Meadow Herb ×2'), findsNothing);
+    expect(find.text('Meadow Herb'), findsNothing);
+    expect(find.text('×2'), findsNothing);
   });
 }

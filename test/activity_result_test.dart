@@ -77,7 +77,7 @@ void main() {
     await tester.pump();
     expect(find.text('MINED'), findsOneWidget);
     _expectItem('Copper Ore', 2);
-    _expectFact('Mining experience', '+12');
+    _expectFact('Mining XP', '+12');
 
     // Still readable well past a toast's life…
     await tester.pump(const Duration(milliseconds: 2500));
@@ -123,7 +123,7 @@ void main() {
     await tester.pump();
     // One card, summed — never a second popup.
     _expectItem('Copper Ore', 4);
-    _expectFact('Mining experience', '+24');
+    _expectFact('Mining XP', '+24');
     expect(find.byType(ActivityResultCard), findsOneWidget);
     await tester.pumpAndSettle();
   });

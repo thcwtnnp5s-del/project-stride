@@ -30,6 +30,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/activity_result.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/components/screen_header.dart';
@@ -703,8 +704,21 @@ void main() {
       // The ephemeral summary strip, accumulated from the returned
       // ActionReports — asserted while the card is still in view, because the
       // strip is a lazily built list child.
-      expect(find.textContaining('Meadow Herb ×1'), findsOneWidget);
-      expect(find.textContaining('+10 Foraging XP'), findsOneWidget);
+      // The result slip writes the name and the figure as separate widgets
+      // — name on the left, figure down the right margin (EPO03, DIR-13) —
+      // and a quantity of one is a number the slip does not need to state.
+      // Same two claims as before: the herb is named, the XP is +10.
+      final Finder slip = find.byType(ActivityResultCard);
+      expect(slip, findsOneWidget);
+      expect(
+        find.descendant(of: slip, matching: find.text('Meadow Herb')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: slip, matching: find.text('Foraging XP')),
+        findsOneWidget,
+      );
+      expect(find.descendant(of: slip, matching: find.text('+10')), findsOneWidget);
 
       // `1,000` is still on screen, and correctly so: TOTAL WALKED reads
       // `totalGranted`, which never falls when steps are spent (`RULES.md`
