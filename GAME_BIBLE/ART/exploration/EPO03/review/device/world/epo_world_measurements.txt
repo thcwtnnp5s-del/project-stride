@@ -1,0 +1,7 @@
+EPO03 UI-WORLD — World sheet geometry, measured at 393x852 DPR 1
+stop, sheet dp, map-visible dp, share of the World body
+peek (open), 64.0, 663.0, 91.2%
+peek (a place selected), 64.0, 663.0, 91.2%
+half (travel confirm), 261.7, 465.3, 64.0%
+full (inspector), 508.9, 218.1, 30.0%
+peek (arrived), 64.0, 663.0, 91.2%

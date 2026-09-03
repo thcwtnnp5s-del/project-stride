@@ -27,6 +27,8 @@ import 'package:stride/ui/screens/world/atlas/atlas_selection_panel.dart';
 import 'package:stride/ui/icons/pixel_icons.dart';
 import 'package:stride/ui/screens/world/atlas/atlas_viewport.dart';
 import 'package:stride/ui/screens/world/travel_transition.dart';
+import 'package:stride/ui/screens/world/world_screen.dart'
+    show worldContextStripKey, worldSheetGripKey, worldSheetKey;
 import 'package:stride/ui/components/activity_result.dart';
 import 'package:stride/ui/state/craft_controller.dart';
 import 'package:stride/ui/state/session_controller.dart';
@@ -1066,6 +1068,124 @@ void main() {
       await tester.tap(find.text('UNFOLD'));
       await tester.pumpAndSettle();
       await capture(tester, 'epo_skill_foraging_unfolded');
+    }
+  });
+  // ---------------------------------------------------------------------
+  // EPO03 (`DIR-15` §1): the World sheet's three stops, the strip that names
+  // an off-screen marker, and the arrival — plus the measured map-visible dp
+  // at each stop, written beside the renders so the owner's "the sheet
+  // obscures too much map" is answered with a figure and not an adjective.
+  // ---------------------------------------------------------------------
+  testWidgets('EPO03: the World sheet at peek, half and full', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(40000)],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+    await open(tester, 'World');
+
+    final StringBuffer measured = StringBuffer(
+      'EPO03 UI-WORLD — World sheet geometry, measured at 393x852 DPR 1\n'
+      'stop, sheet dp, map-visible dp, share of the World body\n',
+    );
+    late final Rect body;
+    body = tester.getRect(find.byType(AtlasViewport));
+    void record(String stop) {
+      final double sheet = tester.getRect(find.byKey(worldSheetKey)).height;
+      final double map = body.height - sheet;
+      measured.writeln(
+        '$stop, ${sheet.toStringAsFixed(1)}, ${map.toStringAsFixed(1)}, '
+        '${(100 * map / body.height).toStringAsFixed(1)}%',
+      );
+    }
+
+    // 1. Open: PEEK. The map is the hero and the sheet is one row.
+    record('peek (open)');
+    await capture(tester, 'epo_world_peek');
+
+    // 2. A selection, then a pan that puts it off the visible map: the
+    //    contextual strip appears with its caret and the way's cost. This is
+    //    the state that used to be called "viewed", and is now never named.
+    final Finder woods = find.byKey(
+      const ValueKey<String>('atlas-hit:location.whispering_woods'),
+    );
+    final Offset centre = tester.getCenter(find.byType(AtlasViewport));
+    await tester.dragFrom(centre, centre - tester.getCenter(woods));
+    await tester.pumpAndSettle();
+    await tester.tap(woods, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    // A marker tap did NOT raise the sheet — the whole point of the change.
+    record('peek (a place selected)');
+    await tester.dragFrom(centre, const Offset(0, 420));
+    await tester.pumpAndSettle();
+    expect(find.byKey(worldContextStripKey), findsOneWidget);
+    await capture(tester, 'epo_world_strip_offscreen');
+
+    // Back onto the selection, so the half stop is about a real journey.
+    await tester.dragFrom(centre, centre - tester.getCenter(woods));
+    await tester.pumpAndSettle();
+
+    // 3. The peek's compact Travel raises the sheet to HALF with the priced
+    //    confirmation armed. It does not travel: `Set out` is the only
+    //    dispatch, and it is still unpressed here.
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(worldSheetKey),
+        matching: find.text('Travel'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Set out'), findsOneWidget);
+    record('half (travel confirm)');
+    await capture(tester, 'epo_world_half_confirm');
+
+    // 4. FULL: the whole inspector — work, gathering, encounters.
+    await tester.fling(
+      find.byKey(worldSheetGripKey),
+      const Offset(0, -80),
+      900,
+    );
+    await tester.pumpAndSettle();
+    record('full (inspector)');
+    await capture(tester, 'epo_world_full_inspector');
+
+    // 5. Arrived. The journey commits through the controller — a
+    //    tap-dispatched command's file IO never completes under the
+    //    harness's fake async — and the sheet returns to peek on *here*.
+    final SessionController c = SessionScope.read(
+      tester.element(find.byType(StrideTabBar)),
+    );
+    await tester.runAsync(
+      () => c.travelJourney(<ContentId>[
+        ContentId.unchecked('location.whispering_woods'),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    record('peek (arrived)');
+    await capture(tester, 'epo_world_arrived');
+
+    if (dir != null) {
+      Directory(dir).createSync(recursive: true);
+      File(
+        '$dir/epo_world_measurements.txt',
+      ).writeAsStringSync(measured.toString());
     }
   });
 }

@@ -196,17 +196,23 @@ double _sheetHeightFor(_SheetStop stop, double body) => switch (stop) {
 /// camera compares equal and costs no rebuild.
 typedef _StripState = ({
   String? selected,
-  bool selectedBefore,
-  bool hereBefore,
+  _Way selectedWay,
   bool hereOff,
+  _Way hereWay,
 });
 
 const _StripState _noStrip = (
   selected: null,
-  selectedBefore: false,
-  hereBefore: false,
+  selectedWay: _Way.left,
   hereOff: false,
+  hereWay: _Way.left,
 );
+
+/// Which edge of the visible map an off-screen marker lies past. Four, not
+/// two: on a tall phone over a taller world, most of what leaves the window
+/// leaves through the top or the foot, and a chip pointing right at a place
+/// lying south is worse than no chip at all.
+enum _Way { left, right, up, down }
 
 class WorldScreen extends StatefulWidget {
   const WorldScreen({super.key});
@@ -249,6 +255,10 @@ class _WorldScreenState extends State<WorldScreen> {
 
   // Carried from build so the pointer callbacks can recompute the strip
   // without asking the session again.
+  /// The current location as of the last build — the edge that says a journey
+  /// completed.
+  ContentId? _lastCurrent;
+
   AtlasScene? _scene;
   AtlasNode? _selectedNode;
   int _selectedCost = 0;
@@ -379,34 +389,42 @@ class _WorldScreenState extends State<WorldScreen> {
     final Offset camera = viewport.camera;
     final double zoom = viewport.zoom;
 
-    ({bool off, bool before}) locate(AtlasNode node) {
+    ({bool off, _Way way}) locate(AtlasNode node) {
       final double x = (node.x - camera.dx) * zoom;
       final double y = (node.y - camera.dy) * zoom;
       final bool off = x < 0 || x > window.width || y < 0 || y > visible;
-      // "Before" means left of, or above, the window — the direction the
-      // caret points.
-      return (off: off, before: x < 0 || (x <= window.width && y < 0));
+      // Whichever edge it left through, sides tested first: a place off the
+      // side reads as a compass direction, where a place off the foot is as
+      // often simply behind the sheet.
+      final _Way way = x < 0
+          ? _Way.left
+          : x > window.width
+          ? _Way.right
+          : y < 0
+          ? _Way.up
+          : _Way.down;
+      return (off: off, way: way);
     }
 
     final AtlasNode here = scene.current;
-    final ({bool off, bool before}) hereAt = locate(here);
+    final ({bool off, _Way way}) hereAt = locate(here);
     if (selected.id == here.id) {
       return (
         selected: null,
-        selectedBefore: false,
-        hereBefore: hereAt.before,
+        selectedWay: _Way.left,
         hereOff: hereAt.off,
+        hereWay: hereAt.way,
       );
     }
-    final ({bool off, bool before}) selectedAt = locate(selected);
+    final ({bool off, _Way way}) selectedAt = locate(selected);
     final String cost = _selectedCost > 0
         ? ' · ${formatSteps(_selectedCost)}'
         : '';
     return (
       selected: selectedAt.off ? '${selected.place.displayName}$cost' : null,
-      selectedBefore: selectedAt.before,
-      hereBefore: hereAt.before,
+      selectedWay: selectedAt.way,
       hereOff: hereAt.off,
+      hereWay: hereAt.way,
     );
   }
 
@@ -417,6 +435,22 @@ class _WorldScreenState extends State<WorldScreen> {
     final AtlasScene? scene = AtlasScene.build(s);
 
     if (scene == null) return _ListFallback(problems: s.atlasLayoutProblems);
+
+    // **Arrival returns the screen to the map.** Wherever the journey was
+    // dispatched from — the sheet's own `Set out`, or the Adventure tracker's
+    // door into this tab — landing somewhere new drops the sheet to peek on
+    // *here*, because the first thing a player wants after a walk is to look
+    // at where they have arrived. Written during build rather than through
+    // `setState`, because it is a correction to the frame being built and a
+    // `setState` here would schedule a second one for the same answer.
+    final ContentId arrivedAt = scene.current.id;
+    if (_lastCurrent != null && _lastCurrent != arrivedAt) {
+      _selected = null;
+      _stop = _SheetStop.peek;
+      _dragHeight = null;
+      _travelArmed = false;
+    }
+    _lastCurrent = arrivedAt;
 
     final AtlasNode selected =
         (_selected == null ? null : scene.nodeFor(_selected!)) ?? scene.current;
@@ -632,11 +666,11 @@ class _ContextStrip extends StatelessWidget {
         children: <Widget>[
           if (state.selected case final String label)
             Flexible(
-              child: _StripChip(label: label, before: state.selectedBefore),
+              child: _StripChip(label: label, way: state.selectedWay),
             ),
           const Spacer(),
           if (state.hereOff)
-            _StripChip(label: 'You are here', before: state.hereBefore),
+            _StripChip(label: 'You are here', way: state.hereWay),
         ],
       ),
     ),
@@ -644,21 +678,27 @@ class _ContextStrip extends StatelessWidget {
 }
 
 class _StripChip extends StatelessWidget {
-  const _StripChip({required this.label, required this.before});
+  const _StripChip({required this.label, required this.way});
 
   final String label;
-  final bool before;
+  final _Way way;
+
+  /// The caret leads the label when the place lies left or up and follows it
+  /// when it lies right or down, so the chip reads outward — toward the thing
+  /// it is about.
+  bool get _leads => way == _Way.left || way == _Way.up;
 
   @override
   Widget build(BuildContext context) {
+    final bool vertical = way == _Way.up || way == _Way.down;
     final Widget caret = CustomPaint(
-      size: const Size(6, 10),
-      painter: _CaretPainter(before: before),
+      size: vertical ? const Size(10, 6) : const Size(6, 10),
+      painter: _CaretPainter(way: way),
     );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        if (before) ...<Widget>[caret, const SizedBox(width: StrideSpace.s4)],
+        if (_leads) ...<Widget>[caret, const SizedBox(width: StrideSpace.s4)],
         Flexible(
           child: Text(
             label,
@@ -667,36 +707,47 @@ class _StripChip extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (!before) ...<Widget>[const SizedBox(width: StrideSpace.s4), caret],
+        if (!_leads) ...<Widget>[const SizedBox(width: StrideSpace.s4), caret],
       ],
     );
   }
 }
 
 class _CaretPainter extends CustomPainter {
-  const _CaretPainter({required this.before});
+  const _CaretPainter({required this.way});
 
-  final bool before;
+  final _Way way;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Path path = Path();
-    if (before) {
-      path
-        ..moveTo(size.width, 0)
-        ..lineTo(0, size.height / 2)
-        ..lineTo(size.width, size.height);
-    } else {
-      path
-        ..moveTo(0, 0)
-        ..lineTo(size.width, size.height / 2)
-        ..lineTo(0, size.height);
+    switch (way) {
+      case _Way.left:
+        path
+          ..moveTo(size.width, 0)
+          ..lineTo(0, size.height / 2)
+          ..lineTo(size.width, size.height);
+      case _Way.right:
+        path
+          ..moveTo(0, 0)
+          ..lineTo(size.width, size.height / 2)
+          ..lineTo(0, size.height);
+      case _Way.up:
+        path
+          ..moveTo(0, size.height)
+          ..lineTo(size.width / 2, 0)
+          ..lineTo(size.width, size.height);
+      case _Way.down:
+        path
+          ..moveTo(0, 0)
+          ..lineTo(size.width / 2, size.height)
+          ..lineTo(size.width, 0);
     }
     canvas.drawPath(path..close(), Paint()..color = StrideColors.textSecondary);
   }
 
   @override
-  bool shouldRepaint(_CaretPainter old) => old.before != before;
+  bool shouldRepaint(_CaretPainter old) => old.way != way;
 }
 
 /// The docked sheet: a grip, and whatever the stop asks for beneath it.
