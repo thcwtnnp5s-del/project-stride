@@ -1481,7 +1481,13 @@ class _TierHeader extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: AdaptiveText(
-                '${skill.toUpperCase()} · $range',
+                // The unwritten chapter has no trade to name — it is the
+                // pages nobody has written for you yet, and "TAUGHT ·" in
+                // front of that is the ledger's habit of labelling a thing
+                // twice.
+                skill == 'taught'
+                    ? range
+                    : '${skill.toUpperCase()} · $range',
                 style: StrideType.cardTitle,
                 color: lit
                     ? StrideColors.textPrimary
@@ -2456,12 +2462,12 @@ class _RibbonPainter extends CustomPainter {
     canvas.drawPath(
       ribbon,
       Paint()
-        ..color = lit ? StrideColors.actionEdge : StrideColors.surfaceBlock,
+        ..color = lit ? StrideColors.actionEdge : StrideColors.surfaceRaised,
     );
     canvas.drawPath(
       ribbon,
       Paint()
-        ..color = StrideColors.borderDefault
+        ..color = StrideColors.actionEdge
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1,
     );

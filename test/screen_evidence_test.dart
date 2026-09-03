@@ -217,15 +217,14 @@ void main() {
     await capture(tester, 'inventory');
 
     await open(tester, 'Craft');
-    // FMPO02 (`ART-12` §1): the station is the screen's primary axis, a
-    // skill-locked recipe sits behind its gate's ledger line until the
-    // player opens it, and detail rises in a sheet rather than expanding
-    // the row — so the sheet is dismissed before the next tab is reached.
+    // EPO03 (`DIR-06` §6): the station is the screen's primary axis and the
+    // locked half is a book — a skill-locked recipe is a sealed page in its
+    // chapter, visible by name without opening anything, and its detail
+    // rises in a sheet rather than expanding the row, so the sheet is
+    // dismissed before the next tab is reached.
     await tester.tap(find.text('Forge'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.textContaining('more at Smithing 3'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('more at Smithing 3'));
+    await tester.ensureVisible(find.text('Bronze Sword').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword').first);
     await tester.pumpAndSettle();
@@ -488,14 +487,23 @@ void main() {
     await capture(tester, 'v3_craft_sourcing');
     await dismissSheet();
 
-    await tester.ensureVisible(find.textContaining('more at Smithing 3'));
+    // EPO03 (`DIR-06` §6): the recipe book. Its first chapter is lit and
+    // opens with one tier header carrying one gate; its pages are sealed
+    // leaves with an ink silhouette and a wax seal, and not one of them
+    // states a level.
+    await tester.dragUntilVisible(
+      find.text('SMITHING · LEVELS 1–3'),
+      find.byType(ListView).first,
+      const Offset(0, -250),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('more at Smithing 3'));
-    await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_book');
+
     await tester.ensureVisible(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
+    await capture(tester, 'v3_craft_locked');
     await tester.tap(find.text('CRAFT ›').first, warnIfMissed: false);
     await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_chain');
@@ -503,25 +511,26 @@ void main() {
     await tester.pumpAndSettle();
     await dismissSheet();
 
-    await tester.tap(find.textContaining('more at Smithing 4'));
+    await tester.dragUntilVisible(
+      find.text('Fang-Hilted Sword'),
+      find.byType(ListView).first,
+      const Offset(0, -250),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fang-Hilted Sword'));
     await tester.pumpAndSettle();
     await capture(tester, 'v3_craft_prover');
     await dismissSheet();
 
+    // The chapters behind the lit one recede rather than repeating its
+    // sentence — the deepest chapter, read at phone scale.
     await tester.dragUntilVisible(
-      find.textContaining('more at Smithing 6'),
+      find.text('SMITHING · LEVELS 10+'),
       find.byType(ListView).first,
       const Offset(0, -250),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('more at Smithing 6'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Bronze Longsword'));
-    await tester.pumpAndSettle();
-    await capture(tester, 'v3_craft_locked');
-    await dismissSheet();
+    await capture(tester, 'v3_craft_book_deep');
 
     // Inventory: the purpose block under a held material.
     await open(tester, 'Inventory');
