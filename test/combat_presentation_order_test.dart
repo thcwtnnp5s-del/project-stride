@@ -188,7 +188,7 @@ void main() {
     // Attack. The engine resolves the round synchronously; the commit is
     // still in flight when the next frame builds — the frame the device
     // showed the snapped figures on.
-    await tester.tap(find.widgetWithText(StrideButton, 'Attack'));
+    await tester.tap(find.text('Attack'));
     await tester.pump();
     expect(c.busy, isTrue, reason: 'the commit must still be in flight');
     expect(
@@ -277,7 +277,7 @@ void main() {
     await tester.pumpAndSettle();
 
     for (int round = 0; round < 60 && s.encounter != null; round++) {
-      await tester.tap(find.widgetWithText(StrideButton, 'Attack'));
+      await tester.tap(find.text('Attack'));
       await tester.pump();
       // The in-flight frame: never an outcome, never a vanished stage.
       expect(find.text('VICTORY'), findsNothing);
@@ -323,7 +323,7 @@ void main() {
     await tester.pumpAndSettle();
 
     for (int round = 0; round < 60 && s.encounter != null; round++) {
-      await tester.tap(find.widgetWithText(StrideButton, 'Attack'));
+      await tester.tap(find.text('Attack'));
       await tester.pump();
       expect(find.text('DRIVEN BACK'), findsNothing);
       expect(find.byType(CombatStage), findsOneWidget);
@@ -400,7 +400,7 @@ void main() {
     await tester.pumpAndSettle();
 
     for (int round = 0; round < 60 && s.encounter != null; round++) {
-      await tester.tap(find.widgetWithText(StrideButton, 'Attack'));
+      await tester.tap(find.text('Attack'));
       await tester.pump();
       await landCommit(tester, c);
       await tester.pump();

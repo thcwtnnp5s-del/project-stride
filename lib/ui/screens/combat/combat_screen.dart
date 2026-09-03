@@ -263,52 +263,36 @@ class _CombatScreenState extends State<CombatScreen> {
       emblem: signature ? RewardArt.sealSignature : null,
       emblemSize: const Size(96, 48),
       onDismiss: c.acknowledgeCombat,
-      // The fight's entrance (Fable V2 Iteration 02): the stage resolves
-      // first, the controls follow a beat later — the same reveal grammar
-      // as a reward layer, played once per fight (see `_fightArrival`).
-      // `StaggeredReveal` renders everything at full value under Reduce
-      // Motion, and a mid-fight rebuild keeps the element, so nothing
-      // re-plays.
-      child: StaggeredReveal(
+      // The battle page (`DIR-11`): one column sized to the viewport, in
+      // which the fight is 55 % and the commands are 16 %. There is no card
+      // on it anywhere — the fight has a chassis, the commands have a rail,
+      // and the ground between them is leather.
+      child: _BattlePage(
         key: ValueKey<int>(_fightArrival),
-        gap: StrideSpace.cardGap,
-        children: <Widget>[
-          CombatStage(
-            view: view,
+        view: view,
+        controller: c,
+        locked: _playing || ended,
+        stage: CombatStage(
+          view: view,
+          report: report,
+          ended: ended,
+          onPlayingChanged: _onPlayingChanged,
+          // The loadout's visual facts, snapshotted by the stage at its
+          // first bell (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5).
+          equipment: c.session.equipmentVisualState,
+          // The round's narration, now on the chassis's own sill rather than
+          // as a translucent strip over the picture's contact shadows
+          // (`DIR-11`). The stage places it; this screen still decides every
+          // word.
+          narration: _CombatLog(
             report: report,
-            ended: ended,
-            onPlayingChanged: _onPlayingChanged,
-            // The loadout's visual facts, snapshotted by the stage at its
-            // first bell (GAME_FEEL_CHARACTER_PRESENTATION_01, item 5).
-            equipment: c.session.equipmentVisualState,
-            // The round's narration, on the picture's own bottom edge rather
-            // than as a block on the card below it (`ART-09` §4). The stage
-            // places it; this screen still decides every word.
-            narration: _CombatLog(
-              report: report,
-              enemyName: view.enemyName,
-              intent: view.intentLine,
-              playing: _playing,
-              open: _logOpen,
-              onToggle: () => setState(() => _logOpen = !_logOpen),
-            ),
+            enemyName: view.enemyName,
+            intent: view.intentLine,
+            playing: _playing,
+            open: _logOpen,
+            onToggle: () => setState(() => _logOpen = !_logOpen),
           ),
-          // The command kit: an oiled-leather surface, no frame. `combatFrame`
-          // is a surface role now (`panel_skin.dart` — the frame belongs to
-          // the one thing a screen is about, and here that is the stage), so
-          // this differs from its neighbours by material and never by a
-          // second border.
-          SectionCard(
-            role: PanelRole.combatFrame,
-            surface: PanelSurface.leather,
-            padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
-            child: _CombatControls(
-              view: view,
-              controller: c,
-              locked: _playing || ended,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -529,38 +513,50 @@ String dropsText(List<RewardLine> drops) => drops
     )
     .join(', ');
 
-/// The command grid: Attack, Brace, Eat as 176 × 56 cells in a 2 × 2, one
-/// micro intent line above them, and Retreat as a quiet link beneath. All
-/// disabled while a command is in flight and while the stage replays the last
-/// round ([locked]).
+/// The battle page: the whole fight as one column sized to the viewport.
 ///
-/// ## The budget this obeys
+/// ## The ratio, and what bought it
 ///
-/// 12 + 13 (intent) + 8 + 56 + 8 + 56 + 8 + 44 (Retreat's 34 dp visual in its
-/// 44 dp hit region) + 12 + 2 (the card's own border) = **219 dp** at scale
-/// 1.0, against roughly 276 before. `ART-12_ux_brief.md` §6 says 210 because
-/// it budgeted Retreat's visual rather than the hit region the accessibility
-/// floor requires, and did not count the border; the structure it specifies
-/// is implemented exactly. `combat_ui_test` holds the figure and writes the
-/// sum out — it is the one number in this file a future addition must argue
-/// with rather than quietly exceed.
+/// The owner's verdict on this screen was "fight first, UI second — make the
+/// battlefield visually dominant; buttons should not outweigh the fight." It
+/// arrived at a 384 dp picture with two rod gauges under it, a 219 dp grey
+/// card holding a 2 × 2 command block, and roughly 200 dp of bare dark ground
+/// under that. A third of the screen was the fight; two thirds was chrome and
+/// void.
 ///
-/// ## The fourth cell is empty on purpose
+/// The page is now, at 393 × 852 (727 dp of content under a 61 dp header and
+/// a 64 dp tab bar, less the host list's 28 dp of padding):
 ///
-/// The grid has four places and the fight has three actions: `combatAttack`,
-/// `combatBrace`, `combatEat`, plus Retreat, which the brief puts *beneath*
-/// the grid as a link rather than in it. There is no skip, wait or item
-/// action in `SessionController`, so the bottom-right cell draws nothing. An
-/// invented fourth action would be a design decision smuggled in as a layout
-/// fix (`RULES.md` G-3), and a stretched Eat would say the grid is about
-/// filling itself.
-class _CombatControls extends StatefulWidget {
-  const _CombatControls({
+/// | band | dp | what |
+/// |---|---|---|
+/// | chassis | 398 | frame · lintel 64 · picture 256 · sill 40 · frame |
+/// | intent | 18 | the one line the round is about |
+/// | page | flexible | leather, **no card** — the Eat chooser resolves here |
+/// | rail | 120 | welt 12 · three 64 dp plates · Retreat's 44 dp hit |
+///
+/// **398 : 120 is 3.3 : 1** where it was about 1.2 : 1, and the rail's top
+/// edge is 648 dp down an 852 dp screen with the tab bar directly beneath it —
+/// no bare ground under the controls at all, because the page above them is
+/// where the room went.
+///
+/// ## Why it is a fixed height rather than an `Expanded`
+///
+/// The host is a `ListView` (`adventure_screen.dart`, frozen), so the
+/// incoming height is unbounded and `Expanded` would assert. The page
+/// therefore measures the viewport itself from [StrideGeometry] and takes
+/// that height, with a floor: on a phone too short to hold the layout the
+/// column keeps its minimum and the host list scrolls, which is the ordinary
+/// behaviour of everything else in that list.
+class _BattlePage extends StatefulWidget {
+  const _BattlePage({
+    super.key,
+    required this.stage,
     required this.view,
     required this.controller,
     required this.locked,
   });
 
+  final Widget stage;
   final EncounterView view;
   final SessionController controller;
 
@@ -568,10 +564,10 @@ class _CombatControls extends StatefulWidget {
   final bool locked;
 
   @override
-  State<_CombatControls> createState() => _CombatControlsState();
+  State<_BattlePage> createState() => _BattlePageState();
 }
 
-class _CombatControlsState extends State<_CombatControls> {
+class _BattlePageState extends State<_BattlePage> {
   /// Whether the Eat chooser is open. Presentational; nothing durable.
   bool _choosing = false;
 
@@ -607,30 +603,22 @@ class _CombatControlsState extends State<_CombatControls> {
         ? 'Your armour takes the heavy blow to ${g.takenLabel}.'
         : 'Your armour takes it to ${g.takenLabel}.';
 
-    // The one micro line, and the whole of what used to be three rows of
-    // sub-label (`ART-12` §6: "sub-labels collapse into one micro intent
-    // line above the grid").
-    //
-    // What it says, in priority order:
+    // The one line, unchanged in every word from the micro line that used to
+    // sit inside the command card, and moved out onto the page between the
+    // sill and the rail — where it belongs to the *fight* rather than to the
+    // buttons. Priority order:
     //
     // * **Held** — the round is playing out. It says so here, once, instead
-    //   of four cells all relabelling themselves "Fighting…" and the grid
-    //   losing the three words that tell the player what it does.
+    //   of three plates all relabelling themselves "Fighting…".
     // * **Brace is the suggested action** — the Brace sub-label's figure
-    //   moves here verbatim ("Take 6 instead of 13", or the lethal warning).
+    //   verbatim ("Take 6 instead of 13", or the lethal warning).
     //   `worthwhile` is the engine's own judgement and is deliberately not
-    //   re-derived; it already refuses to recommend a brace that costs more
-    //   than it saves.
-    // * **Otherwise, with a reading** — the armour sentence, unchanged, word
-    //   for word, including its heavy variant.
+    //   re-derived.
+    // * **Otherwise, with a reading** — the armour sentence, word for word.
     // * **Otherwise** — the creature's intent, which below Studied is the one
     //   short sentence ("It will strike twice.") this line was written for.
     //
-    // The *prose* tell at Studied and above stays on the stage's narration
-    // strip. Concatenating a 90-character tellLine onto the armour figures
-    // would need a second line at scale 1.0 — over the §6 budget — or an
-    // `AdaptiveText` shrunk past legibility, and the strip already carries it
-    // one row above, unclipped.
+    // The *prose* tell at Studied and above stays on the narration sill.
     final CombatGuardReading? reading = view.guardReading;
     final String? intentLine = held
         ? 'Fighting…'
@@ -640,199 +628,434 @@ class _CombatControlsState extends State<_CombatControls> {
         ? guardSentence(reading)
         : view.intentLine;
 
-    // One cell: 56 dp tall, half the card wide — 163.5 dp at 393, which is
-    // §6's 176 minus the card padding the brief's arithmetic did not
-    // subtract. `StrideButton` renders at the cell's height because its own
-    // box is a *minimum* (48), so there is no new control type, no edit to
-    // `data_display.dart`, and the press, disable, variant and semantics
-    // behaviour is the product's one button verbatim.
-    Widget cell(Widget child) => SizedBox(height: _cellHeight, child: child);
+    final double viewport =
+        MediaQuery.sizeOf(context).height -
+        StrideGeometry.headerMinHeight -
+        StrideGeometry.tabBarHeight -
+        _hostListPadding;
+    final double floor =
+        CombatStage.chassisHeight() + _intentHeight + _pageFloor + _railHeight;
 
-    // The command ornament, drawn at ×2 behind the label and never stretched.
-    //
-    // `plate_attack/brace/eat.png` are **not** the nine-patches `ART-09` §5
-    // commissioned — measured, each is a centred blob on a transparent 64 × 32
-    // field whose corner blocks and edge strips are entirely empty, so a
-    // nine-patch would tile the blob's arc across the cell and draw nothing in
-    // the middle. `CombatHudAssets` carries the measurement. They are
-    // integrated as ornaments instead, which is the third thing
-    // `DECISIONS/0029` allows a raster to be, and the 56 dp cell clips 4 dp of
-    // each plate's own transparent margin top and bottom and none of its drawn
-    // pixels.
-    Widget plate(String path) => OverflowBox(
-      minWidth: _plateWidth,
-      maxWidth: _plateWidth,
-      minHeight: _plateHeight,
-      maxHeight: _plateHeight,
-      child: PixelAsset(
-        assetPath: path,
-        nativeWidth: CombatHudAssets.plateNativeWidth,
-        nativeHeight: CombatHudAssets.plateNativeHeight,
-      ),
-    );
-
-    // The 16 × 16 glyph at ×2, before the label. Decoration: the word still
-    // says what the control does, and Retreat has no glyph at all.
-    Widget glyph(String path) => PixelAsset(
-      assetPath: path,
-      nativeWidth: CombatHudAssets.iconNative,
-      nativeHeight: CombatHudAssets.iconNative,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        if (intentLine case final String line) ...<Widget>[
-          // A telegraph turn speaks in the danger rust (Fable V2 Iteration
-          // 02) — the one hue combat threat owns — so the round to brace
-          // against is unmissable without reading a word.
-          //
-          // `AdaptiveText`, not `Text`: this is the one line, so it shrinks
-          // within its bounded range rather than taking a second row out of
-          // the budget, and it never loses a character (D-01).
-          AdaptiveText(
-            line,
-            style: StrideType.micro,
-            color: view.telegraph && !held
-                ? StrideColors.danger
-                // Never `textMuted`: it fails WCAG AA on all four surfaces,
-                // and this is the one number the game volunteers.
-                : StrideColors.textSecondary,
+    return SizedBox(
+      height: viewport > floor ? viewport : floor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          widget.stage,
+          SizedBox(
+            height: _intentHeight,
+            child: intentLine == null
+                ? const SizedBox.shrink()
+                : Align(
+                    alignment: Alignment.centerLeft,
+                    child: AdaptiveText(
+                      intentLine,
+                      style: StrideType.micro,
+                      // A telegraph turn speaks in the danger rust (Fable V2
+                      // Iteration 02) — the one hue combat threat owns — so
+                      // the round to brace against is unmissable without
+                      // reading a word. Never `textMuted`: it fails WCAG AA
+                      // on all four surfaces, and this is the one number the
+                      // game volunteers.
+                      color: view.telegraph && !held
+                          ? StrideColors.danger
+                          : StrideColors.textSecondary,
+                    ),
+                  ),
           ),
-          const SizedBox(height: StrideSpace.rhythmRow),
-        ],
-        // Row one: Attack, then Brace. Attack sits top-left — thumb-nearest
-        // on the reach the brief measures from — and both cells are 176 × 56,
-        // far above the 44 dp floor.
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: cell(
-                StrideButton(
-                  label: 'Attack',
-                  emblem: plate(CombatHudAssets.plateAttack),
-                  leading: glyph(CombatHudAssets.iconAttack),
-                  // Offense wears the danger accent inside the encounter —
-                  // scope-amended on the token by the owner's brief
-                  // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
-                  variant: StrideButtonVariant.attack,
-                  // The command's own pulse (DIR-14). Brace has answered the
-                  // hand since PRESENTATION_COMBAT_EVOLUTION_01 and the audio
-                  // matrix has always assumed one here; the other three
-                  // commands were simply silent. Light, fired before the
-                  // command goes out, so the tap answers on the frame it
-                  // happens rather than when the commit returns.
-                  onPressed: held
-                      ? null
-                      : () {
-                          AudioScope.maybeRead(context)?.hapticLight();
-                          c.combatAttack();
-                        },
-                ),
-              ),
+          // The page: leather, no card, no border, no radius. What resolves
+          // on it is what the round asks for and nothing else — today that is
+          // the Eat chooser. Empty ground between a fight and its commands is
+          // not a hole to fill; it is the room that stops the two touching,
+          // and it is made of something.
+          Expanded(
+            child: PageGround(
+              surface: PanelSurface.leather,
+              fill: StrideColors.surfaceGround,
+              child: _choosing && eatReason == null
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        StrideSpace.s8,
+                        StrideSpace.s10,
+                        StrideSpace.s8,
+                        StrideSpace.s8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Text('EAT WHAT?', style: StrideType.microLabel),
+                          const SizedBox(height: StrideSpace.s6),
+                          Wrap(
+                            spacing: StrideSpace.s6,
+                            runSpacing: StrideSpace.s6,
+                            children: <Widget>[
+                              for (final EdibleOption e in edibles)
+                                StrideButton.secondary(
+                                  label:
+                                      '${e.name} +${e.healing} (×${e.count})',
+                                  onPressed: held
+                                      ? null
+                                      : () {
+                                          AudioScope.maybeRead(
+                                            context,
+                                          )?.hapticLight();
+                                          setState(() => _choosing = false);
+                                          c.combatEat(e.itemId);
+                                        },
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.expand(),
             ),
-            const SizedBox(width: StrideSpace.rhythmRow),
-            // Brace (`DECISIONS/0027`, experimental — Q-06's candidate): deal
-            // nothing, take the reply at half. Always offered; reading the
-            // telegraph and spending the round well is the player's craft.
-            //
-            // Its figures — "Take 6 instead of 13", computed from the armour
-            // actually worn — moved to the intent line above when bracing is
-            // the suggested play. That is the same one-fact-said-once rule
-            // that put the *taken* figure in the armour sentence and the
-            // *braced* figure on the button: there is still exactly one
-            // statement of each, and now there is one row of them instead of
-            // three.
-            Expanded(
-              child: cell(
-                StrideButton(
-                  label: 'Brace',
-                  emblem: plate(CombatHudAssets.plateBrace),
-                  leading: glyph(CombatHudAssets.iconBrace),
-                  // Defense at the opposite temperature — cool steel line and
-                  // edge, so offense and defense read apart at a glance
-                  // without a rainbow.
-                  variant: StrideButtonVariant.defense,
-                  onPressed: held ? null : c.combatBrace,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: StrideSpace.rhythmRow),
-        // Row two: Eat, and the empty fourth place. Eat keeps its reason —
-        // "a disabled control must say why" is not a sub-label the intent
-        // line may absorb, because it belongs to one control and not to the
-        // round.
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: cell(
-                StrideButton(
-                  label: _choosing ? 'Eat — choose' : 'Eat',
-                  emblem: plate(CombatHudAssets.plateEat),
-                  leading: glyph(CombatHudAssets.iconEat),
-                  subLabel: held ? null : eatReason,
-                  onPressed: held || eatReason != null
-                      ? null
-                      : () => setState(() => _choosing = !_choosing),
-                ),
-              ),
-            ),
-            const SizedBox(width: StrideSpace.rhythmRow),
-            const Expanded(child: SizedBox.shrink()),
-          ],
-        ),
-        if (_choosing && eatReason == null) ...<Widget>[
-          const SizedBox(height: StrideSpace.s6),
-          Wrap(
-            spacing: StrideSpace.s6,
-            runSpacing: StrideSpace.s6,
+          ),
+          // The fight's entrance (Fable V2 Iteration 02) survives the
+          // rebuild, one element lighter: the stage resolves with the frame
+          // and the rail follows a beat later. The first child is the beat
+          // the stage used to occupy — the stage is above the `Expanded` now
+          // and cannot be inside the same reveal, so its slot is spent here
+          // as nothing. Reduce Motion renders both at full value, and a
+          // mid-fight rebuild keeps the element, so nothing re-plays.
+          StaggeredReveal(
+            gap: 0,
             children: <Widget>[
-              for (final EdibleOption e in edibles)
-                StrideButton.secondary(
-                  label: '${e.name} +${e.healing} (×${e.count})',
-                  onPressed: held
-                      ? null
-                      : () {
-                          AudioScope.maybeRead(context)?.hapticLight();
-                          setState(() => _choosing = false);
-                          c.combatEat(e.itemId);
-                        },
-                ),
-            ],
-          ),
-        ],
-        const SizedBox(height: StrideSpace.rhythmRow),
-        // Beneath the grid, quiet, and not a plate: leaving is not one of the
-        // four things you do in a fight. No confirm step either — retreating
-        // loses nothing, and the label says so, so a second tap would guard
-        // against nothing.
-        StrideButton.secondary(
-          label: 'Retreat — nothing is lost',
-          onPressed: held
-              ? null
-              : () {
+              const SizedBox.shrink(),
+              _CommandRail(
+                held: held,
+                eatReason: eatReason,
+                choosing: _choosing,
+                onAttack: () {
+                  AudioScope.maybeRead(context)?.hapticLight();
+                  c.combatAttack();
+                },
+                onBrace: c.combatBrace,
+                onEat: () => setState(() => _choosing = !_choosing),
+                onRetreat: () {
                   AudioScope.maybeRead(context)?.hapticLight();
                   c.combatRetreat();
                 },
-        ),
-      ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// One command cell's height (`ART-12` §6). The width is whatever half the
-/// card is — 176 dp at 393 — because a cell that fixed its width would be the
-/// one thing on this screen that could not follow the phone.
-const double _cellHeight = 56;
+/// The host list's own vertical padding (`adventure_screen.dart`, frozen):
+/// `StrideSpace.s12` above the first child and `s16` below the last.
+const double _hostListPadding = StrideSpace.s12 + StrideSpace.s16;
 
-/// The command ornament's drawn size: `CombatHudAssets.plateNativeWidth` ×
-/// `plateNativeHeight` (64 × 32) at ×2. Written out rather than computed so
-/// they are `const` doubles the `OverflowBox` can take directly; the assets'
-/// own figures are the constants beside them and a test holds the two equal.
-const double _plateWidth = 128;
+/// The intent line's band on the page, under the sill.
+const double _intentHeight = 18;
+
+/// The least leather the page may show before the host list starts scrolling
+/// instead. Enough to hold the Eat chooser's first row.
+const double _pageFloor = 96;
+
+/// The command rail: welt 12 · plates 64 · Retreat's 44 dp hit region.
+const double _railHeight = 12 + _plateHeight + _retreatHit;
+
+/// One command plate. Three of them, 64 dp tall, side by side.
 const double _plateHeight = 64;
+
+/// Retreat's hit region. 44 is the accessibility floor and is not negotiable;
+/// the *visual* inside it is one micro line, which is the whole point.
+const double _retreatHit = 44;
+
+/// A held plate's opacity — a round playing out, or a command in flight.
+const double _heldPlate = 0.40;
+
+/// A plate that cannot run for a reason of its own (nothing edible, health
+/// full). Lighter than held, because "not now" and "not here, ever" are
+/// different states and the player learns them apart (`DIR-11`).
+const double _refusedPlate = 0.55;
+
+/// The commands: three plates on a leather rail pinned above the tab bar, and
+/// Retreat as a micro link beneath them.
+///
+/// ## What changed, and why it is not `StrideButton`
+///
+/// The three commands used to be `StrideButton`s in a 2 × 2 grid — the
+/// product's general-purpose control, with an authored plate laid behind the
+/// label as a **centred ornament**, because `plate_attack/brace/eat.png` are
+/// blobs on a transparent field whose corner blocks and edge runs are empty,
+/// from which no nine-patch can be cut. Three ornaments in three perspectives
+/// (cushion, diamond, bowl), one with a checker ground baked in, sat behind
+/// three labels in a grey card. That is Q-22, and this closes it: the plate is
+/// `KitFrame.btnPlateV2`, a **real nine-patch** measured at 8 / 5 on a 56 × 24
+/// canvas, cut in at its own band and tinted by the command's own ink. It is a
+/// whole plate at any size, it has one light direction because it has one
+/// authored corner, and there is no edge inside the cell.
+///
+/// A local widget rather than `StrideButton` because `StrideButton` is
+/// NAV-owned, has 43 call sites, and its box is a 48 dp minimum around a
+/// horizontal label — none of which is a 64 dp stacked command plate.
+/// Everything a button owes the player is here: a target well over the 44 dp
+/// floor, a semantics label carrying the reason a disabled control gives, and
+/// a disabled state that recedes rather than disappears.
+class _CommandRail extends StatelessWidget {
+  const _CommandRail({
+    required this.held,
+    required this.eatReason,
+    required this.choosing,
+    required this.onAttack,
+    required this.onBrace,
+    required this.onEat,
+    required this.onRetreat,
+  });
+
+  final bool held;
+
+  /// Why Eat cannot run, or null. A disabled control must say why, and this
+  /// is the one sub-label the intent line may not absorb: it belongs to one
+  /// control and not to the round.
+  final String? eatReason;
+  final bool choosing;
+  final VoidCallback onAttack;
+  final VoidCallback onBrace;
+  final VoidCallback onEat;
+  final VoidCallback onRetreat;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: _railHeight,
+    child: PageGround(
+      surface: PanelSurface.leather,
+      fill: StrideColors.surfaceBlock,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // The same stitched welt the nav strap and the header shelf wear
+          // (KIT_CONTRACT §2, `nav_welt_v2`) — one chassis, one stitch. It is
+          // what makes the rail read as part of the phone's furniture rather
+          // than as a fourth panel.
+          const KitEdge(
+            tile: KitTile.navWelt,
+            fallbackColor: StrideColors.separator,
+          ),
+          SizedBox(
+            height: _plateHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s8),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _CommandPlate(
+                      label: 'Attack',
+                      glyph: CombatHudAssets.iconAttack,
+                      // Offense wears the danger accent inside the encounter —
+                      // scope-amended on the token by the owner's brief
+                      // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4). The dim
+                      // register, because this is a *face* under type and not
+                      // an accent line.
+                      ink: StrideColors.dangerDim,
+                      onTap: held ? null : onAttack,
+                      held: held,
+                    ),
+                  ),
+                  const SizedBox(width: StrideSpace.s8),
+                  // Brace (`DECISIONS/0027`, experimental — Q-06's candidate):
+                  // deal nothing, take the reply at half. Always offered;
+                  // reading the telegraph and spending the round well is the
+                  // player's craft. Its figures — "Take 6 instead of 13" — are
+                  // on the intent line above when bracing is the suggested
+                  // play, which is the same one-fact-said-once rule that put
+                  // the *taken* figure in the armour sentence.
+                  Expanded(
+                    child: _CommandPlate(
+                      label: 'Brace',
+                      glyph: CombatHudAssets.iconBrace,
+                      // Defense at the opposite temperature — cool steel, so
+                      // offense and defense read apart at a glance without a
+                      // rainbow.
+                      ink: StrideColors.defenseSheen,
+                      onTap: held ? null : onBrace,
+                      held: held,
+                    ),
+                  ),
+                  const SizedBox(width: StrideSpace.s8),
+                  Expanded(
+                    child: _CommandPlate(
+                      label: choosing ? 'Choose' : 'Eat',
+                      glyph: CombatHudAssets.iconEat,
+                      ink: StrideColors.surfaceRaised,
+                      reason: held ? null : eatReason,
+                      onTap: held || eatReason != null ? null : onEat,
+                      held: held,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Beneath the plates, quiet, and **never a plate**: leaving is not
+          // one of the three things you do in a fight. No confirm step either
+          // — retreating loses nothing, and the label says so, so a second tap
+          // would guard against nothing.
+          Expanded(child: _RetreatLink(onTap: held ? null : onRetreat)),
+        ],
+      ),
+    ),
+  );
+}
+
+/// One command: a nine-patch plate, a 32 dp glyph, a micro label.
+class _CommandPlate extends StatelessWidget {
+  const _CommandPlate({
+    required this.label,
+    required this.glyph,
+    required this.ink,
+    required this.onTap,
+    required this.held,
+    this.reason,
+  });
+
+  final String label;
+  final String glyph;
+
+  /// The plate's face. The nine-patch supplies the construction — rim, ledge,
+  /// light — and Flutter supplies the temperature, so three commands read
+  /// apart without three rasters.
+  final Color ink;
+  final VoidCallback? onTap;
+  final bool held;
+
+  /// Why this command cannot run. Shown in place of the glyph: the words that
+  /// say why outrank the icon, and 32 dp of glyph over two lines of type does
+  /// not fit a 64 dp plate.
+  final String? reason;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = onTap != null;
+    // The plate stays, dimmed (FMPO02 wave 3, FINAL-01 #1). It used to vanish
+    // when disabled, and the result was cells that changed shape twice a
+    // round: flat on turn 1, plated on turn 2, for the same three commands. A
+    // cell whose identity depends on whether it is your turn cannot be
+    // learned.
+    final double opacity = enabled
+        ? 1
+        : held
+        ? _heldPlate
+        : _refusedPlate;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: reason == null ? label : '$label. $reason',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Opacity(
+          opacity: opacity,
+          child: KitPlate(
+            frame: KitFrame.btnPlateV2,
+            fill: ink,
+            raised: enabled,
+            // Zero, not a figure of its own: `KitPlate` already insets by the
+            // nine-patch's own band (10 dp at `btnPlateV2`'s 5 × 2), and a
+            // second padding on top of it is subtracted from the same 64 dp.
+            // The interior is 44, and what goes in it is sized to 44.
+            padding: EdgeInsets.zero,
+            // The glyph beside the word rather than over it. Stacked, a 32 dp
+            // icon and a 13 dp label are 45 dp of content in a 44 dp
+            // interior — one dp over, which is a plate that overflows on
+            // every phone rather than an arrangement that nearly works. Side
+            // by side they are 32 dp tall in 44 and about 72 dp wide in 89,
+            // and the label keeps [AdaptiveText]'s room to shrink under
+            // Dynamic Type instead of pushing the icon out of the plate.
+            child: reason == null
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      PixelAsset(
+                        assetPath: glyph,
+                        nativeWidth: CombatHudAssets.iconNative,
+                        nativeHeight: CombatHudAssets.iconNative,
+                      ),
+                      const SizedBox(width: StrideSpace.s4),
+                      Flexible(
+                        child: AdaptiveText(
+                          label,
+                          style: StrideType.microLabel,
+                          color: StrideColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      AdaptiveText(
+                        label,
+                        style: StrideType.microLabel,
+                        color: StrideColors.textPrimary,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: StrideSpace.s2),
+                      AdaptiveText(
+                        reason!,
+                        style: StrideType.micro,
+                        color: StrideColors.textSecondary,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Retreat: a micro link, right-aligned, in a full-width 44 dp hit region.
+///
+/// It was the **widest control on the screen** — a full-bleed secondary button
+/// reading "Retreat — nothing is lost", heavier than any command it sat under.
+/// The words are unchanged and the hit region is unchanged; what went is the
+/// plate, because the plates are what the fight is fought with and this is the
+/// way out of it.
+class _RetreatLink extends StatelessWidget {
+  const _RetreatLink({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: onTap != null,
+    label: 'Retreat — nothing is lost',
+    excludeSemantics: true,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: _retreatHit,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s10),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Opacity(
+              opacity: onTap == null ? _heldPlate : 1,
+              child: const Text(
+                'Retreat — nothing is lost',
+                style: StrideType.micro,
+                maxLines: 1,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 /// Victory, defeat or retreat, once, with a Continue that acknowledges it.
 ///

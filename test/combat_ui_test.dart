@@ -23,6 +23,7 @@ import 'package:stride/ui/icons/combat_assets.dart';
 import 'package:stride/ui/theme/stride_colors.dart';
 import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/screens/adventure/encounter_card.dart';
+import 'package:stride/ui/screens/combat/combat_stage.dart';
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -38,6 +39,20 @@ final ContentId tunic = ContentId.unchecked('item.traveler_tunic');
 final ContentId meadowPatch = ContentId.unchecked('resource_node.meadow_patch');
 final ContentId herbBrothRecipe = ContentId.unchecked('recipe.herb_broth');
 final ContentId herbBroth = ContentId.unchecked('item.herb_broth');
+
+/// The tap target around one command's word on the rail.
+///
+/// EPO03 replaced the 2 × 2 grid of `StrideButton`s with `_CommandPlate` — a
+/// private widget, because a 64 dp stacked plate is not the product's general
+/// button and `StrideButton` is NAV-owned. The plate wraps its content in one
+/// `GestureDetector`, so this is the same assertion `onPressed == null` used
+/// to be, one widget out.
+GestureDetector command(WidgetTester tester, String label) =>
+    tester.widget<GestureDetector>(
+      find
+          .ancestor(of: find.text(label), matching: find.byType(GestureDetector))
+          .first,
+    );
 
 final StepOriginKey phone = StepOriginKey('a1b2c3d4e5f60718');
 const int hour = 60 * 60 * 1000;
@@ -265,24 +280,21 @@ void main() {
     expect(find.text('20 / 20'), findsOneWidget);
     expect(find.text('40 / 40'), findsOneWidget);
     expect(find.text('TURN 1'), findsOneWidget);
-    expect(find.widgetWithText(StrideButton, 'Attack'), findsOneWidget);
-    expect(find.widgetWithText(StrideButton, 'Eat'), findsOneWidget);
-    expect(
-      find.widgetWithText(StrideButton, 'Retreat — nothing is lost'),
-      findsOneWidget,
-    );
+    // The three commands are `_CommandPlate`s on the rail now, not
+    // `StrideButton`s in a card (`DIR-11`), so they are found by the word
+    // they carry; the tap target around it is the plate's own
+    // `GestureDetector`, which is what [command] reads for enablement.
+    expect(find.text('Attack'), findsOneWidget);
+    expect(find.text('Eat'), findsOneWidget);
+    expect(find.text('Retreat — nothing is lost'), findsOneWidget);
     // Provisioned with broths, but at full health on turn 1: the button is
     // disabled with the truthful reason — the same fact the engine would
     // refuse as `health_full` (`combat_session_test.dart`).
-    expect(
-      (tester.widget(find.widgetWithText(StrideButton, 'Eat')) as StrideButton)
-          .onPressed,
-      isNull,
-    );
+    expect(command(tester, 'Eat').onTap, isNull);
     expect(find.text('Health is full'), findsOneWidget);
     expect(find.text('Nothing to eat'), findsNothing);
 
-    await tapAndSettle(tester, find.widgetWithText(StrideButton, 'Attack'));
+    await tapAndSettle(tester, find.text('Attack'));
     final EncounterView v = s.encounter!;
     expect(v.turn, 2);
     expect(find.text('TURN 2'), findsOneWidget);
@@ -405,14 +417,39 @@ void main() {
     expect(find.text('Driven off — returns after you travel'), findsOneWidget);
   });
 
-  testWidgets('the command card fits its 210 dp budget and the grid is 2 × 2', (
+  testWidgets('the fight outweighs the commands: 398 dp of chassis against a '
+      '120 dp rail, and every plate is a whole plate', (
     WidgetTester tester,
   ) async {
-    // The owner's verdict on 4d9a81f: "the giant lower command frame
-    // dominates the fight." It was four full-width buttons, a log block and a
-    // heading — about 276 dp of an 852 dp screen. `ART-12_ux_brief.md` §6
-    // budgets 210 for the whole card and gives the rest back to the stage;
-    // this is the number that keeps it given back.
+    // **This test replaces "the command card fits its 210 dp budget."**
+    //
+    // That number was the right guard for the layout it guarded: `ART-12` §6
+    // budgeted 210 dp for a command *card* and the build measured 219, and
+    // holding that ceiling is what kept the card from growing back. EPO03
+    // deletes the card. There is no longer a `SectionCard` under the stage to
+    // measure, so the guard is re-pointed at the thing the owner actually
+    // ruled on — "make the battlefield visually dominant; buttons should not
+    // outweigh the fight" — and states it as the ratio it is.
+    //
+    // At 393 × 852 the host list gives the screen 727 − 28 = 699 dp:
+    //
+    //   chassis   398   19 frame · 64 lintel · 256 picture · 40 sill · 19
+    //   intent     18
+    //   page      163   leather, no card
+    //   rail      120   12 welt · 64 plates · 44 Retreat
+    //   ---------------
+    //             699
+    //
+    // 398 : 120 is **3.3 : 1**, against about 1.2 : 1 on 4d9a81f. The
+    // assertions below are the three figures a future change would have to
+    // argue with rather than quietly spend: the chassis is at least half the
+    // content column, the rail is at most a sixth and a bit, and the ratio
+    // does not fall under three.
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final StrideSession s = await boot(tester, atWoods: true);
     await show(tester, s);
     await tapAndSettle(tester, find.text('Forest Wolf'));
@@ -427,140 +464,138 @@ void main() {
       ),
     );
 
-    final Finder attack = find.widgetWithText(StrideButton, 'Attack');
-    final Finder brace = find.widgetWithText(StrideButton, 'Brace');
-    final Finder eat = find.widgetWithText(StrideButton, 'Eat');
-    final Finder card = find
-        .ancestor(of: attack, matching: find.byType(SectionCard))
-        .first;
-    // The measured card is **219**, against the brief's 210, and the 9 dp are
-    // two terms §6's arithmetic left out rather than anything this build
-    // added. Stated in full so the next reader argues with the sum instead of
-    // rediscovering it:
-    //
-    //   card padding      12
-    //   intent line       13   (§6 allowed 16 for one `micro` line; it is 13)
-    //   gap                8
-    //   Attack / Brace    56
-    //   gap                8
-    //   Eat / (empty)     56
-    //   gap                8
-    //   Retreat           44   (§6 budgeted its 34 dp *visual*; the widget is
-    //                           its 44 dp hit region, which is the floor and
-    //                           is not negotiable)
-    //   card padding      12
-    //   card border        2   (`SectionCard`'s own 1 px, top and bottom)
-    //   ---------------------
-    //                    219
-    //
-    // Against ~276 before, with the log block and its heading gone from the
-    // card entirely. The ceiling is asserted at 220 — one dp of slack, so a
-    // rounding change is not a failure and a new row is.
+    final double chassis = tester.getSize(find.byType(CombatStage)).height;
+    // The stage publishes the figure it lays out; the two agree by
+    // construction and this is the check that they do.
+    expect(chassis, CombatStage.chassisHeight());
+    expect(chassis, 398, reason: '19 + 64 + 256 + 40 + 19');
+
+    // `_CommandRail` is private, so the rail is measured the way a player
+    // finds it — from the stitched welt along its top edge to the bottom of
+    // Retreat's own hit region.
+    final Finder retreat = find.text('Retreat — nothing is lost');
+    final Finder attack = find.text('Attack');
+    expect(retreat, findsOneWidget);
+    // The welt is 12 dp of `KitTile.navWelt` above the plate row — the same
+    // stitch the nav strap and the header shelf wear, which is why it cannot
+    // be found by type here: there are three of them on screen and they are
+    // all correct.
+    final double railTop =
+        tester
+            .getTopLeft(
+              find.ancestor(of: attack, matching: find.byType(KitPlate)).first,
+            )
+            .dy -
+        12;
+    final double railBottom = tester
+        .getBottomLeft(
+          find.ancestor(of: retreat, matching: find.byType(GestureDetector)).first,
+        )
+        .dy;
+
+    // The content column the two share, from the top of the chassis to the
+    // bottom of the rail.
+    final double chassisTop = tester.getTopLeft(find.byType(CombatStage)).dy;
+    final double content = railBottom - chassisTop;
+    expect(content, greaterThan(600));
+    final double rail = railBottom - railTop;
+    expect(rail, 120, reason: '12 welt + 64 plates + 44 Retreat');
+
     expect(
-      tester.getSize(card).height,
-      lessThanOrEqualTo(220),
-      reason: 'the command card outgrew its budget',
+      chassis / content,
+      greaterThanOrEqualTo(0.50),
+      reason: 'the fight is at least half the column it is fought in',
+    );
+    expect(
+      rail / content,
+      lessThanOrEqualTo(0.18),
+      reason: 'the commands outgrew their sixth of the screen',
+    );
+    expect(
+      chassis / rail,
+      greaterThanOrEqualTo(3.0),
+      reason: 'fight-to-rail fell under 3 : 1',
     );
 
-    // 2 × 2: Attack and Brace share a row, Eat opens the next one, and the
-    // fourth place is empty because the fight has no fourth action.
-    final Size attackSize = tester.getSize(attack);
-    expect(attackSize.height, 56);
-    expect(tester.getSize(brace), attackSize);
-    expect(tester.getSize(eat), attackSize);
-    expect(tester.getTopLeft(attack).dy, tester.getTopLeft(brace).dy);
-    expect(tester.getTopLeft(attack).dx, tester.getTopLeft(eat).dx);
-    expect(tester.getTopLeft(eat).dy, greaterThan(tester.getTopLeft(brace).dy));
-    // 163.5, not §6's 176: (361 − 2 border − 24 card padding − 8 gap) / 2. The
-    // brief measured the grid against the screen's content width and did not
-    // subtract the card the grid sits inside. Every cell is still three times
-    // the 44 dp floor in both dimensions.
-    expect(attackSize.width, 163.5);
-    // Retreat's own hit region clears the floor too — 34 dp of visual inside
-    // 44, the pattern `StrideButton.secondary` already implements.
-    final Finder retreat = find.widgetWithText(
-      StrideButton,
-      'Retreat — nothing is lost',
+    // Three plates, one row, equal, and each one well over the 44 dp floor in
+    // both dimensions.
+    final Size attackPlate = tester.getSize(
+      find.ancestor(of: attack, matching: find.byType(KitPlate)).first,
     );
-    expect(tester.getSize(retreat).height, greaterThanOrEqualTo(44));
-    // The log block is gone from the card entirely: its heading with it.
-    expect(find.text('This round'), findsNothing);
-
-    // The authored command dressing (FMPO02 wave 2): one ornament and one
-    // glyph per *enabled* command cell, both at ×2, and neither on Retreat.
-    //
-    // The plate is drawn 128 × 64 — its native 64 × 32 at ×2 — inside a 56 dp
-    // cell, so the cell clips 4 dp top and bottom. That is the plate's own
-    // transparent margin and none of its drawn pixels: the three files' opaque
-    // content spans native rows 2..29 at worst (`CombatHudAssets`).
-    for (final (Finder cell, String plate, String icon)
-        in <(Finder, String, String)>[
-          (attack, CombatHudAssets.plateAttack, CombatHudAssets.iconAttack),
-          (brace, CombatHudAssets.plateBrace, CombatHudAssets.iconBrace),
-        ]) {
-      Finder art(String path) => find.descendant(
-        of: cell,
-        matching: find.byWidgetPredicate(
-          (Widget w) => w is PixelAsset && w.assetPath == path,
+    expect(attackPlate.height, 64);
+    expect(attackPlate.width, greaterThanOrEqualTo(44));
+    for (final String other in <String>['Brace', 'Eat']) {
+      expect(
+        tester.getSize(
+          find.ancestor(of: find.text(other), matching: find.byType(KitPlate)).first,
         ),
+        attackPlate,
+        reason: '$other is not the same plate as Attack',
       );
-      final PixelAsset p = tester.widget<PixelAsset>(art(plate));
-      expect(p.scale, 2, reason: 'integer scale only (L-18)');
-      expect(p.nativeWidth, CombatHudAssets.plateNativeWidth);
-      expect(p.nativeHeight, CombatHudAssets.plateNativeHeight);
-      expect(tester.getSize(art(plate)), const Size(128, 64));
-      final PixelAsset g = tester.widget<PixelAsset>(art(icon));
-      expect(g.scale, 2);
-      expect(tester.getSize(art(icon)), const Size(32, 32));
+      expect(
+        tester.getTopLeft(find.text(other)).dy,
+        closeTo(tester.getTopLeft(attack).dy, 8),
+        reason: '$other left the plate row',
+      );
     }
-    // Eat is disabled in this fixture — the Traveler is carrying nothing
-    // edible — so it is also the disabled case.
-    //
-    // **The plate stays, dimmed** (FMPO02 wave 3, FINAL-01 #1). It used to go,
-    // under the rule the authored button plate obeys, and the result was four
-    // cells that changed shape twice a round: flat and unframed on turn 1,
-    // plated on turn 2, for the same four controls. A cell whose identity
-    // depends on whether it is your turn cannot be learned. So it recedes to
-    // `StrideButton.disabledDressing` instead of vanishing.
-    //
-    // The **glyph** still goes, and only because this control grew a
-    // [subLabel]: 32 dp of icon beside two lines of type does not fit the
-    // cluster's 56 dp cell, and the line that says why is never the one
-    // squeezed out.
-    expect(tester.widget<StrideButton>(eat).onPressed, isNull);
-    expect(find.text('Nothing to eat'), findsOneWidget);
-    final Finder eatPlate = find.descendant(
-      of: eat,
-      matching: find.byWidgetPredicate(
-        (Widget w) => w is PixelAsset && w.assetPath == CombatHudAssets.plateEat,
-      ),
+
+    // **Q-22 closes here.** The three commands wore `plate_attack/brace/eat`
+    // as centred ornaments — blobs on a transparent field with empty corners
+    // and empty edge runs, three of them in three perspectives, one with a
+    // checker ground baked in. They are gone from this screen; the plate is
+    // `KitFrame.btnPlateV2`, a real nine-patch drawn through `PixelFrame`,
+    // which paints four corners once and tiles four edges and can therefore
+    // be any size without an edge appearing inside the cell.
+    for (final String gone in <String>[
+      CombatHudAssets.plateAttack,
+      CombatHudAssets.plateBrace,
+      CombatHudAssets.plateEat,
+    ]) {
+      expect(
+        find.byWidgetPredicate(
+          (Widget w) => w is PixelAsset && w.assetPath == gone,
+        ),
+        findsNothing,
+        reason: '$gone is a centred ornament and Q-22 retired it',
+      );
+    }
+
+    // Retreat is never a plate, and its hit region still clears the floor.
+    expect(
+      find.ancestor(of: retreat, matching: find.byType(KitPlate)),
+      findsNothing,
+      reason: 'leaving is not one of the three things you do in a fight',
     );
-    expect(eatPlate, findsOneWidget, reason: 'the cell keeps its identity');
     expect(
       tester
-          .widget<Opacity>(
-            find.ancestor(of: eatPlate, matching: find.byType(Opacity)).first,
+          .getSize(
+            find
+                .ancestor(of: retreat, matching: find.byType(GestureDetector))
+                .first,
           )
-          .opacity,
-      closeTo(StrideButton.disabledDressing, 0.001),
+          .height,
+      greaterThanOrEqualTo(44),
     );
+
+    // Eat is disabled in this fixture — nothing edible — so it is also the
+    // disabled case. The plate stays, dimmed (FMPO02 wave 3, FINAL-01 #1):
+    // it used to vanish, and the result was cells that changed shape twice a
+    // round. The glyph goes and the words that say why take its place.
+    expect(command(tester, 'Eat').onTap, isNull);
+    expect(find.text('Nothing to eat'), findsOneWidget);
     expect(
       find.descendant(
-        of: eat,
+        of: find.ancestor(of: find.text('Eat'), matching: find.byType(KitPlate)).first,
         matching: find.byWidgetPredicate(
-          (Widget w) =>
-              w is PixelAsset && w.assetPath == CombatHudAssets.iconEat,
+          (Widget w) => w is PixelAsset && w.assetPath == CombatHudAssets.iconEat,
         ),
       ),
       findsNothing,
       reason: 'the words that say why outrank the icon',
     );
-    // Retreat is the quiet secondary: no plate, no glyph, and its icon was
-    // never authored (`COMBAT_STAGE_report.md` — four candidates, dropped).
-    expect(
-      find.descendant(of: retreat, matching: find.byType(PixelAsset)),
-      findsNothing,
-    );
+
+    // The log block is gone from under the fight entirely, heading and all.
+    expect(find.text('This round'), findsNothing);
   });
 
   testWidgets('the Character screen shows the combat figures and follows the '
