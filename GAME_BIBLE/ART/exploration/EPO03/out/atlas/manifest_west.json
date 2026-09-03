@@ -18,6 +18,29 @@
       "coreAuthor": true,
       "reauthorizes": [],
       "intent": "The core forest's west face above the road (the vertical wall at x~256, y 300-494, inside the A-4 rim FMPO02 could not write) breaks westward into bays, promontories and stepping copses that meet W1's meadow copses; firs at the top, oaks below; the wood east of x 296 stays unbroken for the fairy glade; Greenwatch (286,431) keeps a forest edge."
+    },
+    {
+      "id": "WB",
+      "name": "pass_road_foothills",
+      "x": 0,
+      "y": 420,
+      "w": 344,
+      "h": 252,
+      "salt": 81,
+      "status": "accepted",
+      "job": "16afb5a9-2445-442d-b439-22d7bb808590",
+      "seed": 812,
+      "atlas": "0-260 x 460-632",
+      "review": "GAME_BIBLE/ART/exploration/EPO03/review/atlas/WB_preview_fov_x2.png",
+      "team": "west",
+      "coreAuthor": true,
+      "reauthorizes": [
+        "roadjoin_corridor_west",
+        "west_caravan_road",
+        "caravan_corridor",
+        "stag_box"
+      ],
+      "intent": "PLAINS->MOUNTAIN (DIR-02): the road loop gets a reason. The existing road geometry is held (enters the west edge at y=602, col at Wayfarer's Pass 187,542, corridor 199-245 x 506-532 keeps road, leaves x=260 at y=517) and the terrain around it is re-authored: rock knolls and scree fans rising westward to the Worldspine's foot, boulders densest at the wall, a snow dusting on the SW shoulders; a beck out of the hills forded by the road and bending SW to leave the rect bottom for WC; the pasted peak (210,590) joined to the range by a rock-and-scree ridge. Rect stops at x=260 so the frozen core wood, Deepwood Shrine (304,556) and LANDMARKS' L1 glade (256-464 x 352-544) are untouched."
     }
   ]
 }
