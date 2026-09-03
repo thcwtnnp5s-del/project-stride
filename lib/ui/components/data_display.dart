@@ -500,8 +500,22 @@ class _StrideButtonState extends State<StrideButton> {
     // control takes `btn_compact`, and a **disabled** control takes neither:
     // "an unpressable thing has no thickness" was true of the painted
     // construction and is true of the raster one for the same reason.
+    // **The primary takes the EPO03 plate when the kit has one** (`KitFrame.btnPlateV2`).
+    //
+    // One lookup rather than 43 edits: every call site already reaches this
+    // line, so the whole product inherits the new plate the moment the registry
+    // row lands, and reverts the moment it is removed. That is the same
+    // property `PanelSkins` has, and it is why the plate was authored against a
+    // registry instead of dropped into a widget.
+    //
+    // `btn_compact` still dresses the utility control: the v2 plate is a
+    // primary's rim — brass, lit along its top — and putting it on `Cancel`
+    // and `Retreat* would undo the register demotion GFCP01 spent a device
+    // review earning.
     final PanelSkin? plateSkin = enabled
-        ? (secondary ? ButtonPlates.compact : ButtonPlates.primary)
+        ? (secondary
+              ? ButtonPlates.compact
+              : (KitFrames.of(KitFrame.btnPlateV2) ?? ButtonPlates.primary))
         : null;
 
     // The variant's construction tokens: the lit top edge, the outline,
