@@ -28,7 +28,6 @@ import '../../components/reward_beat.dart';
 import '../../icons/reward_art.dart';
 import '../../components/reward_layer.dart';
 import '../../components/screen_header.dart' show formatSteps;
-import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../icons/pixel_icons.dart';
 import '../../theme/rarity_style.dart';
@@ -161,9 +160,11 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
       if (board.developmentState != null) board.developmentState!.toUpperCase(),
     ].join(' · ');
 
-    return SectionCard(
-      role: PanelRole.boardSlip,
-      child: Column(
+    // No card round the board: the Goal Board screen is one cork page, and a
+    // board pinned to cork inside a dark rectangle was the rectangle-inside-a-
+    // rectangle `DIR-05` names first. The heading keeps its standing figure
+    // and gains the chart rule the page's other section uses.
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           SectionHeading(
@@ -179,6 +180,8 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
                     ),
                   ),
           ),
+          const SizedBox(height: StrideSpace.rowGap),
+          const KitRule(style: KitRuleStyle.chart),
 
           // The held result panels, above the listings so a completion is the
           // first thing read after the tap that caused it.
@@ -249,7 +252,6 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
             ),
           ],
         ],
-      ),
     );
   }
 }

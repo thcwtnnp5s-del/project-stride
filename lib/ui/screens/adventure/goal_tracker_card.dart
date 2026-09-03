@@ -36,11 +36,12 @@ class GoalTrackerCard extends StatelessWidget {
     if (goals.journey == null &&
         goals.pursuit == null &&
         goals.contract == null) {
-      return const SectionCard(
-        child: Column(
+      // No card: the board is one cork page and the tracker is a section
+      // written on it (DIR-05).
+      return const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            SectionHeading(label: 'Goals'),
+            KitRule(style: KitRuleStyle.chart, title: 'Goals'),
             SizedBox(height: StrideSpace.s4),
             Text(
               'Nothing tracked. Set a journey on the atlas, a pursuit from '
@@ -48,15 +49,13 @@ class GoalTrackerCard extends StatelessWidget {
               style: StrideType.micro,
             ),
           ],
-        ),
       );
     }
 
-    return SectionCard(
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const SectionHeading(label: 'Goals'),
+          const KitRule(style: KitRuleStyle.chart, title: 'Goals'),
           const SizedBox(height: StrideSpace.s6),
           _SlotRow(
             label: 'JOURNEY',
@@ -90,7 +89,6 @@ class GoalTrackerCard extends StatelessWidget {
                 : _ContractBody(view: goals.contract!),
           ),
         ],
-      ),
     );
   }
 }

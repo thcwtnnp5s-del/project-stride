@@ -57,7 +57,9 @@ import 'package:stride_core/stride_core.dart' show ResourceNodeDefinition;
 
 import '../../../runtime/stride_session.dart' show EquipmentVisualState;
 import '../../components/ambient_stage.dart';
+import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
+import '../../components/surfaces.dart';
 import '../../icons/ambient_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../icons/sprite_footprints.dart';
@@ -287,6 +289,24 @@ class LocationStage extends StatelessWidget {
               bottom: 6,
               height: _stageHeight,
               child: figures,
+            ),
+
+            // THE PAGE'S LINE, under the plate (EPO03, DIR-05: Adventure is a
+            // book). The stage is full-bleed and stays full-bleed; what makes
+            // it read as tipped INTO the journal rather than as a banner above
+            // it is that the leaf's own ruled line runs across its foot. One
+            // shipped kit tile, no crop, no generation — and the picture's
+            // lower 12 dp is ground and shadow, so nothing subject-bearing is
+            // covered.
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: KitEdge(
+                tile: KitTile.ruleJournal,
+                fallbackColor: StrideColors.borderDefault,
+                fallbackAtEnd: true,
+              ),
             ),
 
             // No caption (PLAYABLE_EXPERIENCE_REFINEMENT_01 §5). The

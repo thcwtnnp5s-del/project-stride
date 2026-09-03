@@ -392,11 +392,15 @@ class _Spread extends StatelessWidget {
         ),
         child: child,
       ),
-      const Positioned(
+      // The width is declared, never inferred: a vertical strip fills the
+      // height it is given and asks for its own thickness, and a Positioned
+      // with three edges and no width hands it an infinite one.
+      Positioned(
         left: 0,
         top: 0,
         bottom: 0,
-        child: KitEdge(
+        width: spine,
+        child: const KitEdge(
           tile: KitTile.edgeSpine,
           fallbackColor: StrideColors.borderDefault,
           fallbackAtEnd: true,

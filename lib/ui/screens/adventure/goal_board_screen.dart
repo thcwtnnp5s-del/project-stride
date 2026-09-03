@@ -64,8 +64,11 @@ class GoalBoardScreen extends StatelessWidget {
     final BoardView? board = s.boardHere;
     final EdgeInsets inset = MediaQuery.viewPaddingOf(context);
 
-    return ColoredBox(
-      color: StrideColors.surfaceGround,
+    // The board is a wall, so the route is one cork page (`DIR-05`: one ground
+    // per screen). The slips, the tracker and the batten stand on it; nothing
+    // here is a dark rectangle any more.
+    return PageGround(
+      surface: PanelSurface.cork,
       child: Column(
         children: <Widget>[
           SizedBox(height: inset.top),
@@ -108,26 +111,23 @@ class GoalBoardScreen extends StatelessWidget {
                   band: StrideBand.boardsBatten,
                   title: board?.boardName ?? 'Goal Board',
                 ),
-                const SizedBox(height: StrideSpace.cardGap),
+                const SizedBox(height: StrideSpace.rhythmGroup),
 
                 // WHAT I AM WORKING TOWARDS — the full three-slot tracker,
                 // with its material breakdowns and clear controls.
                 const GoalTrackerCard(),
-                const SizedBox(height: StrideSpace.cardGap),
+                const SizedBox(height: StrideSpace.rhythmGroup),
 
                 // WHAT THIS PLACE ASKS FOR — the board, in this location's
                 // fiction. Absent where the place keeps none.
                 if (board != null)
                   const LocationBoardCard()
                 else
-                  SectionCard(
-                    role: PanelRole.boardSlip,
-                    child: Text(
-                      'No one posts work at this place. Boards hang in '
-                      'settlements and worksites.',
-                      style: StrideType.micro.copyWith(
-                        color: StrideColors.textMuted,
-                      ),
+                  Text(
+                    'No one posts work at this place. Boards hang in '
+                    'settlements and worksites.',
+                    style: StrideType.micro.copyWith(
+                      color: StrideColors.textMuted,
                     ),
                   ),
               ],

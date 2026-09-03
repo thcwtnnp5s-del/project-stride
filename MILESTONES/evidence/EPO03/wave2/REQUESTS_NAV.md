@@ -126,3 +126,27 @@ horizontal path is unchanged, so no landed horizontal row moves.
 **Blocking.** Yes, for everyone's test runs. UI-INVENTORY has not touched
 either file (§5) and is not working around it — the Inventory rebuild uses
 only horizontal strips.
+
+## 2026-09-03 — PROD-UI-ADVENTURE: seconding the `EdgeStrip` axis request, and what is already mitigated
+
+**What.** Same defect as the block above (`EdgeStrip` ignores its strip's
+axis). Adventure is the caller that surfaced it: `_Spread` in
+`lib/ui/screens/adventure/adventure_screen.dart` draws `KitTile.edgeSpine`
+down the page's left edge.
+
+**Already mitigated, so this is no longer blocking anyone's test run.** The
+`Positioned` now declares `width: KitTiles.thicknessFor(KitTile.edgeSpine)`,
+so the strip is never handed an unbounded main axis and the
+`BoxConstraints forces an infinite width` assertion is gone — confirmed on
+`test/gather_queue_ui_test.dart`, which now collects no exception from any
+Adventure file. Declaring the width is correct on its own terms: the spread
+reserves the binding's declared figure whether or not the raster has landed.
+
+**Still wanted.** The painter itself tiles across rather than down, so the
+landed `edge_spine` raster repeats along the 32 dp width instead of running
+the page's height. The spine therefore reads as a band of repeats rather than
+a binding until `EdgeStrip` takes the axis. Adventure needs no call-site
+change when it lands — `KitEdge(tile: KitTile.edgeSpine, …)` is already the
+call.
+
+**Blocking.** No.
