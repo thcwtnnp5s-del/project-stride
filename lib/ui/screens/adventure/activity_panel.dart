@@ -43,7 +43,7 @@ import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/reward_beat.dart';
 import '../../components/reward_layer.dart';
-import '../../components/rules.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
@@ -81,8 +81,9 @@ class ActivityPanel extends StatelessWidget {
     final StrideSession s = c.session;
 
     if (nodes.isEmpty) {
-      return const SectionCard(
-        child: Text('There is nothing to gather here.', style: StrideType.body),
+      return const Text(
+        'There is nothing to gather here.',
+        style: StrideType.body,
       );
     }
 
@@ -94,77 +95,75 @@ class ActivityPanel extends StatelessWidget {
         ? null
         : StrideBands.forPlace(identity);
 
-    // `padding: zero`, because the entries' separators are full bleed — a
-    // rule that stopped short of the panel's edge would read as an underline
-    // on the entry above it rather than as the leaf between two. The clip is
-    // what keeps those rules inside the card's radius: `SectionCard` paints
-    // its surface behind the child and does not clip it.
-    //
-    // `journalLeaf` is the Adventure family's material (`ART-02` §2). It
-    // resolves to null until the tile ships, and the card then paints exactly
-    // the flat fill it always painted.
-    return SectionCard(
-      surface: PanelSurface.journalLeaf,
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: StrideRadius.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // The ground the kit is packed for (FMPO02, region-aware in
-            // wave 3). The card is padded to zero and clipped, so the band
-            // goes edge to edge of it rather than floating inside a margin.
-            //
-            // `StrideBands.forPlace` reads the same `(kind, terrain)` pair the
-            // header's breadcrumb prints two rows above, so the strip and the
-            // words cannot disagree: a mine gets the cut face, a wood gets the
-            // hedgerow, and the Hollow gets nothing. Null before the content
-            // pack has loaded, and null for the boss's ground — both draw the
-            // card exactly as it drew before a band existed.
-            if (band case final StrideBand b) BandPlate(band: b),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
-                StrideSpace.s12,
-                StrideSpace.s12,
-                StrideSpace.s12,
-                StrideSpace.rhythmRow,
-              ),
-              child: SectionHeading(label: 'Expedition kit'),
+    // No card, and no clip that a card's radius made necessary: the kit is
+    // written **on** the page (`DIR-05`, Adventure row). `journalLeaf` is now
+    // the ground under the whole screen rather than a surface inside a dark
+    // rectangle, so the entries sit on the leaf directly, separated by the
+    // leaf's own ruled line and by nothing else.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // The ground the kit is packed for (FMPO02, region-aware in wave 3).
+        //
+        // `StrideBands.forPlace` reads the same `(kind, terrain)` pair the
+        // header's breadcrumb prints two rows above, so the strip and the
+        // words cannot disagree: a mine gets the cut face, a wood gets the
+        // hedgerow, and the Hollow gets nothing.
+        if (band case final StrideBand b) ...<Widget>[
+          BandPlate(band: b),
+          const SizedBox(height: StrideSpace.rhythmRow),
+        ],
+        // The ledger's heading, on its rule. `KitRule` is the product's one
+        // construction for "a title over a line", so the kit's heading and
+        // the goals' heading below it cannot drift apart.
+        const KitRule(style: KitRuleStyle.journal, title: 'Expedition kit'),
+        const SizedBox(height: StrideSpace.s6),
+        for (final (int i, ResourceNodeDefinition node)
+            in nodes.indexed) ...<Widget>[
+          if (i > 0)
+            const KitEdge(
+              tile: KitTile.ruleJournal,
+              fallbackColor: StrideColors.separator,
             ),
-            for (final (int i, ResourceNodeDefinition node)
-                in nodes.indexed) ...<Widget>[
-              if (i > 0) const HairlineRule(),
-              _KitEntry(
-                node: node,
-                session: s,
-                selected: selected == node.id,
-                onTap: () => onSelect(selected == node.id ? null : node.id),
+          _KitEntry(
+            node: node,
+            session: s,
+            selected: selected == node.id,
+            onTap: () => onSelect(selected == node.id ? null : node.id),
+          ),
+          if (selected == node.id)
+            Padding(
+              // Indented off the spine and clear of the cost column: the
+              // open entry's working surface is written between the ledger's
+              // two margins, the way a note under a line would be.
+              padding: const EdgeInsets.fromLTRB(
+                StrideSpace.s12,
+                0,
+                _KitEntry.margin,
+                StrideSpace.s12,
               ),
-              if (selected == node.id)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    StrideSpace.s12,
-                    0,
-                    StrideSpace.s12,
-                    StrideSpace.s12,
-                  ),
-                  child: ActivityDetail(node: node),
-                ),
-            ],
-          ],
-        ),
-      ),
+              child: ActivityDetail(node: node),
+            ),
+        ],
+      ],
     );
   }
 }
 
-/// One journal entry: the sketch, what it is, what it asks, what it costs.
+//// One ledger entry: the sketch, what it is, what it asks, and — in the
+/// ledger's own right-hand margin — what it costs.
 ///
-/// Unlocked: `Copper Seam` over `Mining 1 · ×1 Copper Ore · +14 XP`, with
-/// `140` and the walking mark on the right. Locked: the same entry with the
-/// sketch in shadow and the concrete gap — `Requires Mining 3 — you are 1` —
-/// said at reading contrast, because a wall with a distance written on it is
-/// a plan (§7: visible and aspirational, never a giant card).
+/// Unlocked: `Copper Seam` over `Mining 1 · ×1 Copper Ore · +14 XP`, with the
+/// walking mark and `140` in the cost column. Locked: the same entry with the
+/// sketch **pencilled** rather than dimmed, and the concrete gap —
+/// `Requires Mining 3 — you are 1` — written under the cost as a margin note
+/// (`DIR-05`: "Locked = dim" is its second-named failure, and "a pencil remap
+/// plus a margin note" is the replacement it names).
+///
+/// The entry is not a row of a table and not a card: it is a line of a ledger.
+/// The cost column is ruled off with one hairline — the only vertical line on
+/// the page besides the book's spine — and the rules between entries belong to
+/// the leaf rather than to the entry above them.
 class _KitEntry extends StatelessWidget {
   const _KitEntry({
     required this.node,
@@ -183,6 +182,11 @@ class _KitEntry extends StatelessWidget {
   /// rather than clipping (D-01).
   static const double height = 112;
 
+  /// The ledger's cost column. Wide enough for five figures and the walking
+  /// mark at text scale 1, and for a three-line margin note under them; a note
+  /// that needs a fourth line grows the entry rather than clipping it.
+  static const double margin = 88;
+
   @override
   Widget build(BuildContext context) {
     final StrideSession s = session;
@@ -192,15 +196,26 @@ class _KitEntry extends StatelessWidget {
     final String yieldName = s.displayNameOf(node.yieldsItem);
     final bool locked = !e.skillMet;
 
-    final String subLine = locked
+    // Every entry now says the same three things in the same order, locked or
+    // not — a trade and a level, a yield, an XP figure. What a locked entry
+    // says *differently* it says in the margin, which is where the reader of a
+    // ledger looks for the exception. Before this, a locked entry's body was a
+    // different sentence in a different shape, and that is what stopped the
+    // column of entries reading as one page.
+    final String subLine = <String>[
+      '$skillName ${node.requiredLevel}',
+      '×${node.yieldsQuantity} $yieldName',
+      '+${node.xp} XP',
+      if (!locked && !e.toolMet && node.requiredToolKind != ToolKind.none)
+        'needs a ${node.requiredToolKind.name}',
+    ].join(' · ');
+
+    // The margin note: the one fact holding this site shut, with the distance
+    // attached. Said once on the entry — the expanded detail's button carries
+    // the same sentence beside the action it disables, and nowhere else.
+    final String? marginNote = locked
         ? 'Requires $skillName ${e.requiredLevel} — you are ${e.currentLevel}'
-        : <String>[
-            '$skillName ${node.requiredLevel}',
-            '×${node.yieldsQuantity} $yieldName',
-            '+${node.xp} XP',
-            if (!e.toolMet && node.requiredToolKind != ToolKind.none)
-              'needs a ${node.requiredToolKind.name}',
-          ].join(' · ');
+        : null;
 
     return Semantics(
       button: true,
@@ -217,7 +232,7 @@ class _KitEntry extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(
                   StrideSpace.s12,
                   StrideSpace.s8,
-                  StrideSpace.s12,
+                  0,
                   StrideSpace.s8,
                 ),
                 child: Row(
@@ -225,7 +240,7 @@ class _KitEntry extends StatelessWidget {
                   children: <Widget>[
                     _NodeSketch(
                       art: PixelIcons.nodeFor(node.id),
-                      dimmed: locked,
+                      pencilled: locked,
                     ),
                     const SizedBox(width: StrideSpace.s12),
                     Expanded(
@@ -236,12 +251,8 @@ class _KitEntry extends StatelessWidget {
                           // Wraps rather than shrinks. `AdaptiveText` is one
                           // line by construction, and one line of `cardTitle`
                           // cannot hold `Meadow Patch` beside a 96 dp sketch
-                          // at 320 dp — it needed 124 dp of the 104 it had.
-                          // The entry has vertical room the row it replaced
-                          // did not (the sketch is 96 dp tall and the text is
-                          // ~70), so a second line is free here and a
-                          // shrink ladder would be paying for width that is
-                          // not scarce.
+                          // at 320 dp. The entry has vertical room the row it
+                          // replaced did not, so a second line is free here.
                           Text(
                             node.displayName,
                             style: StrideType.cardTitle.copyWith(
@@ -260,26 +271,29 @@ class _KitEntry extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: StrideSpace.s8),
-                    // The walk this costs. `WalkingRole.unit` and not the
-                    // teal stock mark: `walking_glyph.dart` writes the rule
-                    // down — teal is steps the player *owns*, muted is steps
-                    // as a price — and a cost is a price.
-                    const WalkingGlyph(role: WalkingRole.unit),
-                    const SizedBox(width: StrideSpace.s4),
-                    Text(
-                      formatSteps(cost),
-                      style: StrideType.itemCount.copyWith(
-                        color: StrideColors.textPrimary,
-                        fontFeatures: StrideType.tabularFigures,
-                      ),
+                    // The cost column's width, reserved on every entry, so the
+                    // figures line up down the page whatever the names do.
+                    SizedBox(
+                      width: margin,
+                      child: _CostMargin(cost: cost, note: marginNote),
                     ),
                   ],
                 ),
               ),
+              // The column rule: one hairline, full entry height. With the
+              // spine at the page's left it is the second of the two vertical
+              // lines a bound ledger has, and it is what makes the right-hand
+              // figures read as a margin rather than as a table column.
+              const Positioned(
+                right: margin + StrideSpace.s8,
+                top: 0,
+                bottom: 0,
+                width: 1,
+                child: ColoredBox(color: StrideColors.separator),
+              ),
               // The open entry's index mark: the trade's ink on the leaf's
               // inner edge. Not a border — the entries have none, and giving
-              // the selected one a box back is what the journal replaced.
+              // the selected one a box back is what the ledger replaced.
               if (selected)
                 Positioned(
                   left: 0,
@@ -296,6 +310,52 @@ class _KitEntry extends StatelessWidget {
   }
 }
 
+/// The ledger's right-hand margin: the walk this line costs, and — when the
+/// line is pencilled shut — the note saying what would open it.
+class _CostMargin extends StatelessWidget {
+  const _CostMargin({required this.cost, required this.note});
+
+  final int cost;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    mainAxisAlignment: MainAxisAlignment.center,
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          // `WalkingRole.unit` and not the teal stock mark:
+          // `walking_glyph.dart` writes the rule down — teal is steps the
+          // player *owns*, muted is steps as a price — and a cost is a price.
+          const WalkingGlyph(role: WalkingRole.unit),
+          const SizedBox(width: StrideSpace.s4),
+          Flexible(
+            child: AdaptiveText(
+              formatSteps(cost),
+              style: StrideType.itemCount.copyWith(
+                fontFeatures: StrideType.tabularFigures,
+              ),
+              color: StrideColors.textPrimary,
+              minScale: 0.8,
+            ),
+          ),
+        ],
+      ),
+      if (note case final String n) ...<Widget>[
+        const SizedBox(height: StrideSpace.s4),
+        Text(
+          n,
+          style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+          textAlign: TextAlign.right,
+        ),
+      ],
+    ],
+  );
+}
+
 /// The node's own 96 dp sketch, standing on the entry's floor.
 ///
 /// **Bottom-aligned by measured bounds, not by the canvas** — the plates carry
@@ -309,15 +369,31 @@ class _KitEntry extends StatelessWidget {
 /// The rail is reserved whether or not the art resolves: a node with no plate
 /// must not shift the name of every other entry out of alignment.
 class _NodeSketch extends StatelessWidget {
-  const _NodeSketch({required this.art, required this.dimmed});
+  const _NodeSketch({required this.art, required this.pencilled});
 
   /// The node's vignette path, or null where the pack has none.
   final String? art;
 
-  /// A locked entry dims **only this** — to 0.55 — and nothing else.
-  final bool dimmed;
+  /// A locked entry draws its sketch **in pencil** — and nothing else on the
+  /// entry changes weight.
+  final bool pencilled;
 
   static const double extent = 96;
+
+  /// The pencil remap: luminance, flattened toward graphite and lifted off
+  /// black, as one deterministic colour matrix.
+  ///
+  /// This is `RULES.md` A-2's tone remap doing what `DIR-05` asked for — "a
+  /// pencil remap plus a margin note" in place of "locked = dim". Opacity 0.55
+  /// said *this is switched off*; a graphite sketch says *this is drawn but
+  /// not inked yet*, which is what a place you cannot work yet actually is. It
+  /// costs no generation and no asset: the same plate, read as a sketch.
+  static const ColorFilter _pencil = ColorFilter.matrix(<double>[
+    0.1318, 0.4434, 0.0448, 0, 46, //
+    0.1318, 0.4434, 0.0448, 0, 44, //
+    0.1318, 0.4434, 0.0448, 0, 40, //
+    0, 0, 0, 0.85, 0, //
+  ]);
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +416,9 @@ class _NodeSketch extends StatelessWidget {
           ),
         ),
       );
-      if (dimmed) sketch = Opacity(opacity: 0.55, child: sketch);
+      if (pencilled) {
+        sketch = ColorFiltered(colorFilter: _pencil, child: sketch);
+      }
     }
     return SizedBox(width: extent, height: extent, child: sketch);
   }

@@ -26,6 +26,7 @@ import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
 import '../../components/panel_skin.dart';
+import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../state/session_controller.dart';
@@ -91,9 +92,16 @@ class GoalSummaryCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SectionHeading(label: 'Current goals'),
+        // The heading on its rule — the same construction the expedition kit
+        // above uses, so the two sections of the spread are two entries in one
+        // book rather than two components.
+        const KitRule(style: KitRuleStyle.journal, title: 'Current goals'),
         const SizedBox(height: StrideSpace.rhythmRow),
-        _PlateRows(plates: plates),
+        // The board itself: cork, pinned to the page. The slips stand on it;
+        // the page shows around it. This is the one place on Adventure where
+        // the material changes, and it changes because the object changes —
+        // a goal is a note somebody pinned up, not a line of the ledger.
+        _CorkBoard(child: _PlateRows(plates: plates)),
         const SizedBox(height: StrideSpace.rhythmRow),
         // Navigation, not a commit — the neutral register, so opening a
         // board never outranks the screen's game action
@@ -121,7 +129,6 @@ class GoalSummaryCard extends StatelessWidget {
       ],
     );
   }
-
   static String _journeyStatus(JourneyGoalView j) {
     if (j.arrived) return 'you are here';
     if (j.totalCost == null) return 'no known route';
@@ -191,12 +198,41 @@ class _PlateRows extends StatelessWidget {
   );
 }
 
+/// The cork the slips are pinned to.
+///
+/// A strip of the shipped `cork` grain with 8 dp of board showing round the
+/// notes — the margin is what makes it a board rather than a container. It has
+/// no border and no radius: on a page, an edge is where one material stops.
+class _CorkBoard extends StatelessWidget {
+  const _CorkBoard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final SurfaceTile? tile = PanelSurfaces.of(PanelSurface.cork);
+    final Widget body = Padding(
+      padding: const EdgeInsets.all(StrideSpace.s8),
+      child: child,
+    );
+    if (tile == null) {
+      return ColoredBox(color: StrideColors.surfaceBlock, child: body);
+    }
+    return SurfaceFill(
+      tile: tile,
+      fill: StrideColors.surfaceBlock,
+      child: body,
+    );
+  }
+}
+
 /// One pinned note: what kind of goal, which one, and where it stands.
 ///
-/// `boardSlip` on `cork` (`ART-02` §2) — the role the board contracts and
-/// project slips already name, so a pinned goal and a pinned contract are
-/// visibly the same kind of object. Both resolve to the painted card until
-/// their art ships.
+/// `KitFrame.slipPinned` (`KIT_CONTRACT` §1) with a brass pin through its
+/// head. The frame is declared and its raster has not landed, so the plate
+/// paints the kit's square, one-weight fallback at exactly the inset it will
+/// spend when the art arrives — the note is finished work today and gains
+/// material later without reflowing.
 class _NotePlate extends StatelessWidget {
   const _NotePlate({
     required this.label,
@@ -221,34 +257,50 @@ class _NotePlate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
-    // Outside the card, not inside it: a minimum applied to the *content*
-    // would be 88 dp of text plus the card's own padding and edge, and the
-    // plate would come out at 110.
+    // Outside the plate, not inside it: a minimum applied to the *content*
+    // would be 88 dp of text plus the frame's own inset, and the slip would
+    // come out at 118.
     constraints: const BoxConstraints(minHeight: height),
-    child: SectionCard(
-      role: PanelRole.boardSlip,
-      surface: PanelSurface.cork,
-      padding: const EdgeInsets.all(StrideSpace.blockPadding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(label, style: StrideType.microLabel),
-          if (name.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s2),
-            AdaptiveText(name, style: StrideType.itemName),
-          ],
-          const SizedBox(height: StrideSpace.s2),
-          Text(
-            status,
-            style: StrideType.micro.copyWith(
-              color: emphasised
-                  ? StrideColors.positiveReady
-                  : StrideColors.textSecondary,
-            ),
+    child: Stack(
+      alignment: Alignment.topCenter,
+      children: <Widget>[
+        KitPlate(
+          frame: KitFrame.slipPinned,
+          raised: true,
+          fill: StrideColors.surfaceCard,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(label, style: StrideType.microLabel),
+              if (name.isNotEmpty) ...<Widget>[
+                const SizedBox(height: StrideSpace.s2),
+                AdaptiveText(name, style: StrideType.itemName),
+              ],
+              const SizedBox(height: StrideSpace.s2),
+              Text(
+                status,
+                style: StrideType.micro.copyWith(
+                  color: emphasised
+                      ? StrideColors.positiveReady
+                      : StrideColors.textSecondary,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        // The pin. Four pixels of brass at the slip's head — the whole
+        // difference between a note lying on a board and a note pinned to it,
+        // and the reason the slips do not need a border to read as objects.
+        const Positioned(
+          top: 2,
+          child: SizedBox(
+            width: 6,
+            height: 6,
+            child: ColoredBox(color: StrideColors.goalActive),
+          ),
+        ),
+      ],
     ),
   );
 }

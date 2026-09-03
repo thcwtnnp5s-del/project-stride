@@ -33,6 +33,7 @@ import '../../../runtime/stride_session.dart';
 import '../../components/activity_result.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/panel_skin.dart';
 import '../../components/reward_beat.dart' show StaggeredReveal;
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
@@ -236,107 +237,176 @@ class _AdventureScreenState extends State<AdventureScreen> {
     return ActivityResultHost(
       result: activityResult,
       resultToken: activityToken,
-      child: ListView(
-        // Zero horizontal padding: the stage is full-bleed, and every other
-        // child re-applies the gutter itself.
-        padding: const EdgeInsets.only(bottom: StrideSpace.s16),
-        children: <Widget>[
-          // WHERE I AM, ALIVE — one stage for the whole location
-          // (PRESENTATION_WORLD_REWARD_FEEL_01 §4–§5): the arrival painting,
-          // the Traveler and companions, the selected activity's node as far
-          // scenery, and the profession loop while a queue runs. The Traveler
-          // lives here and nowhere else on this screen.
-          LocationStage(
-            locationName: s.locationName,
-            vignette: vignette,
-            selectedNode: staged,
-            // The man on the stage wears what Inventory says he wears
-            // (FMPO02): the same read-time projection Combat and Inventory
-            // draw from, so three screens cannot disagree about his coat.
-            equipment: s.equipmentVisualState,
-            activityActive: active != null && staged != null,
-            playToken: playToken,
-            locked: locked,
-            lockReason: lockReason,
-            // The action beats (AUDIO_PRESENTATION_01): the profession's one
-            // accepted cue, fired by the stage when the work is visibly
-            // happening — the loop's strike frame, or the one-shot beginning.
-            // `read`, not `of`: a beat must not subscribe this screen.
-            //
-            // The watched single gather also lands one light tap under the
-            // finger. The queue loop's beat (`onActivityBeat`) deliberately
-            // does not: a haptic per loop strike is exactly the "loop beat"
-            // the seam's contract forbids.
-            onActivityBeat: staged == null
-                ? null
-                : () =>
-                      AudioScope.read(context).playSkillCue(staged.skill.value),
-            onGatherCue: staged == null
-                ? null
-                : () {
-                    final AudioController audio = AudioScope.read(context);
-                    audio.playSkillCue(staged.skill.value);
-                    audio.hapticLight();
-                  },
-          ),
+      // THE PAGE (`DIR-05`, Adventure row: "it is a book"). The tab is one
+      // leaf of a field journal, full bleed, and everything below the picture
+      // is written on it. There is no card on this screen any more: what were
+      // four dark rectangles down the page — the walking band, the kit, the
+      // encounters, the goals — are now a picture tipped into the page, a
+      // ruled line, a ledger, and a cork board pinned to the leaf.
+      child: PageGround(
+        surface: PanelSurface.journalLeaf,
+        child: ListView(
+          // Zero horizontal padding: the stage is full-bleed, and the spread
+          // below it applies the spine and the gutter itself.
+          padding: const EdgeInsets.only(bottom: StrideSpace.s16),
+          children: <Widget>[
+            // WHERE I AM, ALIVE — one stage for the whole location
+            // (PRESENTATION_WORLD_REWARD_FEEL_01 §4–§5): the arrival painting,
+            // the Traveler and companions, the selected activity's node as far
+            // scenery, and the profession loop while a queue runs. The
+            // Traveler lives here and nowhere else on this screen. Full bleed,
+            // above the page's binding: a plate tipped into the journal, which
+            // is why the spine below starts under it and not beside it.
+            LocationStage(
+              locationName: s.locationName,
+              vignette: vignette,
+              selectedNode: staged,
+              // The man on the stage wears what Inventory says he wears
+              // (FMPO02): the same read-time projection Combat and Inventory
+              // draw from, so three screens cannot disagree about his coat.
+              equipment: s.equipmentVisualState,
+              activityActive: active != null && staged != null,
+              playToken: playToken,
+              locked: locked,
+              lockReason: lockReason,
+              // The action beats (AUDIO_PRESENTATION_01): the profession's one
+              // accepted cue, fired by the stage when the work is visibly
+              // happening — the loop's strike frame, or the one-shot
+              // beginning. `read`, not `of`: a beat must not subscribe this
+              // screen.
+              //
+              // The watched single gather also lands one light tap under the
+              // finger. The queue loop's beat (`onActivityBeat`) deliberately
+              // does not: a haptic per loop strike is exactly the "loop beat"
+              // the seam's contract forbids.
+              onActivityBeat: staged == null
+                  ? null
+                  : () => AudioScope.read(
+                      context,
+                    ).playSkillCue(staged.skill.value),
+              onGatherCue: staged == null
+                  ? null
+                  : () {
+                      final AudioController audio = AudioScope.read(context);
+                      audio.playSkillCue(staged.skill.value);
+                      audio.hapticLight();
+                    },
+            ),
 
-          _Gutter(child: _WalkingStrip(controller: c)),
-          // The picture and the band under it are one hero block; 24 is what
-          // separates a hero from the first group beneath it (`ART-12` §0).
-          const SizedBox(height: StrideSpace.rhythmHero),
+            // THE SPREAD — everything written on the leaf, bound at the left.
+            _Spread(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // WHAT WALKING HAS BOUGHT — the ledger's first line, ruled.
+                  _WalkingLedger(controller: c),
+                  // The picture and the line under it are one hero block; 24
+                  // is what separates a hero from the first group beneath it
+                  // (`ART-12` §0).
+                  const SizedBox(height: StrideSpace.rhythmHero),
 
-          _Gutter(
-            child: Column(
-              children: <Widget>[
-                if (s.isStale) ...<Widget>[
-                  StaleBanner(busy: c.busy, onReload: c.reload),
-                  const SizedBox(height: StrideSpace.rhythmGroup),
-                ],
+                  if (s.isStale) ...<Widget>[
+                    StaleBanner(busy: c.busy, onReload: c.reload),
+                    const SizedBox(height: StrideSpace.rhythmGroup),
+                  ],
 
-                // WHAT MY WALKING JUST MADE POSSIBLE — after a granting sync,
-                // held until dismissed (`DECISIONS/0023` §1). Above everything
-                // else because it is the moment the sync exists for.
-                if (c.lastOpportunities.isNotEmpty) ...<Widget>[
-                  _OpportunityBanner(controller: c),
-                  const SizedBox(height: StrideSpace.rhythmGroup),
-                ],
+                  // WHAT MY WALKING JUST MADE POSSIBLE — after a granting
+                  // sync, held until dismissed (`DECISIONS/0023` §1). Above
+                  // everything else because it is the moment the sync exists
+                  // for.
+                  if (c.lastOpportunities.isNotEmpty) ...<Widget>[
+                    _OpportunityBanner(controller: c),
+                    const SizedBox(height: StrideSpace.rhythmGroup),
+                  ],
 
-                // WHAT I CAN DO HERE — the expedition kit; only the selected
-                // activity expands (§6).
-                ActivityPanel(
-                  nodes: nodes,
-                  selected: stagedId,
-                  onSelect: (ContentId? id) => setState(() => _selected = id),
-                ),
-                const SizedBox(height: StrideSpace.rhythmGroup),
-
-                // WHAT I CAN FIGHT HERE — compact rows, only the selected
-                // creature expanded (§15). Absent where the content has no
-                // enemy (Haven's Rest), rather than an empty-state card: a safe
-                // place does not need to announce it.
-                if (encounters.isNotEmpty) ...<Widget>[
-                  EncounterPanel(
-                    options: encounters,
-                    selected: _selectedEnemy,
-                    onSelect: (ContentId? id) =>
-                        setState(() => _selectedEnemy = id),
+                  // WHAT I CAN DO HERE — the expedition kit, as ledger
+                  // entries; only the selected activity expands (§6).
+                  ActivityPanel(
+                    nodes: nodes,
+                    selected: stagedId,
+                    onSelect: (ContentId? id) => setState(() => _selected = id),
                   ),
                   const SizedBox(height: StrideSpace.rhythmGroup),
-                ],
 
-                // WHAT I AM WORKING TOWARDS — three lines and one button; the
-                // full tracker and the board live on the Goal Board (§8–§9).
-                const GoalSummaryCard(),
-              ],
+                  // WHAT I CAN FIGHT HERE — compact rows, only the selected
+                  // creature expanded (§15). Absent where the content has no
+                  // enemy (Haven's Rest), rather than an empty-state card: a
+                  // safe place does not need to announce it.
+                  if (encounters.isNotEmpty) ...<Widget>[
+                    EncounterPanel(
+                      options: encounters,
+                      selected: _selectedEnemy,
+                      onSelect: (ContentId? id) =>
+                          setState(() => _selectedEnemy = id),
+                    ),
+                    const SizedBox(height: StrideSpace.rhythmGroup),
+                  ],
+
+                  // WHAT I AM WORKING TOWARDS — the slips pinned to the cork;
+                  // the full tracker and the board live on the Goal Board
+                  // (§8–§9).
+                  const GoalSummaryCard(),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-/// The step-sync motivation moment: what was banked, and the few true
+/// The journal spread: the page's binding down the left, and everything
+/// written to the right of it.
+///
+/// The spine is the kit's `edgeSpine` tile run vertically at the page's left
+/// edge (`KIT_CONTRACT` §2 — landed, 32 dp wide), and it is what makes the
+/// screen read as one bound object rather than as a stack of blocks. It is
+/// drawn as a `Stack` overlay rather than as a `Row` child on purpose: a
+/// stretched `Row` needs a bounded height, and this spread lives inside a
+/// `ListView` where the height is exactly what is not known.
+///
+/// The content's left inset is the spine plus 8 — a book's inner margin — and
+/// its right inset is the ordinary screen gutter. The binding therefore
+/// **replaces** the left gutter rather than being added to it, which is why
+/// the page loses no reading width to being bound.
+class _Spread extends StatelessWidget {
+  const _Spread({required this.child});
+
+  final Widget child;
+
+  /// The declared spine width, whether or not the raster has landed — the
+  /// registry returns the same figure either way, so the page does not reflow
+  /// on the day the tile ships (`KIT_CONTRACT` §0).
+  static double get spine => KitTiles.thicknessFor(KitTile.edgeSpine);
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: <Widget>[
+      Padding(
+        padding: EdgeInsets.fromLTRB(
+          spine + StrideSpace.s8,
+          StrideSpace.s10,
+          StrideSpace.screenGutter,
+          0,
+        ),
+        child: child,
+      ),
+      const Positioned(
+        left: 0,
+        top: 0,
+        bottom: 0,
+        child: KitEdge(
+          tile: KitTile.edgeSpine,
+          fallbackColor: StrideColors.borderDefault,
+          fallbackAtEnd: true,
+        ),
+      ),
+    ],
+  );
+}
+
+// The step-sync motivation moment: what was banked, and the few true
 /// sentences about what it makes possible (brief §5). Dismissed by the
 /// player, displaced by the next command — never swept away by a timer.
 ///
@@ -359,37 +429,52 @@ class _OpportunityBanner extends StatelessWidget {
     // "+0 STEPS BANKED" on the owner's device.
     final int banked = controller.lastOpportunityBanked;
     final List<SyncOpportunity> opportunities = controller.lastOpportunities;
-    return SectionCard(
-      wash: StrideColors.rewardWashTop,
-      child: StaggeredReveal(
-        // Keyed by the list identity so the next granting sync replays the
-        // reveal; rebuilds while this banner waits do not.
-        key: ObjectKey(opportunities),
-        gap: StrideSpace.s6,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              const WalkingGlyph(role: WalkingRole.stock),
-              const SizedBox(width: StrideSpace.iconLabelGap),
-              Expanded(child: _BankedCountUp(banked: banked)),
-            ],
-          ),
-          for (final SyncOpportunity o in opportunities)
-            _OpportunityRow(opportunity: o),
-          Padding(
-            padding: const EdgeInsets.only(top: StrideSpace.s2),
-            child: StrideButton.secondary(
-              label: 'OK',
-              onPressed: controller.acknowledgeOpportunities,
+    // No card, and no wash behind one: on a journal page the moment is a
+    // **notice written into the page**, crowned by the ornate rule and closed
+    // by the plain one. The reward wash was a dark rectangle whose warmth only
+    // read because everything around it was a dark rectangle too; on the leaf,
+    // a flourish and a rule say "this is the entry that matters today" without
+    // putting a box back on the screen.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const Center(child: KitOrnament(mark: KitMark.ruleOrnateA)),
+        const SizedBox(height: StrideSpace.s6),
+        StaggeredReveal(
+          // Keyed by the list identity so the next granting sync replays the
+          // reveal; rebuilds while this banner waits do not.
+          key: ObjectKey(opportunities),
+          gap: StrideSpace.s6,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const WalkingGlyph(role: WalkingRole.stock),
+                const SizedBox(width: StrideSpace.iconLabelGap),
+                Expanded(child: _BankedCountUp(banked: banked)),
+              ],
             ),
-          ),
-        ],
-      ),
+            for (final SyncOpportunity o in opportunities)
+              _OpportunityRow(opportunity: o),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: StrideButton.secondary(
+                label: 'OK',
+                onPressed: controller.acknowledgeOpportunities,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: StrideSpace.s8),
+        const KitEdge(
+          tile: KitTile.ruleJournal,
+          fallbackColor: StrideColors.separator,
+        ),
+      ],
     );
   }
 }
 
-/// The banked headline, counting up to the committed figure.
+// The banked headline, counting up to the committed figure.
 ///
 /// Presentation only: the tween ends at the exact committed value, restarts
 /// only when that value changes, and the reduced-motion branch prints the
@@ -471,40 +556,23 @@ class _OpportunityRow extends StatelessWidget {
   }
 }
 
-/// The screen gutter, applied per child rather than to the list, so a full-bleed
-/// scene can sit beside gutter-inset cards in one scroll view.
-class _Gutter extends StatelessWidget {
-  const _Gutter({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: StrideSpace.screenGutter),
-    child: child,
-  );
-}
-
-/// WHAT WALKING LETS ME DO — one band, not a card.
+//// WHAT WALKING HAS BOUGHT — the page's first ruled line.
 ///
 /// ## What this replaced, and why the mass came out
 ///
 /// This was a full `SectionCard`: a section heading, two 22 px value tiles in
 /// filled blocks, the affordance sentence, and a full-width filled `Sync steps`
 /// button — roughly 215 dp, second only to the gather card, sitting between the
-/// player and the only action on the screen.
+/// player and the only action on the screen. FMPO02 took the card away and left
+/// a band; EPO03 puts the band **on the page**, under the journal's own ruled
+/// line, with the sync control stamped rather than filled.
 ///
 /// **Every figure it carried is still here and still exact.** `TOTAL WALKED`,
-/// `SPENT` and the affordance sentence read the same projections they always
-/// did. What changed is their weight: they are supporting facts about a stock
-/// the header already shows in 19 px teal, and they were being drawn at the
-/// size of a headline. The band is about 70 dp.
-///
-/// It is attached to the vignette's lower edge — no gap, no card, a rule under
-/// the picture — so "where I am" and "what my walking has bought me here" read
-/// as one object rather than two.
-class _WalkingStrip extends StatelessWidget {
-  const _WalkingStrip({required this.controller});
+/// `SPENT`, `HP` and the affordance sentence read the same projections they
+/// always did, and `syncSteps` is dispatched from the same call site with the
+/// same guard and the same one haptic.
+class _WalkingLedger extends StatelessWidget {
+  const _WalkingLedger({required this.controller});
 
   final SessionController controller;
 
@@ -551,39 +619,13 @@ class _WalkingStrip extends StatelessWidget {
       _WalkingFact(label: 'Spent', value: formatSteps(s.spentThisEpoch)),
       // Persistent HP (`DECISIONS/0023` §4): carried between fights, restored
       // by food and by safe arrivals — a fact a player checks before choosing
-      // to fight. Shown only while it is information: at full health it is
-      // noise, and the extra wrap row it costs is what pushes the gather
-      // control below the fold on a fresh save
+      // to fight. Shown only while it is information: at full health in a safe
+      // place it says nothing, and the extra wrap row it costs is what pushes
+      // the gather control below the fold on a fresh save
       // (`test/fold_clearance_test.dart`).
-      //
-      // Consistent rule (PLAYABLE_EXPERIENCE_REFINEMENT_01 §22): shown
-      // wherever a fight is possible — the figure a player checks before
-      // choosing one — and anywhere it is below full. Hidden only at full
-      // health in a safe place, where it says nothing. It stays a fact in the
-      // band, after the step figures and in the same role, so it is
-      // subordinate to the bank rather than a second header.
       if (s.playerHp < s.playerMaxHp || s.encountersHere.isNotEmpty)
         _WalkingFact(label: 'HP', value: '${s.playerHp} / ${s.playerMaxHp}'),
     ];
-
-    // Demoted to a utility control beside the facts it refreshes, rather than a
-    // full-width filled button under them. It is the only thing on this screen
-    // that is not the game action, and it was reading as the game action.
-    //
-    // The one haptic fires only when the sync actually banked — the walk
-    // paying off is the punctuation moment; a no-change check stays silent.
-    final Widget sync = StrideButton.secondary(
-      label: controller.busy ? 'Checking…' : 'Sync steps',
-      onPressed: controller.busy || !controller.session.isReady
-          ? null
-          : () async {
-              final AudioController audio = AudioScope.read(context);
-              await controller.syncSteps();
-              if ((controller.lastSync?.newlyGranted ?? 0) > 0) {
-                audio.hapticLight();
-              }
-            },
-    );
 
     final Widget factRow = Wrap(
       spacing: StrideSpace.s12,
@@ -591,31 +633,101 @@ class _WalkingStrip extends StatelessWidget {
       children: facts,
     );
 
-    return Padding(
-      padding: const EdgeInsets.only(top: StrideSpace.s10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          _FactsAndSync(facts: facts, factRow: factRow, sync: sync),
-          if (affordance case final String a) ...<Widget>[
-            const SizedBox(height: StrideSpace.s6),
-            Text(a, style: StrideType.micro),
-          ],
-          _SyncResult(controller: controller),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _FactsAndSync(
+          facts: facts,
+          factRow: factRow,
+          sync: _SyncStamp(controller: controller),
+        ),
+        const SizedBox(height: StrideSpace.s6),
+        // The line the facts are written on. It is the journal's own rule,
+        // full width of the spread — the first of the page's ruled lines, and
+        // the thing that says these figures are an entry rather than a card.
+        const KitEdge(
+          tile: KitTile.ruleJournal,
+          fallbackColor: StrideColors.separator,
+        ),
+        if (affordance case final String a) ...<Widget>[
+          const SizedBox(height: StrideSpace.s4),
+          Text(a, style: StrideType.micro),
         ],
+        _SyncResult(controller: controller),
+      ],
+    );
+  }
+}
+
+/// The sync control, as a **stamped plate** rather than a filled button.
+///
+/// It is the one thing on this screen that is not the game action, and as a
+/// filled secondary button it kept reading as one. `KitFrame.btnPlateV2` is the
+/// kit's landed plate (`KIT_CONTRACT` §8); raised, it takes the lit upper edge
+/// every other plate in the product takes, so a stamp on the page and a button
+/// elsewhere agree about where the light comes from.
+///
+/// **The call site is unchanged**: `controller.syncSteps()` behind the same
+/// busy/ready guard, and the one light haptic only when the sync actually
+/// banked — the walk paying off is the punctuation moment; a no-change check
+/// stays silent.
+class _SyncStamp extends StatelessWidget {
+  const _SyncStamp({required this.controller});
+
+  final SessionController controller;
+
+  /// The words, unchanged: every harness that funds a save taps this text.
+  static const String label = 'Sync steps';
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = !controller.busy && controller.session.isReady;
+    final String text = controller.busy ? 'Checking…' : label;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: text,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled
+            ? () async {
+                final AudioController audio = AudioScope.read(context);
+                await controller.syncSteps();
+                if ((controller.lastSync?.newlyGranted ?? 0) > 0) {
+                  audio.hapticLight();
+                }
+              }
+            : null,
+        child: KitPlate(
+          frame: KitFrame.btnPlateV2,
+          raised: enabled,
+          fill: StrideColors.surfaceBlock,
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: StrideSpace.s6,
+          ),
+          child: Text(
+            text,
+            style: StrideType.buttonLabelSecondary.copyWith(
+              color: enabled
+                  ? StrideColors.textPrimary
+                  : StrideColors.textMuted,
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// The walking facts and the sync control on one line, or on two where the line
+/// The walking facts and the sync stamp on one line, or on two where the line
 /// is not wide enough for both.
 ///
-/// The band's whole point is low mass, so the first instinct is to keep it on
+/// The line's whole point is low mass, so the first instinct is to keep it on
 /// one line and let the facts compress. That is wrong for the same reason D-01
 /// was wrong: at 320 dp and text scale 1.4 the label `TOTAL WALKED` needs
-/// 99.8 dp beside the button and has 66, and compressing it means clipping a
-/// word. The band growing by one line is cheaper than a figure the player
+/// 99.8 dp beside the stamp and has 66, and compressing it means clipping a
+/// word. The line growing by one row is cheaper than a figure the player
 /// cannot read, and it only happens where the width genuinely is not there.
 class _FactsAndSync extends StatelessWidget {
   const _FactsAndSync({
@@ -660,10 +772,13 @@ class _FactsAndSync extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        // The button shrink-wraps, so its width is its label plus its padding.
+        // The stamp shrink-wraps, so its width is its label plus its own
+        // padding and the frame's declared inset on both sides — the same
+        // figure before and after the raster lands (`KIT_CONTRACT` §0).
         final double syncWidth =
-            widthOf('Sync steps', StrideType.buttonLabelSecondary) +
-            StrideSpace.s10 * 2;
+            widthOf(_SyncStamp.label, StrideType.buttonLabelSecondary) +
+            StrideSpace.s10 * 2 +
+            KitFrames.insetFor(KitFrame.btnPlateV2) * 2;
 
         final bool sideBySide =
             widest + StrideSpace.s8 + syncWidth <= constraints.maxWidth;
@@ -692,7 +807,7 @@ class _FactsAndSync extends StatelessWidget {
   }
 }
 
-/// A label and a figure on one line — the walking band's unit.
+// A label and a figure on one line — the walking band's unit.
 ///
 /// Deliberately **not** a [LabeledValueTile]: a tile is a filled block with a
 /// 22 px numeral, and two of them are what gave this section the mass the owner
