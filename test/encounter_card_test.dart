@@ -15,6 +15,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
+import 'package:stride/ui/components/panel_skin.dart';
+import 'package:stride/ui/components/pixel_asset.dart';
+import 'package:stride/ui/components/surfaces.dart';
 import 'package:stride/ui/icons/encounter_habitat.dart';
 import 'package:stride/ui/screens/adventure/encounter_card.dart';
 import 'package:stride/ui/theme/stride_colors.dart';
@@ -128,9 +131,12 @@ void main() {
     // Everything the card already said, still said.
     expect(find.text('Forest Wolf'), findsOneWidget);
     expect(find.text('Roams here'), findsOneWidget);
-    expect(find.text('HEALTH'), findsOneWidget);
-    expect(find.text('ATTACK'), findsOneWidget);
-    expect(find.text('DEFENCE'), findsOneWidget);
+    // EPO03: the three value tiles are one ruled threat line, and the tier
+    // is a stamp rather than a chip. Every figure the card carried is still
+    // on it, once each.
+    expect(find.text('HP 20   ATK 4   DEF 1'), findsOneWidget);
+    expect(find.text('UNSEEN'), findsOneWidget);
+    expect(find.text('Two light strikes a turn'), findsOneWidget);
     // The reward preview, restructured by PRESENTATION_WORLD_REWARD_FEEL_01
     // §24: the XP on its own line and each known drop in its rarity's ink
     // under a KNOWN DROPS heading, so the card reads as what studying the
@@ -185,7 +191,9 @@ void main() {
     expect(sprite.scale, 2);
     expect(sprite.canvas, 96);
     expect(find.text('Hollow Guardian'), findsOneWidget);
-    expect(find.text('BOSS'), findsOneWidget);
+    // The boss says so in the sentence the card already had for it, and in
+    // the heavier frame around its window — not in a fourth pill chip.
+    expect(find.text('Guards this place'), findsOneWidget);
   });
 
   testWidgets('a larger creature is never drawn smaller than a smaller one', (
@@ -320,17 +328,21 @@ void main() {
     expect(start.subLabel, 'Driven off — returns after you travel');
   });
 
-  /// The band the creature stands on, measured on screen.
-  double bandHeight(WidgetTester tester) => tester
-      .getSize(
-        find
-            .ancestor(
-              of: find.byType(GroundedSprite),
-              matching: find.byType(Container),
-            )
-            .first,
-      )
-      .height;
+  /// The habitat window the creature stands in, measured on screen: the kit
+  /// plate the stage draws, less the frame band it spends on each side. The
+  /// window is what the plate art fills and what the roster ordering is about;
+  /// the frame around it is chrome.
+  double bandHeight(WidgetTester tester) {
+    final KitPlate plate = tester.widget<KitPlate>(
+      find
+          .ancestor(
+            of: find.byType(GroundedSprite),
+            matching: find.byType(KitPlate),
+          )
+          .first,
+    );
+    return plate.height! - KitFrames.insetFor(plate.frame) * 2;
+  }
 
   testWidgets('the band is the creature\'s own size, not one constant — the '
       'empty box the owner named', (WidgetTester tester) async {
@@ -381,81 +393,180 @@ void main() {
     await tester.pumpWidget(shell(c, option()));
     await tester.pumpAndSettle();
     final ContentId here = c.session.currentLocation!;
-    final Container band = tester.widget<Container>(
+    final KitPlate band = tester.widget<KitPlate>(
       find
           .ancestor(
             of: find.byType(GroundedSprite),
-            matching: find.byType(Container),
+            matching: find.byType(KitPlate),
           )
           .first,
     );
     expect(
-      (band.decoration! as BoxDecoration).color,
+      band.fill,
       StrideColors.forRegionDeep(here),
       reason: 'the strip should read as this place\'s ground',
     );
   });
 
-  test('every switched-on habitat plate exists, and the species split holds', () {
-    // The five plates landed in FMPO02 (`ENEMIES_report.md`). A switched-on
-    // slug whose PNG is missing would hold the band at its full 152 dp with
-    // nothing in it — the exact empty rectangle this wave removed — so the
-    // switch and the files are held to each other here.
-    for (final String slug in EncounterHabitat.enabled) {
+  test(
+    'every switched-on habitat plate exists, and the species split holds',
+    () {
+      // The five plates landed in FMPO02 (`ENEMIES_report.md`). A switched-on
+      // slug whose PNG is missing would hold the band at its full 152 dp with
+      // nothing in it — the exact empty rectangle this wave removed — so the
+      // switch and the files are held to each other here.
+      for (final String slug in EncounterHabitat.enabled) {
+        expect(
+          File('assets/art/v1/combat/habitat_$slug.png').existsSync(),
+          isTrue,
+          reason: 'switched on, not packaged: $slug',
+        );
+      }
+      for (final ContentId place in <ContentId>[
+        ContentId.unchecked('location.whispering_woods'),
+        ContentId.unchecked('location.stonefall_mine'),
+        ContentId.unchecked('location.frostmere'),
+        ContentId.unchecked('location.forgotten_hollow'),
+      ]) {
+        expect(
+          EncounterHabitat.plateFor(place),
+          isNotNull,
+          reason: place.value,
+        );
+      }
+      // No enemy lives at Haven's Rest; no plate is authored for a card that is
+      // never drawn.
       expect(
-        File('assets/art/v1/combat/habitat_$slug.png').existsSync(),
-        isTrue,
-        reason: 'switched on, not packaged: $slug',
+        EncounterHabitat.plateFor(ContentId.unchecked('location.havens_rest')),
+        isNull,
       );
+      // Q-21: the salamander's chamber follows the species, not the place, and
+      // the other Stonefall creatures keep the ledge.
+      final ContentId mine = ContentId.unchecked('location.stonefall_mine');
+      expect(
+        EncounterHabitat.plateFor(
+          mine,
+          enemy: ContentId.unchecked('enemy.salamander'),
+        ),
+        EncounterHabitat.caveShadow,
+      );
+      expect(
+        EncounterHabitat.plateFor(
+          mine,
+          enemy: ContentId.unchecked('enemy.cave_goblin'),
+        ),
+        EncounterHabitat.rockyLedge,
+      );
+      expect(
+        EncounterHabitat.byPlace.map(
+          (String place, HabitatPlate plate) =>
+              MapEntry<String, String>(place, plate.assetPath),
+        ),
+        <String, String>{
+          'location.whispering_woods':
+              'assets/art/v1/combat/habitat_forest_floor.png',
+          'location.stonefall_mine':
+              'assets/art/v1/combat/habitat_rocky_ledge.png',
+          'location.frostmere': 'assets/art/v1/combat/habitat_snowbank.png',
+          'location.forgotten_hollow':
+              'assets/art/v1/combat/habitat_hollow_chamber.png',
+        },
+      );
+      // The Awakened Guardian's chamber is the same room roused, and it follows
+      // the species anywhere the species is drawn (EPO03 DIR-12).
+      expect(
+        EncounterHabitat.plateFor(
+          ContentId.unchecked('location.forgotten_hollow'),
+          enemy: ContentId.unchecked('enemy.guardian_awakened'),
+        ),
+        EncounterHabitat.hollowChamberAwakened,
+      );
+      // 192 × 76 at ×2 is the roadside window; the boss chamber is 192 × 96 at
+      // the same ×2, so the Guardian has headroom above its 146 dp of creature
+      // instead of six dp of air. Integer scale either way — no new density
+      // plane, no L-18a exception.
+      expect(EncounterHabitat.forestFloor.displayHeight, 152);
+      expect(EncounterHabitat.hollowChamber.displayHeight, 192);
+      expect(EncounterHabitat.hollowChamber.isChamber, isTrue);
+      expect(EncounterHabitat.forestFloor.isChamber, isFalse);
+      // Every plate names its ground in words as well as drawing it — the
+      // dossier's habitat caption reads it, and a plate without one would
+      // silently drop that line.
+      for (final HabitatPlate p in EncounterHabitat.byPlace.values) {
+        expect(p.caption, isNotEmpty, reason: p.slug);
+      }
+    },
+  );
+
+  testWidgets('the foreground is drawn above the creature, and the boss gets '
+      'the heavier frame', (WidgetTester tester) async {
+    // DIR-12 failure 4: every plate was a pure backdrop, so the creature was
+    // a cut-out on a picture. The foreground layer is what puts it *in* the
+    // habitat, and it only does that if it paints after the sprite. The
+    // salamander is the case that needs no travel — its chamber follows the
+    // species (Q-21), so it is plated even at Haven's Rest.
+    final SessionController c = await boot(tester);
+    await tester.pumpWidget(
+      shell(c, option(enemy: 'enemy.salamander', name: 'Salamander')),
+    );
+    await tester.pumpAndSettle();
+    final Stack stage = tester.widget<Stack>(
+      find
+          .ancestor(
+            of: find.byType(GroundedSprite),
+            matching: find.byType(Stack),
+          )
+          .first,
+    );
+    String? slugOf(Widget w) {
+      final Widget inner = w is Positioned ? w.child : w;
+      return inner is PixelScene ? inner.assetPath : null;
     }
-    for (final ContentId place in <ContentId>[
-      ContentId.unchecked('location.whispering_woods'),
-      ContentId.unchecked('location.stonefall_mine'),
-      ContentId.unchecked('location.frostmere'),
-      ContentId.unchecked('location.forgotten_hollow'),
-    ]) {
-      expect(EncounterHabitat.plateFor(place), isNotNull, reason: place.value);
-    }
-    // No enemy lives at Haven's Rest; no plate is authored for a card that is
-    // never drawn.
-    expect(
-      EncounterHabitat.plateFor(ContentId.unchecked('location.havens_rest')),
-      isNull,
+
+    final int creature = stage.children.indexWhere((Widget w) => w is Align);
+    final int ground = stage.children.indexWhere(
+      (Widget w) => slugOf(w)?.contains('habitat_cave_shadow') ?? false,
     );
-    // Q-21: the salamander's chamber follows the species, not the place, and
-    // the other Stonefall creatures keep the ledge.
-    final ContentId mine = ContentId.unchecked('location.stonefall_mine');
+    final int foreground = stage.children.indexWhere(
+      (Widget w) => slugOf(w)?.contains('habitat_fg_') ?? false,
+    );
+    expect(creature, greaterThanOrEqualTo(0));
     expect(
-      EncounterHabitat.plateFor(
-        mine,
-        enemy: ContentId.unchecked('enemy.salamander'),
+      ground,
+      lessThan(creature),
+      reason: 'the ground is under the creature, as it always was',
+    );
+    expect(
+      foreground,
+      greaterThan(creature),
+      reason: 'the foreground must paint over the creature, not under it',
+    );
+
+    // The window's frame is the boss's presence in the chrome, not only in
+    // the art. Both frames reserve their declared inset whether or not the
+    // raster has landed, so neither reflows when one does.
+    KitFrame frameOn(WidgetTester t) => t
+        .widget<KitPlate>(
+          find
+              .ancestor(
+                of: find.byType(GroundedSprite),
+                matching: find.byType(KitPlate),
+              )
+              .first,
+        )
+        .frame;
+    expect(frameOn(tester), KitFrame.insetStage);
+    await tester.pumpWidget(
+      shell(
+        c,
+        option(
+          enemy: 'enemy.hollow_guardian',
+          name: 'Hollow Guardian',
+          boss: true,
+        ),
       ),
-      EncounterHabitat.caveShadow,
     );
-    expect(
-      EncounterHabitat.plateFor(
-        mine,
-        enemy: ContentId.unchecked('enemy.cave_goblin'),
-      ),
-      EncounterHabitat.rockyLedge,
-    );
-    expect(
-      EncounterHabitat.byPlace.map(
-        (String place, HabitatPlate plate) =>
-            MapEntry<String, String>(place, plate.assetPath),
-      ),
-      <String, String>{
-        'location.whispering_woods':
-            'assets/art/v1/combat/habitat_forest_floor.png',
-        'location.stonefall_mine':
-            'assets/art/v1/combat/habitat_rocky_ledge.png',
-        'location.frostmere': 'assets/art/v1/combat/habitat_snowbank.png',
-        'location.forgotten_hollow':
-            'assets/art/v1/combat/habitat_hollow_rootbed.png',
-      },
-    );
-    // 192 × 76 at ×2 lands on the band's own ceiling exactly — no new density
-    // plane, no L-18a exception.
-    expect(HabitatPlate.displayHeight, 152);
+    await tester.pumpAndSettle();
+    expect(frameOn(tester), KitFrame.stageFrame);
   });
 }

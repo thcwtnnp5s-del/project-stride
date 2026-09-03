@@ -397,7 +397,10 @@ abstract final class CombatAssets {
       anchorRow: 62,
       footprint: SpriteFootprints.combatTravelerUnarmedStagger,
     ),
-    brace: _baseBrace('unarmed', SpriteFootprints.combatTravelerBaseUnarmedBrace),
+    brace: _baseBrace(
+      'unarmed',
+      SpriteFootprints.combatTravelerBaseUnarmedBrace,
+    ),
     // Opaque rows 1..62, the same standing height as the base figure, so the
     // impact still lands on the chest.
     impactRise: 34,
@@ -482,18 +485,22 @@ abstract final class CombatAssets {
     required SpriteFootprint brace,
     int canvasWidth = 80,
   }) {
-    CombatTrack t(String track, int frames, double fps, AmbientLoop loop,
-            SpriteFootprint footprint) =>
-        _track(
-          'traveler_${body}_${held}_$track',
-          frames,
-          fps,
-          loop,
-          canvasWidth: canvasWidth,
-          canvasHeight: 64,
-          anchorRow: 62,
-          footprint: footprint,
-        );
+    CombatTrack t(
+      String track,
+      int frames,
+      double fps,
+      AmbientLoop loop,
+      SpriteFootprint footprint,
+    ) => _track(
+      'traveler_${body}_${held}_$track',
+      frames,
+      fps,
+      loop,
+      canvasWidth: canvasWidth,
+      canvasHeight: 64,
+      anchorRow: 62,
+      footprint: footprint,
+    );
     return CombatantArt(
       idle: t('idle', 8, 6, AmbientLoop.pingpong, idle),
       attack: t('attack', 8, 10, AmbientLoop.once, attack),
@@ -937,15 +944,30 @@ abstract final class CombatAssets {
   /// quadruped-flinch failure — so the stage recoils the figure. 56² canvas,
   /// anchor row 42.
   static final CombatantArt ram = CombatantArt(
+    // EPO03: the idle is `ram2_idle`, the re-horned set FMPO02 packaged and
+    // wired to nothing pending one measurement (`package-art.js`, the ram2
+    // block). DIR-12 named the thin horn curl at 76 dp as the ram's only
+    // species-identity failure, and the condition FMPO02 attached to adoption
+    // — re-measure the boar↔ram silhouette IoU — is now measured: 0.702 for
+    // the shipped set against 0.727 for this one, on unaligned 56² alpha. The
+    // re-horn is fractionally *closer* to the boar by that metric and clearly
+    // further from it by eye (the horn gains internal ridging that reads as a
+    // curl rather than a dark blob), which is exactly the case M-04 exists
+    // for: the sheet read is the verdict, the number is triage. Same canvas,
+    // same anchor row, same measured footprint — a table edit, no re-run, and
+    // zero generations. The attack and defeat tracks keep the original horn;
+    // the difference is horn *texture* only, the silhouette and palette are
+    // identical, and the idle is what the card, the bestiary and the fight's
+    // resting pose all draw.
     idle: _track(
-      'ram_idle',
+      'ram2_idle',
       7,
       6,
       AmbientLoop.pingpong,
       canvasWidth: 56,
       canvasHeight: 56,
       anchorRow: 42,
-      footprint: SpriteFootprints.combatRamIdle,
+      footprint: SpriteFootprints.combatRam2Idle,
     ),
     attack: _track(
       'ram_attack',

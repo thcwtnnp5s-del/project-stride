@@ -31,6 +31,7 @@ import '../../components/band_plate.dart';
 import '../../components/data_display.dart';
 import '../../components/grounded_sprite.dart';
 import '../../components/rarity_item_title.dart';
+import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/surfaces.dart';
 import '../../icons/combat_assets.dart';
@@ -217,8 +218,30 @@ class _EncounterRow extends StatelessWidget {
   }
 }
 
-/// The selected enemy's detail: the creature itself, what fighting it means,
-/// what is known about it, and the action.
+/// The selected enemy's detail, as a **field-guide entry**: the creature in
+/// its habitat, what the habitat is, what is known about it, and the action.
+///
+/// ## Why a dossier and not a card of chips
+///
+/// EPO03's direction for this surface is the field guide (`DIR-12`). The
+/// previous detail was the round's own failure list in miniature — a habitat
+/// band, then a row of three pill chips repeating what the lines beside them
+/// already said, then three bordered value tiles, on a bordered card inside a
+/// bordered card. Everything it stated is still stated here and still exact;
+/// none of it is stated twice:
+///
+/// * the **tier is a stamp** on the name plate (`KitMark.ribbonLabel`), where
+///   a field guide puts the status of a sighting, instead of a chip;
+/// * the **boss** says so in the name line ("Guards this place"), where the
+///   card already had a sentence for it;
+/// * the **habitat is named** under the creature — "Frostmere ·
+///   wind-packed snow" — which is the one fact a habitat window cannot say on
+///   its own and the whole reason the window is worth drawing;
+/// * **HP / ATK / DEF are one ruled threat line**, not three boxes;
+/// * the **behaviour** is a sentence under it, because that is what it is.
+///
+/// The page is `journalLeaf`, the guide's own paper. `startEncounter` and
+/// every projection value it reads are untouched.
 class EncounterCard extends StatelessWidget {
   const EncounterCard({super.key, required this.option});
 
@@ -229,116 +252,188 @@ class EncounterCard extends StatelessWidget {
     final SessionController c = SessionScope.of(context);
     final EncounterOption o = option;
     final CombatantArt? art = CombatAssets.enemyFor(o.enemyId);
+    final ContentId? here = c.session.currentLocation;
+    // The habitat is resolved here rather than inside the stage, because the
+    // page names it in words as well as drawing it. One lookup, one truth:
+    // the caption and the window can never disagree about where this is.
+    final HabitatPlate? plate = here == null
+        ? null
+        : EncounterHabitat.plateFor(here, enemy: o.enemyId);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        if (art != null) ...<Widget>[
-          // The band's ground and tint belong to the *place*, not to the
-          // creature: an enemy is standing somewhere, and the somewhere is
-          // where the player is.
-          _EnemyStage(
-            art: art,
-            place: c.session.currentLocation,
-            enemy: o.enemyId,
-          ),
-          const SizedBox(height: StrideSpace.s10),
-        ],
-        Text(o.name, style: StrideType.cardTitle, maxLines: 2),
-        Text(
-          o.isBoss ? 'Guards this place' : 'Roams here',
-          style: StrideType.sub,
-          maxLines: 1,
-        ),
-        const SizedBox(height: StrideSpace.s10),
-        Wrap(
-          spacing: StrideSpace.s6,
-          runSpacing: StrideSpace.s6,
-          children: <Widget>[
-            if (o.isBoss) const RequirementGate(label: 'Boss'),
-            RequirementGate(label: _behaviorLabel(o.behavior)),
-            // The compact knowledge tier (`DECISIONS/0023` §5): Seen,
-            // Studied, Known — and then it stops. Presentation only.
-            RequirementGate(label: knowledgeLabel(o)),
+    return SectionCard(
+      // The guide's paper. The list around it is the board; this is the leaf
+      // pinned to it.
+      surface: PanelSurface.journalLeaf,
+      padding: const EdgeInsets.all(StrideSpace.cardPaddingCompact),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          if (art != null) ...<Widget>[
+            // The habitat window. Its ground, its tint and what is drawn in
+            // front of the creature belong to the *place*, not to the
+            // creature: an enemy is standing somewhere, and the somewhere is
+            // where the player is.
+            _EnemyStage(art: art, place: here, plate: plate, boss: o.isBoss),
+            const SizedBox(height: StrideSpace.s10),
           ],
-        ),
-        const SizedBox(height: StrideSpace.s10),
-        ValueTileRow(
-          tiles: <LabeledValueTile>[
-            LabeledValueTile(label: 'Health', value: '${o.maxHealth}'),
-            LabeledValueTile(label: 'Attack', value: '${o.attack}'),
-            LabeledValueTile(label: 'Defence', value: '${o.defence}'),
-          ],
-        ),
-        // WHAT I KNOW ABOUT THIS CREATURE — learning the ecology
-        // (PRESENTATION_WORLD_REWARD_FEEL_01 §24). The tier chip above says
-        // how far along the study is; this says what the study has bought:
-        // each known drop in its own rarity's ink, and the signature as
-        // `???` until the enemy is Known. Presentation only — the roll is
-        // identical at every tier (`DECISIONS/0023` §5), and every value
-        // here is the session's own projection.
-        const SizedBox(height: StrideSpace.s10),
-        Text(
-          '+${o.xp} XP',
-          style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
-        ),
-        if (o.drops.isNotEmpty) ...<Widget>[
-          const SizedBox(height: StrideSpace.s6),
-          const Text('KNOWN DROPS', style: StrideType.microLabel),
-          const SizedBox(height: StrideSpace.s4),
-          Wrap(
-            spacing: StrideSpace.s8,
-            runSpacing: StrideSpace.s4,
+          // The name plate: species, standing, habitat — and the sighting's
+          // tier stamped beside it.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              for (final DropPreview d in o.drops)
-                d.revealed
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          RarityName(
-                            name: d.signature ? '${d.name} ★' : d.name,
-                            rarity: d.rarity,
-                            style: StrideType.micro,
-                          ),
-                          // Studying pays off in words, knowing in figures
-                          // (Fable V2 Iteration 02): the qualifier is the
-                          // authored chance the engine rolls, graduated by
-                          // tier — nothing below Studied, a frequency word
-                          // at Studied, the exact percent at Known.
-                          if (_chanceLabel(o, d) case final String chance)
-                            Text(
-                              ' · $chance',
-                              style: StrideType.micro.copyWith(
-                                color: StrideColors.textSecondary,
-                              ),
-                            ),
-                        ],
-                      )
-                    : Text(
-                        '???',
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    AdaptiveText(o.name, style: StrideType.cardTitle),
+                    Text(
+                      o.isBoss ? 'Guards this place' : 'Roams here',
+                      style: StrideType.sub,
+                      maxLines: 1,
+                    ),
+                    if (habitatLine(c, plate) case final String where)
+                      Text(
+                        where,
                         style: StrideType.micro.copyWith(
-                          color: StrideColors.textMuted,
+                          color: StrideColors.textSecondary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: StrideSpace.s8),
+              // The compact knowledge tier (`DECISIONS/0023` §5): Seen,
+              // Studied, Known — and then it stops. Presentation only.
+              TierStamp(tier: o.knowledge),
             ],
           ),
+          const SizedBox(height: StrideSpace.s6),
+          // The entry's rule. `ruleOrnateA` is the kit's own "rule under a
+          // name" ornament and this surface is one of the two it was authored
+          // for (KIT_CONTRACT §3); it falls back to the hairline the card
+          // already drew.
+          const KitOrnament(
+            mark: KitMark.ruleOrnateA,
+            fallback: SizedBox(
+              width: double.infinity,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: StrideColors.separator),
+                child: SizedBox(height: 1),
+              ),
+            ),
+          ),
+          const SizedBox(height: StrideSpace.s6),
+          // The threat, as one line a reader scans rather than three boxes a
+          // reader parses.
+          Text(
+            'HP ${o.maxHealth}   ATK ${o.attack}   DEF ${o.defence}',
+            style: StrideType.itemName,
+            maxLines: 1,
+          ),
+          const SizedBox(height: StrideSpace.s2),
+          Text(
+            _behaviorLabel(o.behavior),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+            maxLines: 2,
+          ),
+          if (studyLine(o) case final String study) ...<Widget>[
+            const SizedBox(height: StrideSpace.s2),
+            Text(
+              study,
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 1,
+            ),
+          ],
+          // WHAT I KNOW ABOUT THIS CREATURE — learning the ecology
+          // (PRESENTATION_WORLD_REWARD_FEEL_01 §24). The stamp above says how
+          // far along the study is; this says what the study has bought:
+          // each known drop in its own rarity's ink, and the signature as
+          // `???` until the enemy is Known. Presentation only — the roll is
+          // identical at every tier (`DECISIONS/0023` §5), and every value
+          // here is the session's own projection.
+          const SizedBox(height: StrideSpace.s10),
+          Text(
+            '+${o.xp} XP',
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+          ),
+          if (o.drops.isNotEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s6),
+            const Text('KNOWN DROPS', style: StrideType.microLabel),
+            const SizedBox(height: StrideSpace.s4),
+            Wrap(
+              spacing: StrideSpace.s8,
+              runSpacing: StrideSpace.s4,
+              children: <Widget>[
+                for (final DropPreview d in o.drops)
+                  d.revealed
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            RarityName(
+                              name: d.signature ? '${d.name} ★' : d.name,
+                              rarity: d.rarity,
+                              style: StrideType.micro,
+                            ),
+                            // Studying pays off in words, knowing in figures
+                            // (Fable V2 Iteration 02): the qualifier is the
+                            // authored chance the engine rolls, graduated by
+                            // tier — nothing below Studied, a frequency word
+                            // at Studied, the exact percent at Known.
+                            if (_chanceLabel(o, d) case final String chance)
+                              Text(
+                                ' · $chance',
+                                style: StrideType.micro.copyWith(
+                                  color: StrideColors.textSecondary,
+                                ),
+                              ),
+                          ],
+                        )
+                      : Text(
+                          '???',
+                          style: StrideType.micro.copyWith(
+                            color: StrideColors.textMuted,
+                          ),
+                        ),
+              ],
+            ),
+          ],
+          const SizedBox(height: StrideSpace.s12),
+          StrideButton(
+            label: c.busy ? 'Starting…' : 'Start Combat',
+            subLabel: c.busy ? null : _subLabel(o),
+            onPressed: c.busy || !o.available
+                ? null
+                : () {
+                    // The commit into danger — one medium tap as the fight
+                    // begins, the punctuation between planning and combat.
+                    AudioScope.maybeRead(context)?.hapticMedium();
+                    c.startEncounter(o.enemyId);
+                  },
+          ),
         ],
-        const SizedBox(height: StrideSpace.s12),
-        StrideButton(
-          label: c.busy ? 'Starting…' : 'Start Combat',
-          subLabel: c.busy ? null : _subLabel(o),
-          onPressed: c.busy || !o.available
-              ? null
-              : () {
-                  // The commit into danger — one medium tap as the fight
-                  // begins, the punctuation between planning and combat.
-                  AudioScope.maybeRead(context)?.hapticMedium();
-                  c.startEncounter(o.enemyId);
-                },
-        ),
-      ],
+      ),
     );
   }
+
+  /// "Frostmere · wind-packed snow" — where this is, and what the ground is.
+  /// Null before the game starts, when there is no place to name.
+  static String? habitatLine(SessionController c, HabitatPlate? plate) {
+    final String where = c.session.locationName;
+    if (where.isEmpty || where == '—') return null;
+    return plate == null ? where : '$where · ${plate.caption}';
+  }
+
+  /// The distance to the next tier, in the guide's own grammar, or null when
+  /// the ladder has stopped. The tier word itself is on the stamp, so this
+  /// says only what the stamp cannot.
+  static String? studyLine(EncounterOption o) => switch (o.knowledge) {
+    KnowledgeTier.unseen => 'Not yet sighted',
+    KnowledgeTier.seen => '${o.victories}/${o.studiedAt} toward Studied',
+    KnowledgeTier.studied => '${o.victories}/${o.knownAt} toward Known',
+    KnowledgeTier.known => null,
+  };
 
   static String _behaviorLabel(EnemyBehavior b) => switch (b) {
     EnemyBehavior.steady => 'One strike a turn',
@@ -422,16 +517,25 @@ class EncounterCard extends StatelessWidget {
 ///   is a flat ground plane — contact and material — never the "full battle
 ///   background per card" the owner ruled out.
 class _EnemyStage extends StatelessWidget {
-  const _EnemyStage({required this.art, this.place, this.enemy});
-
-  /// The species on the card, for the one habitat keyed by species (the
-  /// salamander's ember chamber, Q-21).
-  final ContentId? enemy;
+  const _EnemyStage({
+    required this.art,
+    this.place,
+    this.plate,
+    this.boss = false,
+  });
 
   final CombatantArt art;
 
-  /// Where the player is standing — the band's tint and its habitat plate.
-  /// Null before the game starts, which draws the untinted band rather than
+  /// The habitat window for this creature here, resolved by the card. Null
+  /// draws the tinted band alone, exactly as before any plate existed.
+  final HabitatPlate? plate;
+
+  /// Whether this creature guards the place: a heavier frame around the
+  /// window, so the boss's presence is in the chrome as well as the art.
+  final bool boss;
+
+  /// Where the player is standing — the band's tint under the plate. Null
+  /// before the game starts, which draws the untinted band rather than
   /// guessing a region.
   final ContentId? place;
 
@@ -471,11 +575,14 @@ class _EnemyStage extends StatelessWidget {
   /// 112, guardian 152 — the ordering the 152 band was introduced to protect,
   /// now stated in the band itself rather than only in the figure inside it.
   ///
-  /// A plate is the exception: an authored ground is 152 dp of art and it
-  /// carries the floor, so a band with one takes the plate's height whatever
-  /// stands on it.
-  static double heightFor(CombatantArt art, {bool plated = false}) {
-    if (plated) return height;
+  /// A plate is the exception: an authored habitat window carries the floor,
+  /// so a band with one takes **that plate's own height** whatever stands on
+  /// it — 152 dp for a roadside habitat, 192 for a boss chamber. It was a
+  /// single 152 constant until EPO03, which is why the Guardian's 146 dp of
+  /// creature had six dp of air over its head and read cramped rather than
+  /// large (`DIR-12` failure 3).
+  static double heightFor(CombatantArt art, {HabitatPlate? plate}) {
+    if (plate != null) return plate.displayHeight;
     final double derived = (_contentRows(art.idle) * scale + 12).toDouble();
     return derived.clamp(minHeight, height);
   }
@@ -499,6 +606,7 @@ class _EnemyStage extends StatelessWidget {
   static const Map<String, int> _idleContentRows = <String, int>{
     'wolf_idle': 29, // 56², rows 12..40
     'lynx_idle': 30, // 56², rows 10..39
+    'ram2_idle': 34, // 56², rows 9..42 — the re-horned idle (EPO03)
     'ram_idle': 34, // 56², rows 9..42
     'crawler_idle': 35, // 48², rows 6..40
     'boar_idle': 36, // 56², rows 8..43
@@ -532,56 +640,78 @@ class _EnemyStage extends StatelessWidget {
   /// each creature at a different height and the band stops reading as a
   /// floor. The footprint's lowest opaque row is exactly the measurement that
   /// removes it.
-  static double groundOffset(CombatTrack idle) =>
-      (idle.canvasHeight - 1 - idle.footprint.bottom) * scale.toDouble();
+  static double groundOffset(CombatTrack idle, {int? scale}) =>
+      (idle.canvasHeight - 1 - idle.footprint.bottom) *
+      (scale ?? _EnemyStage.scale).toDouble();
+
+  /// The frame around the window, by what stands in it. A boss gets the kit's
+  /// heavy `stageFrame` — the same iron the fight itself is framed in — and
+  /// everything else the quieter stage well. Both reserve their declared inset
+  /// whether or not the raster has landed, so neither reflows later.
+  static KitFrame frameFor({required bool boss}) =>
+      boss ? KitFrame.stageFrame : KitFrame.insetStage;
 
   @override
   Widget build(BuildContext context) {
     final ContentId? here = place;
-    final HabitatPlate? plate = here == null
-        ? null
-        : EncounterHabitat.plateFor(here, enemy: enemy);
-    return Container(
+    final HabitatPlate? p = plate;
+    final KitFrame frame = frameFor(boss: boss);
+    final double window = heightFor(art, plate: p);
+    return KitPlate(
+      frame: frame,
       width: double.infinity,
-      height: heightFor(art, plated: plate != null),
-      decoration: BoxDecoration(
-        // The region's deep ink rather than one flat `surfaceBlock`
-        // everywhere: the band still has to be bright enough for the
-        // figure's multiply contact shadow to darken (the finding
-        // `gather_node_card.dart` records), and every region deep is, so the
-        // strip reads as this place's ground without becoming a scene.
-        color: here == null
-            ? StrideColors.surfaceBlock
-            : StrideColors.forRegionDeep(here),
-        border: Border.all(color: StrideColors.borderDefault),
-        borderRadius: StrideRadius.inner,
-      ),
-      // Clipped at the band's own rounded edge, as the gather stage is: a
-      // figure exactly the band's height must not paint over the border.
-      child: ClipRRect(
-        borderRadius: StrideRadius.inner,
+      height: window + KitFrames.insetFor(frame) * 2,
+      // The region's deep ink rather than one flat `surfaceBlock`
+      // everywhere: the band still has to be bright enough for the figure's
+      // multiply contact shadow to darken (the finding
+      // `gather_node_card.dart` records), and every region deep is, so a
+      // window without art still reads as this place's ground.
+      fill: here == null
+          ? StrideColors.surfaceBlock
+          : StrideColors.forRegionDeep(here),
+      child: ClipRect(
+        // Clipped at the window's own edge: a figure exactly the window's
+        // height must not paint over the frame.
         child: Stack(
           children: <Widget>[
-            // The ground, when this region has one authored and switched on.
-            // 384 dp of plate in a ~345 dp band, so it is drawn through
-            // `PixelScene`, which clips and never rescales — the plate's
-            // framing keeps nothing load-bearing at its flanks, exactly as
-            // the combat backdrop's does. A plate whose PNG is missing
-            // decodes to nothing and leaves the tinted band: no plate, no
-            // hole, no crash (`RULES.md` E-5).
-            if (plate != null)
+            // 1 — THE GROUND, when this region has a habitat authored and
+            // switched on. 384 dp of plate in a ~300 dp window, so it is
+            // drawn through `PixelScene`, which clips and never rescales —
+            // the plate's framing keeps nothing load-bearing at its flanks,
+            // exactly as the combat backdrop's does. A plate whose PNG is
+            // missing decodes to nothing and leaves the tinted window: no
+            // plate, no hole, no crash (`RULES.md` E-5).
+            if (p != null)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 child: PixelScene(
-                  assetPath: plate.assetPath,
+                  assetPath: p.assetPath,
                   nativeWidth: HabitatPlate.nativeWidth,
-                  nativeHeight: HabitatPlate.nativeHeight,
+                  nativeHeight: p.nativeHeight,
                   scale: HabitatPlate.scale,
                   alignment: Alignment.bottomCenter,
                 ),
               ),
+            // 2 — THE CANOPY, hung from the top edge. Only the cave has one:
+            // a stalactite fringe is the one thing a habitat legitimately
+            // closes over a creature's head, and it is drawn under the
+            // creature because the creature is standing beneath it.
+            if (p?.canopyPath case final String canopy)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: PixelScene(
+                  assetPath: canopy,
+                  nativeWidth: HabitatPlate.nativeWidth,
+                  nativeHeight: HabitatPlate.canopyHeight,
+                  scale: HabitatPlate.scale,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+            // 3 — THE CREATURE, on the ground line the plate was authored to.
             Align(
               alignment: Alignment.bottomCenter,
               child: Transform.translate(
@@ -589,7 +719,174 @@ class _EnemyStage extends StatelessWidget {
                 child: _EnemyIdle(track: art.idle, scale: scale),
               ),
             ),
+            // 4 — THE FOREGROUND, **above** the creature. This is the layer
+            // that turns a backdrop into a habitat: grass tufts, scree, a
+            // drift lip, root loops crossing the creature's feet, so it is
+            // *in* the place rather than a cut-out in front of a picture
+            // (`DIR-12` failure 4). Transparent, so an absent PNG is simply
+            // no foreground.
+            if (p?.foregroundPath case final String fg)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: PixelScene(
+                  assetPath: fg,
+                  nativeWidth: HabitatPlate.nativeWidth,
+                  nativeHeight: HabitatPlate.foregroundHeight,
+                  scale: HabitatPlate.scale,
+                  alignment: Alignment.bottomCenter,
+                ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The sighting's tier, stamped on the kit's ribbon.
+///
+/// A field guide records the status of a sighting as a mark, not as a
+/// sentence in a pill. The ribbon is `KitMark.ribbonLabel` (89 × 22, landed
+/// 2026-09-02) and the word is drawn on Flutter's own fill, exactly as the
+/// kit contract requires of it — the raster carries no text and no state.
+class TierStamp extends StatelessWidget {
+  const TierStamp({super.key, required this.tier});
+
+  final KnowledgeTier tier;
+
+  static String wordFor(KnowledgeTier t) => switch (t) {
+    KnowledgeTier.unseen => 'UNSEEN',
+    KnowledgeTier.seen => 'SEEN',
+    KnowledgeTier.studied => 'STUDIED',
+    KnowledgeTier.known => 'KNOWN',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final String word = wordFor(tier);
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        KitOrnament(
+          mark: KitMark.ribbonLabel,
+          fallback: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: StrideColors.borderDefault),
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Text(
+          word,
+          style: StrideType.microLabel.copyWith(
+            color: tier == KnowledgeTier.known
+                ? StrideColors.positiveReady
+                : StrideColors.textSecondary,
+          ),
+          maxLines: 1,
+        ),
+      ],
+    );
+  }
+}
+
+/// One creature in its habitat at ×1 — the field guide's row illustration.
+///
+/// The same three layers the encounter window draws, at half its scale and a
+/// third of its width: the plate cropped to the vignette's window, the idle's
+/// first frame seated by the same `groundOffset` arithmetic, and the
+/// foreground over its feet. It costs **no generations** — every raster it
+/// draws is one the encounter card already ships — and it is static: thirteen
+/// rows of tickers is the hidden-tab lesson the Bestiary was written to avoid.
+///
+/// A creature the guide has not sighted is drawn as an **ink silhouette**,
+/// which is what "Unseen" looks like in a field guide and what the word alone
+/// could only assert.
+class HabitatVignette extends StatelessWidget {
+  const HabitatVignette({
+    super.key,
+    required this.art,
+    required this.plate,
+    this.silhouette = false,
+    this.width = 96,
+    this.height = 76,
+  });
+
+  final CombatantArt art;
+  final HabitatPlate? plate;
+
+  /// Draw the creature as flat ink: not yet sighted.
+  final bool silhouette;
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final HabitatPlate? p = plate;
+    final CombatTrack idle = art.idle;
+    Widget figure = GroundedSprite(
+      assetPath: idle.frame(0),
+      footprint: idle.footprint,
+      scale: 1,
+      canvas: idle.canvasWidth,
+      canvasHeight: idle.canvasHeight,
+    );
+    if (silhouette) {
+      figure = ColorFiltered(
+        colorFilter: const ColorFilter.mode(
+          StrideColors.textMuted,
+          BlendMode.srcATop,
+        ),
+        child: figure,
+      );
+    }
+    return SizedBox(
+      width: width,
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: StrideColors.surfaceBlock,
+          border: Border.all(color: StrideColors.borderDefault),
+        ),
+        child: ClipRect(
+          child: Stack(
+            children: <Widget>[
+              if (p != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: PixelScene(
+                    assetPath: p.assetPath,
+                    nativeWidth: HabitatPlate.nativeWidth,
+                    nativeHeight: p.nativeHeight,
+                    alignment: Alignment.bottomCenter,
+                  ),
+                ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Transform.translate(
+                  offset: Offset(0, _EnemyStage.groundOffset(idle, scale: 1)),
+                  child: figure,
+                ),
+              ),
+              if (p?.foregroundPath case final String fg)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: PixelScene(
+                    assetPath: fg,
+                    nativeWidth: HabitatPlate.nativeWidth,
+                    nativeHeight: HabitatPlate.foregroundHeight,
+                    alignment: Alignment.bottomCenter,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

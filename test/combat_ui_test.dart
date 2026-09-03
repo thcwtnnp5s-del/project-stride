@@ -213,7 +213,9 @@ void main() {
     expect(find.byType(EncounterCard), findsOneWidget);
 
     expect(find.text('Roams here'), findsOneWidget);
-    expect(find.text('TWO LIGHT STRIKES A TURN'), findsOneWidget);
+    // EPO03: the behaviour is a sentence in the dossier's threat block, not a
+    // shouting pill chip. Same words, same source, one fewer register.
+    expect(find.text('Two light strikes a turn'), findsOneWidget);
     // The signature fang exists but is concealed until the wolf is Known.
     // The reward block is the §24 ecology presentation: XP on its own line,
     // each known drop named in its rarity's ink under KNOWN DROPS, and the

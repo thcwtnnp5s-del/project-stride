@@ -20,14 +20,17 @@ library;
 
 import 'package:flutter/material.dart' show MaterialPageRoute;
 import 'package:flutter/widgets.dart';
-import 'package:stride_core/stride_core.dart' show KnowledgeTier;
+import 'package:stride_core/stride_core.dart' show ContentId, KnowledgeTier;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart';
 import '../../components/surfaces.dart';
+import '../../icons/combat_assets.dart';
+import '../../icons/encounter_habitat.dart';
 import '../../icons/reward_art.dart';
+import 'encounter_card.dart';
 import '../../state/activity_controller.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -148,7 +151,10 @@ class BestiaryScreen extends StatelessWidget {
                               ),
                               color: StrideColors.separator,
                             ),
-                          _BestiaryRow(entry: region.entries[i]),
+                          _BestiaryRow(
+                            entry: region.entries[i],
+                            location: region.locationId,
+                          ),
                         ],
                       ],
                     ),
@@ -166,9 +172,14 @@ class BestiaryScreen extends StatelessWidget {
 /// One creature's notes: name and tier word, the study progress in plain
 /// words, and — as knowledge buys it — the drops. Static by design.
 class _BestiaryRow extends StatelessWidget {
-  const _BestiaryRow({required this.entry});
+  const _BestiaryRow({required this.entry, required this.location});
 
   final EncounterOption entry;
+
+  /// The region this row is filed under — the habitat its vignette draws.
+  /// Passed rather than read from the session, because the guide lists
+  /// creatures the player is not standing beside.
+  final ContentId location;
 
   @override
   Widget build(BuildContext context) {
@@ -202,80 +213,113 @@ class _BestiaryRow extends StatelessWidget {
               : 'Know the ${entry.requiresKnownEnemyName} to draw it out')
         : null;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: StrideSpace.s4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
+    // The row's illustration: this creature standing in its own habitat, at
+    // ×1, from rasters the encounter card already ships — no generations, no
+    // ticker. An unsighted creature is drawn as ink, which is what "Unseen"
+    // looks like in a field guide.
+    final CombatantArt? art = CombatAssets.enemyFor(entry.enemyId);
+    final HabitatPlate? habitat = EncounterHabitat.plateFor(
+      location,
+      enemy: entry.enemyId,
+    );
+
+    final Widget lines = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                entry.name,
+                style: StrideType.itemName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            Text(
+              tierWord.toUpperCase(),
+              style: StrideType.microLabel.copyWith(
+                color: entry.knowledge == KnowledgeTier.known
+                    ? StrideColors.positiveReady
+                    : StrideColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        if (habitat != null) ...<Widget>[
+          const SizedBox(height: StrideSpace.s2),
+          Text(
+            habitat.caption,
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+            maxLines: 1,
+          ),
+        ],
+        if (gate != null) ...<Widget>[
+          const SizedBox(height: StrideSpace.s2),
+          Text(
+            gate,
+            style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+            maxLines: 1,
+          ),
+        ] else if (progress != null) ...<Widget>[
+          const SizedBox(height: StrideSpace.s2),
           Row(
             children: <Widget>[
-              Expanded(
-                child: Text(
-                  entry.name,
-                  style: StrideType.itemName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              // Enemy knowledge advancing, the same 24² mark as any other
+              // in-line progress fact (`RewardArt.markKnowledge`, ART-10
+              // §1). Decorative: the line beside it already says the fact.
+              const ExcludeSemantics(
+                child: PixelAsset(
+                  assetPath: RewardArt.markKnowledge,
+                  nativeWidth: 24,
+                  nativeHeight: 24,
+                  scale: 1,
                 ),
               ),
-              const SizedBox(width: StrideSpace.s8),
-              Text(
-                tierWord.toUpperCase(),
-                style: StrideType.microLabel.copyWith(
-                  color: entry.knowledge == KnowledgeTier.known
-                      ? StrideColors.positiveReady
-                      : StrideColors.textSecondary,
+              const SizedBox(width: StrideSpace.s6),
+              Flexible(
+                child: Text(
+                  progress,
+                  style: StrideType.micro.copyWith(
+                    color: StrideColors.textMuted,
+                  ),
+                  maxLines: 1,
                 ),
               ),
             ],
           ),
-          if (gate != null) ...<Widget>[
-            const SizedBox(height: StrideSpace.s2),
-            Text(
-              gate,
-              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-              maxLines: 1,
-            ),
-          ] else if (progress != null) ...<Widget>[
-            const SizedBox(height: StrideSpace.s2),
-            Row(
+        ],
+        if (drops.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.s2),
+          Text(
+            'Drops: ${drops.join(', ')}',
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: StrideSpace.s4),
+      child: art == null
+          ? lines
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                // Enemy knowledge advancing, the same 24² mark as any other
-                // in-line progress fact (`RewardArt.markKnowledge`, ART-10
-                // §1). Decorative: the line beside it already says the fact.
-                const ExcludeSemantics(
-                  child: PixelAsset(
-                    assetPath: RewardArt.markKnowledge,
-                    nativeWidth: 24,
-                    nativeHeight: 24,
-                    scale: 1,
+                ExcludeSemantics(
+                  child: HabitatVignette(
+                    art: art,
+                    plate: habitat,
+                    silhouette: entry.knowledge == KnowledgeTier.unseen,
                   ),
                 ),
-                const SizedBox(width: StrideSpace.s6),
-                Flexible(
-                  child: Text(
-                    progress,
-                    style: StrideType.micro.copyWith(
-                      color: StrideColors.textMuted,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
+                const SizedBox(width: StrideSpace.s10),
+                Expanded(child: lines),
               ],
             ),
-          ],
-          if (drops.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s2),
-            Text(
-              'Drops: ${drops.join(', ')}',
-              style: StrideType.micro.copyWith(
-                color: StrideColors.textSecondary,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

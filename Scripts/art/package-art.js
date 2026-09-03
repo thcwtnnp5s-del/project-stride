@@ -3430,13 +3430,13 @@ for (const file of fs.readdirSync(EPO03_ITEM_SRC).filter((f) => f.endsWith('.png
  * measured footprint, so no correction is needed for that.
  */
 const FMPO_ENEMY_SRC = path.join(FMPO02_OUT, 'enemies');
-for (const id of [
-  'habitat_forest_floor',
-  'habitat_rocky_ledge',
-  'habitat_cave_shadow',
-  'habitat_snowbank',
-  'habitat_hollow_rootbed',
-]) {
+// EPO03 ENEMIES: four of FMPO02's five plates are superseded below —
+// `rocky_ledge`, `cave_shadow` and `snowbank` are re-authored, and
+// `hollow_rootbed` is replaced outright by a 192 x 96 boss chamber, so it is
+// no longer emitted and `encounter_habitat.dart` no longer names it. Only
+// `forest_floor` survives this round unchanged: it was the one plate a
+// creature already stood *on*.
+for (const id of ['habitat_forest_floor']) {
   const raster = png.load(path.join(FMPO_ENEMY_SRC, `${id}.png`));
   if (raster.width !== 192 || raster.height !== 76) {
     throw new Error(
@@ -3472,6 +3472,58 @@ for (const [id, frames, edge] of FMPO_ENEMY_TRACKS) {
     if (i === 0) combatFootprints[`combat_${id}`] = png.footprint(frame);
     emit(`combat/${id}_f${i}.png`, encode(frame));
   }
+}
+
+/**
+ * EPO03 ENEMIES — the habitat WINDOWS and their foregrounds (`DIR-12`).
+ *
+ * FMPO02 shipped five plates under the ART-08 gate: a flat ground plane, no
+ * midground, nothing above the headroom line. Measured against
+ * `_EnemyStage`'s own seating arithmetic, four of the five put the creature
+ * at the foot of a wall (rocky, cave), on gravel below the habitat (snow), or
+ * on no floor at all (hollow). The gate is superseded: a plate is now a
+ * habitat WINDOW — floor in the lower ~40 %, a midground that names the
+ * region, an atmosphere band on top — and still no sky, no ruled horizon and
+ * no props.
+ *
+ * Two canvases, and the difference is the whole boss change: **192 × 76** for
+ * a roadside habitat (152 dp at ×2), **192 × 96** for the Forgotten Hollow's
+ * chamber (192 dp), where the Guardian's 146 dp of creature had six dp of air
+ * over its head and read cramped rather than large.
+ *
+ * The **foreground strips** are the other half. 192 × 32, transparent, drawn
+ * *above* the creature by `_EnemyStage` so something in the habitat crosses
+ * its feet: without them a plate is a backdrop and the creature is a cut-out
+ * on a picture. `habitat_top_cave_shadow` is the one canopy — a stalactite
+ * fringe hung from the top edge, drawn under the creature because the creature
+ * stands beneath it. 32 rows and not DIR-12's costed 28 and 20 because
+ * PixelLab forces a square canvas on any side under 32; both strips are mostly
+ * transparent either way.
+ *
+ * None of them carries a footprint: a habitat is ground, and grounding the
+ * ground would draw a contact shadow across the middle of the stage.
+ */
+const EPO03_ENEMY_SRC = path.join(EXPLORE, 'EPO03', 'out', 'enemies');
+for (const [id, w, h] of [
+  ['habitat_rocky_ledge', 192, 76],
+  ['habitat_cave_shadow', 192, 76],
+  ['habitat_snowbank', 192, 76],
+  ['habitat_hollow_chamber', 192, 96],
+  ['habitat_hollow_chamber_awakened', 192, 96],
+  ['habitat_fg_forest_floor', 192, 32],
+  ['habitat_fg_rocky_ledge', 192, 32],
+  ['habitat_fg_cave_shadow', 192, 32],
+  ['habitat_fg_snowbank', 192, 32],
+  ['habitat_fg_hollow_chamber', 192, 32],
+  ['habitat_top_cave_shadow', 192, 32],
+]) {
+  const raster = png.load(path.join(EPO03_ENEMY_SRC, `${id}.png`));
+  if (raster.width !== w || raster.height !== h) {
+    throw new Error(
+      `${id}: expected ${w}x${h}, got ${raster.width}x${raster.height}`,
+    );
+  }
+  emit(`combat/${id}.png`, encode(raster));
 }
 
 /**
