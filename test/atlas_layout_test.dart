@@ -751,7 +751,291 @@ void main() {
       );
     });
   });
+
+  // -------------------------------------------------------------- v6 paths
+  //
+  // The risk these cover, named before the work: **a creature that is not
+  // where the map says it is.** A patrol is arithmetic on a polyline, and
+  // every one of these failures is silent on a phone — a dragon a few pixels
+  // off its ridge, a mule beside its road, a plume leaving the tail, a
+  // ping-pong that overshoots its cape by a frame and snaps back, a reduced
+  // motion setting that empties the world instead of stilling it.
+  group('a path overlay', () {
+    // A 100 x 100 square: four sides of exactly 100 world px, so every
+    // expectation below is a whole number a reader can check by hand.
+    List<({double x, double y})> square() => const <({double x, double y})>[
+      (x: 0, y: 0),
+      (x: 100, y: 0),
+      (x: 100, y: 100),
+      (x: 0, y: 100),
+    ];
+
+    AtlasOverlay creature({
+      AtlasPathMode mode = AtlasPathMode.loop,
+      bool flip = true,
+      int phaseMillis = 0,
+      List<int> breathAt = const <int>[],
+      AtlasOverlayFollower? breath,
+      AtlasFacing facing = AtlasFacing.east,
+    }) => AtlasOverlay(
+      asset: 'env/overlay_test',
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 8,
+      frameCount: 4,
+      frameMillis: 100,
+      driftX: 0,
+      driftY: 0,
+      facing: facing,
+      breath: breath,
+      path: AtlasOverlayPath(
+        points: square(),
+        speed: 50,
+        mode: mode,
+        flip: flip,
+        phaseMillis: phaseMillis,
+        breathAt: breathAt,
+      ),
+    );
+
+    test('measures the line, closing it only for a loop', () {
+      expect(creature().path!.totalLength, closeTo(400, 0.001));
+      expect(
+        creature(mode: AtlasPathMode.pingpong).path!.totalLength,
+        closeTo(300, 0.001),
+      );
+    });
+
+    test('is at the position the arithmetic says, at t', () {
+      final AtlasOverlayPath line = creature().path!;
+      // 50 px/s: one second in, halfway along the first side.
+      expect(line.footAt(const Duration(seconds: 1)).x, closeTo(50, 0.001));
+      expect(line.footAt(const Duration(seconds: 1)).y, closeTo(0, 0.001));
+      // Three seconds: 150 px, so halfway down the second side.
+      expect(line.footAt(const Duration(seconds: 3)).x, closeTo(100, 0.001));
+      expect(line.footAt(const Duration(seconds: 3)).y, closeTo(50, 0.001));
+      // A lap is 8 s, and the ninth second repeats the first.
+      expect(line.footAt(const Duration(seconds: 9)).x, closeTo(50, 0.001));
+    });
+
+    test('turns round exactly at the end of a ping-pong, not past it', () {
+      final AtlasOverlayPath line = creature(
+        mode: AtlasPathMode.pingpong,
+      ).path!;
+      // 300 px out at 50 px/s is 6 s: the far end, on the tick it turns.
+      expect(line.distanceAt(const Duration(seconds: 6)), closeTo(300, 0.001));
+      expect(line.footAt(const Duration(seconds: 6)).x, closeTo(0, 0.001));
+      expect(line.footAt(const Duration(seconds: 6)).y, closeTo(100, 0.001));
+      // A second later it is 50 px back the way it came, never 350 px along
+      // a line that is only 300 px long.
+      expect(line.distanceAt(const Duration(seconds: 7)), closeTo(250, 0.001));
+      expect(line.footAt(const Duration(seconds: 7)).x, closeTo(50, 0.001));
+      // And the whole out-and-back closes at 12 s.
+      expect(line.distanceAt(const Duration(seconds: 12)), closeTo(0, 0.001));
+    });
+
+    test('mirrors only when the segment runs against the art', () {
+      final AtlasOverlay east = creature();
+      // First side runs east, which is the way the art faces.
+      expect(east.flippedAt(const Duration(seconds: 1)), isFalse);
+      // Third side runs west.
+      expect(east.flippedAt(const Duration(seconds: 5)), isTrue);
+      // Art that faces west is mirrored on exactly the opposite sides.
+      final AtlasOverlay west = creature(facing: AtlasFacing.west);
+      expect(west.flippedAt(const Duration(seconds: 1)), isTrue);
+      expect(west.flippedAt(const Duration(seconds: 5)), isFalse);
+      // And a path that did not ask for mirroring never mirrors.
+      expect(
+        creature(flip: false).flippedAt(const Duration(seconds: 5)),
+        isFalse,
+      );
+    });
+
+    test('reads points as the foot, and derives the top-left', () {
+      // 10 x 8 native at scale 6 is 60 x 48 drawn: the sprite hangs above its
+      // waypoint and is centred on it, which is what puts a mule ON the road.
+      final ({double x, double y}) at = creature().topLeftAt(
+        const Duration(seconds: 1),
+        6,
+      );
+      expect(at.x, closeTo(50 - 30, 0.001));
+      expect(at.y, closeTo(0 - 48, 0.001));
+    });
+
+    test('is present and pinned when the clock never moves (M-16)', () {
+      final AtlasOverlay pinned = creature(
+        phaseMillis: 4000,
+        breathAt: const <int>[0],
+        breath: const AtlasOverlayFollower(
+          asset: 'env/overlay_test_breath',
+          width: 8,
+          height: 8,
+          frameCount: 4,
+          frameMillis: 100,
+          offsetX: 4,
+          offsetY: 0,
+        ),
+      );
+      // Present: a path overlay has no quiet gap to disappear into, so
+      // reduced motion cannot delete it.
+      expect(pinned.visibleAt(Duration.zero), isTrue);
+      // Pinned at points[0] — the phase does NOT move it, or a stilled world
+      // would show every creature at an arbitrary point of its lap.
+      expect(pinned.path!.footAt(Duration.zero).x, 0);
+      expect(pinned.path!.footAt(Duration.zero).y, 0);
+      expect(pinned.topLeftAt(Duration.zero, 6).x, closeTo(-30, 0.001));
+      // Frame 0, not mirrored, and no plume frozen in the air.
+      expect(pinned.frameIndexAt(Duration.zero), 0);
+      expect(pinned.flippedAt(Duration.zero), isFalse);
+      expect(pinned.breathPhaseAt(Duration.zero), isNull);
+    });
+
+    test('breathes as it crosses the waypoints it names, and not between', () {
+      final AtlasOverlay dragon = creature(
+        breathAt: const <int>[2],
+        breath: const AtlasOverlayFollower(
+          asset: 'env/overlay_test_breath',
+          width: 8,
+          height: 8,
+          frameCount: 8,
+          frameMillis: 100,
+          offsetX: 4,
+          offsetY: 0,
+        ),
+      );
+      // Waypoint 2 is 200 px along at 50 px/s: 4 s into every 8 s lap, and
+      // the plume is 800 ms long.
+      expect(dragon.breathPhaseAt(const Duration(seconds: 4))?.index, 2);
+      expect(dragon.breathPhaseAt(const Duration(seconds: 4))?.millis, 0);
+      expect(
+        dragon.breathPhaseAt(const Duration(milliseconds: 4400))?.millis,
+        400,
+      );
+      // 900 ms after the crossing the plume is out.
+      expect(dragon.breathPhaseAt(const Duration(milliseconds: 4900)), isNull);
+      // And it fires again on the next lap, not once and never after — the
+      // 76 %-absent dragon this schema exists to replace.
+      expect(dragon.breathPhaseAt(const Duration(seconds: 12))?.index, 2);
+    });
+
+    test('phase moves two creatures off each other on one line', () {
+      final AtlasOverlay lead = creature();
+      final AtlasOverlay follow = creature(phaseMillis: 2000);
+      expect(
+        follow.path!.distanceAt(const Duration(seconds: 1)),
+        closeTo(lead.path!.distanceAt(const Duration(seconds: 3)), 0.001),
+      );
+    });
+  });
+
+  group('the v6 schema', () {
+    test('reads a path overlay out of the shipped world', () {
+      final AtlasLayout layout = AtlasLayout.parse(
+        _withOverlay(shippedLayout, _pathOverlay),
+      );
+      final AtlasOverlay patrol = layout.overlays.firstWhere(
+        (AtlasOverlay o) => o.asset == 'env/overlay_test_patrol',
+      );
+      expect(patrol.hasPath, isTrue);
+      expect(patrol.path!.points.length, 3);
+      expect(patrol.depth, 2);
+      expect(patrol.shadow!.opacity, closeTo(0.3, 0.001));
+      expect(patrol.breath!.asset, 'env/overlay_test_breath');
+      // The layout still validates: a path overlay's waypoints are checked
+      // against the world, not a coordinate it does not have.
+      expect(
+        layout.validateAgainst(contentLocations).where(
+          (String p) => p.contains('overlay_test_patrol'),
+        ),
+        isEmpty,
+      );
+    });
+
+    test('refuses a path that also carries a placement', () {
+      expect(
+        () => AtlasLayout.parse(
+          _withOverlay(
+            shippedLayout,
+            _pathOverlay.replaceFirst('"width"', '"x": 10, "width"'),
+          ),
+        ),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('always present'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses a breath the path never fires, and a fire with no breath', () {
+      expect(
+        () => AtlasLayout.parse(
+          _withOverlay(
+            shippedLayout,
+            _pathOverlay.replaceFirst('"breathAt": [1]', '"breathAt": [7]'),
+          ),
+        ),
+        throwsA(isA<AtlasLayoutException>()),
+      );
+    });
+
+    test('refuses a depth that is not ground, low air or high air', () {
+      expect(
+        () => AtlasLayout.parse(
+          _withOverlay(
+            shippedLayout,
+            _pathOverlay.replaceFirst('"depth": 2', '"depth": 3'),
+          ),
+        ),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('depth'),
+          ),
+        ),
+      );
+    });
+
+    test('refuses pre-v6 documents carrying the behaviour fields', () {
+      expect(
+        () => AtlasLayout.parse(
+          _withOverlay(
+            shippedLayout,
+            _pathOverlay,
+          ).replaceFirst('"schemaVersion": 6', '"schemaVersion": 5'),
+        ),
+        throwsA(
+          isA<AtlasLayoutException>().having(
+            (AtlasLayoutException e) => e.message,
+            'message',
+            contains('schemaVersion 6'),
+          ),
+        ),
+      );
+    });
+  });
 }
+
+/// A v6 patrol, written the way the layout writes one, for the schema cases.
+const String _pathOverlay =
+    '{"asset": "env/overlay_test_patrol", "width": 96, "height": 64, '
+    '"frames": 9, "frameMillis": 400, "depth": 2, "faces": "east", '
+    '"opacity": 1, '
+    '"shadow": {"dx": 10, "dy": 84, "opacity": 0.3}, '
+    '"breath": {"asset": "env/overlay_test_breath", "width": 96, '
+    '"height": 48, "frames": 8, "frameMillis": 120, '
+    '"offset": {"x": 88, "y": 10}}, '
+    '"path": {"points": [[4200, 1440], [4800, 1620], [5040, 2100]], '
+    '"speed": 36, "mode": "loop", "flip": true, "phaseMillis": 0, '
+    '"breathAt": [1], "bob": {"amplitude": 12, "periodMillis": 1600}}}';
+
+/// [layout] with [entry] added at the head of its `overlays` list.
+String _withOverlay(String layout, String entry) =>
+    layout.replaceFirst('"overlays": [', '"overlays": [$entry,');
 
 /// The shipped document with [entries] dropped into its empty `landmarks`
 /// list. Written this way so every landmark case is tested against the real
