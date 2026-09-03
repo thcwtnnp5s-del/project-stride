@@ -75,8 +75,8 @@
         "h": 120
       },
       "salt": 102,
-      "seed": 0,
-      "status": "pending",
+      "seed": 1006,
+      "status": "accepted",
       "reauthorizes": [],
       "cut": {
         "seaMargin": 24,
@@ -85,7 +85,8 @@
         "holeInflate": 2,
         "holes": []
       },
-      "intent": "The honeycomb. The regular crack-cell net over the pack ice becomes one broad sheet of old fast ice: wide smooth snow-covered ice carrying long low wind-drift bands in one direction, with only a few long single cracks wandering at shallow angles and never meeting. Deliberately SMALL (120x120 authored) because E1 rolls 1-2 proved a wide ice mask is answered with a pattern."
+      "intent": "The honeycomb. The regular crack-cell net over the pack ice becomes one broad sheet of old fast ice: wide smooth snow-covered ice carrying long low wind-drift bands in one direction, with only a few long single cracks wandering at shallow angles and never meeting. Deliberately SMALL (120x120 authored) because E1 rolls 1-2 proved a wide ice mask is answered with a pattern.",
+      "job": "5512cd2a-bcba-4745-90b4-1f2e785d3b2c"
     },
     {
       "id": "E2",

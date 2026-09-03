@@ -20,3 +20,9 @@ E1 (spread 14, palette from atlas 640–900 × 20–260, 13 entries) and a new
 colours, both tried before spending the cap again (PRODUCTION_RULES §2a).
 
 **Cap:** 140. Spent so far 75 (25 + 25 + 25). Accepted 1, rejected 2.
+| 7 | E3 roll 1 — the honeycomb, crop 600,20 200x200, inpaint atlas 640-760 x 60-180 (deliberately small); ask is one unbroken sheet with wind-drift bands and a few non-meeting cracks | `inpaint_image` | `5512cd2a-bcba-4745-90b4-1f2e785d3b2c` | 1006 | 20 | **ACCEPT** | the cell net in the middle of the pack becomes one broad banded floe with long non-meeting cracks; near-duplicate 10x10 blocks in 620-800 x 20-220 fall 34.8% -> 26.4%. Palette-remapped and de-stippled deterministically (`atlas-quantise`, `atlas-fleck --dither`, 0 gens). `review/atlas/E3_preview_fov_x2.png` |
+
+**Cap 140 — spent 135** (25 + 25 + 25 + 20 + 20 + 20). Accepted 3 regions
+(E1, E2, E3), rejected 3 rolls with written reasons. Two of the three accepted
+regions needed a deterministic recovery that cost nothing (`atlas-quantise`,
+`atlas-fleck`), and E2 shipped with no generation at all.

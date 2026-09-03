@@ -30,6 +30,21 @@
       "review": "review/atlas/E2_after_x2.png, E2_defleck_x3.png",
       "team": "east",
       "reauthorizes": []
+    },
+    {
+      "id": "E3",
+      "x": 600,
+      "y": 20,
+      "w": 200,
+      "h": 200,
+      "salt": 102,
+      "status": "accepted",
+      "job": "5512cd2a-bcba-4745-90b4-1f2e785d3b2c",
+      "seed": 1006,
+      "atlas": "640-760 x 60-180 (the crack-cell honeycomb)",
+      "review": "review/atlas/E3_after_x2.png, E3_preview_fov_x2.png",
+      "team": "east",
+      "reauthorizes": []
     }
   ]
 }
