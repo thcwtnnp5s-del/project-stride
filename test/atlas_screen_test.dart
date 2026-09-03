@@ -364,6 +364,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.usableEnergy, before - 4400);
     expect(session.currentLocation?.value, 'location.frostmere');
+    // Arriving drops the sheet back to peek on *here* — the first thing a
+    // player wants after a walk is to see where they have arrived, and the
+    // map is the hero (DIR-15 §1). The journey's own sentence is still on the
+    // sheet, one grip tap away.
+    expect(tester.getRect(find.byKey(worldSheetKey)).height, 64);
+    await raise(tester);
     expect(
       find.textContaining('4,400-step journey (final leg 3,000)'),
       findsOneWidget,
