@@ -123,4 +123,200 @@ void main() {
           'Different materials must differ in SHAPE, not only in hue.',
     );
   });
+  // ---------------------------------------------------------------- EPO03
+
+  /// The EPO03 collision round (`MILESTONES/evidence/EPO03/wave2/
+  /// ITEMS_report.md`, brief `wave1/DIR-09_item_art.md`).
+  ///
+  /// **These are named-pair ceilings, not a global threshold, and the reason
+  /// matters.** Distinct, unconfusable pairs in this set measure 0.85-0.90
+  /// unaligned — `ram_wool` against `ember_core` is 0.90 and nobody has ever
+  /// mistaken wool for a core. A global IoU threshold would therefore either
+  /// pass everything or condemn the whole set. So a ceiling is written here
+  /// only where the FIX WAS ITSELF A SILHOUETTE CHANGE, and it records what
+  /// that change achieved so it cannot silently regress.
+  ///
+  /// The metric is triage. The verdict was the x2 sheet read on `#1e1e1e`
+  /// (M-04) — every one of these pairs was looked at by eye at the size the
+  /// phone draws it before it was accepted.
+  Future<List<bool>> mask(WidgetTester tester, String id) async =>
+      (await tester.runAsync(() async {
+        final Uint8List b =
+            (await rootBundle.load(
+              'assets/art/v1/item/$id.png',
+            )).buffer.asUint8List();
+        final ui.Codec codec = await ui.instantiateImageCodec(b);
+        final ui.FrameInfo frame = await codec.getNextFrame();
+        final data = await frame.image.toByteData();
+        return <bool>[
+          for (int i = 3; i < data!.lengthInBytes; i += 4) data.getUint8(i) >= 8,
+        ];
+      }))!;
+
+  double iouOf(List<bool> a, List<bool> b) {
+    int both = 0;
+    int either = 0;
+    for (int i = 0; i < a.length; i += 1) {
+      if (a[i] || b[i]) either += 1;
+      if (a[i] && b[i]) both += 1;
+    }
+    return either == 0 ? 0 : both / either;
+  }
+
+  testWidgets('the four hide vests are four silhouettes, not one', (
+    WidgetTester tester,
+  ) async {
+    // They shipped as one brown colour mass whose only tells were under 6 px:
+    // 0.85-0.88 pairwise. The replacements differ by fur outline, tusks across
+    // the chest, a smooth sleeveless tank, and a hooded coat with a longer hem.
+    const List<String> vests = <String>[
+      'wolfhide_jerkin',
+      'tuskbound_jerkin',
+      'frostlined_jerkin',
+      'bearhide_coat',
+    ];
+    final Map<String, List<bool>> masks = <String, List<bool>>{
+      for (final String id in vests) id: await mask(tester, id),
+    };
+    for (int i = 0; i < vests.length; i += 1) {
+      for (int j = i + 1; j < vests.length; j += 1) {
+        final double iou = iouOf(masks[vests[i]]!, masks[vests[j]]!);
+        expect(
+          iou,
+          lessThan(0.83),
+          reason:
+              '${vests[i]} and ${vests[j]} overlap '
+              '${(iou * 100).toStringAsFixed(1)}% by silhouette. The armour '
+              'pocket shows all four at once; they were 85-88% and one brown '
+              'mass. A vest may not be told from another by hue alone.',
+        );
+      }
+    }
+  });
+
+  testWidgets('the two stews are two vessels', (WidgetTester tester) async {
+    // Two dark iron pots that went dark-on-dark against each other and against
+    // the green broth bowl (0.896). `hearty_stew` now takes a pale wooden bowl
+    // with a ladle standing in it and leaves the cauldron to `expedition_stew`.
+    for (final String other in <String>['expedition_stew', 'herb_broth']) {
+      final double iou = iouOf(
+        await mask(tester, 'hearty_stew'),
+        await mask(tester, other),
+      );
+      expect(
+        iou,
+        lessThan(0.80),
+        reason:
+            'hearty_stew and $other overlap '
+            '${(iou * 100).toStringAsFixed(1)}% by silhouette. The cooking '
+            'list draws them on adjacent rows.',
+      );
+    }
+  });
+
+  testWidgets('no icon is too thin to read at 48 dp', (
+    WidgetTester tester,
+  ) async {
+    // `bronze_longsword` was the thinnest icon in the game at 12% fill and
+    // SHORTER than the uncommon sword it outranks; `pristine_horn` was a 12%
+    // sliver. An epic is never the smallest thing on the screen.
+    for (final String id in <String>[
+      'bronze_longsword',
+      'pristine_horn',
+      'pristine_wolf_fang',
+      'hornpoint_pickaxe',
+      'frost_claw',
+    ]) {
+      final List<bool> m = await mask(tester, id);
+      final int on = m.where((bool v) => v).length;
+      final double fill = on / m.length;
+      expect(
+        fill,
+        greaterThanOrEqualTo(0.20),
+        reason:
+            '$id fills only ${(fill * 100).toStringAsFixed(1)}% of its 48x48 '
+            'frame. Under a fifth, an icon reads as a scratch on the tile.',
+      );
+    }
+  });
+
+  testWidgets('the longsword out-reaches the swords it outranks', (
+    WidgetTester tester,
+  ) async {
+    // Family language, binding: "epic is never the smallest".
+    //
+    // Measured as REACH — the diagonal of the ink's bounding box — and not as
+    // a pixel count, because a pixel count answers a different question. The
+    // uncommon `bronze_sword` carries MORE ink than the epic (585 px against
+    // 549) purely because its blade is broader; the epic is the longer weapon,
+    // which is what the eye reads and what DIR-09 asked for. Counting area
+    // would have condemned a correct icon and rewarded a fatter one.
+    Future<int> reach(String id) async {
+      final List<bool> m = await mask(tester, id);
+      int x0 = 48, y0 = 48, x1 = -1, y1 = -1;
+      for (int y = 0; y < 48; y += 1) {
+        for (int x = 0; x < 48; x += 1) {
+          if (!m[y * 48 + x]) continue;
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+      final int w = x1 - x0 + 1;
+      final int h = y1 - y0 + 1;
+      return w * w + h * h; // squared diagonal; ordering is all that is used
+    }
+
+    final int epic = await reach('bronze_longsword');
+    for (final String lesser in <String>[
+      'training_sword',
+      'bronze_sword',
+      'fanghilt_sword',
+    ]) {
+      expect(
+        epic,
+        greaterThan(await reach(lesser)),
+        reason:
+            'bronze_longsword does not out-reach $lesser. It shipped at 12% '
+            'fill and SHORTER than the uncommon sword it outranks; the epic '
+            'must be the longest blade in the case.',
+      );
+    }
+  });
+
+  testWidgets('the three reclaim crates show three different heads', (
+    WidgetTester tester,
+  ) async {
+    // They shipped as three identical crates at 0.90-0.93, told apart only by
+    // an illegible ghost stamp on the lid. The crate BODY is deliberately
+    // shared — one crate motif is the recipe-art language recorded in
+    // `package-art.js` — so this ceiling is set from what opening the lid and
+    // standing a different bronze head in it actually achieved, and is a
+    // tightening of a previously unbounded case, not a relaxation of an
+    // existing one. The verdict remains the x2 sheet: axe blade, pick head,
+    // breastplate.
+    const List<String> crates = <String>[
+      'reclaim_axe',
+      'reclaim_pickaxe',
+      'reclaim_chestplate',
+    ];
+    final Map<String, List<bool>> masks = <String, List<bool>>{
+      for (final String id in crates) id: await mask(tester, id),
+    };
+    for (int i = 0; i < crates.length; i += 1) {
+      for (int j = i + 1; j < crates.length; j += 1) {
+        final double iou = iouOf(masks[crates[i]]!, masks[crates[j]]!);
+        expect(
+          iou,
+          lessThan(0.89),
+          reason:
+              '${crates[i]} and ${crates[j]} overlap '
+              '${(iou * 100).toStringAsFixed(1)}%. They were 90-93%: three '
+              'identical boxes on three adjacent Craft rows. A head must '
+              'break the crate outline.',
+        );
+      }
+    }
+  });
 }

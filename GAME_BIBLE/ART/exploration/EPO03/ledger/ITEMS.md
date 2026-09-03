@@ -123,3 +123,39 @@ nothing. Sources hosted at commit `e5c3977`, `E/src/items/`.
 | `expedition_stew` steam | edit_pixen | bcf74750-dd46-4775-a30c-ba7cd2209487 | two steam wisps, nothing else changed |
 
 **Running total after submission: 50 / 200.**
+
+### Batch 2 verdicts
+
+| Asset | Job id | Verdict | Reason (read at x2 and x4 on `#1e1e1e`) |
+|---|---|---|---|
+| `reclaim_axe` | 85a5df0d | **ACCEPT** | lid open, a broad bronze axe blade lying across the opening and breaking the crate outline |
+| `reclaim_pickaxe` | 0400d08d | **ACCEPT** | lid open, a tall narrow pick head standing out of it — a different outline from the axe at 48 dp |
+| `reclaim_chestplate` | 9ae740a9 | **ACCEPT** | lid open, a rounded breastplate leaning out — a mass, against the two tool heads |
+| `oak_handle` | 3705ff5d | **ACCEPT** | red-brown, lower third wrapped in dark criss-cross leather, gripped end rounded. No longer a second pale stick beside `pine_plank` |
+| `hornbound_bronze_axe` | 828d9db5 | **ACCEPT** | a real bit and beard; the head stops reading as a mallet (drift D-4). Checked against the shipped `toneBronze` remap — only 40 px move, so it ships untoned and the palette guard is green |
+| `reinforced_pickaxe` | e72b6bf0 | **ACCEPT** | grey steel strap and rivets now sit at the head-to-haft joint, which is where the family says the tell goes. The pickaxe is intact — the three batch-1 replacements had each lost it |
+| `hearty_stew` steam | 162055ee | **ACCEPT** | three steam wisps added; bowl, heap and standing ladle untouched. Hot dishes steam |
+| `expedition_stew` steam | bcf74750 | **ACCEPT** | two steam wisps; cauldron, propped lid and ladle untouched |
+| `pristine_wolf_fang` s2211 | 5bffdc25 | REJECT | 19.4% fill and the cord loop sits off-centre |
+| `pristine_wolf_fang` s2212 | 24b878ec | **ACCEPT** | one big ivory tooth in a braided cord wrap with a loop above; **31.1% fill** against the shipped 12%. Against `boar_tusk` it now measures IoU 0.256 |
+| `frost_claw` | d62fa441 | REJECT | the edit kept the emissive cyan and added a grey crescent that reads as a cast shadow. Both are named drift (D-2, and the style clause forbids cast shadow) |
+
+`frost_claw` was re-rolled fresh rather than edited again:
+
+| Asset | Job id | Verdict | Reason |
+|---|---|---|---|
+| `frost_claw` s1011 | 7337c89f-f22e-4a02-85c2-26c95f4a6493 | REJECT | good matte talon and a fine dark socket, but the hook reads closer to a horn on a stand |
+| `frost_claw` s1012 | e1600361-c7eb-4424-85eb-f8d0c1e579bd | **ACCEPT** | a ridged crescent talon in matte pale blue-grey with a dark red-brown root; 40.1% fill, no glow. Cool against a row of warm cream ivory, so it separates by colour AND by shape (IoU 0.515 vs `ram_horn`) |
+
+**Batch 2 cost: 13 generations.** Accepted 10, rejected 3.
+
+## KEEP, on the sheet read (no generations)
+
+| Asset | DIR-09 said | Verdict |
+|---|---|---|
+| `tin_ore` vs `scrap_metal` | collision #8, "two grey angular masses" | **KEEP.** Read at x2 on the tile: `tin_ore` is an angular rock with pale crystal spikes, `scrap_metal` is a pile of flat rusted plates. IoU 0.673. The collision does not survive the sheet read at the size the phone draws it, so it does not get a roll |
+
+## Running total
+
+**52 / 200 generations.** Batch 1: 39 (11 accepted). Batch 2: 13 (10 accepted).
+20 icons re-authored, 1 examined and kept.
