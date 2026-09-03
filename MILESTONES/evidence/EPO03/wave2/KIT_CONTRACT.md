@@ -402,3 +402,13 @@ item, or a step cost.
   be dark, then `frame-measure.js` → key any white face → `ceiling-clamp.js` →
   `ninepatch-proof.js` before declaring a corner. Push the reference before
   the call: a raw.githubusercontent URL at an unpushed SHA 404s.
+- 2026-09-02 — **`btnPlateV2` is wired** (`acee668`). `StrideButton` now
+  resolves `KitFrames.of(KitFrame.btnPlateV2) ?? ButtonPlates.primary`, so all
+  **43 call sites** inherit it through one lookup and revert through the same
+  one. **Nothing you own changes**: the secondary/quiet control keeps
+  `btn_compact` (putting a primary's brass rim on `Cancel` and `Retreat` would
+  undo GFCP01's register demotion), a disabled control still takes no plate at
+  all, emblems still draw behind the label, and the variant registers
+  (attack / defense / ready) still live in the ledge and outline tokens, never
+  in the raster. The inset moves 2 → 10 dp per side; `ui_responsive_test`
+  passes at 320 dp and text scale ×1.4.

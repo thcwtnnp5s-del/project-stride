@@ -154,3 +154,35 @@ bottom band 0 at mid-span and cannot carry one inset.
 is fixed-width until someone writes a three-patch painter; `btnPlateV2` is
 registered but not wired into `StrideButton`'s 43 call sites; goldens remain
 stale by design; no device verdict on any of it.
+
+
+## The button plate, wired
+
+`btnPlateV2` was registered and painted nowhere — generated art the player
+never sees, which is the failure the owner's brief names. It is now wired
+(`acee668`): `StrideButton` resolves the kit row and falls back to
+`ButtonPlates.primary`, so all **43 call sites** inherit it through one lookup.
+
+**Judged at phone scale and kept.** `review/ui/btnv2_compare.png` puts the
+Craft, World and Adventure primaries side by side, old against new: the old
+`btn_plate` carries small light tick artefacts at its corners and mid-edges —
+its 58 × 26 canvas has almost no rim to sample — and the v2 plate replaces them
+with a continuous dull-brass rim and a squarer, more substantial face.
+`btnv2_command_x2.png` shows Attack and Brace wearing it with their emblems
+intact; `btnv2_cmd_dis.png` shows the disabled `Eat` still flat and plateless
+and the quiet `Retreat` still on `btn_compact`. Renders under
+`review/device/nav/btnv2/` (43 screens) and `btnv2/combat/`.
+
+**What did not change, deliberately:** the register colours still live in the
+ledge and outline tokens rather than the raster — with any authored plate the
+painted outline is already suppressed, so attack and brace are distinguished
+by their under-ledge exactly as they were before this change.
+
+**Test state at hand-off.** `panel_skin_test` (13), `band_plate_test` (11) and
+`stride_button_test` (11) pass. `ui_responsive_test` and `phase1_ui_test`
+passed with this change in place (126 tests green) and now fail to **compile**
+on `lib/ui/screens/craft/craft_screen.dart:506` — `_CategoryRail` and
+`_RecipeBook` undefined — which is PROD-UI-CRAFT's file mid-edit in the shared
+working tree, not this change. `flutter analyze lib/ui/` is clean.
+`combat_golden_test` fails its two comparisons because every button on the
+stage changed; goldens stay stale by design for the integrator.
