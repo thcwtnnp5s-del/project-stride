@@ -1,0 +1,12 @@
+E1 roll 1 (job a3a708e0-44fe-4154-9cab-117e3912e4a9, seed 1001, 25 gens) — REJECT.
+Asked for a calving shelf across 260x210; the tool drew ONE enormous smooth
+glacier tongue: airbrushed gradient shading and long soft streaks (dialect
+step off the flat 4-value cel snow), an outlined rim around the whole mass, a
+straight vertical mask edge showing at the crop's lower left, and the pack-ice
+honeycomb replaced by slab terrain rather than broken up. Red dashed border
+drawn along the mask boundary (the known N1/S2 failure mode). Bergs and brash
+at the seaward foot were the one good part.
+Intent changed, not the seed: split the ask into two single-defect regions —
+E1 a narrow strip on the front itself (750-880), E3 the pack-ice interior
+(620-770) — and lead the prompt with broken floes, never with "shelf".
+Sheet: review/atlas/E1_r1_x2.png

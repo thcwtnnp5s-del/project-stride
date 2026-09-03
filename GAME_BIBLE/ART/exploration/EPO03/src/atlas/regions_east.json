@@ -3,19 +3,19 @@
   "regions": [
     {
       "id": "E1",
-      "x": 580,
+      "x": 710,
       "y": 0,
-      "w": 340,
+      "w": 210,
       "h": 300,
-      "atlas": "620-880 x 40-250",
+      "atlas": "750-880 x 40-250",
       "rect": {
         "x0": 40,
         "y0": 40,
-        "x1": 300,
+        "x1": 170,
         "y1": 250
       },
       "ramps": {
-        "left": 24,
+        "left": 32,
         "right": 24,
         "top": 24,
         "bottom": 32
@@ -23,7 +23,7 @@
       "inpaint": {
         "x": 40,
         "y": 40,
-        "w": 260,
+        "w": 130,
         "h": 210
       },
       "salt": 100,
@@ -45,41 +45,76 @@
           }
         ]
       },
-      "intent": "The shelf hard near-straight white edge and the repeating crack-cell honeycomb behind it become one calving front: a lobed shelf face with a blue shadow foot, tabular bergs of many sizes drifting free, brash thinning seaward, winding leads cutting back at irregular angles, and the shelf interior carried by long wind-drift bands and pressure ridges instead of a repeating net. The sea itself is never authored - the mask stops at the ice."
+      "intent": "The front itself: the hard near-straight white ice/sea edge becomes a broken seaward margin - floes of many sizes crowding the edge, small bergs and brash scattering seaward and thinning, dark winding leads of uneven width cutting back between them. Roll 1 proved a 260x210 ask becomes one glacier; this is the narrow single-defect strip."
+    },
+    {
+      "id": "E3",
+      "x": 580,
+      "y": 0,
+      "w": 230,
+      "h": 250,
+      "atlas": "620-770 x 30-200",
+      "rect": {
+        "x0": 40,
+        "y0": 30,
+        "x1": 190,
+        "y1": 200
+      },
+      "ramps": {
+        "left": 24,
+        "right": 32,
+        "top": 24,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 40,
+        "y": 30,
+        "w": 150,
+        "h": 170
+      },
+      "salt": 102,
+      "seed": 0,
+      "status": "pending",
+      "reauthorizes": [],
+      "cut": {
+        "seaMargin": 24,
+        "inpaintMargin": 18,
+        "minLand": 40,
+        "holeInflate": 2,
+        "holes": []
+      },
+      "intent": "The honeycomb: the regular crack-cell net over the pack ice at 620-770 x 30-200 becomes a real floe field - floes of widely differing sizes and shapes, leads of uneven width at irregular angles, long wind-drift bands across the larger floes, so nothing repeats at a glance."
     },
     {
       "id": "E2",
-      "x": 556,
+      "x": 560,
       "y": 192,
-      "w": 248,
-      "h": 168,
-      "atlas": "600-764 x 232-320",
+      "w": 240,
+      "h": 160,
+      "atlas": "600-760 x 232-312",
       "rect": {
-        "x0": 44,
+        "x0": 40,
         "y0": 40,
-        "x1": 208,
-        "y1": 128
+        "x1": 200,
+        "y1": 120
       },
       "ramps": {
-        "left": 32,
-        "right": 24,
+        "left": 24,
+        "right": 32,
         "top": 32,
-        "bottom": 24
+        "bottom": 32
       },
       "inpaint": {
-        "x": 44,
+        "x": 40,
         "y": 40,
-        "w": 164,
-        "h": 88
+        "w": 160,
+        "h": 80
       },
       "salt": 101,
       "seed": 0,
       "status": "pending",
       "coreAuthor": true,
-      "reauthorizes": [
-        "volcano_east_cliff",
-        "east_watchtower_flank"
-      ],
+      "reauthorizes": [],
       "cut": {
         "seaMargin": 24,
         "inpaintMargin": 18,
@@ -88,28 +123,14 @@
         "holes": [
           {
             "x": 626,
-            "y": 288,
-            "w": 22,
-            "h": 34,
-            "why": "Rimewatch tower (639,296), byte-held"
-          },
-          {
-            "x": 728,
-            "y": 272,
-            "w": 24,
-            "h": 52,
-            "why": "Emberhold tower (743,288) and the east_watchtower_flank golden 744-752 x 273-323, byte-held"
-          },
-          {
-            "x": 752,
-            "y": 258,
-            "w": 32,
-            "h": 62,
-            "why": "east-cliff cape: volcano_east_cliff identity, byte-held"
+            "y": 278,
+            "w": 28,
+            "h": 40,
+            "why": "Rimewatch tower (639,296), painted identity, byte-held"
           }
         ]
       },
-      "intent": "The ice->volcano butt at y~280 becomes the volcano's north shoulder: snow greying into ash-dusted drifts, cooled lava tongues and boulders through the snow, a meltwater pool at the rock's foot, steam where hot rock meets ice; the rock silhouette and both towers exactly as they were. Cut from the composite after E1 ships."
+      "intent": "The ice-to-volcano butt at y~280 becomes the cone north shoulder: pale snow greying into ash-dusted drifts, cooled lava tongues and scattered boulders showing through the snow, a meltwater pool and steam where hot rock meets ice. Also removes the dithered seam smear at 640-740 x 230-270. Both towers and the east cliff are held by their golden keepouts - authored around, never repainted."
     }
   ]
 }
