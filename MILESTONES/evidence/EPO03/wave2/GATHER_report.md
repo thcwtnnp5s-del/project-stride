@@ -185,3 +185,93 @@ No `REQUESTS` filed, no `Q-` raised, no lock crossed. Files touched outside
 `E/`: `Scripts/art/package-art.js` (the `EPO03 GATHER` block only),
 `test/stage_evidence_test.dart` (six rows added to the scene list),
 `assets/art/v1/work/` (the thirteen packaged plates).
+
+---
+
+# Tier 2 — the Stonefall recess
+
+```
+AUTHORISED: producer, 2026-09-03, up to 80 further generations
+SPENT: 41 · ROUND TOTAL 187 of 235
+SCOPE: the root cause named in §5 above, and nothing else
+```
+
+## 7. What the producer bought
+
+§5 said the ore problem was not in the ore: three mining nodes composite
+against a flat, pale, unbroken wall, so *any* wedge is a dark shape in front of
+light rock rather than a face cut into it. Tier 2 funded the wall.
+
+`bg_stonefall_mining` now has a genuine shaded undercut across the subject
+band. The pale schist boulders overhang, the stone beneath them falls into deep
+shade with a warm lantern rim along the top lip, and broken spoil piles at its
+foot where it meets the floor slabs. Before and after the whole backdrop:
+`review/gather/_r_sfm_recess2_x2.png`. Composed with all three ore plates and
+the Traveler: `_r_tier2_stage_after_x2.png` against `_r_stage_mine_after_x2.png`.
+
+The copper face now sits *inside* a hollow with rock hanging over it. That is
+the thing the round was for.
+
+## 8. How it was got, because the first attempt was instructive
+
+**Roll 1 (20, REJECT) drew a timber-framed portal** — post-and-lintel opening,
+a lantern hung on the lintel, a floor receding into it. The prompt had said
+"not a doorway", "not an arch", "nothing beyond it", "no opening through the
+wall", four times over, and none of it held: in a mine-wall context the word
+**recess** primes an adit mouth, and negations do not survive that. It also
+invented architecture the location does not have.
+
+**Roll 2 (20, ACCEPT) stopped asking for a recess at all.** The second intent
+described *geology and light* instead of a feature — the upper boulders
+overhang, the stone beneath them is therefore in shade, spoil at its base — and
+banned every architectural noun by name rather than negating the concept. The
+mask was also made deliberately shorter, so the model had no room to build a
+feature even if it wanted one. First call, accepted.
+
+The transferable note: **when a negation fails, replace the noun, not the
+adjective.** "A recess that is not a doorway" is a doorway; "rock in shadow
+because the rock above it sticks out" is a recess.
+
+`tools/paste.js` puts the repaired band back into the backdrop and **refuses to
+write if a single pixel outside the band moved**, so the frozen margins are
+proved rather than assumed.
+
+## 9. The free fix the recess exposed
+
+With the wall dark, the deep lode's remaining defect became legible: column 0
+of `prop_deep_tin_lode` was opaque at **luminance 0 for all 48 rows** — a
+pure-black picture frame the plate had drawn around itself, showing at ×2 as a
+hard black rule down the side of the ore. That is a mechanical keyline, not
+geology, and removing it is the same class of deterministic recovery as the
+white-face key in PRODUCTION_RULES §2a. `tools/edge-key.js` strips it for
+**0 generations**. The rule is narrow on purpose — an outermost row or column
+is keyed only if *every* pixel in it is opaque and at or below L4 — so it fired
+on this one plate and left the other three untouched. `_r_edgekey_x4.png`.
+
+## 10. What still did not close
+
+- **`prop_tin_face` is still a fin.** The recess helps it — it now backs onto
+  shadow instead of standing pale against a pale wall — but the tall straight
+  diagonal is unchanged. The one re-fit the recess made possible was to darken
+  the plate into the new shade; it came back a near-black silhouette with the
+  cassiterite vein and iron staining both gone, so the mineral stopped being
+  identifiable and success criterion 1 broke. Reverted (`_r_tin_shade_x4.png`).
+  That is the **second failed intent on this plate** — shape in wave 2, value
+  in tier 2 — so the family stopped as instructed rather than spend a third.
+  It ships as a named defect: better than the brown cone boulder it replaced,
+  not yet a face in the wall.
+- **`prop_deep_tin_lode` still shows an angular corner.** Its left keyline is
+  gone; its bottom edge line is not pure black, so the narrow rule correctly
+  declined to touch it, and the plate's triangular mass still reads as a wedge
+  with a corner rather than as rock continuing past the frame.
+- **`bg_stonefall_lift` and `bg_stonefall_gallery` were not touched.** They were
+  KEEP in DIR-10 and out of the authorised scope, but the hardened-copper face
+  composites against `bg_stonefall_lift`, which has no recess — so that node
+  still has the flat-wall problem this tier fixed for the other three.
+- The other two tier-2 items (`bg_frostmere_shelter` mud floor,
+  `bg_woods_warded_grove` rope) remain untouched and unfunded.
+- **Still no iPhone verdict on any of this.**
+
+**39 of the 80 authorised generations are returned unspent.** The honest use for
+them would have been `bg_stonefall_lift`, which is outside the scope the
+producer set; it is named above rather than quietly bought.
