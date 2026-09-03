@@ -1,25 +1,42 @@
 /// The loadout readouts and the ruled ledger — the three FMPO02 primitives
 /// the Inventory equipment case and the Character folio are assembled from
-/// (`MILESTONES/evidence/FMPO02/wave1/ART-12_ux_brief.md` §2, §3).
+/// (`MILESTONES/evidence/FMPO02/wave1/ART-12_ux_brief.md` §2, §3), rebuilt on
+/// the EPO03 kit.
+///
+/// ## What EPO03 changed, and why the word left
+///
+/// A slot used to be a **plate**: a `surfaceBlock` rectangle holding an icon,
+/// the slot's name, and — when nothing was in it — the word `Empty`. That is
+/// the failure `DIR-05` names first, twice over: a dark rectangle in a column
+/// of dark rectangles, and a word doing the work a shape should do. The case
+/// is leather with wells **cut into** it, so a slot is now a
+/// `KitFrame.slotWell` and an empty one reads as an empty well — the recess
+/// with the slot's own class shadow lying in it, which is what "nothing is
+/// seated here" looks like without saying anything.
+///
+/// The word survives in exactly one place: the Semantics label, where a
+/// screen reader has no recess to feel. [kEmptySlotWord] is that string, and
+/// on the case it is deliberately no longer painted.
 ///
 /// ## Why these are readouts and not controls
 ///
 /// Equipment is shown in three places now — the case at the top of the pack,
-/// the dressing strip on the folio, and the tile in the grid — and exactly one
-/// of them may act. A slot that could be emptied from the case, from the strip
-/// and from the tile is three answers to one question, and the two that are not
-/// the pack tile have no room for the refusal sentence the engine returns
-/// (`RULES.md` E-2). So [SlotPlate] and [DressingChip] carry no `Equip`, no
-/// `Unequip` and, deliberately, **no lock glyph**: an empty slot is a thing the
-/// player has not filled yet, not a thing the game is withholding.
+/// the dressing strip on the folio, and the pocket in the pack — and exactly
+/// one of them may act. A slot that could be emptied from the case, from the
+/// strip and from the pocket is three answers to one question, and the two
+/// that are not the pack pocket have no room for the refusal sentence the
+/// engine returns (`RULES.md` E-2). So [SlotPlate] and [DressingChip] carry no
+/// `Equip`, no `Unequip` and, deliberately, **no lock glyph**: an empty slot
+/// is a thing the player has not filled yet, not a thing the game is
+/// withholding.
 ///
 /// ## Why nothing here is a fixed box
 ///
-/// Every height below is a `minHeight`. The designed figures — 56 for a plate,
-/// 44 for a chip, 36 for a ledger row — are what the arrangement is measured
-/// at, not what it is clamped to, because each one contains type that grows
-/// with the ambient text scaler. A fixed box around scaling text is D-01, and
-/// this file is three of the shapes it would take.
+/// Every height below is a `minHeight`. The designed figures — 64 for a slot
+/// row, 44 for a chip, 36 for a ledger row — are what the arrangement is
+/// measured at, not what it is clamped to, because each one contains type that
+/// grows with the ambient text scaler. A fixed box around scaling text is
+/// D-01, and this file is three of the shapes it would take.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -29,18 +46,48 @@ import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
+import 'panel_skin.dart';
 import 'pixel_asset.dart';
 import 'rarity_item_title.dart';
 import 'surfaces.dart';
 
-/// The word an empty slot uses, in one place so the case and the strip cannot
-/// disagree about it.
+/// The word an empty slot uses **to a screen reader**, in one place so the
+/// case and the strip cannot disagree about it.
+///
+/// Not painted by [SlotPlate] since EPO03 — the empty well is the statement
+/// (`DIR-05`: *empty well: class shadow*). [DressingChip] still says it, and
+/// says it on purpose: the folio's strip is three columns of type with no room
+/// for a recess to speak in.
 const String kEmptySlotWord = 'Empty';
 
-/// One equipped slot in the Inventory case: icon, slot name, item name in its
-/// rank's ink, and the one stat line the tile also carries.
+/// The ink a class shadow is drawn in: one rung above the well's own ground,
+/// so the silhouette reads as a shape lying in a recess rather than as a dim
+/// picture of an item the player does not have.
+const Color kClassShadowInk = StrideColors.borderDefault;
+
+/// A sprite drawn as a silhouette — the class shadow in an empty well.
 ///
-/// [onTap] scrolls the pack to this item's tile and selects it — a readout
+/// A deterministic recolour of a shipped item sprite, not a new asset
+/// (`RULES.md` A-2): whatever the item family draws for the slot's starting
+/// piece, flattened to one ink. It cannot drift from the item set, and it cost
+/// nothing to make.
+class ClassShadow extends StatelessWidget {
+  const ClassShadow({super.key, required this.assetPath});
+
+  final String assetPath;
+
+  @override
+  Widget build(BuildContext context) => ColorFiltered(
+    colorFilter: const ColorFilter.mode(kClassShadowInk, BlendMode.srcATop),
+    child: PixelAsset.item(assetPath),
+  );
+}
+
+/// One equipment slot in the Inventory case: a well cut into the leather with
+/// the worn piece seated in it, the slot's name, the piece's name in its
+/// rank's ink, and its figure stamped beside them.
+///
+/// [onTap] scrolls the pack to this item's pocket and selects it — a readout
 /// that *points at* the control rather than duplicating it.
 class SlotPlate extends StatelessWidget {
   const SlotPlate({
@@ -49,7 +96,10 @@ class SlotPlate extends StatelessWidget {
     this.itemName,
     this.rarity,
     this.iconPath,
-    this.stat,
+    this.shadowPath,
+    this.statLabel,
+    this.statFigure,
+    this.statNote,
     this.onTap,
   });
 
@@ -61,76 +111,78 @@ class SlotPlate extends StatelessWidget {
   final Rarity? rarity;
   final String? iconPath;
 
-  /// `ATK 7 · +2`, `PICKAXE · T1` — the same line the grid tile shows, from
-  /// the same projection, so the two can never disagree.
-  final String? stat;
+  /// The class shadow: a sprite from this slot's own family, drawn as a
+  /// silhouette in the empty well. Null draws the bare recess.
+  final String? shadowPath;
+
+  /// The figure the piece is worth, split so it can be **stamped** rather than
+  /// set as a sentence: `ATK` / `7`, `DEF` / `3`, `TIER` / `1`. [statNote] is
+  /// the comparison the pack's pocket also carries — `+2`.
+  final String? statLabel;
+  final String? statFigure;
+  final String? statNote;
 
   final VoidCallback? onTap;
 
-  /// The designed height (ART-12 §2). A floor: the three text lines inside
-  /// grow with the scaler and the plate grows with them.
-  static const double minHeight = 56;
+  /// The designed row height. A floor: the type inside grows with the scaler
+  /// and the row grows with it. The well itself is [wellEdge] — 48 of sprite
+  /// inside `KitFrame.slotWell`'s measured band on each side.
+  static const double minHeight = 64;
 
-  /// The icon's displayed edge — 48 native at ×1, the item family's size.
+  /// The sprite's displayed edge — 48 native at ×1, the item family's size.
   static const double iconEdge = 48;
+
+  /// What the well measures, band included. Reserved whether or not the
+  /// `slot_well` raster decodes: `KitFrames.insetFor` returns the same figure
+  /// either way (`KIT_CONTRACT` §0), which is why a case laid out today does
+  /// not move when a row lands.
+  static double get wellEdge =>
+      iconEdge + KitFrames.insetFor(KitFrame.slotWell) * 2;
 
   @override
   Widget build(BuildContext context) {
-    final bool empty = itemName == null;
-    final Widget plate = ConstrainedBox(
+    final Widget row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: minHeight),
-      child: Container(
-        padding: const EdgeInsets.all(StrideSpace.s4),
-        decoration: const BoxDecoration(
-          color: StrideColors.surfaceBlock,
-          borderRadius: StrideRadius.inner,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            // An empty slot draws the well and leaves it empty — a recessed
-            // silhouette, which is what "nothing is in here" looks like. Never
-            // a padlock: nothing is locked.
-            InsetWell.square(
-              contentSize: iconEdge,
-              child: iconPath == null
-                  ? const SizedBox(width: iconEdge, height: iconEdge)
-                  : PixelAsset.item(iconPath!),
-            ),
-            const SizedBox(width: StrideSpace.s8),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  AdaptiveText(
-                    slot.toUpperCase(),
-                    style: StrideType.microLabel,
-                    minScale: 0.8,
-                  ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // The well is cut into the case, so it takes the page's own ground
+          // as its fill — that is what makes a recess read as a recess rather
+          // than as a fifth surface rung (`KIT_CONTRACT` §1, the well idiom).
+          KitPlate.well(
+            frame: KitFrame.slotWell,
+            contentWidth: iconEdge,
+            contentHeight: iconEdge,
+            child: _seated,
+          ),
+          const SizedBox(width: StrideSpace.s8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                AdaptiveText(
+                  slot.toUpperCase(),
+                  style: StrideType.microLabel,
+                  minScale: 0.8,
+                ),
+                if (itemName case final String name) ...<Widget>[
                   const SizedBox(height: StrideSpace.s2),
                   RarityName(
-                    name: itemName ?? kEmptySlotWord,
+                    name: name,
                     rarity: rarity,
                     style: StrideType.itemName,
-                    fallback: empty
-                        ? StrideColors.textMuted
-                        : StrideColors.textPrimary,
+                    fallback: StrideColors.textPrimary,
                   ),
-                  if (stat case final String s) ...<Widget>[
-                    const SizedBox(height: StrideSpace.s2),
-                    AdaptiveText(
-                      s,
-                      style: StrideType.micro,
-                      color: StrideColors.textSecondary,
-                      minScale: 0.8,
-                    ),
-                  ],
                 ],
-              ),
+                if (statFigure case final String figure) ...<Widget>[
+                  const SizedBox(height: StrideSpace.s2),
+                  _StatStamp(label: statLabel, figure: figure, note: statNote),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
 
@@ -139,19 +191,85 @@ class SlotPlate extends StatelessWidget {
       label: '$slot: ${itemName ?? kEmptySlotWord}',
       child: ExcludeSemantics(
         child: onTap == null
-            ? plate
+            ? row
             : GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: onTap,
-                child: plate,
+                child: row,
               ),
       ),
     );
   }
+
+  Widget get _seated {
+    if (iconPath case final String path) return PixelAsset.item(path);
+    if (shadowPath case final String shadow) {
+      return ClassShadow(assetPath: shadow);
+    }
+    return const SizedBox(width: iconEdge, height: iconEdge);
+  }
 }
 
-/// One slot on the Character folio's dressing strip: a 32 dp icon over the
-/// item's name in its rank's ink.
+/// A figure stamped on the case: the small hard label, then the numeral in the
+/// weight a count is set in, then the comparison if there is one.
+///
+/// This is the shape `DIR-05` asks for in place of a running `ATK 7 · +2`
+/// sentence — the numeral is the thing the eye is looking for, so it is the
+/// thing that carries the weight.
+class _StatStamp extends StatelessWidget {
+  const _StatStamp({required this.figure, this.label, this.note});
+
+  final String figure;
+  final String? label;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    mainAxisSize: MainAxisSize.min,
+    children: <Widget>[
+      if (label case final String l) ...<Widget>[
+        Padding(
+          // The label sits under the figure's baseline the way a maker's mark
+          // sits under a numeral, rather than beside it at the same weight.
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            l,
+            style: StrideType.compactLabel.copyWith(
+              color: StrideColors.textMuted,
+            ),
+            maxLines: 1,
+          ),
+        ),
+        const SizedBox(width: StrideSpace.s4),
+      ],
+      Flexible(
+        child: AdaptiveText(
+          figure,
+          style: StrideType.itemCount,
+          color: StrideColors.textPrimary,
+          minScale: 0.8,
+        ),
+      ),
+      if (note case final String n) ...<Widget>[
+        const SizedBox(width: StrideSpace.s4),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 2),
+          child: Text(
+            n,
+            style: StrideType.compactLabel.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+            maxLines: 1,
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+/// One slot on the Character folio's dressing strip: a 48 dp sprite in the
+/// kit's own well over the item's name in its rank's ink.
 ///
 /// A readout with no gesture at all. The folio's subject is the traveller, and
 /// what they are wearing is part of the portrait's answer, not a second route
@@ -163,12 +281,18 @@ class DressingChip extends StatelessWidget {
     this.itemName,
     this.rarity,
     this.iconPath,
+    this.shadowPath,
   });
 
   final String slot;
   final String? itemName;
   final Rarity? rarity;
   final String? iconPath;
+
+  /// The class shadow, as in [SlotPlate]. The strip keeps the word beneath it
+  /// as well: three narrow columns of type is not a surface a recess alone can
+  /// speak on.
+  final String? shadowPath;
 
   /// The touch-region floor the strip keeps even though it does not act — a
   /// row of things the size of a control that is not one reads as broken; a
@@ -193,11 +317,11 @@ class DressingChip extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            InsetWell.square(
-              contentSize: iconEdge,
-              child: iconPath == null
-                  ? const SizedBox(width: iconEdge, height: iconEdge)
-                  : PixelAsset.item(iconPath!),
+            KitPlate.well(
+              frame: KitFrame.slotWell,
+              contentWidth: iconEdge,
+              contentHeight: iconEdge,
+              child: _seated,
             ),
             const SizedBox(height: StrideSpace.s6),
             // Wrapping, not shrinking: the strip is three columns of about
@@ -218,6 +342,14 @@ class DressingChip extends StatelessWidget {
       ),
     ),
   );
+
+  Widget get _seated {
+    if (iconPath case final String path) return PixelAsset.item(path);
+    if (shadowPath case final String shadow) {
+      return ClassShadow(assetPath: shadow);
+    }
+    return const SizedBox(width: iconEdge, height: iconEdge);
+  }
 }
 
 /// One line of a ruled ledger: a micro-label left, a tabular figure right.

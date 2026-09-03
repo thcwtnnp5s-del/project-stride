@@ -13,7 +13,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
 import 'package:stride/ui/components/data_display.dart';
-import 'package:stride/ui/components/loadout_readout.dart' show kEmptySlotWord;
+import 'package:stride/ui/components/loadout_readout.dart'
+    show SlotPlate, kEmptySlotWord;
+import 'package:stride/ui/screens/inventory/inventory_screen.dart'
+    show inventoryPackKey;
 import 'package:stride/ui/state/session_controller.dart';
 import 'package:stride/ui/state/session_scope.dart';
 import 'package:stride/ui/stride_app.dart';
@@ -64,6 +67,21 @@ void main() {
     return session;
   }
 
+  /// How many of the case's three wells are standing empty, read from the
+  /// readout's own state rather than from a word on the screen.
+  ///
+  /// **EPO03: the case no longer paints `Empty`.** An empty slot is a well cut
+  /// into the leather with the slot's class shadow lying in it (`DIR-05`:
+  /// *empty well: class shadow*), and the word survives only as the Semantics
+  /// label — so counting `find.text` would now count nothing whatever the
+  /// loadout is. Asking the three [SlotPlate]s what they are showing is the
+  /// stronger form of the same question, and it cannot pass by accident.
+  int emptyWells() => find
+      .byType(SlotPlate)
+      .evaluate()
+      .where((Element e) => (e.widget as SlotPlate).itemName == null)
+      .length;
+
   SessionController controllerInTree() =>
       (find.byType(SessionScope).evaluate().first.widget as SessionScope)
           .notifier!;
@@ -85,12 +103,17 @@ void main() {
     // height still have to match, which is what distinguishes a grid cell's
     // label from the slot summary's.
     //
-    // **Scoped to the grid since FMPO02.** The equipment case's slot plates
+    // **Scoped to the pack since FMPO02.** The equipment case's slot wells
     // draw the worn item's name in the same `itemName` role, so the predicate
-    // alone now matches the plate above the grid as well as the tile in it —
-    // and the plate is a readout with no control inside it to tap.
+    // alone now matches the well above the pack as well as the pocket in it —
+    // and a well is a readout with no control inside it to tap.
+    //
+    // EPO03 replaced the grid with ruled rows of pockets, so the scope is the
+    // pack's published key rather than `GridView`: a private widget type is
+    // not a finder, and matching on a layout class was only ever a stand-in
+    // for "the part of the screen that holds the controls".
     final Finder name = find.descendant(
-      of: find.byType(GridView),
+      of: find.byKey(inventoryPackKey),
       matching: find.byWidgetPredicate(
         (Widget w) =>
             w is Text &&
@@ -149,13 +172,17 @@ void main() {
     expect(find.text('ATK 3'), findsOneWidget);
     expect(find.text('DEF 2'), findsOneWidget);
 
-    // The equipment case's three slot plates, each over the word an unfilled
-    // slot uses. Never a lock glyph: nothing here is locked
+    // The equipment case's three slot wells, each showing the slot's class
+    // shadow rather than a word. Never a lock glyph: nothing here is locked
     // (`ART-12_ux_brief.md` §2).
     for (final String slot in <String>['WEAPON', 'ARMOUR', 'TOOL']) {
       expect(find.text(slot), findsOneWidget);
     }
-    expect(find.text(kEmptySlotWord), findsNWidgets(3));
+    expect(emptyWells(), 3);
+    // And the word itself is gone from the case, which is the design being
+    // held rather than a detail: a dark box saying 'Empty' is what EPO03
+    // replaced with a recess.
+    expect(find.text(kEmptySlotWord), findsNothing);
     for (final EquipmentSlot slot in EquipmentSlot.values) {
       expect(session.equippedIn(slot), isNull);
     }
@@ -177,7 +204,7 @@ void main() {
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(3));
     // The tile name and the slot summary both say Training Axe now.
     expect(find.text('Training Axe'), findsNWidgets(2));
-    expect(find.text(kEmptySlotWord), findsNWidgets(2));
+    expect(emptyWells(), 2);
     expect(find.text('Equipped Training Axe.'), findsOneWidget);
     expect(session.isEquipped(kAxe), isTrue);
   });
@@ -215,7 +242,7 @@ void main() {
 
     expect(find.widgetWithText(StrideButton, 'Unequip'), findsNothing);
     expect(find.widgetWithText(StrideButton, 'Equip'), findsNWidgets(4));
-    expect(find.text(kEmptySlotWord), findsNWidgets(3));
+    expect(emptyWells(), 3);
     expect(find.text('Set Training Pickaxe aside.'), findsOneWidget);
   });
 }

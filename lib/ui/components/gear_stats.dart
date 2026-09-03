@@ -26,6 +26,7 @@ import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
+import 'surfaces.dart';
 
 /// The full evaluation, for the Craft detail and anywhere else with a row.
 class GearStatsBlock extends StatelessWidget {
@@ -56,15 +57,19 @@ class GearStatsBlock extends StatelessWidget {
       _ => 'Worn: ${g.wornName} ${g.wornPower}',
     };
 
-    return Container(
-      padding: const EdgeInsets.all(StrideSpace.blockPadding),
-      decoration: const BoxDecoration(
-        color: StrideColors.surfaceBlock,
-        borderRadius: StrideRadius.inner,
-      ),
+    // **Ruled, not boxed** (EPO03 `DIR-05`). This block used to be a
+    // `surfaceBlock` rectangle with a radius — one more of the thirty-four
+    // dark cards the round exists to end — and it appears on two pages made
+    // of something: the pack's canvas and the bench's folio. So it sits on
+    // whatever it is opened over, under a rule, and the material shows
+    // through. Nothing about what it says changed.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: StrideSpace.s6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          const KitRule(style: KitRuleStyle.chart),
+          const SizedBox(height: StrideSpace.s8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
@@ -170,6 +175,28 @@ class GearStatLine extends StatelessWidget {
   const GearStatLine({super.key, required this.stats});
 
   final GearStats stats;
+
+  /// The same figure, **split for stamping** (EPO03): the hard little label,
+  /// the numeral, and the comparison — three parts the equipment case sets at
+  /// three weights instead of one running sentence. Derived from the same
+  /// projection as [textOf], from the same fields, so the case and the pocket
+  /// still cannot disagree about a piece.
+  static String labelOf(GearStats g) =>
+      g.slot == EquipmentSlot.tool ? 'TIER' : g.statShort;
+
+  static String figureOf(GearStats g) =>
+      g.slot == EquipmentSlot.tool ? '${g.tier}' : '${g.power}';
+
+  /// `+2` against the worn piece, or null where there is nothing to compare —
+  /// a tool's worth is what it opens, and a worn piece is not better than
+  /// itself.
+  static String? noteOf(GearStats g) {
+    if (g.slot == EquipmentSlot.tool) return null;
+    return switch (g.verdict) {
+      GearVerdict.equipped || GearVerdict.firstInSlot => null,
+      _ => g.deltaLabel,
+    };
+  }
 
   static String textOf(GearStats g) {
     // A tool's line is its tier alone: the icon and the name beside it
