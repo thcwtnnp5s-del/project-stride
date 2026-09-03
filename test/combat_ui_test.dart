@@ -308,10 +308,17 @@ void main() {
       RegExp(r'^Forest Wolf (strikes|hits hard|grazes you) for [0-9]+'),
     );
     expect(enemyLine, findsOneWidget);
-    // …and the rest of the round is one tap away, not gone: the strip opens
-    // to the same lines the block used to print, from the report and never
-    // from state, naming each blow's quality from the event's own roll
+    // …and the rest of the round is one tap away, not gone: the tap opens
+    // the same lines the block used to print, from the report and never from
+    // state, naming each blow's quality from the event's own roll
     // (PLAYABLE_POLISH_01 §8).
+    //
+    // **Where they open changed with the chassis (EPO03).** The sill is 40 dp
+    // and holds exactly one line, so the round no longer grows in place over
+    // the picture — it resolves on the leather page beneath the fight, which
+    // is the surface that used to be bare ground. The sill keeps its
+    // headline while it does, so the flurry's two enemy strikes appear twice
+    // in the opened round and once more on the sill: three, not two.
     await tapAndSettle(tester, enemyLine);
     expect(
       find.textContaining(
@@ -319,7 +326,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(enemyLine, findsNWidgets(2));
+    expect(enemyLine, findsNWidgets(3));
 
     // Fight on through the controller until it resolves.
     final SessionController c = controller();
@@ -353,18 +360,17 @@ void main() {
     // The drops are rows now, not a `Drops: …` sentence.
     expect(find.textContaining('Drops:'), findsNothing);
     // The stage stays up behind the panel with the wolf felled and the
-    // command grid locked.
+    // command rail locked.
     //
     // Locked, not relabelled: the cells used to read "Fighting…" while held,
-    // which in a 2 × 2 grid is four identical words where three verbs were,
-    // so the wait is stated once on the intent line and the cells keep their
-    // names and lose their callbacks (`ART-12` §6). `onPressed == null` is
+    // which on a rail of three plates is three identical words where three
+    // verbs were, so the wait is stated once on the intent line and the plates
+    // keep their names and lose their callbacks (`ART-12` §6). A null tap is
     // also the assertion that actually protects the player — a label cannot
     // dispatch a command.
     expect(find.text('0 / 20'), findsOneWidget);
-    final Finder attack = find.widgetWithText(StrideButton, 'Attack');
-    expect(attack, findsOneWidget);
-    expect((tester.widget(attack) as StrideButton).onPressed, isNull);
+    expect(find.text('Attack'), findsOneWidget);
+    expect(command(tester, 'Attack').onTap, isNull);
     expect(find.text('Fighting…'), findsOneWidget);
     expect(find.text('Start Combat'), findsNothing);
     await tester.tap(find.widgetWithText(StrideButton, 'Continue'));
@@ -500,6 +506,12 @@ void main() {
     expect(content, greaterThan(600));
     final double rail = railBottom - railTop;
     expect(rail, 120, reason: '12 welt + 64 plates + 44 Retreat');
+    // The figures this run measures, held so a later change argues with them:
+    // chassis 398 of a 699 dp column (57 %), rail 120 (17 %), and the rail's
+    // top edge 652 dp down the 852 dp screen — the tab bar is what is under
+    // it, not bare ground.
+    expect(content, 699);
+    expect(railTop, greaterThanOrEqualTo(560));
 
     expect(
       chassis / content,

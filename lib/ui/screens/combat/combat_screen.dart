@@ -289,10 +289,26 @@ class _CombatScreenState extends State<CombatScreen> {
             enemyName: view.enemyName,
             intent: view.intentLine,
             playing: _playing,
-            open: _logOpen,
+            // The sill is one line tall by construction (40 dp), so it never
+            // opens: the tap is answered on the leather page below, which is
+            // the surface the whole round resolves on. Before the chassis the
+            // strip grew in place, over the picture, which is why it could.
+            open: false,
             onToggle: () => setState(() => _logOpen = !_logOpen),
           ),
         ),
+        // The whole round, when the player has asked for it — on the page,
+        // under the fight, in the room that used to be bare ground.
+        roundLog: _logOpen
+            ? _CombatLog(
+                report: report,
+                enemyName: view.enemyName,
+                intent: view.intentLine,
+                playing: _playing,
+                open: true,
+                onToggle: () => setState(() => _logOpen = !_logOpen),
+              )
+            : null,
       ),
     );
   }
@@ -554,9 +570,15 @@ class _BattlePage extends StatefulWidget {
     required this.view,
     required this.controller,
     required this.locked,
+    this.roundLog,
   });
 
   final Widget stage;
+
+  /// The whole round's lines, when the player has opened the narration. It
+  /// resolves on the page rather than on the 40 dp sill, which holds exactly
+  /// one line and is the reason the strip stopped growing over the picture.
+  final Widget? roundLog;
   final EncounterView view;
   final SessionController controller;
 
@@ -672,7 +694,17 @@ class _BattlePageState extends State<_BattlePage> {
             child: PageGround(
               surface: PanelSurface.leather,
               fill: StrideColors.surfaceGround,
-              child: _choosing && eatReason == null
+              child: widget.roundLog != null && !_choosing
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(
+                        StrideSpace.s8,
+                        StrideSpace.s10,
+                        StrideSpace.s8,
+                        StrideSpace.s8,
+                      ),
+                      child: widget.roundLog!,
+                    )
+                  : _choosing && eatReason == null
                   ? Padding(
                       padding: const EdgeInsets.fromLTRB(
                         StrideSpace.s8,
@@ -957,6 +989,12 @@ class _CommandPlate extends StatelessWidget {
             frame: KitFrame.btnPlateV2,
             fill: ink,
             raised: enabled,
+            // Stated, because `KitPlate` shrink-wraps its child when it is
+            // not: the 32 dp glyph row inside a 10 dp band made a 52 dp plate
+            // floating in a 64 dp slot, and three plates that are not the
+            // height of the row they sit in is the "floating ornament"
+            // failure `DIR-11` is here to end.
+            height: _plateHeight,
             // Zero, not a figure of its own: `KitPlate` already insets by the
             // nine-patch's own band (10 dp at `btnPlateV2`'s 5 × 2), and a
             // second padding on top of it is subtracted from the same 64 dp.
