@@ -36,3 +36,40 @@ screen at 393×852, not on a sprite sheet. The body reads as a distinct family
 (hood, tiered mantle, split skirt) and the blade reads as a longsword (longer,
 cross-guard, tip past the front foot) at the size a player actually sees. That
 is the standard the other families should be held to.
+
+## Items — a metric was wrong, and the art was not changed to satisfy it
+
+Recorded as the round’s best piece of self-discipline, and as precedent.
+PROD-ITEMS wrote an assertion that the epic longsword must carry more pixels
+than the bronze sword. It failed — `bronze_sword` carries 585 px to the
+epic’s 549, because its blade is *broader*. The team did not touch the icon
+to make the number go green. It rewrote the assertion to measure **reach**
+(bounding-box diagonal), which is what the eye actually reads, and left the
+art alone.
+
+That is `RULES.md` G-4 turned on the team’s own test rather than on someone
+else’s guard: a failing assertion is evidence about the assertion as well as
+about the thing it measures, and the fix belongs wherever the error is. The
+same team also caught its own packaging block re-emitting twenty icons at the
+foot of the file, which made `--check` report all twenty stale on a perfectly
+synced tree — a false alarm that would have cost the next reader an hour.
+
+## Items — the weakest accepted result, named
+
+`reinforced_pickaxe` is the one icon in the family I would look at first if
+the owner disagrees with anything here. Three regeneration rolls drew a
+hammer, a mace, and an off-palette horned collar — each lost the tool — so
+the team amended the shipped icon by edit instead, and it now separates from
+its siblings by the head-to-haft joint rather than by outline. That is a
+weaker kind of distinctness than the silhouette changes that fixed the
+armour group, and it is honest about being so.
+
+## Items — an evidence gap the team refused to paper over
+
+The Inventory proof render shows the ivory group won in sixty real gather
+trips rather than granted, which is the right kind of evidence. Two tusks
+are missing from it because the encounter roster fills both slots with the
+wolf. The team wrote the fix, could not compile it while another team was
+mid-refactor on the same files, and **kept the verified render rather than
+committing an unverified one**. That is the correct call; the gap is named
+here so it is not mistaken for completeness.
