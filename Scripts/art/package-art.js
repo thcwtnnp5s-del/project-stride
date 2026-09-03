@@ -966,7 +966,8 @@ const RCP_ENEMIES_SRC = path.join(
 const RCP_SELECTED = [
   'boar_idle', 'boar_attack', 'boar_defeat',
   'ram_idle', 'ram_attack', 'ram_defeat',
-  'salamander_idle', 'salamander_attack', 'salamander_defeat',
+  // EPO03 ENEMIES: the three salamander tracks are re-emitted below from
+  // the ember restyle — same frames, same poses, one recoloured set.
   'bear_idle', 'bear_attack2', 'bear_defeat',
   // The Scree Crawler (`DECISIONS/0027`, experimental): idle and attack are
   // pack-accepted; its defeat stayed withheld after blind QA, and the stage
@@ -3449,7 +3450,6 @@ for (const id of ['habitat_forest_floor']) {
 const FMPO_ENEMY_TRACKS = [
   ['boar_hit', 6, 56],
   ['bear_hit', 6, 76],
-  ['salamander_hit', 6, 56],
   ['crawler_hit', 6, 48],
   ['crawler_defeat', 8, 48],
   ['old_grey_idle', 8, 56],
@@ -3524,6 +3524,49 @@ for (const [id, w, h] of [
     );
   }
   emit(`combat/${id}.png`, encode(raster));
+}
+
+/**
+ * EPO03 ENEMIES — the salamander's ember stripe, on every frame it already had.
+ *
+ * DIR-12: at 76 dp the salamander said "heat" only in its tell line — a pale
+ * grey newt on a card whose whole job is species identity. The fix is a molten
+ * stripe along the spine and tail with ember spots.
+ *
+ * **The motion is not re-authored.** `animate_image` from an edited first
+ * frame was the costed plan, and FMPO02 already measured that tool's
+ * in-place-only output as too weak for a collapse (`crawler_defeat`, two
+ * rolls, shipped as a partial) — using it here would trade an accepted attack
+ * cock-back and an accepted defeat for a worse one. Editing frame by frame
+ * with `edit_image_pixen` keeps the motion but gives each frame its own
+ * independent recolour, which is the flicker trap. So: `edit_image` in
+ * **reference mode**, the accepted first-frame edit as the reference, the
+ * shipped frames as the inputs — one appearance across the set, every pose
+ * untouched, and priced by the frame grid rather than by the frame (20
+ * generations for fourteen).
+ *
+ * Canvases and f0 alpha bounds match the shipped set track for track, so the
+ * 56² canvas and anchor row 50 in `combat_assets.dart` are unchanged; the
+ * footprints are re-measured here from the new f0 exactly as before.
+ */
+for (const [id, frames] of [
+  ['salamander_idle', 7],
+  ['salamander_attack', 9],
+  ['salamander_hit', 6],
+  ['salamander_defeat', 7],
+]) {
+  for (let i = 0; i < frames; i++) {
+    const frame = png.load(
+      path.join(EPO03_ENEMY_SRC, `${id}_f${i}.png`),
+    );
+    if (frame.width !== 56 || frame.height !== 56) {
+      throw new Error(
+        `${id}_f${i}: expected 56x56, got ${frame.width}x${frame.height}`,
+      );
+    }
+    if (i === 0) combatFootprints[`combat_${id}`] = png.footprint(frame);
+    emit(`combat/${id}_f${i}.png`, encode(frame));
+  }
 }
 
 /**
