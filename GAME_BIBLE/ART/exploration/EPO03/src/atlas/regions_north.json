@@ -37,36 +37,36 @@
     },
     {
       "id": "NB",
-      "x": 216,
-      "y": 186,
-      "w": 224,
-      "h": 154,
-      "atlas": "256-400 x 226-300",
+      "x": 208,
+      "y": 148,
+      "w": 216,
+      "h": 188,
+      "atlas": "256-376 x 192-296",
       "rect": {
-        "x0": 40,
-        "y0": 40,
-        "x1": 184,
-        "y1": 114
+        "x0": 48,
+        "y0": 44,
+        "x1": 168,
+        "y1": 148
       },
       "ramps": {
         "left": 32,
-        "right": 44,
+        "right": 32,
         "top": 32,
         "bottom": 32
       },
       "inpaint": {
-        "x": 40,
-        "y": 40,
-        "w": 144,
-        "h": 74
+        "x": 48,
+        "y": 44,
+        "w": 120,
+        "h": 104
       },
       "salt": 41,
       "seed": 0,
       "status": "pending",
       "coreAuthor": true,
       "reauthorizes": [],
-      "intent": "Core treeline RETOUCH (DIR-01 KEEP list, downgraded to RETOUCH; DIR-02 FOREST->SNOW): the canopy edge on its near-straight run at y~265-275 breaks upward into fingers with snow reaching down between them; the gridded outlier conifers become an uneven thinning; the honeycomb remnant at ~275-345 x 228-250 is painted out; N2's crag and the Frozen Shelf stay.",
-      "note": "Cut from the composite AFTER NA ships, so NA's accepted terrain sits frozen in the left margin (216-256) and the rect overlaps NA's rect by 20 px (256-276). coreAuthor: true - the rect lies in the A-4 rim (256-276) and the hard core (276+). Bottom at y=300 so the 32 px bottom ramp (268-300) lies in uniform canopy, not on the canopy/snow edge it re-authors; The Longwood (316,296) stays under forest. Right edge x=400 is the west edge of the frostmere_north_wall golden (400-560 x 256-276): the mask never enters it, so it is NOT declared and stays byte-exact - the builder's 20 px keepout + 24 px ramp zeroes 380-400 and fades 356-380; the region's own right ramp is widened to 44 so its +/-60% wander, not the straight keepout gradient, sets where the commit contour falls. Top margin 186-226 freezes N2's crag; the ice-tower foundation 412-540 x 96-224 (LANDMARKS) is outside the crop except a frozen sliver at 412-440 x 186-224."
+      "intent": "Core treeline RETOUCH (DIR-01, DIR-02 FOREST->SNOW): the canopy edge on its near-straight run at y~265-275 breaks upward into fingers of fir with snow reaching down in bays between them; the gridded identical outlier conifers become an uneven thinning of different sizes; the honeycomb cell-net in the snow at 278-356 x 227-252 is painted out; N2s crag and the Frozen Shelf stay.",
+      "note": "RECUT after NA shipped. The rect was raised from y0=226 to y0=192 and narrowed from x1=400 to x1=376 for one measured reason: the honeycomb net lies at atlas 278-356 x 227-252, i.e. entirely inside a 32 px top ramp anchored at 226, where agreement grading would only half-commit and leave the net visible. Anchored at 192 the ramp reaches full authority at 224, above the net. A row scan of the composite puts N2s dense crag rock at x>=353, y 204-220 only, so x1=376 clips ~27x16 px of its western skirt at 0.4-0.9 alpha; the prompt names the crag as kept and agreement grading holds the base where the two disagree. Right edge 376 keeps the frostmere_north_wall golden (400-560 x 256-276) outside the 20 px keepout, so it is NOT declared and stays byte-exact. Bottom at y=296 keeps The Longwood (316,296) under forest. The stormdrake prop (350,190) and snowdrift (330,150) are runtime overlays on snow; the terrain under them stays snow. The ice bastion L3 (420-540 x 116-236) is outside the crop entirely and blits after north in any case. coreAuthor: true - the rect lies in the A-4 rim and the hard core."
     }
   ]
 }
