@@ -716,7 +716,18 @@ class _CombatControlsState extends State<_CombatControls> {
                   // scope-amended on the token by the owner's brief
                   // (GAME_FEEL_CHARACTER_PRESENTATION_01, item 4).
                   variant: StrideButtonVariant.attack,
-                  onPressed: held ? null : c.combatAttack,
+                  // The command's own pulse (DIR-14). Brace has answered the
+                  // hand since PRESENTATION_COMBAT_EVOLUTION_01 and the audio
+                  // matrix has always assumed one here; the other three
+                  // commands were simply silent. Light, fired before the
+                  // command goes out, so the tap answers on the frame it
+                  // happens rather than when the commit returns.
+                  onPressed: held
+                      ? null
+                      : () {
+                          AudioScope.maybeRead(context)?.hapticLight();
+                          c.combatAttack();
+                        },
                 ),
               ),
             ),
@@ -784,6 +795,7 @@ class _CombatControlsState extends State<_CombatControls> {
                   onPressed: held
                       ? null
                       : () {
+                          AudioScope.maybeRead(context)?.hapticLight();
                           setState(() => _choosing = false);
                           c.combatEat(e.itemId);
                         },
@@ -798,7 +810,12 @@ class _CombatControlsState extends State<_CombatControls> {
         // against nothing.
         StrideButton.secondary(
           label: 'Retreat — nothing is lost',
-          onPressed: held ? null : c.combatRetreat,
+          onPressed: held
+              ? null
+              : () {
+                  AudioScope.maybeRead(context)?.hapticLight();
+                  c.combatRetreat();
+                },
         ),
       ],
     );
