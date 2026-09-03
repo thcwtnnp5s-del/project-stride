@@ -611,7 +611,9 @@ void main() {
     // leaves with an ink silhouette and a wax seal, and not one of them
     // states a level.
     await tester.dragUntilVisible(
-      find.text('SMITHING · LEVELS 1–3'),
+      // The chapter opening is a Wrap of word-level runs so it breaks rather
+      // than shrinks at large text scales, so drag to the first run.
+      find.text('SMITHING ·').first,
       find.byType(ListView).first,
       const Offset(0, -250),
     );
@@ -644,7 +646,9 @@ void main() {
     // The chapters behind the lit one recede rather than repeating its
     // sentence — the deepest chapter, read at phone scale.
     await tester.dragUntilVisible(
-      find.text('SMITHING · LEVELS 10+'),
+      // "LEVELS 10+" is the deepest chapter's own run, and unlike the trade
+      // name it appears exactly once.
+      find.text('10+'),
       find.byType(ListView).first,
       const Offset(0, -250),
     );
@@ -1000,7 +1004,24 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('CRAFTED'), findsOneWidget);
-      expect(find.text('Herb Broth ×1'), findsOneWidget);
+      // The tally slip names the item on its own ruled line and shows a
+      // multiplier only when there is more than one — "Herb Broth", not
+      // "Herb Broth ×1". One of a thing does not need to be counted at you.
+      // Scoped to the slip, because the recipe behind it names the broth too.
+      expect(
+        find.descendant(
+          of: find.byType(ActivityResultCard),
+          matching: find.text('Herb Broth'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ActivityResultCard),
+          matching: find.textContaining('×1'),
+        ),
+        findsNothing,
+      );
       await capture(tester, 'gfcp_craft_minor_beat', settle: false);
       await tester.pumpAndSettle();
 
@@ -1028,7 +1049,23 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
       expect(find.text('CRAFTING COMPLETE'), findsOneWidget);
-      expect(find.text('Herb Broth ×5'), findsOneWidget);
+      // The slip rules the name and the count onto one line as two runs, so
+      // the figure sits in the right-hand margin with every other figure.
+      // Both halves are asserted: five of the broth, said once.
+      expect(
+        find.descendant(
+          of: find.byType(ActivityResultCard),
+          matching: find.text('Herb Broth'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ActivityResultCard),
+          matching: find.text('×5'),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(ActivityResultCard), findsOneWidget);
       await capture(tester, 'gfcp_batch_craft_summary', settle: false);
       await tester.pumpAndSettle();
