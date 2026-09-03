@@ -102,3 +102,24 @@ steel strap and rivets to it by edit rather than replace it. Batch 2.
 
 **Batch 1 cost: 39 generations** (13 assets × 3 rolls, `create_image_pixen`, 1 each).
 Accepted 11, rejected 26, held 2. Running total **39 / 200**.
+
+## Batch 2 — 11 submitted (9 `edit_image_pixen`, 2 `create_image_pixen`, cost 1 each)
+
+Job ids recorded at submission (PRODUCTION_RULES 9a) so an interruption costs
+nothing. Sources hosted at commit `e5c3977`, `E/src/items/`.
+
+| Asset | Tool | Job id | Asked for |
+|---|---|---|---|
+| `reclaim_axe` | edit_pixen | 85a5df0d-2ecb-4194-87a8-6d0d81b7ed2e | bronze axe head standing out of the open lid |
+| `reclaim_pickaxe` | edit_pixen | 0400d08d-1fe9-4960-ae53-a183958386a0 | bronze pick head across the top, spikes past both sides |
+| `reclaim_chestplate` | edit_pixen | 9ae740a9-546e-44d5-8ba0-06c16d8d36c8 | bronze breastplate leaning out of the crate |
+| `oak_handle` | edit_pixen | 3705ff5d-fa26-4c52-94b6-39d3e9b70937 | red-brown, leather-wrapped grip end |
+| `frost_claw` | edit_pixen | d62fa441-a0f0-486c-8973-845a47f291fc | talon not shard; dark root socket, cyan desaturated off the reserved teal |
+| `hornbound_bronze_axe` | edit_pixen | 828d9db5-c3be-466f-9435-9521ee6f95a6 | a real bit and beard, so it stops reading as a mallet (D-4) |
+| `reinforced_pickaxe` | edit_pixen | e72b6bf0-15fe-4ad9-9046-8159336ada30 | grey steel strap and rivets on the head, pickaxe otherwise untouched |
+| `pristine_wolf_fang` r1 | create_pixen | 5bffdc25-eb4d-4500-9c5b-e5ffabf69e4c | one huge tooth corner to corner on a cord loop (the held rolls were 17-19% fill) |
+| `pristine_wolf_fang` r2 | create_pixen | 24b878ec-57f6-4f1d-8d84-56d450d1cbdd | same, tooth touching the top and bottom edges |
+| `hearty_stew` steam | edit_pixen | 162055ee-abd8-4c3e-8f13-49d13761ff5c | three steam wisps, nothing else changed |
+| `expedition_stew` steam | edit_pixen | bcf74750-dd46-4775-a30c-ba7cd2209487 | two steam wisps, nothing else changed |
+
+**Running total after submission: 50 / 200.**
