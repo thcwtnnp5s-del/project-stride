@@ -1,0 +1,49 @@
+{
+  "family": "worldlife",
+  "round": "EPO03",
+  "assets": [
+    {
+      "name": "overlay_redwyrm_plume",
+      "frames": 8,
+      "canvas": "96x48",
+      "source": [
+        7,
+        5,
+        3,
+        0,
+        1,
+        2,
+        4,
+        6
+      ]
+    },
+    {
+      "name": "overlay_stormdrake_bolt",
+      "frames": 8,
+      "canvas": "96x56",
+      "source": [
+        6,
+        4,
+        5,
+        7,
+        0,
+        1,
+        2,
+        8
+      ]
+    },
+    {
+      "name": "overlay_storm_cloud",
+      "frames": 6,
+      "canvas": "112x48",
+      "source": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    }
+  ]
+}
