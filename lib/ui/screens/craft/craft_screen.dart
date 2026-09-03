@@ -56,6 +56,8 @@
 /// re-validates everything on dispatch (`RULES.md` E-2).
 library;
 
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart'
     show ContentId, ItemCategory, Rarity;
@@ -93,6 +95,7 @@ import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import '../system/stale_banner.dart';
+import 'craft_art.dart';
 
 /// The craft stage's height: the location stage's own 176, because since
 /// the physical-device polish pass (item 2) the stage carries a full work
@@ -162,6 +165,40 @@ String? _craftReason(RecipeOption recipe) {
   return 'Needs ${short.map((RecipeIngredientLine i) => '${i.shortfall} more ${i.displayName}').join(', ')}';
 }
 
+/// **The screen's one readiness grammar** (`DIR-06` §4, failure 5).
+///
+/// Readiness used to be said three ways — "1 more Herb" on a tile, "2
+/// materials short" on another, "Needs Smithing 6 — you are 1" on a button,
+/// "4 more at Smithing 3" in the ledger — so the player had to re-learn the
+/// sentence at every scale of the screen. There is now one:
+///
+/// * `Ready ×N` — the bag funds it, and how many times;
+/// * `Short by 2 Copper Ore` / `Short by 3 materials` — what is missing;
+/// * `Opens at Cooking 5` — a level gate, said **once per chapter** in the
+///   recipe book's tier header and never on a row;
+/// * `Not written yet` — taught by other work.
+///
+/// [_craftReason] is deliberately **not** folded into this. It is the
+/// disabled *action*'s explanation, it is the sentence three other tests and
+/// two other screens already read, and it names every short material rather
+/// than the first — a button that refuses has to say the whole reason.
+String _readinessLine(RecipeOption recipe) => switch (recipe.band) {
+  ReadinessBand.ready => 'Ready ×${recipe.craftableCount}',
+  ReadinessBand.oneAway => () {
+    final RecipeIngredientLine short = recipe.ingredients.firstWhere(
+      (RecipeIngredientLine i) => !i.satisfied,
+    );
+    return 'Short by ${short.shortfall} ${short.displayName}';
+  }(),
+  ReadinessBand.missing =>
+    'Short by '
+        '${recipe.ingredients.where((RecipeIngredientLine i) => !i.satisfied).length}'
+        ' materials',
+  ReadinessBand.skillLocked =>
+    'Opens at ${recipe.skillName} ${recipe.requiredLevel}',
+  ReadinessBand.gated => 'Not written yet',
+};
+
 class CraftScreen extends StatefulWidget {
   const CraftScreen({super.key});
 
@@ -197,9 +234,6 @@ class _CraftScreenState extends State<CraftScreen> {
   /// content in place, so the list beneath never moves and the elaborate
   /// lazy-list reveal the old inline expansion needed is gone with it.
   final List<ContentId> _chainStack = <ContentId>[];
-
-  /// Which locked gates the player has opened. Presentation only.
-  final Set<String> _openGates = <String>{};
 
   /// The finished queue whose completion sound has already played, by the
   /// same token the result presentation itself is keyed to. Presentation
@@ -409,7 +443,13 @@ class _CraftScreenState extends State<CraftScreen> {
               // controller's summary; a mid-run card expiring acknowledges
               // nothing (dismissSummary is a no-op while the queue runs).
               onExpired: CraftScope.read(context).dismissSummary,
-              child: ListView(
+              child: PageGround(
+                // The workshop is written on bench oak, full bleed
+                // (`DIR-06` §1). One material, no card round the page, and
+                // therefore no rectangle-inside-a-rectangle at the top of
+                // the tab — which was the second-named failure.
+                surface: PanelSurface.benchOak,
+                child: ListView(
                 padding: const EdgeInsets.fromLTRB(
                   StrideSpace.screenGutter,
                   StrideSpace.s12,
@@ -429,31 +469,21 @@ class _CraftScreenState extends State<CraftScreen> {
                   // station, never the filtered view: a plate answers "what
                   // is over there", and a category filter is a question you
                   // ask after you have walked over.
-                  // Dark bench oak under the three plates (FMPO02 wave 3,
-                  // FINAL-11 #7): the tile was authored as "the crafting
-                  // station header" and shipped registered and painted
-                  // nowhere. The strip is that header, so it gets the bench
-                  // it names — a compact card, so the plates keep their own
-                  // rhythm and only gain a workbench to stand on.
-                  SectionCard(
-                    surface: PanelSurface.benchOak,
-                    padding: const EdgeInsets.all(
-                      StrideSpace.cardPaddingCompact,
-                    ),
-                    child: StationStrip(
-                      stations: <StationEntry>[
-                        for (final (String kind, String label) in _stations)
-                          _census(recipes, kind, label),
-                      ],
-                      selected: station,
-                      onSelect: (String kind) => setState(() {
-                        _station = kind;
-                        _sheetRecipe = null;
-                        _chainStack.clear();
-                      }),
-                    ),
+                  // No card: the bench oak is the page itself now, and the
+                  // strip is furniture standing on it (`DIR-06` §1, §2).
+                  StationStrip(
+                    stations: <StationEntry>[
+                      for (final (String kind, String label) in _stations)
+                        _census(recipes, kind, label),
+                    ],
+                    selected: station,
+                    onSelect: (String kind) => setState(() {
+                      _station = kind;
+                      _sheetRecipe = null;
+                      _chainStack.clear();
+                    }),
                   ),
-                  const SizedBox(height: StrideSpace.rhythmGroup),
+                  const SizedBox(height: StrideSpace.rhythmRow),
 
                   // The chosen station's own place, under its name (FMPO02).
                   // Untitled on purpose: the strip above already labels the
@@ -466,23 +496,19 @@ class _CraftScreenState extends State<CraftScreen> {
                       const SizedBox(height: StrideSpace.rhythmRow),
                     ],
 
-                  _CategoryChips(
+                  // The category rail, on the band's lower edge: glyph-led
+                  // tabs with a brass underline pin, never a filled chip
+                  // (`DIR-06` §3). The honest census of what the filter
+                  // shows sits at the rail's right end — two figures in one
+                  // shape, whatever the numbers are, because nothing
+                  // craftable is a fact about the bag and not a
+                  // disappointment to soften.
+                  _CategoryRail(
                     selected: _category,
                     onSelect: (CraftCategory? c) =>
                         setState(() => _category = c),
-                  ),
-                  const SizedBox(height: StrideSpace.rhythmRow),
-
-                  // The honest census of what the filter shows. Two figures
-                  // in one shape, whatever the numbers are — nothing
-                  // craftable is a fact about the bag, not a disappointment
-                  // to soften.
-                  AdaptiveText(
-                    '$ready craftable · ${shown.length} known',
-                    style: StrideType.sub,
-                    color: ready == 0
-                        ? StrideColors.textMuted
-                        : StrideColors.textSecondary,
+                    census: '$ready craftable · ${shown.length} known',
+                    censusLit: ready > 0,
                   ),
                   const SizedBox(height: StrideSpace.rhythmGroup),
 
@@ -525,26 +551,11 @@ class _CraftScreenState extends State<CraftScreen> {
 
                   if (_locked(shown) case final List<RecipeOption> locked
                       when locked.isNotEmpty) ...<Widget>[
-                    SectionHeading(
-                      label: 'Locked',
-                      trailing: Text(
-                        '${locked.length}',
-                        style: StrideType.microLabel.copyWith(
-                          color: StrideColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: StrideSpace.rhythmRow),
-                    _LockedLedger(
-                      locked: locked,
-                      open: _openGates,
-                      onToggle: (String gate) => setState(() {
-                        if (!_openGates.remove(gate)) _openGates.add(gate);
-                      }),
-                      onOpen: _openSheet,
-                    ),
+                    const SizedBox(height: StrideSpace.rhythmHero),
+                    _RecipeBook(locked: locked, onOpen: _openSheet),
                   ],
                 ],
+              ),
               ),
             ),
 
@@ -736,12 +747,19 @@ class _HeroFolioState extends State<_HeroFolio> {
             children: <Widget>[
               // The output at 96 dp — 48 native at ×2, an integer multiple
               // and zero new art. This is the prominence the old screen
-              // never gave anything.
-              InsetWell.square(
-                contentSize: 96,
-                child: PixelAsset.item(
-                  PixelIcons.recipeIconFor(recipe.id, recipe.outputItem),
-                  scale: 2,
+              // never gave anything. Since EPO03 it sits in the kit's own
+              // plinth well rather than a rounded recess, and a finished
+              // craft presses its impression onto it (`DIR-06` §5).
+              KitPlate.well(
+                frame: KitFrame.slotWell,
+                contentWidth: 96,
+                contentHeight: 96,
+                child: _MadeStamp(
+                  token: summaryHere ? craft.lastReport : null,
+                  child: PixelAsset.item(
+                    PixelIcons.recipeIconFor(recipe.id, recipe.outputItem),
+                    scale: 2,
+                  ),
                 ),
               ),
               const SizedBox(width: StrideSpace.s12),
@@ -777,9 +795,20 @@ class _HeroFolioState extends State<_HeroFolio> {
                         color: StrideColors.textMuted,
                       ),
                     ],
+                    const SizedBox(height: StrideSpace.s6),
+                    // The one readiness sentence, on the folio (`DIR-06` §4).
+                    AdaptiveText(
+                      _readinessLine(recipe),
+                      style: StrideType.sub,
+                      color: recipe.canCraft
+                          ? StrideColors.positiveReady
+                          : StrideColors.textMuted,
+                    ),
                   ],
                 ),
               ),
+              const SizedBox(width: StrideSpace.s8),
+              _PursuitRibbon(recipe: recipe, enabled: !controller.busy),
             ],
           ),
           const SizedBox(height: StrideSpace.rhythmRow),
@@ -791,7 +820,7 @@ class _HeroFolioState extends State<_HeroFolio> {
             _ActiveCraftPanel(recipe: recipe)
           else ...<Widget>[
             if (recipe.canCraft && maxCount > 1) ...<Widget>[
-              _QueueChips(
+              _QuantityStepper(
                 count: count,
                 maxCount: maxCount,
                 onChanged: (int v) => setState(() => _requested = v),
@@ -825,18 +854,9 @@ class _HeroFolioState extends State<_HeroFolio> {
                       CraftScope.read(context).start(recipe, count);
                     },
             ),
-            const SizedBox(height: StrideSpace.s6),
-            // The Pursuit hook (`DECISIONS/0023` §1): any recipe's output can
-            // be tracked, and a locked or distant one is exactly the kind
-            // worth tracking. Reserves nothing.
-            StrideButton.secondary(
-              label: 'Track as Pursuit',
-              onPressed: controller.busy
-                  ? null
-                  : () => SessionScope.read(
-                      context,
-                    ).trackGoalPursuit(recipe.outputItem),
-            ),
+            // The Pursuit hook is the bookmark on this folio's top edge now
+            // (`DIR-06` §7) — one primary action per screen, and a second
+            // full-width button was saying the two were comparable.
             if (summaryHere) ...<Widget>[
               const SizedBox(height: StrideSpace.rhythmRow),
               _CraftSummary(craft: craft, recipe: recipe),
@@ -844,6 +864,86 @@ class _HeroFolioState extends State<_HeroFolio> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The impression a finished craft presses onto the output well
+/// (`DIR-06` §5).
+///
+/// 200 ms, once per completion, over the thing that was made — the physical
+/// beat the bench owes the player at the moment the work lands, beside the
+/// `ActivityResultCard` that says what it was. Reduce Motion holds the stamp
+/// still rather than removing it: the mark is information, the press is the
+/// decoration.
+class _MadeStamp extends StatefulWidget {
+  const _MadeStamp({required this.token, required this.child});
+
+  /// The completion this stamp belongs to. A new non-null token presses;
+  /// null means nothing has just been made.
+  final Object? token;
+
+  final Widget child;
+
+  @override
+  State<_MadeStamp> createState() => _MadeStampState();
+}
+
+class _MadeStampState extends State<_MadeStamp>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+  );
+  Object? _pressed;
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  void _sync() {
+    if (widget.token == null || widget.token == _pressed) return;
+    _pressed = widget.token;
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      _press.value = 1;
+    } else {
+      _press.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _sync();
+    final CraftMark? art = CraftArt.stampMade;
+    if (art == null || widget.token == null) return widget.child;
+    return Stack(
+      alignment: Alignment.center,
+      children: <Widget>[
+        widget.child,
+        AnimatedBuilder(
+          animation: _press,
+          builder: (BuildContext context, Widget? mark) => Opacity(
+            opacity: _press.value,
+            child: Transform.scale(
+              // Down onto the page, never up off it.
+              scale: 1.4 - (0.4 * _press.value),
+              child: mark,
+            ),
+          ),
+          child: SizedBox(
+            width: CraftArt.stamp,
+            height: CraftArt.stamp,
+            child: PixelAsset(
+              assetPath: art.assetPath,
+              nativeWidth: art.nativeWidth,
+              nativeHeight: art.nativeHeight,
+              scale: art.scale,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -862,7 +962,7 @@ class _IngredientTray extends StatelessWidget {
   /// The well plus the count line's own column. Wide enough that `12 / 24`
   /// does not wrap under an enlarged scaler, narrow enough that four fit a
   /// 320 dp folio.
-  static const double _slot = 56;
+  static const double _slot = 64;
 
   @override
   Widget build(BuildContext context) => SurfaceBlock(
@@ -878,12 +978,39 @@ class _IngredientTray extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Opacity(
-                    opacity: line.satisfied ? 1 : 0.55,
-                    child: InsetWell.square(
-                      contentSize: 48,
-                      child: PixelAsset.item(PixelIcons.itemFor(line.item)),
-                    ),
+                  Stack(
+                    children: <Widget>[
+                      Opacity(
+                        opacity: line.satisfied ? 1 : 0.55,
+                        child: KitPlate.well(
+                          frame: KitFrame.slotWell,
+                          contentWidth: 48,
+                          contentHeight: 48,
+                          child: PixelAsset.item(PixelIcons.itemFor(line.item)),
+                        ),
+                      ),
+                      // The shortfall cartouche (`DIR-06` §4): a slot that
+                      // cannot pay says how far it is short, on the slot,
+                      // instead of leaving the folio's one sentence to
+                      // enumerate every material.
+                      if (!line.satisfied)
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 3,
+                            ),
+                            color: StrideColors.surfaceGround,
+                            child: Text(
+                              '−${line.shortfall}',
+                              style: StrideType.micro.copyWith(
+                                color: StrideColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: StrideSpace.s4),
                   AdaptiveText(
@@ -916,18 +1043,10 @@ class _TileFolio extends StatelessWidget {
   const _TileFolio({
     required this.recipes,
     required this.onOpen,
-    this.surfaced = true,
   });
 
   final List<RecipeOption> recipes;
   final ValueChanged<RecipeOption> onOpen;
-
-  /// Whether this group draws its own folio surface.
-  ///
-  /// False inside the locked ledger, which is already one folio: nesting a
-  /// second card there would put two borders and two grains around one set
-  /// of leaves, which is the failure `panel_skin.dart` names by name.
-  final bool surfaced;
 
   /// The height one tile row needs at [scaler], never below the designed
   /// floor.
@@ -1007,7 +1126,6 @@ class _TileFolio extends StatelessWidget {
       ],
     );
 
-    if (!surfaced) return leaves;
     return SectionCard(
       surface: PanelSurface.journalLeaf,
       padding: const EdgeInsets.all(StrideSpace.s10),
@@ -1032,20 +1150,8 @@ class _RecipeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool dim = !recipe.canCraft;
-    final String state = switch (recipe.band) {
-      ReadinessBand.ready => '×${recipe.craftableCount} ready',
-      ReadinessBand.oneAway => () {
-        final RecipeIngredientLine short = recipe.ingredients.firstWhere(
-          (RecipeIngredientLine i) => !i.satisfied,
-        );
-        return '${short.shortfall} more ${short.displayName}';
-      }(),
-      ReadinessBand.missing =>
-        '${recipe.ingredients.where((RecipeIngredientLine i) => !i.satisfied).length} materials short',
-      ReadinessBand.skillLocked =>
-        '${recipe.skillName} ${recipe.requiredLevel}',
-      ReadinessBand.gated => 'Not learned yet',
-    };
+    // One grammar, screen-wide (`DIR-06` §4).
+    final String state = _readinessLine(recipe);
 
     return Semantics(
       button: true,
@@ -1127,85 +1233,198 @@ class _RecipeTile extends StatelessWidget {
   }
 }
 
-// --------------------------------------------------------- the locked ledger
+// ----------------------------------------------------------- the recipe book
 
-/// The locked band as a ledger: one line per **gate**, not one row per
-/// recipe.
+/// The locked half of the workshop, as a **book** rather than a ledger.
 ///
-/// Twenty near-identical locked rows is the single largest contributor to the
-/// database read, and every one of them says the same thing in the same
-/// shape. A gate line says it once — "4 more at Smithing 3" — and opens into
-/// the ordinary tiles when the player wants the names. No lock, padlock or
-/// keyhole appears anywhere here, by rule; the recipe's own reason sentence,
-/// unchanged, is still the only statement of why, and it lives in the tile's
-/// sheet.
-class _LockedLedger extends StatelessWidget {
-  const _LockedLedger({
-    required this.locked,
-    required this.open,
-    required this.onToggle,
-    required this.onOpen,
-  });
+/// ## The verdict this answers
+///
+/// The owner's EPO03 read: the screen "is improved but still not premium
+/// enough", and its lower half "must not devolve into '1 more at Cooking 5 /
+/// 1 more at Cooking 6'. Locked content should feel like progression, not
+/// spreadsheet rows."
+///
+/// The FMPO02 ledger was a real improvement over twenty identical cards and
+/// was still, structurally, a spreadsheet: one grey row per gate, each saying
+/// the same sentence with a different numeral, sorted by that numeral. Every
+/// row restated the gate, so the gate — the only interesting fact — was said
+/// eleven times and read as debt.
+///
+/// ## What replaces it (`DIR-06` §6)
+///
+/// A book of **chapters**. Locked recipes group by trade into level bands of
+/// three (1–3, 4–6, 7–9, 10+); each band is a chapter that **opens once**
+/// with an illustrated tier header carrying its skill, its range and its one
+/// "Opens at Cooking 4". Beneath the header the chapter's recipes are sealed
+/// pages: the output drawn as an **ink silhouette** (a `ColorFilter` over the
+/// icon the screen already ships — zero new art), a wax seal stamped with the
+/// level the page asks for, and the name in rarity ink. **No row says a
+/// gate.** The gate belongs to the chapter.
+///
+/// The first chapter above the player is **lit** — full-value header, warm
+/// seals — and later chapters recede, so the book reads as a road with a next
+/// step on it rather than a list of refusals. Contract-gated recipes close
+/// the book as "Unwritten pages": they are not a level away from anything and
+/// pretending otherwise would be the ledger's mistake in a nicer frame.
+///
+/// No lock, padlock or keyhole appears anywhere (`ART-02` §5), and the
+/// recipe's own reason sentence is still the only statement of why — it lives
+/// in the sheet a page opens, unchanged.
+class _RecipeBook extends StatelessWidget {
+  const _RecipeBook({required this.locked, required this.onOpen});
 
   final List<RecipeOption> locked;
-  final Set<String> open;
-  final ValueChanged<String> onToggle;
   final ValueChanged<RecipeOption> onOpen;
 
-  /// The gate a recipe waits behind. Skill gates group by skill and level,
-  /// because that is a destination the player can walk toward; contract and
-  /// project gates share one line, because their sentences are per-recipe
-  /// and belong in the sheet rather than in a ledger.
-  static String _gateOf(RecipeOption recipe) => recipe.isLocked
-      ? 'taught'
-      : 'skill:${recipe.skillName}:${recipe.requiredLevel}';
+  /// The band a level belongs to: three levels to a chapter, and everything
+  /// from 10 up in the last one. Three is the figure that makes a chapter a
+  /// page-worth rather than a scroll, and it is the same span the skills
+  /// journey already groups by.
+  static int bandStart(int level) => level >= 10 ? 10 : ((level - 1) ~/ 3) * 3 + 1;
 
-  static String _labelOf(String gate, int count) => gate == 'taught'
-      ? '$count more taught by other work'
-      : '$count more at ${gate.split(':')[1]} ${gate.split(':')[2]}';
+  static String bandLabel(int start) =>
+      start >= 10 ? 'LEVELS 10+' : 'LEVELS $start–${start + 2}';
 
   @override
   Widget build(BuildContext context) {
-    // Skill gates first, by the level they ask for — the ledger reads as a
-    // road — and the taught line last.
-    final Map<String, List<RecipeOption>> gates =
+    // Chapters, keyed by trade and band. A gated recipe has no level to
+    // stand on and goes to the unwritten pages at the end.
+    final Map<String, List<RecipeOption>> chapters =
         <String, List<RecipeOption>>{};
+    final List<RecipeOption> unwritten = <RecipeOption>[];
     for (final RecipeOption r in locked) {
-      gates.putIfAbsent(_gateOf(r), () => <RecipeOption>[]).add(r);
+      if (r.band == ReadinessBand.gated) {
+        unwritten.add(r);
+        continue;
+      }
+      chapters
+          .putIfAbsent(
+            '${r.skillName}|${bandStart(r.requiredLevel)}',
+            () => <RecipeOption>[],
+          )
+          .add(r);
     }
-    final List<String> order = gates.keys.toList()
+
+    final List<String> order = chapters.keys.toList()
       ..sort((String a, String b) {
-        if (a == 'taught') return 1;
-        if (b == 'taught') return -1;
-        final int level = int.parse(
-          a.split(':')[2],
-        ).compareTo(int.parse(b.split(':')[2]));
+        final int level = int.parse(a.split('|')[1])
+            .compareTo(int.parse(b.split('|')[1]));
         return level != 0 ? level : a.compareTo(b);
       });
 
-    return SectionCard(
-      surface: PanelSurface.journalLeaf,
-      padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s10),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SectionHeading(
+          label: 'The recipe book',
+          trailing: Text(
+            '${locked.length}',
+            style: StrideType.microLabel.copyWith(
+              color: StrideColors.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(height: StrideSpace.rhythmRow),
+        for (int i = 0; i < order.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: StrideSpace.rhythmHero),
+          _Chapter(
+            // The first chapter above the player is the next thing that
+            // happens to them, and reads that way.
+            lit: i == 0,
+            skill: order[i].split('|')[0],
+            // The gate, said once, in the header — never on a page.
+            gate: 'Opens at ${order[i].split('|')[0]} '
+                '${chapters[order[i]]!.map((RecipeOption r) => r.requiredLevel).reduce((int a, int b) => a < b ? a : b)}',
+            range: bandLabel(int.parse(order[i].split('|')[1])),
+            recipes: chapters[order[i]]!,
+            onOpen: onOpen,
+          ),
+        ],
+        if (unwritten.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.rhythmHero),
+          _Chapter(
+            lit: false,
+            skill: 'taught',
+            gate: 'Learned elsewhere',
+            range: 'UNWRITTEN PAGES',
+            recipes: unwritten,
+            onOpen: onOpen,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// One chapter: an illustrated tier header, then its sealed pages.
+class _Chapter extends StatelessWidget {
+  const _Chapter({
+    required this.lit,
+    required this.skill,
+    required this.gate,
+    required this.range,
+    required this.recipes,
+    required this.onOpen,
+  });
+
+  /// Whether this is the first chapter above the player. A lit chapter is at
+  /// full value; the ones after it recede, which is what makes the book read
+  /// as a road with a next step rather than a wall of refusals.
+  final bool lit;
+
+  final String skill;
+  final String gate;
+  final String range;
+  final List<RecipeOption> recipes;
+  final ValueChanged<RecipeOption> onOpen;
+
+  /// How far a chapter behind the next one recedes. Not a disabled state —
+  /// the pages stay tappable and their names stay legible; the chapter is
+  /// simply further down the road.
+  static const double _recede = 0.62;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<RecipeOption> sorted = recipes.toList()
+      ..sort((RecipeOption a, RecipeOption b) {
+        final int level = a.requiredLevel.compareTo(b.requiredLevel);
+        return level != 0 ? level : a.displayName.compareTo(b.displayName);
+      });
+    final int rows = (sorted.length + 1) ~/ 2;
+
+    return Opacity(
+      opacity: lit ? 1 : _recede,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          for (final String gate in order) ...<Widget>[
-            if (gate != order.first)
-              Container(height: 1, color: StrideColors.separator),
-            _GateLine(
-              label: _labelOf(gate, gates[gate]!.length),
-              open: open.contains(gate),
-              onTap: () => onToggle(gate),
-            ),
-            if (open.contains(gate)) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              _TileFolio(
-                recipes: gates[gate]!,
-                onOpen: onOpen,
-                surfaced: false,
+          _TierHeader(skill: skill, range: range, gate: gate, lit: lit),
+          const SizedBox(height: StrideSpace.rhythmRow),
+          for (int row = 0; row < rows; row++) ...<Widget>[
+            if (row > 0) const SizedBox(height: StrideSpace.rhythmRow),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Expanded(
+                    child: _SealedPage(
+                      recipe: sorted[row * 2],
+                      lit: lit,
+                      onTap: () => onOpen(sorted[row * 2]),
+                    ),
+                  ),
+                  const SizedBox(width: StrideSpace.rhythmRow),
+                  Expanded(
+                    child: row * 2 + 1 < sorted.length
+                        ? _SealedPage(
+                            recipe: sorted[row * 2 + 1],
+                            lit: lit,
+                            onTap: () => onOpen(sorted[row * 2 + 1]),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
               ),
-              const SizedBox(height: StrideSpace.rhythmRow),
-            ],
+            ),
           ],
         ],
       ),
@@ -1213,58 +1432,288 @@ class _LockedLedger extends StatelessWidget {
   }
 }
 
-class _GateLine extends StatelessWidget {
-  const _GateLine({
-    required this.label,
-    required this.open,
-    required this.onTap,
+/// A chapter's opening: the illustrated divider, the trade, the range, and
+/// the gate — **once**.
+class _TierHeader extends StatelessWidget {
+  const _TierHeader({
+    required this.skill,
+    required this.range,
+    required this.gate,
+    required this.lit,
   });
 
-  final String label;
-  final bool open;
-  final VoidCallback onTap;
-
-  /// 40 dp of line inside a 44 dp hit region — the visual weight the brief
-  /// asks for, over the touch target the platform requires.
-  static const double lineHeight = 40;
+  final String skill;
+  final String range;
+  final String gate;
+  final bool lit;
 
   @override
   Widget build(BuildContext context) => Semantics(
-    button: true,
-    expanded: open,
-    label: label,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(
-          minHeight: StrideGeometry.buttonHitFloor,
+    header: true,
+    label: '$skill, $range. $gate',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // The kit's illustrated divider, drawn once and clipped — a chapter
+        // opening, not a repeated rule (`KIT_CONTRACT` §8).
+        Align(
+          alignment: Alignment.centerLeft,
+          child: ClipRect(
+            child: SizedBox(
+              height: KitMarks.sizeFor(KitMark.ruleOrnateA).height,
+              child: const KitOrnament(mark: KitMark.ruleOrnateA),
+            ),
+          ),
         ),
-        alignment: Alignment.centerLeft,
-        child: SizedBox(
-          height: lineHeight,
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: AdaptiveText(
-                  label,
-                  style: StrideType.sub,
-                  color: StrideColors.textSecondary,
-                ),
+        const SizedBox(height: StrideSpace.s6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: AdaptiveText(
+                '${skill.toUpperCase()} · $range',
+                style: StrideType.cardTitle,
+                color: lit
+                    ? StrideColors.textPrimary
+                    : StrideColors.textSecondary,
               ),
-              const SizedBox(width: StrideSpace.s8),
-              Text(
-                open ? '▴' : '▾',
-                style: StrideType.microLabel.copyWith(
-                  color: StrideColors.textMuted,
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            AdaptiveText(
+              gate,
+              style: StrideType.micro,
+              color: lit
+                  ? StrideColors.textSecondary
+                  : StrideColors.textMuted,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+/// One locked recipe, as a sealed page.
+///
+/// The output is an **ink silhouette** — the icon the screen already ships,
+/// pushed through a `ColorFilter` so it reads as a drawing on a page rather
+/// than as a dimmed copy of the item. Zero new art, and it is honest: the
+/// player has not made this thing, so they have not seen it.
+///
+/// The wax seal carries the level the page asks for, set in type over a blank
+/// seal (L-18: no numeral is ever baked into a raster). The name is in rarity
+/// ink, because rank is identity and not availability (§20).
+class _SealedPage extends StatelessWidget {
+  const _SealedPage({
+    required this.recipe,
+    required this.lit,
+    required this.onTap,
+  });
+
+  final RecipeOption recipe;
+  final bool lit;
+  final VoidCallback onTap;
+
+  /// The silhouette's display size: 24 native at ×2, the same integer
+  /// multiple every item icon on this screen already uses.
+  static const double _silhouette = 48;
+
+  /// The ink a sealed output is drawn in — the page's own line weight, warmer
+  /// on the lit chapter than on the ones behind it.
+  static Color _ink(bool lit) =>
+      lit ? StrideColors.textSecondary : StrideColors.textMuted;
+
+  /// The folded corner: the mark when the row has landed, the painted fold
+  /// while it has not, at the same reserved size either way.
+  static Widget _dogEar() {
+    final CraftMark? m = CraftArt.dogEarMark;
+    if (m == null) return const _PaintedDogEar();
+    return PixelAsset(
+      assetPath: m.assetPath,
+      nativeWidth: m.nativeWidth,
+      nativeHeight: m.nativeHeight,
+      scale: m.scale,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget silhouette = ColorFiltered(
+      // `srcATop` keeps the icon's own alpha — the shape survives, every
+      // colour inside it becomes one ink.
+      colorFilter: ColorFilter.mode(_ink(lit), BlendMode.srcATop),
+      child: PixelAsset.item(
+        PixelIcons.recipeIconFor(recipe.id, recipe.outputItem),
+      ),
+    );
+
+    return Semantics(
+      button: true,
+      label: '${recipe.displayName}, sealed until '
+          '${recipe.skillName} ${recipe.requiredLevel}',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: KitPlate(
+          frame: KitFrame.pageSealed,
+          fill: StrideColors.surfaceCard,
+          surface: PanelSurface.journalLeaf,
+          child: Stack(
+            children: <Widget>[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      SizedBox(
+                        width: _silhouette,
+                        height: _silhouette,
+                        child: silhouette,
+                      ),
+                      const Spacer(),
+                      _WaxSeal(
+                        skill: recipe.isLocked ? 'taught' : recipe.skillName,
+                        level: recipe.isLocked ? null : recipe.requiredLevel,
+                        lit: lit,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: StrideSpace.s6),
+                  Text(
+                    recipe.displayName,
+                    style: StrideType.itemName.copyWith(
+                      color: RarityStyle.inkOr(
+                        recipe.outputRarity,
+                        StrideColors.textPrimary,
+                      ).withValues(alpha: lit ? 0.85 : 0.7),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              // The dog-ear: the page's outer corner, folded. Lifted on the
+              // lit chapter, flat behind it. Reserved either way.
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: lit ? 1 : 0.5,
+                  child: SizedBox(
+                    width: CraftArt.dogEar,
+                    height: CraftArt.dogEar,
+                    child: _dogEar(),
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// The dog-ear's fallback: a folded triangle in the page's own inks, drawn
+/// with the one weight the kit fallbacks use.
+class _PaintedDogEar extends StatelessWidget {
+  const _PaintedDogEar();
+
+  @override
+  Widget build(BuildContext context) =>
+      CustomPaint(painter: _DogEarPainter(), size: Size.square(CraftArt.dogEar));
+}
+
+class _DogEarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path fold = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(fold, Paint()..color = StrideColors.surfaceGround);
+    canvas.drawPath(
+      Path()
+        ..moveTo(size.width, 0)
+        ..lineTo(0, size.height),
+      Paint()
+        ..color = StrideColors.separator
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DogEarPainter oldDelegate) => false;
+}
+
+/// A blank wax seal with the level it asks for set over it.
+///
+/// The seal is the only place on a sealed page that carries a number, and it
+/// carries it in type — the raster is a blank seal by rule (L-18), so one
+/// seal per trade serves every level that trade gates.
+class _WaxSeal extends StatelessWidget {
+  const _WaxSeal({required this.skill, required this.level, required this.lit});
+
+  final String skill;
+
+  /// The level stamped into the wax, or null for the taught seal — a recipe
+  /// somebody has to show you has no number to give.
+  final int? level;
+
+  final bool lit;
+
+  @override
+  Widget build(BuildContext context) {
+    final CraftMark? art = CraftArt.sealFor(skill);
+    final Color wax = lit
+        ? StrideColors.actionEdge
+        : StrideColors.borderDefault;
+    return SizedBox(
+      width: CraftArt.seal,
+      height: CraftArt.seal,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          if (art != null)
+            Opacity(
+              opacity: lit ? 1 : 0.7,
+              child: PixelAsset(
+                assetPath: art.assetPath,
+                nativeWidth: art.nativeWidth,
+                nativeHeight: art.nativeHeight,
+                scale: art.scale,
+              ),
+            )
+          else
+            // The fallback seal: a pressed disc in the same two weights the
+            // kit's plates use, at exactly the size the raster will take.
+            Center(
+              child: Container(
+                width: CraftArt.seal - 12,
+                height: CraftArt.seal - 12,
+                decoration: BoxDecoration(
+                  color: StrideColors.surfaceBlock,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: wax, width: 2),
+                ),
+              ),
+            ),
+          Text(
+            level == null ? '·' : '$level',
+            style: StrideType.cardTitle.copyWith(
+              color: lit
+                  ? StrideColors.textPrimary
+                  : StrideColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // -------------------------------------------------------------- the details
@@ -1309,82 +1758,152 @@ class _ChainBackChip extends StatelessWidget {
   }
 }
 
-/// The filter chips: All plus the four categories — a **secondary** filter
-/// inside the chosen station since FMPO02.
-class _CategoryChips extends StatelessWidget {
-  const _CategoryChips({required this.selected, required this.onSelect});
+/// The category rail: All plus the four categories, as **tabs on the bench's
+/// lower edge** rather than as filled chips (`DIR-06` §3).
+///
+/// The chips were the fourth-named failure: category and quantity shared one
+/// `_Chip`, so a filter and a batch size looked like the same kind of object
+/// and both looked like pills. A rail is a different thing from a stepper by
+/// construction — a glyph, a written label, and a brass underline pin on the
+/// one you are standing in. No fill, no border, no radius.
+///
+/// The glyphs are `CraftArt` rows and are absent until they land; the written
+/// label is present either way, so the rail is legible today and gains its
+/// pictures later without moving (`CraftArt`'s doctrine).
+class _CategoryRail extends StatelessWidget {
+  const _CategoryRail({
+    required this.selected,
+    required this.onSelect,
+    required this.census,
+    required this.censusLit,
+  });
 
   final CraftCategory? selected;
   final ValueChanged<CraftCategory?> onSelect;
 
+  /// "1 craftable · 10 known", at the rail's right end.
+  final String census;
+  final bool censusLit;
+
+  /// The rail's tokens, in the order it draws them. `all` first because it is
+  /// the state the screen opens in.
+  static const List<(String token, String label, CraftCategory? category)>
+  _tabs = <(String, String, CraftCategory?)>[
+    ('all', 'All', null),
+    ('materials', 'Materials', CraftCategory.materials),
+    ('food', 'Food', CraftCategory.food),
+    ('gear', 'Gear', CraftCategory.gear),
+    ('tools', 'Tools', CraftCategory.tools),
+  ];
+
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: StrideSpace.s6,
-    runSpacing: StrideSpace.s4,
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: <Widget>[
-      _Chip(
-        label: 'All',
-        selected: selected == null,
-        onTap: () => onSelect(null),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: <Widget>[
+          for (final (String token, String label, CraftCategory? c) in _tabs)
+            Expanded(
+              child: _CategoryTab(
+                token: token,
+                label: label,
+                selected: selected == c,
+                onTap: () => onSelect(c),
+              ),
+            ),
+        ],
       ),
-      for (final CraftCategory c in CraftCategory.values)
-        _Chip(
-          label: c.label,
-          selected: selected == c,
-          onTap: () => onSelect(c),
+      const SizedBox(height: StrideSpace.s6),
+      Align(
+        alignment: Alignment.centerRight,
+        child: AdaptiveText(
+          census,
+          style: StrideType.micro,
+          color: censusLit
+              ? StrideColors.textSecondary
+              : StrideColors.textMuted,
         ),
+      ),
     ],
   );
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({
+class _CategoryTab extends StatelessWidget {
+  const _CategoryTab({
+    required this.token,
     required this.label,
     required this.selected,
     required this.onTap,
   });
 
+  final String token;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
+  /// The pin under the chosen tab. Brass, because selection is a chosen thing
+  /// and never a walking quantity (L-16).
+  static const double pin = 2;
+
   @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    selected: selected,
-    label: label,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: StrideSpace.s10,
-          vertical: 5,
-        ),
-        decoration: BoxDecoration(
-          color: selected
-              ? StrideColors.surfaceRaised
-              : StrideColors.surfaceBlock,
-          // Brass, not teal: selection is a chosen thing, not a walking
-          // quantity (L-16 repair, Fable V2 Iteration 02).
-          border: Border.all(
-            color: selected
-                ? StrideColors.actionEdge
-                : StrideColors.borderDefault,
+  Widget build(BuildContext context) {
+    final CraftMark? glyph = CraftArt.categoryFor(token);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(
+            minHeight: StrideGeometry.buttonHitFloor,
           ),
-          borderRadius: StrideRadius.chip,
-        ),
-        child: Text(
-          label,
-          style: StrideType.compactLabel.copyWith(
-            color: selected
-                ? StrideColors.textPrimary
-                : StrideColors.textSecondary,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              // Reserved whether or not the glyph has landed, so the rail
+              // does not grow the day the art arrives.
+              SizedBox(
+                width: CraftArt.categoryGlyph,
+                height: CraftArt.categoryGlyph / 2,
+                child: glyph == null
+                    ? null
+                    : Center(
+                        child: Opacity(
+                          opacity: selected ? 1 : 0.6,
+                          child: PixelAsset(
+                            assetPath: glyph.assetPath,
+                            nativeWidth: glyph.nativeWidth,
+                            nativeHeight: glyph.nativeHeight,
+                            scale: glyph.scale,
+                          ),
+                        ),
+                      ),
+              ),
+              AdaptiveText(
+                label,
+                style: StrideType.microLabel,
+                textAlign: TextAlign.center,
+                color: selected
+                    ? StrideColors.textPrimary
+                    : StrideColors.textMuted,
+              ),
+              const SizedBox(height: StrideSpace.s4),
+              Container(
+                height: pin,
+                color: selected
+                    ? StrideColors.actionEdge
+                    : StrideColors.separator,
+              ),
+            ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// A tile's working surface, unchanged, now raised in a sheet: ingredients,
@@ -1454,6 +1973,10 @@ class _RecipeDetailState extends State<_RecipeDetail> {
                   style: StrideType.cardTitle,
                 ),
               ),
+              const SizedBox(width: StrideSpace.s8),
+              // The same bookmark the folio wears (`DIR-06` §7), holding the
+              // same verbatim call site.
+              _PursuitRibbon(recipe: recipe, enabled: !controller.busy),
             ],
           ),
           const SizedBox(height: StrideSpace.s6),
@@ -1623,7 +2146,7 @@ class _RecipeDetailState extends State<_RecipeDetail> {
             _ActiveCraftPanel(recipe: recipe)
           else ...<Widget>[
             if (recipe.canCraft && maxCount > 1) ...<Widget>[
-              _QueueChips(
+              _QuantityStepper(
                 count: count,
                 maxCount: maxCount,
                 onChanged: (int v) => setState(() => _requested = v),
@@ -1660,18 +2183,6 @@ class _RecipeDetailState extends State<_RecipeDetail> {
                       widget.onCraftStarted?.call();
                     },
             ),
-            const SizedBox(height: StrideSpace.s6),
-            // The Pursuit hook (`DECISIONS/0023` §1): any recipe's output can
-            // be tracked, and a locked or distant one is exactly the kind
-            // worth tracking. Reserves nothing.
-            StrideButton.secondary(
-              label: 'Track as Pursuit',
-              onPressed: controller.busy
-                  ? null
-                  : () => SessionScope.read(
-                      context,
-                    ).trackGoalPursuit(recipe.outputItem),
-            ),
             if (summaryHere) ...<Widget>[
               const SizedBox(height: StrideSpace.s8),
               _CraftSummary(craft: craft, recipe: recipe),
@@ -1683,9 +2194,22 @@ class _RecipeDetailState extends State<_RecipeDetail> {
   }
 }
 
-/// ×1 / ×5 / ×10, clamped to what the held ingredients fund.
-class _QueueChips extends StatelessWidget {
-  const _QueueChips({
+/// The batch size, as a **stepper** rather than as three more chips
+/// (`DIR-06` §4).
+///
+/// `×1 / ×5 / ×10` was the same `_Chip` the category filter used, so quantity
+/// and category read as one kind of control; and it could not say ×3, which
+/// is the count a bag full of two ores actually funds. A stepper says every
+/// number, reaches the maximum in one tap, and cannot be mistaken for a
+/// filter.
+///
+/// − and + are 44 dp hit targets with press-and-hold repeat; the count is set
+/// in the display face between them; MAX jumps to what the held ingredients
+/// fund. The value is clamped to `craftableCount` by the caller and the
+/// engine re-validates on dispatch either way (`RULES.md` E-2) — nothing here
+/// can request a craft the bag cannot pay for.
+class _QuantityStepper extends StatelessWidget {
+  const _QuantityStepper({
     required this.count,
     required this.maxCount,
     required this.onChanged,
@@ -1696,24 +2220,245 @@ class _QueueChips extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: StrideSpace.s6,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: <Widget>[
-      for (final int preset in const <int>[1, 5, 10])
-        _Chip(
-          label: '×$preset',
-          selected:
-              count == preset ||
-              (preset > maxCount && count == maxCount && preset == 10),
-          onTap: () => onChanged(preset),
+  Widget build(BuildContext context) => Semantics(
+    label: 'Batch size, $count of $maxCount',
+    child: Row(
+      children: <Widget>[
+        _StepperKey(
+          glyph: '−',
+          semanticLabel: 'One fewer',
+          enabled: count > 1,
+          onTap: () => onChanged(count - 1),
         ),
-      Text(
-        'up to ×$maxCount',
-        style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-      ),
-    ],
+        Expanded(
+          child: Center(
+            child: AdaptiveText(
+              '×$count',
+              style: StrideType.cardTitle,
+              color: StrideColors.textPrimary,
+            ),
+          ),
+        ),
+        _StepperKey(
+          glyph: '+',
+          semanticLabel: 'One more',
+          enabled: count < maxCount,
+          onTap: () => onChanged(count + 1),
+        ),
+        const SizedBox(width: StrideSpace.s8),
+        _StepperKey(
+          glyph: 'MAX',
+          semanticLabel: 'All $maxCount',
+          wide: true,
+          enabled: count < maxCount,
+          onTap: () => onChanged(maxCount),
+        ),
+      ],
+    ),
   );
+}
+
+/// One key of the stepper: a kit plate, pressed by touch, repeating on hold.
+class _StepperKey extends StatefulWidget {
+  const _StepperKey({
+    required this.glyph,
+    required this.semanticLabel,
+    required this.enabled,
+    required this.onTap,
+    this.wide = false,
+  });
+
+  final String glyph;
+  final String semanticLabel;
+  final bool enabled;
+  final VoidCallback onTap;
+  final bool wide;
+
+  /// The platform floor, and the figure `DIR-06`'s success criterion 6 names.
+  static const double edge = 44;
+
+  @override
+  State<_StepperKey> createState() => _StepperKeyState();
+}
+
+class _StepperKeyState extends State<_StepperKey> {
+  Timer? _repeat;
+  bool _down = false;
+
+  @override
+  void dispose() {
+    _repeat?.cancel();
+    super.dispose();
+  }
+
+  void _start() {
+    if (!widget.enabled) return;
+    setState(() => _down = true);
+    widget.onTap();
+    // A hold walks the count up; the caller clamps, so a hold that runs past
+    // the maximum simply stops moving.
+    _repeat = Timer.periodic(const Duration(milliseconds: 140), (Timer _) {
+      if (!widget.enabled) return;
+      widget.onTap();
+    });
+  }
+
+  void _stop() {
+    _repeat?.cancel();
+    _repeat = null;
+    if (mounted) setState(() => _down = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    enabled: widget.enabled,
+    label: widget.semanticLabel,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => _start(),
+      onTapUp: (_) => _stop(),
+      onTapCancel: _stop,
+      child: Opacity(
+        opacity: widget.enabled ? 1 : 0.4,
+        child: KitPlate(
+          frame: KitFrame.btnPlateV2,
+          // Pressed keys sink; the rest stand off the page. The same lit /
+          // shadowed rim the kit's own plates use.
+          raised: !_down,
+          fill: StrideColors.surfaceBlock,
+          padding: EdgeInsets.zero,
+          width: widget.wide ? _StepperKey.edge * 1.6 : _StepperKey.edge,
+          height: _StepperKey.edge,
+          child: Center(
+            child: Text(
+              widget.glyph,
+              style: StrideType.microLabel.copyWith(
+                color: StrideColors.textPrimary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// The Pursuit hook as a **bookmark** rather than a second full-width button
+/// (`DIR-06` §7).
+///
+/// A folio with two stacked buttons says the two are comparable, and they are
+/// not: one makes the thing, the other remembers you want it. A ribbon
+/// hanging off the folio's top edge is a different kind of object, costs no
+/// vertical rhythm, and reads as marking a page.
+///
+/// The call site is verbatim and unmoved:
+/// `SessionScope.read(context).trackGoalPursuit(recipe.outputItem)`.
+class _PursuitRibbon extends StatefulWidget {
+  const _PursuitRibbon({required this.recipe, required this.enabled});
+
+  final RecipeOption recipe;
+  final bool enabled;
+
+  @override
+  State<_PursuitRibbon> createState() => _PursuitRibbonState();
+}
+
+class _PursuitRibbonState extends State<_PursuitRibbon> {
+  /// The subject this ribbon has been dropped for. Presentation memory of
+  /// nothing durable — the pursuit itself lives in the session.
+  ContentId? _tracked;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool tracked = _tracked == widget.recipe.outputItem;
+    final CraftMark? art = CraftArt.ribbonPursuit;
+    return Semantics(
+      button: true,
+      enabled: widget.enabled,
+      label: tracked ? 'Tracked as pursuit' : 'Track as Pursuit',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: !widget.enabled
+            ? null
+            : () async {
+                await SessionScope.read(
+                  context,
+                ).trackGoalPursuit(widget.recipe.outputItem);
+                if (mounted) {
+                  setState(() => _tracked = widget.recipe.outputItem);
+                }
+              },
+        child: Padding(
+          // The drop: a tracked ribbon settles 4 dp lower, as a bookmark
+          // pushed into the page does.
+          padding: EdgeInsets.only(top: tracked ? 4 : 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              SizedBox(
+                width: CraftArt.ribbon.width,
+                height: CraftArt.ribbon.height,
+                child: art == null
+                    ? CustomPaint(painter: _RibbonPainter(lit: tracked))
+                    : Opacity(
+                        opacity: tracked ? 1 : 0.8,
+                        child: PixelAsset(
+                          assetPath: art.assetPath,
+                          nativeWidth: art.nativeWidth,
+                          nativeHeight: art.nativeHeight,
+                          scale: art.scale,
+                        ),
+                      ),
+              ),
+              const SizedBox(height: StrideSpace.s2),
+              AdaptiveText(
+                tracked ? 'Tracked' : 'Track',
+                style: StrideType.micro,
+                color: tracked
+                    ? StrideColors.textPrimary
+                    : StrideColors.textMuted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The ribbon's fallback: a swallowtail in the page's own inks, at exactly
+/// the size the raster will take.
+class _RibbonPainter extends CustomPainter {
+  _RibbonPainter({required this.lit});
+
+  final bool lit;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path ribbon = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(size.width / 2, size.height - 8)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(
+      ribbon,
+      Paint()
+        ..color = lit ? StrideColors.actionEdge : StrideColors.surfaceBlock,
+    );
+    canvas.drawPath(
+      ribbon,
+      Paint()
+        ..color = StrideColors.borderDefault
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RibbonPainter oldDelegate) => oldDelegate.lit != lit;
 }
 
 /// The running craft: the station stage (when the profession's working loop
