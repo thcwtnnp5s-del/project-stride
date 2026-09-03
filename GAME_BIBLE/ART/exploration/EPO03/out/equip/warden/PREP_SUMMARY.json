@@ -1,0 +1,1086 @@
+[
+  {
+    "id": "traveler_warden_unarmed_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      1,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      19,
+      1,
+      60,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_unarmed_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      5,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      11,
+      1,
+      68,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_unarmed_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      20,
+      1,
+      58,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_unarmed_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      1,
+      11
+    ],
+    "footRowSrc": 73,
+    "union": [
+      12,
+      2,
+      67,
+      64
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      4,
+      2,
+      2
+    ]
+  },
+  {
+    "id": "traveler_warden_unarmed_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      3,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      20,
+      1,
+      59,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steel_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      13,
+      1,
+      65,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steel_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      2,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      11,
+      1,
+      67,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steel_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      12,
+      1,
+      62,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steel_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      2,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      11,
+      2,
+      68,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steel_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      2,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      10,
+      1,
+      68,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronze_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      12,
+      1,
+      63,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronze_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      6,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      10,
+      1,
+      68,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronze_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      14,
+      1,
+      60,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronze_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      3,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      10,
+      1,
+      68,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronze_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      12,
+      2,
+      66,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_longsword_idle",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      31,
+      1,
+      88,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_longsword_attack",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      11,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      10,
+      1,
+      93,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_longsword_hit",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      0,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      18,
+      1,
+      86,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_longsword_stagger",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      12,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      14,
+      1,
+      89,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_longsword_brace",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 104,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      8,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      16,
+      1,
+      87,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_idle_breathe",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 64,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      13,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      14,
+      -1,
+      49,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      2,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_look_around",
+    "ok": true,
+    "frames": 7,
+    "canvasWidth": 64,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      14,
+      14
+    ],
+    "footRowSrc": 76,
+    "union": [
+      12,
+      0,
+      50,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_walk_west",
+    "ok": true,
+    "frames": 6,
+    "canvasWidth": 64,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      16,
+      11
+    ],
+    "footRowSrc": 73,
+    "union": [
+      10,
+      2,
+      53,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_forage",
+    "ok": true,
+    "frames": 9,
+    "canvasWidth": 64,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      11,
+      11
+    ],
+    "footRowSrc": 73,
+    "union": [
+      4,
+      2,
+      58,
+      63
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronzepick_mine",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      11,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      10,
+      1,
+      68,
+      62
+    ],
+    "keyedPixels": 29,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steelpick_mine",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      1,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      12,
+      1,
+      66,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_bronzeaxe_woodcut",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      6,
+      12
+    ],
+    "footRowSrc": 74,
+    "union": [
+      10,
+      1,
+      68,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "traveler_warden_steelaxe_woodcut",
+    "ok": true,
+    "frames": 8,
+    "canvasWidth": 80,
+    "canvasHeight": 64,
+    "anchorRow": 62,
+    "window": [
+      7,
+      16
+    ],
+    "footRowSrc": 78,
+    "union": [
+      8,
+      -2,
+      70,
+      62
+    ],
+    "keyedPixels": 0,
+    "clippedTop": [
+      0,
+      6,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "clippedBottom": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+]

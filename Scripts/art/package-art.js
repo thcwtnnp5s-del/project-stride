@@ -3699,6 +3699,12 @@ function epoStrip(id, frames, width, dest, footprints, src = EPO_EQUIP_SRC) {
       );
     }
     if (/bronze|longsword/.test(id)) toneBronze(frame);
+    // A lone pixel is not ghost gear. The craft re-dress leaves a 2 px chip
+    // off the spoon in one cook frame — the same artifact, from the same
+    // route, that the FMPO02 block despeckles above; the figure is one
+    // component of about 1,300, so a component under four pixels cannot be
+    // anything a player sees.
+    if (/_(smith|cook)$/.test(id)) despeckle(frame, 4);
     // The same ghost-gear guard every Traveler strip ships under: a frame
     // whose opaque pixels are not one 8-connected piece is a weapon off the
     // hand or a floating artifact (`RULES.md` A-1).
@@ -3837,8 +3843,11 @@ const EPO_WARDEN_SPRITE = path.join(
 );
 for (const held of ['unarmed', 'steel', 'bronze', 'longsword']) {
   for (const [track, frames] of EPO_LONGSWORD_TRACKS) {
-    epoStrip(`traveler_warden_${held}_${track}`, frames, 80, 'combat',
-      combatFootprints, EPO_WARDEN_SRC);
+    // The warden's longsword needs the wider declared canvas the base body's
+    // does, for the same reason: its union box measures 84 px across.
+    epoStrip(`traveler_warden_${held}_${track}`, frames,
+      held === 'longsword' ? 104 : 80, 'combat', combatFootprints,
+      EPO_WARDEN_SRC);
   }
 }
 // [id, frames, width]. Forage is authored west and kneels west, which is the

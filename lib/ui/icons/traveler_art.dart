@@ -149,7 +149,13 @@ abstract final class TravelerArt {
     // Coat: long, belted, the heaviest silhouette.
     'item.bearhide_coat': 'armor.coat',
     'item.clawguard_coat': 'armor.coat',
-    'item.frostwarden_coat': 'armor.coat',
+    // **Warden**: a pointed hood up, a tiered cloth mantle wider than the
+    // shoulders, a knee-length coat split up the front so both legs show,
+    // tall boots (EPO03, DIR-08's fifth class). The Frostwarden Coat moves
+    // here from `armor.coat` — a creative call the director made and this
+    // round carried out: it is a warden's coat by name and by tier, and it
+    // was borrowing the bearhide's bulk.
+    'item.frostwarden_coat': 'armor.warden',
     // **The Waywarden's Tunic stops being the shirt** (EPO03, DIR-08 failure
     // 3). It was the last equippable armour with no row: a rare T1 chest
     // piece that Inventory named and every drawing surface then ignored, so
@@ -161,8 +167,11 @@ abstract final class TravelerArt {
     // bulkier through the chest than the shirt. The jerkin is that. When the
     // warden rows exist in every context this row and `frostwarden_coat`
     // move together to `armor.warden`; a half-authored warden class would
-    // fail the projection test, which is the point of it.
-    'item.waywarden_tunic': 'armor.jerkin',
+    // fail the projection test, which is the point of it. **That happened in
+    // the same round**: the warden body is authored in every context, so this
+    // row is the warden's, and the jerkin fallback above is history rather
+    // than a plan.
+    'item.waywarden_tunic': 'armor.warden',
     // Weapons. `item.training_sword` **is mapped now** (FMPO02): its absence
     // was honest only on the base body, whose baked blade is a plain steel
     // sword. On a plated body the same fallthrough drew the base clothes —
@@ -231,6 +240,7 @@ abstract final class TravelerArt {
     'armor.plate': 'assets/art/v1/sprite/traveler_south_plate.png',
     'armor.jerkin': 'assets/art/v1/sprite/traveler_south_jerkin.png',
     'armor.coat': 'assets/art/v1/sprite/traveler_south_coat.png',
+    'armor.warden': 'assets/art/v1/sprite/traveler_south_warden.png',
   };
 
   /// Armour class → the bust that wears it (FMPO02): the shipped portrait
@@ -240,6 +250,7 @@ abstract final class TravelerArt {
     'armor.plate': 'assets/art/v1/portrait/traveler_plate.png',
     'armor.jerkin': 'assets/art/v1/portrait/traveler_jerkin.png',
     'armor.coat': 'assets/art/v1/portrait/traveler_coat.png',
+    'armor.warden': 'assets/art/v1/portrait/traveler_warden.png',
   };
 
   /// The bust for [visual], or null for the base portrait the caller owns.
@@ -404,6 +415,41 @@ abstract final class TravelerArt {
       canvasWidth: 80,
       strikeFrame: 1,
     ),
+    // EPO03 — the warden's four working loops and its kneel. Authored from
+    // the warden state's own west rotation with the tool put in his hands by
+    // a one-generation edit, then animated: the garment is the state's, so it
+    // cannot drift from the figure the Character folio shows. Strike frames
+    // are the measured furthest reach of the head.
+    'skill.mining|armor.warden|tool.pick.bronze': GatherStrip(
+      frames: _strip('traveler_warden_bronzepick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerWardenBronzepickMine,
+      canvasWidth: 80,
+      strikeFrame: 3,
+    ),
+    'skill.mining|armor.warden|tool.pick.steel': GatherStrip(
+      frames: _strip('traveler_warden_steelpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerWardenSteelpickMine,
+      canvasWidth: 80,
+      strikeFrame: 6,
+    ),
+    'skill.woodcutting|armor.warden|tool.axe.bronze': GatherStrip(
+      frames: _strip('traveler_warden_bronzeaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerWardenBronzeaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.woodcutting|armor.warden|tool.axe.steel': GatherStrip(
+      frames: _strip('traveler_warden_steelaxe_woodcut', 8),
+      footprint: SpriteFootprints.ambientTravelerWardenSteelaxeWoodcut,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.foraging|armor.warden': GatherStrip(
+      frames: _forage('warden'),
+      footprint: SpriteFootprints.ambientTravelerWardenForage,
+      canvasWidth: 64,
+      strikeFrame: 8,
+    ),
     'skill.foraging|armor.plate': GatherStrip(
       frames: _forage('plate'),
       footprint: SpriteFootprints.ambientTravelerPlateForage,
@@ -478,6 +524,11 @@ abstract final class TravelerArt {
           SpriteFootprints.ambientTravelerCoatIdleBreathe,
           SpriteFootprints.ambientTravelerCoatLookAround,
         ),
+        'armor.warden': _idles(
+          'warden',
+          SpriteFootprints.ambientTravelerWardenIdleBreathe,
+          SpriteFootprints.ambientTravelerWardenLookAround,
+        ),
       };
 
   /// (walk) body class → a six-frame west walk. The base is not listed.
@@ -486,6 +537,7 @@ abstract final class TravelerArt {
         'armor.plate': _strip('traveler_plate_walk_west', 6),
         'armor.jerkin': _strip('traveler_jerkin_walk_west', 6),
         'armor.coat': _strip('traveler_coat_walk_west', 6),
+        'armor.warden': _strip('traveler_warden_walk_west', 6),
       };
 
   static String? _variantOf(String? itemId) =>
@@ -607,13 +659,13 @@ abstract final class TravelerArt {
   /// lands on the same visible contact. Keyed `'<skill>|<body>'`; no tool
   /// axis — the hammer and the spoon are the station's, not the loadout's.
   static final Map<String, GatherStrip> craftVariants = <String, GatherStrip>{
-    for (final String body in <String>['plate', 'jerkin', 'coat'])
+    for (final String body in <String>['plate', 'jerkin', 'coat', 'warden'])
       'skill.smithing|armor.$body': _craftLoop(
         'traveler_${body}_smith',
         canvasWidth: 74,
         footprint: _craftFootprints['${body}_smith']!,
       ),
-    for (final String body in <String>['plate', 'jerkin', 'coat'])
+    for (final String body in <String>['plate', 'jerkin', 'coat', 'warden'])
       'skill.cooking|armor.$body': _craftLoop(
         'traveler_${body}_cook',
         canvasWidth: 46,
@@ -629,6 +681,8 @@ abstract final class TravelerArt {
         'plate_cook': SpriteFootprints.ambientTravelerPlateCook,
         'jerkin_cook': SpriteFootprints.ambientTravelerJerkinCook,
         'coat_cook': SpriteFootprints.ambientTravelerCoatCook,
+        'warden_smith': SpriteFootprints.ambientTravelerWardenSmith,
+        'warden_cook': SpriteFootprints.ambientTravelerWardenCook,
       };
 
   /// Seven authored frames down and five back up, the tool low at the turn

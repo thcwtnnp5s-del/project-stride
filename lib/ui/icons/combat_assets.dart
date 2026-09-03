@@ -603,6 +603,41 @@ abstract final class CombatAssets {
           stagger: SpriteFootprints.combatTravelerCoatUnarmedStagger,
           brace: SpriteFootprints.combatTravelerCoatUnarmedBrace,
         ),
+        // EPO03 — the fifth body. The Waywarden's Tunic and the Frostwarden
+        // Coat used to draw the shirt and the bearhide coat; the warden is
+        // hooded, mantled and split-skirted, and it holds all four weapon
+        // classes. Its longsword row is in [longswordLoadouts] with the rest
+        // of that class.
+        'armor.warden|weapon.unarmed': _loadout(
+          'warden',
+          'unarmed',
+          strikeFrame: 3,
+          idle: SpriteFootprints.combatTravelerWardenUnarmedIdle,
+          attack: SpriteFootprints.combatTravelerWardenUnarmedAttack,
+          hit: SpriteFootprints.combatTravelerWardenUnarmedHit,
+          stagger: SpriteFootprints.combatTravelerWardenUnarmedStagger,
+          brace: SpriteFootprints.combatTravelerWardenUnarmedBrace,
+        ),
+        'armor.warden|weapon.steel': _loadout(
+          'warden',
+          'steel',
+          strikeFrame: 1,
+          idle: SpriteFootprints.combatTravelerWardenSteelIdle,
+          attack: SpriteFootprints.combatTravelerWardenSteelAttack,
+          hit: SpriteFootprints.combatTravelerWardenSteelHit,
+          stagger: SpriteFootprints.combatTravelerWardenSteelStagger,
+          brace: SpriteFootprints.combatTravelerWardenSteelBrace,
+        ),
+        'armor.warden|weapon.bronze': _loadout(
+          'warden',
+          'bronze',
+          strikeFrame: 7,
+          idle: SpriteFootprints.combatTravelerWardenBronzeIdle,
+          attack: SpriteFootprints.combatTravelerWardenBronzeAttack,
+          hit: SpriteFootprints.combatTravelerWardenBronzeHit,
+          stagger: SpriteFootprints.combatTravelerWardenBronzeStagger,
+          brace: SpriteFootprints.combatTravelerWardenBronzeBrace,
+        ),
       };
 
   /// **The Bronze Longsword is a different weapon to look at** (EPO03,
@@ -662,6 +697,17 @@ abstract final class CombatAssets {
           hit: SpriteFootprints.combatTravelerCoatLongswordHit,
           stagger: SpriteFootprints.combatTravelerCoatLongswordStagger,
           brace: SpriteFootprints.combatTravelerCoatLongswordBrace,
+        ),
+        'armor.warden|weapon.longsword': _loadout(
+          'warden',
+          'longsword',
+          strikeFrame: 7,
+          canvasWidth: 104,
+          idle: SpriteFootprints.combatTravelerWardenLongswordIdle,
+          attack: SpriteFootprints.combatTravelerWardenLongswordAttack,
+          hit: SpriteFootprints.combatTravelerWardenLongswordHit,
+          stagger: SpriteFootprints.combatTravelerWardenLongswordStagger,
+          brace: SpriteFootprints.combatTravelerWardenLongswordBrace,
         ),
         'base|weapon.longsword': _loadout(
           'base',

@@ -26,6 +26,7 @@ String _token(String bodyClass) => switch (bodyClass) {
   'armor.plate' => 'traveler_plate',
   'armor.jerkin' => 'traveler_jerkin',
   'armor.coat' => 'traveler_coat',
+  'armor.warden' => 'traveler_warden',
   _ => 'base',
 };
 

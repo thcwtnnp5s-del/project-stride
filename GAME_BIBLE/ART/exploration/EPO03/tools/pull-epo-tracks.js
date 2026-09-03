@@ -16,7 +16,9 @@ const sep = String.fromCharCode(92);
 const rows = fs.readFileSync(process.argv[2], 'utf8').split(/\r?\n/)
   .map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).map((l) => l.split(/\t+/));
 const lines = []; const jobs = [];
-for (const [name, nS, animId] of rows) {
+for (const [name, nS, animId, dirArg, charArg] of rows) {
+  const dir = dirArg || 'east';
+  const chr = charArg || CHAR;
   const n = Number(nS);
   const outDir = path.join(ROOT, 'raw', 'equip', name);
   fs.mkdirSync(outDir, { recursive: true });
@@ -24,7 +26,7 @@ for (const [name, nS, animId] of rows) {
   for (let i = 0; i < n; i++) {
     const f = path.join(outDir, `f${i}.png`);
     frames.push(f);
-    lines.push('https://backblaze.pixellab.ai/file/pixellab-characters/' + ACC + '/' + CHAR + '/animations/' + animId + '/east/' + i + '.png ' + path.relative(ROOT, f).split(sep).join('/'));
+    lines.push('https://backblaze.pixellab.ai/file/pixellab-characters/' + ACC + '/' + chr + '/animations/' + animId + '/' + dir + '/' + i + '.png ' + path.relative(ROOT, f).split(sep).join('/'));
   }
   jobs.push({ name, n, frames });
 }

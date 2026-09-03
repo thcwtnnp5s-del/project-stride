@@ -67,11 +67,19 @@ Widget _host(Widget child) => MediaQuery(
   ),
 );
 
-EquipmentVisualState _holding(String? itemId) => itemId == null
-    ? EquipmentVisualState.none
-    : EquipmentVisualState(
-        weapon: EquippedVisualFact(itemId: itemId, tier: 1, toolKind: 'none'),
-      );
+EquipmentVisualState _holding(String? itemId, {String? armour}) =>
+    itemId == null && armour == null
+        ? EquipmentVisualState.none
+        : EquipmentVisualState(
+            weapon: itemId == null
+                ? null
+                : EquippedVisualFact(
+                    itemId: itemId, tier: 1, toolKind: 'none'),
+            armor: armour == null
+                ? null
+                : EquippedVisualFact(
+                    itemId: armour, tier: 1, toolKind: 'none'),
+          );
 
 void main() {
   setUpAll(loadRealFont);
@@ -98,6 +106,9 @@ void main() {
     // EPO03: the fifth held class. The Bronze Longsword used to resolve to
     // the bronze set, so this row and the one above it were the same picture.
     ('longsword', 'item.bronze_longsword'),
+    // EPO03: the fifth body, fighting in what it is wearing.
+    ('warden_longsword', 'item.bronze_longsword'),
+    ('warden_unarmed', null),
   ]) {
     testWidgets('$label: the stage at 393 x 852, at rest and mid-swing', (
       WidgetTester tester,
@@ -108,7 +119,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
 
-      final EquipmentVisualState eq = _holding(item);
+      final EquipmentVisualState eq = _holding(
+        item,
+        armour: label.startsWith('warden') ? 'item.waywarden_tunic' : null,
+      );
       await tester.pumpWidget(
         _host(CombatStage(view: _view(), report: null, equipment: eq)),
       );
@@ -137,6 +151,8 @@ void main() {
           'unarmed' => 'traveler_unarmed_idle',
           'bronze' => 'traveler_bronze_idle',
           'longsword' => 'traveler_base_longsword_idle',
+          'warden_longsword' => 'traveler_warden_longsword_idle',
+          'warden_unarmed' => 'traveler_warden_unarmed_idle',
           _ => 'traveler_combat_idle',
         }),
         reason: '$label drew $idleSprite at rest',

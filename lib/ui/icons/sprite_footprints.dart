@@ -533,6 +533,76 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_traveler_warden_bronzepick_mine` — 11 px of contact, 37..47.
+  static const SpriteFootprint ambientTravelerWardenBronzepickMine = SpriteFootprint(
+    left: 37,
+    right: 47,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_steelpick_mine` — 11 px of contact, 35..45.
+  static const SpriteFootprint ambientTravelerWardenSteelpickMine = SpriteFootprint(
+    left: 35,
+    right: 45,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_bronzeaxe_woodcut` — 11 px of contact, 32..42.
+  static const SpriteFootprint ambientTravelerWardenBronzeaxeWoodcut = SpriteFootprint(
+    left: 32,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_steelaxe_woodcut` — 11 px of contact, 33..43.
+  static const SpriteFootprint ambientTravelerWardenSteelaxeWoodcut = SpriteFootprint(
+    left: 33,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_forage` — 11 px of contact, 27..37.
+  static const SpriteFootprint ambientTravelerWardenForage = SpriteFootprint(
+    left: 27,
+    right: 37,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_warden_idle_breathe` — 23 px of contact, 21..43.
+  static const SpriteFootprint ambientTravelerWardenIdleBreathe = SpriteFootprint(
+    left: 21,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_look_around` — 23 px of contact, 20..42.
+  static const SpriteFootprint ambientTravelerWardenLookAround = SpriteFootprint(
+    left: 20,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_walk_west` — 11 px of contact, 27..37.
+  static const SpriteFootprint ambientTravelerWardenWalkWest = SpriteFootprint(
+    left: 27,
+    right: 37,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_warden_smith` — 13 px of contact, 30..42.
+  static const SpriteFootprint ambientTravelerWardenSmith = SpriteFootprint(
+    left: 30,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_warden_cook` — 13 px of contact, 21..33.
+  static const SpriteFootprint ambientTravelerWardenCook = SpriteFootprint(
+    left: 21,
+    right: 33,
+    bottom: 62,
+  );
+
   /// `combat_traveler_attack` — 12 px of contact, 34..45.
   static const SpriteFootprint combatTravelerAttack = SpriteFootprint(
     left: 34,
@@ -1398,6 +1468,146 @@ abstract final class SpriteFootprints {
   static const SpriteFootprint combatTravelerBaseLongswordBrace = SpriteFootprint(
     left: 49,
     right: 91,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_unarmed_idle` — 11 px of contact, 37..47.
+  static const SpriteFootprint combatTravelerWardenUnarmedIdle = SpriteFootprint(
+    left: 37,
+    right: 47,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_unarmed_attack` — 11 px of contact, 33..43.
+  static const SpriteFootprint combatTravelerWardenUnarmedAttack = SpriteFootprint(
+    left: 33,
+    right: 43,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_unarmed_hit` — 11 px of contact, 38..48.
+  static const SpriteFootprint combatTravelerWardenUnarmedHit = SpriteFootprint(
+    left: 38,
+    right: 48,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_unarmed_stagger` — 11 px of contact, 37..47.
+  static const SpriteFootprint combatTravelerWardenUnarmedStagger = SpriteFootprint(
+    left: 37,
+    right: 47,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_warden_unarmed_brace` — 11 px of contact, 35..45.
+  static const SpriteFootprint combatTravelerWardenUnarmedBrace = SpriteFootprint(
+    left: 35,
+    right: 45,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_steel_idle` — 11 px of contact, 34..44.
+  static const SpriteFootprint combatTravelerWardenSteelIdle = SpriteFootprint(
+    left: 34,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_steel_attack` — 11 px of contact, 36..46.
+  static const SpriteFootprint combatTravelerWardenSteelAttack = SpriteFootprint(
+    left: 36,
+    right: 46,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_steel_hit` — 17 px of contact, 28..44.
+  static const SpriteFootprint combatTravelerWardenSteelHit = SpriteFootprint(
+    left: 28,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_steel_stagger` — 11 px of contact, 36..46.
+  static const SpriteFootprint combatTravelerWardenSteelStagger = SpriteFootprint(
+    left: 36,
+    right: 46,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_steel_brace` — 11 px of contact, 34..44.
+  static const SpriteFootprint combatTravelerWardenSteelBrace = SpriteFootprint(
+    left: 34,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_bronze_idle` — 11 px of contact, 34..44.
+  static const SpriteFootprint combatTravelerWardenBronzeIdle = SpriteFootprint(
+    left: 34,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_bronze_attack` — 16 px of contact, 27..42.
+  static const SpriteFootprint combatTravelerWardenBronzeAttack = SpriteFootprint(
+    left: 27,
+    right: 42,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_bronze_hit` — 11 px of contact, 34..44.
+  static const SpriteFootprint combatTravelerWardenBronzeHit = SpriteFootprint(
+    left: 34,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_bronze_stagger` — 9 px of contact, 33..41.
+  static const SpriteFootprint combatTravelerWardenBronzeStagger = SpriteFootprint(
+    left: 33,
+    right: 41,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_bronze_brace` — 11 px of contact, 34..44.
+  static const SpriteFootprint combatTravelerWardenBronzeBrace = SpriteFootprint(
+    left: 34,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_longsword_idle` — 43 px of contact, 46..88.
+  static const SpriteFootprint combatTravelerWardenLongswordIdle = SpriteFootprint(
+    left: 46,
+    right: 88,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_longsword_attack` — 40 px of contact, 45..84.
+  static const SpriteFootprint combatTravelerWardenLongswordAttack = SpriteFootprint(
+    left: 45,
+    right: 84,
+    bottom: 63,
+  );
+
+  /// `combat_traveler_warden_longsword_hit` — 40 px of contact, 46..85.
+  static const SpriteFootprint combatTravelerWardenLongswordHit = SpriteFootprint(
+    left: 46,
+    right: 85,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_longsword_stagger` — 42 px of contact, 41..82.
+  static const SpriteFootprint combatTravelerWardenLongswordStagger = SpriteFootprint(
+    left: 41,
+    right: 82,
+    bottom: 62,
+  );
+
+  /// `combat_traveler_warden_longsword_brace` — 11 px of contact, 42..52.
+  static const SpriteFootprint combatTravelerWardenLongswordBrace = SpriteFootprint(
+    left: 42,
+    right: 52,
     bottom: 62,
   );
 
