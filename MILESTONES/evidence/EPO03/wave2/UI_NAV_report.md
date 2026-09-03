@@ -1,6 +1,6 @@
 # PROD-UI-NAV — the kit and the bottom nav (EPO03 Wave 2)
 
-Branch `fable5-executive-production-overhaul-03`. Cap **320**, spent **92**.
+Branch `fable5-executive-production-overhaul-03`. Cap **320**, spent **258**.
 Ledger `GAME_BIBLE/ART/exploration/EPO03/ledger/UI_KIT.md`. Contract
 `MILESTONES/evidence/EPO03/wave2/KIT_CONTRACT.md`. Requests
 `REQUESTS_NAV.md`.
@@ -18,7 +18,7 @@ Ledger `GAME_BIBLE/ART/exploration/EPO03/ledger/UI_KIT.md`. Contract
 
 | **The kit's art** — three pro frames and four remapped rejects, registered | `5b92ef6` |
 
-**Assets: eight shipped.** `nav/nav_welt_v2.png` (8 × 6, ×2), drawn by *both* the
+**Assets: thirteen shipped.** `nav/nav_welt_v2.png` (8 × 6, ×2), drawn by *both* the
 nav bar and the header shelf — one chassis, one stitch, layout-neutral — plus
 `kit/`: `inset_well` (61², corner 16 / band 15, ×1), `slot_well` (32², 6 / 4,
 ×2), `stage_frame` (114², **26** / 19, ×1), `rule_journal` (8 × 6 tile,
@@ -113,3 +113,44 @@ Sheets: `review/ui/frames_x3.png`, `nav_small_x6.png`, `strips_x3.png`,
 None. Q-26 was **answered** by `DIR-15` §2 and is now implemented: the glyph is
 type, the backing is chrome, and the plate — not a brighter glyph — carries the
 active state.
+
+
+---
+
+## Final pass — the producer released the full cap
+
+Spend **258 of 320**. **Thirteen assets ship**, from 3 accepted of 32 pixen
+rolls plus 10 accepted across 11 pro calls and deterministic post-work.
+
+**Landed:** `nav_welt_v2`; frames `inset_well`, `slot_well`, `stage_frame`,
+`btn_plate_v2`, `page_sealed`; tiles `rule_journal`, `rule_chart`,
+`rail_shelf`, `edge_spine`; ornaments `tab_plate`, `ribbon_label`,
+`rule_ornate_a`. Commits `5b92ef6`, `80463ee`, `3e1fa02`.
+
+**Three findings worth more than the assets:**
+
+1. **A white face is a key, not a reject.** The button plate and the sealed
+   page both came back with painted-white centres and measured as "solid
+   plate, not a frame". Keying every pixel over L 0.5 to alpha 0 turned six
+   rejects into usable frames for zero generations.
+2. **A corner is not a band.** Twice now the corner block had to be wider than
+   the measured rim — 26 against 19 on the stage frame, 8 against 5 on the
+   button — because the corner *cap* is wider than the *rim*, and at the
+   smaller figure the painter tiles the cap along every run. No measurement
+   shows this; `ninepatch-proof.js` renders it.
+3. **The incumbent can win.** 40 generations across 128 nav candidates
+   produced nothing better than the Flutter-painted nav plate and well. The
+   nav is not swapped, and that is a measured verdict.
+
+**Rejected in this pass, with reasons:** `inset_stage` (solid, no hole),
+`rule_bench` (a pure-black hairline `separator` already draws better),
+`pocket_rule` (tiles as a blue-grey checkerboard), `case_strap` (unreadably
+dark), `edge_torn` (a closed scrap, not an edge), `rail_strap` (grey rubble),
+`nav_well` and `nav_plate_active` (open or paper-thin outlines), and the three
+torn-edge `page_sealed` candidates — rejected *for* the tear, which makes the
+bottom band 0 at mid-span and cannot carry one inset.
+
+**Still open:** eighteen kit names have no art and paint fallbacks; `ribbonLabel`
+is fixed-width until someone writes a three-patch painter; `btnPlateV2` is
+registered but not wired into `StrideButton`'s 43 call sites; goldens remain
+stale by design; no device verdict on any of it.

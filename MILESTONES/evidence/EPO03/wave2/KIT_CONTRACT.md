@@ -369,3 +369,36 @@ item, or a step cost.
   better, and `pocketRule` / `caseStrap` / `railStrap` came back as a
   blue-grey checkerboard, an unreadably dark smear and grey rubble
   respectively. Those four keep their fallbacks.
+- 2026-09-02 — **final rows** (`3e1fa02`). **Thirteen assets ship.**
+
+  | Name | Asset | Native | corner / band or period | scale | figure |
+  |---|---|---|---|---|---|
+  | `KitFrame.pageSealed` | `kit/page_sealed.png` | 61 × 61 | 18 / 15 | 1 | inset **15** dp |
+  | `KitMark.ruleOrnateA` | `kit/rule_ornate_a.png` | 192 × 16 | ornament | 1 | 192 × 16 |
+
+  `pageSealed`'s declared inset moves 12 → **15**. `ruleOrnateA` is picture
+  class like a band: drawn once at ×1, centred and clipped, **never tiled** —
+  its flourishes are once-only ornaments and a repeating strip would beat them
+  across the page. Use it through `KitOrnament(mark: KitMark.ruleOrnateA)`, or
+  let `KitRule` place it for you.
+
+  **The nav plate and well stay Flutter-painted, and that is now a verdict
+  rather than a gap.** Pro was given 64 candidates per call for both and
+  produced only open or paper-thin outlines; none beats the painted plate the
+  producer accepted on the device. `KitFrame.navWell` and `navPlateActive`
+  stay declared and empty on purpose.
+
+  **Still unlanded, with fallbacks that are finished work**: `insetStage`,
+  `slipPinned`, `peekPlate`, `labelPlate`(`Selected`), `navWell`,
+  `navPlateActive`; tiles `ruleBench`, `pocketRule`, `edgeTorn`, `caseStrap`,
+  `railStrap`, `sheetEdge`; marks `ruleOrnateB`, `ruleCapLeft`/`Right`,
+  `gaugeBracketLeft`/`Right`, `peekTab`, `sheetGrip`, `btnQuietCapLeft`/`Right`.
+  Each returns its declared geometry and paints a square, one-weight fallback,
+  so nothing you build against them is blocked or will reflow.
+
+  **The method, if someone picks this up:** pro, canvas ≤ 85 px for 16
+  candidates (≤ 42 px for 64), an accepted asset as `style_image_url` **and**
+  as a labelled `reference_image`, the value named in the prompt when it must
+  be dark, then `frame-measure.js` → key any white face → `ceiling-clamp.js` →
+  `ninepatch-proof.js` before declaring a corner. Push the reference before
+  the call: a raw.githubusercontent URL at an unpushed SHA 404s.
