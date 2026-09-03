@@ -653,6 +653,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(s.combatFigures.attack, 3);
     expect(find.text('unarmed'), findsNothing);
+    // The worn weapon is named in the folio's margin wells beside the bust,
+    // near the top of the page — and this test is scrolled down at the combat
+    // ledger. Scroll back up to it: the point of the assertion is that the
+    // page followed the loadout, and it did.
+    await tester.scrollUntilVisible(
+      find.text('Training Sword'),
+      -120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Training Sword'), findsOneWidget);
   });
 
