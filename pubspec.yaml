@@ -180,7 +180,12 @@ flutter:
     # three command plates and their glyphs. Packaged and declared here; the
     # stage geometry that draws them is a separate task, and the nine-patch
     # numbers each was built to are in assets/ui/v1/README.md. Retreat has no
-    # icon on purpose — ART-09 §5 specifies it as a plain text link.
+    # icon on purpose — ART-09 §5 specifies it as a plain text link, and EPO03
+    # re-confirmed that at integration: DIR-11 commissioned a glyph, PROD-UI-
+    # COMBAT authored one, and the producer declined to wire it because the
+    # rail's own argument is stronger — the plates are what the fight is
+    # fought with and Retreat is the way out of it, so it stays words. The
+    # authored glyph is kept in GAME_BIBLE/ART/exploration/EPO03/out/combat/.
     - assets/ui/v1/combat/hp_gauge_frame.png
     - assets/ui/v1/combat/turn_marker.png
     - assets/ui/v1/combat/narration_strip.png
