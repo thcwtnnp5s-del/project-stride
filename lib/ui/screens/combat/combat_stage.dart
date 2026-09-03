@@ -56,14 +56,44 @@
 /// below the top rather than 32 — which is the whole point of the taller
 /// canvas, and it is sky, not a headroom band.
 ///
-/// The HUD is a strip **beneath** the backdrop, not an overlay, and stays
-/// there now that there is room above the guardian's crown: the gauges are a
-/// 32 dp authored chassis each and the narration already owns the picture's
-/// bottom edge, so bars on the sky would spend the 64 dp the fight just
-/// gained on chrome. Only the turn marker and chip (and BOSS) sit on the
-/// picture, in the two top corners, which every backdrop and every figure
-/// leave clear.
+/// ## The chassis (EPO03, `DIR-11`)
+///
+/// The stage is no longer a picture with a type band under it. It is a bound
+/// object, and the fight lives inside it:
+///
+/// ```text
+///   ┌───────────────────────────────┐  frame band   19  (KitFrame.stageFrame)
+///   │  Traveler 34/40  TURN 3  Wolf │  lintel       64
+///   ├───────────────────────────────┤
+///   │                               │
+///   │        t h e   f i g h t      │  picture     256
+///   │                               │
+///   ├───────────────────────────────┤
+///   │  A glancing blow for 3.       │  sill         40
+///   └───────────────────────────────┘  frame band   19
+///                                                  ───
+///                                                  398
+/// ```
+///
+/// 398 dp of a 727 dp content column — 55 %, against a rail of 120 (16 %), a
+/// fight-to-rail ratio of 3.3 : 1 where it was about 1.2 : 1. Nothing in that
+/// figure is bought from the picture: the frame is drawn **over** a full-bleed
+/// column ([_StageFrame] — [PixelFrame] paints eight patches and no interior),
+/// so the backdrop keeps the whole chassis width and loses only the columns
+/// the beams cover, which are columns it was clipping anyway. What the
+/// chassis costs is the 100 dp type band that used to sit below it, and it
+/// gives back a lintel of 64 that says the same four things smaller and a
+/// sill of 40 that gives the narration a dark shelf instead of a translucent
+/// veil over the contact shadows.
+///
+/// A landed blow now moves the *frame*, not only the figure inside it: a
+/// damped 4 dp rock over 120 ms (6 over three cycles when the blow is heavy)
+/// and an 80 ms white veil at 12 % / 24 % over the picture. Both are keyed to
+/// the recoil's own instant, and both are zero under Reduce Motion, where the
+/// gauge, the impact burst and the narration each still say a blow landed.
 library;
+
+import 'dart:math' as math;
 
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter/widgets.dart';
@@ -72,6 +102,7 @@ import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/grounded_sprite.dart';
+import '../../components/panel_skin.dart';
 import '../../components/pixel_asset.dart';
 import '../../icons/combat_assets.dart';
 import '../../icons/traveler_art.dart';
@@ -128,6 +159,32 @@ class CombatStage extends StatefulWidget {
 
   final int scale;
 
+  /// The lintel: the band above the picture that carries both gauge wells and
+  /// the TURN / BOSS chips (`DIR-11`). 64 dp holds one 16 dp label row — the
+  /// name and its `hp / max` — over the 32 dp authored gauge, inside 6 dp of
+  /// air top and bottom.
+  static const double lintelHeight = 64;
+
+  /// The narration sill: the band below the picture the round's one line sits
+  /// on. It used to be a translucent strip **over** the picture's own contact
+  /// shadows; on the chassis it is a dark shelf of the frame's own interior,
+  /// which is why the line's contrast stopped depending on what the backdrop
+  /// happens to be doing underneath it.
+  static const double sillHeight = 40;
+
+  /// The whole chassis, top band to bottom band, at [scale].
+  ///
+  /// Published so the screen can budget its page and its rail against the
+  /// same figure the stage actually lays out, rather than a constant written
+  /// twice. The band is [KitFrames.insetFor], which is the declared figure
+  /// before the raster lands and the measured one after — the same number
+  /// either way, so nothing reflows when the art arrives.
+  static double chassisHeight({int scale = 2}) =>
+      KitFrames.insetFor(KitFrame.stageFrame) * 2 +
+      lintelHeight +
+      CombatAssets.backdropHeight * scale +
+      sillHeight;
+
   @override
   State<CombatStage> createState() => _CombatStageState();
 }
@@ -162,6 +219,8 @@ final class _Shot {
     required this.heal,
     required this.healRise,
     required this.heavyFlash,
+    this.shake = 0,
+    this.whiten = 0,
     this.enemyFade = 1,
     this.enemySink = 0,
   });
@@ -191,6 +250,20 @@ final class _Shot {
   final int healRise;
   final bool heavyFlash;
 
+  /// The picture's own horizontal displacement this frame, in dp — the blow
+  /// landing in the *frame* rather than only in the figure it landed on
+  /// (`DIR-11`: "a landed hit moves the picture"). A damped sine: 4 dp over
+  /// two cycles in 120 ms, 6 dp over three when the blow is heavy. Zero under
+  /// Reduce Motion, where the hit is still told by the gauge, the impact
+  /// burst and the narration — the channel is decorative and its information
+  /// is carried three other ways (M-16).
+  final double shake;
+
+  /// A white veil over the picture on the frame a blow lands, 0..1. 0.12 for
+  /// an ordinary hit, 0.24 for a heavy one, gone inside 80 ms. Zero under
+  /// Reduce Motion.
+  final double whiten;
+
   bool sameAs(_Shot o) {
     if (travelerTrack != o.travelerTrack ||
         travelerFrame != o.travelerFrame ||
@@ -205,6 +278,10 @@ final class _Shot {
         heal != o.heal ||
         healRise != o.healRise ||
         heavyFlash != o.heavyFlash ||
+        // Whole dp and whole percent: a shake compared at full precision
+        // rebuilds on every vsync for a difference no pixel can show.
+        shake.round() != o.shake.round() ||
+        (whiten * 100).round() != (o.whiten * 100).round() ||
         effects.length != o.effects.length) {
       return false;
     }
@@ -242,7 +319,6 @@ class _CombatStageState extends State<CombatStage>
   double _enemyHpFrom = 0;
   double _playerHpFrom = 0;
   late int _turn;
-  late bool _telegraph;
 
   /// The pose the enemy holds after a defeat (or a stood-in defeat), or `null`
   /// while it idles.
@@ -324,7 +400,6 @@ class _CombatStageState extends State<CombatStage>
     _enemyHp = v.enemyHp.toDouble();
     _playerHp = v.playerHp.toDouble();
     _turn = v.turn;
-    _telegraph = v.telegraph;
   }
 
   /// Reduce Motion, read the way every other screen in the product reads it
@@ -446,7 +521,6 @@ class _CombatStageState extends State<CombatStage>
     _enemyHpFrom = _enemyHp;
     _playerHpFrom = _playerHp;
     if (s.turn case final int t) _turn = t;
-    if (s.telegraph case final bool t) _telegraph = t;
     // The heavy blow lands in the hand as it lands on screen — once, at the
     // frame the arm comes down (`StageSegment.heavyImpactAt`), never at the
     // segment's start and never per frame. The skip path (`_applyRemaining`)
@@ -495,7 +569,6 @@ class _CombatStageState extends State<CombatStage>
     if (s.enemyHpTo case final int hp) _enemyHp = hp.toDouble();
     if (s.playerHpTo case final int hp) _playerHp = hp.toDouble();
     if (s.turn case final int t) _turn = t;
-    if (s.telegraph case final bool t) _telegraph = t;
     if (s.enemyHoldsPose) {
       if (s.enemyTrack case final CombatTrack t) {
         _heldEnemy = (t, t.frameCount - 1);
@@ -649,6 +722,28 @@ class _CombatStageState extends State<CombatStage>
     return (6 * f).round();
   }
 
+  /// How long the picture rocks after a blow lands.
+  static const Duration _shakeWindow = Duration(milliseconds: 120);
+
+  /// How long the white veil is up. One frame at 60 Hz is 16 ms; 80 gives the
+  /// veil enough life to be *seen* on a phone that drops a frame, and it is
+  /// still gone before the recoil is.
+  static const Duration _whitenWindow = Duration(milliseconds: 80);
+
+  /// The damped rock, in dp: [_shakeWindow] long, amplitude falling linearly
+  /// to nothing, two cycles at 4 dp or three at 6 when the blow is heavy.
+  double _shakeAt(Duration since, bool heavy) {
+    if (since < Duration.zero || since >= _shakeWindow) return 0;
+    final double f = since.inMicroseconds / _shakeWindow.inMicroseconds;
+    final double cycles = heavy ? 3 : 2;
+    return (heavy ? 6.0 : 4.0) * (1 - f) * math.sin(f * cycles * 2 * math.pi);
+  }
+
+  double _whitenAt(Duration since, bool heavy) {
+    if (since < Duration.zero || since >= _whitenWindow) return 0;
+    return heavy ? 0.24 : 0.12;
+  }
+
   _Shot _shotAt(Duration elapsed) {
     final CombatantArt? enemy = _enemy;
     final Duration clock = _sequenceBase + elapsed;
@@ -677,6 +772,8 @@ class _CombatStageState extends State<CombatStage>
     int? heal;
     int healRise = 0;
     bool flash = false;
+    double shake = 0;
+    double whiten = 0;
     double enemyFade = 1;
     int enemySink = 0;
 
@@ -707,6 +804,17 @@ class _CombatStageState extends State<CombatStage>
           travelerDx = -_recoilAt(elapsed - s.recoilStart);
         case null:
           break;
+      }
+      // The frame's own answer to a blow (`DIR-11` §Feedback). It is keyed to
+      // the same instant the recoil is — the moment a figure is struck — so
+      // the picture and the figure move together rather than the stage
+      // inventing a beat of its own. Both channels are pure motion and pure
+      // flicker, so both are zeroed under Reduce Motion; nothing they say is
+      // said only by them.
+      if (!_reduceMotion && s.recoil != null) {
+        final Duration since = elapsed - s.recoilStart;
+        shake = _shakeAt(since, s.heavyFlash);
+        whiten = _whitenAt(since, s.heavyFlash);
       }
       enemyHp = _tween(_enemyHpFrom, s.enemyHpTo, s, elapsed);
       playerHp = _tween(_playerHpFrom, s.playerHpTo, s, elapsed);
@@ -750,6 +858,8 @@ class _CombatStageState extends State<CombatStage>
       heal: heal,
       healRise: healRise,
       heavyFlash: flash,
+      shake: shake,
+      whiten: whiten,
       enemyFade: enemyFade,
       enemySink: enemySink,
     );
@@ -777,6 +887,7 @@ class _CombatStageState extends State<CombatStage>
         final double width = c.maxWidth.isFinite && c.maxWidth < full
             ? c.maxWidth.floorToDouble()
             : full;
+        final double band = KitFrames.insetFor(KitFrame.stageFrame);
         return Semantics(
           label: playing
               ? 'Combat stage. Tap to skip the replay.'
@@ -784,40 +895,64 @@ class _CombatStageState extends State<CombatStage>
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: playing ? _skip : null,
-            child: Center(
-              child: SizedBox(
-                width: width,
-                child: ClipRRect(
-                  borderRadius: StrideRadius.card,
-                  child: ColoredBox(
-                    color: StrideColors.surfaceGround,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        RepaintBoundary(
-                          child: _Scene(
-                            width: width,
-                            scale: scale,
-                            backdrop: CombatAssets.backdropFor(v.location),
-                            traveler: _traveler,
-                            enemy: _enemy,
-                            shot: shot,
-                            turn: _turn,
-                            boss: v.isBoss,
-                            narration: widget.narration,
+            child: SizedBox(
+              width: width,
+              height: CombatStage.chassisHeight(scale: scale),
+              child: Stack(
+                children: <Widget>[
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: StrideColors.surfaceGround,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          // The frame's top band. Reserved as a row rather
+                          // than paid as padding, so the picture below it
+                          // keeps the chassis's full width and the frame's
+                          // left and right beams lie *over* the backdrop's
+                          // outermost columns — which is what "full-bleed,
+                          // clipped under the frame" means.
+                          SizedBox(height: band),
+                          SizedBox(
+                            height: CombatStage.lintelHeight,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: band),
+                              child: _Lintel(
+                                view: v,
+                                enemyHp: shot.enemyHp.round(),
+                                playerHp: shot.playerHp.round(),
+                                turn: _turn,
+                                boss: v.isBoss,
+                              ),
+                            ),
                           ),
-                        ),
-                        _Hud(
-                          view: v,
-                          enemyHp: shot.enemyHp.round(),
-                          playerHp: shot.playerHp.round(),
-                          telegraph: _telegraph,
-                          heavyFlash: shot.heavyFlash,
-                        ),
-                      ],
+                          RepaintBoundary(
+                            child: _Scene(
+                              width: width,
+                              scale: scale,
+                              backdrop: CombatAssets.backdropFor(v.location),
+                              traveler: _traveler,
+                              enemy: _enemy,
+                              shot: shot,
+                            ),
+                          ),
+                          SizedBox(
+                            height: CombatStage.sillHeight,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: band),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: widget.narration ?? const SizedBox(),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: band),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  const Positioned.fill(child: _StageFrame()),
+                ],
               ),
             ),
           ),
@@ -837,13 +972,7 @@ class _Scene extends StatelessWidget {
     required this.traveler,
     required this.enemy,
     required this.shot,
-    required this.turn,
-    required this.boss,
-    this.narration,
   });
-
-  /// The narration strip, pinned to the picture's bottom edge.
-  final Widget? narration;
 
   final double width;
   final int scale;
@@ -851,8 +980,6 @@ class _Scene extends StatelessWidget {
   final CombatantArt traveler;
   final CombatantArt? enemy;
   final _Shot shot;
-  final int turn;
-  final bool boss;
 
   @override
   Widget build(BuildContext context) {
@@ -916,7 +1043,15 @@ class _Scene extends StatelessWidget {
     return SizedBox(
       width: width,
       height: height.toDouble(),
-      child: Stack(
+      child: ClipRect(
+        child: Transform.translate(
+          // The whole picture rocks, inside its own clip: the backdrop is
+          // wider than the window on every phone the stage is drawn at (384
+          // native dp against 361 at 393, and the frame's 19 dp beams cover
+          // the rest), so a 6 dp displacement never uncovers the ground
+          // behind it.
+          offset: Offset(shot.shake, 0),
+          child: Stack(
         clipBehavior: Clip.hardEdge,
         children: <Widget>[
           Positioned(
@@ -946,30 +1081,6 @@ class _Scene extends StatelessWidget {
             ),
           for (final (EffectArt, StageActor, int) fx in shot.effects)
             effect(fx),
-          // The turn, and BOSS, as chips in the sky's corners: the top-left
-          // 60 dp is clear above the Traveler's head on every backdrop, and
-          // the guardian's crown (opaque right edge 318 dp of the backdrop)
-          // stops short of a top-right chip.
-          //
-          // **No ornament beside the numeral.** FMPO02 briefly drew the
-          // authored `turn_marker.png` here as a leather tab; on the device
-          // it read as a round copper disc with a rim — a coin next to a
-          // number, which is the casino register L-16/L-17 forbid outright.
-          // The chip already carries the whole fact, so the repair is a
-          // deletion rather than a redraw. The asset stays packaged and
-          // unwired (`CombatHudAssets.turnMarker`); its manifest row records
-          // why it is not drawn.
-          Positioned(
-            left: StrideSpace.s8,
-            top: StrideSpace.s8,
-            child: _Chip('TURN $turn'),
-          ),
-          if (boss)
-            const Positioned(
-              right: StrideSpace.s8,
-              top: StrideSpace.s8,
-              child: _Chip('BOSS'),
-            ),
           if (shot.heal case final int heal)
             Positioned(
               left: (offset + CombatAssets.travelerColumn * scale - 24)
@@ -987,35 +1098,72 @@ class _Scene extends StatelessWidget {
                 ),
               ),
             ),
-          // The round's one line, on the picture rather than on the card
-          // beneath it (`ART-09` §4). Position is the heading the block used
-          // to need: a line along the fight's own bottom edge says "now"
-          // without a word spent saying so.
-          //
-          // It is drawn last, so it sits over the figures, and it is pinned
-          // to the bottom, so it costs the command card nothing.
-          //
-          // The taller 192 × 128 family has landed and **did not remove the
-          // overlap `ART-09` §2 expected it to**: the re-authored canvases
-          // added their 32 rows above the old row 32, and the ground stayed 8
-          // rows up from the canvas bottom (row 88 of 96 → row 120 of 128), so
-          // there are still only 16 dp of picture below the feet. The strip
-          // still covers the contact-shadow band, and it is still translucent
-          // for exactly that reason. What the taller canvas bought is sky
-          // above the figures, which is where the guardian needed it.
-          if (narration case final Widget strip)
-            Positioned(left: 0, right: 0, bottom: 0, child: strip),
+          // The blow's own light, over everything and gone in 80 ms. Drawn
+          // last so it whitens the figures and the effect burst as well as
+          // the ground, which is what makes it read as the *impact* rather
+          // than as the weather changing.
+          if (shot.whiten > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: const Color(0xFFFFFFFF).withValues(
+                    alpha: shot.whiten,
+                  ),
+                ),
+              ),
+            ),
         ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+/// The chassis's iron binding, drawn **over** the picture.
+///
+/// [PixelFrame] paints eight patches and no interior, so a frame laid over a
+/// full-bleed column covers the picture's outermost columns and rows and
+/// leaves everything between them alone. That is the whole difference between
+/// a stage that is *inside* a frame — which costs the picture 38 dp of width
+/// — and one that is *bound* by it, which costs it nothing.
+///
+/// Until `KitFrame.stageFrame`'s raster is registered the fallback is a 2 dp
+/// rule in `borderDefault`, at the same reserved band, so the chassis is the
+/// same size either way (KIT_CONTRACT §0).
+class _StageFrame extends StatelessWidget {
+  const _StageFrame();
+
+  @override
+  Widget build(BuildContext context) {
+    final PanelSkin? skin = KitFrames.of(KitFrame.stageFrame);
+    return IgnorePointer(
+      child: skin == null
+          ? DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: StrideColors.borderDefault,
+                  width: 2,
+                ),
+              ),
+              child: const SizedBox.expand(),
+            )
+          : PixelFrame(skin: skin, child: const SizedBox.expand()),
     );
   }
 }
 
 /// A small dark label over the scene.
 class _Chip extends StatelessWidget {
-  const _Chip(this.label);
+  const _Chip(this.label, {this.dense = false});
 
   final String label;
+
+  /// Halved vertical padding, for the lintel — where two chips stack inside
+  /// 52 dp and the label's own line box is already most of it. The chip is a
+  /// tab in a band there, not a mark floating on a picture, so it needs less
+  /// air around it, not more.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -1024,9 +1172,9 @@ class _Chip extends StatelessWidget {
       borderRadius: StrideRadius.chip,
     ),
     child: Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: StrideSpace.s6,
-        vertical: StrideSpace.s4,
+        vertical: dense ? 1 : StrideSpace.s4,
       ),
       child: Text(
         label,
@@ -1036,82 +1184,100 @@ class _Chip extends StatelessWidget {
   );
 }
 
-/// The strip beneath the picture: both fighters' names, bars and figures, the
-/// turn, and the telegraph line when it is set.
-class _Hud extends StatelessWidget {
-  const _Hud({
+/// The lintel: the band the chassis carries above the picture.
+///
+/// It holds everything the old HUD strip did — both names, both gauges, both
+/// `hp / max` figures, the turn and BOSS — in 64 dp instead of ~100, and it
+/// holds them **inside the frame** rather than on a type band underneath it.
+/// Three changes make the arithmetic work, and each of them is also the
+/// better reading:
+///
+/// * the name and its figure share one 16 dp row rather than bracketing the
+///   gauge, so the gauge is the tallest thing in each column and reads as the
+///   reading rather than as a rule under a title;
+/// * the names are `micro` and the figures `sub` (`DIR-11`) — they were
+///   `sectionHeading` and a 22 pt `numericValue`, which is display weight
+///   spent on a number that changes every round and is also drawn as a bar
+///   two dp below itself;
+/// * TURN and BOSS come off the sky and into the centre of the lintel, where
+///   they are chrome among chrome. They were the only two objects on the
+///   picture that were not the fight.
+///
+/// The stage's own telegraph line goes with them. "The Forest Wolf gathers
+/// itself…" was said here *and* on the narration sill *and*, as the danger
+/// rust, on the screen's intent line — three statements of one fact, of
+/// which the sill's is the authored prose and the intent line's is the one
+/// the thumb is looking at. This one was the duplicate.
+class _Lintel extends StatelessWidget {
+  const _Lintel({
     required this.view,
     required this.enemyHp,
     required this.playerHp,
-    required this.telegraph,
-    required this.heavyFlash,
+    required this.turn,
+    required this.boss,
   });
 
   final EncounterView view;
   final int enemyHp;
   final int playerHp;
-  final bool telegraph;
-  final bool heavyFlash;
+  final int turn;
+  final bool boss;
+
+  /// The centre column. Wide enough for `TURN 12` at `microLabel` with the
+  /// chip's own 6 dp of horizontal padding, and fixed, so the two gauges
+  /// beside it stay the same width as the turn count grows.
+  static const double _chipColumn = 68;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      StrideSpace.s12,
-      StrideSpace.s10,
-      StrideSpace.s12,
-      StrideSpace.s10,
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    padding: const EdgeInsets.symmetric(vertical: StrideSpace.s6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(
-              child: _Combatant(
-                name: 'Traveler',
-                hp: playerHp,
-                maxHp: view.playerMaxHp,
-                alignEnd: false,
-              ),
-            ),
-            const SizedBox(width: StrideSpace.s16),
-            Expanded(
-              child: _Combatant(
-                name: view.enemyName,
-                hp: enemyHp,
-                maxHp: view.enemyMaxHp,
-                alignEnd: true,
-                threat: true,
-              ),
-            ),
-          ],
-        ),
-        if (telegraph) ...<Widget>[
-          const SizedBox(height: StrideSpace.s8),
-          Text(
-            'The ${view.enemyName} gathers itself…',
-            textAlign: TextAlign.center,
-            // A heavy blow landing brightens the line for a moment. The
-            // palette has no warning hue and this deliberately does not add
-            // one (StrideColors); weight and value carry it.
-            style: heavyFlash
-                ? StrideType.sub.copyWith(
-                    color: StrideColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  )
-                : StrideType.sub.copyWith(color: StrideColors.textPrimary),
-            maxLines: 2,
+        Expanded(
+          child: _Gauge(
+            name: 'Traveler',
+            hp: playerHp,
+            maxHp: view.playerMaxHp,
+            alignEnd: false,
           ),
-        ],
+        ),
+        const SizedBox(width: StrideSpace.s6),
+        SizedBox(
+          width: _chipColumn,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _Chip('TURN $turn', dense: true),
+              if (boss) ...<Widget>[
+                const SizedBox(height: StrideSpace.s2),
+                const _Chip('BOSS', dense: true),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: StrideSpace.s6),
+        Expanded(
+          child: _Gauge(
+            name: view.enemyName,
+            hp: enemyHp,
+            maxHp: view.enemyMaxHp,
+            alignEnd: true,
+            threat: true,
+          ),
+        ),
       ],
     ),
   );
 }
 
-/// One name, one bar, one `hp / max`.
-class _Combatant extends StatelessWidget {
-  const _Combatant({
+/// One combatant's well: a label row, then the gauge.
+///
+/// The name leans outward and the figure inward, so the two readouts mirror
+/// across the chips and the eye finds "how much is left" in the same place on
+/// both sides — beside the centre, where the two bars meet.
+class _Gauge extends StatelessWidget {
+  const _Gauge({
     required this.name,
     required this.hp,
     required this.maxHp,
@@ -1130,32 +1296,48 @@ class _Combatant extends StatelessWidget {
   final bool threat;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: alignEnd
-        ? CrossAxisAlignment.end
-        : CrossAxisAlignment.start,
-    children: <Widget>[
-      // Shrinks rather than truncates: "Hollow Guardian" is 15 characters
-      // and the column is about 138 dp on a 393 dp phone, less on a 320.
-      AdaptiveText(
-        name,
-        style: StrideType.sectionHeading,
-        textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+  Widget build(BuildContext context) {
+    // Shrinks rather than truncates: "Hollow Guardian" is 15 characters and
+    // the column is about 117 dp on a 393 dp phone, less on a 320 (D-01).
+    final Widget label = AdaptiveText(
+      name,
+      style: StrideType.micro,
+      color: StrideColors.textSecondary,
+      textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+    );
+    final Widget figure = Text(
+      '$hp / $maxHp',
+      style: StrideType.sub.copyWith(
+        color: StrideColors.textPrimary,
+        fontFeatures: StrideType.tabularFigures,
       ),
-      const SizedBox(height: StrideSpace.s4),
-      _HpBar(
-        fraction: maxHp <= 0 ? 0 : (hp / maxHp).clamp(0, 1),
-        threat: threat,
-      ),
-      const SizedBox(height: StrideSpace.s2),
-      Text(
-        '$hp / $maxHp',
-        style: StrideType.numericValue.copyWith(
-          fontFeatures: StrideType.tabularFigures,
+      maxLines: 1,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            if (alignEnd) ...<Widget>[
+              figure,
+              const SizedBox(width: StrideSpace.s6),
+              Expanded(child: label),
+            ] else ...<Widget>[
+              Expanded(child: label),
+              const SizedBox(width: StrideSpace.s6),
+              figure,
+            ],
+          ],
         ),
-      ),
-    ],
-  );
+        const SizedBox(height: StrideSpace.s2),
+        _HpBar(
+          fraction: maxHp <= 0 ? 0 : (hp / maxHp).clamp(0, 1),
+          threat: threat,
+        ),
+      ],
+    );
+  }
 }
 
 /// The HP gauge: an **authored chassis with a Flutter-painted fill inside it**

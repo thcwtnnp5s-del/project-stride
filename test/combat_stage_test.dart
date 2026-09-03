@@ -309,9 +309,13 @@ void main() {
           .first,
     );
     expect(placed.top, 240 - 83 * 2);
-    // Column 138 of the backdrop, which is 12 dp left of the 361 dp stage
-    // ((361 − 384) / 2 floored), minus the footprint centre (38..57 → 48).
-    expect(placed.left, -12 + 138 * 2 - 48 * 2);
+    // Column 128 of the backdrop — 138 until EPO03, moved 10 native columns
+    // in to close the 80 dp gap between the two figures (`DIR-11`) — which is
+    // 12 dp left of the 361 dp stage ((361 − 384) / 2 floored), minus the
+    // footprint centre (38..57 → 48). The figure did not move on the ground
+    // row and its canvas did not change; only the column it stands on did.
+    expect(placed.left, -12 + CombatAssets.enemyColumn * 2 - 48 * 2);
+    expect(CombatAssets.enemyColumn, 128, reason: 'the closed gap');
     expect(find.text('BOSS'), findsOneWidget);
     expect(find.text('Hollow Guardian'), findsOneWidget);
   });
