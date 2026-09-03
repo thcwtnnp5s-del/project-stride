@@ -3,38 +3,110 @@
   "regions": [
     {
       "id": "E1",
-      "x": 716, "y": 0, "w": 254, "h": 360,
-      "atlas": "756-930 x 40-320",
-      "rect": { "x0": 40, "y0": 40, "x1": 214, "y1": 320 },
-      "ramps": { "left": 32, "right": 24, "top": 32, "bottom": 24 },
-      "inpaint": { "x": 40, "y": 40, "w": 174, "h": 280 },
-      "salt": 100, "seed": 0, "status": "pending",
-      "coreAuthor": true,
-      "reauthorizes": ["volcano_east_cliff", "east_watchtower_flank"],
+      "x": 580,
+      "y": 0,
+      "w": 340,
+      "h": 300,
+      "atlas": "620-880 x 40-250",
+      "rect": {
+        "x0": 40,
+        "y0": 40,
+        "x1": 300,
+        "y1": 250
+      },
+      "ramps": {
+        "left": 24,
+        "right": 24,
+        "top": 24,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 40,
+        "y": 40,
+        "w": 260,
+        "h": 210
+      },
+      "salt": 100,
+      "seed": 0,
+      "status": "pending",
+      "reauthorizes": [],
       "cut": {
-        "seaMargin": 24, "inpaintMargin": 18, "minLand": 40, "holeInflate": 2,
+        "seaMargin": 24,
+        "inpaintMargin": 18,
+        "minLand": 40,
+        "holeInflate": 2,
         "holes": [
-          { "x": 752, "y": 258, "w": 32, "h": 62, "why": "east-cliff cape and cliff top: volcano_east_cliff identity, byte-held; only the golden's ice and sea rows east of x=784 are re-authored" }
+          {
+            "x": 810,
+            "y": 142,
+            "w": 30,
+            "h": 30,
+            "why": "Rimespire prop (824,156) must keep ice under it (DIR-01 anchor)"
+          }
         ]
       },
-      "intent": "The shelf's hard white diagonal (900,80)->(800,281) becomes a calving front: lobed graded ice face with a shadow foot, tabular bergs and brash off the edge, winding leads cutting back into the shelf; the sea stays the one sea; the front's south tip meets the east-cliff cape as a tri-join."
+      "intent": "The shelf hard near-straight white edge and the repeating crack-cell honeycomb behind it become one calving front: a lobed shelf face with a blue shadow foot, tabular bergs of many sizes drifting free, brash thinning seaward, winding leads cutting back at irregular angles, and the shelf interior carried by long wind-drift bands and pressure ridges instead of a repeating net. The sea itself is never authored - the mask stops at the ice."
     },
     {
       "id": "E2",
-      "x": 556, "y": 192, "w": 248, "h": 168,
+      "x": 556,
+      "y": 192,
+      "w": 248,
+      "h": 168,
       "atlas": "600-764 x 232-320",
-      "rect": { "x0": 44, "y0": 40, "x1": 208, "y1": 128 },
-      "ramps": { "left": 32, "right": 24, "top": 32, "bottom": 24 },
-      "inpaint": { "x": 44, "y": 40, "w": 164, "h": 88 },
-      "salt": 101, "seed": 0, "status": "pending",
+      "rect": {
+        "x0": 44,
+        "y0": 40,
+        "x1": 208,
+        "y1": 128
+      },
+      "ramps": {
+        "left": 32,
+        "right": 24,
+        "top": 32,
+        "bottom": 24
+      },
+      "inpaint": {
+        "x": 44,
+        "y": 40,
+        "w": 164,
+        "h": 88
+      },
+      "salt": 101,
+      "seed": 0,
+      "status": "pending",
       "coreAuthor": true,
-      "reauthorizes": ["volcano_east_cliff", "east_watchtower_flank"],
+      "reauthorizes": [
+        "volcano_east_cliff",
+        "east_watchtower_flank"
+      ],
       "cut": {
-        "seaMargin": 24, "inpaintMargin": 18, "minLand": 40, "holeInflate": 2,
+        "seaMargin": 24,
+        "inpaintMargin": 18,
+        "minLand": 40,
+        "holeInflate": 2,
         "holes": [
-          { "x": 626, "y": 288, "w": 22, "h": 34, "why": "Rimewatch tower (639,296), byte-held" },
-          { "x": 728, "y": 272, "w": 24, "h": 52, "why": "Emberhold tower (743,288) and the east_watchtower_flank golden 744-752 x 273-323, byte-held" },
-          { "x": 752, "y": 258, "w": 32, "h": 62, "why": "east-cliff cape: volcano_east_cliff identity, byte-held" }
+          {
+            "x": 626,
+            "y": 288,
+            "w": 22,
+            "h": 34,
+            "why": "Rimewatch tower (639,296), byte-held"
+          },
+          {
+            "x": 728,
+            "y": 272,
+            "w": 24,
+            "h": 52,
+            "why": "Emberhold tower (743,288) and the east_watchtower_flank golden 744-752 x 273-323, byte-held"
+          },
+          {
+            "x": 752,
+            "y": 258,
+            "w": 32,
+            "h": 62,
+            "why": "east-cliff cape: volcano_east_cliff identity, byte-held"
+          }
         ]
       },
       "intent": "The ice->volcano butt at y~280 becomes the volcano's north shoulder: snow greying into ash-dusted drifts, cooled lava tongues and boulders through the snow, a meltwater pool at the rock's foot, steam where hot rock meets ice; the rock silhouette and both towers exactly as they were. Cut from the composite after E1 ships."
