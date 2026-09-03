@@ -154,6 +154,14 @@ permitted by `RULES.md` A-2 and with precedent in this repo at commit
 roll REJECT throws away a good asset and spends the cap again on its
 replacement.
 
+**A painted-white face is a key, not a rejection.** Asked for a frame, the
+model often returns the same frame with its centre filled solid, and it
+measures as "solid plate, not a frame". Key everything above L 0.5 to
+alpha 0 and the frame is there underneath. This turned six rejects into
+shipped frames for zero generations on 2026-09-02. Together with the tone
+remap above, the two recoveries account for ten of the kit’s thirteen
+landed assets — **measure before you reject, and try the cheap recovery
+before you spend the cap again.**
 **For flat, hollow or nine-patchable chrome, `create_image_pro` is the
 default — not the expensive fallback.** Measured on 2026-09-02: the three
 frame families that 32 pixen rolls refused (`inset_well`, `slot_well`,
