@@ -16,3 +16,35 @@ Brief: `MILESTONES/evidence/EPO03/wave1/DIR-13_reward_game_feel.md`.
 Ten further assets landed at **cost 0** by deterministic remap of drawings
 this repo had already accepted — rows 1-3. DIR-13 budgeted 66 generations;
 the kit and the Craft workshop had already authored the shapes.
+
+## Withdrawn without a generation
+
+- **The corner bracket** (`ornament_corner`) leaves the result slip, per
+  DIR-13 and confirmed on the render: at ×2 the bronze corners land *outside*
+  the deckled page, floating in the void, reading as a stray ornament rather
+  than as significance (`review/rewards/bracket_before.png` against
+  `bracket_after.png`). Its job moves to `KitMark.ruleOrnateA`, already
+  shipped by the kit — the first ruled line of a notable slip is the
+  illustrated divider. Cost 0.
+- **The reward glow** (`StrideColors.rewardGlow` on the card's shadow) is
+  gone: DIR-13 finding 4, a warm bloom around a rounded dark card reading as
+  a focus ring. Nothing replaces it; the material and the ornate rule carry
+  the tier.
+
+## Not authored, and why (no generations spent)
+
+- `plate_level_stamp` 64² — `KitFrame.slotWell` is already a stamped well and
+  holds the 48 dp skill glyph. Pixen's measured failure mode is exactly
+  "asked for a well, draws an object inside it" (PRODUCTION_RULES §2a).
+  8 rolls saved.
+- `stamp_verb` nine-patch 96×32 — `KitMark.ribbonLabel` is the short-label
+  plate. 8 rolls saved.
+- `seal_rare_wax` 24² — Craft's `craft_seal_blank` is a blank wax seal.
+  6 rolls saved.
+- `slip_paper` nine-patch — `KitFrame.pageSealed` is a deckled paper page.
+  8 rolls saved.
+- `badge_level_r1/r2/r3` — needs a milestone *rank* that nothing hands
+  `LevelUpCard`; deriving one would be inventing a threshold (G-3).
+  20 rolls not spent.
+- `mark_first_find` — cannot be wired without `craft_screen.dart`, which is
+  PROD-UI-CRAFT's file. 6 rolls not spent.
