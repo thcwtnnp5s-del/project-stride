@@ -1292,8 +1292,9 @@ blocks the plates' switch-on and nothing else.
 ## Q-22 — Combat HUD asset sizes: ART-09 brief vs wave2 dispatch disagree
 
 **Raised:** 2026-09-02, FMPO02 wave2, PROD-COMBAT-STAGE.
-**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
-**Target:** Combat Designer / Creative Director, before the HUD assets are
+**CLOSED** 2026-09-03, EPO03 wave 2, PROD-UI-COMBAT — see the closing note at
+the end of this entry.
+**Was for:** Combat Designer / Creative Director, before the HUD assets were
 wired into `combat_assets.dart` or `combat_stage.dart`.
 
 `ART-09_combat_brief.md` §3 specifies one set of native canvases and
@@ -1315,6 +1316,36 @@ spec is authoritative, `ART-09_combat_brief.md` §3 should be amended rather
 than left silently contradicted (the brief's own §8 rule for exactly this
 situation), and the integrator needs a decision before wiring layout math
 that assumes one set of numbers over the other.
+
+**Closed (EPO03 wave 2, `DIR-11`, PROD-UI-COMBAT).** Neither column wins,
+because the question was two sets of numbers for the same wrong shape. The
+command plates were built at 64 × 32 and integrated as **centred ornaments**
+rather than as the nine-patches either spec asked for, because measured they
+are blobs on a transparent field whose corner blocks and edge runs are
+entirely empty — no nine-patch can be cut from any of them at any geometry.
+The disagreement was unresolvable in its own terms.
+
+What resolves it is that the shared kit now ships a real one:
+`KitFrame.btnPlateV2` (`assets/ui/v1/kit/btn_plate_v2.png`, 56 × 24, corner 8 /
+band 5, ×2) — authored flat, hollow and axis-aligned, and since EPO03 wired
+through `StrideButton`'s own call sites. The combat rail draws **that same
+raster** through `KitPlate(frame: KitFrame.btnPlateV2)` at 64 dp and takes each
+command's temperature from Flutter's fill rather than from a third raster, so a
+command plate and a product button are now one construction with one light
+direction and no edge inside the cell.
+
+`plate_attack.png`, `plate_brace.png`, `plate_eat.png`, `turn_marker.png` and
+`narration_strip.png` stay packaged and **unwired**; a case in
+`combat_ui_test.dart` asserts the three plates no longer reach the screen, so
+they cannot drift back. `icon_attack.png` was re-shipped in the same pass with
+its baked transparency-checkerboard keyed out — 91 pixels of one exact ink,
+`#0C0B0F`, and zero generations.
+
+**`ART-09_combat_brief.md` §3 is superseded by `DIR-11` rather than amended.**
+The HUD it specified — rod gauges on a type band, a turn coin, a parchment
+strip, four ornament plates — is not the surface that shipped. Its gauge frame
+(96 × 16, the one of the four that measured as a usable chassis) is the only
+row that carries over, now set into the chassis lintel.
 
 ## Q-23 — `habitat_cave_shadow` still reads as a wall, not a floor
 
@@ -1547,3 +1578,46 @@ in `_TierHeader`; whatever is decided costs one line each and no layout.
 if so, the names and how many levels each spans (three is this screen's
 grouping, not a system fact); and whether the names are shared across the
 trades or per trade.
+
+## Q-30 — What is on the combat page between rounds?
+
+**Raised:** 2026-09-03, EPO03 wave 2, PROD-UI-COMBAT.
+**UNRESOLVED** — recorded rather than guessed (`RULES.md` G-3).
+**Target:** Creative Director / Lead Game Designer, before anyone fills it.
+
+`DIR-11` gives the rebuilt combat screen a leather **page** between the
+chassis and the command rail — "~207 dp, leather ground, no card; Eat chooser
+and result resolve here" — and that is exactly what shipped. Measured on the
+device render it is 163 dp at 393 × 852, and on an ordinary turn, with nothing
+chosen and nothing resolving, it is **empty**: one 18 dp intent line at the
+top and then bare grained leather down to the rail
+(`GAME_BIBLE/ART/exploration/EPO03/review/device/combat/page_wolf_turn.png`).
+
+That is the brief's design and it may well be right — the room is what stops
+the fight and its buttons touching, and it is made of a material rather than
+being a hole. It is also the one thing on the screen a device read is most
+likely to call out, and there are three different answers, each with
+consequences past this screen:
+
+1. **Nothing — as shipped.** Silence between rounds is the fight breathing.
+2. **The round's own account.** Show the last two or three narration lines
+   there by default, not only when the sill's one line is tapped. Zero cost
+   and it uses the room for the fight's words — but it is close to the log
+   block `ART-12` §6 deleted, and reintroducing it by another door is a
+   design reversal, not a layout fix.
+3. **A taller picture.** `DIR-11`'s own tranche 2: inpaint the four 192 × 128
+   backdrops to 192 × 160, making the picture 320 dp and the page about 100.
+   **This team declined to spend the 80 generations for it, and the render is
+   the reason.** The 256 dp picture already carries roughly 100 dp of sky and
+   canopy above the Traveler's head; +64 dp of *more sky* trades empty leather
+   below the fight for empty air above it, and the figures sit lower in a
+   taller frame. Tranche 2 was specified before the chassis existed, when the
+   picture was the whole fight surface and headroom was the guardian's
+   problem; the chassis solved the guardian's crown with a lintel instead.
+   If the picture should grow, the rows want to be **ground**, not sky — a
+   different and more expensive brief.
+
+**What a decision needs to say:** whether the page is meant to be empty
+between rounds; if not, whether the fight's narration is what fills it (and
+how that is not the deleted log block); and whether the backdrop family is
+ever re-authored taller, and at which end.

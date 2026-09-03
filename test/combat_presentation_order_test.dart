@@ -25,7 +25,6 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
-import 'package:stride/ui/components/data_display.dart';
 import 'package:stride/ui/components/grounded_sprite.dart';
 import 'package:stride/ui/screens/combat/combat_screen.dart';
 import 'package:stride/ui/screens/combat/combat_stage.dart';
