@@ -217,6 +217,7 @@ class ActivityResultCard extends StatelessWidget {
     final List<Widget> facts = <Widget>[
       if (result.bonusQuantity > 0)
         _RuledFact(
+          ornate: notable,
           mark: RewardArt.markBonusYield,
           label: 'Bonus yield',
           figure: '+${result.bonusQuantity}',
@@ -224,12 +225,17 @@ class ActivityResultCard extends StatelessWidget {
         ),
       if (result.rarity case final Rarity r when r.rank >= Rarity.rare.rank)
         _RuledFact(
+          ornate: notable && result.bonusQuantity == 0,
           mark: RewardArt.markRareDrop,
           label: '${r.label} drop',
           ink: RarityStyle.of(r).ink,
         ),
       if (result.xp > 0 && result.skillName != null)
         _RuledFact(
+          ornate:
+              notable &&
+              result.bonusQuantity == 0 &&
+              (result.rarity?.rank ?? 0) < Rarity.rare.rank,
           mark: RewardArt.markExp,
           label: '${result.skillName} experience',
           figure: '+${result.xp}',
@@ -319,20 +325,15 @@ class ActivityResultCard extends StatelessWidget {
       ),
     );
 
-    if (!notable) return slip;
-    // The notable escalation is **material, not motion** — a bronze bracket
-    // in two corners and the rarity's ink, nothing that flashes or counts up.
-    // `DECISIONS/0029` allows a raster as a discrete ornament Flutter
-    // positions, which is what this is; it carries no word, number or state,
-    // and it is drawn outside the content box so it can never sit under type.
-    return Stack(
-      clipBehavior: Clip.none,
-      children: <Widget>[
-        slip,
-        const Positioned(top: 0, left: 0, child: _Bracket(quarter: 0)),
-        const Positioned(bottom: 0, right: 0, child: _Bracket(quarter: 2)),
-      ],
-    );
+    // **The corner bracket leaves the slip** (DIR-13). It was VAWO01's answer
+    // to a rounded dark card that had no edge of its own, and against a
+    // deckled page it has nothing left to do: rendered at ×2 it sits *outside*
+    // the paper, floating in the void at two corners, reading as a stray
+    // ornament rather than as significance
+    // (`review/rewards/bracket_before.png`, Read). The page's own torn edge
+    // is the frame now, and the escalation is the ornate rule above the facts
+    // and — from Rare — the wax.
+    return slip;
   }
 }
 
@@ -589,11 +590,23 @@ class _RuledFact extends StatelessWidget {
     required this.label,
     required this.ink,
     this.figure,
+    this.ornate = false,
   });
 
   final String mark;
   final String label;
   final Color ink;
+
+  /// Whether this fact's rule is the illustrated one.
+  ///
+  /// **This is the notable escalation, now that the bracket is gone.** Exactly
+  /// one rule on a slip is ever ornate — the first — because
+  /// `KitMark.ruleOrnateA` is picture class: drawn once at ×1, centred and
+  /// clipped, never tiled, since a repeating strip would beat its scrollwork
+  /// across the page (`KIT_CONTRACT` §8). Two of them on one slip would be
+  /// exactly that. The row's height is the same either way, so a notable slip
+  /// is the same shape as an ordinary one and only its divider differs.
+  final bool ornate;
 
   /// The right-aligned figure — `+12`, `+1`. Null for a fact that is only a
   /// fact, like `Rare drop`.
@@ -605,7 +618,10 @@ class _RuledFact extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: <Widget>[
       const SizedBox(height: StrideSpace.s4),
-      const KitEdge(tile: KitTile.ruleJournal),
+      if (ornate)
+        const Center(child: KitOrnament(mark: KitMark.ruleOrnateA))
+      else
+        const KitEdge(tile: KitTile.ruleJournal),
       Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
@@ -630,30 +646,6 @@ class _RuledFact extends StatelessWidget {
         ],
       ),
     ],
-  );
-}
-
-/// One corner of the notable card's bracket, rotated into place.
-///
-/// One authored asset, four possible orientations — a transform of a drawing,
-/// never four drawings (`RULES.md` A-2).
-class _Bracket extends StatelessWidget {
-  const _Bracket({required this.quarter});
-
-  /// Quarter turns clockwise from the authored top-left orientation.
-  final int quarter;
-
-  @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: RotatedBox(
-      quarterTurns: quarter,
-      child: const PixelAsset(
-        assetPath: RewardArt.ornamentCorner,
-        nativeWidth: 32,
-        nativeHeight: 32,
-        scale: 1,
-      ),
-    ),
   );
 }
 

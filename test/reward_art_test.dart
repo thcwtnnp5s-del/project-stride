@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/ui/components/activity_result.dart';
+import 'package:stride/ui/components/panel_skin.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/icons/reward_art.dart';
 import 'package:stride_core/stride_core.dart' show ContentId, Rarity;
@@ -42,6 +43,21 @@ List<String> _art(WidgetTester tester) => tester
     .map((PixelAsset p) => p.assetPath)
     .toList();
 
+/// The illustrated divider a notable slip carries where an ordinary one
+/// carries the plain journal rule. **This replaced the corner bracket**
+/// (EPO03, DIR-13): against the slip's deckled page the bracket landed
+/// *outside* the paper at two corners and read as a stray ornament
+/// (`GAME_BIBLE/ART/exploration/EPO03/review/rewards/bracket_before.png`,
+/// compared against `bracket_after.png`). The property under test is the
+/// one it always was — the escalation from ordinary to notable is visible —
+/// and it is asserted on the mark that now carries it.
+///
+/// Read from the registry rather than from `KitMarks.pathFor`: that helper
+/// builds `kit/{mark.name}.png` and so answers `ruleOrnateA.png` for a file
+/// that ships as `rule_ornate_a.png`. Reported to the kit owner; the registry
+/// is the source of truth either way.
+final String _ornateRule = KitMarks.of(KitMark.ruleOrnateA)!.assetPath;
+
 void main() {
   test('every mark the table names is packaged', () {
     for (final String path in RewardArt.all) {
@@ -63,23 +79,25 @@ void main() {
     await _pump(tester, _result(rarity: Rarity.common, xp: 12));
     expect(
       _art(tester),
-      isNot(contains(RewardArt.ornamentCorner)),
-      reason: 'a common result must stay the plain card',
+      isNot(contains(_ornateRule)),
+      reason: 'a common result must stay the plain slip',
     );
     // The XP mark is not part of the escalation — it belongs to the fact, and
     // an ordinary result states that fact too.
     expect(_art(tester), contains(RewardArt.markExp));
   });
 
-  testWidgets('a notable result gains the bracket and its bonus mark', (
+  testWidgets('a notable result gains the ornate rule and its bonus mark', (
     WidgetTester tester,
   ) async {
     await _pump(tester, _result(rarity: Rarity.uncommon, bonus: 1, xp: 140));
     final List<String> art = _art(tester);
     expect(
-      art.where((String a) => a == RewardArt.ornamentCorner),
-      hasLength(2),
-      reason: 'two corners, from one authored asset rotated',
+      art.where((String a) => a == _ornateRule),
+      hasLength(1),
+      reason:
+          'exactly one ornate rule: it is picture class, drawn once and never '
+          'tiled, so two on one slip would beat the scrollwork down the page',
     );
     expect(art, contains(RewardArt.markBonusYield));
     expect(art, contains(RewardArt.markExp));
@@ -91,7 +109,7 @@ void main() {
     // `notable` is a proc *or* uncommon-and-up; a common item that procced a
     // bonus is a moment too, and the card has to show it.
     await _pump(tester, _result(rarity: Rarity.common, bonus: 2, xp: 30));
-    expect(_art(tester), contains(RewardArt.ornamentCorner));
+    expect(_art(tester), contains(_ornateRule));
   });
 
   testWidgets('none of the new art is announced', (WidgetTester tester) async {

@@ -179,3 +179,28 @@ is already under the platform minimum. When the painter lands, delete
 
 **Blocking.** No. The two long verbs read correctly today; they simply read
 without their ribbon.
+
+---
+
+## 2026-09-03 — PROD-REWARDS: `KitMarks.pathFor` answers the wrong file
+
+**What.** `KitMarks.pathFor(KitMark.ruleOrnateA)` returns
+`assets/ui/v1/kit/ruleOrnateA.png`. The shipped file is
+`assets/ui/v1/kit/rule_ornate_a.png`, which is what the registry
+(`KitMarks.of(...)!.assetPath`) correctly returns. The helper builds
+`'$_dir/${mark.name}.png'` from the enum name, and the enum is camelCase while
+the assets are snake_case — so it is wrong for every multi-word mark, not just
+this one. `KitFrames.pathFor` has the same shape.
+
+**Why it matters.** Nothing on a screen is broken: the widgets go through
+`of(...)`. But `pathFor` is documented as "where a row's asset will live, so
+the contract and the tree cannot drift", and a caller that trusts it gets a
+path that does not exist and no error until the raster silently fails to
+decode. It cost one test failure here (`test/reward_art_test.dart`).
+
+**Suggested fix.** Have `pathFor` snake-case the enum name, or have it return
+`of(mark)?.assetPath` when the row has landed. Either is a change inside the
+kit and is the kit owner's call, not ours.
+
+**Blocking.** No — `_ornateRule` in `test/reward_art_test.dart` reads the
+registry instead, with a comment pointing here.
