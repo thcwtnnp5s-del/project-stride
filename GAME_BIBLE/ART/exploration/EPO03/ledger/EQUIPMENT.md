@@ -64,3 +64,33 @@ device proof `review/device/equip/gear_longsword_{idle,swing}.png` beside
 | # | what was asked | tool | job id | cost line | verdict | reason |
 |---|---|---|---|---:|---|---|
 | 35 | Waywarden body state on the canonical Traveler, 80×64: tiered shoulder mantle wider than the shoulders, pointed hood up, knee-length split skirt showing both legs, tall boots, cloak tail, empty hands | `create_character_state` | `76bf1ace` | ~44 | pending | |
+| 36–38 | warden east frames holding the steel sword / bronze sword / longsword, from the state's own east rotation | `edit_image_pixen` | `8f88965a` `ea54c02d` `85dce6fb` | 3 | **ACCEPT** | box grows right by 13 / 13 / 27 px; hood, mantle, split skirt, face and foot row identical across all three |
+| — | the first two of those | `edit_image_pixen` | `8111d68f` `7bbbf650` | 0 | **FAILED** | PixelLab returned `[500] Out of CUDA memory` twice; re-fired as rows 36–37 |
+| 39–42 | warden tool frames: bronze pick / bronze axe / steel pick / steel axe, from the west rotation | `edit_image_pixen` | `464f4c91` `89f6fa64` `46cf9932` `5041db01` | 4 | **ACCEPT** | four distinct heads on one unchanged body |
+| 43 | warden bust — the shipped coat portrait re-hooded | `edit_image_pixen` | `67abff8b` | 1 | **ACCEPT** | same face, eyes, beard and framing; hood and mantle only |
+| 44–63 | warden combat, 4 held classes × 5 tracks, v3 east | `animate_character` | 20 groups | 20 | 17 ACCEPT, 3 RE-ROLL | the unarmed punch drew a **black-and-white checkerboard** where the fist should be; the steel and longsword overhead cuts left the 64-row window by 19 and 38 px, and the longsword's union box measured 84 px on an 80-wide canvas |
+| 64–67 | warden bare: idle-breathe 8 / look-around 7 (south), walk-west 6 / forage 9 (west) | `animate_character` | 4 groups | 4 | **ACCEPT** | hood up throughout; the forage kneels **west**, the side the stage stands the plant on, so unlike FMPO02's it is not mirrored |
+| 68–71 | warden gather: bronze/steel pick mine, bronze/steel axe woodcut, v3 west | `animate_character` | 4 groups | 4 | **ACCEPT** | tool present in all 8 of each; the bronze pick loop's 29 px of impact sparks are keyed by `equip-prep`'s largest-component rule |
+| 72–74 | the three re-rolls: the punch as "a bare hand plainly a hand in every frame", the two cuts as "a flat horizontal sweep at waist height, the blade never rising above his shoulder" | `animate_character` | `4a3d3298` `c0d7ed8e` `583b8175` | 3 | **ACCEPT** | all three fit the window with 0 px clipped |
+| 75 | warden smith 7f, reference-mode re-dress against the warden figure | `edit_image` (reference) | `d2f7615a` | ~20 | **REJECT** | the reference rotated him: f1 and f6 show his back, f2 turns him to the viewer with both arms up. Reference mode carries the reference's *pose* as well as its clothes |
+| 76 | warden cook 7f, same route | `edit_image` (reference) | `75d68cb1` | ~20 | **ACCEPT** | pose, spoon, pack and foot row kept exactly; only the clothing changed |
+| 77 | warden smith, **text** mode with "the same pose seen from the side facing right, never turned toward the viewer" | `edit_image` (text) | `e890172e` | ~20 | REJECT | pose fixed, but it invented a small anvil in f3–f4 (box 42 → 61 px) that the stage already draws as its own prop |
+| 78 | warden smith, text mode again with "add nothing to the picture: no anvil, no ground, no workbench" | `edit_image` (text) | `22e82915` | ~20 | **ACCEPT** | every frame's box within ±2 px of the source, foot row 62 throughout, hammer and spark kept, nothing added |
+| 79–83 | **P4** special axe head — a serrated hooked bronze bit with a bone horn spike — swapped into the five bodies' bronze woodcut loops | `edit_image` (text) | `64992fa9` `5a5d48e1` `8e2e05ab` `8bc650b4` `f5ff455f` | ~100 | pending | |
+| 84–88 | **P4** special pick head — a long curved bone horn tip on the bronze socket — swapped into the five bodies' bronze mining loops | `edit_image` (text) | `4f75f715` `0f390aa3` `ae9e2601` `a9f200fb` `76aa8310` | ~100 | pending | |
+
+## Standing facts, continued
+
+- **`edit_image` reference mode carries the reference's pose, not only its
+  clothes.** It was right for the cook (a compact figure) and wrong for the
+  smith (a two-armed swing), where it turned the man to the viewer and to his
+  back. Text mode with an explicit "the same pose seen from the side facing
+  right" holds the pose; add "add nothing to the picture" or it will invent
+  the station furniture.
+- **v3 leaves the 64-row window on any overhead cut** once the figure is drawn
+  a little larger, and it reports that only as a taller source canvas. The
+  lever that fixes it is describing a **flat horizontal sweep at waist height,
+  the blade never rising above the shoulder** — the same wording that fixed
+  the coat's longsword brace.
+- `edit_image_pixen` fails with `[500] Out of CUDA memory` under load; it is a
+  server fault, costs nothing, and the same call succeeds when re-fired.
