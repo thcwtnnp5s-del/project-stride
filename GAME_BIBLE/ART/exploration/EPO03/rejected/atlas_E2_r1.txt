@@ -1,0 +1,14 @@
+E2 roll 1 (job e52ddd83-03fc-4b6e-9ad0-5555ea84a394, seed 1004, 20 gens) — REJECT.
+The mask reached onto the cone, so the tool rebuilt the cone: the black rock
+mass grew far north into the snowfield, a new summit crater with a teal pool
+appeared where snow had been, the Emberhold tower was painted out entirely,
+and near-identical dark boulder blobs were scattered across the drifts
+(repeated sprites). The dither smear it was sent to remove is still there.
+DIR-01 requires the rock silhouette and both towers exactly as they were.
+Intent changed, not the seed: the mask must not touch the rock at all. Added
+`cut.freezeDark` to atlas-maskcut.js — every pixel of the source crop below a
+CIE L* threshold, dilated, is forced to 0 — so the whole volcano silhouette
+and both towers are frozen byte-exact and only the snow side of the join is
+authored (ash tongues, boulders bedded in the drifts, a melt pool and steam
+against the rock's edge).
+Sheet: review/atlas/E2_r1_x3.png

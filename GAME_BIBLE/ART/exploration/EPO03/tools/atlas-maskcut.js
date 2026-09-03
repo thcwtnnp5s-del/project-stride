@@ -48,6 +48,14 @@ const holeInflate = cut.holeInflate === undefined ? 2 : cut.holeInflate;
 // generator pattern (a slab, then a fresh honeycomb); a ribbon leaves it no
 // room to invent one. Narrows only, never widens (G-4). Undefined = disabled.
 const landMargin = cut.landMargin === undefined ? null : cut.landMargin;
+// (d) EPO03 east, added after E2 roll 1: FREEZE DARK. Every source pixel below
+// `cut.freezeDark.maxL` (CIE L*), dilated by `inflate`, is forced to 0. E2 roll
+// 1 put the mask on the volcano and the tool rebuilt the cone, grew the rock
+// north into the snow and painted the Emberhold tower out. On this crop rock
+// and towers sit at L* < 30 and everything else at L* > 50, so the threshold
+// freezes the whole silhouette byte-exact and lets the snow be authored right
+// up against it — "author around them, do not repaint them" made mechanical.
+const freezeDark = cut.freezeDark || null;
 const landInpaintMargin = cut.landInpaintMargin === undefined
   ? (landMargin === null ? null : landMargin - 6) : cut.landInpaintMargin;
 const holes = cut.holes || [];
@@ -158,13 +166,34 @@ if (landMargin !== null) {
   }
 }
 
+const darkFrozen = new Uint8Array(w * h);
+if (freezeDark) {
+  const { lstar } = require(path.join(ROOT, "tools", "colour.js"));
+  const maxL = freezeDark.maxL === undefined ? 42 : freezeDark.maxL;
+  const inflate = freezeDark.inflate === undefined ? 3 : freezeDark.inflate;
+  const dark = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = src.idx(x, y);
+    if (src.data[i + 3] === 0) continue;
+    if (lstar(src.data[i], src.data[i + 1], src.data[i + 2]) < maxL) dark[y * w + x] = 1;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (!dark[y * w + x]) continue;
+    for (let dy = -inflate; dy <= inflate; dy++) for (let dx = -inflate; dx <= inflate; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      darkFrozen[ny * w + nx] = 1;
+    }
+  }
+}
+
 const inHole = (ax, ay, inflate) => holes.some((r) =>
   ax >= r.x - inflate && ax < r.x + r.w + inflate && ay >= r.y - inflate && ay < r.y + r.h + inflate);
 
 // 4. Narrow the shipping mask; build the PixelLab mask.
 const ip = region.inpaint;
 const paint = new png.Raster(w, h);
-let cutSea = 0, cutHole = 0, cutDeep = 0, white = 0, kept = 0;
+let cutSea = 0, cutHole = 0, cutDeep = 0, cutDark = 0, white = 0, kept = 0;
 for (let y = 0; y < h; y++) {
   for (let x = 0; x < w; x++) {
     const s = y * w + x, ax = region.x + x, ay = region.y + y;
@@ -173,12 +202,13 @@ for (let y = 0; y < h; y++) {
     if (mask.data[mi] > 0 && openSea) { cutSea++; mask.data[mi] = mask.data[mi + 1] = mask.data[mi + 2] = 0; }
     const deepIce = landMargin !== null && wet[s] > landMargin;
     if (mask.data[mi] > 0 && deepIce) { cutDeep++; mask.data[mi] = mask.data[mi + 1] = mask.data[mi + 2] = 0; }
+    if (mask.data[mi] > 0 && darkFrozen[s]) { cutDark++; mask.data[mi] = mask.data[mi + 1] = mask.data[mi + 2] = 0; }
     if (mask.data[mi] > 0 && inHole(ax, ay, 0)) { cutHole++; mask.data[mi] = mask.data[mi + 1] = mask.data[mi + 2] = 0; }
     if (mask.data[mi] > 0) kept++;
     const inRect = ip && x >= ip.x && x < ip.x + ip.w && y >= ip.y && y < ip.y + ip.h;
     const paintable = inRect && !(!big[s] && dist[s] > inpaintMargin)
       && !(landInpaintMargin !== null && wet[s] > landInpaintMargin)
-      && !inHole(ax, ay, holeInflate);
+      && !darkFrozen[s] && !inHole(ax, ay, holeInflate);
     const v = paintable ? 255 : 0;
     if (paintable) white++;
     const pi = paint.idx(x, y);
@@ -189,6 +219,6 @@ png.save(maskPath, mask);
 const paintPath = path.join(ROOT, 'src', 'atlas', `${id}_inpaint.png`);
 png.save(paintPath, paint);
 console.log(`${id} cut: sea ${cutSea} px zeroed (margin ${seaMargin}), deep ice ${cutDeep} px zeroed ` +
-  `(landMargin ${landMargin}), holes ${cutHole} px zeroed, ` +
+  `(landMargin ${landMargin}), dark rock ${cutDark} px zeroed, holes ${cutHole} px zeroed, ` +
   `${kept} px still authorized; inpaint mask ${white} px white (margin ${inpaintMargin}, ` +
   `holes +${holeInflate}) -> ${path.relative(REPO, paintPath)}`);

@@ -122,17 +122,14 @@
         "inpaintMargin": 18,
         "minLand": 40,
         "holeInflate": 2,
-        "holes": [
-          {
-            "x": 626,
-            "y": 278,
-            "w": 28,
-            "h": 40,
-            "why": "Rimewatch tower (639,296), painted identity, byte-held"
-          }
-        ]
+        "holes": [],
+        "freezeDark": {
+          "maxL": 42,
+          "inflate": 3,
+          "why": "rock and both towers sit at L*<30 on this crop, everything else at L*>50; freezing them makes DIR-01 identity mechanical after roll 1 rebuilt the cone"
+        }
       },
-      "intent": "The ice-to-volcano butt at y~280 becomes the cone north shoulder: pale snow greying into ash-dusted drifts, cooled lava tongues and scattered boulders showing through the snow, a meltwater pool and steam where hot rock meets ice. Also removes the dithered seam smear at 640-740 x 230-270. Both towers and the east cliff are held by their golden keepouts - authored around, never repainted."
+      "intent": "The ice-to-volcano butt at y~280 becomes the cone north shoulder, authored ONLY on the snow side: snow greying with ash in uneven tongues toward the rock, grit and broken stone of no two sizes bedded in the drifts, a melt pool and steam lying against the rock edge, and the dithered seam smear at 640-740 x 230-270 removed. The whole black silhouette and both towers are frozen byte-exact by cut.freezeDark after roll 1 rebuilt the cone."
     }
   ]
 }
