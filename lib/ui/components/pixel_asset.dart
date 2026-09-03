@@ -900,8 +900,13 @@ class EdgeStrip extends StatefulWidget {
   /// the strip replaces. False is the strip's first row, true its last.
   final bool fallbackAtBottom;
 
-  /// The strip's height in logical pixels. **Reserve this, always.**
+  /// The strip's height in logical pixels — a horizontal run's thickness, and
+  /// a vertical run's repeat period. **Reserve this, always.**
   double get displayHeight => (nativeHeight * scale).toDouble();
+
+  /// The strip's width in logical pixels — a vertical run's thickness, and a
+  /// horizontal run's repeat period.
+  double get displayWidth => (nativeWidth * scale).toDouble();
 
   @override
   State<EdgeStrip> createState() => _EdgeStripState();
@@ -935,8 +940,14 @@ class _EdgeStripState extends State<EdgeStrip> {
   @override
   Widget build(BuildContext context) {
     final bool horizontal = widget.axis == Axis.horizontal;
+    // The run's THICKNESS is the tile's cross-axis size, and the tile repeats
+    // along the main axis. A horizontal rule is `nativeHeight` deep and
+    // repeats every `nativeWidth`; a vertical binding is `nativeWidth` wide
+    // and repeats every `nativeHeight`. Taking the thickness from the same
+    // dimension either way would clip the spine — `edge_spine` is 32 × 7, so
+    // a 7-wide box would show a fifth of it.
     final Widget run = SizedBox(
-      width: horizontal ? double.infinity : widget.displayHeight,
+      width: horizontal ? double.infinity : widget.displayWidth,
       height: horizontal ? widget.displayHeight : double.infinity,
       child: CustomPaint(
         painter: _EdgeStripPainter(

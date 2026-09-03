@@ -414,24 +414,26 @@ class _Road extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TrackStrip? strip = TrackArt.road;
+    // The tiled road goes through `EdgeStrip`, not a `DecorationImage`.
+    // `check-ui-boundary.sh` requires every pixel asset to pass through the
+    // one widget that guarantees `L-18` — integer scale, nearest neighbour,
+    // a container layout cannot compress — and a raw `DecorationImage` is
+    // exactly the bypass that rule exists to catch, however carefully it sets
+    // its own filter quality. `EdgeStrip` gained a vertical axis this round,
+    // which is what makes this route available at all; before that it forced
+    // a horizontal run.
+    //
+    // The road strip has not landed — two rolls came back planks and
+    // checkerboard dither — so the painted track below is what ships today.
+    // This branch is the seam it slots into when the art exists.
     final Widget surface = strip == null
         ? const CustomPaint(painter: _RoadPainter())
-        : DecoratedBox(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                // `scale` is how many source pixels go to one logical pixel:
-                // 0.5 is the ×2 UI grid, and the repeat tiles at that size, so
-                // the strip is never stretched and the last tile is clipped.
-                image: ExactAssetImage(
-                  strip.assetPath,
-                  scale: 1 / strip.scale,
-                ),
-                repeat: ImageRepeat.repeatY,
-                alignment: Alignment.topCenter,
-                filterQuality: FilterQuality.none,
-                isAntiAlias: false,
-              ),
-            ),
+        : EdgeStrip(
+            assetPath: strip.assetPath,
+            nativeWidth: strip.nativeWidth,
+            nativeHeight: strip.nativeHeight,
+            scale: strip.scale,
+            axis: Axis.vertical,
           );
     // `Center` would loosen the constraints and a `CustomPaint` with no child
     // takes the smallest size it is offered — which is how the road painted
