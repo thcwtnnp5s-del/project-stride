@@ -78,7 +78,42 @@ const String atlasLayoutAsset = 'assets/content/v1/atlas/atlas_layout.json';
 /// `intervalMillis` (a continuous loop has no play boundary to measure from)
 /// and excludes `drift` (one sprite, one kind of motion), and it never wraps —
 /// the play ends before the world's edge does.
-const int atlasLayoutSchemaVersion = 5;
+///
+/// **v6 adds behaviour to an overlay, and nothing to any other block.** Five
+/// optional overlay fields, each absent from every v1–v5 document:
+///
+/// - `path` — a waypoint polyline the sprite walks, flies or swims along at a
+///   constant speed, `loop` (the polyline closes) or `pingpong` (it turns
+///   round at each end). Points are the world coordinate of the sprite's
+///   **foot** — bottom-centre — so a creature that follows a road takes that
+///   road's `routes[].points` verbatim instead of a hand-computed top-left. A
+///   path overlay has no `x`/`y`, no `drift`, no `travel` and no
+///   `intervalMillis`: it is **always present**, which is the whole point.
+///   Before v6 the only patrol expressible here was a straight line ending in
+///   a disappearance, and a dragon absent three quarters of the time reads as
+///   a bug rather than as a world.
+/// - `bob` (inside `path`) — a sine on the sprite's y, so flight is not a
+///   ruler-straight glide.
+/// - `breath` / `cloud` — **followers**, declared inside their host and drawn
+///   with it. They are not overlays: they hold no slot, carry no coordinate of
+///   their own and cannot be placed anywhere except on the creature that owns
+///   them. `breath` fires once as the host crosses each waypoint named in
+///   `path.breathAt`; `cloud` is continuous and is drawn *under* the host, so
+///   a storm travels with the drake that carries it.
+/// - `shadow` — the host's own current frame, repainted flat black at an
+///   opacity and offset. No art, no second asset, and no way for the shadow to
+///   disagree with the pose above it.
+/// - `depth` — 0 ground (the default, and every pre-v6 overlay), 1 low air,
+///   2 high air. The layer paints depth 0 in JSON array order, then every
+///   shadow, then depth 1, then depth 2, so a dragon passes over the birds
+///   rather than through them.
+///
+/// **Reduced motion does not delete the world.** With the ticker stopped the
+/// elapsed clock holds at zero, and at zero every path overlay is drawn
+/// *pinned at `points[0]`, frame 0, shadow included, breath suppressed*. An
+/// accessibility setting takes the movement away and leaves the creature
+/// standing there; it does not empty the map (`MISTAKES.md` M-16).
+const int atlasLayoutSchemaVersion = 6;
 
 /// The oldest schema this reader still accepts.
 const int atlasLayoutMinimumSchemaVersion = 1;
@@ -248,6 +283,253 @@ const List<String> atlasMarkerKinds = <String>[
 ///
 /// Presentation only. It carries no meaning, marks nothing, and grants nothing;
 /// it exists so the world does not look like a still photograph.
+/// How an overlay's y is nudged along its path, so flight is not a ruler.
+final class AtlasOverlayBob {
+  const AtlasOverlayBob({required this.amplitude, required this.periodMillis});
+
+  /// World pixels above and below the path.
+  final double amplitude;
+
+  /// Milliseconds for one full up-and-down.
+  final int periodMillis;
+
+  /// The offset to add to y at [t]. Zero at t = 0, so a pinned creature sits
+  /// exactly on its waypoint rather than a few pixels off it.
+  double offsetAt(Duration t) {
+    if (periodMillis <= 0) return 0;
+    const double twoPi = 6.283185307179586;
+    return amplitude * _sin(twoPi * t.inMilliseconds / periodMillis);
+  }
+
+  /// A local sine, so this library keeps its two imports. Bhaskara's rational
+  /// approximation is within 0.002 of `sin` over a full turn — far under one
+  /// world pixel at any amplitude a creature bobs by.
+  static double _sin(double x) {
+    const double twoPi = 6.283185307179586;
+    const double pi = 3.141592653589793;
+    double a = x % twoPi;
+    if (a < 0) a += twoPi;
+    final bool negative = a > pi;
+    if (negative) a -= pi;
+    final double value =
+        16 * a * (pi - a) / (5 * pi * pi - 4 * a * (pi - a));
+    return negative ? -value : value;
+  }
+}
+
+/// A sprite with no place of its own on the map, drawn on its host.
+///
+/// The dragon's breath and the storm drake's cloud are both this. A follower
+/// holds **no overlay slot**: it has no `x`/`y`, cannot be placed alone, and
+/// exists only for as long as the frame that draws its host. [offsetX] and
+/// [offsetY] are sprite-local, measured from the host's top-left, and are
+/// mirrored with the host when it flips, so a plume always leaves the jaw and
+/// never the tail.
+final class AtlasOverlayFollower {
+  const AtlasOverlayFollower({
+    required this.asset,
+    required this.width,
+    required this.height,
+    required this.frameCount,
+    required this.frameMillis,
+    required this.offsetX,
+    required this.offsetY,
+    this.opacity = 1,
+  });
+
+  final String asset;
+  final int width;
+  final int height;
+  final int frameCount;
+  final int frameMillis;
+
+  /// Sprite-local, from the host's top-left, in native pixels.
+  final int offsetX;
+  final int offsetY;
+
+  final double opacity;
+
+  /// One play of the follower, in milliseconds.
+  int get durationMillis => frameCount * frameMillis;
+
+  /// The frame at [millis] into a play, clamped inside the sequence.
+  int frameIndexAt(int millis) =>
+      millis <= 0 ? 0 : millis ~/ frameMillis % frameCount;
+
+}
+
+/// The host's own frame, repainted flat black and dropped below it.
+///
+/// Zero art: the renderer colour-filters the frame that is already on screen,
+/// so the shadow can never disagree with the pose that casts it.
+final class AtlasOverlayShadow {
+  const AtlasOverlayShadow({
+    required this.dx,
+    required this.dy,
+    required this.opacity,
+  });
+
+  /// World pixels, from the host's top-left.
+  final double dx;
+  final double dy;
+
+  final double opacity;
+}
+
+/// How a path is walked once its end is reached.
+enum AtlasPathMode {
+  /// The polyline closes: the last point joins the first and the creature
+  /// circles forever.
+  loop,
+
+  /// The creature turns round at each end and retraces the line.
+  pingpong,
+}
+
+/// Which way the sprite's art faces, before any mirroring.
+enum AtlasFacing { east, west }
+
+/// A waypoint polyline an overlay travels along at a constant speed.
+///
+/// [points] are the world coordinate of the sprite's **foot** — bottom-centre
+/// — because that is the coordinate a road, a shoreline and a ridge are drawn
+/// in. The top-left the renderer needs is derived
+/// (`x − width·scale/2`, `y − height·scale`), so a mule train can take a
+/// route's own `points` verbatim and stand on the road rather than beside it.
+final class AtlasOverlayPath {
+  AtlasOverlayPath({
+    required this.points,
+    required this.speed,
+    required this.mode,
+    required this.flip,
+    required this.phaseMillis,
+    required this.breathAt,
+    this.bob,
+  }) : _cumulative = _measure(points, mode);
+
+  /// World coordinates of the sprite's foot, in order.
+  final List<({double x, double y})> points;
+
+  /// World pixels per second along the line.
+  final double speed;
+
+  final AtlasPathMode mode;
+
+  /// Whether the sprite is mirrored when the segment it is on runs against
+  /// the direction the art faces.
+  final bool flip;
+
+  /// Milliseconds added to the clock, so two creatures on one line do not
+  /// move in lockstep.
+  final int phaseMillis;
+
+  /// Waypoint indices at which the host's `breath` fires.
+  final List<int> breathAt;
+
+  final AtlasOverlayBob? bob;
+
+  /// Cumulative arc length at each waypoint; the last entry is the total,
+  /// including the closing segment when the mode is [AtlasPathMode.loop].
+  final List<double> _cumulative;
+
+  static List<double> _measure(
+    List<({double x, double y})> points,
+    AtlasPathMode mode,
+  ) {
+    final List<double> out = <double>[0];
+    double total = 0;
+    for (int i = 1; i < points.length; i++) {
+      total += _distance(points[i - 1], points[i]);
+      out.add(total);
+    }
+    if (mode == AtlasPathMode.loop && points.length > 1) {
+      total += _distance(points.last, points.first);
+      out.add(total);
+    }
+    return out;
+  }
+
+  static double _distance(({double x, double y}) a, ({double x, double y}) b) {
+    final double dx = b.x - a.x;
+    final double dy = b.y - a.y;
+    return _sqrt(dx * dx + dy * dy);
+  }
+
+  /// Newton's method, so this library needs no `dart:math`. Twenty-four passes
+  /// put a double within its own precision for any length an atlas can hold.
+  static double _sqrt(double v) {
+    if (v <= 0) return 0;
+    double g = v > 1 ? v / 2 : 1;
+    for (int i = 0; i < 24; i++) {
+      g = 0.5 * (g + v / g);
+    }
+    return g;
+  }
+
+  /// The whole line, closing segment included for a loop.
+  double get totalLength => _cumulative.last;
+
+  /// Arc length at waypoint [index].
+  double lengthAtWaypoint(int index) => _cumulative[index];
+
+  /// Milliseconds for one full cycle — a lap for a loop, an out-and-back for
+  /// a ping-pong.
+  double get cycleMillis =>
+      (mode == AtlasPathMode.pingpong ? 2 : 1) * totalLength / speed * 1000;
+
+  /// Distance travelled along the line at [t].
+  ///
+  /// `loop`: `s = speed·(t + phase) mod L`. `pingpong`:
+  /// `s′ = speed·(t + phase) mod 2L`, then `s = s′ ≤ L ? s′ : 2L − s′` — the
+  /// turnaround is exact, so a creature that reaches the cape is at the cape
+  /// on the tick it turns, never one pixel past it.
+  double distanceAt(Duration t) {
+    final double length = totalLength;
+    if (length <= 0) return 0;
+    final double seconds = (t.inMilliseconds + phaseMillis) / 1000;
+    double s = speed * seconds;
+    if (mode == AtlasPathMode.loop) {
+      return (s % length + length) % length;
+    }
+    final double span = 2 * length;
+    s = (s % span + span) % span;
+    return s <= length ? s : span - s;
+  }
+
+  /// Where the sprite's foot is at [t], and which way the segment under it
+  /// runs (`dx` positive is eastward).
+  ///
+  /// **At `Duration.zero` this is `points[0]` exactly**, whatever the phase.
+  /// That is the reduced-motion pin: the ticker never advances, the clock
+  /// holds at zero, and every creature stands on its first waypoint instead
+  /// of vanishing (M-16).
+  ({double x, double y, double dx}) footAt(Duration t) {
+    if (t == Duration.zero) {
+      final double dx = points.length > 1 ? points[1].x - points[0].x : 1;
+      return (x: points[0].x, y: points[0].y, dx: dx);
+    }
+    final double s = distanceAt(t);
+    for (int i = 1; i < _cumulative.length; i++) {
+      if (s <= _cumulative[i] || i == _cumulative.length - 1) {
+        final ({double x, double y}) a = points[i - 1];
+        final ({double x, double y}) b = i < points.length
+            ? points[i]
+            : points.first;
+        final double segment = _cumulative[i] - _cumulative[i - 1];
+        final double f = segment <= 0
+            ? 0
+            : ((s - _cumulative[i - 1]) / segment).clamp(0.0, 1.0);
+        return (
+          x: a.x + (b.x - a.x) * f,
+          y: a.y + (b.y - a.y) * f,
+          dx: b.x - a.x,
+        );
+      }
+    }
+    return (x: points[0].x, y: points[0].y, dx: 1);
+  }
+}
+
 final class AtlasOverlay {
   const AtlasOverlay({
     required this.asset,
@@ -264,6 +546,12 @@ final class AtlasOverlay {
     this.travelX = 0,
     this.travelY = 0,
     this.playLoops = 1,
+    this.depth = 0,
+    this.facing = AtlasFacing.east,
+    this.path,
+    this.breath,
+    this.cloud,
+    this.shadow,
   });
 
   /// The asset key of the frame sequence. Frame `n` resolves to
@@ -343,6 +631,98 @@ final class AtlasOverlay {
     if (intervalMillis == 0) return elapsed.inMilliseconds;
     final int inCycle = elapsed.inMilliseconds % cycleMillis;
     return inCycle >= intervalMillis ? inCycle - intervalMillis : 0;
+  }
+
+  /// Which band the overlay paints in (v6): 0 ground, 1 low air, 2 high air.
+  /// Every pre-v6 overlay is 0, which is where it already painted.
+  final int depth;
+
+  /// Which way the art faces before mirroring (v6). Only [path] reads it.
+  final AtlasFacing facing;
+
+  /// The waypoint line this overlay travels (v6), or null for a sprite that
+  /// stays where the layout put it. A path overlay is **always present**: it
+  /// has no quiet gap to disappear into.
+  final AtlasOverlayPath? path;
+
+  /// A follower that fires once per crossing of each `path.breathAt`
+  /// waypoint, drawn over the host (v6).
+  final AtlasOverlayFollower? breath;
+
+  /// A follower drawn continuously *under* the host (v6) — the storm a drake
+  /// carries with it.
+  final AtlasOverlayFollower? cloud;
+
+  /// The host's frame repainted flat black beneath it (v6).
+  final AtlasOverlayShadow? shadow;
+
+  /// Whether this overlay moves along a waypoint line rather than sitting at
+  /// [x], [y].
+  bool get hasPath => path != null;
+
+  /// The sprite's top-left in world pixels at [t], for a path overlay, at a
+  /// layout [scale]. Derived from the foot: `points` are the bottom-centre of
+  /// the sprite, which is the coordinate roads and shorelines are drawn in.
+  ///
+  /// Returns [x], [y] unchanged for an overlay with no path, so a caller need
+  /// not branch.
+  ({double x, double y}) topLeftAt(Duration t, int scale) {
+    final AtlasOverlayPath? line = path;
+    if (line == null) return (x: x, y: y);
+    final ({double x, double y, double dx}) foot = line.footAt(t);
+    final double bob = t == Duration.zero
+        ? 0
+        : (line.bob?.offsetAt(t) ?? 0);
+    return (
+      x: foot.x - width * scale / 2,
+      y: foot.y + bob - height * scale,
+    );
+  }
+
+  /// Whether the sprite is mirrored at [t] — true when the segment under it
+  /// runs against [facing] and the path asked for mirroring.
+  bool flippedAt(Duration t) {
+    final AtlasOverlayPath? line = path;
+    if (line == null || !line.flip) return false;
+    final double dx = line.footAt(t).dx;
+    if (dx == 0) return false;
+    return facing == AtlasFacing.east ? dx < 0 : dx > 0;
+  }
+
+  /// Which `breathAt` waypoint is firing at [t], and how far into the plume,
+  /// or null when no breath is in the air.
+  ///
+  /// The host crosses waypoint *k* at arc length `cum[k]`, so it crosses at
+  /// clock `cum[k] / speed` within each cycle — twice per cycle in ping-pong,
+  /// once on the way out and once on the way back. The plume is up for its
+  /// own duration from each of those instants.
+  ///
+  /// **Null at `Duration.zero`.** A pinned creature is not mid-breath
+  /// (M-16's pin shows the world, not one frozen explosion).
+  ({int index, int millis})? breathPhaseAt(Duration t) {
+    final AtlasOverlayPath? line = path;
+    final AtlasOverlayFollower? plume = breath;
+    if (line == null || plume == null || line.breathAt.isEmpty) return null;
+    if (t == Duration.zero) return null;
+    final double cycle = line.cycleMillis;
+    if (cycle <= 0) return null;
+    final double duration = plume.durationMillis.toDouble();
+    final double clock = (t.inMilliseconds + line.phaseMillis).toDouble();
+    final double lap = line.totalLength / line.speed * 1000;
+    for (final int k in line.breathAt) {
+      if (k < 0 || k >= line.points.length) continue;
+      final double at = line.lengthAtWaypoint(k) / line.speed * 1000;
+      final List<double> crossings = line.mode == AtlasPathMode.pingpong
+          ? <double>[at, 2 * lap - at]
+          : <double>[at];
+      for (final double crossing in crossings) {
+        final double since = ((clock - crossing) % cycle + cycle) % cycle;
+        if (since < duration) {
+          return (index: k, millis: since.round());
+        }
+      }
+    }
+    return null;
   }
 }
 
@@ -602,6 +982,26 @@ final class AtlasLayout {
         }
       }
     }
+    // The v6 behaviour fields, on the same terms. An earlier reader would
+    // draw a patrolling dragon parked at the origin of a path it cannot see,
+    // with no shadow and no plume — dropped behaviour, refused all the same.
+    if (version < 6) {
+      for (final Object? raw in _list(decoded, 'overlays')) {
+        if (raw is! Map<String, Object?>) continue;
+        for (final String key in const <String>[
+          'path',
+          'breath',
+          'cloud',
+          'shadow',
+          'depth',
+          'faces',
+        ]) {
+          if (raw[key] != null) {
+            throw AtlasLayoutException('$key needs schemaVersion 6');
+          }
+        }
+      }
+    }
     final List<AtlasNamedLandmark> landmarks = <AtlasNamedLandmark>[
       if (decoded['landmarks'] != null)
         for (final (int i, Object? raw) in _list(decoded, 'landmarks').indexed)
@@ -745,11 +1145,27 @@ final class AtlasLayout {
       }
     }
     for (final AtlasOverlay overlay in overlays) {
-      if (overlay.x < 0 ||
-          overlay.y < 0 ||
-          overlay.x > worldWidth ||
-          overlay.y > worldHeight) {
-        problems.add('overlay ${overlay.asset} starts outside the world');
+      final AtlasOverlayPath? line = overlay.path;
+      if (line == null) {
+        if (overlay.x < 0 ||
+            overlay.y < 0 ||
+            overlay.x > worldWidth ||
+            overlay.y > worldHeight) {
+          problems.add('overlay ${overlay.asset} starts outside the world');
+        }
+        continue;
+      }
+      // A path overlay has no origin to check, so every waypoint is checked
+      // instead: one point off the surface is a creature that walks off the
+      // edge of the world for part of its lap, which no single-coordinate
+      // test would have caught.
+      for (final (int i, ({double x, double y}) p) in line.points.indexed) {
+        if (p.x < 0 || p.y < 0 || p.x > worldWidth || p.y > worldHeight) {
+          problems.add(
+            'overlay ${overlay.asset} waypoint $i lies outside the '
+            '$worldWidth×$worldHeight world at (${p.x}, ${p.y})',
+          );
+        }
       }
     }
 
@@ -855,6 +1271,12 @@ final class AtlasLayout {
     );
   }
 
+  static bool _bool(Map<String, Object?> parent, String key, {String? within}) {
+    final Object? value = parent[key];
+    if (value is bool) return value;
+    throw AtlasLayoutException('${_at(key, within)} must be true or false');
+  }
+
   static String _at(String key, String? within) =>
       within == null ? key : '$within.$key';
 
@@ -951,20 +1373,28 @@ final class AtlasLayout {
       throw AtlasLayoutException('overlays[$index] must be an object');
     }
     final String at = 'overlays[$index]';
-    final Map<String, Object?> driftRaw = _object(raw, 'drift', within: at);
+    // A path overlay carries none of the placement fields: its position comes
+    // from the line, and `drift` is not merely unused but forbidden below.
+    final Object? pathRaw = raw['path'];
+    final Map<String, Object?>? driftRaw = raw['drift'] == null && pathRaw != null
+        ? null
+        : _object(raw, 'drift', within: at);
     final Map<String, Object?>? travelRaw = raw['travel'] == null
         ? null
         : _object(raw, 'travel', within: at);
+    final AtlasOverlayPath? path = pathRaw == null
+        ? null
+        : _overlayPath(pathRaw, at);
     final AtlasOverlay overlay = AtlasOverlay(
       asset: _string(raw, 'asset', within: at),
-      x: _number(raw, 'x', within: at),
-      y: _number(raw, 'y', within: at),
+      x: raw['x'] == null && path != null ? 0 : _number(raw, 'x', within: at),
+      y: raw['y'] == null && path != null ? 0 : _number(raw, 'y', within: at),
       width: _int(raw, 'width', within: at),
       height: _int(raw, 'height', within: at),
       frameCount: _int(raw, 'frames', within: at),
       frameMillis: _int(raw, 'frameMillis', within: at),
-      driftX: _number(driftRaw, 'x', within: '$at.drift'),
-      driftY: _number(driftRaw, 'y', within: '$at.drift'),
+      driftX: driftRaw == null ? 0 : _number(driftRaw, 'x', within: '$at.drift'),
+      driftY: driftRaw == null ? 0 : _number(driftRaw, 'y', within: '$at.drift'),
       opacity: raw['opacity'] == null ? 1 : _number(raw, 'opacity', within: at),
       intervalMillis: raw['intervalMillis'] == null
           ? 0
@@ -974,7 +1404,55 @@ final class AtlasLayout {
       playLoops: raw['playLoops'] == null
           ? 1
           : _int(raw, 'playLoops', within: at),
+      depth: raw['depth'] == null ? 0 : _int(raw, 'depth', within: at),
+      facing: _facing(raw, at),
+      path: path,
+      breath: raw['breath'] == null
+          ? null
+          : _follower(raw['breath'], '$at.breath'),
+      cloud: raw['cloud'] == null
+          ? null
+          : _follower(raw['cloud'], '$at.cloud'),
+      shadow: raw['shadow'] == null
+          ? null
+          : _shadow(raw['shadow'], '$at.shadow'),
     );
+    if (overlay.depth < 0 || overlay.depth > 2) {
+      throw AtlasLayoutException(
+        '$at.depth must be 0 (ground), 1 (low air) or 2 (high air)',
+      );
+    }
+    if (path != null) {
+      if (raw['drift'] != null ||
+          raw['travel'] != null ||
+          raw['intervalMillis'] != null ||
+          raw['x'] != null ||
+          raw['y'] != null) {
+        throw AtlasLayoutException(
+          '$at declares a path and also x/y, drift, travel or intervalMillis. '
+          'A path says where the sprite is at every instant, and it is always '
+          'present: there is nothing left for the others to say',
+        );
+      }
+      for (final int k in path.breathAt) {
+        if (k < 0 || k >= path.points.length) {
+          throw AtlasLayoutException(
+            '$at.path.breathAt names waypoint $k, and the line has '
+            '${path.points.length}',
+          );
+        }
+      }
+      if (path.breathAt.isNotEmpty && overlay.breath == null) {
+        throw AtlasLayoutException(
+          '$at.path.breathAt fires a breath the overlay does not declare',
+        );
+      }
+    } else if (overlay.breath != null || overlay.cloud != null) {
+      throw AtlasLayoutException(
+        '$at declares a follower without a path; a follower has no coordinate '
+        'of its own and cannot stand anywhere on its own',
+      );
+    }
     if (overlay.playLoops < 1) {
       throw AtlasLayoutException('$at.playLoops must be at least 1');
     }
@@ -1007,6 +1485,127 @@ final class AtlasLayout {
       throw AtlasLayoutException('$at size must be positive');
     }
     return overlay;
+  }
+
+  static AtlasFacing _facing(Map<String, Object?> raw, String at) {
+    final Object? value = raw['faces'];
+    if (value == null) return AtlasFacing.east;
+    return switch (value) {
+      'east' => AtlasFacing.east,
+      'west' => AtlasFacing.west,
+      _ => throw AtlasLayoutException('$at.faces must be "east" or "west"'),
+    };
+  }
+
+  static AtlasOverlayPath _overlayPath(Object? raw, String host) {
+    final String at = '$host.path';
+    if (raw is! Map<String, Object?>) {
+      throw AtlasLayoutException('$at must be an object');
+    }
+    final List<({double x, double y})> points = <({double x, double y})>[];
+    for (final (int i, Object? p) in _list(raw, 'points', within: at).indexed) {
+      if (p is! List<Object?> ||
+          p.length != 2 ||
+          p[0] is! num ||
+          p[1] is! num) {
+        throw AtlasLayoutException('$at.points[$i] must be [x, y]');
+      }
+      points.add((x: (p[0]! as num).toDouble(), y: (p[1]! as num).toDouble()));
+    }
+    if (points.length < 2) {
+      throw AtlasLayoutException(
+        '$at needs at least two waypoints; one point is a place, not a patrol',
+      );
+    }
+    final double speed = _number(raw, 'speed', within: at);
+    if (speed <= 0) {
+      throw AtlasLayoutException('$at.speed must be positive');
+    }
+    final Object? modeRaw = raw['mode'];
+    final AtlasPathMode mode = switch (modeRaw) {
+      null || 'loop' => AtlasPathMode.loop,
+      'pingpong' => AtlasPathMode.pingpong,
+      _ => throw AtlasLayoutException('$at.mode must be "loop" or "pingpong"'),
+    };
+    final List<int> breathAt = <int>[];
+    if (raw['breathAt'] != null) {
+      for (final (int i, Object? k) in _list(
+        raw,
+        'breathAt',
+        within: at,
+      ).indexed) {
+        if (k is! int) {
+          throw AtlasLayoutException('$at.breathAt[$i] must be a waypoint index');
+        }
+        breathAt.add(k);
+      }
+    }
+    AtlasOverlayBob? bob;
+    if (raw['bob'] != null) {
+      final Map<String, Object?> bobRaw = _object(raw, 'bob', within: at);
+      bob = AtlasOverlayBob(
+        amplitude: _number(bobRaw, 'amplitude', within: '$at.bob'),
+        periodMillis: _int(bobRaw, 'periodMillis', within: '$at.bob'),
+      );
+      if (bob.periodMillis < 1) {
+        throw AtlasLayoutException('$at.bob.periodMillis must be positive');
+      }
+    }
+    return AtlasOverlayPath(
+      points: List<({double x, double y})>.unmodifiable(points),
+      speed: speed,
+      mode: mode,
+      flip: raw['flip'] == null ? false : _bool(raw, 'flip', within: at),
+      phaseMillis: raw['phaseMillis'] == null
+          ? 0
+          : _int(raw, 'phaseMillis', within: at),
+      breathAt: List<int>.unmodifiable(breathAt),
+      bob: bob,
+    );
+  }
+
+  static AtlasOverlayFollower _follower(Object? raw, String at) {
+    if (raw is! Map<String, Object?>) {
+      throw AtlasLayoutException('$at must be an object');
+    }
+    final Map<String, Object?> offset = _object(raw, 'offset', within: at);
+    final AtlasOverlayFollower follower = AtlasOverlayFollower(
+      asset: _string(raw, 'asset', within: at),
+      width: _int(raw, 'width', within: at),
+      height: _int(raw, 'height', within: at),
+      frameCount: _int(raw, 'frames', within: at),
+      frameMillis: _int(raw, 'frameMillis', within: at),
+      offsetX: _int(offset, 'x', within: '$at.offset'),
+      offsetY: _int(offset, 'y', within: '$at.offset'),
+      opacity: raw['opacity'] == null ? 1 : _number(raw, 'opacity', within: at),
+    );
+    if (follower.width <= 0 || follower.height <= 0) {
+      throw AtlasLayoutException('$at size must be positive');
+    }
+    if (follower.frameCount < 1 || follower.frameMillis < 1) {
+      throw AtlasLayoutException(
+        '$at needs at least one frame of positive length',
+      );
+    }
+    if (follower.opacity <= 0 || follower.opacity > 1) {
+      throw AtlasLayoutException('$at.opacity must be in (0, 1]');
+    }
+    return follower;
+  }
+
+  static AtlasOverlayShadow _shadow(Object? raw, String at) {
+    if (raw is! Map<String, Object?>) {
+      throw AtlasLayoutException('$at must be an object');
+    }
+    final AtlasOverlayShadow shadow = AtlasOverlayShadow(
+      dx: _number(raw, 'dx', within: at),
+      dy: _number(raw, 'dy', within: at),
+      opacity: _number(raw, 'opacity', within: at),
+    );
+    if (shadow.opacity <= 0 || shadow.opacity > 1) {
+      throw AtlasLayoutException('$at.opacity must be in (0, 1]');
+    }
+    return shadow;
   }
 
   static AtlasProp _prop(Object? raw, int index) {

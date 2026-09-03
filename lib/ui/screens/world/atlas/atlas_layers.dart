@@ -32,7 +32,11 @@ import 'package:stride_core/stride_core.dart' show ContentId;
 // they are imported from the layout library itself. Same library the session
 // re-exports the rest from, so no symbol is defined twice.
 import '../../../../runtime/atlas_layout.dart'
-    show AtlasLandmarkTier, AtlasNamedLandmark;
+    show
+        AtlasLandmarkTier,
+        AtlasNamedLandmark,
+        AtlasOverlayFollower,
+        AtlasOverlayShadow;
 import '../../../../runtime/stride_session.dart';
 import '../../../components/pixel_asset.dart';
 import '../../../icons/atlas_assets.dart';
@@ -381,6 +385,21 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
       )) {
         precacheImage(AssetImage(path), context);
       }
+      // Followers are drawn from the host's frame callback, so their frames
+      // have to be warm by then too: a plume that decodes on the tick it
+      // fires is a plume the player sees arrive late.
+      for (final AtlasOverlayFollower? follower in <AtlasOverlayFollower?>[
+        overlay.breath,
+        overlay.cloud,
+      ]) {
+        if (follower == null) continue;
+        for (final String path in AtlasAssets.framePaths(
+          follower.asset,
+          follower.frameCount,
+        )) {
+          precacheImage(AssetImage(path), context);
+        }
+      }
     }
   }
 
@@ -405,6 +424,19 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
       final Offset at = _driftPosition(overlay, t);
       key = key * 31 + at.dx.floor();
       key = key * 31 + at.dy.floor();
+      // v6: a creature that has turned round, or has just opened its jaw, has
+      // changed what is on screen without moving a whole world pixel.
+      key = key * 31 + (overlay.flippedAt(t) ? 1 : 0);
+      final ({int index, int millis})? breath = overlay.breathPhaseAt(t);
+      key = key * 31 + (breath == null ? 0 : 1 + breath.index);
+      final AtlasOverlayFollower? plume = overlay.breath;
+      if (breath != null && plume != null) {
+        key = key * 31 + plume.frameIndexAt(breath.millis);
+      }
+      final AtlasOverlayFollower? cloud = overlay.cloud;
+      if (cloud != null) {
+        key = key * 31 + cloud.frameIndexAt(t.inMilliseconds);
+      }
     }
     return key;
   }
@@ -415,6 +447,16 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
   /// at the origin again for every new play — the parser holds the two kinds
   /// of motion mutually exclusive.
   Offset _driftPosition(AtlasOverlay overlay, Duration t) {
+    if (overlay.hasPath) {
+      // v6: the line says where the sprite is, and at t = 0 the line says
+      // points[0] — so a stopped ticker leaves every creature standing on its
+      // first waypoint instead of erasing it (M-16).
+      final ({double x, double y}) at = overlay.topLeftAt(
+        t,
+        widget.scene.layout.scale,
+      );
+      return Offset(at.x, at.y);
+    }
     if (overlay.travelX != 0 || overlay.travelY != 0) {
       final double playSeconds = overlay.playMillisAt(t) / 1000;
       return Offset(
@@ -445,41 +487,144 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
     super.dispose();
   }
 
+  /// One overlay, positioned in world space, with its followers on it.
+  ///
+  /// The whole sprite — host, cloud under it, plume over it — is composed in
+  /// unmirrored space and then flipped as one, so a follower's offset needs no
+  /// second set of coordinates: mirroring the group about the host's centre
+  /// *is* `x′ = host.width − offset.x − follower.width`, and the plume leaves
+  /// the jaw in both directions because it cannot do anything else.
+  Widget _overlaySprite(AtlasOverlay overlay, int scale) {
+    final Offset at = _driftPosition(overlay, _elapsed);
+    final ({int index, int millis})? breath = overlay.breathPhaseAt(_elapsed);
+    final AtlasOverlayFollower? plume = overlay.breath;
+    final AtlasOverlayFollower? cloud = overlay.cloud;
+
+    Widget follower(AtlasOverlayFollower f, int frame) => Positioned(
+      left: (f.offsetX * scale).toDouble(),
+      top: (f.offsetY * scale).toDouble(),
+      child: Opacity(
+        opacity: f.opacity,
+        child: PixelAsset(
+          assetPath: AtlasAssets.framePath(f.asset, frame),
+          nativeWidth: f.width,
+          nativeHeight: f.height,
+          scale: scale,
+        ),
+      ),
+    );
+
+    Widget body = PixelAsset(
+      assetPath: AtlasAssets.framePath(
+        overlay.asset,
+        overlay.frameIndexAt(_elapsed),
+      ),
+      nativeWidth: overlay.width,
+      nativeHeight: overlay.height,
+      scale: scale,
+    );
+
+    if (cloud != null || (plume != null && breath != null)) {
+      body = SizedBox(
+        width: (overlay.width * scale).toDouble(),
+        height: (overlay.height * scale).toDouble(),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            // The storm is under the drake that carries it: a bolt is thrown
+            // from inside the cloud, not from in front of it.
+            if (cloud != null)
+              follower(cloud, cloud.frameIndexAt(_elapsed.inMilliseconds)),
+            Positioned(left: 0, top: 0, child: body),
+            if (plume != null && breath != null)
+              follower(plume, plume.frameIndexAt(breath.millis)),
+          ],
+        ),
+      );
+    }
+
+    if (overlay.flippedAt(_elapsed)) {
+      body = Transform.flip(flipX: true, child: body);
+    }
+
+    return Positioned(
+      left: at.dx.floorToDouble(),
+      top: at.dy.floorToDouble(),
+      child: Opacity(
+        // The compositor multiplier: the sprites are opaque art and the
+        // layout says how faint each one sits.
+        opacity: overlay.opacity,
+        child: body,
+      ),
+    );
+  }
+
+  /// The host's current frame repainted flat black and dropped below it.
+  ///
+  /// No art and no second asset: the shadow is the pose, so it can never
+  /// disagree with the creature casting it.
+  Widget _overlayShadow(AtlasOverlay overlay, AtlasOverlayShadow shadow,
+      int scale) {
+    final Offset at = _driftPosition(overlay, _elapsed);
+    Widget body = ColorFiltered(
+      colorFilter: const ColorFilter.mode(
+        Color(0xFF000000),
+        BlendMode.srcATop,
+      ),
+      child: PixelAsset(
+        assetPath: AtlasAssets.framePath(
+          overlay.asset,
+          overlay.frameIndexAt(_elapsed),
+        ),
+        nativeWidth: overlay.width,
+        nativeHeight: overlay.height,
+        scale: scale,
+      ),
+    );
+    if (overlay.flippedAt(_elapsed)) {
+      body = Transform.flip(flipX: true, child: body);
+    }
+    return Positioned(
+      left: (at.dx + shadow.dx).floorToDouble(),
+      top: (at.dy + shadow.dy).floorToDouble(),
+      child: Opacity(opacity: shadow.opacity, child: body),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final int scale = widget.scene.layout.scale;
+    // v6 depth bands. Ground life paints in JSON array order exactly as it
+    // always did; then every shadow, so a dragon's shadow falls across the
+    // ground it is over; then low air, then high air. Nothing sorts by y —
+    // this is a painted map, not a scene graph.
+    final List<AtlasOverlay> drawn = <AtlasOverlay>[
+      for (final AtlasOverlay overlay in widget.scene.layout.overlays)
+        if (overlay.visibleAt(_elapsed)) overlay,
+    ];
     return RepaintBoundary(
       child: IgnorePointer(
         child: SizedBox(
           width: widget.scene.worldWidth,
           height: widget.scene.worldHeight,
           child: Stack(
+            clipBehavior: Clip.none,
             children: <Widget>[
               // An intermittent overlay (v4 `intervalMillis`) is simply not
               // built during its quiet gap — the creature is gone, not
-              // paused. With the ticker off (background, reduced motion, or
-              // the test harness) `_elapsed` holds, so whatever state the
-              // cycle was in freezes exactly as the continuous loops do.
-              for (final AtlasOverlay overlay in widget.scene.layout.overlays)
-                if (overlay.visibleAt(_elapsed))
-                  Positioned(
-                    left: _driftPosition(overlay, _elapsed).dx.floorToDouble(),
-                    top: _driftPosition(overlay, _elapsed).dy.floorToDouble(),
-                    child: Opacity(
-                      // The compositor multiplier: the sprites are opaque art
-                      // and the layout says how faint each one sits.
-                      opacity: overlay.opacity,
-                      child: PixelAsset(
-                        assetPath: AtlasAssets.framePath(
-                          overlay.asset,
-                          overlay.frameIndexAt(_elapsed),
-                        ),
-                        nativeWidth: overlay.width,
-                        nativeHeight: overlay.height,
-                        scale: scale,
-                      ),
-                    ),
-                  ),
+              // paused. A v6 path overlay has no gap and is always here: with
+              // the ticker off it stands on its first waypoint rather than
+              // vanishing, because an accessibility setting may take the
+              // motion and not the world (M-16).
+              for (final AtlasOverlay overlay in drawn)
+                if (overlay.depth == 0) _overlaySprite(overlay, scale),
+              for (final AtlasOverlay overlay in drawn)
+                if (overlay.shadow case final AtlasOverlayShadow shadow)
+                  _overlayShadow(overlay, shadow, scale),
+              for (final AtlasOverlay overlay in drawn)
+                if (overlay.depth == 1) _overlaySprite(overlay, scale),
+              for (final AtlasOverlay overlay in drawn)
+                if (overlay.depth == 2) _overlaySprite(overlay, scale),
             ],
           ),
         ),

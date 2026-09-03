@@ -70,7 +70,19 @@ void main() {
       (overlay! as Map<String, Object?>)
         ..remove('intervalMillis')
         ..remove('travel')
-        ..remove('playLoops');
+        ..remove('playLoops')
+        // The v6 behaviour fields go too, and a path overlay's derived
+        // placement fields come back, so a rewound document is an honest
+        // document of its own era rather than a v6 file wearing an old number.
+        ..remove('path')
+        ..remove('breath')
+        ..remove('cloud')
+        ..remove('shadow')
+        ..remove('depth')
+        ..remove('faces')
+        ..putIfAbsent('x', () => 0)
+        ..putIfAbsent('y', () => 0)
+        ..putIfAbsent('drift', () => <String, Object?>{'x': 0, 'y': 0});
     }
     bareLayout = const JsonEncoder.withIndent('  ').convert(bare);
   });
@@ -258,12 +270,12 @@ void main() {
     /// The shipped document with its version reset and the later blocks
     /// removed — which is exactly what the file was in earlier milestones.
     String asV1() => bareLayout
-        .replaceFirst('"schemaVersion": 5', '"schemaVersion": 1')
+        .replaceFirst('"schemaVersion": 6', '"schemaVersion": 1')
         .replaceFirst('"landmarks": [],\n', '');
 
     test('ships at the current version', () {
-      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 5);
-      expect(atlasLayoutSchemaVersion, 5);
+      expect(AtlasLayout.parse(shippedLayout).schemaVersion, 6);
+      expect(atlasLayoutSchemaVersion, 6);
     });
 
     test('still reads a v1 document, with no landmarks and no rumors', () {
@@ -281,7 +293,7 @@ void main() {
 
     test('refuses v1 carrying v2 blocks rather than dropping them', () {
       final String lying = bareLayout.replaceFirst(
-        '"schemaVersion": 5',
+        '"schemaVersion": 6',
         '"schemaVersion": 1',
       );
       expect(
@@ -299,7 +311,7 @@ void main() {
     test('refuses v2 carrying the rumors block rather than dropping it', () {
       // The shipped document has real rumors; only its version lies.
       final String lying = shippedLayout.replaceFirst(
-        '"schemaVersion": 5',
+        '"schemaVersion": 6',
         '"schemaVersion": 2',
       );
       expect(
@@ -328,7 +340,7 @@ void main() {
       // A v3 reader would play the loop continuously — dropped behaviour is
       // refused exactly as dropped data is.
       final String lying = bareLayout
-          .replaceFirst('"schemaVersion": 5', '"schemaVersion": 3')
+          .replaceFirst('"schemaVersion": 6', '"schemaVersion": 3')
           .replaceFirst('"frames": 8,', '"frames": 8, "intervalMillis": 9000,');
       expect(
         () => AtlasLayout.parse(lying),
@@ -411,7 +423,7 @@ void main() {
       // A v4 reader would pin the travelling sprite to its origin — dropped
       // motion, refused exactly as dropped data is.
       final String lying = shippedLayout
-          .replaceFirst('"schemaVersion": 5', '"schemaVersion": 4')
+          .replaceFirst('"schemaVersion": 6', '"schemaVersion": 4')
           .replaceFirst(
             '"intervalMillis": 14000,',
             '"intervalMillis": 14000, "travel": { "x": -12, "y": 0 },',
