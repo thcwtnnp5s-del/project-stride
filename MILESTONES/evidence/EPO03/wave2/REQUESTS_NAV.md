@@ -150,3 +150,32 @@ change when it lands — `KitEdge(tile: KitTile.edgeSpine, …)` is already the
 call.
 
 **Blocking.** No.
+
+---
+
+## 2026-09-03 — PROD-REWARDS: a three-patch painter for `ribbon_label`
+
+**What.** A painter that draws `KitMark.ribbonLabel` as a **three**-patch —
+its two fixed swallowtail ends around a tiling middle — so the ribbon can
+carry a label wider than its authored 89 dp. `KIT_CONTRACT` §8 already names
+this and says to file a request on hitting it; this is that request.
+
+**Why.** The result slip stamps the activity's verb on the ribbon, in six
+deterministic skill tones (`RewardArt.stampVerbFor`), which is DIR-13's second
+top failure closed for zero generations: `MINED` and `FORGED` now differ
+across the room instead of only in their letters. Seven of the nine verbs the
+game produces fit the ribbon's ~65 dp of label room at `compactLabel`. The two
+that do not are `CRAFTING COMPLETE` and `GATHERING COMPLETE`, and the first
+EPO03 device render proved it by clipping the batch summary's verb to
+`CRAFTING COMPLE`
+(`GAME_BIBLE/ART/exploration/EPO03/review/rewards/slips_x1.png`, first pass).
+
+**Where.** `lib/ui/components/activity_result.dart`, `_StampState.build` —
+`_Stamp._ribbonFloor = 10`. A verb longer than that is set as a plain stamped
+label in the same place rather than clipped or shrunk below a type floor that
+is already under the platform minimum. When the painter lands, delete
+`_ribbonFloor` and its branch; nothing else changes, and the layout figure
+(`RewardArt.stampHeight`, 22 dp) is already spent in both arms.
+
+**Blocking.** No. The two long verbs read correctly today; they simply read
+without their ribbon.

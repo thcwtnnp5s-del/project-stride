@@ -42,9 +42,11 @@ import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
 import 'adaptive_text.dart';
 import 'data_display.dart';
+import 'panel_skin.dart';
 import 'pixel_asset.dart';
 import 'rarity_badge.dart';
 import 'rarity_item_title.dart';
+import 'surfaces.dart';
 
 /// How much a result matters — the only axis presentation may vary on.
 enum RewardTier { minor, medium, major }
@@ -260,14 +262,7 @@ class LevelUpCard extends StatelessWidget {
       // Every level-up in the game routes through this beat, so the mark
       // lands here once rather than at each of the call sites that raise one
       // (VAWO01). Decorative: the eyebrow and title state the fact.
-      icon: const ExcludeSemantics(
-        child: PixelAsset(
-          assetPath: RewardArt.plateLevelUp,
-          nativeWidth: 48,
-          nativeHeight: 48,
-          scale: 1,
-        ),
-      ),
+      icon: _LevelStamp(skill: skill),
       lines: <String>[?why],
       child: unlocked.isEmpty
           ? null
@@ -284,6 +279,57 @@ class LevelUpCard extends StatelessWidget {
                   ),
               ],
             ),
+    );
+  }
+}
+
+/// The mark a level-up wears: the **skill's own glyph, stamped into a well**
+/// (EPO03, DIR-13).
+///
+/// DIR-13's third finding was that the level-up reads as a settings dialog —
+/// a 48² plate beside card-title type in a dark card with a 1 px rule and a
+/// Continue button. The plate was the same bronze medal for Mining 4 and
+/// Cooking 9, so the one beat the game keeps for its biggest ordinary moment
+/// said nothing about *which* thing levelled.
+///
+/// The glyph is the skill icon the Character and Skills screens already use,
+/// sunk into the kit's stamped well (`KitFrame.slotWell`) so it reads as
+/// pressed into the page rather than pasted onto it. A character level — no
+/// skill — keeps `plateLevelUp`, which is exactly what it is a mark for.
+///
+/// Decorative throughout: the eyebrow and the title state the fact in words.
+class _LevelStamp extends StatelessWidget {
+  const _LevelStamp({required this.skill});
+
+  final ContentId? skill;
+
+  /// The glyph's own footprint, and so the well's content box. The well is
+  /// bigger than this by its own band, which `KitPlate.well` computes — the
+  /// arithmetic that must not be done the other way round.
+  static const double glyph = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? mark = skill == null ? null : PixelIcons.skillFor(skill!);
+    return ExcludeSemantics(
+      child: KitPlate.well(
+        frame: KitFrame.slotWell,
+        contentWidth: glyph,
+        contentHeight: glyph,
+        // Two families, two honest declarations: a skill glyph is 24² UI art
+        // magnified ×2, the level plate is 48² reward art drawn ×1. Both
+        // occupy the same 48 dp box, which is what keeps the well one size.
+        child: Center(
+          child: mark == null
+              ? const PixelAsset(
+                  assetPath: RewardArt.plateLevelUp,
+                  nativeWidth: 48,
+                  nativeHeight: 48,
+                  scale: 1,
+                )
+              : PixelAsset.skill(mark, scale: 2),
+        ),
+      ),
     );
   }
 }

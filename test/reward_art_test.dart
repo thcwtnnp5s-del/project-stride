@@ -113,4 +113,92 @@ void main() {
     }
     handle.dispose();
   });
+
+  testWidgets('a rank is sealed in its own wax, never one shared stamp', (
+    WidgetTester tester,
+  ) async {
+    // The producer's running note: six sealed pages carrying six identical
+    // saturated red seals read as a grid of stamps rather than as six sealed
+    // pages. This family answers that, and the answer is a property worth
+    // holding — a regression that pointed every rank at one seal would look
+    // fine in isolation and wrong on a screen.
+    final Set<String> seen = <String>{};
+    for (final Rarity r in <Rarity>[
+      Rarity.rare,
+      Rarity.epic,
+      Rarity.legendary,
+    ]) {
+      await _pump(tester, _result(rarity: r, xp: 40));
+      final String seal = _art(tester).singleWhere(
+        (String a) => a.contains('seal_wax_'),
+        orElse: () => '',
+      );
+      expect(seal, isNotEmpty, reason: '${r.label} carries no wax');
+      seen.add(seal);
+    }
+    expect(seen, hasLength(3), reason: 'three ranks, three waxes');
+
+    // …and the two lower ranks carry none at all: a seal on every result is
+    // a seal on nothing.
+    for (final Rarity r in <Rarity>[Rarity.common, Rarity.uncommon]) {
+      await _pump(tester, _result(rarity: r, xp: 40));
+      expect(
+        _art(tester).where((String a) => a.contains('seal_wax_')),
+        isEmpty,
+        reason: '${r.label} must not be sealed',
+      );
+    }
+  });
+
+  testWidgets('the verb wears its own skill tone', (WidgetTester tester) async {
+    // DIR-13 failure 2: a craft and a gather were the same picture. The
+    // ribbon is the difference the eye catches before it reads a letter, so
+    // two skills must never resolve to one ribbon.
+    expect(
+      RewardArt.stampVerbFor('skill.mining'),
+      isNot(RewardArt.stampVerbFor('skill.smithing')),
+    );
+    // An unknown skill is honest rather than wrong.
+    expect(RewardArt.stampVerbFor(null), RewardArt.stampVerbGathered);
+    expect(RewardArt.stampVerbFor('skill.nonesuch'), RewardArt.stampVerbGathered);
+
+    // _result forges, so the card must carry the smith's ribbon and no other.
+    await _pump(tester, _result(rarity: Rarity.common, xp: 12));
+    expect(_art(tester), contains(RewardArt.stampVerbSmithing));
+    expect(_art(tester), isNot(contains(RewardArt.stampVerbGathered)));
+  });
+
+  testWidgets('reduce motion draws the final frame, and keeps the haptic', (
+    WidgetTester tester,
+  ) async {
+    // M-16: an accessibility setting may not remove a feedback channel it
+    // does not name. The stamp and the seal arrive finished; nothing else in
+    // the card branches on the setting, and the arrival haptic lives in
+    // `ActivityResultHost` where no motion guard can reach it.
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: ActivityResultCard(result: _result(rarity: Rarity.rare)),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    // A single pump: with motion the stamp would still be part-way through
+    // its 120 ms press. Every transform on stage is the identity.
+    for (final Element e in find.byType(Transform).evaluate()) {
+      final Matrix4 m = (e.widget as Transform).transform;
+      expect(
+        m.storage[0],
+        moreOrLessEquals(1, epsilon: 0.001),
+        reason: 'a scale is still running under Reduce Motion',
+      );
+    }
+    for (final Element e in find.byType(Opacity).evaluate()) {
+      expect((e.widget as Opacity).opacity, 1);
+    }
+  });
 }

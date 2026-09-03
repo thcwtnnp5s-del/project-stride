@@ -340,10 +340,22 @@ class ActivityResultCard extends StatelessWidget {
 ///
 /// The ribbon is one drawing in six tones (`RewardArt.stampVerbFor`) and its
 /// centre is transparent, so the word is **type over the slip's own fill** and
-/// no label is ever baked into a raster (L-18). A verb longer than the ribbon
-/// shrinks within [AdaptiveText]'s floor rather than overflowing it; the
-/// longest the table produces is `GATHERING COMPLETE`, which is why the label
-/// is `compactLabel` rather than `microLabel`.
+/// no label is ever baked into a raster (L-18).
+///
+/// ## The two long verbs, and why they lose the ribbon
+///
+/// `ribbon_label` ships at 89 dp with swallowtail notches at each end, leaving
+/// about 65 dp of label room, and a ribbon is a **three**-patch — two fixed
+/// ends around a tiling middle — which `PixelFrame` cannot draw
+/// (`KIT_CONTRACT` §8: *"a label wider than 89 dp needs a three-patch
+/// painter"*). Seven of the nine verbs fit. `CRAFTING COMPLETE` and
+/// `GATHERING COMPLETE` do not: the first render of this card clipped the
+/// batch summary's verb to `CRAFTING COMPLE`, which is measured evidence and
+/// not a taste. Rather than shrink type past a floor that is already below the
+/// platform minimum, those two are set as a plain stamped label in the same
+/// place — the information is identical and nothing is cut off. A three-patch
+/// painter is filed in `REQUESTS_NAV.md`; the day it lands, [_ribbonFloor]
+/// goes and every verb wears the ribbon.
 ///
 /// The *stamp* beat: 120 ms, opacity 0 → 1 and a 1.10 → 1.0 press, once, on
 /// first build. Never `easeOutBack` — the overshoot is the jackpot register
@@ -389,36 +401,60 @@ class _StampState extends State<_Stamp> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  /// The longest verb the ribbon's 65 dp of label room holds at
+  /// `compactLabel`. Measured on the first EPO03 render, not guessed.
+  static const int _ribbonFloor = 10;
+
   @override
   Widget build(BuildContext context) {
-    final Widget ribbon = SizedBox(
-      width: RewardArt.stampWidth.toDouble(),
-      height: RewardArt.stampHeight.toDouble(),
-      child: Stack(
-        alignment: Alignment.center,
-        children: <Widget>[
-          ExcludeSemantics(
-            child: PixelAsset(
-              assetPath: RewardArt.stampVerbFor(widget.skill?.value),
-              nativeWidth: RewardArt.stampWidth,
-              nativeHeight: RewardArt.stampHeight,
-              scale: 1,
-            ),
-          ),
-          Padding(
-            // The ribbon's swallowtail ends are notches, not label room.
-            padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s12),
-            child: AdaptiveText(
-              widget.verb,
-              style: StrideType.compactLabel,
-              color: StrideColors.textPrimary,
-              minScale: 0.7,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
+    // Inside the ribbon the label shrinks with the player's text scale rather
+    // than growing past the notches; outside it there is no boundary to
+    // respect, so it is set at its own size.
+    final Widget label = AdaptiveText(
+      widget.verb,
+      style: StrideType.compactLabel,
+      color: StrideColors.textPrimary,
+      minScale: 0.8,
+      textAlign: TextAlign.center,
     );
+    final Widget ribbon = widget.verb.length > _ribbonFloor
+        ? SizedBox(
+            height: RewardArt.stampHeight.toDouble(),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                widget.verb,
+                style: StrideType.compactLabel.copyWith(
+                  color: StrideColors.textPrimary,
+                ),
+                maxLines: 1,
+              ),
+            ),
+          )
+        : SizedBox(
+            width: RewardArt.stampWidth.toDouble(),
+            height: RewardArt.stampHeight.toDouble(),
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                ExcludeSemantics(
+                  child: PixelAsset(
+                    assetPath: RewardArt.stampVerbFor(widget.skill?.value),
+                    nativeWidth: RewardArt.stampWidth,
+                    nativeHeight: RewardArt.stampHeight,
+                    scale: 1,
+                  ),
+                ),
+                // The ribbon's swallowtail ends are notches, not label room.
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: StrideSpace.s12,
+                  ),
+                  child: label,
+                ),
+              ],
+            ),
+          );
     return AnimatedBuilder(
       animation: _press,
       child: ribbon,
