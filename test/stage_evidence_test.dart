@@ -64,6 +64,17 @@ void main() {
     ('mine_hardened_locked', 'resource_node.hardened_copper_seam', 'location.stonefall_mine', true),
     ('woods_oak', 'resource_node.oak_stand', 'location.whispering_woods', false),
     ('haven_meadow', 'resource_node.meadow_patch', 'location.havens_rest', false),
+    // EPO03 gather (`wave1/DIR-10_gathering.md`). The five rows above cover
+    // three of the twelve scenes that round repainted; these six cover the
+    // rest, so every replaced backdrop and every replaced plate is judged in
+    // the composition the phone shows rather than as a plate on a sheet.
+    // Verdicts and sheets: `GAME_BIBLE/ART/exploration/EPO03/ledger/GATHER.md`.
+    ('haven_mill_garden', 'resource_node.mill_garden', 'location.havens_rest', false),
+    ('frostmere_rimefrost', 'resource_node.rimefrost_hollow', 'location.frostmere', false),
+    ('frostmere_oldgrowth', 'resource_node.oldgrowth_frostpine', 'location.frostmere', false),
+    ('hollow_silkstrand', 'resource_node.silkstrand_thicket', 'location.forgotten_hollow', false),
+    ('woods_duskcap', 'resource_node.duskcap_grove', 'location.whispering_woods', false),
+    ('mine_deep_tin', 'resource_node.deep_tin_seam', 'location.stonefall_mine', false),
   ]) {
     testWidgets('capture $tag', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(393, 852);
