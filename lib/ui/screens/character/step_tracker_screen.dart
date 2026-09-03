@@ -16,9 +16,19 @@
 /// ## Why a pushed route
 ///
 /// Same reasoning and same mechanics as the Goal Board: the Character tab
-/// keeps a compact card, and the full surface gets its own screen without a
-/// permanent tab. The pushed screen is re-wrapped in the pushing context's
-/// controllers (`goal_board_screen.dart` documents the scope re-wrap).
+/// keeps a compact foot to its ledger, and the full surface gets its own
+/// screen without a permanent tab. The pushed screen is re-wrapped in the
+/// pushing context's controllers (`goal_board_screen.dart` documents the
+/// scope re-wrap).
+///
+/// ## The same folio, one leaf further in (EPO03, `DIR-05`)
+///
+/// The tracker was four stacked [SectionCard]s on a flat ground — the shape
+/// the Character tab has just stopped being, on the screen that opens from
+/// it. It is now the same page: a bound `journalLeaf` [PageGround], sections
+/// opened by a [KitRule] rather than boxed in a card, and Day / Week as two
+/// folio index tabs rather than two grey pills. Every figure, every
+/// projection and the sync command itself are untouched.
 library;
 
 import 'package:flutter/material.dart' show MaterialPageRoute;
@@ -26,7 +36,9 @@ import 'package:flutter/widgets.dart';
 
 import '../../../audio/audio_controller.dart';
 import '../../../runtime/stride_session.dart';
+import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/panel_skin.dart';
 import '../../components/screen_header.dart';
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
@@ -37,6 +49,11 @@ import '../../theme/stride_colors.dart';
 import '../../theme/stride_metrics.dart';
 import '../../theme/stride_typography.dart';
 import 'steps_block.dart' show syncedLabel;
+
+/// The bound edge plus a breath, exactly as the Character folio spends it —
+/// the tracker is the same book, so its inner margin is the same figure.
+double get _spineGutter =>
+    KitTiles.thicknessFor(KitTile.edgeSpine) + StrideSpace.s8;
 
 class StepTrackerScreen extends StatefulWidget {
   const StepTrackerScreen({super.key});
@@ -67,8 +84,8 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
     final StepHistory history = c.session.stepHistory();
     final EdgeInsets inset = MediaQuery.viewPaddingOf(context);
 
-    return ColoredBox(
-      color: StrideColors.surfaceGround,
+    return PageGround(
+      surface: PanelSurface.journalLeaf,
       child: Column(
         children: <Widget>[
           SizedBox(height: inset.top),
@@ -94,86 +111,94 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: EdgeInsets.fromLTRB(
-                StrideSpace.screenGutter,
-                StrideSpace.s12,
-                StrideSpace.screenGutter,
-                StrideSpace.s16 + inset.bottom,
-              ),
+            child: Stack(
               children: <Widget>[
-                // The span toggle: two words, one selected.
-                Row(
+                ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    _spineGutter,
+                    StrideSpace.s12,
+                    StrideSpace.screenGutter,
+                    StrideSpace.s16 + inset.bottom,
+                  ),
                   children: <Widget>[
-                    _SpanChip(
-                      label: 'Day',
-                      selected: _span == _Span.day,
-                      onTap: () => setState(() => _span = _Span.day),
+                    // The span, as two index tabs on the folio's edge. It was
+                    // two grey pills, which is `DIR-05`'s third failure — one
+                    // chip shape carrying six meanings — and a span is exactly
+                    // what an index tab is for: which leaf of the same record
+                    // is open.
+                    Row(
+                      children: <Widget>[
+                        _SpanTab(
+                          label: 'Day',
+                          selected: _span == _Span.day,
+                          onTap: () => setState(() => _span = _Span.day),
+                        ),
+                        const SizedBox(width: StrideSpace.s6),
+                        _SpanTab(
+                          label: 'Week',
+                          selected: _span == _Span.week,
+                          onTap: () => setState(() => _span = _Span.week),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: StrideSpace.s6),
-                    _SpanChip(
-                      label: 'Week',
-                      selected: _span == _Span.week,
-                      onTap: () => setState(() => _span = _Span.week),
+                    const SizedBox(height: StrideSpace.rhythmHero),
+
+                    if (_span == _Span.day)
+                      _DayLeaf(history: history)
+                    else
+                      _WeekLeaf(history: history),
+                    const SizedBox(height: StrideSpace.rhythmHero),
+
+                    // The forensic surface (Fable V2 Iteration 02, Q-08): why
+                    // today's figure is what it is, per pseudonymous source —
+                    // collapsed by default so the tracker stays a tracker.
+                    _DiagnosticsLeaf(controller: c),
+                    const SizedBox(height: StrideSpace.rhythmHero),
+
+                    // Freshness, and the one control that changes it. The
+                    // tracker exists to make step state trustworthy, and
+                    // "trustworthy" is a timestamp plus the button that moves
+                    // it.
+                    const KitRule(title: 'Sync'),
+                    const SizedBox(height: StrideSpace.rhythmRow),
+                    Text(
+                      <String>[
+                        syncedLabel(history),
+                        if (history.originCount > 1)
+                          '${history.originCount} sources contribute',
+                      ].join(' · '),
+                      style: StrideType.sub.copyWith(
+                        color: StrideColors.textSecondary,
+                      ),
+                      maxLines: 2,
                     ),
-                  ],
-                ),
-                const SizedBox(height: StrideSpace.cardGap),
-
-                if (_span == _Span.day)
-                  _DayCard(history: history)
-                else
-                  _WeekCard(history: history),
-                const SizedBox(height: StrideSpace.cardGap),
-
-                // The forensic surface (Fable V2 Iteration 02, Q-08): why
-                // today's figure is what it is, per pseudonymous source —
-                // collapsed by default so the tracker stays a tracker.
-                _DiagnosticsCard(controller: c),
-                const SizedBox(height: StrideSpace.cardGap),
-
-                // Freshness, and the one control that changes it. The
-                // tracker exists to make step state trustworthy, and
-                // "trustworthy" is a timestamp plus the button that moves
-                // it.
-                SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const SectionHeading(label: 'Sync'),
-                      const SizedBox(height: StrideSpace.s8),
-                      Text(
-                        <String>[
-                          syncedLabel(history),
-                          if (history.originCount > 1)
-                            '${history.originCount} sources contribute',
-                        ].join(' · '),
-                        style: StrideType.sub.copyWith(
-                          color: StrideColors.textSecondary,
-                        ),
-                        maxLines: 2,
+                    const SizedBox(height: StrideSpace.s4),
+                    Text(
+                      'Figures show steps the game has credited. Days '
+                      'older than a week are folded into the lifetime '
+                      'total.',
+                      style: StrideType.micro.copyWith(
+                        color: StrideColors.textMuted,
                       ),
-                      const SizedBox(height: StrideSpace.s4),
-                      Text(
-                        'Figures show steps the game has credited. Days '
-                        'older than a week are folded into the lifetime '
-                        'total.',
-                        style: StrideType.micro.copyWith(
-                          color: StrideColors.textMuted,
-                        ),
-                        maxLines: 3,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: StrideSpace.s4),
+                    Text(
+                      'Lifetime credited: '
+                      '${formatSteps(history.lifetimeGranted)} steps',
+                      style: StrideType.micro.copyWith(
+                        color: StrideColors.textSecondary,
                       ),
-                      const SizedBox(height: StrideSpace.s4),
-                      Text(
-                        'Lifetime credited: '
-                        '${formatSteps(history.lifetimeGranted)} steps',
-                        style: StrideType.micro.copyWith(
-                          color: StrideColors.textSecondary,
-                        ),
-                        maxLines: 1,
-                      ),
-                      const SizedBox(height: StrideSpace.s8),
-                      StrideButton.secondary(
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: StrideSpace.s8),
+                    // **The one primary plate on this screen** (`DIR-05` §1),
+                    // and the call inside it is untouched: same guard, same
+                    // `syncSteps`, same single light tap only when the walk
+                    // actually banked.
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: StrideButton.secondary(
                         label: c.busy ? 'Checking…' : 'Sync steps',
                         // Same rule as the Adventure band's sync: one light
                         // tap only when the walk actually banked.
@@ -189,7 +214,24 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
                                 }
                               },
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                // The binding, drawn as the folio's is and for the same
+                // reason (`character_screen.dart`, `REQUESTS_NAV.md`
+                // 2026-09-03).
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: KitTiles.thicknessFor(KitTile.edgeSpine),
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: StrideColors.surfaceGround,
+                      border: Border(
+                        right: BorderSide(color: StrideColors.borderDefault),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -208,16 +250,16 @@ class _StepTrackerScreenState extends State<StepTrackerScreen> {
 /// stable order; no identifier is ever shown (`RULES.md` H-7). The owner
 /// identifies a source by holding its figure against the app that wrote it
 /// — the comparison this card exists to enable.
-class _DiagnosticsCard extends StatefulWidget {
-  const _DiagnosticsCard({required this.controller});
+class _DiagnosticsLeaf extends StatefulWidget {
+  const _DiagnosticsLeaf({required this.controller});
 
   final SessionController controller;
 
   @override
-  State<_DiagnosticsCard> createState() => _DiagnosticsCardState();
+  State<_DiagnosticsLeaf> createState() => _DiagnosticsLeafState();
 }
 
-class _DiagnosticsCardState extends State<_DiagnosticsCard> {
+class _DiagnosticsLeafState extends State<_DiagnosticsLeaf> {
   bool _open = false;
 
   @override
@@ -225,133 +267,142 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
     final SyncDiagnosticsView d = widget.controller.session.syncDiagnostics();
     final SyncReport? last = widget.controller.lastSync;
 
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Semantics(
-            button: true,
-            label: _open ? 'Hide sync details' : 'Show sync details',
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _open = !_open),
-              child: SectionHeading(
-                label: 'Sync details',
-                trailing: Text(
-                  _open ? 'HIDE' : 'SHOW',
-                  style: StrideType.microLabel.copyWith(
-                    color: StrideColors.textSecondary,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Semantics(
+          button: true,
+          label: _open ? 'Hide sync details' : 'Show sync details',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _open = !_open),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    const Expanded(
+                      child: AdaptiveText(
+                        'Sync details',
+                        style: StrideType.sectionHeading,
+                      ),
+                    ),
+                    Text(
+                      _open ? 'HIDE' : 'SHOW',
+                      style: StrideType.microLabel.copyWith(
+                        color: StrideColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: StrideSpace.rowGap),
+                const KitEdge(
+                  tile: KitTile.ruleJournal,
+                  fallbackColor: StrideColors.separator,
+                ),
+              ],
             ),
           ),
-          if (!_open) ...<Widget>[
-            const SizedBox(height: StrideSpace.s4),
-            Text(
-              d.multiSource
-                  ? '${d.perOrigin.length} sources credited today — open '
-                        'for the split.'
-                  : 'What was read, what was credited, and why.',
-              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-              maxLines: 2,
-            ),
-          ] else ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
+        ),
+        if (!_open) ...<Widget>[
+          const SizedBox(height: StrideSpace.s4),
+          Text(
+            d.multiSource
+                ? '${d.perOrigin.length} sources credited today — open '
+                      'for the split.'
+                : 'What was read, what was credited, and why.',
+            style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+            maxLines: 2,
+          ),
+        ] else ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
 
-            // TODAY, per source — the forensic headline.
-            Text('TODAY CREDITED', style: StrideType.microLabel, maxLines: 1),
-            const SizedBox(height: StrideSpace.s2),
-            Text(
-              formatSteps(d.todayTotal),
-              style: StrideType.numericValue.copyWith(
-                color: StrideColors.accentSteps,
-              ),
+          // TODAY, per source — the forensic headline.
+          Text('TODAY CREDITED', style: StrideType.microLabel, maxLines: 1),
+          const SizedBox(height: StrideSpace.s2),
+          Text(
+            formatSteps(d.todayTotal),
+            style: StrideType.numericValue.copyWith(
+              color: StrideColors.accentSteps,
             ),
-            if (d.perOrigin.isNotEmpty) ...<Widget>[
-              const SizedBox(height: StrideSpace.s6),
-              for (final OriginDiagnosticsLine line in d.perOrigin)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: StrideSpace.s2),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          '${line.label}'
-                          '${line.settledToWatermark ? '' : ' · not yet vouched complete'}',
-                          style: StrideType.micro.copyWith(
-                            color: StrideColors.textSecondary,
-                          ),
-                          maxLines: 1,
-                        ),
-                      ),
-                      Text(
-                        '${formatSteps(line.todayGranted)} today · '
-                        '${formatSteps(line.retainedGranted)} this week',
+          ),
+          if (d.perOrigin.isNotEmpty) ...<Widget>[
+            const SizedBox(height: StrideSpace.s6),
+            for (final OriginDiagnosticsLine line in d.perOrigin)
+              Padding(
+                padding: const EdgeInsets.only(bottom: StrideSpace.s2),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        '${line.label}'
+                        '${line.settledToWatermark ? '' : ' · not yet vouched complete'}',
                         style: StrideType.micro.copyWith(
-                          color: StrideColors.textPrimary,
-                          fontFeatures: StrideType.tabularFigures,
+                          color: StrideColors.textSecondary,
                         ),
                         maxLines: 1,
                       ),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      '${formatSteps(line.todayGranted)} today · '
+                      '${formatSteps(line.retainedGranted)} this week',
+                      style: StrideType.micro.copyWith(
+                        color: StrideColors.textPrimary,
+                        fontFeatures: StrideType.tabularFigures,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ],
                 ),
-            ],
-            if (d.multiSource) ...<Widget>[
-              const SizedBox(height: StrideSpace.s4),
-              Text(
-                'Two apps recorded the same walking. Apple Health merges '
-                'them into one headline; Stride credits each source\'s own '
-                'record, so its total can be higher. Compare each figure '
-                'against Health\'s Sources list to see who is who.',
-                style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-                maxLines: 5,
               ),
-            ],
-
-            // The last sync, as it reported itself.
-            if (last != null) ...<Widget>[
-              const SizedBox(height: StrideSpace.s10),
-              Text('LAST SYNC', style: StrideType.microLabel, maxLines: 1),
-              const SizedBox(height: StrideSpace.s4),
-              _factRow('Read from Health', formatSteps(last.observedSteps)),
-              _factRow('Newly credited', formatSteps(last.newlyGranted)),
-              _factRow('Sources seen', '${last.originCount}'),
-            ],
-
-            // The ledger, lifetime.
-            const SizedBox(height: StrideSpace.s10),
-            Text('LEDGER', style: StrideType.microLabel, maxLines: 1),
-            const SizedBox(height: StrideSpace.s4),
-            _factRow('Observed, lifetime', formatSteps(d.totalObserved)),
-            _factRow('Credited, lifetime', formatSteps(d.totalGranted)),
-            _factRow('Spent, lifetime', formatSteps(d.totalSpent)),
-            _factRow('Banked now', formatSteps(d.banked)),
-            if (d.retiredSteps > 0)
-              _factRow(
-                'Retired by playtest epochs',
-                formatSteps(d.retiredSteps),
-              ),
-            _factRow('Syncs committed', '${d.syncCount}'),
-            _factRow('Resume bookmark', d.cursorPresent ? 'held' : 'none'),
-            if (d.grantedAheadOfObserved > 0)
-              _factRow(
-                'Credited ahead of observed',
-                formatSteps(d.grantedAheadOfObserved),
-              ),
-            if (d.lateDiscardedSlices > 0)
-              _factRow(
-                'Too-late records set aside',
-                '${d.lateDiscardedSlices}',
-              ),
-            if (d.correctionsObserved > 0)
-              _factRow('Downward revisions seen', '${d.correctionsObserved}'),
-            if (d.unreachableGapEvents > 0)
-              _factRow('Unreachable gaps', '${d.unreachableGapEvents}'),
           ],
+          if (d.multiSource) ...<Widget>[
+            const SizedBox(height: StrideSpace.s4),
+            Text(
+              'Two apps recorded the same walking. Apple Health merges '
+              'them into one headline; Stride credits each source\'s own '
+              'record, so its total can be higher. Compare each figure '
+              'against Health\'s Sources list to see who is who.',
+              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+              maxLines: 5,
+            ),
+          ],
+
+          // The last sync, as it reported itself.
+          if (last != null) ...<Widget>[
+            const SizedBox(height: StrideSpace.s10),
+            Text('LAST SYNC', style: StrideType.microLabel, maxLines: 1),
+            const SizedBox(height: StrideSpace.s4),
+            _factRow('Read from Health', formatSteps(last.observedSteps)),
+            _factRow('Newly credited', formatSteps(last.newlyGranted)),
+            _factRow('Sources seen', '${last.originCount}'),
+          ],
+
+          // The ledger, lifetime.
+          const SizedBox(height: StrideSpace.s10),
+          Text('LEDGER', style: StrideType.microLabel, maxLines: 1),
+          const SizedBox(height: StrideSpace.s4),
+          _factRow('Observed, lifetime', formatSteps(d.totalObserved)),
+          _factRow('Credited, lifetime', formatSteps(d.totalGranted)),
+          _factRow('Spent, lifetime', formatSteps(d.totalSpent)),
+          _factRow('Banked now', formatSteps(d.banked)),
+          if (d.retiredSteps > 0)
+            _factRow('Retired by playtest epochs', formatSteps(d.retiredSteps)),
+          _factRow('Syncs committed', '${d.syncCount}'),
+          _factRow('Resume bookmark', d.cursorPresent ? 'held' : 'none'),
+          if (d.grantedAheadOfObserved > 0)
+            _factRow(
+              'Credited ahead of observed',
+              formatSteps(d.grantedAheadOfObserved),
+            ),
+          if (d.lateDiscardedSlices > 0)
+            _factRow('Too-late records set aside', '${d.lateDiscardedSlices}'),
+          if (d.correctionsObserved > 0)
+            _factRow('Downward revisions seen', '${d.correctionsObserved}'),
+          if (d.unreachableGapEvents > 0)
+            _factRow('Unreachable gaps', '${d.unreachableGapEvents}'),
         ],
-      ),
+      ],
     );
   }
 
@@ -380,8 +431,8 @@ class _DiagnosticsCardState extends State<_DiagnosticsCard> {
 }
 
 /// Today: the headline figure, then the hours that earned it.
-class _DayCard extends StatelessWidget {
-  const _DayCard({required this.history});
+class _DayLeaf extends StatelessWidget {
+  const _DayLeaf({required this.history});
 
   final StepHistory history;
 
@@ -393,42 +444,49 @@ class _DayCard extends StatelessWidget {
       (int a, StepHourLine h) => h.granted > a ? h.granted : a,
     );
 
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          SectionHeading(
-            label: 'Today',
-            trailing: const WalkingGlyph(role: WalkingRole.stock),
-          ),
-          const SizedBox(height: StrideSpace.s6),
-          Text(
-            formatSteps(history.today.granted),
-            style: StrideType.numericHero.copyWith(
-              color: StrideColors.accentSteps,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const Expanded(
+              child: AdaptiveText('Today', style: StrideType.sectionHeading),
             ),
-          ),
-          const Text('steps credited', style: StrideType.micro),
-          if (hours.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            for (final StepHourLine hour in hours) ...<Widget>[
-              _BarRow(
-                label: _hourLabel(hour.startMillis),
-                value: hour.granted,
-                max: max,
-                emphasis: false,
-              ),
-              const SizedBox(height: StrideSpace.s4),
-            ],
-          ] else ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            Text(
-              'Nothing credited yet today.',
-              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-            ),
+            const WalkingGlyph(role: WalkingRole.stock),
           ],
+        ),
+        const SizedBox(height: StrideSpace.rowGap),
+        const KitEdge(
+          tile: KitTile.ruleJournal,
+          fallbackColor: StrideColors.separator,
+        ),
+        const SizedBox(height: StrideSpace.s6),
+        Text(
+          formatSteps(history.today.granted),
+          style: StrideType.numericHero.copyWith(
+            color: StrideColors.accentSteps,
+          ),
+        ),
+        const Text('steps credited', style: StrideType.micro),
+        if (hours.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.s10),
+          for (final StepHourLine hour in hours) ...<Widget>[
+            _BarRow(
+              label: _hourLabel(hour.startMillis),
+              value: hour.granted,
+              max: max,
+              emphasis: false,
+            ),
+            const SizedBox(height: StrideSpace.s4),
+          ],
+        ] else ...<Widget>[
+          const SizedBox(height: StrideSpace.s10),
+          Text(
+            'Nothing credited yet today.',
+            style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -439,8 +497,8 @@ class _DayCard extends StatelessWidget {
 }
 
 /// The week: seven days, oldest first, today emphasised.
-class _WeekCard extends StatelessWidget {
-  const _WeekCard({required this.history});
+class _WeekLeaf extends StatelessWidget {
+  const _WeekLeaf({required this.history});
 
   final StepHistory history;
 
@@ -454,37 +512,47 @@ class _WeekCard extends StatelessWidget {
       0,
       (int a, StepDayLine d) => d.granted > a ? d.granted : a,
     );
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          SectionHeading(
-            label: 'This week',
-            trailing: Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const Expanded(
+              child: AdaptiveText(
+                'This week',
+                style: StrideType.sectionHeading,
+              ),
+            ),
+            Text(
               '${formatSteps(history.week)} steps',
               style: StrideType.micro.copyWith(
                 color: StrideColors.textPrimary,
                 fontSize: 12.5,
               ),
             ),
-          ),
-          const SizedBox(height: StrideSpace.s10),
-          for (final StepDayLine day in history.days) ...<Widget>[
-            _BarRow(
-              label: day.isToday
-                  ? 'TODAY'
-                  : _weekdays[DateTime.fromMillisecondsSinceEpoch(
-                          day.startOfDayMillis,
-                        ).weekday -
-                        1],
-              value: day.granted,
-              max: max,
-              emphasis: day.isToday,
-            ),
-            const SizedBox(height: StrideSpace.s4),
           ],
+        ),
+        const SizedBox(height: StrideSpace.rowGap),
+        const KitEdge(
+          tile: KitTile.ruleJournal,
+          fallbackColor: StrideColors.separator,
+        ),
+        const SizedBox(height: StrideSpace.s10),
+        for (final StepDayLine day in history.days) ...<Widget>[
+          _BarRow(
+            label: day.isToday
+                ? 'TODAY'
+                : _weekdays[DateTime.fromMillisecondsSinceEpoch(
+                        day.startOfDayMillis,
+                      ).weekday -
+                      1],
+            value: day.granted,
+            max: max,
+            emphasis: day.isToday,
+          ),
+          const SizedBox(height: StrideSpace.s4),
         ],
-      ),
+      ],
     );
   }
 }
@@ -563,9 +631,18 @@ class _BarRow extends StatelessWidget {
   }
 }
 
-/// Day / Week, as the app's one chip shape.
-class _SpanChip extends StatelessWidget {
-  const _SpanChip({
+/// Day / Week, as the folio's index tabs.
+///
+/// It was the app's one chip shape, which is `DIR-05`'s third named failure —
+/// a grey pill standing for six different meanings. A span is which leaf of
+/// the same record is open, and that is what an index tab says. The selected
+/// tab is **raised** (the kit's lit top edge, the same light `StrideButton`
+/// uses) and the unselected one is not; the ink does the rest.
+///
+/// Brass, never teal: a chosen leaf is not a walking quantity (L-16 repair,
+/// Fable V2 Iteration 02).
+class _SpanTab extends StatelessWidget {
+  const _SpanTab({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -583,30 +660,27 @@ class _SpanChip extends StatelessWidget {
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: StrideSpace.s10,
-          vertical: 5,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: StrideGeometry.buttonHitFloor,
         ),
-        decoration: BoxDecoration(
-          color: selected
+        child: KitPlate(
+          frame: KitFrame.tabPlate,
+          raised: selected,
+          fill: selected
               ? StrideColors.surfaceRaised
               : StrideColors.surfaceBlock,
-          // Brass, not teal: a selected chip is a chosen thing, not a
-          // walking quantity (L-16 repair, Fable V2 Iteration 02).
-          border: Border.all(
-            color: selected
-                ? StrideColors.actionEdge
-                : StrideColors.borderDefault,
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: StrideSpace.s8,
           ),
-          borderRadius: StrideRadius.chip,
-        ),
-        child: Text(
-          label,
-          style: StrideType.compactLabel.copyWith(
-            color: selected
-                ? StrideColors.textPrimary
-                : StrideColors.textSecondary,
+          child: Text(
+            label,
+            style: StrideType.compactLabel.copyWith(
+              color: selected
+                  ? StrideColors.textPrimary
+                  : StrideColors.textSecondary,
+            ),
           ),
         ),
       ),
