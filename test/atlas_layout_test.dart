@@ -459,9 +459,14 @@ void main() {
       );
       // One sprite, one kind of motion: drift wraps forever, travel resets
       // each play — both at once is two owners for one position.
+      // Anchored on the snowdrift, the last drifting overlay in the shipped
+      // document: EPO03 deleted the two drifting bird rows this case used to
+      // rewrite, and a `replaceFirst` that silently matches nothing would
+      // turn this into a test of the unmodified file (which the `isNot`
+      // below is here to catch).
       final String both = shippedLayout.replaceFirst(
-        '"drift": {\n        "x": 16,\n        "y": -3\n      },',
-        '"drift": { "x": 16, "y": -3 }, '
+        '"drift": {\n        "x": 6,\n        "y": 0\n      },',
+        '"drift": { "x": 6, "y": 0 }, '
             '"intervalMillis": 9000, "travel": { "x": -12, "y": 0 },',
       );
       expect(both, isNot(shippedLayout), reason: 'the rewrite must land');

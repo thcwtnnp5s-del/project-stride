@@ -44,6 +44,31 @@
         4,
         5
       ]
+    },
+    {
+      "name": "overlay_mule_train",
+      "frames": 6,
+      "canvas": "24x24"
+    },
+    {
+      "name": "overlay_gulls",
+      "frames": 5,
+      "canvas": "24x24"
+    },
+    {
+      "name": "overlay_ptarmigan",
+      "frames": 5,
+      "canvas": "16x16"
+    },
+    {
+      "name": "overlay_ship_east",
+      "frames": 5,
+      "canvas": "32x32"
+    },
+    {
+      "name": "overlay_wolfpair_small",
+      "frames": 9,
+      "canvas": "28x22"
     }
   ]
 }

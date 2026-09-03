@@ -542,48 +542,6 @@
   ],
   "overlays": [
     {
-      "asset": "env/overlay_snow_flurry",
-      "x": 2736,
-      "y": 1716,
-      "frames": 8,
-      "frameMillis": 167,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 64,
-      "height": 64
-    },
-    {
-      "asset": "env/overlay_snow_flurry",
-      "x": 3126,
-      "y": 1896,
-      "frames": 8,
-      "frameMillis": 167,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 64,
-      "height": 64
-    },
-    {
-      "asset": "env/overlay_forest_mist",
-      "x": 1806,
-      "y": 2616,
-      "frames": 6,
-      "frameMillis": 250,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 0.4,
-      "width": 96,
-      "height": 48
-    },
-    {
       "asset": "env/overlay_forest_mist",
       "x": 2076,
       "y": 3516,
@@ -596,34 +554,6 @@
       "opacity": 0.4,
       "width": 96,
       "height": 48
-    },
-    {
-      "asset": "env/overlay_birds",
-      "x": 3336,
-      "y": 2616,
-      "frames": 6,
-      "frameMillis": 167,
-      "drift": {
-        "x": 16,
-        "y": -3
-      },
-      "opacity": 0.9,
-      "width": 24,
-      "height": 24
-    },
-    {
-      "asset": "env/overlay_birds",
-      "x": 4056,
-      "y": 3336,
-      "frames": 6,
-      "frameMillis": 167,
-      "drift": {
-        "x": 16,
-        "y": -3
-      },
-      "opacity": 0.9,
-      "width": 24,
-      "height": 24
     },
     {
       "asset": "env/overlay_smoke",
@@ -669,36 +599,6 @@
       "height": 64
     },
     {
-      "asset": "env/overlay_tree_rustle_a",
-      "x": 1656,
-      "y": 3576,
-      "frames": 9,
-      "frameMillis": 300,
-      "intervalMillis": 9000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 48,
-      "height": 48
-    },
-    {
-      "asset": "env/overlay_tree_rustle_b",
-      "x": 2112,
-      "y": 3960,
-      "frames": 9,
-      "frameMillis": 320,
-      "intervalMillis": 13000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 44,
-      "height": 44
-    },
-    {
       "asset": "env/overlay_ripple_coast",
       "x": 4056,
       "y": 3216,
@@ -725,34 +625,6 @@
       "opacity": 1,
       "width": 36,
       "height": 48
-    },
-    {
-      "asset": "env/overlay_fire3",
-      "x": 1704,
-      "y": 3744,
-      "frames": 10,
-      "frameMillis": 200,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 44,
-      "height": 52
-    },
-    {
-      "asset": "env/overlay_yeti2",
-      "x": 2940,
-      "y": 1944,
-      "frames": 8,
-      "frameMillis": 350,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 44,
-      "height": 34
     },
     {
       "asset": "env/overlay_bear2",
@@ -824,38 +696,34 @@
       "height": 41
     },
     {
-      "asset": "env/overlay_ship",
-      "x": 4728,
-      "y": 3888,
-      "frames": 1,
-      "frameMillis": 14000,
-      "intervalMillis": 45000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "travel": {
-        "x": -9,
-        "y": 4
-      },
+      "asset": "env/overlay_ship_east",
+      "frames": 5,
+      "frameMillis": 420,
       "opacity": 1,
-      "width": 15,
-      "height": 20
-    },
-    {
-      "asset": "env/overlay_stag",
-      "x": 936,
-      "y": 2958,
-      "frames": 20,
-      "frameMillis": 400,
-      "intervalMillis": 34000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1,
-      "width": 28,
-      "height": 22
+      "width": 32,
+      "height": 32,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            4680,
+            3840
+          ],
+          [
+            5100,
+            2880
+          ],
+          [
+            5580,
+            1560
+          ]
+        ],
+        "speed": 8,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": []
+      }
     },
     {
       "asset": "env/overlay_flock",
@@ -893,79 +761,155 @@
     },
     {
       "asset": "env/overlay_redwyrm",
-      "x": 4200,
-      "y": 1440,
       "width": 96,
       "height": 64,
       "frames": 9,
       "frameMillis": 400,
-      "playLoops": 2,
-      "intervalMillis": 22000,
-      "drift": {
-        "x": 0,
-        "y": 0
+      "opacity": 1,
+      "depth": 2,
+      "faces": "east",
+      "shadow": {
+        "dx": 10,
+        "dy": 84,
+        "opacity": 0.3
       },
-      "travel": {
-        "x": 22,
-        "y": -4
+      "breath": {
+        "asset": "env/overlay_redwyrm_plume",
+        "width": 96,
+        "height": 48,
+        "frames": 8,
+        "frameMillis": 120,
+        "offset": {
+          "x": 88,
+          "y": 10
+        }
       },
-      "opacity": 1
+      "path": {
+        "points": [
+          [
+            4200,
+            1440
+          ],
+          [
+            4800,
+            1620
+          ],
+          [
+            5040,
+            2100
+          ],
+          [
+            4770,
+            2640
+          ],
+          [
+            4140,
+            2850
+          ],
+          [
+            3540,
+            2520
+          ],
+          [
+            3660,
+            1680
+          ]
+        ],
+        "speed": 36,
+        "mode": "loop",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": [
+          2,
+          5
+        ],
+        "bob": {
+          "amplitude": 12,
+          "periodMillis": 1600
+        }
+      }
     },
     {
       "asset": "env/overlay_stormdrake",
-      "x": 2100,
-      "y": 1140,
       "width": 96,
       "height": 56,
       "frames": 9,
       "frameMillis": 340,
-      "playLoops": 2,
-      "intervalMillis": 26000,
-      "drift": {
-        "x": 0,
-        "y": 0
+      "opacity": 1,
+      "depth": 2,
+      "faces": "east",
+      "shadow": {
+        "dx": 8,
+        "dy": 76,
+        "opacity": 0.28
       },
-      "travel": {
-        "x": 30,
-        "y": 6
+      "cloud": {
+        "asset": "env/overlay_storm_cloud",
+        "width": 112,
+        "height": 48,
+        "frames": 6,
+        "frameMillis": 260,
+        "offset": {
+          "x": -8,
+          "y": -14
+        },
+        "opacity": 0.55
       },
-      "opacity": 1
-    },
-    {
-      "asset": "env/overlay_redwyrm_breath",
-      "x": 4680,
-      "y": 1800,
-      "width": 128,
-      "height": 64,
-      "frames": 8,
-      "frameMillis": 180,
-      "playLoops": 1,
-      "intervalMillis": 31000,
-      "drift": {
-        "x": 0,
-        "y": 0
+      "breath": {
+        "asset": "env/overlay_stormdrake_bolt",
+        "width": 96,
+        "height": 56,
+        "frames": 8,
+        "frameMillis": 110,
+        "offset": {
+          "x": 88,
+          "y": 8
+        }
       },
-      "opacity": 1
-    },
-    {
-      "asset": "env/overlay_stormdrake_breath",
-      "x": 4992,
-      "y": 4128,
-      "width": 128,
-      "height": 56,
-      "frames": 8,
-      "frameMillis": 340,
-      "playLoops": 1,
-      "intervalMillis": 34000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "travel": {
-        "x": -26,
-        "y": 8
-      },
-      "opacity": 1
+      "path": {
+        "points": [
+          [
+            2640,
+            1608
+          ],
+          [
+            2730,
+            2010
+          ],
+          [
+            3360,
+            2370
+          ],
+          [
+            3840,
+            2820
+          ],
+          [
+            4380,
+            3360
+          ],
+          [
+            4740,
+            3960
+          ],
+          [
+            4980,
+            4320
+          ]
+        ],
+        "speed": 42,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": [
+          3,
+          6
+        ],
+        "bob": {
+          "amplitude": 8,
+          "periodMillis": 2200
+        }
+      }
     },
     {
       "asset": "env/overlay_fae_court",
@@ -1048,22 +992,6 @@
       "intervalMillis": 35000
     },
     {
-      "asset": "env/overlay_bear3",
-      "x": 1980,
-      "y": 3900,
-      "width": 28,
-      "height": 28,
-      "frames": 9,
-      "frameMillis": 320,
-      "playLoops": 2,
-      "intervalMillis": 30000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1
-    },
-    {
       "asset": "env/overlay_yeti3",
       "x": 3600,
       "y": 1140,
@@ -1080,11 +1008,11 @@
       "intervalMillis": 28000
     },
     {
-      "asset": "env/overlay_wolfpair",
+      "asset": "env/overlay_wolfpair_small",
       "x": 1812,
       "y": 4188,
-      "width": 56,
-      "height": 44,
+      "width": 28,
+      "height": 22,
       "frames": 9,
       "frameMillis": 300,
       "playLoops": 2,
@@ -1097,23 +1025,37 @@
     },
     {
       "asset": "env/overlay_wagon",
-      "x": 2454,
-      "y": 3126,
       "width": 14,
       "height": 13,
       "frames": 5,
       "frameMillis": 400,
-      "playLoops": 6,
-      "intervalMillis": 48000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "travel": {
-        "x": -11,
-        "y": 1
-      },
-      "opacity": 1
+      "opacity": 1,
+      "faces": "east",
+      "path": {
+        "points": [
+          [
+            2736,
+            3126
+          ],
+          [
+            3036,
+            3108
+          ],
+          [
+            3246,
+            3036
+          ],
+          [
+            3396,
+            2976
+          ]
+        ],
+        "speed": 9,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": []
+      }
     },
     {
       "asset": "env/overlay_crows",
@@ -1143,20 +1085,6 @@
       "intervalMillis": 19000,
       "drift": {
         "x": 6,
-        "y": 0
-      },
-      "opacity": 1
-    },
-    {
-      "asset": "env/overlay_lantern",
-      "x": 2700,
-      "y": 3120,
-      "width": 16,
-      "height": 16,
-      "frames": 5,
-      "frameMillis": 240,
-      "drift": {
-        "x": 0,
         "y": 0
       },
       "opacity": 1
@@ -1196,6 +1124,402 @@
         "y": 2
       },
       "opacity": 1
+    },
+    {
+      "asset": "env/overlay_mule_train",
+      "width": 24,
+      "height": 24,
+      "frames": 6,
+      "frameMillis": 320,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            3396,
+            2976
+          ],
+          [
+            3336,
+            2766
+          ],
+          [
+            3234,
+            2496
+          ],
+          [
+            3108,
+            2196
+          ],
+          [
+            2988,
+            1866
+          ]
+        ],
+        "speed": 7,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_mule_train",
+      "width": 24,
+      "height": 24,
+      "frames": 6,
+      "frameMillis": 320,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            2298,
+            3054
+          ],
+          [
+            2436,
+            3336
+          ],
+          [
+            2736,
+            3456
+          ],
+          [
+            3126,
+            3426
+          ],
+          [
+            3366,
+            3306
+          ]
+        ],
+        "speed": 7,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 21000,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_gulls",
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 180,
+      "opacity": 1,
+      "depth": 1,
+      "faces": "east",
+      "path": {
+        "points": [
+          [
+            4380,
+            3660
+          ],
+          [
+            4452,
+            3708
+          ],
+          [
+            4416,
+            3756
+          ],
+          [
+            4356,
+            3708
+          ]
+        ],
+        "speed": 40,
+        "mode": "loop",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": [],
+        "bob": {
+          "amplitude": 6,
+          "periodMillis": 900
+        }
+      }
+    },
+    {
+      "asset": "env/overlay_gulls",
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 180,
+      "opacity": 1,
+      "depth": 1,
+      "faces": "east",
+      "path": {
+        "points": [
+          [
+            4716,
+            4176
+          ],
+          [
+            4788,
+            4224
+          ],
+          [
+            4752,
+            4272
+          ],
+          [
+            4692,
+            4224
+          ]
+        ],
+        "speed": 40,
+        "mode": "loop",
+        "flip": true,
+        "phaseMillis": 3000,
+        "breathAt": [],
+        "bob": {
+          "amplitude": 6,
+          "periodMillis": 900
+        }
+      }
+    },
+    {
+      "asset": "env/overlay_gulls",
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 180,
+      "opacity": 1,
+      "depth": 1,
+      "faces": "east",
+      "path": {
+        "points": [
+          [
+            5076,
+            2856
+          ],
+          [
+            5148,
+            2904
+          ],
+          [
+            5112,
+            2952
+          ],
+          [
+            5052,
+            2904
+          ]
+        ],
+        "speed": 40,
+        "mode": "loop",
+        "flip": true,
+        "phaseMillis": 6000,
+        "breathAt": [],
+        "bob": {
+          "amplitude": 6,
+          "periodMillis": 900
+        }
+      }
+    },
+    {
+      "asset": "env/overlay_gulls",
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 180,
+      "opacity": 1,
+      "depth": 1,
+      "faces": "east",
+      "path": {
+        "points": [
+          [
+            5556,
+            1536
+          ],
+          [
+            5628,
+            1584
+          ],
+          [
+            5592,
+            1632
+          ],
+          [
+            5532,
+            1584
+          ]
+        ],
+        "speed": 40,
+        "mode": "loop",
+        "flip": true,
+        "phaseMillis": 9000,
+        "breathAt": [],
+        "bob": {
+          "amplitude": 6,
+          "periodMillis": 900
+        }
+      }
+    },
+    {
+      "asset": "env/overlay_ptarmigan",
+      "width": 16,
+      "height": 16,
+      "frames": 5,
+      "frameMillis": 420,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            2730,
+            1620
+          ],
+          [
+            2808,
+            1596
+          ]
+        ],
+        "speed": 6,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_ptarmigan",
+      "width": 16,
+      "height": 16,
+      "frames": 5,
+      "frameMillis": 420,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            2940,
+            1572
+          ],
+          [
+            3012,
+            1596
+          ]
+        ],
+        "speed": 6,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 5000,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_deer2",
+      "width": 16,
+      "height": 16,
+      "frames": 5,
+      "frameMillis": 300,
+      "opacity": 1,
+      "faces": "east",
+      "path": {
+        "points": [
+          [
+            1476,
+            2052
+          ],
+          [
+            1428,
+            2112
+          ]
+        ],
+        "speed": 8,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 4000,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_fishing_boat",
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 400,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            4344,
+            3768
+          ],
+          [
+            4470,
+            3930
+          ]
+        ],
+        "speed": 5,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 0,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_fishing_boat",
+      "width": 24,
+      "height": 24,
+      "frames": 5,
+      "frameMillis": 400,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            3840,
+            4140
+          ],
+          [
+            4020,
+            4200
+          ]
+        ],
+        "speed": 5,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 8000,
+        "breathAt": []
+      }
+    },
+    {
+      "asset": "env/overlay_ship_east",
+      "width": 32,
+      "height": 32,
+      "frames": 5,
+      "frameMillis": 460,
+      "opacity": 1,
+      "faces": "west",
+      "path": {
+        "points": [
+          [
+            4920,
+            3600
+          ],
+          [
+            5400,
+            3360
+          ],
+          [
+            5760,
+            3960
+          ],
+          [
+            5280,
+            4560
+          ]
+        ],
+        "speed": 8,
+        "mode": "pingpong",
+        "flip": true,
+        "phaseMillis": 30000,
+        "breathAt": []
+      }
     }
   ]
 }
