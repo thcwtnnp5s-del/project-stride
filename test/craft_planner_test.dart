@@ -178,7 +178,16 @@ void main() {
     // header, and **no row states a gate at all** — which is the owner's
     // verdict, in an assertion.
     expect(find.text('Bronze Sword'), findsOneWidget);
-    expect(find.text('SMITHING · LEVELS 1–3'), findsOneWidget);
+    // The chapter opening names its trade and its range. Both are asserted,
+    // as separate runs: the header is a `Wrap` of word-level runs rather than
+    // one string, so that it **breaks** instead of shrinking at accessibility
+    // text scales — at ×1.4 on a 320 dp screen the single string wanted 264 dp
+    // of a 156 dp row, which no honest shrink ladder can buy
+    // (`ui_responsive_test.dart`). The presentation moved, so the assertion
+    // moves with it; what it checks is unchanged.
+    expect(find.text('SMITHING ·'), findsNWidgets(4));
+    expect(find.text('LEVELS'), findsNWidgets(4));
+    expect(find.text('1–3'), findsOneWidget);
     expect(find.text('Opens at Smithing 2'), findsOneWidget);
     expect(find.textContaining('Opens at Smithing'), findsNWidgets(4));
     expect(find.textContaining('more at Smithing'), findsNothing);

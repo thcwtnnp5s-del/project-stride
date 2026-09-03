@@ -1480,18 +1480,49 @@ class _TierHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             Expanded(
-              child: AdaptiveText(
-                // The unwritten chapter has no trade to name — it is the
-                // pages nobody has written for you yet, and "TAUGHT ·" in
-                // front of that is the ledger's habit of labelling a thing
-                // twice.
-                skill == 'taught'
-                    ? range
-                    : '${skill.toUpperCase()} · $range',
-                style: StrideType.cardTitle,
-                color: lit
-                    ? StrideColors.textPrimary
-                    : StrideColors.textSecondary,
+              // The trade and the range are two runs in a Wrap, not one
+              // string, so that a chapter opening **breaks** rather than
+              // shrinks when the type grows.
+              //
+              // `AdaptiveText` floors its shrink ladder at 0.85 on purpose —
+              // its own doc refuses to go lower "to make a layout fit,
+              // because that is the illegibility trade this widget exists to
+              // refuse". At accessibility scale 1.4 on a 320 dp screen
+              // "SMITHING · LEVELS 4–6" wants 264 dp of a 156 dp run, which
+              // 0.85 cannot buy and no honest scale would. Wrapping is the
+              // answer the type ladder allows: the header takes a second
+              // line, every word stays at a readable size, and the divider
+              // above it is unchanged.
+              child: Wrap(
+                spacing: StrideSpace.s6,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  // The unwritten chapter has no trade to name — it is the
+                  // pages nobody has written for you yet, and "TAUGHT ·" in
+                  // front of that is the ledger's habit of labelling a thing
+                  // twice.
+                  if (skill != 'taught')
+                    AdaptiveText(
+                      '${skill.toUpperCase()} ·',
+                      style: StrideType.cardTitle,
+                      color: lit
+                          ? StrideColors.textPrimary
+                          : StrideColors.textSecondary,
+                    ),
+                  // The range breaks at its own word boundaries too. A single
+                  // run cannot wrap inside itself, and "UNWRITTEN PAGES" —
+                  // the chapter for recipes a contract teaches — is two words
+                  // with no trade in front of them to break after.
+                  for (final String word in range.split(' '))
+                    AdaptiveText(
+                      word,
+                      style: StrideType.cardTitle,
+                      color: lit
+                          ? StrideColors.textPrimary
+                          : StrideColors.textSecondary,
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: StrideSpace.s8),
