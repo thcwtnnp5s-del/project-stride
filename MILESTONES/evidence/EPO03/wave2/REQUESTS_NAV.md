@@ -85,3 +85,44 @@ blocked. COMBAT wires the glyph at ×1 (16 dp, half the plates' 32) when the
 row is DONE.
 
 **Not blocking.** No reply needed beyond the hash.
+
+## 2026-09-03 — PROD-UI-INVENTORY: `EdgeStrip` ignores the axis, and it is breaking every widget test
+
+**What.** `EdgeStrip.build` (`lib/ui/components/pixel_asset.dart`, around
+line 918) hard-codes `SizedBox(width: double.infinity, height: displayHeight)`
+for every strip, horizontal or vertical. `KitEdge` (`surfaces.dart`, around
+line 440) reserves the run correctly per axis on the **fallback** path, then
+hands the landed path straight to `EdgeStrip` with no axis at all. So a
+vertical strip asks for infinite width.
+
+**Why it matters now.** `KitTile.edgeSpine` landed in `80463ee`, and
+`adventure_screen.dart` draws it in a `Positioned(left: 0, top: 0, bottom: 0)`
+— which gives its child unbounded width. The result is a
+`BoxConstraints forces an infinite width` assertion, thrown once per layout,
+on the Adventure tab. The shell keeps every tab alive, so **any widget test
+that mounts `StrideApp` collects hundreds of these and fails on "unexpected
+exceptions"**, whatever screen it was testing. Confirmed on
+`test/gather_queue_ui_test.dart` (3 of 3 failing) and
+`test/inventory_equip_test.dart` with no Adventure code in either. This is
+not an Inventory defect and it is not caused by this round's Inventory work;
+it is in front of every team's proof run.
+
+**The fix, in NAV files.** Give `EdgeStrip` the `axis` its `KitStrip` already
+declares and let the axis choose which side is infinite:
+
+```dart
+// pixel_asset.dart — EdgeStrip
+SizedBox(
+  width: axis == Axis.horizontal ? double.infinity : displayWidth,
+  height: axis == Axis.horizontal ? displayHeight : double.infinity,
+  child: CustomPaint(painter: _EdgeStripPainter(..., axis: axis)),
+)
+```
+
+and pass it from `KitEdge`: `EdgeStrip(..., axis: KitTiles.axisFor(tile))`.
+The painter needs the same axis to tile down rather than across; the
+horizontal path is unchanged, so no landed horizontal row moves.
+
+**Blocking.** Yes, for everyone's test runs. UI-INVENTORY has not touched
+either file (§5) and is not working around it — the Inventory rebuild uses
+only horizontal strips.
