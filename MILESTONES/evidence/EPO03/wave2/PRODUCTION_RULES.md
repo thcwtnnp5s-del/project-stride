@@ -185,6 +185,14 @@ bodies was produced this way. Before costing any variant of something that
 already ships, ask whether it is an edit of a shipped frame rather than a
 new authoring job; FMPO02 cut a whole tool column as unaffordable on a unit
 cost that was wrong by more than an order of magnitude (M-17).
+**When a negation fails, replace the noun — not the adjective.** Measured by
+PROD-GATHER on the Stonefall recess: asking for a "recess" in a mine context
+primed an adit mouth, and the model drew a timber-framed portal *through four
+explicit negations naming timber and framing*. Adding more "no X" clauses does
+not help, because the noun is doing the priming. The accepted roll stopped
+naming the feature at all and described **geology and light** instead — what
+the rock does and where the shadow falls — with every architectural noun
+banned by name. If two rolls fight the same word, delete the word.
 **Build the Dart structure first.** Every screen’s page model is mostly
 layout on materials that already ship. A screen rebuilt on existing grains
 and painted rules is transformed even if none of its new marks ever land;
