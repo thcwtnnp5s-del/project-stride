@@ -35,17 +35,18 @@
         "inpaintMargin": 18,
         "minLand": 40,
         "holeInflate": 2,
-        "holes": [
+        "holes": [],
+        "landMargin": 32,
+        "landInpaintMargin": 26,
+        "verify": [
           {
-            "x": 810,
-            "y": 142,
-            "w": 30,
-            "h": 30,
-            "why": "Rimespire prop (824,156) must keep ice under it (DIR-01 anchor)"
+            "x": 824,
+            "y": 156,
+            "what": "Rimespire prop must still have ice, not open water, under it (DIR-01 anchor). No hole: a frozen 30px square inside a 50px ribbon reads as a patch. Verified on the composite instead."
           }
         ]
       },
-      "intent": "The front itself: the hard near-straight white ice/sea edge becomes a broken seaward margin - floes of many sizes crowding the edge, small bergs and brash scattering seaward and thinning, dark winding leads of uneven width cutting back between them. Roll 1 proved a 260x210 ask becomes one glacier; this is the narrow single-defect strip."
+      "intent": "The front itself. Rolls 1-2 proved a wide ice mask is answered with a generator pattern (a smooth slab, then a fresh dark honeycomb), so the third intent is a RIBBON: the authorization is cut to a band straddling the ice margin (landMargin 26 / seaMargin 24) and the pack interior is frozen. The tool has room only for the edge - a graded face, bergs of several sizes calving off it, brash thinning seaward, leads reaching back into the margin."
     },
     {
       "id": "E3",
