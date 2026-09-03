@@ -341,7 +341,7 @@ void main() {
           )
           .first,
     );
-    return plate.height! - KitFrames.insetFor(plate.frame) * 2;
+    return plate.height! - KitFrames.insetFor(plate.frame);
   }
 
   testWidgets('the band is the creature\'s own size, not one constant — the '

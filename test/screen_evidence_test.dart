@@ -18,8 +18,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
-import 'package:stride/ui/components/loadout_readout.dart'
-    show kEmptySlotWord;
+import 'package:stride/ui/components/loadout_readout.dart' show kEmptySlotWord;
 import 'package:stride/ui/components/panel_skin.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
@@ -1063,7 +1062,15 @@ void main() {
       }
       expect(bonusSeen, isTrue, reason: 'a bonus roll pays within 25 gathers');
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.textContaining('bonus yield'), findsOneWidget);
+      // The bonus is a ruled fact now: the words on the left, the figure
+      // down the right margin (EPO03, DIR-13). Both halves, or the assertion
+      // would pass on a slip that had lost the number.
+      expect(find.text('Bonus yield'), findsOneWidget);
+      expect(
+        find.text('+${drives.lastAction!.bonusYield}'),
+        findsOneWidget,
+        reason: 'the figure the report stated, in the slip’s right margin',
+      );
       await capture(tester, 'gfcp_bonus_yield', settle: false);
       await tester.pumpAndSettle();
 
@@ -1504,5 +1511,157 @@ void main() {
     await tester.tap(find.text('Bronze Sword').last);
     await tester.pumpAndSettle();
     await capture(tester, 'inv_04_gear_open');
+  });
+  // ---------------------------------------------------------------------
+  // EPO03 ENEMIES — the encounter as a field-guide entry, and the Bestiary
+  // as the guide. One capture per region a fight happens in, plus the boss
+  // and the Awakened, because the whole claim is that each creature reads as
+  // standing *in* its habitat and that can only be judged region by region.
+  // ---------------------------------------------------------------------
+  testWidgets('EPO03 ENEMIES: an encounter dossier in each habitat, the boss '
+      'chamber, and the field guide', (WidgetTester tester) async {
+    if (dir == null || dir.isEmpty) return;
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[
+            SyncFetch(const NoChangeSync()),
+            for (int i = 0; i < 160; i++) walkedHour(i, 60000),
+          ],
+        ),
+      );
+      for (int i = 0; i < 161; i++) {
+        await s.syncSteps();
+      }
+      // The Forgotten Hollow's entry requirement is a bronze sword, so the
+      // boss dossier cannot be reached by walking alone. This is the
+      // Inventory case's own forge, verbatim in intent: mine and smelt the
+      // bronze, fell the oak, turn a handle, forge the blade.
+      Future<void> dig(String node, int n) async {
+        for (int i = 0; i < n; i++) {
+          if (!(await s.gather(ContentId.unchecked(node))).succeeded) return;
+        }
+      }
+
+      Future<void> forge(String recipe, int n) async {
+        for (int i = 0; i < n; i++) {
+          if (!(await s.craft(ContentId.unchecked(recipe))).succeeded) return;
+        }
+      }
+
+      await s.equip(ContentId.unchecked('item.training_pickaxe'));
+      await s.travel(ContentId.unchecked('location.stonefall_mine'));
+      await dig('resource_node.copper_seam', 150);
+      await dig('resource_node.tin_seam', 95);
+      await forge('recipe.bronze_ingot', 130);
+      await s.travel(ContentId.unchecked('location.havens_rest'));
+      await s.travel(ContentId.unchecked('location.whispering_woods'));
+      await s.equip(ContentId.unchecked('item.training_axe'));
+      await dig('resource_node.oak_stand', 110);
+      await forge('recipe.oak_handle', 3);
+      await forge('recipe.bronze_sword', 1);
+      await s.equip(ContentId.unchecked('item.bronze_sword'));
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+
+    final SessionController c =
+        (find.byType(SessionScope).evaluate().first.widget as SessionScope)
+            .notifier!;
+
+    /// Stands the player at [location], unless they are already there — the
+    /// engine refuses a journey to where you are, and a second dossier in the
+    /// same region would otherwise be skipped for a travel that was never
+    /// needed.
+    Future<bool> stand(String location) async {
+      final ContentId to = ContentId.unchecked(location);
+      if (session.currentLocation == to) return true;
+      final TravelReport t =
+          await tester.runAsync(() => session.travel(to)) as TravelReport;
+      await tester.pumpAndSettle();
+      return t.succeeded;
+    }
+
+    /// Opens Adventure, expands one enemy's row, and captures the dossier.
+    Future<void> dossier(String enemy, String shot) async {
+      await open(tester, 'Adventure');
+      await tester.pumpAndSettle();
+      // The encounter list is below the fold and the ListView builds lazily,
+      // so the row has to be scrolled into being before it can be found.
+      // `textContaining`, because a boss row reads 'Hollow Guardian · Boss'
+      // in the collapsed list and an exact finder never sees it.
+      final Finder row = find.textContaining(enemy);
+      for (int i = 0; i < 12 && row.evaluate().isEmpty; i++) {
+        await tester.drag(find.byType(ListView).first, const Offset(0, -160));
+        await tester.pumpAndSettle();
+      }
+      if (row.evaluate().isEmpty) return;
+      // Bring the row to the top of the page *before* tapping it — the
+      // habitat window is the top of the dossier and the point of the
+      // capture, and a row scrolled off the viewport cannot be tapped at all.
+      Future<void> lift() async {
+        final double y = tester.getTopLeft(row.first).dy;
+        if (y == 140) return;
+        await tester.drag(find.byType(ListView).first, Offset(0, 140 - y));
+        await tester.pumpAndSettle();
+      }
+
+      await lift();
+      await tester.tap(row.first);
+      await tester.pumpAndSettle();
+      await lift();
+      await capture(tester, shot);
+    }
+
+    for (final (String place, String enemy, String shot)
+        in <(String, String, String)>[
+          // The Hollow first: the forge above left the player in the
+          // Whispering Woods, which is the Hollow's only connection, and the
+          // boss chamber is the capture the round most needs.
+          (
+            'location.forgotten_hollow',
+            'Hollow Guardian',
+            'epo_enemy_hollow_boss',
+          ),
+          ('location.whispering_woods', 'Forest Wolf', 'epo_enemy_woods_wolf'),
+          (
+            'location.stonefall_mine',
+            'Salamander',
+            'epo_enemy_mine_salamander',
+          ),
+          ('location.stonefall_mine', 'Cave Goblin', 'epo_enemy_mine_goblin'),
+          ('location.frostmere', 'Frost Lynx', 'epo_enemy_frostmere_lynx'),
+          ('location.frostmere', 'Mountain Ram', 'epo_enemy_frostmere_ram'),
+        ]) {
+      if (!await stand(place)) continue;
+      await dossier(enemy, shot);
+    }
+
+    // The field guide itself: every creature with its habitat vignette, and
+    // the unsighted ones as ink.
+    await open(tester, 'Adventure');
+    await tester.pumpAndSettle();
+    final Finder notes = find.text('Field Notes');
+    if (notes.evaluate().isNotEmpty) {
+      await tester.dragUntilVisible(
+        notes,
+        find.byType(ListView).first,
+        const Offset(0, -160),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(notes.first);
+      await tester.pumpAndSettle();
+      await capture(tester, 'epo_enemy_field_guide');
+    }
+    expect(c.session.bestiary.regions, isNotEmpty);
   });
 }

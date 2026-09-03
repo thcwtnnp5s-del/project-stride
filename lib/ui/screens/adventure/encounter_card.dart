@@ -657,10 +657,24 @@ class _EnemyStage extends StatelessWidget {
     final HabitatPlate? p = plate;
     final KitFrame frame = frameFor(boss: boss);
     final double window = heightFor(art, plate: p);
+    final double band = KitFrames.insetFor(frame);
     return KitPlate(
       frame: frame,
       width: double.infinity,
-      height: window + KitFrames.insetFor(frame) * 2,
+      height: window + band,
+      // **The frame's band is spent on the bottom edge only.** A picture frame
+      // should not mat its picture, and inset on all four sides it did: the
+      // region ink painted behind the window showed as a coloured border
+      // between the frame and the habitat on all four sides, loudest on the
+      // Hollow's violet. Bleeding the art under the left, right and top bands
+      // removes three of them.
+      //
+      // The fourth is kept on purpose. Spending the band at the *top* instead
+      // would put the frame's lower beam across the creature's feet, and the
+      // contact point is the one thing this whole change exists to make
+      // visible — so the region ink stays as a thin ledge under the picture,
+      // where it reads as the mount a framed plate sits on.
+      padding: EdgeInsets.only(bottom: band),
       // The region's deep ink rather than one flat `surfaceBlock`
       // everywhere: the band still has to be bright enough for the figure's
       // multiply contact shadow to darken (the finding
