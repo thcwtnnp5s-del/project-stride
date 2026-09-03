@@ -619,20 +619,31 @@ void main() {
     await tester.tap(find.text('Character'));
     await tester.pumpAndSettle();
 
-    // The Combat card sits below the fold since the Steps card joined the
-    // sheet (the physical-device polish pass); the list builds lazily, so
-    // scroll it into being before asserting on it.
+    // The combat figures sit below the fold; the list builds lazily, so
+    // scroll them into being before asserting on them.
+    //
+    // EPO03 turned this tab into a folio, so the section is a ruled heading
+    // reading "Combat" where the card's header shouted "COMBAT". The words
+    // the ledger says about the loadout — "unarmed", "no armour", the named
+    // weapon — are unchanged, and they are what this test is actually for.
     await tester.scrollUntilVisible(
-      find.text('COMBAT'),
+      find.text('Combat'),
       120,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('COMBAT'), findsOneWidget);
+    expect(find.text('Combat'), findsOneWidget);
     expect(find.text('unarmed'), findsOneWidget);
     expect(find.text('no armour'), findsOneWidget);
-    expect(find.text('/ 100'), findsOneWidget, reason: 'XP to level 2');
+    // The threshold is still stated, in the ledger's words rather than the
+    // card's shorthand: "of 100 to the next level" where it was "/ 100".
+    // Same fact, and the fact is what matters — a level 2 that needs 100 XP.
+    expect(
+      find.text('of 100 to the next level'),
+      findsOneWidget,
+      reason: 'XP to level 2',
+    );
     final CombatFigures before = s.combatFigures;
     expect(before.attack, 1);
 
