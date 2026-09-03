@@ -1,16 +1,23 @@
-/// The Steps card — the compact home of "is my walking being counted?"
-/// (the physical-device polish pass, item 1; `DECISIONS/0026`).
+/// The ledger's foot — "is my walking being counted?", and the tab that
+/// opens the full record (the physical-device polish pass, item 1;
+/// `DECISIONS/0026`).
 ///
-/// Today, this week, when the game last read the store, and the door to the
-/// full tracker. Every figure is `StrideSession.stepHistory()` — the
-/// local-day fold lives there, behind the UI boundary, and this card could
-/// not compute it if it wanted to (`Scripts/check-ui-boundary.sh` rule 5).
+/// It was a card of its own, directly beneath a card of step figures: two
+/// dark rectangles saying one thing. Since EPO03 it is the **foot of the
+/// walking ledger** — the same page, under the ledger's own last rule: one
+/// line of freshness, and the Step Tracker as an index tab rather than a
+/// button in a box (`DIR-05`).
+///
+/// Every figure is `StrideSession.stepHistory()` — the local-day fold lives
+/// there, behind the UI boundary, and this block could not compute it if it
+/// wanted to (`Scripts/check-ui-boundary.sh` rule 5).
 library;
 
 import 'package:flutter/widgets.dart';
 
 import '../../../runtime/stride_session.dart';
-import '../../components/data_display.dart';
+import '../../components/adaptive_text.dart';
+import '../../components/panel_skin.dart';
 import '../../components/surfaces.dart';
 import '../../state/session_scope.dart';
 import '../../theme/stride_colors.dart';
@@ -41,34 +48,79 @@ class StepsBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final StepHistory history = SessionScope.of(context).session.stepHistory();
 
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeading(label: 'Steps'),
-          const SizedBox(height: StrideSpace.rhythmRow),
-          // Today and this week moved into the ledger above (ART-12 §3).
-          // They were two value tiles here and two more figures of the same
-          // kind in the card directly beneath, and a screen that says TODAY
-          // twice has not made the figure more important — it has made the
-          // screen a list of boxes. What is left is what this card is
-          // actually for: whether the count is current, and the door to the
-          // tracker.
-          Text(
-            <String>[
-              syncedLabel(history),
-              if (history.originCount > 1) '${history.originCount} sources',
-            ].join(' · '),
-            style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-            maxLines: 1,
-          ),
-          const SizedBox(height: StrideSpace.s8),
-          StrideButton.secondary(
-            label: 'Step Tracker',
-            onPressed: () => StepTrackerScreen.open(context),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // The ledger's closing rule. The foot belongs to the figures above
+        // it, so it is ruled off from them rather than boxed away from them.
+        const KitEdge(
+          tile: KitTile.ruleJournal,
+          fallbackColor: StrideColors.separator,
+        ),
+        const SizedBox(height: StrideSpace.s6),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                // Today and this week are the ledger's lines now (`ART-12`
+                // §3). They were value tiles here as well, and a screen that
+                // says TODAY twice has not made the figure more important —
+                // it has made the screen a list of boxes. What is left is
+                // what this foot is actually for: whether the count is
+                // current.
+                <String>[
+                  syncedLabel(history),
+                  if (history.originCount > 1) '${history.originCount} sources',
+                ].join(' · '),
+                style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+                maxLines: 2,
+              ),
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            const _TrackerTab(),
+          ],
+        ),
+      ],
     );
   }
+}
+
+/// The Step Tracker, as a folio index tab.
+///
+/// `KitFrame.tabPlate` rather than a `StrideButton`: `DIR-05` gives each
+/// screen **one** primary plate, and a door out of a ledger is not it. The
+/// tab reserves the frame's declared inset whether or not `tab_plate` has
+/// landed, and it keeps the product's 44 dp hit floor either way.
+class _TrackerTab extends StatelessWidget {
+  const _TrackerTab();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Step Tracker',
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => StepTrackerScreen.open(context),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: StrideGeometry.buttonHitFloor,
+        ),
+        child: KitPlate(
+          frame: KitFrame.tabPlate,
+          fill: StrideColors.surfaceRaised,
+          raised: true,
+          padding: const EdgeInsets.symmetric(
+            horizontal: StrideSpace.s10,
+            vertical: StrideSpace.s8,
+          ),
+          child: const AdaptiveText(
+            'Step Tracker',
+            style: StrideType.compactLabel,
+            minScale: 0.8,
+          ),
+        ),
+      ),
+    ),
+  );
 }

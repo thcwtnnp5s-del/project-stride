@@ -18,6 +18,19 @@
 /// Quiet by design: a small block at the foot of the sheet, secondary
 /// controls, the plainest copy. It is an owner's instrument in a player's
 /// product, and it should look like neither a feature nor a dare.
+///
+/// ## The last footnote on the folio (EPO03, `DIR-05`)
+///
+/// The outer [SectionCard] is gone — the folio has no cards — and what stands
+/// in its place is a [KitRule] title over lines on the page's own ground: the
+/// quietest thing the page model can draw, which is what this block always
+/// wanted to be.
+///
+/// **The confirmation is deliberately unchanged.** `_Confirm` keeps its
+/// [SurfaceBlock] and its two-step shape, and `_go` keeps its call into
+/// `SessionController.resetPlaytest` exactly as it was. This is a destructive
+/// command; its guard is a feature, and the second step being a raised block
+/// rather than another line of type is the guard being visible.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -101,61 +114,59 @@ class _PlaytestBlockState extends State<PlaytestBlock> {
     final bool busy = c.busy;
     final bool? confirming = _confirmingFresh;
 
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeading(label: 'Playtest'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const KitRule(title: 'Playtest'),
+        const SizedBox(height: StrideSpace.s6),
+        Text(
+          'Start the count again. Lifetime walking, the step history and '
+          'the sync cursor are kept; old steps can never be re-banked.',
+          style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+          maxLines: 4,
+        ),
+        const SizedBox(height: StrideSpace.s10),
+        if (confirming == null)
+          Wrap(
+            spacing: StrideSpace.s8,
+            runSpacing: StrideSpace.s6,
+            children: <Widget>[
+              StrideButton.secondary(
+                label: 'Reset walking baseline',
+                onPressed: busy
+                    ? null
+                    : () => setState(() {
+                        _refusal = null;
+                        _confirmingFresh = false;
+                      }),
+              ),
+              StrideButton.secondary(
+                label: 'Start a fresh playtest',
+                onPressed: busy
+                    ? null
+                    : () => setState(() {
+                        _refusal = null;
+                        _confirmingFresh = true;
+                      }),
+              ),
+            ],
+          )
+        else
+          _Confirm(
+            fresh: confirming,
+            busy: busy,
+            onCancel: () => setState(() => _confirmingFresh = null),
+            onConfirm: () => _go(confirming),
+          ),
+        if (_refusal case final String text) ...<Widget>[
           const SizedBox(height: StrideSpace.s6),
           Text(
-            'Start the count again. Lifetime walking, the step history and '
-            'the sync cursor are kept; old steps can never be re-banked.',
-            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
-            maxLines: 4,
+            text,
+            style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
+            maxLines: 2,
           ),
-          const SizedBox(height: StrideSpace.s10),
-          if (confirming == null)
-            Wrap(
-              spacing: StrideSpace.s8,
-              runSpacing: StrideSpace.s6,
-              children: <Widget>[
-                StrideButton.secondary(
-                  label: 'Reset walking baseline',
-                  onPressed: busy
-                      ? null
-                      : () => setState(() {
-                          _refusal = null;
-                          _confirmingFresh = false;
-                        }),
-                ),
-                StrideButton.secondary(
-                  label: 'Start a fresh playtest',
-                  onPressed: busy
-                      ? null
-                      : () => setState(() {
-                          _refusal = null;
-                          _confirmingFresh = true;
-                        }),
-                ),
-              ],
-            )
-          else
-            _Confirm(
-              fresh: confirming,
-              busy: busy,
-              onCancel: () => setState(() => _confirmingFresh = null),
-              onConfirm: () => _go(confirming),
-            ),
-          if (_refusal case final String text) ...<Widget>[
-            const SizedBox(height: StrideSpace.s6),
-            Text(
-              text,
-              style: StrideType.micro.copyWith(color: StrideColors.textPrimary),
-              maxLines: 2,
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 }
@@ -182,7 +193,9 @@ class _Confirm extends StatelessWidget {
       children: <Widget>[
         Text(
           fresh ? 'START A FRESH PLAYTEST?' : 'RESET THE WALKING BASELINE?',
-          style: StrideType.microLabel.copyWith(color: StrideColors.textPrimary),
+          style: StrideType.microLabel.copyWith(
+            color: StrideColors.textPrimary,
+          ),
           maxLines: 1,
         ),
         const SizedBox(height: StrideSpace.s4),

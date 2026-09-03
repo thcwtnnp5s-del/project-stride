@@ -15,7 +15,14 @@
 /// Everything here reads and writes [AudioController] through `AudioScope`
 /// — presentation preferences, persisted by the controller's own store,
 /// nowhere near the game save (`RULES.md` E-2 has no subject here: no game
-/// state exists on this card).
+/// state exists on this block).
+///
+/// ## A footnote, not a card (EPO03, `DIR-05`)
+///
+/// It was a [SectionCard]: a dark rounded rectangle holding three
+/// preferences, at the same weight as the figures the sheet is actually
+/// about. It is now a **footnote on the folio** — a [KitRule] title and three
+/// lines on the page's own ground. Nothing it controls changed.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -41,73 +48,67 @@ class AudioBlock extends StatelessWidget {
 
     final bool haptics = settings.hapticsEnabled;
 
-    return SectionCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeading(label: 'Sound & feel'),
-          const SizedBox(height: StrideSpace.s10),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  on ? 'Sound is on' : 'Sound is off',
-                  style: StrideType.sub.copyWith(
-                    color: on
-                        ? StrideColors.textPrimary
-                        : StrideColors.textMuted,
-                  ),
-                  maxLines: 1,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        const KitRule(title: 'Sound & feel'),
+        const SizedBox(height: StrideSpace.rhythmRow),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                on ? 'Sound is on' : 'Sound is off',
+                style: StrideType.sub.copyWith(
+                  color: on ? StrideColors.textPrimary : StrideColors.textMuted,
                 ),
+                maxLines: 1,
               ),
-              StrideButton.secondary(
-                label: on ? 'Turn off' : 'Turn on',
-                onPressed: () =>
-                    AudioScope.read(context).setEnabled(!on),
-              ),
-            ],
-          ),
-          const SizedBox(height: StrideSpace.s10),
-          _VolumeRow(
-            label: 'MUSIC',
-            value: settings.musicVolume,
-            enabled: on,
-            onChanged: (double v) =>
-                AudioScope.read(context).setMusicVolume(v),
-          ),
-          const SizedBox(height: StrideSpace.s6),
-          _VolumeRow(
-            label: 'EFFECTS',
-            value: settings.sfxVolume,
-            enabled: on,
-            onChanged: (double v) => AudioScope.read(context).setSfxVolume(v),
-          ),
-          const SizedBox(height: StrideSpace.s10),
-          // Haptic punctuation (Fable V2 Iteration 02): its own switch,
-          // independent of the sound master — a silent commute still wants
-          // the tap of a level-up, and vice versa.
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  haptics ? 'Vibration is on' : 'Vibration is off',
-                  style: StrideType.sub.copyWith(
-                    color: haptics
-                        ? StrideColors.textPrimary
-                        : StrideColors.textMuted,
-                  ),
-                  maxLines: 1,
+            ),
+            StrideButton.secondary(
+              label: on ? 'Turn off' : 'Turn on',
+              onPressed: () => AudioScope.read(context).setEnabled(!on),
+            ),
+          ],
+        ),
+        const SizedBox(height: StrideSpace.s10),
+        _VolumeRow(
+          label: 'MUSIC',
+          value: settings.musicVolume,
+          enabled: on,
+          onChanged: (double v) => AudioScope.read(context).setMusicVolume(v),
+        ),
+        const SizedBox(height: StrideSpace.s6),
+        _VolumeRow(
+          label: 'EFFECTS',
+          value: settings.sfxVolume,
+          enabled: on,
+          onChanged: (double v) => AudioScope.read(context).setSfxVolume(v),
+        ),
+        const SizedBox(height: StrideSpace.s10),
+        // Haptic punctuation (Fable V2 Iteration 02): its own switch,
+        // independent of the sound master — a silent commute still wants
+        // the tap of a level-up, and vice versa.
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                haptics ? 'Vibration is on' : 'Vibration is off',
+                style: StrideType.sub.copyWith(
+                  color: haptics
+                      ? StrideColors.textPrimary
+                      : StrideColors.textMuted,
                 ),
+                maxLines: 1,
               ),
-              StrideButton.secondary(
-                label: haptics ? 'Turn off' : 'Turn on',
-                onPressed: () =>
-                    AudioScope.read(context).setHapticsEnabled(!haptics),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+            StrideButton.secondary(
+              label: haptics ? 'Turn off' : 'Turn on',
+              onPressed: () =>
+                  AudioScope.read(context).setHapticsEnabled(!haptics),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
