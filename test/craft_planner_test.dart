@@ -185,6 +185,8 @@ void main() {
 
     // The chain: the sword's short Bronze Ingot line is a door to the
     // ingot's recipe, and it replaces the sheet's content in place.
+    await tester.ensureVisible(find.text('Bronze Sword'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Bronze Sword'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Needs Smithing 3'), findsOneWidget);
@@ -203,6 +205,14 @@ void main() {
     // Walk to the cookfire: a different station, a different census, and a
     // folio open at the nearest thing to a meal — with its shortfall on the
     // button, which is the whole point of showing a one-away recipe big.
+    // The book was scrolled to, so the strip is above the viewport and its
+    // elements are gone: drag back rather than ensureVisible.
+    await tester.dragUntilVisible(
+      find.text('Cookfire'),
+      find.byType(ListView).first,
+      const Offset(0, 250),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Cookfire'));
     await tester.pumpAndSettle();
     expect(find.text('0 craftable · 10 known'), findsOneWidget);

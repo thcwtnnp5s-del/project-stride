@@ -1519,3 +1519,31 @@ palette, `create_image_pixflux`, no creature at all), or accept the toned
 discs as the final read. The former is a small authored asset and a
 `Scripts/art` rule about what a "mote" is; the latter is a decision that the
 glade's magic is light, not fairies. Neither is an implementation detail.
+
+---
+
+## Q-29 — What is a chapter of the recipe book called?
+
+**Raised by** PROD-UI-CRAFT, EPO03 wave 2 (`DIR-06` §6, its own UNRESOLVED
+line). **Owner** Systems Designer with the Creative Director.
+
+The Craft screen's locked half is now a book whose chapters are level bands of
+three, and each chapter opens with a header that today reads
+`SMITHING · LEVELS 4–6` over `Opens at Smithing 4`. A level range is a true
+statement and a joyless one: it names the gate rather than the stretch of the
+craft the player is walking into. Every candidate replacement —
+Apprentice / Journeyman / Master, or Rough / Sound / Fine work, or something
+per trade — is a **naming of progression tiers**, which is a systems and
+fiction decision with consequences past this screen: the Skills journey, the
+contract text and any future title the player is given would all have to agree
+with it, and a screen inventing the vocabulary in passing is exactly the
+implementation detail quietly becoming a design decision that `RULES.md` G-3
+forbids.
+
+It shipped with ranges only. The header is one string in `_RecipeBook` and one
+in `_TierHeader`; whatever is decided costs one line each and no layout.
+
+**What a decision needs to say:** whether crafting has named tiers at all;
+if so, the names and how many levels each spans (three is this screen's
+grouping, not a system fact); and whether the names are shared across the
+trades or per trade.
