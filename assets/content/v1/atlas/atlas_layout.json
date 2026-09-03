@@ -968,15 +968,15 @@
       "opacity": 1
     },
     {
-      "asset": "env/overlay_ice_beacon",
-      "x": 2664,
-      "y": 588,
-      "width": 48,
+      "asset": "env/overlay_fae_court",
+      "x": 1800,
+      "y": 2400,
+      "width": 112,
       "height": 80,
-      "frames": 7,
-      "frameMillis": 320,
-      "playLoops": 2,
-      "intervalMillis": 12000,
+      "frames": 16,
+      "frameMillis": 220,
+      "playLoops": 3,
+      "intervalMillis": 14000,
       "drift": {
         "x": 0,
         "y": 0
@@ -984,31 +984,47 @@
       "opacity": 1
     },
     {
-      "asset": "env/overlay_fairy_motes",
-      "x": 1752,
-      "y": 2544,
-      "width": 32,
-      "height": 32,
-      "frames": 4,
-      "frameMillis": 300,
-      "playLoops": 4,
-      "intervalMillis": 17000,
-      "drift": {
-        "x": 0,
-        "y": 0
-      },
-      "opacity": 1
-    },
-    {
-      "asset": "env/overlay_storm_lightning",
-      "x": 1164,
-      "y": 4908,
-      "width": 48,
-      "height": 64,
+      "asset": "env/overlay_storm_rain",
+      "x": 1020,
+      "y": 5136,
+      "width": 96,
+      "height": 96,
       "frames": 8,
-      "frameMillis": 110,
+      "frameMillis": 120,
+      "playLoops": 6,
+      "intervalMillis": 9000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 0.55
+    },
+    {
+      "asset": "env/overlay_storm_strike",
+      "x": 1068,
+      "y": 4848,
+      "width": 80,
+      "height": 96,
+      "frames": 8,
+      "frameMillis": 100,
       "playLoops": 1,
-      "intervalMillis": 13000,
+      "intervalMillis": 11000,
+      "drift": {
+        "x": 0,
+        "y": 0
+      },
+      "opacity": 1
+    },
+    {
+      "asset": "env/overlay_ice_beacon_sweep",
+      "x": 2520,
+      "y": 696,
+      "width": 96,
+      "height": 96,
+      "frames": 10,
+      "frameMillis": 260,
+      "playLoops": 2,
+      "intervalMillis": 9000,
       "drift": {
         "x": 0,
         "y": 0
