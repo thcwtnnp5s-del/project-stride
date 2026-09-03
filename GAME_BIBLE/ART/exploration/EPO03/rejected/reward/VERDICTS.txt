@@ -1,0 +1,18 @@
+EPO03 REWARDS — rejected rolls, with the reason each was rejected.
+Sheet: GAME_BIBLE/ART/exploration/EPO03/review/rewards/tally_sheet.png (x6, on
+the card's own #201C17 fill), Read before every verdict.
+
+glyph_tally, job 5857a090 (seed 4101) — REJECT. Six crossed strokes, not four
+  and a diagonal. It does not read as a count of five, which is the whole job.
+
+glyph_tally, job 95864968 (seed 4102) — REJECT. A wooden picket fence with a
+  plank nailed across it: five posts, rendered with highlights, at #C0... It is
+  an illustration of a fence, not tally notation, and it out-shines the words.
+
+glyph_tally, job 4e458a22 (seed 4103) — REJECT. Two crossed timbers with a
+  black cast shadow. Three strokes visible; the diagonal is a beam.
+
+No other rolls were requested. DIR-13 budgeted 66 generations across nine new
+marks; the kit's `ribbon_label`, Craft's `craft_seal_blank`, `page_sealed`,
+`rule_journal` and `slot_well` already carried five of those shapes, and three
+more were reached by deterministic remap. See REWARDS.md rows 1-3.

@@ -74,7 +74,18 @@ abstract final class RewardArt {
   static const String sealContract = '$_root/seal_contract.png';
 
   /// A project completed.
-  static const String sealProject = '$_root/seal_project.png';
+  ///
+  /// **`seal_project_bronze`, not `seal_project`** (EPO03, DIR-13 failure 5).
+  /// The VAWO01 drawing is a set-square pressed into *teal* wax, and teal is
+  /// the walking accent, reserved for step figures alone (`ART_DIRECTION.md`
+  /// L-16). It sits outside `check-art-palette`'s DeltaRGB-10 radius, so no
+  /// guard ever caught it; a zoom sheet did. The shipped file is the same
+  /// drawing with its hue remapped to bronze — deterministic, per-colour,
+  /// inventing nothing (`RULES.md` A-2). The teal master still ships as an
+  /// orphan file — its emit is in the VAWO01 block, which this round does not
+  /// own — and nothing reads it; dropping that one list row is a producer's
+  /// line to delete.
+  static const String sealProject = '$_root/seal_project_bronze.png';
 
   // ------------------------------------------------------- 96×48, a banner
 
@@ -95,6 +106,78 @@ abstract final class RewardArt {
   /// The corner bracket a notable result wears. 32² native, drawn ×1.
   static const String ornamentCorner = '$_root/ornament_corner.png';
 
+  // ----------------------------------------- 89 × 22, the verb's own ribbon
+
+  /// The plate the activity's verb is stamped on — one ribbon drawing
+  /// (`KitMark.ribbonLabel`) in six skill tones (EPO03, DIR-13).
+  ///
+  /// DIR-13's second top failure was that a craft and a gather are the same
+  /// picture: the result card swapped one grey micro word and nothing else,
+  /// so MINED and FORGED were indistinguishable at arm's length. The verb now
+  /// sits in a ribbon whose **wax tone** is the skill's, which is a difference
+  /// the eye catches before it reads a letter.
+  ///
+  /// No word is baked: the ribbon's centre is transparent and the verb is set
+  /// in type over the card's own fill (L-18). [stampVerbFor] resolves the
+  /// tone; an unknown skill takes [stampVerbGathered], which is honest rather
+  /// than wrong.
+  static const String stampVerbMining = '$_root/stamp_verb_mining.png';
+  static const String stampVerbWoodcutting =
+      '$_root/stamp_verb_woodcutting.png';
+  static const String stampVerbForaging = '$_root/stamp_verb_foraging.png';
+  static const String stampVerbCooking = '$_root/stamp_verb_cooking.png';
+  static const String stampVerbSmithing = '$_root/stamp_verb_smithing.png';
+  static const String stampVerbGathered = '$_root/stamp_verb_gathered.png';
+
+  /// The ribbon's authored footprint, drawn at ×1.
+  static const int stampWidth = 89;
+  static const int stampHeight = 22;
+
+  /// The verb ribbon for a skill id, or the neutral one when the skill is
+  /// unknown — a craft report carries a skill *name* and no id, and a node
+  /// with no definition carries neither.
+  static String stampVerbFor(String? skillId) => switch (skillId) {
+    'skill.mining' => stampVerbMining,
+    'skill.woodcutting' => stampVerbWoodcutting,
+    'skill.foraging' => stampVerbForaging,
+    'skill.cooking' => stampVerbCooking,
+    'skill.smithing' => stampVerbSmithing,
+    _ => stampVerbGathered,
+  };
+
+  // --------------------------------------------- 32², the rank's wax seal
+
+  /// The wax seal a Rare-or-better find is sealed with — Craft's blank seal
+  /// (`craft_seal_blank`) re-hued per rank (EPO03, DIR-13).
+  ///
+  /// **Three tones, deliberately.** The producer's running note on the recipe
+  /// book is that six sealed pages carrying six identical saturated red seals
+  /// read as a grid of stamps rather than as six sealed pages; the answer that
+  /// note named as cheapest is a deterministic wax-tone remap. This family is
+  /// that answer, applied before the seals ship rather than after.
+  ///
+  /// Blank, like the seal it comes from: the rank is stated in the word beside
+  /// it, never pressed into the wax.
+  static const String sealWaxRare = '$_root/seal_wax_rare.png';
+  static const String sealWaxEpic = '$_root/seal_wax_epic.png';
+  static const String sealWaxLegendary = '$_root/seal_wax_legendary.png';
+
+  /// The wax seal's authored footprint, drawn at ×1.
+  static const int sealWaxExtent = 32;
+
+  // -------------------------------------------- 28 × 24, the ledger's tally
+
+  /// A five-bar gate tally — four uprights and the stroke across them.
+  ///
+  /// The batch summary's picture. A run of five planks used to read as one
+  /// line saying `×5`; it now reads as a tally on a ruled page. Static, by
+  /// construction: the strokes are laid out at full size from the first frame
+  /// and nothing counts up (`RULES.md` P-6).
+  static const String glyphTally = '$_root/glyph_tally.png';
+
+  static const int tallyWidth = 28;
+  static const int tallyHeight = 24;
+
   /// Every asset in the set, for a precache or a coverage test.
   static const List<String> all = <String>[
     markExp,
@@ -110,5 +193,15 @@ abstract final class RewardArt {
     sealSignature,
     sealMasterwork,
     ornamentCorner,
+    stampVerbMining,
+    stampVerbWoodcutting,
+    stampVerbForaging,
+    stampVerbCooking,
+    stampVerbSmithing,
+    stampVerbGathered,
+    sealWaxRare,
+    sealWaxEpic,
+    sealWaxLegendary,
+    glyphTally,
   ];
 }

@@ -49,6 +49,24 @@ Widget _host({
   ),
 );
 
+/// The name and its quantity are two widgets now, not one string: the tally
+/// slip sets the name in rarity ink on the left and the figure down the right
+/// margin, the way a ledger is written (EPO03, DIR-13). The property under
+/// test is unchanged — *this item, this many, on the card* — so the finder
+/// moves and the assertion does not weaken.
+void _expectItem(String name, int quantity, {bool present = true}) {
+  expect(find.text(name), present ? findsOneWidget : findsNothing);
+  if (quantity > 1) {
+    expect(find.text('×$quantity'), present ? findsOneWidget : findsNothing);
+  }
+}
+
+/// Likewise for a fact line: the words on the left, the figure on the right.
+void _expectFact(String label, String figure, {bool present = true}) {
+  expect(find.text(label), present ? findsOneWidget : findsNothing);
+  expect(find.text(figure), present ? findsOneWidget : findsNothing);
+}
+
 void main() {
   testWidgets('an ordinary completion is visibly answered, and reads for '
       'seconds, not a flash', (WidgetTester tester) async {
@@ -58,16 +76,16 @@ void main() {
     await tester.pumpWidget(_host(result: _result(), token: 1));
     await tester.pump();
     expect(find.text('MINED'), findsOneWidget);
-    expect(find.text('Copper Ore ×2'), findsOneWidget);
-    expect(find.text('+12 Mining XP'), findsOneWidget);
+    _expectItem('Copper Ore', 2);
+    _expectFact('Mining experience', '+12');
 
     // Still readable well past a toast's life…
     await tester.pump(const Duration(milliseconds: 2500));
-    expect(find.text('Copper Ore ×2'), findsOneWidget);
+    _expectItem('Copper Ore', 2);
     // …and gone on its own after the hold + fade.
     await tester.pump(const Duration(milliseconds: 1200));
     await tester.pump();
-    expect(find.text('Copper Ore ×2'), findsNothing);
+    _expectItem('Copper Ore', 2, present: false);
   });
 
   testWidgets('a bonus yield is its own line and takes the reward light', (
@@ -77,7 +95,7 @@ void main() {
       _host(result: _result(quantity: 3, bonus: 1), token: 1),
     );
     await tester.pump();
-    expect(find.text('+1 bonus yield'), findsOneWidget);
+    _expectFact('Bonus yield', '+1');
     expect(_result(bonus: 1).notable, isTrue);
     expect(_result().notable, isFalse);
     await tester.pumpAndSettle();
@@ -96,7 +114,7 @@ void main() {
       _host(result: _result(incremental: true), token: 1),
     );
     await tester.pump();
-    expect(find.text('Copper Ore ×2'), findsOneWidget);
+    _expectItem('Copper Ore', 2);
 
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpWidget(
@@ -104,8 +122,8 @@ void main() {
     );
     await tester.pump();
     // One card, summed — never a second popup.
-    expect(find.text('Copper Ore ×4'), findsOneWidget);
-    expect(find.text('+24 Mining XP'), findsOneWidget);
+    _expectItem('Copper Ore', 4);
+    _expectFact('Mining experience', '+24');
     expect(find.byType(ActivityResultCard), findsOneWidget);
     await tester.pumpAndSettle();
   });
@@ -129,8 +147,8 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Tin Ore ×1'), findsOneWidget);
-    expect(find.text('Copper Ore ×2'), findsNothing);
+    _expectItem('Tin Ore', 1);
+    _expectItem('Copper Ore', 2, present: false);
     await tester.pumpAndSettle();
   });
 
@@ -143,7 +161,7 @@ void main() {
     await tester.pump();
     await tester.pumpWidget(_host(result: _result(quantity: 4), token: 2));
     await tester.pump();
-    expect(find.text('Copper Ore ×4'), findsOneWidget);
+    _expectItem('Copper Ore', 4);
     expect(find.byType(ActivityResultCard), findsOneWidget);
     await tester.pumpAndSettle();
   });
@@ -156,7 +174,7 @@ void main() {
     // The session's 5 s result timer clears the report; the snapshot stays.
     await tester.pumpWidget(_host(result: null, token: null));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Copper Ore ×2'), findsOneWidget);
+    _expectItem('Copper Ore', 2);
     await tester.pumpAndSettle();
   });
 
@@ -183,10 +201,10 @@ void main() {
       _host(result: _result(), token: 1, reduceMotion: true),
     );
     await tester.pump();
-    expect(find.text('Copper Ore ×2'), findsOneWidget);
+    _expectItem('Copper Ore', 2);
     await tester.pump(const Duration(seconds: 4));
     await tester.pump();
-    expect(find.text('Copper Ore ×2'), findsNothing);
+    _expectItem('Copper Ore', 2, present: false);
   });
 
   testWidgets('a hidden surface\'s card waits for the player', (
@@ -208,7 +226,7 @@ void main() {
     await tester.pump();
     // Far past the hold: the paused clock kept the summary standing.
     await tester.pump(const Duration(seconds: 30));
-    expect(find.text('Oak Plank ×2'), findsOneWidget);
+    _expectItem('Oak Plank', 2);
     // The tab fronted: the clock runs, the card reads, then clears.
     await tester.pumpWidget(
       Directionality(
@@ -224,9 +242,9 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Oak Plank ×2'), findsOneWidget);
+    _expectItem('Oak Plank', 2);
     await tester.pumpAndSettle();
-    expect(find.text('Oak Plank ×2'), findsNothing);
+    _expectItem('Oak Plank', 2, present: false);
   });
 
   test('the verb table answers every profession and falls back honestly', () {

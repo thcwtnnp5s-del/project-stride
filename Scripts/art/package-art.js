@@ -4297,6 +4297,78 @@ for (const [name, extent] of EPO_CRAFT_MARKS) {
   emit(`ui/${name}.png`, encode(mark));
 }
 
+// ---------------------------------------------- EPO03 REWARDS (PROD-REWARDS)
+/**
+ * THE TALLY SLIP'S OWN MARKS (`REWARDS_report.md`, brief DIR-13).
+ *
+ * Eleven files, **one** of which was generated. The other ten are
+ * deterministic tone remaps of drawings this repo had already accepted, which
+ * is the whole point of the round: DIR-13 budgeted 66 generations for a stamp
+ * plate, a wax seal and a re-rolled project seal, and the kit and the Craft
+ * workshop had already authored all three shapes. `tools/wax-tone.js` keeps
+ * every pixel's position, alpha and rank in the source's own luminance order
+ * and moves only hue and chroma onto a ramp derived from the target hex, so it
+ * invents no pixel and draws nothing (`RULES.md` A-2, precedent 49c91f9).
+ *
+ * - `stamp_verb_*` — `assets/ui/v1/kit/ribbon_label.png` (`KitMark.ribbonLabel`,
+ *   the kit's short-label ribbon) in six skill tones. The verb is set in type
+ *   in the ribbon's own transparent window, so no word is ever baked (L-18),
+ *   and MINED, CHOPPED and FORGED differ **across the room** rather than only
+ *   in their letters — DIR-13's second top failure.
+ * - `seal_wax_*` — Craft's blank wax seal in three rank tones. The producer's
+ *   running note on the recipe book is that six identical saturated red seals
+ *   read as a grid of stamps; this family answers it in the way that note
+ *   named as cheapest, and answers it before shipping rather than after.
+ * - `seal_project_bronze` — the project seal, off the walking teal (L-16,
+ *   DIR-13 top failure 5). It sits outside `check-art-palette`'s DeltaRGB-10
+ *   radius, so no guard caught it; a zoom sheet did.
+ * - `glyph_tally` — the one generated mark: a five-bar gate tally for the
+ *   batch summary's ledger rows, lifted onto the card's own ink ramp so it is
+ *   not a dark mark on a dark page.
+ *
+ * Every file is transparent-edged, carries no numeral and no word, and is
+ * drawn at x1 by `PixelAsset` (`lib/ui/icons/reward_art.dart`).
+ */
+const EPO_REWARD_SRC = path.join(EXPLORE, 'EPO03', 'out', 'reward');
+const EPO_REWARD = [
+  ['stamp_verb_mining', 89, 22],
+  ['stamp_verb_woodcutting', 89, 22],
+  ['stamp_verb_foraging', 89, 22],
+  ['stamp_verb_cooking', 89, 22],
+  ['stamp_verb_smithing', 89, 22],
+  ['stamp_verb_gathered', 89, 22],
+  ['seal_wax_rare', 32, 32],
+  ['seal_wax_epic', 32, 32],
+  ['seal_wax_legendary', 32, 32],
+  ['seal_project_bronze', 48, 48],
+  ['glyph_tally', 28, 24],
+];
+for (const [id, w, h] of EPO_REWARD) {
+  const raster = png.load(path.join(EPO_REWARD_SRC, `${id}.png`));
+  if (raster.width !== w || raster.height !== h) {
+    throw new Error(
+      `EPO03 reward ${id}: expected ${w}x${h}, got ` +
+        `${raster.width}x${raster.height}`,
+    );
+  }
+  // A mark sits ON the slip; a plate with a baked background would fight the
+  // page material under it. The same edge test the Craft block makes.
+  let opaqueEdge = 0;
+  for (let x = 0; x < raster.width; x++) {
+    if (raster.data[x * 4 + 3] === 255) opaqueEdge++;
+    if (raster.data[((raster.height - 1) * raster.width + x) * 4 + 3] === 255) {
+      opaqueEdge++;
+    }
+  }
+  if (opaqueEdge === raster.width * 2) {
+    throw new Error(
+      `EPO03 reward ${id}: the top and bottom rows are fully opaque — ` +
+        'this is a mark on the slip, not a plate with a background.',
+    );
+  }
+  emit(`reward/${id}.png`, encode(raster));
+}
+
 // -------------------------------------------------------- footprint metrics
 
 /**

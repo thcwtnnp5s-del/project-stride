@@ -48,9 +48,11 @@ import '../theme/rarity_style.dart';
 import '../theme/stride_colors.dart';
 import '../theme/stride_metrics.dart';
 import '../theme/stride_typography.dart';
+import 'adaptive_text.dart';
 import 'panel_skin.dart';
 import 'pixel_asset.dart';
 import 'rarity_item_title.dart';
+import 'surfaces.dart';
 
 /// The verb an activity's result leads with, from the skill that did the
 /// work. A skill this table does not know gathered *something* — the
@@ -129,118 +131,195 @@ final class ActivityResult {
 }
 
 /// The card itself — pure presentation of one [ActivityResult].
+///
+/// ## The slip, and why it is not a box
+///
+/// Until EPO03 this was a `surfaceCard` rectangle with a 48 px icon, a grey
+/// micro verb and a line of type: Copper Ore, Oak Log and Herb Broth were one
+/// picture, and DIR-13's first finding was that the universal result had
+/// become a **toast**. It is now a **tally slip** — a deckled paper page
+/// (`KitFrame.pageSealed`) with the item's icon at integer ×2, the verb on its
+/// own ribbon, and the facts written on ruled lines with the figures aligned
+/// down the right margin, the way a ledger is written.
+///
+/// ## Rarity is material, never area-fill
+///
+/// The rank changes what the slip is **made of** and what is pressed into it,
+/// and it never floods the card with a hue (`rarity_item_title.dart` states
+/// that rule; this is one of the surfaces it binds):
+///
+/// | rank | material | mark |
+/// |---|---|---|
+/// | common / unknown | paper (`journalLeaf`) | — |
+/// | uncommon | cloth (`buckram`) | — |
+/// | rare, epic, legendary | warm parchment (`notable`) | the drop sack, and a wax seal in the rank's own tone |
+/// | a bonus proc at any rank | warm parchment | the bonus mark |
+///
+/// The three wax tones are the point rather than a flourish: the producer's
+/// running note on the recipe book is that six identical saturated red seals
+/// read as a grid of stamps, so this family's seals differ by tone before they
+/// ship (`RewardArt.sealWaxRare`).
+///
+/// ## Motion
+///
+/// Three beats, each once, each at most 180 ms, and nothing after 400 ms: the
+/// host's *settle*, the ribbon's *stamp* (opacity and a 1.10 → 1.0 press) and
+/// the seal's *press* (1.06 → 1.0). Nothing flashes, nothing counts up,
+/// nothing loops (`RULES.md` P-6). Under Reduce Motion every one of them is
+/// drawn at its final frame from the first — and **only** the motion goes: the
+/// arrival haptic in [ActivityResultHost] is not gated on it, because an
+/// accessibility setting may not remove a feedback channel it does not name
+/// (`MISTAKES.md` M-16).
 class ActivityResultCard extends StatelessWidget {
   const ActivityResultCard({super.key, required this.result});
 
   final ActivityResult result;
 
+  /// Widest the slip gets; a phone is narrower and takes the gutter.
+  static const double maxWidth = 361;
+
+  /// The hero's integer scale. 48² native at ×2 = 96 logical px — the icon
+  /// the player has been squinting at, finally shown at the size of the thing
+  /// it is celebrating (L-18: an integer multiple, never a fitted box).
+  static const int heroScale = 2;
+
+  /// What the slip is made of, by rank. Material is the escalation; the hue
+  /// stays on the name and the marks.
+  static PanelSurface surfaceFor(ActivityResult result) {
+    final Rarity? rarity = result.rarity;
+    if (result.bonusQuantity > 0) return PanelSurface.notable;
+    if (rarity == null) return PanelSurface.journalLeaf;
+    if (rarity.rank >= Rarity.rare.rank) return PanelSurface.notable;
+    if (rarity.rank >= Rarity.uncommon.rank) return PanelSurface.buckram;
+    return PanelSurface.journalLeaf;
+  }
+
+  /// The wax seal a Rare-or-better find is sealed with, or null.
+  ///
+  /// **Null for Common and Uncommon on purpose.** A seal on every result is a
+  /// seal on nothing, and the two lower ranks already say what they are in
+  /// their material and their ink.
+  static String? sealFor(Rarity? rarity) => switch (rarity) {
+    Rarity.rare => RewardArt.sealWaxRare,
+    Rarity.epic => RewardArt.sealWaxEpic,
+    Rarity.legendary => RewardArt.sealWaxLegendary,
+    Rarity.common || Rarity.uncommon || null => null,
+  };
+
   @override
   Widget build(BuildContext context) {
     final bool notable = result.notable;
-    final Color frame = notable
-        ? (RarityStyle.maybe(result.rarity)?.accent ??
-              StrideColors.rewardLightInk)
-        : StrideColors.borderDefault;
     final Color skillInk = result.skill == null
         ? StrideColors.textSecondary
         : StrideColors.forSkill(result.skill!);
-    final Widget content = Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    final String? seal = sealFor(result.rarity);
+
+    final List<Widget> facts = <Widget>[
+      if (result.bonusQuantity > 0)
+        _RuledFact(
+          mark: RewardArt.markBonusYield,
+          label: 'Bonus yield',
+          figure: '+${result.bonusQuantity}',
+          ink: StrideColors.positiveReady,
+        ),
+      if (result.rarity case final Rarity r when r.rank >= Rarity.rare.rank)
+        _RuledFact(
+          mark: RewardArt.markRareDrop,
+          label: '${r.label} drop',
+          ink: RarityStyle.of(r).ink,
+        ),
+      if (result.xp > 0 && result.skillName != null)
+        _RuledFact(
+          mark: RewardArt.markExp,
+          label: '${result.skillName} experience',
+          figure: '+${result.xp}',
+          ink: skillInk,
+        ),
+    ];
+
+    final Widget page = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-          if (result.itemId case final ContentId id) ...<Widget>[
-            PixelAsset.item(PixelIcons.itemFor(id)),
-            const SizedBox(width: StrideSpace.s10),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  result.verb,
-                  style: StrideType.microLabel.copyWith(
-                    color: notable
-                        ? StrideColors.rewardLightInk
-                        : StrideColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                ),
-                const SizedBox(height: StrideSpace.s2),
-                RarityName.wrapping(
-                  name: '${result.itemName} ×${result.quantity}',
-                  rarity: result.rarity,
-                  style: StrideType.sub,
-                ),
-                if (result.bonusQuantity > 0) ...<Widget>[
-                  const SizedBox(height: StrideSpace.s2),
-                  _MarkedLine(
-                    mark: RewardArt.markBonusYield,
-                    text: '+${result.bonusQuantity} bonus yield',
-                    ink: StrideColors.positiveReady,
-                  ),
-                ],
-                if (result.rarity != null &&
-                    result.rarity!.rank >= Rarity.rare.rank) ...<Widget>[
-                  const SizedBox(height: StrideSpace.s2),
-                  _MarkedLine(
-                    mark: RewardArt.markRareDrop,
-                    text: '${result.rarity!.label} drop',
-                    ink:
-                        RarityStyle.maybe(result.rarity)?.accent ??
-                        StrideColors.rewardLightInk,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (result.itemId case final ContentId id) ...<Widget>[
+              PixelAsset.item(PixelIcons.itemFor(id), scale: heroScale),
+              const SizedBox(width: StrideSpace.s12),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _Stamp(verb: result.verb, skill: result.skill),
+                  const SizedBox(height: StrideSpace.s6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Expanded(
+                        child: RarityName.wrapping(
+                          name: result.itemName,
+                          rarity: result.rarity,
+                          style: StrideType.sub,
+                        ),
+                      ),
+                      if (result.quantity > 1) ...<Widget>[
+                        const SizedBox(width: StrideSpace.s6),
+                        Text(
+                          '×${result.quantity}',
+                          style: StrideType.numericValue.copyWith(
+                            color: StrideColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
-                if (result.xp > 0 && result.skillName != null) ...<Widget>[
-                  const SizedBox(height: StrideSpace.s2),
-                  _MarkedLine(
-                    mark: RewardArt.markExp,
-                    text: '+${result.xp} ${result.skillName} XP',
-                    ink: skillInk,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      );
-    // Notable results sit on the one plate tile authored for this escalation
-    // (`PanelSurface.notable`, FMPO02 wave2) — grain under the row, never a
-    // second border; the flat fill still paints first, so a tile that fails
-    // to load is the plain card underneath it.
-    final Widget card = Container(
-      constraints: const BoxConstraints(maxWidth: 361),
-      decoration: BoxDecoration(
-        color: StrideColors.surfaceCard,
-        borderRadius: StrideRadius.inner,
-        border: Border.all(color: frame, width: notable ? 2 : 1),
-        boxShadow: <BoxShadow>[
-          // A floating card needs an edge against whatever scrolls beneath
-          // it; the notable tier adds the one warm glow family.
-          const BoxShadow(
-            color: Color(0x8014120F),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-          if (notable)
-            const BoxShadow(color: StrideColors.rewardGlow, blurRadius: 14),
-        ],
-      ),
-      child: notable
-          ? SurfaceFill(
-              tile: PanelSurfaces.of(PanelSurface.notable)!,
-              fill: StrideColors.surfaceCard,
-              radius: StrideRadius.inner,
-              child: Padding(
-                padding: const EdgeInsets.all(StrideSpace.blockPadding),
-                child: content,
               ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(StrideSpace.blockPadding),
-              child: content,
             ),
+            if (seal case final String wax) ...<Widget>[
+              const SizedBox(width: StrideSpace.s6),
+              _WaxSeal(asset: wax),
+            ],
+          ],
+        ),
+        if (result.quantity >= _TallyRow.threshold) ...<Widget>[
+          const SizedBox(height: StrideSpace.s6),
+          _TallyRow(quantity: result.quantity),
+        ],
+        ...facts,
+      ],
     );
-    if (!notable) return card;
+
+    final Widget slip = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: maxWidth),
+      child: DecoratedBox(
+        // A floating slip needs an edge against whatever scrolls beneath it,
+        // and that is all this is. **The reward glow is gone** (DIR-13 finding
+        // 4): a warm bloom around a rounded dark card read as a focus ring
+        // rather than as significance, and the escalation is now the slip's
+        // own material and the bracket. One shadow, every tier, no pulse.
+        decoration: const BoxDecoration(
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Color(0x8014120F),
+              blurRadius: 10,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: KitPlate(
+          frame: KitFrame.pageSealed,
+          fill: StrideColors.surfaceCard,
+          surface: surfaceFor(result),
+          child: page,
+        ),
+      ),
+    );
+
+    if (!notable) return slip;
     // The notable escalation is **material, not motion** — a bronze bracket
     // in two corners and the rarity's ink, nothing that flashes or counts up.
     // `DECISIONS/0029` allows a raster as a discrete ornament Flutter
@@ -249,7 +328,7 @@ class ActivityResultCard extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: <Widget>[
-        card,
+        slip,
         const Positioned(top: 0, left: 0, child: _Bracket(quarter: 0)),
         const Positioned(bottom: 0, right: 0, child: _Bracket(quarter: 2)),
       ],
@@ -257,40 +336,262 @@ class ActivityResultCard extends StatelessWidget {
   }
 }
 
-/// One reward line: its authored mark, then the words.
+/// The verb, stamped on its skill's own ribbon.
 ///
-/// The mark is 24 logical px and the line is `micro`, so the row is
-/// mark-height. That is deliberate — the mark is the thing the eye catches on
-/// a card that scrolls past, and the words are the detail underneath it.
-class _MarkedLine extends StatelessWidget {
-  const _MarkedLine({
+/// The ribbon is one drawing in six tones (`RewardArt.stampVerbFor`) and its
+/// centre is transparent, so the word is **type over the slip's own fill** and
+/// no label is ever baked into a raster (L-18). A verb longer than the ribbon
+/// shrinks within [AdaptiveText]'s floor rather than overflowing it; the
+/// longest the table produces is `GATHERING COMPLETE`, which is why the label
+/// is `compactLabel` rather than `microLabel`.
+///
+/// The *stamp* beat: 120 ms, opacity 0 → 1 and a 1.10 → 1.0 press, once, on
+/// first build. Never `easeOutBack` — the overshoot is the jackpot register
+/// the owner ruled out.
+class _Stamp extends StatefulWidget {
+  const _Stamp({required this.verb, required this.skill});
+
+  final String verb;
+  final ContentId? skill;
+
+  static const Duration press = Duration(milliseconds: 120);
+
+  @override
+  State<_Stamp> createState() => _StampState();
+}
+
+class _StampState extends State<_Stamp> with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: _Stamp.press,
+    value: 1,
+  );
+
+  bool _pressed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduce Motion arrives at the final frame and stays there. The controller
+    // is still created and still disposed, so the widget's life is identical
+    // either way and nothing else in the card branches on this.
+    if (_pressed) return;
+    _pressed = true;
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
+    _press
+      ..value = 0
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget ribbon = SizedBox(
+      width: RewardArt.stampWidth.toDouble(),
+      height: RewardArt.stampHeight.toDouble(),
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          ExcludeSemantics(
+            child: PixelAsset(
+              assetPath: RewardArt.stampVerbFor(widget.skill?.value),
+              nativeWidth: RewardArt.stampWidth,
+              nativeHeight: RewardArt.stampHeight,
+              scale: 1,
+            ),
+          ),
+          Padding(
+            // The ribbon's swallowtail ends are notches, not label room.
+            padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s12),
+            child: AdaptiveText(
+              widget.verb,
+              style: StrideType.compactLabel,
+              color: StrideColors.textPrimary,
+              minScale: 0.7,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+    return AnimatedBuilder(
+      animation: _press,
+      child: ribbon,
+      builder: (BuildContext context, Widget? child) {
+        final double t = Curves.easeOutCubic.transform(_press.value);
+        return Opacity(
+          opacity: t,
+          child: Transform.scale(scale: 1.10 - 0.10 * t, child: child),
+        );
+      },
+    );
+  }
+}
+
+/// The rank's wax seal, pressed into the slip's top-right corner.
+///
+/// The *seal press* beat: 1.06 → 1.0 over 180 ms on `easeOutCubic`, once.
+/// Decorative — the `Rare drop` line below states the fact in words, and a
+/// screen reader must not hear it twice.
+class _WaxSeal extends StatefulWidget {
+  const _WaxSeal({required this.asset});
+
+  final String asset;
+
+  static const Duration press = Duration(milliseconds: 180);
+
+  @override
+  State<_WaxSeal> createState() => _WaxSealState();
+}
+
+class _WaxSealState extends State<_WaxSeal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: _WaxSeal.press,
+    value: 1,
+  );
+
+  bool _pressed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_pressed) return;
+    _pressed = true;
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
+    _press
+      ..value = 0
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _press,
+    child: ExcludeSemantics(
+      child: PixelAsset(
+        assetPath: widget.asset,
+        nativeWidth: RewardArt.sealWaxExtent,
+        nativeHeight: RewardArt.sealWaxExtent,
+        scale: 1,
+      ),
+    ),
+    builder: (BuildContext context, Widget? child) => Transform.scale(
+      scale: 1.06 - 0.06 * Curves.easeOutCubic.transform(_press.value),
+      child: child,
+    ),
+  );
+}
+
+/// A batch's tally, in five-bar gate strokes.
+///
+/// One glyph per five, at most two of them, and then the numeral does the
+/// work — a ledger strokes out two gates and then writes the number. **Static
+/// by construction**: the strokes are laid out at full size from the first
+/// frame and nothing counts up (`RULES.md` P-6). Decorative: the `×n` beside
+/// the name is the fact.
+class _TallyRow extends StatelessWidget {
+  const _TallyRow({required this.quantity});
+
+  final int quantity;
+
+  /// Below five there is nothing to tally — one or two of a thing is a
+  /// number, not a count worth stroking out.
+  static const int threshold = 5;
+
+  /// Above this the strokes stop being a picture and become a wall.
+  static const int strokeCeiling = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    if (quantity < threshold || quantity > strokeCeiling) {
+      return const SizedBox.shrink();
+    }
+    final int glyphs = quantity ~/ 5;
+    return ExcludeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          for (int i = 0; i < glyphs; i++) ...<Widget>[
+            if (i > 0) const SizedBox(width: StrideSpace.s6),
+            const PixelAsset(
+              assetPath: RewardArt.glyphTally,
+              nativeWidth: RewardArt.tallyWidth,
+              nativeHeight: RewardArt.tallyHeight,
+              scale: 1,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One fact, written on a ruled line: its mark, the words, and the figure
+/// aligned down the right margin.
+///
+/// The rule is the kit's own journal tile (`KitTile.ruleJournal`), drawn above
+/// the line it introduces, so a slip with three facts reads as three entries
+/// in a ledger rather than three rows of a settings screen. The mark is 24
+/// logical px and the words are `micro`, so the row is mark-height — the mark
+/// is what the eye catches on a card that is about to fade, and the words are
+/// the detail underneath it.
+class _RuledFact extends StatelessWidget {
+  const _RuledFact({
     required this.mark,
-    required this.text,
+    required this.label,
     required this.ink,
+    this.figure,
   });
 
   final String mark;
-  final String text;
+  final String label;
   final Color ink;
 
+  /// The right-aligned figure — `+12`, `+1`. Null for a fact that is only a
+  /// fact, like `Rare drop`.
+  final String? figure;
+
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.center,
     children: <Widget>[
-      // Decorative: the words beside it already say the whole fact, so a
-      // screen reader must not hear it twice.
-      ExcludeSemantics(
-        child: PixelAsset(
-          assetPath: mark,
-          nativeWidth: 24,
-          nativeHeight: 24,
-          scale: 1,
-        ),
-      ),
-      const SizedBox(width: StrideSpace.s6),
-      Flexible(
-        child: Text(text, style: StrideType.micro.copyWith(color: ink)),
+      const SizedBox(height: StrideSpace.s4),
+      const KitEdge(tile: KitTile.ruleJournal),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // Decorative: the words beside it already say the whole fact, so a
+          // screen reader must not hear it twice.
+          ExcludeSemantics(
+            child: PixelAsset(
+              assetPath: mark,
+              nativeWidth: 24,
+              nativeHeight: 24,
+              scale: 1,
+            ),
+          ),
+          const SizedBox(width: StrideSpace.s6),
+          Expanded(
+            child: Text(label, style: StrideType.micro.copyWith(color: ink)),
+          ),
+          if (figure case final String f) ...<Widget>[
+            const SizedBox(width: StrideSpace.s6),
+            Text(f, style: StrideType.micro.copyWith(color: ink)),
+          ],
+        ],
       ),
     ],
   );
