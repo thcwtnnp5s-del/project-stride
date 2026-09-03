@@ -296,10 +296,7 @@ class _DiagnosticsLeafState extends State<_DiagnosticsLeaf> {
                   ],
                 ),
                 const SizedBox(height: StrideSpace.rowGap),
-                const KitEdge(
-                  tile: KitTile.ruleJournal,
-                  fallbackColor: StrideColors.separator,
-                ),
+                const KitRule(),
               ],
             ),
           ),
@@ -456,10 +453,7 @@ class _DayLeaf extends StatelessWidget {
           ],
         ),
         const SizedBox(height: StrideSpace.rowGap),
-        const KitEdge(
-          tile: KitTile.ruleJournal,
-          fallbackColor: StrideColors.separator,
-        ),
+        const KitRule(),
         const SizedBox(height: StrideSpace.s6),
         Text(
           formatSteps(history.today.granted),
@@ -533,10 +527,7 @@ class _WeekLeaf extends StatelessWidget {
           ],
         ),
         const SizedBox(height: StrideSpace.rowGap),
-        const KitEdge(
-          tile: KitTile.ruleJournal,
-          fallbackColor: StrideColors.separator,
-        ),
+        const KitRule(),
         const SizedBox(height: StrideSpace.s10),
         for (final StepDayLine day in history.days) ...<Widget>[
           _BarRow(
