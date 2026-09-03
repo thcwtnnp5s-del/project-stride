@@ -45,9 +45,20 @@ void main() {
     // The property that lets a content pack ship an item before its art: an
     // unmapped id is the Traveler, not a missing asset.
     expect(TravelerArt.figureFor(_wearing('item.not_a_real_item')), _base);
-    // The starter tunics are deliberately unmapped — they ARE the base outfit.
+    // The starter tunic IS the base outfit, and since EPO03 it says so with a
+    // row of its own rather than by having none — "unmapped" and "deliberately
+    // the base body" used to look identical from outside, which is exactly how
+    // `waywarden_tunic` came to draw the white shirt in all ten contexts
+    // without anyone noticing.
     expect(TravelerArt.figureFor(_wearing('item.traveler_tunic')), _base);
-    expect(TravelerArt.figureFor(_wearing('item.waywarden_tunic')), _base);
+    // `waywarden_tunic` is no longer among them: EPO03 gave the Waywarden its
+    // own body (hood, tiered mantle, split skirt), so it must NOT degrade.
+    // This assertion is the one that would have caught the original hole, and
+    // it now guards the fix from being undone.
+    expect(
+      TravelerArt.figureFor(_wearing('item.waywarden_tunic')),
+      isNot(_base),
+    );
   });
 
   test('every mapped item resolves through its own family', () {
@@ -58,7 +69,8 @@ void main() {
     // anywhere, which is ghost gear by another name.
     for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
       expect(
-        e.value.startsWith('armor.') ||
+        e.value == TravelerArt.baseBody ||
+            e.value.startsWith('armor.') ||
             e.value.startsWith('weapon.') ||
             e.value.startsWith('tool.'),
         isTrue,
@@ -84,11 +96,15 @@ void main() {
       );
     }
 
-    // Three classes, three distinct pictures. Coarse classes are the point —
-    // ten items to three figures — but two *classes* sharing art would mean
-    // the player cannot tell a breastplate from a coat.
-    expect(TravelerArt.armorFigures.values.toSet(), hasLength(3));
-    expect(byArmourItem.values.toSet(), hasLength(3));
+    // Four classes, four distinct pictures — plate, jerkin, coat and the
+    // Waywarden that EPO03 added. Coarse classes are the point — ten items to
+    // four figures — but two *classes* sharing art would mean the player
+    // cannot tell a breastplate from a coat, which is the whole complaint
+    // this family exists to answer. The count is derived from the roster
+    // above, so adding a body updates one place, not three.
+    final int classCount = TravelerArt.armorFigures.length;
+    expect(TravelerArt.armorFigures.values.toSet(), hasLength(classCount));
+    expect(byArmourItem.values.toSet(), hasLength(classCount));
 
     // The same totality for the weapon family: every mapped weapon reaches an
     // authored combat set rather than the base's baked steel blade.
@@ -135,7 +151,12 @@ void main() {
   test('the classes are the ones that were authored', () {
     expect(
       TravelerArt.armorFigures.keys.toSet(),
-      <String>{'armor.plate', 'armor.jerkin', 'armor.coat'},
+      // EPO03 adds the Waywarden — a fifth body for waywarden_tunic and
+      // frostwarden_coat, whose silhouette (hood, tiered mantle, split skirt)
+      // is the point: the owner asked for armour families that read apart, not
+      // recolours. A class added without art would fail the figure lookups
+      // below, so this set is a roster and not a bare count.
+      <String>{'armor.plate', 'armor.jerkin', 'armor.coat', 'armor.warden'},
     );
     // Every mapped item names a class that exists. A typo here would show the
     // player the base figure and look like the feature simply not working.
