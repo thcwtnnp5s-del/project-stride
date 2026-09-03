@@ -1673,7 +1673,9 @@ for (const id of GATHER_BACKDROPS) {
   // Four of these fifteen were re-authored by FMPO02 wave 2 — see
   // `fmpo02GatherPath`. Same name, same canvas, different rock.
   const raster = png.load(
-    fmpo02GatherPath(`bg_${id}`) || path.join(VAWO_GATHER_SRC, `bg_${id}.png`),
+    epo03GatherPath(`bg_${id}`)
+      || fmpo02GatherPath(`bg_${id}`)
+      || path.join(VAWO_GATHER_SRC, `bg_${id}.png`),
   );
   if (raster.width !== 384 || raster.height !== 176) {
     throw new Error(
@@ -1707,7 +1709,8 @@ for (const id of GATHER_SUBJECTS) {
   // `fmpo02GatherPath`. The transparent-margin assertion below still applies
   // to the replacement, which is the point of putting it in the loop.
   const raster = png.load(
-    fmpo02GatherPath(`prop_${id}`)
+    epo03GatherPath(`prop_${id}`)
+      || fmpo02GatherPath(`prop_${id}`)
       || path.join(VAWO_GATHER_SRC, `prop_${id}.png`),
   );
   if (raster.width !== 48 || raster.height !== 48) {
@@ -3232,6 +3235,73 @@ function fmpo02GatherPath(file) {
   return REAUTHORED.has(file)
     ? path.join(EXPLORE, 'FMPO02', 'out', 'gather', `${file}.png`)
     : null;
+}
+
+// ------------------------------------------------------- EPO03 GATHER
+/**
+ * THE EPO03 GATHERING PASS (`MILESTONES/evidence/EPO03/wave2/GATHER_report.md`,
+ * brief `wave1/DIR-10_gathering.md`).
+ *
+ * The architecture is untouched — region x skill backdrop, 48 x 48 subject
+ * drawn x2, `behindFigure`, the footprint shadow (DECISIONS/0031, L-18a). This
+ * round repaints weak scenes and nothing else. The defect it answers is one
+ * defect wearing several costumes: **the plinth**. Every replaced plate stood
+ * on something — a turf oval, a moss diamond, a plank rail, a snow slab, a
+ * blue slab, a plank floor — and a thing on a base beside a figure on the
+ * ground reads as two sprites on a shelf rather than one place.
+ *
+ * - Three backdrop retouches (`inpaint_image` on the centre band, margins
+ *   frozen): the Haven meadow's trampled oval becomes turf with a worn path
+ *   that leaves the frame; Frostmere's flagstone circle becomes frost-heaved
+ *   scree; the Hollow's lime lawn and claw-tree silhouettes become a damp
+ *   vale of moss-hung alders (that one re-authored whole, `create_image_pro`).
+ * - Four ore faces: no longer boulders standing on a floor but wedges of
+ *   fractured rock bleeding off their own left and bottom edges, so the plate
+ *   has no silhouette of its own and the ore reads as part of the wall. Vein
+ *   colour is what names the mineral at 393 dp — copper malachite-and-orange,
+ *   tin silver-grey in iron staining, the deep lode cool blue-grey, hardened
+ *   copper's orange band under blue crystal.
+ * - Four base deletions (`edit_image_pixen`, 1 generation each): the meadow
+ *   oval, the duskcap diamond, the heartwood plank and the frostpine slab.
+ *
+ * Every file was fetched, sheeted at the scale the phone shows it and read by
+ * eye beside the plate it replaces before its verdict (M-04, M-14). Sheets:
+ * `GAME_BIBLE/ART/exploration/EPO03/review/gather/_r_*.png`; ledger
+ * `GAME_BIBLE/ART/exploration/EPO03/ledger/GATHER.md`.
+ */
+const EPO03_GATHER_SRC = path.join(EXPLORE, 'EPO03', 'out', 'gather');
+
+/**
+ * The source file for a gather plate the EPO03 round repainted, or `null`.
+ *
+ * [file] is the plate's own basename — `bg_haven_foraging`, `prop_tin_face` —
+ * the same key `fmpo02GatherPath` takes, and it is consulted before it, so a
+ * plate this round touched wins over the FMPO02 one and the VAWO01 original.
+ *
+ * Resolved as a SOURCE rather than emitted again at the foot of the file, for
+ * the reason `epo03ItemPath` records: a trailing override writes the right
+ * bytes but makes `--check` compare the earlier block's bytes against the
+ * later block's file and report a synced tree as stale. One id, one emit.
+ */
+function epo03GatherPath(file) {
+  // `EXPLORE` rather than `EPO03_GATHER_SRC`: the gather loops run far above
+  // this line, where the const is still in its temporal dead zone.
+  const src = path.join(EXPLORE, 'EPO03', 'out', 'gather', `${file}.png`);
+  return fs.existsSync(src) ? src : null;
+}
+
+// Every file in `E/out/gather` must replace a plate the gather block already
+// ships. This round repaints scenes and authors no new node, no new subject
+// and no new region x skill pair (G-3); a misspelled filename would otherwise
+// sit in the directory doing nothing, which is how a silent no-op ships.
+for (const file of fs.readdirSync(EPO03_GATHER_SRC).filter((f) => f.endsWith('.png'))) {
+  const id = file.slice(0, -4);
+  if (!emitted.has(`work/${id}.png`)) {
+    throw new Error(
+      `EPO03 gather ${id}: replaces nothing — this round repaints existing `
+      + `scenes and authors no new node (G-3)`,
+    );
+  }
 }
 
 /**
