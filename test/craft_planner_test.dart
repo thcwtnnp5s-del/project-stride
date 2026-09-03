@@ -148,18 +148,18 @@ void main() {
     expect(find.text('Forge'), findsOneWidget);
     expect(find.text('Bench'), findsOneWidget);
     expect(find.text('Cookfire'), findsOneWidget);
-    // The census on each plate is over the whole station.
-    expect(find.text('23 recipes'), findsOneWidget);
-    expect(find.text('3 recipes'), findsOneWidget);
-    expect(find.text('10 recipes'), findsOneWidget);
-    expect(find.text('0 ready'), findsNWidgets(3));
+    // The census on each plinth is over the whole station, and since EPO03
+    // it is one line rather than two (`DIR-06` §2).
+    expect(find.text('23 · 0 ready'), findsOneWidget);
+    expect(find.text('3 · 0 ready'), findsOneWidget);
+    expect(find.text('10 · 0 ready'), findsOneWidget);
 
     // A fresh save can make nothing, so the strip defaults to the forge and
     // the forge's own bands are what shows: no READY, the ingot MISSING,
     // and everything gated behind a level in the ledger.
     expect(find.text('READY'), findsNothing);
     expect(find.text('MISSING MATERIALS'), findsOneWidget);
-    expect(find.text('LOCKED'), findsOneWidget);
+    expect(find.text('THE RECIPE BOOK'), findsOneWidget);
 
     // A tile opens the sheet rather than expanding in place: the list does
     // not move, and the short ores carry their sourcing lines.
@@ -172,12 +172,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Copper Seam'), findsNothing);
 
-    // The locked ledger is one line per GATE, not one row per recipe, and
-    // it names no lock — it names the level. Opening it yields the tiles.
-    expect(find.text('Bronze Sword'), findsNothing);
-    await tester.tap(find.textContaining('more at Smithing 3'));
-    await tester.pumpAndSettle();
+    // The recipe book (EPO03, `DIR-06` §6). The locked half is chapters of
+    // sealed pages, not a ledger: every locked recipe is visible by name
+    // without opening anything, the gate is said ONCE in the chapter's tier
+    // header, and **no row states a gate at all** — which is the owner's
+    // verdict, in an assertion.
     expect(find.text('Bronze Sword'), findsOneWidget);
+    expect(find.text('SMITHING · LEVELS 1–3'), findsOneWidget);
+    expect(find.text('Opens at Smithing 2'), findsOneWidget);
+    expect(find.textContaining('Opens at Smithing'), findsNWidgets(4));
+    expect(find.textContaining('more at Smithing'), findsNothing);
 
     // The chain: the sword's short Bronze Ingot line is a door to the
     // ingot's recipe, and it replaces the sheet's content in place.

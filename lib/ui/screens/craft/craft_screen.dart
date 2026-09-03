@@ -891,11 +891,21 @@ class _MadeStamp extends StatefulWidget {
 
 class _MadeStampState extends State<_MadeStamp>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _press = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 200),
-  );
+  /// Created eagerly, never lazily: a `late final` controller that the
+  /// build never touched would be **constructed inside dispose()**, which
+  /// looks up a deactivated element and throws. The stamp is often never
+  /// pressed (its row has not landed), so that path is the common one.
+  late final AnimationController _press;
   Object? _pressed;
+
+  @override
+  void initState() {
+    super.initState();
+    _press = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+  }
 
   @override
   void dispose() {
