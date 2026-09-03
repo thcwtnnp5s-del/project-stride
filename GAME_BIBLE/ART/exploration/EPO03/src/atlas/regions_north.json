@@ -61,12 +61,13 @@
         "h": 104
       },
       "salt": 41,
-      "seed": 0,
-      "status": "pending",
+      "seed": 41,
+      "status": "accepted",
       "coreAuthor": true,
       "reauthorizes": [],
       "intent": "Core treeline RETOUCH (DIR-01, DIR-02 FOREST->SNOW): the canopy edge on its near-straight run at y~265-275 breaks upward into fingers of fir with snow reaching down in bays between them; the gridded identical outlier conifers become an uneven thinning of different sizes; the honeycomb cell-net in the snow at 278-356 x 227-252 is painted out; N2s crag and the Frozen Shelf stay.",
-      "note": "RECUT after NA shipped. The rect was raised from y0=226 to y0=192 and narrowed from x1=400 to x1=376 for one measured reason: the honeycomb net lies at atlas 278-356 x 227-252, i.e. entirely inside a 32 px top ramp anchored at 226, where agreement grading would only half-commit and leave the net visible. Anchored at 192 the ramp reaches full authority at 224, above the net. A row scan of the composite puts N2s dense crag rock at x>=353, y 204-220 only, so x1=376 clips ~27x16 px of its western skirt at 0.4-0.9 alpha; the prompt names the crag as kept and agreement grading holds the base where the two disagree. Right edge 376 keeps the frostmere_north_wall golden (400-560 x 256-276) outside the 20 px keepout, so it is NOT declared and stays byte-exact. Bottom at y=296 keeps The Longwood (316,296) under forest. The stormdrake prop (350,190) and snowdrift (330,150) are runtime overlays on snow; the terrain under them stays snow. The ice bastion L3 (420-540 x 116-236) is outside the crop entirely and blits after north in any case. coreAuthor: true - the rect lies in the A-4 rim and the hard core."
+      "note": "RECUT after NA shipped. The rect was raised from y0=226 to y0=192 and narrowed from x1=400 to x1=376 for one measured reason: the honeycomb net lies at atlas 278-356 x 227-252, i.e. entirely inside a 32 px top ramp anchored at 226, where agreement grading would only half-commit and leave the net visible. Anchored at 192 the ramp reaches full authority at 224, above the net. A row scan of the composite puts N2s dense crag rock at x>=353, y 204-220 only, so x1=376 clips ~27x16 px of its western skirt at 0.4-0.9 alpha; the prompt names the crag as kept and agreement grading holds the base where the two disagree. Right edge 376 keeps the frostmere_north_wall golden (400-560 x 256-276) outside the 20 px keepout, so it is NOT declared and stays byte-exact. Bottom at y=296 keeps The Longwood (316,296) under forest. The stormdrake prop (350,190) and snowdrift (330,150) are runtime overlays on snow; the terrain under them stays snow. The ice bastion L3 (420-540 x 116-236) is outside the crop entirely and blits after north in any case. coreAuthor: true - the rect lies in the A-4 rim and the hard core.",
+      "job": "ed63f7d1-106b-42e1-add7-475a3b0786e5"
     }
   ]
 }

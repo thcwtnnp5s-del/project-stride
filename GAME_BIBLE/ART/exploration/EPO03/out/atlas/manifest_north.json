@@ -15,6 +15,21 @@
       "review": "GAME_BIBLE/ART/exploration/EPO03/review/atlas/NA_after_fov_x2.png",
       "team": "north",
       "reauthorizes": []
+    },
+    {
+      "id": "NB",
+      "x": 208,
+      "y": 148,
+      "w": 216,
+      "h": 188,
+      "salt": 41,
+      "status": "accepted",
+      "job": "ed63f7d1-106b-42e1-add7-475a3b0786e5",
+      "seed": 41,
+      "atlas": "256-376 x 192-296",
+      "review": "GAME_BIBLE/ART/exploration/EPO03/review/atlas/NB_after_fov_x2.png",
+      "team": "north",
+      "reauthorizes": []
     }
   ]
 }
