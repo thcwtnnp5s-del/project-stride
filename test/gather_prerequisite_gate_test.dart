@@ -178,9 +178,17 @@ void main() {
 
     // **The word `LOCKED` is gone and its absence is asserted** (FMPO02,
     // `ART-12` §5). It said, in a fourth place, what the reason line beside
-    // it says with a distance attached; what marks a locked entry now is
-    // that its sketch — and only its sketch — sits back at 0.55, so the
-    // sentence that matters stays at full reading contrast.
+    // it says with a distance attached.
+    //
+    // What marks a locked entry is now a **pencil remap** and not a dim
+    // (EPO03, `DIR-05`: "Locked = dim" is its second-named phone-visible
+    // failure, and "an A-2 pencil remap plus a margin note" is the
+    // replacement it names by title). Opacity 0.55 said *switched off*; a
+    // graphite sketch says *drawn, not inked yet*, which is what a site you
+    // cannot work yet is. The assertion moves because the rule's owner moved
+    // it, and it still asserts the same two things: the sketch and only the
+    // sketch changes weight, and the sentence that matters stays at full
+    // reading contrast — in the ledger's right-hand margin now.
     expect(find.text('LOCKED'), findsNothing);
     expect(
       tester
@@ -191,10 +199,17 @@ void main() {
             ),
           )
           .where((Opacity o) => o.opacity == 0.55),
-      hasLength(3),
-      reason: 'three locked entries, three dimmed sketches',
+      isEmpty,
+      reason: 'no locked entry is dimmed any more',
     );
-
+    expect(
+      find.descendant(
+        of: find.byType(ActivityPanel),
+        matching: find.byType(ColorFiltered),
+      ),
+      findsNWidgets(3),
+      reason: 'three locked entries, three pencilled sketches',
+    );
     await select(tester, 'Duskcap Grove');
 
     // The button is disabled and says exactly why — no modal.

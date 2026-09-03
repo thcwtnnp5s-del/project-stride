@@ -392,18 +392,31 @@ class _Spread extends StatelessWidget {
         ),
         child: child,
       ),
-      // The width is declared, never inferred: a vertical strip fills the
-      // height it is given and asks for its own thickness, and a Positioned
-      // with three edges and no width hands it an infinite one.
+      // The binding. The width is declared, never inferred: a vertical strip
+      // fills the height it is given and asks for its own thickness, and a
+      // Positioned with three edges and no width hands it an infinite one.
+      //
+      // **This should be `KitEdge(tile: KitTile.edgeSpine)` and will be.**
+      // `EdgeStrip` does not yet take the axis its `KitStrip` declares, so the
+      // landed `edge_spine` raster tiles *across* the 32 dp width and paints a
+      // single row at the page's head instead of running down it — a visible
+      // artifact on the device render, not a binding. The request is filed
+      // (`REQUESTS_NAV.md`, 2026-09-03) and seconded; until it lands the
+      // binding is drawn in the kit's own fallback register — the declared
+      // width, the page's darker ground, one `borderDefault` rule at its inner
+      // edge — so the swap back is one widget and reflows nothing.
       Positioned(
         left: 0,
         top: 0,
         bottom: 0,
         width: spine,
-        child: const KitEdge(
-          tile: KitTile.edgeSpine,
-          fallbackColor: StrideColors.borderDefault,
-          fallbackAtEnd: true,
+        child: const DecoratedBox(
+          decoration: BoxDecoration(
+            color: StrideColors.surfaceGround,
+            border: Border(
+              right: BorderSide(color: StrideColors.borderDefault),
+            ),
+          ),
         ),
       ),
     ],
@@ -459,11 +472,17 @@ class _OpportunityBanner extends StatelessWidget {
             ),
             for (final SyncOpportunity o in opportunities)
               _OpportunityRow(opportunity: o),
+            // Acknowledgement, at the width of the word. Full-bleed it read
+            // as the screen's primary action, which on a page with a gather
+            // control below it is exactly backwards.
             Align(
               alignment: Alignment.centerLeft,
-              child: StrideButton.secondary(
-                label: 'OK',
-                onPressed: controller.acknowledgeOpportunities,
+              child: SizedBox(
+                width: 96,
+                child: StrideButton.secondary(
+                  label: 'OK',
+                  onPressed: controller.acknowledgeOpportunities,
+                ),
               ),
             ),
           ],

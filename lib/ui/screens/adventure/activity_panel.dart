@@ -137,7 +137,7 @@ class ActivityPanel extends StatelessWidget {
               // open entry's working surface is written between the ledger's
               // two margins, the way a note under a line would be.
               padding: const EdgeInsets.fromLTRB(
-                StrideSpace.s12,
+                StrideSpace.s8,
                 0,
                 _KitEntry.margin,
                 StrideSpace.s12,
@@ -177,15 +177,22 @@ class _KitEntry extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  /// The entry's rhythm height: the 96 dp sketch plus 8 dp of air each side.
+  /// The entry's rhythm height: the 84 dp sketch, 8 dp of air each side, and
+  /// the room a two-line margin note wants beside it.
   /// A **minimum** — a wrapped name at an enlarged text scale grows the entry
   /// rather than clipping (D-01).
   static const double height = 112;
 
   /// The ledger's cost column. Wide enough for five figures and the walking
-  /// mark at text scale 1, and for a three-line margin note under them; a note
-  /// that needs a fourth line grows the entry rather than clipping it.
-  static const double margin = 88;
+  /// mark at text scale 1, and for a margin note under them; a note that needs
+  /// another line grows the entry rather than clipping it.
+  ///
+  /// **72, not 88.** The first device render at 393 dp put `Meadow Patch` on
+  /// two lines with its facts line clipped at "×2 Meadow Herb ·", because the
+  /// spine, the sketch and an 88 dp margin between them left 121 dp for the
+  /// name. The margin is a margin: it holds a five-figure cost and a short
+  /// note, and everything it does not need belongs to the entry's own body.
+  static const double margin = 72;
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +237,7 @@ class _KitEntry extends StatelessWidget {
             children: <Widget>[
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  StrideSpace.s12,
+                  StrideSpace.s8,
                   StrideSpace.s8,
                   0,
                   StrideSpace.s8,
@@ -242,7 +249,7 @@ class _KitEntry extends StatelessWidget {
                       art: PixelIcons.nodeFor(node.id),
                       pencilled: locked,
                     ),
-                    const SizedBox(width: StrideSpace.s12),
+                    const SizedBox(width: StrideSpace.s8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,6 +278,11 @@ class _KitEntry extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // The gap the column rule is drawn in: the body stops here,
+                    // so a long name is wrapped by the margin rather than run
+                    // under it (the first device render put MEADOW PATCH through
+                    // the rule).
+                    const SizedBox(width: StrideSpace.s8),
                     // The cost column's width, reserved on every entry, so the
                     // figures line up down the page whatever the names do.
                     SizedBox(
@@ -285,11 +297,11 @@ class _KitEntry extends StatelessWidget {
               // lines a bound ledger has, and it is what makes the right-hand
               // figures read as a margin rather than as a table column.
               const Positioned(
-                right: margin + StrideSpace.s8,
+                right: margin + StrideSpace.s4,
                 top: 0,
                 bottom: 0,
                 width: 1,
-                child: ColoredBox(color: StrideColors.separator),
+                child: ColoredBox(color: StrideColors.borderDefault),
               ),
               // The open entry's index mark: the trade's ink on the leaf's
               // inner edge. Not a border — the entries have none, and giving
@@ -378,6 +390,10 @@ class _NodeSketch extends StatelessWidget {
   /// entry changes weight.
   final bool pencilled;
 
+  /// 96, and it stays 96: the node plates are authored at that size and a
+  /// `PixelAsset` in a box smaller than its sprite asserts, correctly. The
+  /// first tuning pass shrank this to 84 and every sketch on the device render
+  /// disappeared. The width the names needed came out of the padding instead.
   static const double extent = 96;
 
   /// The pencil remap: luminance, flattened toward graphite and lifted off
