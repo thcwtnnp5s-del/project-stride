@@ -53,11 +53,26 @@ Acceptance target: **"This feels like a much more finished game."**
    single-writer, sync policy, craft step cost, defeat rules, no-FOMO,
    strategic travel.
 
-## 3. What landed, by commit
+## 3. What landed, by workstream
 
-| Commit | What |
-|---|---|
-| _(filled as the round lands)_ | |
+Grouped rather than listed: the round is 85 commits at this checkpoint and
+still in production. Each row names the commits a reader would open first;
+`git log 59c4723..HEAD` is the full sequence.
+
+| Workstream | Key commits | What a player gets |
+|---|---|---|
+| **Foundation and authority** | `6a9a2d9`, `9cabe4f`, `2161e8f`, `ce30361` | The workspace, `DECISIONS/0033` (the owner may replace the approved atlas), and the compositor that re-bases the protected interior instead of weakening the guard: claimed pixels, a re-taken snapshot, a whole-canvas drift walk, five per-team manifests. |
+| **Direction** | `f6ef89e`, `91f196f` | Sixteen director briefs and the binding production rules, including the four-at-a-time batching and interruption discipline (§9a) and the measured tool limits (§2a). |
+| **The south coast (P0)** | `d28e6b0`, `111879f`, `3419c76`, `8630ddf`, `1f18327` | The latitude stripe is gone. A bending shore with surf, angled dunes, machair, a creek at a rock headland, braided channels into flats and a spit hooking south; the Sunward Strand still stands on sand. Two rolls rejected by changing intent, not seed. |
+| **The west** | `1d3e6cc`, `38a6366`, `a26f1e8` | The core forest’s west face breaks into bays, a promontory and stepping copses — the wall inside the protected core that the previous round could not reach. The pass road turns around something at every bend; the y=700 join with the south is bridged. |
+| **Three destinations** | `f9f48b7`, `14827ae`, `6145ce5`, `1a0a477` | The ice tower is an ice bastion on a glacial foundation; the storm house a black gable with lit windows among blasted trees; the fairy castle grows from three birches over a flower-ringed pool. All painted into the terrain, so they survive the overview zoom where the old props vanished. Four overlays give them motion. |
+| **World life** | `46c4b13` | Overlay schema v6: waypoint paths, breath followers, shadows and depth ordering — and Reduce Motion now pins the world rather than emptying it (M-16’s rule applied). |
+| **The interface kit** | `d32a01f`, `5b92ef6`, `80463ee`, `3e1fa02`, `acee668` | Thirteen shared rows — frames, tiles, ornaments, a category rail, an illustrated header, a page edge — plus the button plate wired through all 43 call sites, replacing the old plate’s corner ticks with a continuous rim. |
+| **The navigation bar** | `ade5a62`, `2db6fe6`, `771930e` | A leather strap into the home-indicator inset, stamped icon wells, a raised lit plate breaking the stitched welt, one glyph per destination, and the corner radius retired square so every screen inherits the fix. |
+| **Skills** | `75e1508`, `48da1b1` | The detail screen stops stacking rectangles: a road with a joint at every level, a lit lantern cairn at "you are here", unlocks unboxed on spurs, level badges blank stone with the number set in type. |
+| **Equipment** | `8b26127`, `4629993`, `6d52c60` | The starting loadout can brace; the Waywarden’s Tunic stops resolving to the shirt; the Bronze Longsword is actually a longsword — a blade half again as long with a cross-guard, across four bodies and five tracks; the Waywarden gets a body in every context. |
+| **Combat** | `949f939` | Attack, the Eat choice and Retreat answer the hand — the three commands that fired no haptic. |
+| **Record and correction** | `4bd31ca`, `38a31e2`, `6d24b9a`, `0232226`, `d7a9fae` | The first executive checkpoint, the producer’s ranked atlas read, and the three measured production facts that stopped later teams paying twice for the same lesson. |
 
 ## 4. Facts proven before spending
 
