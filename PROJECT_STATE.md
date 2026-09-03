@@ -1,70 +1,78 @@
 # Project Stride — Project State
 
-**Version:** 2.40
-**Status:** 🧪 **FABLE 5 MEGA PRODUCTION OVERHAUL 02 — production landed,
-the twelve-reviewer council answered, on `fable5-mega-production-overhaul-02`
-(from `visual-audio-world-overhaul-01` @ `4d9a81f`), pushed at the commit after `ade1955` that carries this record (its hash is in the closeout message and in `git log`),
-awaiting the owner's physical iPhone acceptance. Not merged.** Record:
-`MILESTONES/FABLE5_MEGA_PRODUCTION_OVERHAUL_02.md` (doctrine, commit table,
-ledger, named gaps, the device checklist in §7, the twelve verdicts and what
-closed each in §8, the closeout in §9). Evidence:
-`MILESTONES/evidence/FMPO02/wave0..3/` and the device renders from HEAD in
-`GAME_BIBLE/ART/exploration/FMPO02/review/device/` (41 screens, the gear and
-stage sets, the armoured craft stage).
+**Version:** 2.41
+**Status:** 🧪 **FABLE 5 EXECUTIVE PRODUCTION OVERHAUL 03 — closed out on**
+**`fable5-executive-production-overhaul-03` (from `fable5-mega-production-overhaul-02` @ `59c4723`),**
+**awaiting the owner’s physical iPhone acceptance. Not merged.** Record:
+`MILESTONES/FABLE5_EXECUTIVE_PRODUCTION_OVERHAUL_03.md` — the doctrine, what
+landed by workstream (§3), the facts proven before spending (§4), the budget
+(§5), the **named visual debt (§6)**, the **device checklist (§7)**, the five
+closing verdicts (§8) and the closeout (§9). Evidence:
+`MILESTONES/evidence/EPO03/wave0..3/` and `GAME_BIBLE/ART/exploration/EPO03/`.
 
-**PixelLab: 1,773 generations this round (9,762 → 7,989, live).** The
-target was 2,000–3,000; every family stopped when its accepted art covered the
-owner's named failure, and the council's own fixes cost ≈310 more.
-Only balance checkpoints are facts (M-17).
+**PixelLab: 1,763 generations this round (7,989 → 6,226, live).** The target was
+2,000–3,000 and the round came in at the bottom of it for one reason worth
+keeping: once the 13-row interface kit existed, five screens were rebuilt for a
+combined 32 generations and four — Adventure, Inventory, Character and World —
+for **none at all**. Two deterministic recoveries (a tone remap, and keying a
+painted-white face) produced ten of the kit’s own thirteen assets for nothing.
 
-What a player will see that they could not at v2.38:
+What a player will see that they could not at v2.40:
 
-- **The world is a place, and the north is drawn in the map's own hand.**
-  Nine atlas regions and three bridges repainted under the mandated loop; N1
-  and N2 snapped to the original master's palette so the snow is outlined cel
-  again, not airbrush; the NB3 lead winds where a razor column stood; the GAP
-  snowfield slab is repainted as a drifted snowfield breaking into a diagonal treeline. The frozen core and all fifteen landmark goldens
-  are byte-identical throughout.
-- **Something is always happening on it.** Forty overlays and six props: the
-  red fire dragon over the volcano, the blue storm dragon over Frostmere with
-  lightning breath, the Fairy Castle and the Storm House now flat top-down
-  objects at map scale, the Ice-Mage Tower at the crag's foot with its beacon,
-  deer, a yeti and a wagon at half scale with their own loops, wolves, a bear,
-  crows, a fishing boat, chimney smoke, a lantern; placement verified against
-  the packaged atlas, not a stale sheet.
-- **The Traveler wears what he equipped, everywhere — including the forge and
-  the cookfire.** Three armoured bodies × three weapon classes in combat with
-  a real Brace stance; bronze and steel tool loops on every body; forage, idle,
-  walk, rest and bust per armour; and now the smith and the cook in plate,
-  jerkin and coat. `equipment_projection_test` walks every armour through
-  every station and fails on any path back to the shirt.
-- **The frame left the list, and the buttons have a face.** The chassis frames
-  only a screen's picture and its modals; every other panel is a material;
-  primary and command buttons have an interior under the plate and keep their
-  emblem when disabled; the turn chip lost its coin; reserved teal is on step
-  figures and nowhere else, guarded.
-- **Craft is a workshop; Skills say what is next.** Station strip, hero folio,
-  ingredient tray, one ledger line per locked level, and on each spine the
-  next three unlocks with an XP caption, wrapping, no ellipsis.
-- **The fight takes the screen** on a 384 × 256 stage; the boss encounter
-  renders without painting the harness's overflow; every combat, reward,
-  craft and gather moment has a named audio cue with a literal call site
-  (`test/audio/event_call_sites_test.dart`) — the files are one key away.
-- **Twelve items read as different things**, the reclaim crates are closed
-  crates, seven gather scenes stopped being staged, and rewards seal.
+- **The world is one place.** Seventeen atlas regions across four territories.
+  The south’s pale latitude stripe — the round’s P0 — is a coast that follows
+  terrain: sand in the old belt fell **31.9 % → 2.3 %** while the Sunward Strand
+  anchor went **2.3 % → 49.5 %**, so the landmark still stands on a beach. The
+  north-east’s hard white diagonal is a lobed calving front (near-duplicate
+  blocks 34.8 % → 26.4 %); the north-west’s ruler-straight snowline is moraine
+  and melt tongues; the west’s empty meadow is a pass road that turns around
+  outcrops and crosses a ford; and the **core forest’s west face** — the
+  vertical wall inside the protected interior that the last round could not
+  reach — is bays and stepping copses. `DECISIONS/0033` records the owner’s
+  authority to re-baseline that protection; the guard was re-based, never
+  weakened, and ten goldens were re-extracted in the commits that overwrote them.
+- **Three destinations, painted into the map.** A fairy castle grown from three
+  birches over a flower-ringed pool with fairies gathering; a storm house under
+  rain with lightning on an ~11.8 s cadence; an ice bastion on a glacial
+  foundation with a sweeping beacon. Unlike the props they replace, they survive
+  the overview zoom.
+- **The dragons fly a route.** A new overlay schema (v6) gives world life
+  waypoint paths, breath followers, shadows and depth: the red dragon holds a
+  127 s lap over the volcano and is never absent; the blue drake ping-pongs
+  Frostmere to the cape carrying its storm cloud. Reduce Motion now **pins** the
+  world instead of emptying it.
+- **The map is the hero again.** The World sheet drops to a 64 dp peek: map
+  visible **91 % of the body, from 66 %**, and a marker tap no longer re-expands it.
+- **The dark cards are gone from eight screens.** Adventure is a ledger with a
+  cost margin and a graphite sketch for a locked site; Craft’s locked half is a
+  recipe book stating its gate once a chapter, not "1 more at Cooking 5"; Skills
+  detail is a road with a lit cairn at "you are here"; Inventory a case whose
+  empty well shows a class shadow rather than the word "Empty"; Character a
+  folio; Combat a battlefield at **3.3 : 1** stage-to-rail, from ~1.2 : 1; the
+  nav a leather strap with a raised lit plate.
+- **The Traveler wears a fifth body.** The Waywarden — hood, tiered mantle,
+  split skirt — in every context, and the Bronze Longsword is finally a
+  longsword. Two real bugs closed with it: the starting loadout had **no brace
+  track at all**, and an unmapped armour silently wore the shirt — now both
+  guarded by assertions.
+- **Twenty item icons re-authored**, twelve gather scenes fixed with the ore
+  seam now inside a shaded recess, five habitat plates with foregrounds drawn
+  above the creature, and the result card rebuilt as a paper tally slip.
 
-**Not done, and named rather than implied (§9 of the record):** no audio
-files (`STABILITY_API_KEY` unset); the fairy motes are toned discs, not
-silhouettes (Q-28); the S1 wood's north edge and the south strand wait on the
-owner's golden decision (Q-18/Q-25); the west forest wall is inside the frozen
-core (A-4); the jerkin-derived hair on three pick strips; the Skills detail
-ladder; `overlay_wolfpair` at full scale; `steel`/`planLinen` unpainted;
-the command plates as ornaments; Q-19…Q-28 in `JOURNAL/OPEN_QUESTIONS.md`.
+**Not done, and named rather than implied (§6 of the record):** the west
+territory is still drawn by a weaker hand than the centre and the east ocean is
+still a flat tint — both need generation the closing brief forbade; the combat
+page is empty between rounds (**Q-30**); the tin seam still reads as a fin; the
+three reclaim crates are still near-identical; the Skills overview is unchanged;
+115 overlay frames are packaged and unplaced. **No audio files** — no key, no
+permitted alternative, 22 files owed with every call site present. Two guard
+failures are inherited from earlier rounds and untouched.
 
-**1,049 tests pass, analyze clean, palette guard green at 1,834 PNGs,
-tile-seam guard green at 26 strips, packaging idempotent at 1,779 files,
-fifteen landmark goldens byte-held, goldens regenerated after every changed
-screen was inspected.** Nothing here has been seen on the iPhone.
+**1,111 app tests pass, 738 core, 143 health; analyze clean; packaging
+idempotent at 2,320 files; palette green at 2,388 PNGs; tile-seam green at 26
+strips; twelve architecture guards pass.** Fifteen goldens were regenerated,
+each diff inspected side by side first. **Nothing here has been seen on the
+iPhone.**
 
 <details>
 <summary>Previous status — FMPO02 before the council (v2.39)</summary>

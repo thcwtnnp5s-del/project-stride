@@ -1,8 +1,8 @@
 # Fable 5 Executive Production Overhaul 03 (EPO03)
 
 **Opened:** 2026-09-02 · **Branch:** `fable5-executive-production-overhaul-03`
-(from `fable5-mega-production-overhaul-02` @ `59c4723`) · **Status:** in
-production · **Authority:** the owner's EPO03 directive (2026-09-02), quoted in
+(from `fable5-mega-production-overhaul-02` @ `59c4723`) · **Status:** closed out 2026-09-03,
+awaiting the owner's physical iPhone verdict · **Authority:** the owner's EPO03 directive (2026-09-02), quoted in
 §1; `DECISIONS/` entry recorded in §4 · **Not merged.** The physical iPhone
 remains the final authority.
 
@@ -55,8 +55,7 @@ Acceptance target: **"This feels like a much more finished game."**
 
 ## 3. What landed, by workstream
 
-Grouped rather than listed: the round is 85 commits at this checkpoint and
-still in production. Each row names the commits a reader would open first;
+Grouped rather than listed: the round is 190 commits. Each row names the commits a reader would open first;
 `git log 59c4723..HEAD` is the full sequence.
 
 | Workstream | Key commits | What a player gets |
@@ -167,21 +166,223 @@ and can be re-fetched rather than re-rolled (§9a).
 
 ## 5. Budget ledger
 
-Opened at **7,989** (live). Family figures are leads' own cost-line sums;
-checkpoints are in `GAME_BIBLE/ART/exploration/EPO03/GENERATION_LEDGER.md`.
+Live `get_balance` at open **7,989**; at close **6,226**. **Round spend: 1,763**
+generations against a 2,000–3,000 target. Checkpoints are in
+`GAME_BIBLE/ART/exploration/EPO03/GENERATION_LEDGER.md`; only checkpoints are
+facts, every family figure is a lead’s own sum of cost lines (M-17).
+
+| Family | Cap | Spend | Note |
+|---|---:|---:|---|
+| World — south | 440 | 220 | 4 regions; stopped when no named defect remained |
+| World — west | 200 | 150 | 4 regions |
+| World — east | 140 | 135 | 3 regions |
+| World — north | 100 | 45 | 2 regions, both first-roll |
+| Landmarks | 300 | 159 | 3 in-terrain destinations + 4 overlays |
+| World life | 200 | 21 | schema v6, dragon breath, roster |
+| Equipment | 500 | ~435 | warden body, longsword class, special tool heads |
+| Items | 200 | 52 | 20 icons re-authored |
+| Gather | 235 | 187 | 12 scenes + the Stonefall recess |
+| Enemies | 130 | 68 | 5 plates, 6 foregrounds, dossier |
+| Interface kit + nav | 320 | 258 | 13 shared rows |
+| Craft | 112 | 15 | the kit already held ~60 planned rolls |
+| Skills | 100 | 14 | |
+| Combat | 150 | 3 | 7 of 9 marks already in the kit |
+| Rewards | 90 | 4 | 10 of 11 assets by deterministic remap |
+| Adventure / Inventory / Character / World UI | 230 | **0** | built entirely from the kit |
+
+**On the spend.** The round came in at the bottom of the target band and the
+reason is the interface kit: once 13 shared rows existed, five screens were
+rebuilt for a combined 32 generations and four of them for none at all. Two
+recoveries — a deterministic tone remap and keying a painted-white face —
+produced ten of the kit’s own thirteen assets for nothing. Spending more
+would have meant generating art the design did not need.
 
 ## 6. Known gaps, named
 
-_(filled at closeout — never softened)_
+Nothing here is softened, and the closing council’s words are used where they
+are sharper than mine.
+
+**Visual debt, ranked by what the phone shows:**
+
+1. **The west territory is drawn by a weaker hand than the centre** (FINAL-K).
+   Around atlas (20, 260) one three-lobe tree stamp repeats ~15 times and one
+   boulder blob appears at four scales. Two viewports east, Haven’s forest is
+   genuinely authored. The owner’s "some areas authored, others patched" is
+   still literally true of that corner.
+2. **The east ocean is a flat tint** — roughly 23 % of the canvas, 6–32 distinct
+   colours per phone viewport against 14k–28k in the west (FINAL-M), and the
+   viewport lets the player drag into it. World life put six entries on it;
+   the water itself was deliberately not repainted.
+3. **The combat page is empty between rounds** — 163 dp of leather on an
+   ordinary turn. Recorded as **Q-30** rather than filled, because what
+   belongs there is a design decision.
+4. **The tin seam still reads as a fin**, and the deep tin lode still shows an
+   angular corner. The Stonefall recess fixed copper and helped both; two
+   intents were spent and the third was refused.
+5. **The three reclaim crates remain near-identical** (82–88 % silhouette IoU,
+   FINAL-M) — a collision group the items team reported closed and did not.
+6. **The Skills overview is unchanged** from the rejected build (FINAL-L). It
+   was judged good and left alone; the owner may disagree now that everything
+   around it moved.
+7. **Craft spends ~45 % of the viewport on chrome** above one recipe, and the
+   recipe book — the round’s headline work — opens below the fold (FINAL-M).
+8. **115 of 424 overlay frames (132 KB) are packaged and unplaced**, including
+   both dragons’ second breath layers.
+9. **`overlay_stag` and `overlay_bear2` are baked palindromes**; the stag holds
+   four frames then walks backwards. `overlay_skydragon` f10–f19 duplicate
+   f0–f9. None is placed in a way that shows a rectangle (verified, below).
+10. **Adventure kit entries wrap to two or three lines** where the card fitted
+    them on one, and **Inventory’s empty wells** read flatter than the ornate
+    panel they replaced (FINAL-L).
+
+**A council claim I checked and did not accept.** FINAL-M called the opaque
+creature overlays a BLOCKER — `overlay_bear2` at 100 % and `overlay_flock` at
+95 % opacity "will stamp rectangles of baked foliage onto the atlas". They are
+not sprites: they are **in-place animated crops of the master painting**, the
+documented technique where a patch of map moves, and they are supposed to be
+opaque. The real risk was the one the reviewer did not name — that this round
+repainted the terrain beneath one. Measured against the shipped composite, mean
+|ΔRGB| under each is 0.0 (bear2), 0.0 (volcano), 5.8 (both ripples) and 14.6
+(flock): all seamless. No rectangle ships.
+
+**Inherited, untouched, and not this round’s to fix:**
+
+- `check-step-model.sh` fails its production scan on
+  `packages/stride_core/test/veteran_hunts_test.dart` (FDO01). EPO03 changed
+  neither the guard nor the file; CI runs only `--self-test`, which passes.
+- `check-ui-boundary.sh` fails on `lib/ui/state/craft_memory.dart` (GFCP01)
+  reaching path_provider and the filesystem. Untouched this round.
+- `dart format` and `package-art.js` disagree about the generated
+  `lib/ui/icons/sprite_footprints.dart`. They disagreed at 59c4723 too. The
+  generator’s output ships, because a stale generated file is a real defect
+  and format drift on a generated one is cosmetic.
+- **No audio files.** `STABILITY_API_KEY` is unset; ElevenLabs has no runner;
+  procedural synthesis is forbidden by the locked direction; nothing in
+  `AUDIO/evaluation/` is packageable. 22 files owed, every call site present.
+  Recorded once and moved on, as the directive asked.
+
+**Open questions raised, recorded rather than answered:** Q-29 (what a chapter
+of the recipe book is called) and Q-30 (what is on the combat page between
+rounds). Both are the owner’s.
 
 ## 7. Physical iPhone acceptance checklist
 
-_(filled at closeout — every step names a control that exists in the build)_
+Install over `59c4723` with the existing save. **State stays v9; no migration.**
+Every step names a control that exists in this build.
+
+**World — the largest change.**
+
+1. Open World. The sheet should be a **peek strip ~64 dp**, not a panel: map
+   visible 663 dp of a 727 dp body (**91 %**, was 66 %).
+2. Pan the whole map. **South:** the pale latitude stripe is gone — a bending
+   shore, a spit hooking south-east, braided channels into tidal flats, angled
+   dunes. **West:** the pass road turns around outcrops and crosses a ford.
+   **North-east:** a lobed calving front with bergs and brash, no hard white
+   diagonal. **North-west:** moraine and melt tongues, no ruler-straight
+   snowline. **Core forest’s west face:** bays and stepping copses, not a wall.
+3. Find the three destinations, and note they survive zooming out: the **fairy
+   castle** grown from three birches over a flower-ringed pool with fairies
+   gathering; the **storm house**, a black gable with lit windows under rain
+   and a lightning strike on an ~11.8 s cadence; the **ice bastion** on a
+   glacial foundation with a sweeping beacon.
+4. Wait for the **red dragon** — a 127 s closed lap over the volcano, two fire
+   plumes per lap, never absent — and the **blue drake**, a 176 s ping-pong
+   between Frostmere and the cape carrying its storm cloud, striking at
+   43/88/133 s. Both cast shadows and pass above ground life.
+5. Tap a marker: the sheet must **not** rise. Tap the map: it drops to peek.
+   Select an off-screen place: a 22 dp strip appears with direction carets.
+   Travel still costs steps and still needs "Set out · N steps".
+
+**Screens.**
+
+6. **Adventure** — a journal: gather sites as ledger entries with cost in a
+   right margin, the locked site a **graphite sketch** (not a dimmed card),
+   goals as pinned slips.
+7. **Craft** — stations on a shelf, an icon-led category rail, and the locked
+   half as a **recipe book**: chapters with illustrated rules, the gate stated
+   **once per chapter**, sealed pages with wax seals. It must never read
+   "1 more at Cooking 5".
+8. **Skills** — open Mining detail. A **road** with a joint at every level, a
+   lit lantern cairn at "you are here", unlocks unboxed on spurs. The overview
+   is deliberately unchanged.
+9. **Inventory** — a leather case: figure in a window, three wells cut in, an
+   empty well showing its **class shadow** and never the word "Empty"; the
+   pack as ruled canvas pockets.
+10. **Character** — a folio: bust in a window, gear in margin wells, walking
+    figures as a ruled vellum ledger. An empty slot is stated **once**.
+11. **Combat** — fight the wolf. The stage chassis is 398 dp against a 120 dp
+    command rail (**3.3 : 1**, was ~1.2 : 1): gauges in the frame’s lintel,
+    narration on its sill, three plates at thumb height, Retreat a quiet link.
+    Attack, Eat and Retreat now answer the hand with a haptic. **Expect the
+    leather page between them to be empty on an ordinary turn (Q-30).**
+12. **Encounters** — each creature stands *in* its habitat with a foreground
+    drawn above it; the cave floor is a floor, not a wall; the boss has its
+    own chamber.
+13. **Nav** — a leather strap into the home-indicator inset, stamped wells, the
+    active tab a raised lit plate breaking the stitched welt.
+
+**Equipment, items, gathering, rewards.**
+
+14. Equip the **Waywarden’s Tunic**: hood, tiered mantle, split skirt — and it
+    must never be the plain shirt. Check it in combat, mining, woodcutting,
+    foraging, at the anvil and the pot, as the Inventory figure and the bust.
+15. Equip the **Bronze Longsword**: visibly longer with a cross-guard, tip past
+    the front foot. **Brace with the starting loadout** — it had no brace
+    track at all before.
+16. **Items** — the four brown vests and the bearhide coat must read as five
+    different things; the five ivory curves likewise; hearty vs expedition stew.
+    **The three reclaim crates will still look alike** (named debt).
+17. **Gathering** — the copper seam sits *inside* a shaded recess with rock
+    overhanging. **The tin seam will still read as a fin** (named debt).
+18. **Rewards** — a result is a paper tally slip: item named on a ruled line,
+    figures in the right margin, rarity as material, a wax seal whose tone
+    differs by rank. Nothing flashes, loops or counts up.
+19. **Reduce Motion on** — the world still shows its life, pinned; sound and
+    haptics must **not** go quiet with it.
+20. **Save** — every figure and item from before the install is still there.
+
+**Performance to watch:** first World-tab entry after a cold launch (287
+precache decodes in one pass), and the World tab again late in a long session.
 
 ## 8. Reviewer verdicts
 
-_(FINAL-A … FINAL-M)_
+Five closing reviewers, each given the shipped pixels and told to find the
+reason the owner would say no. Reports in `MILESTONES/evidence/EPO03/wave3/`.
+
+| # | Reviewer | Verdict | What closed, or why not |
+|---|---|---|---|
+| FINAL-J | Identity guardian | **IDENTITY INTACT** | `git diff --stat -- packages/` is empty; save v9; locations/landmarks/routes hold at 5/23/5. Checked every moved assertion individually: none weakened, several strengthened. Noted ADR 0033 §2 prose is one revision behind the code — same guarantee. |
+| FINAL-I | Performance | **NO BLOCKER** | Bundle 23.22 → 24.23 MiB (+4.3 %); World tab no step change, nothing runs hidden. Found the image cache’s entry cap (2,000) below the shipped PNG count (2,388) — **fixed**, raised to 3,000. |
+| FINAL-K | "Does it still look generated?" | **PARTLY** | Map centre, combat backdrop, item icons and portrait genuinely answered; the west’s repeated stamps and the flat ocean are not. Carried as debt 1 and 2 — both need generation, which the closing brief forbids. |
+| FINAL-L | "Would the owner say WOW?" | **BETTER, NOT WOW** | Skills detail, the recipe book and the atlas SUBSTANTIAL; Craft, Adventure, Inventory INCREMENTAL; Skills list UNCHANGED. Called **Character the weakest link** — **fixed**, the duplicated empty slot is gone. |
+| FINAL-M | "What should be deleted?" | 5 nominations | Reclaim crates, east ocean and Craft chrome carried as debt. Its overlay BLOCKER was **checked and not accepted** — the opaque overlays are in-place crops and measure seamless (§6). Its critique of the producer’s own judgement on `reinforced_pickaxe` is recorded and stands. |
+
+**Two blockers were fixed on the council’s word; the rest are named debt**,
+because the closing brief forbids reopening production scope, and every
+remaining finding needs either new generation or a screen redesign.
 
 ## 9. Closeout
 
-_(the 36-item return)_
+**Branch** `fable5-executive-production-overhaul-03`, from
+`fable5-mega-production-overhaul-02` @ `59c4723`. **Not merged.** The physical
+iPhone is the authority and the checklist in §7 is what it is asked to answer.
+
+**Verification at close:** app suite **1,111 pass / 0 fail**; `stride_core` 738;
+`stride_health` 143. `flutter analyze` clean across app and tests. Packaging
+idempotent at **2,320** files; palette guard green at **2,388** PNGs; tile-seam
+green at 26 strips. Twelve architecture guards pass; the two that fail are
+inherited and named in §6. Fifteen goldens regenerated, each diff inspected
+side by side first.
+
+**What this round changed, in one line each:** 17 atlas regions across four
+territories and three in-terrain landmarks; 8 UI surfaces rebuilt on a new
+13-row material kit; a fifth armour body and a real longsword class; 20 item
+icons re-authored; 12 gather scenes; 5 habitat plates with foregrounds; a
+world-life behaviour system with patrol paths, shadows and depth; the result
+card rebuilt as a tally slip.
+
+**Three production facts this round measured, now in `wave2/PRODUCTION_RULES.md`**
+so no later round pays for them again: pixen cannot draw flat tileable chrome
+and `create_image_pro` can, first call; brightness over the ceiling is a
+deterministic remap and a painted-white face is a key, not rejections; and a
+held item on a shipped frame costs 1 generation, not 44.
