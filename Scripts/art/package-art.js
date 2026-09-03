@@ -3244,6 +3244,63 @@ for (const [id, src] of Object.entries({
   emit(`item/${id}.png`, encode(raster));
 }
 
+// ---------------------------------------------- EPO03 ITEMS (PROD-ITEMS)
+
+/**
+ * EPO03 ITEMS — the collision round (`MILESTONES/evidence/EPO03/wave2/
+ * ITEMS_report.md`, brief `wave1/DIR-09_item_art.md`).
+ *
+ * The owner's standard: "Two assets are not distinct merely because their
+ * files differ. Review at actual UI size." DIR-09 read all 62 shipped icons
+ * at x2 on the inventory tile colour and found ten collision groups covering
+ * 26 icons. The hardest was the armour pocket: four brown vests that were one
+ * colour mass whose only tells were under 6 px, plus two coats that drew a
+ * PERSON — `clawguard_coat` had a hooded head with red emissive eyes, which
+ * gear must never show.
+ *
+ * These replacements change SILHOUETTE, not hue, because hue was never the
+ * problem: a grey shaggy fur ruff, a pair of white tusks crossing the chest,
+ * a smooth sleeveless blue-grey tank, a near-black hooded coat with the hem
+ * below the vest line, a garment with pale claw shoulder plates and no head,
+ * a slim pale long coat. Likewise the ivory group — the fang that read as a
+ * tusk is now a tooth on a cord, the horn that filled 12 % of its frame is a
+ * ridged spiral corner to corner on a brass ferrule, and the great tusk is a
+ * bound pair. `hearty_stew` leaves the dark iron pot to `expedition_stew` and
+ * takes a pale wooden bowl with a ladle standing in it, so the two stews stop
+ * reading dark-on-dark against each other.
+ *
+ * `bronze_longsword` was the thinnest icon in the game at 12 % fill and
+ * shorter than the uncommon sword it outranks; it is now the largest blade,
+ * corner to corner. `hornpoint_pickaxe` was 17 % fill and dark on dark; it is
+ * now a pale bone pick that no bronze tool can be confused with.
+ *
+ * Every file here is 48 x 48 and was accepted only after being read by eye at
+ * x2 beside its collision partners on `#1e1e1e` (M-04: the IoU metric is
+ * triage, the sheet read is the verdict). Sheets are in
+ * `GAME_BIBLE/ART/exploration/EPO03/review/items/`.
+ */
+const EPO03_ITEM_SRC = path.join(EXPLORE, 'EPO03', 'out', 'items');
+for (const id of fs
+  .readdirSync(EPO03_ITEM_SRC)
+  .filter((f) => f.endsWith('.png'))
+  .map((f) => f.slice(0, -4))
+  .sort()) {
+  const raster = png.load(path.join(EPO03_ITEM_SRC, `${id}.png`));
+  if (raster.width !== 48 || raster.height !== 48) {
+    throw new Error(
+      `EPO03 item ${id}: expected 48x48, got ${raster.width}x${raster.height}`,
+    );
+  }
+  if (!emitted.has(`item/${id}.png`)) {
+    throw new Error(
+      `EPO03 item ${id}: replaces nothing — this round authors no new items ` +
+        `(G-3); every file in E/out/items must name a shipped icon`,
+    );
+  }
+  emit(`item/${id}.png`, encode(raster));
+}
+console.log(`  EPO03 items: ${fs.readdirSync(EPO03_ITEM_SRC).filter((f) => f.endsWith('.png')).length} re-authored`);
+
 /**
  * THE ENEMY ROUND (`ENEMIES_report.md`, brief `ART-08_enemy_brief.md`).
  *
@@ -3964,6 +4021,61 @@ for (const entry of epoLandmarks.assets) {
   }
 }
 
+// ------------------------------------------------ EPO03 WORLDLIFE (PROD-WORLD-LIFE)
+/**
+ * EPO03 wave 2, the world-life family — DIR-04.
+ *
+ * Every path here is NET-NEW, deliberately. The two breaths this round
+ * replaces (`overlay_redwyrm_breath` 128 x 64, `overlay_stormdrake_breath`
+ * 128 x 56) are emitted by the FMPO02 world-life block far above, which this
+ * team does not own; re-emitting either path at a new canvas would put two
+ * emitters on one file. So the plume ships as `overlay_redwyrm_plume` and the
+ * discharge as `overlay_stormdrake_bolt`, the layout's `overlays` array drops
+ * the rows that pointed at the old pair, and their files are left packaged and
+ * unreferenced for the producer to retire at closeout — the same shape
+ * PROD-WORLD-LANDMARKS used for the beacon.
+ *
+ * What the round changed about the two dragons is BEHAVIOUR, not bodies. The
+ * red 96 x 64 and the blue 96 x 56 are kept exactly as they were: they are
+ * good, and the failure was that the red was absent 76 % of the time and
+ * neither breath ever left an animated jaw. Both now fly a v6 `path`, and
+ * their plumes are declared as followers inside them, so a breath holds no
+ * overlay slot and cannot drift away from the head that throws it.
+ *
+ * Two assets here are deterministic transforms of pixels the tool already
+ * drew, permitted by `RULES.md` A-2 and reviewed as such:
+ *
+ * - `overlay_redwyrm_plume` is the accepted flame cone with the rocket nozzle
+ *   pixen drew at its far end cropped off and the remainder mirrored, so the
+ *   cone leaves a jaw at the left and flares east — and its frames are played
+ *   in a chosen order, because `animate_image` returned a burst that only ever
+ *   decays and a plume has to grow before it peaks.
+ * - `overlay_wolfpair_small` is the shipped 56 x 44 pair box-reduced 2:1. The
+ *   wolves were drawn at twice the deer's scale on ground the two share; a
+ *   reduction fixes that without spending a roll on a redraw.
+ *
+ * Canvases are asserted from the family manifest, so packaging cannot quietly
+ * disagree with what the round delivered, and `env/` is a per-directory
+ * pubspec entry, so no new frame needs a pubspec line.
+ */
+const EPO_LIFE_SRC = path.join(EXPLORE, "EPO03", "out", "life");
+const epoLife = JSON.parse(
+  fs.readFileSync(path.join(EPO_LIFE_SRC, "manifest.json"), "utf8"),
+);
+for (const entry of epoLife.assets) {
+  const [w, h] = entry.canvas.split("x").map(Number);
+  for (let i = 0; i < entry.frames; i++) {
+    const frame = png.load(path.join(EPO_LIFE_SRC, `${entry.name}_f${i}.png`));
+    if (frame.width !== w || frame.height !== h) {
+      throw new Error(
+        `EPO03 worldlife ${entry.name}_f${i}: manifest says ${entry.canvas}, `
+        + `got ${frame.width}x${frame.height}`,
+      );
+    }
+    emit(`env/${entry.name}_f${i}.png`, encode(frame));
+  }
+}
+
 // ---------------------------------------------- EPO03 UI-SKILLS (PROD-UI-SKILLS)
 /**
  * EPO03 wave 2, the Skills journey family (`DIR-07`) — the marks the rebuilt
@@ -4027,6 +4139,58 @@ for (const [name, extent] of EPO_SKILLS_MARKS) {
     );
   }
   emit(`track/${name}.png`, encode(mark));
+}
+
+// ------------------------------------------------- EPO03 UI-CRAFT (DIR-06)
+/**
+ * The workshop's own chrome — the five category glyphs on the Craft rail, the
+ * blank wax seal a sealed page wears, and the impression a finished craft
+ * presses onto the output well.
+ *
+ * This is **not** the shared kit (`KIT_CONTRACT` §8): the sealed page itself,
+ * the plinth well, the shelf, the ribbon and the ornate divider all come from
+ * `assets/ui/v1/kit/` and NAV owns them. What lands here is
+ * screen-specific, flat, and read by
+ * `lib/ui/screens/craft/craft_art.dart` alone.
+ *
+ * Every mark is square, transparent-edged and carries **no numeral and no
+ * word** (L-18): the seal is blank and the level it asks for is set in type
+ * over it, so one seal serves every level of every trade.
+ */
+const EPO_CRAFT_SRC = path.join(EXPLORE, 'EPO03', 'out', 'ui');
+const EPO_CRAFT_MARKS = [
+  ['craft_cat_all', 24],
+  ['craft_cat_materials', 24],
+  ['craft_cat_food', 24],
+  ['craft_cat_gear', 24],
+  ['craft_cat_tools', 24],
+  ['craft_seal_blank', 32],
+  ['craft_stamp_made', 48],
+];
+for (const [name, extent] of EPO_CRAFT_MARKS) {
+  const file = path.join(EPO_CRAFT_SRC, `${name}.png`);
+  if (!fs.existsSync(file)) continue;
+  const mark = png.load(file);
+  if (mark.width !== extent || mark.height !== extent) {
+    throw new Error(
+      `EPO03 craft ${name}: expected ${extent}x${extent}, got ` +
+        `${mark.width}x${mark.height}`,
+    );
+  }
+  let opaqueEdge = 0;
+  for (let x = 0; x < mark.width; x++) {
+    if (mark.data[(0 * mark.width + x) * 4 + 3] === 255) opaqueEdge++;
+    if (mark.data[((mark.height - 1) * mark.width + x) * 4 + 3] === 255) {
+      opaqueEdge++;
+    }
+  }
+  if (opaqueEdge === mark.width * 2) {
+    throw new Error(
+      `EPO03 craft ${name}: the top and bottom rows are fully opaque — ` +
+        'this is a mark on the page, not a plate with a background.',
+    );
+  }
+  emit(`ui/${name}.png`, encode(mark));
 }
 
 // -------------------------------------------------------- footprint metrics
