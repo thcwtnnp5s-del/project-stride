@@ -308,10 +308,7 @@ class _Gauge extends StatelessWidget {
           )
         : PixelFrame(
             skin: TrackArt.gaugeFrame!,
-            child: Padding(
-              padding: const EdgeInsets.all(band),
-              child: fill,
-            ),
+            child: Padding(padding: const EdgeInsets.all(band), child: fill),
           );
 
     return Semantics(
@@ -544,9 +541,7 @@ class _Milestone extends StatelessWidget {
           const Spacer(),
           Text(
             '$away XP away',
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
           ),
         ],
       ],
@@ -590,9 +585,7 @@ class _Milestone extends StatelessWidget {
               const SizedBox(width: StrideSpace.s10),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: StrideSpace.s6,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: StrideSpace.s6),
                   child: body,
                 ),
               ),
@@ -664,12 +657,7 @@ class _JointPainter extends CustomPainter {
     final double cx = (size.width / 2).floorToDouble();
     final double cy = (size.height / 2).floorToDouble();
     void box(double w, double h, Color fill, {Color? rim, double dy = 0}) {
-      final Rect r = Rect.fromLTWH(
-        cx - w / 2,
-        cy - h / 2 + dy,
-        w,
-        h,
-      );
+      final Rect r = Rect.fromLTWH(cx - w / 2, cy - h / 2 + dy, w, h);
       canvas.drawRect(r, Paint()..color = fill);
       if (rim != null) {
         canvas.drawRect(
@@ -685,7 +673,12 @@ class _JointPainter extends CustomPainter {
     switch (join) {
       // Driven flush with the road, and ticked: a stone already passed.
       case JoinState.reached:
-        box(22, 22, StrideColors.surfaceRaised, rim: StrideColors.borderDefault);
+        box(
+          22,
+          22,
+          StrideColors.surfaceRaised,
+          rim: StrideColors.borderDefault,
+        );
         canvas.drawRect(
           Rect.fromLTWH(cx - 6, cy - 1, 12, 2),
           Paint()..color = StrideColors.textMuted,
@@ -708,8 +701,7 @@ class _JointPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_JointPainter old) =>
-      old.join != join || old.ink != ink;
+  bool shouldRepaint(_JointPainter old) => old.join != join || old.ink != ink;
 }
 
 /// The level's badge: a blank stone plate with `LV n` set in type over it.
@@ -758,9 +750,7 @@ class _LevelBadge extends StatelessWidget {
           color: lit ? StrideColors.surfaceBlock : StrideColors.surfaceCard,
           border: Border(
             top: BorderSide(
-              color: lit
-                  ? StrideColors.actionEdge
-                  : StrideColors.borderDefault,
+              color: lit ? StrideColors.actionEdge : StrideColors.borderDefault,
             ),
             left: const BorderSide(color: StrideColors.borderDefault),
             right: const BorderSide(color: StrideColors.borderDefault),
@@ -885,8 +875,9 @@ class _Entry extends StatelessWidget {
                           padding: const EdgeInsets.only(top: StrideSpace.s6),
                           child: StrideButton.secondary(
                             label: 'Track as Pursuit',
-                            onPressed: () =>
-                                SessionScope.read(context).trackGoalPursuit(item),
+                            onPressed: () => SessionScope.read(
+                              context,
+                            ).trackGoalPursuit(item),
                           ),
                         ),
                     ],
@@ -1184,10 +1175,7 @@ class _EndCapPainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, 0, 1, 12), edge);
     canvas.drawRect(Rect.fromLTWH(size.width - 1, 0, 1, 12), edge);
     // Two courses of loose stone, then nothing.
-    for (final (int row, double inset) in <(int, double)>[
-      (0, 4),
-      (1, 10),
-    ]) {
+    for (final (int row, double inset) in <(int, double)>[(0, 4), (1, 10)]) {
       final double y = 14 + row * 8.0;
       canvas.drawRect(
         Rect.fromLTWH(inset, y, size.width - inset * 2, 4),

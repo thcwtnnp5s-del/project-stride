@@ -129,6 +129,7 @@ class GoalSummaryCard extends StatelessWidget {
       ],
     );
   }
+
   static String _journeyStatus(JourneyGoalView j) {
     if (j.arrived) return 'you are here';
     if (j.totalCost == null) return 'no known route';

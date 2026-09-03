@@ -563,14 +563,14 @@ class _AtlasOverlayLayerState extends State<AtlasOverlayLayer>
   ///
   /// No art and no second asset: the shadow is the pose, so it can never
   /// disagree with the creature casting it.
-  Widget _overlayShadow(AtlasOverlay overlay, AtlasOverlayShadow shadow,
-      int scale) {
+  Widget _overlayShadow(
+    AtlasOverlay overlay,
+    AtlasOverlayShadow shadow,
+    int scale,
+  ) {
     final Offset at = _driftPosition(overlay, _elapsed);
     Widget body = ColorFiltered(
-      colorFilter: const ColorFilter.mode(
-        Color(0xFF000000),
-        BlendMode.srcATop,
-      ),
+      colorFilter: const ColorFilter.mode(Color(0xFF000000), BlendMode.srcATop),
       child: PixelAsset(
         assetPath: AtlasAssets.framePath(
           overlay.asset,
@@ -1693,9 +1693,7 @@ class _AtlasTravelTraceState extends State<AtlasTravelTrace>
   /// applied per leg.
   List<Offset> _course() {
     final List<AtlasNode> chain = _chain();
-    final List<Offset> points = <Offset>[
-      Offset(chain.first.x, chain.first.y),
-    ];
+    final List<Offset> points = <Offset>[Offset(chain.first.x, chain.first.y)];
     for (int i = 1; i < chain.length; i++) {
       final AtlasNode a = chain[i - 1];
       final AtlasNode b = chain[i];

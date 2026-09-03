@@ -479,10 +479,22 @@ class _WornLine extends StatelessWidget {
         const SizedBox(width: StrideSpace.s8),
         Expanded(
           child: worn == null
-              ? Text(
-                  kEmptySlotWord,
-                  style: StrideType.sub.copyWith(color: StrideColors.textMuted),
-                  maxLines: 1,
+              // The well beside this line already says the slot is empty, and
+              // says it better — a class shadow shows *what belongs there*.
+              // Printing "Empty" here as well stated the same fact twice on
+              // one page, which two closing reviewers named independently as
+              // the thing that made this screen read worse than the card it
+              // replaced. The rule keeps the line's height, so three loadouts
+              // do not give the dressing space three heights, and carries no
+              // second claim.
+              ? Padding(
+                  padding: const EdgeInsets.only(top: StrideSpace.s8),
+                  child: SizedBox(
+                    height: 1,
+                    child: ColoredBox(
+                      color: StrideColors.textMuted.withValues(alpha: 0.3),
+                    ),
+                  ),
                 )
               : RarityName(
                   name: worn!.displayName,

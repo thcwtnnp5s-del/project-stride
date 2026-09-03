@@ -220,11 +220,9 @@ void main() {
         ),
       };
 
-  for (final MapEntry<
-    String,
-    ({String? emblem, Size size, List<Widget> beats})
-  >
-  c in layers.entries) {
+  for (final MapEntry<String, ({String? emblem, Size size, List<Widget> beats})>
+      c
+      in layers.entries) {
     testWidgets('the reward layer for ${c.key} at phone size', (
       WidgetTester tester,
     ) async {

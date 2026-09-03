@@ -245,8 +245,7 @@ class _CombatScreenState extends State<CombatScreen> {
     final bool ended = live == null;
     final bool resolved =
         ended && outcome != null && report != null && !_playing;
-    final bool signature =
-        resolved && _ResultPanel.signatureAwarded(outcome);
+    final bool signature = resolved && _ResultPanel.signatureAwarded(outcome);
     // `resolved` is exactly the condition `RewardRaise` raises on, and it
     // becomes true on the build after the stage stops playing — so the sound
     // and the panel answer the same frame. Identity-guarded inside, so the
@@ -446,9 +445,7 @@ class _CombatLog extends StatelessWidget {
 
     return Semantics(
       button: expandable,
-      label: expandable
-          ? '$headline. Tap to read the whole round.'
-          : headline,
+      label: expandable ? '$headline. Tap to read the whole round.' : headline,
       excludeSemantics: true,
       child: GestureDetector(
         // Null while the replay runs, so the stage's own tap-to-skip keeps

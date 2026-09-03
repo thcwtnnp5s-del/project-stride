@@ -450,112 +450,110 @@ class _CraftScreenState extends State<CraftScreen> {
                 // the tab — which was the second-named failure.
                 surface: PanelSurface.benchOak,
                 child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  StrideSpace.screenGutter,
-                  StrideSpace.s12,
-                  StrideSpace.screenGutter,
-                  StrideSpace.s16,
-                ),
-                children: <Widget>[
-                  if (session.isStale) ...<Widget>[
-                    StaleBanner(
-                      busy: controller.busy,
-                      onReload: controller.reload,
-                    ),
-                    const SizedBox(height: StrideSpace.rhythmGroup),
-                  ],
-
-                  // The workshop's own axis. Counts are over the whole
-                  // station, never the filtered view: a plate answers "what
-                  // is over there", and a category filter is a question you
-                  // ask after you have walked over.
-                  // No card: the bench oak is the page itself now, and the
-                  // strip is furniture standing on it (`DIR-06` §1, §2).
-                  StationStrip(
-                    stations: <StationEntry>[
-                      for (final (String kind, String label) in _stations)
-                        _census(recipes, kind, label),
-                    ],
-                    selected: station,
-                    onSelect: (String kind) => setState(() {
-                      _station = kind;
-                      _sheetRecipe = null;
-                      _chainStack.clear();
-                    }),
+                  padding: const EdgeInsets.fromLTRB(
+                    StrideSpace.screenGutter,
+                    StrideSpace.s12,
+                    StrideSpace.screenGutter,
+                    StrideSpace.s16,
                   ),
-                  const SizedBox(height: StrideSpace.rhythmRow),
+                  children: <Widget>[
+                    if (session.isStale) ...<Widget>[
+                      StaleBanner(
+                        busy: controller.busy,
+                        onReload: controller.reload,
+                      ),
+                      const SizedBox(height: StrideSpace.rhythmGroup),
+                    ],
 
-                  // The chosen station's own place, under its name (FMPO02).
-                  // Untitled on purpose: the strip above already labels the
-                  // plate the player just tapped, and a band repeating that
-                  // word is the same heading twice. Absent for a kind with no
-                  // authored band rather than borrowing another's.
-                  if (StrideBands.forStation(station) case final StrideBand b)
-                    ...<Widget>[
+                    // The workshop's own axis. Counts are over the whole
+                    // station, never the filtered view: a plate answers "what
+                    // is over there", and a category filter is a question you
+                    // ask after you have walked over.
+                    // No card: the bench oak is the page itself now, and the
+                    // strip is furniture standing on it (`DIR-06` §1, §2).
+                    StationStrip(
+                      stations: <StationEntry>[
+                        for (final (String kind, String label) in _stations)
+                          _census(recipes, kind, label),
+                      ],
+                      selected: station,
+                      onSelect: (String kind) => setState(() {
+                        _station = kind;
+                        _sheetRecipe = null;
+                        _chainStack.clear();
+                      }),
+                    ),
+                    const SizedBox(height: StrideSpace.rhythmRow),
+
+                    // The chosen station's own place, under its name (FMPO02).
+                    // Untitled on purpose: the strip above already labels the
+                    // plate the player just tapped, and a band repeating that
+                    // word is the same heading twice. Absent for a kind with no
+                    // authored band rather than borrowing another's.
+                    if (StrideBands.forStation(station)
+                        case final StrideBand b) ...<Widget>[
                       BandPlate(band: b),
                       const SizedBox(height: StrideSpace.rhythmRow),
                     ],
 
-                  // The category rail, on the band's lower edge: glyph-led
-                  // tabs with a brass underline pin, never a filled chip
-                  // (`DIR-06` §3). The honest census of what the filter
-                  // shows sits at the rail's right end — two figures in one
-                  // shape, whatever the numbers are, because nothing
-                  // craftable is a fact about the bag and not a
-                  // disappointment to soften.
-                  _CategoryRail(
-                    selected: _category,
-                    onSelect: (CraftCategory? c) =>
-                        setState(() => _category = c),
-                    census: '$ready craftable · ${shown.length} known',
-                    censusLit: ready > 0,
-                  ),
-                  const SizedBox(height: StrideSpace.rhythmGroup),
-
-                  if (shown.isEmpty)
-                    const SectionCard(
-                      child: AdaptiveText(
-                        'Nothing in this category yet.',
-                        style: StrideType.body,
-                      ),
+                    // The category rail, on the band's lower edge: glyph-led
+                    // tabs with a brass underline pin, never a filled chip
+                    // (`DIR-06` §3). The honest census of what the filter
+                    // shows sits at the rail's right end — two figures in one
+                    // shape, whatever the numbers are, because nothing
+                    // craftable is a fact about the bag and not a
+                    // disappointment to soften.
+                    _CategoryRail(
+                      selected: _category,
+                      onSelect: (CraftCategory? c) =>
+                          setState(() => _category = c),
+                      census: '$ready craftable · ${shown.length} known',
+                      censusLit: ready > 0,
                     ),
+                    const SizedBox(height: StrideSpace.rhythmGroup),
 
-                  if (hero != null) ...<Widget>[
-                    _HeroFolio(
-                      key: ValueKey<String>('folio:${hero.id.value}'),
-                      recipe: hero,
-                    ),
-                    const SizedBox(height: StrideSpace.rhythmHero),
-                  ],
-
-                  // Ready / One away / Missing, as tiles. The folio's own
-                  // recipe is not repeated beneath itself.
-                  for (final (String label, List<RecipeOption> band) in _bands(
-                    shown,
-                    exclude: hero?.id,
-                  ))
-                    if (band.isNotEmpty) ...<Widget>[
-                      SectionHeading(
-                        label: label,
-                        trailing: Text(
-                          '${band.length}',
-                          style: StrideType.microLabel.copyWith(
-                            color: StrideColors.textSecondary,
-                          ),
+                    if (shown.isEmpty)
+                      const SectionCard(
+                        child: AdaptiveText(
+                          'Nothing in this category yet.',
+                          style: StrideType.body,
                         ),
                       ),
-                      const SizedBox(height: StrideSpace.rhythmRow),
-                      _TileFolio(recipes: band, onOpen: _openSheet),
-                      const SizedBox(height: StrideSpace.rhythmGroup),
+
+                    if (hero != null) ...<Widget>[
+                      _HeroFolio(
+                        key: ValueKey<String>('folio:${hero.id.value}'),
+                        recipe: hero,
+                      ),
+                      const SizedBox(height: StrideSpace.rhythmHero),
                     ],
 
-                  if (_locked(shown) case final List<RecipeOption> locked
-                      when locked.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: StrideSpace.rhythmHero),
-                    _RecipeBook(locked: locked, onOpen: _openSheet),
+                    // Ready / One away / Missing, as tiles. The folio's own
+                    // recipe is not repeated beneath itself.
+                    for (final (String label, List<RecipeOption> band)
+                        in _bands(shown, exclude: hero?.id))
+                      if (band.isNotEmpty) ...<Widget>[
+                        SectionHeading(
+                          label: label,
+                          trailing: Text(
+                            '${band.length}',
+                            style: StrideType.microLabel.copyWith(
+                              color: StrideColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: StrideSpace.rhythmRow),
+                        _TileFolio(recipes: band, onOpen: _openSheet),
+                        const SizedBox(height: StrideSpace.rhythmGroup),
+                      ],
+
+                    if (_locked(shown) case final List<RecipeOption> locked
+                        when locked.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: StrideSpace.rhythmHero),
+                      _RecipeBook(locked: locked, onOpen: _openSheet),
+                    ],
                   ],
-                ],
-              ),
+                ),
               ),
             ),
 
@@ -1008,9 +1006,7 @@ class _IngredientTray extends StatelessWidget {
                           right: 0,
                           bottom: 0,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 3,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
                             color: StrideColors.surfaceGround,
                             child: Text(
                               '−${line.shortfall}',
@@ -1050,10 +1046,7 @@ class _IngredientTray extends StatelessWidget {
 /// the database read comes from the structural fact that **every recipe was
 /// its own rounded card**, and killing that is the fix.
 class _TileFolio extends StatelessWidget {
-  const _TileFolio({
-    required this.recipes,
-    required this.onOpen,
-  });
+  const _TileFolio({required this.recipes, required this.onOpen});
 
   final List<RecipeOption> recipes;
   final ValueChanged<RecipeOption> onOpen;
@@ -1290,7 +1283,8 @@ class _RecipeBook extends StatelessWidget {
   /// from 10 up in the last one. Three is the figure that makes a chapter a
   /// page-worth rather than a scroll, and it is the same span the skills
   /// journey already groups by.
-  static int bandStart(int level) => level >= 10 ? 10 : ((level - 1) ~/ 3) * 3 + 1;
+  static int bandStart(int level) =>
+      level >= 10 ? 10 : ((level - 1) ~/ 3) * 3 + 1;
 
   static String bandLabel(int start) =>
       start >= 10 ? 'LEVELS 10+' : 'LEVELS $start–${start + 2}';
@@ -1317,8 +1311,9 @@ class _RecipeBook extends StatelessWidget {
 
     final List<String> order = chapters.keys.toList()
       ..sort((String a, String b) {
-        final int level = int.parse(a.split('|')[1])
-            .compareTo(int.parse(b.split('|')[1]));
+        final int level = int.parse(
+          a.split('|')[1],
+        ).compareTo(int.parse(b.split('|')[1]));
         return level != 0 ? level : a.compareTo(b);
       });
 
@@ -1343,7 +1338,8 @@ class _RecipeBook extends StatelessWidget {
             lit: i == 0,
             skill: order[i].split('|')[0],
             // The gate, said once, in the header — never on a page.
-            gate: 'Opens at ${order[i].split('|')[0]} '
+            gate:
+                'Opens at ${order[i].split('|')[0]} '
                 '${chapters[order[i]]!.map((RecipeOption r) => r.requiredLevel).reduce((int a, int b) => a < b ? a : b)}',
             range: bandLabel(int.parse(order[i].split('|')[1])),
             recipes: chapters[order[i]]!,
@@ -1529,9 +1525,7 @@ class _TierHeader extends StatelessWidget {
             AdaptiveText(
               gate,
               style: StrideType.micro,
-              color: lit
-                  ? StrideColors.textSecondary
-                  : StrideColors.textMuted,
+              color: lit ? StrideColors.textSecondary : StrideColors.textMuted,
             ),
           ],
         ),
@@ -1596,7 +1590,8 @@ class _SealedPage extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: '${recipe.displayName}, sealed until '
+      label:
+          '${recipe.displayName}, sealed until '
           '${recipe.skillName} ${recipe.requiredLevel}',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -1669,8 +1664,10 @@ class _PaintedDogEar extends StatelessWidget {
   const _PaintedDogEar();
 
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(painter: _DogEarPainter(), size: Size.square(CraftArt.dogEar));
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _DogEarPainter(),
+    size: Size.square(CraftArt.dogEar),
+  );
 }
 
 class _DogEarPainter extends CustomPainter {
@@ -2538,8 +2535,9 @@ class _ActiveCraftPanel extends StatelessWidget {
     // The armoured craft loop is the same seven frames re-dressed, so its
     // ping-pong, canvas and strike index are the base loop's; only the
     // frames, the footprint and the rest pose change.
-    final EquipmentVisualState visual =
-        SessionScope.of(context).session.equipmentVisualState;
+    final EquipmentVisualState visual = SessionScope.of(
+      context,
+    ).session.equipmentVisualState;
     final GatherStrip? dressed = TravelerArt.craftLoopFor(skill, visual);
     final List<String>? loop =
         dressed?.frames ??

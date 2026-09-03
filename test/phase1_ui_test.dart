@@ -718,7 +718,10 @@ void main() {
         find.descendant(of: slip, matching: find.text('Foraging XP')),
         findsOneWidget,
       );
-      expect(find.descendant(of: slip, matching: find.text('+10')), findsOneWidget);
+      expect(
+        find.descendant(of: slip, matching: find.text('+10')),
+        findsOneWidget,
+      );
 
       // `1,000` is still on screen, and correctly so: TOTAL WALKED reads
       // `totalGranted`, which never falls when steps are spent (`RULES.md`

@@ -47,7 +47,9 @@ void main() {
   ) async {
     final List<String> ids = (await tester.runAsync(() async {
       final Map<String, Object?> doc =
-          jsonDecode(await rootBundle.loadString('assets/content/v1/items.json'))
+          jsonDecode(
+                await rootBundle.loadString('assets/content/v1/items.json'),
+              )
               as Map<String, Object?>;
       return <String>[
         for (final Object? raw in doc['entries']! as List<Object?>)
@@ -88,19 +90,19 @@ void main() {
     //
     // Asserted on the SILHOUETTE rather than on the bytes, because a recolour
     // passes a byte comparison while being exactly the thing that was wrong.
-    Future<List<bool>> mask(String path) async =>
-        (await tester.runAsync(() async {
-          final Uint8List b = (await rootBundle.load(path)).buffer.asUint8List();
-          // The PNG is decoded by the framework elsewhere; here the alpha
-          // channel is read through the same codec the app uses.
-          final ui.Codec codec = await ui.instantiateImageCodec(b);
-          final ui.FrameInfo frame = await codec.getNextFrame();
-          final data = await frame.image.toByteData();
-          return <bool>[
-            for (int i = 3; i < data!.lengthInBytes; i += 4)
-              data.getUint8(i) >= 8,
-          ];
-        }))!;
+    Future<List<bool>> mask(
+      String path,
+    ) async => (await tester.runAsync(() async {
+      final Uint8List b = (await rootBundle.load(path)).buffer.asUint8List();
+      // The PNG is decoded by the framework elsewhere; here the alpha
+      // channel is read through the same codec the app uses.
+      final ui.Codec codec = await ui.instantiateImageCodec(b);
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      final data = await frame.image.toByteData();
+      return <bool>[
+        for (int i = 3; i < data!.lengthInBytes; i += 4) data.getUint8(i) >= 8,
+      ];
+    }))!;
 
     final List<bool> copper = await mask('assets/art/v1/item/copper_ore.png');
     final List<bool> tin = await mask('assets/art/v1/item/tin_ore.png');
@@ -141,15 +143,15 @@ void main() {
   /// phone draws it before it was accepted.
   Future<List<bool>> mask(WidgetTester tester, String id) async =>
       (await tester.runAsync(() async {
-        final Uint8List b =
-            (await rootBundle.load(
-              'assets/art/v1/item/$id.png',
-            )).buffer.asUint8List();
+        final Uint8List b = (await rootBundle.load(
+          'assets/art/v1/item/$id.png',
+        )).buffer.asUint8List();
         final ui.Codec codec = await ui.instantiateImageCodec(b);
         final ui.FrameInfo frame = await codec.getNextFrame();
         final data = await frame.image.toByteData();
         return <bool>[
-          for (int i = 3; i < data!.lengthInBytes; i += 4) data.getUint8(i) >= 8,
+          for (int i = 3; i < data!.lengthInBytes; i += 4)
+            data.getUint8(i) >= 8,
         ];
       }))!;
 

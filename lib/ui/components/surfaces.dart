@@ -343,9 +343,7 @@ class KitPlate extends StatelessWidget {
       left: const BorderSide(color: StrideColors.borderDefault),
       right: const BorderSide(color: StrideColors.borderDefault),
       bottom: BorderSide(
-        color: raised
-            ? StrideColors.borderDefault
-            : StrideColors.separator,
+        color: raised ? StrideColors.borderDefault : StrideColors.separator,
       ),
     ),
   );
@@ -517,10 +515,7 @@ class KitRule extends StatelessWidget {
       children: <Widget>[
         const KitOrnament(mark: KitMark.ruleCapLeft),
         Expanded(
-          child: KitEdge(
-            tile: _tile,
-            fallbackColor: StrideColors.separator,
-          ),
+          child: KitEdge(tile: _tile, fallbackColor: StrideColors.separator),
         ),
         const KitOrnament(mark: KitMark.ruleCapRight),
       ],

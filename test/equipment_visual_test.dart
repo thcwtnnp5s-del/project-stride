@@ -36,43 +36,52 @@ void main() {
 
   Future<StrideSession> boot() => StrideSession.start(
     overrideRoot: root,
-    source: MockStepSource(script: <SyncFetch>[SyncFetch(const NoChangeSync())]),
+    source: MockStepSource(
+      script: <SyncFetch>[SyncFetch(const NoChangeSync())],
+    ),
   );
 
-  test('the projection derives from the engine\'s own equipped state', () async {
-    final StrideSession session = await boot();
-    expect(session.equipmentVisualState, EquipmentVisualState.none);
+  test(
+    'the projection derives from the engine\'s own equipped state',
+    () async {
+      final StrideSession session = await boot();
+      expect(session.equipmentVisualState, EquipmentVisualState.none);
 
-    await session.equip(kSword);
-    await session.equip(kTunic);
-    await session.equip(kAxe);
+      await session.equip(kSword);
+      await session.equip(kTunic);
+      await session.equip(kAxe);
 
-    final EquipmentVisualState state = session.equipmentVisualState;
-    expect(state.weapon?.itemId, 'item.training_sword');
-    expect(state.weapon?.toolKind, 'none');
-    expect(state.armor?.itemId, 'item.traveler_tunic');
-    expect(state.tool?.itemId, 'item.training_axe');
-    expect(state.tool?.toolKind, 'axe');
-    expect(state.tool?.tier, 0);
+      final EquipmentVisualState state = session.equipmentVisualState;
+      expect(state.weapon?.itemId, 'item.training_sword');
+      expect(state.weapon?.toolKind, 'none');
+      expect(state.armor?.itemId, 'item.traveler_tunic');
+      expect(state.tool?.itemId, 'item.training_axe');
+      expect(state.tool?.toolKind, 'axe');
+      expect(state.tool?.tier, 0);
 
-    // The projection agrees with the summary over the same map.
-    final List<EquippedSummary> summary = session.equippedSummary;
-    expect(summary.map((EquippedSummary e) => e.itemId.value),
-        containsAll(<String>[kSword.value, kTunic.value, kAxe.value]));
-  });
+      // The projection agrees with the summary over the same map.
+      final List<EquippedSummary> summary = session.equippedSummary;
+      expect(
+        summary.map((EquippedSummary e) => e.itemId.value),
+        containsAll(<String>[kSword.value, kTunic.value, kAxe.value]),
+      );
+    },
+  );
 
-  test('changing equipment changes the value; an unchanged loadout is equal',
-      () async {
-    final StrideSession session = await boot();
-    await session.equip(kSword);
-    final EquipmentVisualState before = session.equipmentVisualState;
-    final EquipmentVisualState again = session.equipmentVisualState;
-    expect(again, before, reason: 'derived twice, equal by value');
+  test(
+    'changing equipment changes the value; an unchanged loadout is equal',
+    () async {
+      final StrideSession session = await boot();
+      await session.equip(kSword);
+      final EquipmentVisualState before = session.equipmentVisualState;
+      final EquipmentVisualState again = session.equipmentVisualState;
+      expect(again, before, reason: 'derived twice, equal by value');
 
-    await session.unequip(EquipmentSlot.weapon);
-    expect(session.equipmentVisualState, isNot(before));
-    expect(session.equipmentVisualState.weapon, isNull);
-  });
+      await session.unequip(EquipmentSlot.weapon);
+      expect(session.equipmentVisualState, isNot(before));
+      expect(session.equipmentVisualState.weapon, isNull);
+    },
+  );
 
   test('the resolver is total, and honest about what is held', () async {
     final StrideSession session = await boot();
@@ -161,14 +170,17 @@ void main() {
       EquipmentVisualState.none,
       session.equipmentVisualState,
     ]) {
-      expect(TravelerArt.walkWestFor(state),
-          TravelerArt.travelerWalkWestFrames,
-          reason: 'base walk, never null');
+      expect(
+        TravelerArt.walkWestFor(state),
+        TravelerArt.travelerWalkWestFrames,
+        reason: 'base walk, never null',
+      );
     }
 
     // The base walk is the exact strip the card always drew.
     expect(TravelerArt.travelerWalkWestFrames, <String>[
-      for (int i = 0; i < 6; i++) 'assets/art/v1/anim/traveler_walk_west_f$i.png',
+      for (int i = 0; i < 6; i++)
+        'assets/art/v1/anim/traveler_walk_west_f$i.png',
     ]);
   });
 
@@ -177,8 +189,8 @@ void main() {
     await session.equip(kSword);
     final Map<EquipmentSlot, ContentId> before =
         Map<EquipmentSlot, ContentId>.of(
-      session.engine!.state.equipment.bySlot,
-    );
+          session.engine!.state.equipment.bySlot,
+        );
     // Read repeatedly; derive-on-read must not write, migrate, or move
     // anything in the state it projects.
     for (int i = 0; i < 3; i++) {

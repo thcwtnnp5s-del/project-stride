@@ -80,9 +80,7 @@ class StrideBottomInset extends InheritedWidget {
   final double inset;
 
   static double of(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<StrideBottomInset>()
-          ?.inset ??
+      context.dependOnInheritedWidgetOfExactType<StrideBottomInset>()?.inset ??
       0;
 
   @override

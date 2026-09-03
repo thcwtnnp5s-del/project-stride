@@ -91,65 +91,65 @@ class ScreenHeader extends StatelessWidget {
                 ),
               ),
         child: LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) => Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Shrink-within-bounds rather than clip.
-                //
-                // **The reasoning here changed** with the header inversion
-                // (PRESENTATION_COMBAT_EVOLUTION_01). It used to read "the
-                // titles are four known words", which justified this side of
-                // the header yielding first. The title is now a **place
-                // name** — content, not a fixed string — and "Whispering
-                // Woods" beside a five-figure banked readout on a 320 dp
-                // phone is D-01's shape one axis over. `AdaptiveText` shrinks
-                // rather than clips, which is what keeps that honest, and it
-                // is now load-bearing rather than belt-and-braces.
-                // **Wraps, where it used to shrink.** The eyebrow was four
-                // known words — `CRAFT`, `WORLD` — and one line at one size
-                // was never in question. It is now the place's own
-                // descriptor (FMPO02 §8), and `SETTLEMENT · GRASSLAND`
-                // wants 196 dp of the 153 a 320 dp phone can spare beside
-                // the banked readout. `AdaptiveText`'s floor cannot absorb
-                // that, and lowering the floor to make it fit is the trade
-                // `adaptive_text.dart` refuses — so the breadcrumb takes a
-                // second line on the narrowest phones and every character
-                // survives. Nothing changes for a short eyebrow: one word
-                // still lays out on one line at full size.
-                Text(
-                  eyebrow.toUpperCase(),
-                  style: StrideType.screenEyebrow,
-                  maxLines: 2,
+          builder: (BuildContext context, BoxConstraints constraints) => Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // Shrink-within-bounds rather than clip.
+                    //
+                    // **The reasoning here changed** with the header inversion
+                    // (PRESENTATION_COMBAT_EVOLUTION_01). It used to read "the
+                    // titles are four known words", which justified this side of
+                    // the header yielding first. The title is now a **place
+                    // name** — content, not a fixed string — and "Whispering
+                    // Woods" beside a five-figure banked readout on a 320 dp
+                    // phone is D-01's shape one axis over. `AdaptiveText` shrinks
+                    // rather than clips, which is what keeps that honest, and it
+                    // is now load-bearing rather than belt-and-braces.
+                    // **Wraps, where it used to shrink.** The eyebrow was four
+                    // known words — `CRAFT`, `WORLD` — and one line at one size
+                    // was never in question. It is now the place's own
+                    // descriptor (FMPO02 §8), and `SETTLEMENT · GRASSLAND`
+                    // wants 196 dp of the 153 a 320 dp phone can spare beside
+                    // the banked readout. `AdaptiveText`'s floor cannot absorb
+                    // that, and lowering the floor to make it fit is the trade
+                    // `adaptive_text.dart` refuses — so the breadcrumb takes a
+                    // second line on the narrowest phones and every character
+                    // survives. Nothing changes for a short eyebrow: one word
+                    // still lays out on one line at full size.
+                    Text(
+                      eyebrow.toUpperCase(),
+                      style: StrideType.screenEyebrow,
+                      maxLines: 2,
+                    ),
+                    AdaptiveText(
+                      title,
+                      style: StrideType.screenTitle,
+                      color: regionInk,
+                    ),
+                  ],
                 ),
-                AdaptiveText(
-                  title,
-                  style: StrideType.screenTitle,
-                  color: regionInk,
+              ),
+              if (trailing != null) ...<Widget>[
+                const SizedBox(width: StrideSpace.s8),
+                // Bounded, so the readout cannot take the whole bar, and generous,
+                // so the figure wins the contest against the title. Without the
+                // cap this is a non-flex `Row` child with unbounded constraints.
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth:
+                        constraints.maxWidth *
+                        StrideGeometry.bankedFigureMaxFraction,
+                  ),
+                  child: trailing!,
                 ),
               ],
-            ),
+            ],
           ),
-          if (trailing != null) ...<Widget>[
-            const SizedBox(width: StrideSpace.s8),
-            // Bounded, so the readout cannot take the whole bar, and generous,
-            // so the figure wins the contest against the title. Without the
-            // cap this is a non-flex `Row` child with unbounded constraints.
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth:
-                    constraints.maxWidth *
-                    StrideGeometry.bankedFigureMaxFraction,
-              ),
-              child: trailing!,
-            ),
-          ],
-        ],
-      ),
         ),
       ),
 

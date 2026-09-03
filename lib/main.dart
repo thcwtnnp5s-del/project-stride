@@ -41,8 +41,16 @@ Future<void> main() async {
   // anywhere. Resampling at decode drops columns before `filterQuality` is ever
   // consulted, and this app magnifies pixel art at integer scale (L-18). The
   // usual "downscale large images" advice is actively wrong for this product.
+  // EPO03 raises the entry cap from 2,000. The game now ships **2,388** PNGs,
+  // so for the first time the count of distinct images exceeds the cache's
+  // entry limit — and the entry cap bites independently of the byte budget,
+  // which is only about half used. That combination is the quiet one: art
+  // would be evicted and re-decoded while there is memory to spare, showing up
+  // as a stutter late in a long session rather than as growth anyone can see.
+  // The bytes ceiling below is what actually bounds memory, and it is
+  // unchanged; this only stops the entry count from bounding it first.
   PaintingBinding.instance.imageCache
-    ..maximumSize = 2000
+    ..maximumSize = 3000
     ..maximumSizeBytes = 48 << 20;
 
   // Awaited before the first frame rather than kicked off behind a splash.

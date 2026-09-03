@@ -138,15 +138,16 @@ void main() {
   // composes. The craft block above proves the smith and the cook; this proves
   // that mining, woodcutting and foraging draw the hooded body and the tool
   // the loadout actually carries, which is what DIR-08 failure 3 was about.
-  for (final (String skill, String tool, String label) in <(String, String, String)>[
-    ('skill.mining', 'item.bronze_pickaxe', 'mine_bronze'),
-    ('skill.mining', 'item.training_pickaxe', 'mine_steel'),
-    // EPO03 P4: the Hornpoint Pickaxe's own bone-tipped head.
-    ('skill.mining', 'item.hornpoint_pickaxe', 'mine_horn'),
-    ('skill.woodcutting', 'item.bronze_axe', 'woodcut_bronze'),
-    ('skill.woodcutting', 'item.training_axe', 'woodcut_steel'),
-    ('skill.foraging', 'item.bronze_pickaxe', 'forage'),
-  ]) {
+  for (final (String skill, String tool, String label)
+      in <(String, String, String)>[
+        ('skill.mining', 'item.bronze_pickaxe', 'mine_bronze'),
+        ('skill.mining', 'item.training_pickaxe', 'mine_steel'),
+        // EPO03 P4: the Hornpoint Pickaxe's own bone-tipped head.
+        ('skill.mining', 'item.hornpoint_pickaxe', 'mine_horn'),
+        ('skill.woodcutting', 'item.bronze_axe', 'woodcut_bronze'),
+        ('skill.woodcutting', 'item.training_axe', 'woodcut_steel'),
+        ('skill.foraging', 'item.bronze_pickaxe', 'forage'),
+      ]) {
     testWidgets('the warden at $label, as the work stage draws it', (
       WidgetTester tester,
     ) async {

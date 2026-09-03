@@ -39,7 +39,8 @@ class GearStatsBlock extends StatelessWidget {
     final GearStats g = stats;
     final bool tool = g.slot == EquipmentSlot.tool;
     final Color verdictInk = switch (g.verdict) {
-      GearVerdict.upgrade || GearVerdict.firstInSlot => StrideColors.textPrimary,
+      GearVerdict.upgrade ||
+      GearVerdict.firstInSlot => StrideColors.textPrimary,
       GearVerdict.equipped ||
       GearVerdict.sidegrade ||
       GearVerdict.toolSwap => StrideColors.textSecondary,
@@ -104,13 +105,13 @@ class GearStatsBlock extends StatelessWidget {
                   ),
                   if (!tool)
                     if (g.deltaLabel case final String delta) ...<Widget>[
-                    const SizedBox(height: StrideSpace.s2),
-                    AdaptiveText(
-                      delta,
-                      style: StrideType.sub,
-                      color: verdictInk,
-                    ),
-                  ],
+                      const SizedBox(height: StrideSpace.s2),
+                      AdaptiveText(
+                        delta,
+                        style: StrideType.sub,
+                        color: verdictInk,
+                      ),
+                    ],
                 ],
               ),
             ],
@@ -125,7 +126,9 @@ class GearStatsBlock extends StatelessWidget {
             const SizedBox(height: StrideSpace.s2),
             Text(
               passive,
-              style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+              style: StrideType.micro.copyWith(
+                color: StrideColors.textSecondary,
+              ),
               maxLines: 3,
             ),
           ],
@@ -160,7 +163,6 @@ class GearStatsBlock extends StatelessWidget {
     EquipmentSlot.armor => 'armour',
     EquipmentSlot.tool => 'tool',
   };
-
 }
 
 /// The one line a tile can afford.
@@ -215,7 +217,8 @@ class GearStatLine extends StatelessWidget {
     final GearStats g = stats;
     final Color ink = switch (g.verdict) {
       GearVerdict.downgrade => StrideColors.textMuted,
-      GearVerdict.sidegrade || GearVerdict.toolSwap => StrideColors.textSecondary,
+      GearVerdict.sidegrade ||
+      GearVerdict.toolSwap => StrideColors.textSecondary,
       _ => StrideColors.textPrimary,
     };
     return Text(

@@ -165,93 +165,93 @@ class _LocationBoardCardState extends State<LocationBoardCard> {
     // rectangle `DIR-05` names first. The heading keeps its standing figure
     // and gains the chart rule the page's other section uses.
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          SectionHeading(
-            label: board.boardName,
-            trailing: standing.isEmpty
-                ? null
-                : Text(
-                    standing,
-                    style: StrideType.microLabel.copyWith(
-                      color: ready > 0
-                          ? StrideColors.positiveReady
-                          : StrideColors.textSecondary,
-                    ),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SectionHeading(
+          label: board.boardName,
+          trailing: standing.isEmpty
+              ? null
+              : Text(
+                  standing,
+                  style: StrideType.microLabel.copyWith(
+                    color: ready > 0
+                        ? StrideColors.positiveReady
+                        : StrideColors.textSecondary,
                   ),
-          ),
-          const SizedBox(height: StrideSpace.rowGap),
-          const KitRule(style: KitRuleStyle.chart),
+                ),
+        ),
+        const SizedBox(height: StrideSpace.rowGap),
+        const KitRule(style: KitRuleStyle.chart),
 
-          // The held result panels, above the listings so a completion is the
-          // first thing read after the tap that caused it.
-          if (_projectResult case final ProjectReport r) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
-            _ProjectResultPanel(report: r, onContinue: _dismissResults),
-          ],
-          if (_contractResult case final ContractReport r) ...<Widget>[
-            const SizedBox(height: StrideSpace.s8),
-            _ContractResultPanel(report: r, onContinue: _dismissResults),
-          ],
-
-          // Every job on this board as one scannable row, with the one the
-          // player opened expanded beneath it (§11). Orders, bounties and
-          // regional contracts share the row; they are distinguished by the
-          // type word, not by three separate layouts.
-          for (final ContractView job in jobs) ...<Widget>[
-            _ContractRow(
-              contract: job,
-              selected: _open == job.id,
-              tracked: tracked == job.id,
-              onTap: () => _toggle(job.id),
-              // The open job's detail lives inside the row's own frame, so
-              // the expanded state is one block rather than a row with loose
-              // prose beneath it (PLAYABLE_POLISH_01 §3).
-              detail: _open == job.id
-                  ? _ContractDetail(
-                      contract: job,
-                      busy: c.busy,
-                      onComplete: () => _complete(c, job),
-                      onAccept: job.bounty == null
-                          ? null
-                          : () => _accept(c, job.id),
-                      onTrack: () => c.trackGoalContract(job.id),
-                    )
-                  : null,
-            ),
-          ],
-
-          // How the board refreshes, said once and honestly (this pass,
-          // item 3): local needs rotate when they are delivered — there is
-          // no timer, nothing expires, and nothing here may imply
-          // otherwise (`RULES.md` P-5).
-          if (board.localNeeds.isNotEmpty) ...<Widget>[
-            const SizedBox(height: StrideSpace.s6),
-            Text(
-              'New orders are posted as these are delivered.',
-              style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-              maxLines: 1,
-            ),
-          ],
-
-          // Community projects stay visually distinct and stay above the
-          // fold of their own section (§12): they are the place's story, not
-          // another job. They keep their full tile — stage, animated
-          // material bars, permanent consequence — because that treatment is
-          // the point of them, and the owner asked for it to be preserved.
-          for (final ProjectView project in board.projects) ...<Widget>[
-            const SizedBox(height: StrideSpace.s10),
-            _ProjectTile(
-              project: project,
-              busy: c.busy,
-              tracked: tracked == project.id,
-              onContribute: project.hasSomethingToGive
-                  ? () => _contribute(c, project)
-                  : null,
-              onTrack: () => c.trackGoalContract(project.id),
-            ),
-          ],
+        // The held result panels, above the listings so a completion is the
+        // first thing read after the tap that caused it.
+        if (_projectResult case final ProjectReport r) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          _ProjectResultPanel(report: r, onContinue: _dismissResults),
         ],
+        if (_contractResult case final ContractReport r) ...<Widget>[
+          const SizedBox(height: StrideSpace.s8),
+          _ContractResultPanel(report: r, onContinue: _dismissResults),
+        ],
+
+        // Every job on this board as one scannable row, with the one the
+        // player opened expanded beneath it (§11). Orders, bounties and
+        // regional contracts share the row; they are distinguished by the
+        // type word, not by three separate layouts.
+        for (final ContractView job in jobs) ...<Widget>[
+          _ContractRow(
+            contract: job,
+            selected: _open == job.id,
+            tracked: tracked == job.id,
+            onTap: () => _toggle(job.id),
+            // The open job's detail lives inside the row's own frame, so
+            // the expanded state is one block rather than a row with loose
+            // prose beneath it (PLAYABLE_POLISH_01 §3).
+            detail: _open == job.id
+                ? _ContractDetail(
+                    contract: job,
+                    busy: c.busy,
+                    onComplete: () => _complete(c, job),
+                    onAccept: job.bounty == null
+                        ? null
+                        : () => _accept(c, job.id),
+                    onTrack: () => c.trackGoalContract(job.id),
+                  )
+                : null,
+          ),
+        ],
+
+        // How the board refreshes, said once and honestly (this pass,
+        // item 3): local needs rotate when they are delivered — there is
+        // no timer, nothing expires, and nothing here may imply
+        // otherwise (`RULES.md` P-5).
+        if (board.localNeeds.isNotEmpty) ...<Widget>[
+          const SizedBox(height: StrideSpace.s6),
+          Text(
+            'New orders are posted as these are delivered.',
+            style: StrideType.micro.copyWith(color: StrideColors.textMuted),
+            maxLines: 1,
+          ),
+        ],
+
+        // Community projects stay visually distinct and stay above the
+        // fold of their own section (§12): they are the place's story, not
+        // another job. They keep their full tile — stage, animated
+        // material bars, permanent consequence — because that treatment is
+        // the point of them, and the owner asked for it to be preserved.
+        for (final ProjectView project in board.projects) ...<Widget>[
+          const SizedBox(height: StrideSpace.s10),
+          _ProjectTile(
+            project: project,
+            busy: c.busy,
+            tracked: tracked == project.id,
+            onContribute: project.hasSomethingToGive
+                ? () => _contribute(c, project)
+                : null,
+            onTrack: () => c.trackGoalContract(project.id),
+          ),
+        ],
+      ],
     );
   }
 }

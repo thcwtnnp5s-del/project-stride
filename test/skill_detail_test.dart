@@ -125,16 +125,16 @@ void main() {
       for (final JourneyStop stop in stops)
         if (stop is MilestoneStop)
           stop.level
-        else if (stop is FoldStop)
-          ...<int>[
-            for (int l = stop.fromLevel; l <= stop.toLevel; l++) l,
-          ],
+        else if (stop is FoldStop) ...<int>[
+          for (int l = stop.fromLevel; l <= stop.toLevel; l++) l,
+        ],
     ];
     expect(covered, equals(List<int>.generate(10, (int i) => i + 1)));
 
     // The walker is at level 1, so exactly one joint is the lit cairn and
     // exactly one is the bronze-rimmed next stone carrying the distance.
-    final List<MilestoneStop> milestones = stops.whereType<MilestoneStop>()
+    final List<MilestoneStop> milestones = stops
+        .whereType<MilestoneStop>()
         .toList();
     expect(
       milestones.where((MilestoneStop m) => m.join == JoinState.current),

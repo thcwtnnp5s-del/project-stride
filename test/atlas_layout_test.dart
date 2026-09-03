@@ -950,9 +950,9 @@ void main() {
       // The layout still validates: a path overlay's waypoints are checked
       // against the world, not a coordinate it does not have.
       expect(
-        layout.validateAgainst(contentLocations).where(
-          (String p) => p.contains('overlay_test_patrol'),
-        ),
+        layout
+            .validateAgainst(contentLocations)
+            .where((String p) => p.contains('overlay_test_patrol')),
         isEmpty,
       );
     });
@@ -975,17 +975,20 @@ void main() {
       );
     });
 
-    test('refuses a breath the path never fires, and a fire with no breath', () {
-      expect(
-        () => AtlasLayout.parse(
-          _withOverlay(
-            shippedLayout,
-            _pathOverlay.replaceFirst('"breathAt": [1]', '"breathAt": [7]'),
+    test(
+      'refuses a breath the path never fires, and a fire with no breath',
+      () {
+        expect(
+          () => AtlasLayout.parse(
+            _withOverlay(
+              shippedLayout,
+              _pathOverlay.replaceFirst('"breathAt": [1]', '"breathAt": [7]'),
+            ),
           ),
-        ),
-        throwsA(isA<AtlasLayoutException>()),
-      );
-    });
+          throwsA(isA<AtlasLayoutException>()),
+        );
+      },
+    );
 
     test('refuses a depth that is not ground, low air or high air', () {
       expect(

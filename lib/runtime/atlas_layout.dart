@@ -311,8 +311,7 @@ final class AtlasOverlayBob {
     if (a < 0) a += twoPi;
     final bool negative = a > pi;
     if (negative) a -= pi;
-    final double value =
-        16 * a * (pi - a) / (5 * pi * pi - 4 * a * (pi - a));
+    final double value = 16 * a * (pi - a) / (5 * pi * pi - 4 * a * (pi - a));
     return negative ? -value : value;
   }
 }
@@ -355,7 +354,6 @@ final class AtlasOverlayFollower {
   /// The frame at [millis] into a play, clamped inside the sequence.
   int frameIndexAt(int millis) =>
       millis <= 0 ? 0 : millis ~/ frameMillis % frameCount;
-
 }
 
 /// The host's own frame, repainted flat black and dropped below it.
@@ -670,13 +668,8 @@ final class AtlasOverlay {
     final AtlasOverlayPath? line = path;
     if (line == null) return (x: x, y: y);
     final ({double x, double y, double dx}) foot = line.footAt(t);
-    final double bob = t == Duration.zero
-        ? 0
-        : (line.bob?.offsetAt(t) ?? 0);
-    return (
-      x: foot.x - width * scale / 2,
-      y: foot.y + bob - height * scale,
-    );
+    final double bob = t == Duration.zero ? 0 : (line.bob?.offsetAt(t) ?? 0);
+    return (x: foot.x - width * scale / 2, y: foot.y + bob - height * scale);
   }
 
   /// Whether the sprite is mirrored at [t] — true when the segment under it
@@ -1376,7 +1369,8 @@ final class AtlasLayout {
     // A path overlay carries none of the placement fields: its position comes
     // from the line, and `drift` is not merely unused but forbidden below.
     final Object? pathRaw = raw['path'];
-    final Map<String, Object?>? driftRaw = raw['drift'] == null && pathRaw != null
+    final Map<String, Object?>? driftRaw =
+        raw['drift'] == null && pathRaw != null
         ? null
         : _object(raw, 'drift', within: at);
     final Map<String, Object?>? travelRaw = raw['travel'] == null
@@ -1393,14 +1387,22 @@ final class AtlasLayout {
       height: _int(raw, 'height', within: at),
       frameCount: _int(raw, 'frames', within: at),
       frameMillis: _int(raw, 'frameMillis', within: at),
-      driftX: driftRaw == null ? 0 : _number(driftRaw, 'x', within: '$at.drift'),
-      driftY: driftRaw == null ? 0 : _number(driftRaw, 'y', within: '$at.drift'),
+      driftX: driftRaw == null
+          ? 0
+          : _number(driftRaw, 'x', within: '$at.drift'),
+      driftY: driftRaw == null
+          ? 0
+          : _number(driftRaw, 'y', within: '$at.drift'),
       opacity: raw['opacity'] == null ? 1 : _number(raw, 'opacity', within: at),
       intervalMillis: raw['intervalMillis'] == null
           ? 0
           : _int(raw, 'intervalMillis', within: at),
-      travelX: travelRaw == null ? 0 : _number(travelRaw, 'x', within: '$at.travel'),
-      travelY: travelRaw == null ? 0 : _number(travelRaw, 'y', within: '$at.travel'),
+      travelX: travelRaw == null
+          ? 0
+          : _number(travelRaw, 'x', within: '$at.travel'),
+      travelY: travelRaw == null
+          ? 0
+          : _number(travelRaw, 'y', within: '$at.travel'),
       playLoops: raw['playLoops'] == null
           ? 1
           : _int(raw, 'playLoops', within: at),
@@ -1410,9 +1412,7 @@ final class AtlasLayout {
       breath: raw['breath'] == null
           ? null
           : _follower(raw['breath'], '$at.breath'),
-      cloud: raw['cloud'] == null
-          ? null
-          : _follower(raw['cloud'], '$at.cloud'),
+      cloud: raw['cloud'] == null ? null : _follower(raw['cloud'], '$at.cloud'),
       shadow: raw['shadow'] == null
           ? null
           : _shadow(raw['shadow'], '$at.shadow'),
@@ -1535,7 +1535,9 @@ final class AtlasLayout {
         within: at,
       ).indexed) {
         if (k is! int) {
-          throw AtlasLayoutException('$at.breathAt[$i] must be a waypoint index');
+          throw AtlasLayoutException(
+            '$at.breathAt[$i] must be a waypoint index',
+          );
         }
         breathAt.add(k);
       }

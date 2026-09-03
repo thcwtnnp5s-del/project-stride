@@ -252,11 +252,7 @@ class _Leather extends StatelessWidget {
           decoration: const BoxDecoration(color: StrideColors.surfaceCard),
           child: child,
         )
-      : SurfaceFill(
-          tile: tile!,
-          fill: StrideColors.surfaceCard,
-          child: child,
-        );
+      : SurfaceFill(tile: tile!, fill: StrideColors.surfaceCard, child: child);
 }
 
 class _Tab extends StatelessWidget {

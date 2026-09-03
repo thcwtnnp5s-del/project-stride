@@ -465,7 +465,12 @@ class _PixelFrameState extends State<PixelFrame> {
 /// Tiles a [SurfaceTile] across [rect] at integer scale: nearest neighbour,
 /// clipped at the far edges, never rescaled. Shared by the frame's interior
 /// and by [SurfaceFill].
-void paintSurfaceTile(Canvas canvas, Rect rect, SurfaceTile tile, ui.Image grain) {
+void paintSurfaceTile(
+  Canvas canvas,
+  Rect rect,
+  SurfaceTile tile,
+  ui.Image grain,
+) {
   final Paint paint = Paint()
     ..filterQuality = FilterQuality.none
     ..isAntiAlias = false;
@@ -636,7 +641,8 @@ class _FramePainter extends CustomPainter {
       ..filterQuality = FilterQuality.none
       ..isAntiAlias = false;
 
-    void patch(Rect src, Rect dst) => canvas.drawImageRect(image, src, dst, paint);
+    void patch(Rect src, Rect dst) =>
+        canvas.drawImageRect(image, src, dst, paint);
 
     final int iw = skin.nativeWidth;
     final int ih = skin.nativeHeight;

@@ -50,7 +50,10 @@ final ContentId herbBroth = ContentId.unchecked('item.herb_broth');
 GestureDetector command(WidgetTester tester, String label) =>
     tester.widget<GestureDetector>(
       find
-          .ancestor(of: find.text(label), matching: find.byType(GestureDetector))
+          .ancestor(
+            of: find.text(label),
+            matching: find.byType(GestureDetector),
+          )
           .first,
     );
 
@@ -260,7 +263,11 @@ void main() {
 
   testWidgets('Start Combat opens the fight, Attack follows the commit, and '
       'the outcome waits to be acknowledged', (WidgetTester tester) async {
-    final StrideSession s = await boot(tester, atWoods: true, provisioned: true);
+    final StrideSession s = await boot(
+      tester,
+      atWoods: true,
+      provisioned: true,
+    );
     await show(tester, s);
 
     // Open the wolf's row, then start the fight from its detail (§15).
@@ -497,7 +504,9 @@ void main() {
         12;
     final double railBottom = tester
         .getBottomLeft(
-          find.ancestor(of: retreat, matching: find.byType(GestureDetector)).first,
+          find
+              .ancestor(of: retreat, matching: find.byType(GestureDetector))
+              .first,
         )
         .dy;
 
@@ -541,7 +550,9 @@ void main() {
     for (final String other in <String>['Brace', 'Eat']) {
       expect(
         tester.getSize(
-          find.ancestor(of: find.text(other), matching: find.byType(KitPlate)).first,
+          find
+              .ancestor(of: find.text(other), matching: find.byType(KitPlate))
+              .first,
         ),
         attackPlate,
         reason: '$other is not the same plate as Attack',
@@ -599,9 +610,12 @@ void main() {
     expect(find.text('Nothing to eat'), findsOneWidget);
     expect(
       find.descendant(
-        of: find.ancestor(of: find.text('Eat'), matching: find.byType(KitPlate)).first,
+        of: find
+            .ancestor(of: find.text('Eat'), matching: find.byType(KitPlate))
+            .first,
         matching: find.byWidgetPredicate(
-          (Widget w) => w is PixelAsset && w.assetPath == CombatHudAssets.iconEat,
+          (Widget w) =>
+              w is PixelAsset && w.assetPath == CombatHudAssets.iconEat,
         ),
       ),
       findsNothing,
@@ -769,20 +783,20 @@ void main() {
       luminance = <double>[
         for (int y = 0; y < image.height; y++)
           () {
-                double sum = 0;
-                for (int x = 0; x < image.width; x++) {
-                  final int i = (y * image.width + x) * 4;
-                  final double a = px.getUint8(i + 3) / 255;
-                  sum += _luminance(
-                    px.getUint8(i) + StrideColors.surfaceGround.r * 255 * (1 - a),
-                    px.getUint8(i + 1) +
-                        StrideColors.surfaceGround.g * 255 * (1 - a),
-                    px.getUint8(i + 2) +
-                        StrideColors.surfaceGround.b * 255 * (1 - a),
-                  );
-                }
-                return sum / image.width;
-              }(),
+            double sum = 0;
+            for (int x = 0; x < image.width; x++) {
+              final int i = (y * image.width + x) * 4;
+              final double a = px.getUint8(i + 3) / 255;
+              sum += _luminance(
+                px.getUint8(i) + StrideColors.surfaceGround.r * 255 * (1 - a),
+                px.getUint8(i + 1) +
+                    StrideColors.surfaceGround.g * 255 * (1 - a),
+                px.getUint8(i + 2) +
+                    StrideColors.surfaceGround.b * 255 * (1 - a),
+              );
+            }
+            return sum / image.width;
+          }(),
       ];
       image.dispose();
       codec.dispose();
@@ -805,7 +819,8 @@ void main() {
     expect(
       contrast(meanOf(4, 10)),
       closeTo(2.90, 0.05),
-      reason: 'if this rose above 4.5 the strip may be drawn: swap the '
+      reason:
+          'if this rose above 4.5 the strip may be drawn: swap the '
           'translucent fill in `_CombatLog` for the tiled parchment',
     );
     expect(contrast(meanOf(4, 10)), lessThan(4.5));
@@ -818,7 +833,9 @@ void main() {
 double _luminance(double r, double g, double b) {
   double c(double v) {
     final double s = v / 255;
-    return s <= 0.04045 ? s / 12.92 : math.pow((s + 0.055) / 1.055, 2.4) as double;
+    return s <= 0.04045
+        ? s / 12.92
+        : math.pow((s + 0.055) / 1.055, 2.4) as double;
   }
 
   return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);

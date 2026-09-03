@@ -101,7 +101,6 @@ abstract final class TrackArt {
   // Rows. A null row is the normal state of this table, not an error.
   // ---------------------------------------------------------------------
 
-
   /// Which rows have actually landed and been read at phone scale.
   ///
   /// **This set is the registry's on-switch.** A mark is declared below with

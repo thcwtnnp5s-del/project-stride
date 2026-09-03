@@ -147,10 +147,9 @@ void main() {
       Rarity.legendary,
     ]) {
       await _pump(tester, _result(rarity: r, xp: 40));
-      final String seal = _art(tester).singleWhere(
-        (String a) => a.contains('seal_wax_'),
-        orElse: () => '',
-      );
+      final String seal = _art(
+        tester,
+      ).singleWhere((String a) => a.contains('seal_wax_'), orElse: () => '');
       expect(seal, isNotEmpty, reason: '${r.label} carries no wax');
       seen.add(seal);
     }
@@ -178,7 +177,10 @@ void main() {
     );
     // An unknown skill is honest rather than wrong.
     expect(RewardArt.stampVerbFor(null), RewardArt.stampVerbGathered);
-    expect(RewardArt.stampVerbFor('skill.nonesuch'), RewardArt.stampVerbGathered);
+    expect(
+      RewardArt.stampVerbFor('skill.nonesuch'),
+      RewardArt.stampVerbGathered,
+    );
 
     // _result forges, so the card must carry the smith's ribbon and no other.
     await _pump(tester, _result(rarity: Rarity.common, xp: 12));

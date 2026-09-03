@@ -609,8 +609,11 @@ abstract final class TravelerArt {
     // it is made of, which is a tier lie rather than a category one. The
     // order is only reached when a class is unauthored for a body, and every
     // class the table names is complete on every authored body today.
-    for (final String alt in <String>[weaponSteel, weaponBronze,
-      weaponLongsword]) {
+    for (final String alt in <String>[
+      weaponSteel,
+      weaponBronze,
+      weaponLongsword,
+    ]) {
       if (alt == weapon) continue;
       final CombatantArt? art = combatVariants[_pair(body, alt)];
       if (art != null) return art;
@@ -628,7 +631,10 @@ abstract final class TravelerArt {
   /// tier (the armour stays on, the tool tier is the axis that degrades —
   /// a bronze head on a training pick is a smaller lie than the shirt); then
   /// the base body with the equipped tool tier; then null.
-  static GatherStrip? gatherStripFor(String skill, EquipmentVisualState visual) {
+  static GatherStrip? gatherStripFor(
+    String skill,
+    EquipmentVisualState visual,
+  ) {
     final String body = bodyClassOf(visual);
     final String? tool = toolClassOf(visual, skill);
     if (skill == 'skill.foraging') {

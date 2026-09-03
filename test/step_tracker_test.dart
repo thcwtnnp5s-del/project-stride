@@ -53,8 +53,9 @@ SyncFetch pageOf(List<StepObservation> observations) => SyncFetch(
       scope: CompletenessScope(
         dataType: HealthDataType.steps,
         origins: SomeOrigins(<StepOriginKey>{phone}),
-        intervalStartMillis:
-            now.subtract(const Duration(days: 30)).millisecondsSinceEpoch,
+        intervalStartMillis: now
+            .subtract(const Duration(days: 30))
+            .millisecondsSinceEpoch,
         intervalEndMillis: now.millisecondsSinceEpoch,
         queryGeneration: 1,
       ),
@@ -95,9 +96,9 @@ void main() {
         at(today.add(const Duration(hours: 10)), 800),
         at(today.subtract(const Duration(hours: 3)), 3000),
         at(
-          today.subtract(const Duration(days: 6)).add(
-            const Duration(hours: 15),
-          ),
+          today
+              .subtract(const Duration(days: 6))
+              .add(const Duration(hours: 15)),
           500,
         ),
       ]),
@@ -124,33 +125,35 @@ void main() {
     );
   });
 
-  test('a compacted slice leaves the week and stays in the lifetime figure',
-      () async {
-    final DateTime today = DateTime(now.year, now.month, now.day);
-    final StrideSession s = await boot(<SyncFetch>[
-      pageOf(<StepObservation>[
-        at(today.add(const Duration(hours: 9)), 1000),
-        // Ten days ago: behind the ledger's seven-day retention horizon
-        // relative to the newest observation, so it is compacted into
-        // `grantedBeforeWatermark` on commit.
-        at(
-          today.subtract(const Duration(days: 10)).add(
-            const Duration(hours: 12),
+  test(
+    'a compacted slice leaves the week and stays in the lifetime figure',
+    () async {
+      final DateTime today = DateTime(now.year, now.month, now.day);
+      final StrideSession s = await boot(<SyncFetch>[
+        pageOf(<StepObservation>[
+          at(today.add(const Duration(hours: 9)), 1000),
+          // Ten days ago: behind the ledger's seven-day retention horizon
+          // relative to the newest observation, so it is compacted into
+          // `grantedBeforeWatermark` on commit.
+          at(
+            today
+                .subtract(const Duration(days: 10))
+                .add(const Duration(hours: 12)),
+            9000,
           ),
-          9000,
-        ),
-      ]),
-    ]);
-    await s.syncSteps();
+        ]),
+      ]);
+      await s.syncSteps();
 
-    final StepHistory history = s.stepHistory();
-    expect(history.week, 1000, reason: 'the old walk is not a recent day');
-    expect(
-      history.lifetimeGranted,
-      10000,
-      reason: 'compaction folds credit, never deletes it',
-    );
-  });
+      final StepHistory history = s.stepHistory();
+      expect(history.week, 1000, reason: 'the old walk is not a recent day');
+      expect(
+        history.lifetimeGranted,
+        10000,
+        reason: 'compaction folds credit, never deletes it',
+      );
+    },
+  );
 
   test('last synced moves only when the store was actually read', () async {
     final StrideSession s = await boot(<SyncFetch>[

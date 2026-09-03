@@ -67,7 +67,8 @@ void main() {
     // "mapped" no longer means "has a figure". Every row must belong to one
     // of them; an unrecognised prefix would be a row that resolves to nothing
     // anywhere, which is ghost gear by another name.
-    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+    for (final MapEntry<String, String> e
+        in TravelerArt.variantOfItem.entries) {
       expect(
         e.value == TravelerArt.baseBody ||
             e.value.startsWith('armor.') ||
@@ -81,9 +82,8 @@ void main() {
     final Map<String, String> byArmourItem = <String, String>{
       for (final MapEntry<String, String> e
           in TravelerArt.variantOfItem.entries)
-        if (e.value.startsWith('armor.')) e.key: TravelerArt.figureFor(
-          _wearing(e.key),
-        ),
+        if (e.value.startsWith('armor.'))
+          e.key: TravelerArt.figureFor(_wearing(e.key)),
     };
 
     // Nothing mapped may fall through to the base — a mapped item whose class
@@ -114,7 +114,8 @@ void main() {
     // resolves to when the armour's own row is missing — and every armoured
     // body must have every weapon class too, or an armoured Traveler would
     // fight in his shirt for that blade (the revert the owner banned).
-    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+    for (final MapEntry<String, String> e
+        in TravelerArt.variantOfItem.entries) {
       if (!e.value.startsWith('weapon.')) continue;
       for (final String body in <String>[
         TravelerArt.baseBody,
@@ -123,21 +124,26 @@ void main() {
         expect(
           TravelerArt.combatVariants['$body|${e.value}'],
           isNotNull,
-          reason: '${e.key} maps to ${e.value}, which has no combat set for $body',
+          reason:
+              '${e.key} maps to ${e.value}, which has no combat set for $body',
         );
       }
     }
     // Tools: a bronze class must reach an authored loop on at least one body;
     // the steel classes are the shipped base loops and need no row.
-    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+    for (final MapEntry<String, String> e
+        in TravelerArt.variantOfItem.entries) {
       if (!e.value.startsWith('tool.') || e.value.endsWith('.steel')) continue;
       expect(
-        TravelerArt.gatherVariants.keys.any((String k) => k.endsWith('|${e.value}')),
+        TravelerArt.gatherVariants.keys.any(
+          (String k) => k.endsWith('|${e.value}'),
+        ),
         isTrue,
         reason: '${e.key} maps to ${e.value}, which has no working loop',
       );
     }
-    for (final MapEntry<String, String> e in TravelerArt.variantOfItem.entries) {
+    for (final MapEntry<String, String> e
+        in TravelerArt.variantOfItem.entries) {
       if (!e.value.startsWith('weapon.')) continue;
       expect(
         TravelerArt.combatVariants['${TravelerArt.baseBody}|${e.value}'],
@@ -146,7 +152,6 @@ void main() {
       );
     }
   });
-
 
   test('the classes are the ones that were authored', () {
     expect(
@@ -175,7 +180,11 @@ void main() {
     // The whole architecture rests on this: the visual state is derived, so
     // looking at what you are wearing can never write a save.
     const EquipmentVisualState visual = EquipmentVisualState(
-      armor: EquippedVisualFact(itemId: 'item.bearhide_coat', tier: 2, toolKind: 'none'),
+      armor: EquippedVisualFact(
+        itemId: 'item.bearhide_coat',
+        tier: 2,
+        toolKind: 'none',
+      ),
     );
     final String first = TravelerArt.figureFor(visual);
     final String second = TravelerArt.figureFor(visual);

@@ -423,9 +423,13 @@ abstract final class EventCues {
   };
 
   /// The cue for [event], from any table, or null when nothing is wired.
-  static EventCue? of(String event) => combat[event] ?? reward[event] ?? ui[event];
+  static EventCue? of(String event) =>
+      combat[event] ?? reward[event] ?? ui[event];
 
   /// Every wired event id — the surface `audio_event_test` enumerates.
-  static Iterable<String> get all =>
-      <String>[...combat.keys, ...reward.keys, ...ui.keys];
+  static Iterable<String> get all => <String>[
+    ...combat.keys,
+    ...reward.keys,
+    ...ui.keys,
+  ];
 }

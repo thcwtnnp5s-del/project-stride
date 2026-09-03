@@ -85,9 +85,10 @@ final class FoldStop extends JourneyStop {
 
   String get label => switch (kind) {
     FoldKind.empty => '$levelLabel · nothing yet',
-    FoldKind.passed => unlockCount == 0
-        ? '$levelLabel · walked'
-        : '$levelLabel · $unlockCount passed',
+    FoldKind.passed =>
+      unlockCount == 0
+          ? '$levelLabel · walked'
+          : '$levelLabel · $unlockCount passed',
   };
 }
 
@@ -112,7 +113,10 @@ abstract final class JourneyModel {
   /// [passedOpen] unfolds the road already walked. The **last two levels
   /// that actually opened something** stay visible either way — a road with
   /// nothing behind the walker reads as a road they have not started.
-  static List<JourneyStop> from(SkillRoadmap roadmap, {bool passedOpen = false}) {
+  static List<JourneyStop> from(
+    SkillRoadmap roadmap, {
+    bool passedOpen = false,
+  }) {
     final List<RoadmapLevel> earned = <RoadmapLevel>[
       for (final RoadmapLevel l in roadmap.levels)
         if (l.state == RoadmapLevelState.earned) l,

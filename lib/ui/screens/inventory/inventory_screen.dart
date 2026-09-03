@@ -372,10 +372,7 @@ class _Pack extends StatelessWidget {
               const SizedBox(height: StrideSpace.rhythmRow),
               const KitRule(style: KitRuleStyle.chart),
               const SizedBox(height: StrideSpace.rhythmRow),
-              const Text(
-                'You are carrying nothing.',
-                style: StrideType.body,
-              ),
+              const Text('You are carrying nothing.', style: StrideType.body),
             ],
             for (final _Group group in groups) ...<Widget>[
               // 16 between named groups, 8 between peers inside one — the
@@ -528,9 +525,7 @@ class _ItemPurposeBlock extends StatelessWidget {
           const SizedBox(height: StrideSpace.s4),
           Text(
             'A keepsake — proof of a rare find.',
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
           ),
         ],
         for (final (String label, String value) in lines) ...<Widget>[
@@ -539,9 +534,7 @@ class _ItemPurposeBlock extends StatelessWidget {
           const SizedBox(height: StrideSpace.s2),
           Text(
             value,
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
           ),
         ],
         if (!purpose.isTrophy && lines.isEmpty) ...<Widget>[
@@ -1079,7 +1072,12 @@ class _Pocket extends StatelessWidget {
       2;
 
   Widget _pocket(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(padX, StrideSpace.s8, padX, StrideSpace.s8),
+    padding: const EdgeInsets.fromLTRB(
+      padX,
+      StrideSpace.s8,
+      padX,
+      StrideSpace.s8,
+    ),
     decoration: selected
         ? const BoxDecoration(
             border: Border(

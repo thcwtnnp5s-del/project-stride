@@ -668,8 +668,10 @@ class _CombatStageState extends State<CombatStage>
       _heavyHapticPending = null;
       AudioScope.maybeRead(context)?.hapticHeavy();
     }
-    if (_impactCuePending case (final StageCue cue, final Duration at)
-        when elapsed >= at) {
+    if (_impactCuePending case (
+      final StageCue cue,
+      final Duration at,
+    ) when elapsed >= at) {
       _impactCuePending = null;
       // Safe here, unlike the ambient stage's loop (`MISTAKES.md` M-16):
       // this controller is **not** stopped under Reduce Motion — the flag
@@ -837,9 +839,9 @@ class _CombatStageState extends State<CombatStage>
         // fact, and an ease would be an authored gesture the art never made.
         final double p =
             (elapsed.inMicroseconds / _fallOutWindow.inMicroseconds).clamp(
-          0.0,
-          1.0,
-        );
+              0.0,
+              1.0,
+            );
         enemyFade = 1 - p;
         enemySink = (fallOutDrop * p).round();
       }
@@ -1052,67 +1054,68 @@ class _Scene extends StatelessWidget {
           // behind it.
           offset: Offset(shot.shake, 0),
           child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: <Widget>[
-          Positioned(
-            left: offset.toDouble(),
-            top: 0,
-            child: PixelAsset(
-              assetPath: backdrop,
-              nativeWidth: CombatAssets.backdropWidth,
-              nativeHeight: CombatAssets.backdropHeight,
-              scale: scale,
-            ),
-          ),
-          figure(
-            shot.travelerTrack,
-            shot.travelerFrame,
-            CombatAssets.travelerColumn,
-            shot.travelerDx,
-          ),
-          if (e != null && shot.enemyTrack != null)
-            figure(
-              shot.enemyTrack!,
-              shot.enemyFrame,
-              CombatAssets.enemyColumn,
-              shot.enemyDx,
-              sink: shot.enemySink,
-              fade: shot.enemyFade,
-            ),
-          for (final (EffectArt, StageActor, int) fx in shot.effects)
-            effect(fx),
-          if (shot.heal case final int heal)
-            Positioned(
-              left: (offset + CombatAssets.travelerColumn * scale - 24)
-                  .toDouble(),
-              top: (ground - traveler.idle.anchorRow * scale - shot.healRise)
-                  .toDouble(),
-              child: SizedBox(
-                width: 48,
-                child: Text(
-                  '+$heal',
-                  textAlign: TextAlign.center,
-                  style: StrideType.numericValue.copyWith(
-                    color: StrideColors.textPrimary,
-                  ),
+            clipBehavior: Clip.hardEdge,
+            children: <Widget>[
+              Positioned(
+                left: offset.toDouble(),
+                top: 0,
+                child: PixelAsset(
+                  assetPath: backdrop,
+                  nativeWidth: CombatAssets.backdropWidth,
+                  nativeHeight: CombatAssets.backdropHeight,
+                  scale: scale,
                 ),
               ),
-            ),
-          // The blow's own light, over everything and gone in 80 ms. Drawn
-          // last so it whitens the figures and the effect burst as well as
-          // the ground, which is what makes it read as the *impact* rather
-          // than as the weather changing.
-          if (shot.whiten > 0)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: ColoredBox(
-                  color: const Color(0xFFFFFFFF).withValues(
-                    alpha: shot.whiten,
+              figure(
+                shot.travelerTrack,
+                shot.travelerFrame,
+                CombatAssets.travelerColumn,
+                shot.travelerDx,
+              ),
+              if (e != null && shot.enemyTrack != null)
+                figure(
+                  shot.enemyTrack!,
+                  shot.enemyFrame,
+                  CombatAssets.enemyColumn,
+                  shot.enemyDx,
+                  sink: shot.enemySink,
+                  fade: shot.enemyFade,
+                ),
+              for (final (EffectArt, StageActor, int) fx in shot.effects)
+                effect(fx),
+              if (shot.heal case final int heal)
+                Positioned(
+                  left: (offset + CombatAssets.travelerColumn * scale - 24)
+                      .toDouble(),
+                  top:
+                      (ground - traveler.idle.anchorRow * scale - shot.healRise)
+                          .toDouble(),
+                  child: SizedBox(
+                    width: 48,
+                    child: Text(
+                      '+$heal',
+                      textAlign: TextAlign.center,
+                      style: StrideType.numericValue.copyWith(
+                        color: StrideColors.textPrimary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
+              // The blow's own light, over everything and gone in 80 ms. Drawn
+              // last so it whitens the figures and the effect burst as well as
+              // the ground, which is what makes it read as the *impact* rather
+              // than as the weather changing.
+              if (shot.whiten > 0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ColoredBox(
+                      color: const Color(
+                        0xFFFFFFFF,
+                      ).withValues(alpha: shot.whiten),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -1141,10 +1144,7 @@ class _StageFrame extends StatelessWidget {
       child: skin == null
           ? DecoratedBox(
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: StrideColors.borderDefault,
-                  width: 2,
-                ),
+                border: Border.all(color: StrideColors.borderDefault, width: 2),
               ),
               child: const SizedBox.expand(),
             )

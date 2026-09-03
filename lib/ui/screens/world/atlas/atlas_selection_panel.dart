@@ -363,7 +363,8 @@ class AtlasInspector extends StatelessWidget {
 
         // The board at a glance — the reason the walk exists. One line of
         // counts, and one sentence when the bag already answers a need.
-        if (info.board case final AtlasBoardLine board when !compact) ...<Widget>[
+        if (info.board case final AtlasBoardLine board
+            when !compact) ...<Widget>[
           const SizedBox(height: StrideSpace.s10),
           const SectionHeading(label: 'Work'),
           const SizedBox(height: StrideSpace.s6),

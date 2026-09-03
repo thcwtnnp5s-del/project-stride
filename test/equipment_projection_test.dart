@@ -70,7 +70,8 @@ void main() {
       expect(
         TravelerArt.variantOfItem.containsKey(id),
         isTrue,
-        reason: '$id is equippable and has no authored variant class, so it '
+        reason:
+            '$id is equippable and has no authored variant class, so it '
             'draws the base figure without anyone having decided that',
       );
     }
@@ -91,7 +92,8 @@ void main() {
         expect(
           TravelerArt.combatantFor(v).brace,
           isNotNull,
-          reason: '${armour ?? 'no armour'} + ${weapon ?? 'nothing'} cannot '
+          reason:
+              '${armour ?? 'no armour'} + ${weapon ?? 'nothing'} cannot '
               'brace',
         );
       }
@@ -123,7 +125,10 @@ void main() {
       final EquipmentVisualState bare = EquipmentVisualState(
         armor: _fact(armour),
       );
-      expect(TravelerArt.figureFor(bare), isNot(contains('traveler_south.png')));
+      expect(
+        TravelerArt.figureFor(bare),
+        isNot(contains('traveler_south.png')),
+      );
       expect(TravelerArt.walkWestFor(bare).first, contains(token));
       expect(TravelerArt.restFrameFor(bare), contains(token));
       final AmbientSceneSet idles = TravelerArt.idleScenesFor(
@@ -154,7 +159,8 @@ void main() {
           expect(
             strip,
             isNotNull,
-            reason: '$armour + ${tool ?? 'no tool'} at $skill falls to the base loop',
+            reason:
+                '$armour + ${tool ?? 'no tool'} at $skill falls to the base loop',
           );
           expect(
             strip!.frames.first,

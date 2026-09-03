@@ -39,56 +39,56 @@ class GoalTrackerCard extends StatelessWidget {
       // No card: the board is one cork page and the tracker is a section
       // written on it (DIR-05).
       return const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            KitRule(style: KitRuleStyle.chart, title: 'Goals'),
-            SizedBox(height: StrideSpace.s4),
-            Text(
-              'Nothing tracked. Set a journey on the atlas, a pursuit from '
-              'the Craft screen, or a contract from a location board.',
-              style: StrideType.micro,
-            ),
-          ],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          KitRule(style: KitRuleStyle.chart, title: 'Goals'),
+          SizedBox(height: StrideSpace.s4),
+          Text(
+            'Nothing tracked. Set a journey on the atlas, a pursuit from '
+            'the Craft screen, or a contract from a location board.',
+            style: StrideType.micro,
+          ),
+        ],
       );
     }
 
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const KitRule(style: KitRuleStyle.chart, title: 'Goals'),
-          const SizedBox(height: StrideSpace.s6),
-          _SlotRow(
-            label: 'JOURNEY',
-            slot: GoalSlot.journey,
-            controller: c,
-            filled: goals.journey != null,
-            child: goals.journey == null
-                ? const _EmptySlot(
-                    hint: 'Choose a destination on the World atlas.',
-                  )
-                : _JourneyBody(view: goals.journey!),
-          ),
-          const _SlotRule(),
-          _SlotRow(
-            label: 'PURSUIT',
-            slot: GoalSlot.pursuit,
-            controller: c,
-            filled: goals.pursuit != null,
-            child: goals.pursuit == null
-                ? const _EmptySlot(hint: 'Track an item from the Craft screen.')
-                : _PursuitBody(view: goals.pursuit!),
-          ),
-          const _SlotRule(),
-          _SlotRow(
-            label: 'CONTRACT',
-            slot: GoalSlot.contract,
-            controller: c,
-            filled: goals.contract != null,
-            child: goals.contract == null
-                ? const _EmptySlot(hint: 'Track work from a location board.')
-                : _ContractBody(view: goals.contract!),
-          ),
-        ],
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const KitRule(style: KitRuleStyle.chart, title: 'Goals'),
+        const SizedBox(height: StrideSpace.s6),
+        _SlotRow(
+          label: 'JOURNEY',
+          slot: GoalSlot.journey,
+          controller: c,
+          filled: goals.journey != null,
+          child: goals.journey == null
+              ? const _EmptySlot(
+                  hint: 'Choose a destination on the World atlas.',
+                )
+              : _JourneyBody(view: goals.journey!),
+        ),
+        const _SlotRule(),
+        _SlotRow(
+          label: 'PURSUIT',
+          slot: GoalSlot.pursuit,
+          controller: c,
+          filled: goals.pursuit != null,
+          child: goals.pursuit == null
+              ? const _EmptySlot(hint: 'Track an item from the Craft screen.')
+              : _PursuitBody(view: goals.pursuit!),
+        ),
+        const _SlotRule(),
+        _SlotRow(
+          label: 'CONTRACT',
+          slot: GoalSlot.contract,
+          controller: c,
+          filled: goals.contract != null,
+          child: goals.contract == null
+              ? const _EmptySlot(hint: 'Track work from a location board.')
+              : _ContractBody(view: goals.contract!),
+        ),
+      ],
     );
   }
 }
@@ -236,9 +236,7 @@ class _PursuitBody extends StatelessWidget {
           const SizedBox(height: StrideSpace.s2),
           Text(
             'Need: ${view.needs.map((PursuitNeedView n) => '${n.name} ×${n.quantity}').join(', ')}',
-            style: StrideType.micro.copyWith(
-              color: StrideColors.textSecondary,
-            ),
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
           ),
           if (view.needs.first.sourceName case final String source)
             Text(
@@ -269,9 +267,7 @@ class _ContractBody extends StatelessWidget {
     children: <Widget>[
       Row(
         children: <Widget>[
-          Expanded(
-            child: AdaptiveText(view.name, style: StrideType.itemName),
-          ),
+          Expanded(child: AdaptiveText(view.name, style: StrideType.itemName)),
           if (view.stageLabel case final String stage)
             Text(
               stage.toUpperCase(),

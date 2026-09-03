@@ -769,7 +769,9 @@ class _StrideButtonState extends State<StrideButton> {
               Positioned.fill(
                 child: ClipRect(
                   child: Opacity(
-                    opacity: enabled ? StrideButton.emblemBehindText : StrideButton.disabledDressing,
+                    opacity: enabled
+                        ? StrideButton.emblemBehindText
+                        : StrideButton.disabledDressing,
                     child: widget.emblem!,
                   ),
                 ),

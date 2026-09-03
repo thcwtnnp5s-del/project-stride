@@ -58,24 +58,80 @@ void main() {
     });
   }
 
-  for (final (String tag, String nodeId, String locId, bool locked) in <(String, String, String, bool)>[
-    ('mine_copper', 'resource_node.copper_seam', 'location.stonefall_mine', false),
-    ('mine_tin', 'resource_node.tin_seam', 'location.stonefall_mine', false),
-    ('mine_hardened_locked', 'resource_node.hardened_copper_seam', 'location.stonefall_mine', true),
-    ('woods_oak', 'resource_node.oak_stand', 'location.whispering_woods', false),
-    ('haven_meadow', 'resource_node.meadow_patch', 'location.havens_rest', false),
-    // EPO03 gather (`wave1/DIR-10_gathering.md`). The five rows above cover
-    // three of the twelve scenes that round repainted; these six cover the
-    // rest, so every replaced backdrop and every replaced plate is judged in
-    // the composition the phone shows rather than as a plate on a sheet.
-    // Verdicts and sheets: `GAME_BIBLE/ART/exploration/EPO03/ledger/GATHER.md`.
-    ('haven_mill_garden', 'resource_node.mill_garden', 'location.havens_rest', false),
-    ('frostmere_rimefrost', 'resource_node.rimefrost_hollow', 'location.frostmere', false),
-    ('frostmere_oldgrowth', 'resource_node.oldgrowth_frostpine', 'location.frostmere', false),
-    ('hollow_silkstrand', 'resource_node.silkstrand_thicket', 'location.forgotten_hollow', false),
-    ('woods_duskcap', 'resource_node.duskcap_grove', 'location.whispering_woods', false),
-    ('mine_deep_tin', 'resource_node.deep_tin_seam', 'location.stonefall_mine', false),
-  ]) {
+  for (final (String tag, String nodeId, String locId, bool locked)
+      in <(String, String, String, bool)>[
+        (
+          'mine_copper',
+          'resource_node.copper_seam',
+          'location.stonefall_mine',
+          false,
+        ),
+        (
+          'mine_tin',
+          'resource_node.tin_seam',
+          'location.stonefall_mine',
+          false,
+        ),
+        (
+          'mine_hardened_locked',
+          'resource_node.hardened_copper_seam',
+          'location.stonefall_mine',
+          true,
+        ),
+        (
+          'woods_oak',
+          'resource_node.oak_stand',
+          'location.whispering_woods',
+          false,
+        ),
+        (
+          'haven_meadow',
+          'resource_node.meadow_patch',
+          'location.havens_rest',
+          false,
+        ),
+        // EPO03 gather (`wave1/DIR-10_gathering.md`). The five rows above cover
+        // three of the twelve scenes that round repainted; these six cover the
+        // rest, so every replaced backdrop and every replaced plate is judged in
+        // the composition the phone shows rather than as a plate on a sheet.
+        // Verdicts and sheets: `GAME_BIBLE/ART/exploration/EPO03/ledger/GATHER.md`.
+        (
+          'haven_mill_garden',
+          'resource_node.mill_garden',
+          'location.havens_rest',
+          false,
+        ),
+        (
+          'frostmere_rimefrost',
+          'resource_node.rimefrost_hollow',
+          'location.frostmere',
+          false,
+        ),
+        (
+          'frostmere_oldgrowth',
+          'resource_node.oldgrowth_frostpine',
+          'location.frostmere',
+          false,
+        ),
+        (
+          'hollow_silkstrand',
+          'resource_node.silkstrand_thicket',
+          'location.forgotten_hollow',
+          false,
+        ),
+        (
+          'woods_duskcap',
+          'resource_node.duskcap_grove',
+          'location.whispering_woods',
+          false,
+        ),
+        (
+          'mine_deep_tin',
+          'resource_node.deep_tin_seam',
+          'location.stonefall_mine',
+          false,
+        ),
+      ]) {
     testWidgets('capture $tag', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(393, 852);
       tester.view.devicePixelRatio = 1.0;
@@ -84,11 +140,14 @@ void main() {
       final StrideSession s = (await tester.runAsync(
         () => StrideSession.start(
           overrideRoot: root,
-          source: MockStepSource(script: <SyncFetch>[SyncFetch(const NoChangeSync())]),
+          source: MockStepSource(
+            script: <SyncFetch>[SyncFetch(const NoChangeSync())],
+          ),
         ),
       ))!;
-      final ResourceNodeDefinition node =
-          s.nodeDefinitionOf(ContentId.unchecked(nodeId))!;
+      final ResourceNodeDefinition node = s.nodeDefinitionOf(
+        ContentId.unchecked(nodeId),
+      )!;
       // The real location painting, not null.
       //
       // This was null, and that made the harness prove the wrong thing: the
@@ -97,7 +156,9 @@ void main() {
       // and every captured frame showed art the app would not show. An
       // evidence harness that does not exercise the shipped path is evidence
       // of nothing.
-      final String? vignette = PixelIcons.vignetteFor(ContentId.unchecked(locId));
+      final String? vignette = PixelIcons.vignetteFor(
+        ContentId.unchecked(locId),
+      );
 
       Widget stage({required bool active, required bool lock}) => MaterialApp(
         theme: strideTheme(),
@@ -163,12 +224,12 @@ void main() {
   // 361 dp, not 393: that is the width the stage actually gets inside the
   // Adventure card's gutters, so the composition is the one on the phone.
   for (final (
-    String skill,
-    String nodeId,
-    String locId,
-    EquipmentVisualState gear,
-    String name,
-  )
+        String skill,
+        String nodeId,
+        String locId,
+        EquipmentVisualState gear,
+        String name,
+      )
       in <(String, String, String, EquipmentVisualState, String)>[
         // Plate and a bronze pick, in the mine. The headline case: the owner's
         // complaint was "Inventory shows Bronze, Adventure still shows the
@@ -241,8 +302,9 @@ void main() {
           ),
         ),
       ))!;
-      final ResourceNodeDefinition node =
-          s.nodeDefinitionOf(ContentId.unchecked(nodeId))!;
+      final ResourceNodeDefinition node = s.nodeDefinitionOf(
+        ContentId.unchecked(nodeId),
+      )!;
       expect(node.skill.value, skill, reason: 'the node changed profession');
 
       // The strip the shipped path selects for this loadout — asserted, not

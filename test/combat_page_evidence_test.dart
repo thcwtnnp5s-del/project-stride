@@ -284,7 +284,10 @@ void main() {
         ContentId.unchecked('enemy.hollow_guardian'),
         ContentId.unchecked('location.forgotten_hollow'),
       )) {
-        await precacheImage(AssetImage(f), tester.element(find.byType(CombatStage)));
+        await precacheImage(
+          AssetImage(f),
+          tester.element(find.byType(CombatStage)),
+        );
       }
     });
     await tester.pumpAndSettle();
@@ -297,8 +300,9 @@ void main() {
           format: ui.ImageByteFormat.png,
         );
         Directory(dir).createSync(recursive: true);
-        File('$dir/chassis_guardian.png')
-            .writeAsBytesSync(bytes!.buffer.asUint8List());
+        File(
+          '$dir/chassis_guardian.png',
+        ).writeAsBytesSync(bytes!.buffer.asUint8List());
       });
     }
   });

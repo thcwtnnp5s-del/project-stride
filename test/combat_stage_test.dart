@@ -104,21 +104,21 @@ int shownHp(WidgetTester tester, int max) {
 
 Widget host(Widget child, {bool tickers = true, bool reduceMotion = false}) =>
     MediaQuery(
-  data: MediaQueryData(
-    size: const Size(393, 852),
-    disableAnimations: reduceMotion,
-  ),
-  child: Directionality(
-    textDirection: TextDirection.ltr,
-    child: TickerMode(
-      enabled: tickers,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: SizedBox(width: 361, child: RepaintBoundary(child: child)),
+      data: MediaQueryData(
+        size: const Size(393, 852),
+        disableAnimations: reduceMotion,
       ),
-    ),
-  ),
-);
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: TickerMode(
+          enabled: tickers,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(width: 361, child: RepaintBoundary(child: child)),
+          ),
+        ),
+      ),
+    );
 
 /// The asset paths of every grounded sprite on the stage, in tree order:
 /// the Traveler first, then the enemy.
@@ -679,9 +679,9 @@ void main() {
           find
               .ancestor(
                 of: find.byWidget(
-                  tester.widgetList<GroundedSprite>(
-                    find.byType(GroundedSprite),
-                  ).last,
+                  tester
+                      .widgetList<GroundedSprite>(find.byType(GroundedSprite))
+                      .last,
                 ),
                 matching: find.byType(Positioned),
               )

@@ -827,27 +827,6 @@ abstract final class SpriteFootprints {
     bottom: 40,
   );
 
-  /// `combat_salamander_idle` — 12 px of contact, 23..34.
-  static const SpriteFootprint combatSalamanderIdle = SpriteFootprint(
-    left: 23,
-    right: 34,
-    bottom: 50,
-  );
-
-  /// `combat_salamander_attack` — 12 px of contact, 23..34.
-  static const SpriteFootprint combatSalamanderAttack = SpriteFootprint(
-    left: 23,
-    right: 34,
-    bottom: 50,
-  );
-
-  /// `combat_salamander_defeat` — 12 px of contact, 23..34.
-  static const SpriteFootprint combatSalamanderDefeat = SpriteFootprint(
-    left: 23,
-    right: 34,
-    bottom: 50,
-  );
-
   /// `combat_lynx_idle` — 42 px of contact, 8..49.
   static const SpriteFootprint combatLynxIdle = SpriteFootprint(
     left: 8,
@@ -946,13 +925,6 @@ abstract final class SpriteFootprints {
     bottom: 61,
   );
 
-  /// `combat_salamander_hit` — 12 px of contact, 23..34.
-  static const SpriteFootprint combatSalamanderHit = SpriteFootprint(
-    left: 23,
-    right: 34,
-    bottom: 49,
-  );
-
   /// `combat_crawler_hit` — 44 px of contact, 2..45.
   static const SpriteFootprint combatCrawlerHit = SpriteFootprint(
     left: 2,
@@ -1021,6 +993,34 @@ abstract final class SpriteFootprints {
     left: 38,
     right: 57,
     bottom: 83,
+  );
+
+  /// `combat_salamander_idle` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderIdle = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
+  );
+
+  /// `combat_salamander_attack` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderAttack = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
+  );
+
+  /// `combat_salamander_hit` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderHit = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
+  );
+
+  /// `combat_salamander_defeat` — 12 px of contact, 23..34.
+  static const SpriteFootprint combatSalamanderDefeat = SpriteFootprint(
+    left: 23,
+    right: 34,
+    bottom: 50,
   );
 
   /// `combat_ram2_idle` — 24 px of contact, 22..45.
@@ -1778,9 +1778,9 @@ abstract final class SpriteFootprints {
       bottom: 94,
     ),
     'assets/art/v1/work/prop_copper_face.png': SpriteFootprint(
-      left: 13,
-      right: 36,
-      bottom: 45,
+      left: 0,
+      right: 37,
+      bottom: 47,
     ),
     'assets/art/v1/work/prop_copper_seam.png': SpriteFootprint(
       left: 22,
@@ -1789,13 +1789,13 @@ abstract final class SpriteFootprints {
     ),
     'assets/art/v1/work/prop_deep_tin_lode.png': SpriteFootprint(
       left: 1,
-      right: 45,
-      bottom: 46,
+      right: 47,
+      bottom: 47,
     ),
     'assets/art/v1/work/prop_duskcap_bed.png': SpriteFootprint(
-      left: 13,
-      right: 32,
-      bottom: 40,
+      left: 11,
+      right: 33,
+      bottom: 33,
     ),
     'assets/art/v1/work/prop_duskcap_grove.png': SpriteFootprint(
       left: 26,
@@ -1814,7 +1814,7 @@ abstract final class SpriteFootprints {
     ),
     'assets/art/v1/work/prop_hardened_copper_face.png': SpriteFootprint(
       left: 0,
-      right: 47,
+      right: 37,
       bottom: 47,
     ),
     'assets/art/v1/work/prop_hardened_copper_seam.png': SpriteFootprint(
@@ -1833,9 +1833,9 @@ abstract final class SpriteFootprints {
       bottom: 45,
     ),
     'assets/art/v1/work/prop_meadow_bed.png': SpriteFootprint(
-      left: 10,
-      right: 40,
-      bottom: 44,
+      left: 11,
+      right: 35,
+      bottom: 38,
     ),
     'assets/art/v1/work/prop_meadow_patch.png': SpriteFootprint(
       left: 49,

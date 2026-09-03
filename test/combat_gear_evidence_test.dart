@@ -69,17 +69,15 @@ Widget _host(Widget child) => MediaQuery(
 
 EquipmentVisualState _holding(String? itemId, {String? armour}) =>
     itemId == null && armour == null
-        ? EquipmentVisualState.none
-        : EquipmentVisualState(
-            weapon: itemId == null
-                ? null
-                : EquippedVisualFact(
-                    itemId: itemId, tier: 1, toolKind: 'none'),
-            armor: armour == null
-                ? null
-                : EquippedVisualFact(
-                    itemId: armour, tier: 1, toolKind: 'none'),
-          );
+    ? EquipmentVisualState.none
+    : EquipmentVisualState(
+        weapon: itemId == null
+            ? null
+            : EquippedVisualFact(itemId: itemId, tier: 1, toolKind: 'none'),
+        armor: armour == null
+            ? null
+            : EquippedVisualFact(itemId: armour, tier: 1, toolKind: 'none'),
+      );
 
 void main() {
   setUpAll(loadRealFont);

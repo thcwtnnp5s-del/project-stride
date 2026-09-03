@@ -524,8 +524,7 @@ abstract final class AmbientAssets {
   /// region × skill → the plate authored for that pair.
   static const Map<String, String> _regionWorkBackdrops = <String, String>{
     'havens_rest|skill.foraging': '$_art/work/bg_haven_foraging.png',
-    'whispering_woods|skill.woodcutting':
-        '$_art/work/bg_woods_woodcutting.png',
+    'whispering_woods|skill.woodcutting': '$_art/work/bg_woods_woodcutting.png',
     'whispering_woods|skill.foraging': '$_art/work/bg_woods_foraging.png',
     'stonefall_mine|skill.mining': '$_art/work/bg_stonefall_mining.png',
     'frostmere|skill.woodcutting': '$_art/work/bg_frostmere_woodcutting.png',
@@ -544,10 +543,8 @@ abstract final class AmbientAssets {
     '$_art/node/sheltered_frost_meadow.png':
         '$_art/work/bg_frostmere_shelter.png',
     '$_art/node/veiled_silkstrand.png': '$_art/work/bg_hollow_field_camp.png',
-    '$_art/node/undercroft_silkfall.png':
-        '$_art/work/bg_hollow_undercroft.png',
-    '$_art/node/deep_hollow_thicket.png':
-        '$_art/work/bg_hollow_undercroft.png',
+    '$_art/node/undercroft_silkfall.png': '$_art/work/bg_hollow_undercroft.png',
+    '$_art/node/deep_hollow_thicket.png': '$_art/work/bg_hollow_undercroft.png',
   };
 
   /// Whether this profession's loop works towards the figure's **east**.

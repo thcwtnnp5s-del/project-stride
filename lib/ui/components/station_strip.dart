@@ -177,7 +177,8 @@ class _StationPlinth extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final StageScenery? prop = AmbientAssets.stationFor(entry.kind);
-    final String census = '${entry.total} recipe'
+    final String census =
+        '${entry.total} recipe'
         '${entry.total == 1 ? '' : 's'} · ${entry.ready} ready';
 
     return Semantics(
