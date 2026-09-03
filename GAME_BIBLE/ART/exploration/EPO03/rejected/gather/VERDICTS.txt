@@ -7,3 +7,4 @@ copper_B (577c6c37) REJECT: closed boulder outline standing on the floor.
 copper_C (026381e0) REJECT: closed boulder cluster on a base.
 tin_B1 (ebcad329) REJECT: small corner wedge with a hard dark diagonal border - reads as the cut corner of a picture.
 deeptin_edit3 (056dd4b2) REJECT: the edit added a full-bleed band across the TOP as well, so the rectangle got bigger not smaller, and the warm recolour destroyed the cool blue-grey that separates the deep lode from surface tin.
+sfm_recess1 (ac4e591f) REJECT: drew a timber-framed portal - post-and-lintel opening with a lantern on the lintel and a floor receding into it. That is a mine entrance, not a recess; it invents architecture the location does not have, and its squared frame is the exact hard rectangle the round exists to remove.

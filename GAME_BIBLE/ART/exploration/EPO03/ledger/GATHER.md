@@ -34,3 +34,18 @@ display scale (`review/gather/*.png`) and Read before its verdict.
 | deeptin_edit3/056dd4b2 | break the straight left and top edges of the deep-tin slope; warm the blue-grey | edit_image_pixen | 48² | 1 | REJECT | it added a full-bleed band across the **top** as well, so the rectangle got bigger rather than smaller, and the warm recolour destroyed the cool blue-grey that separates the deep lode from surface tin (`_r_boxfix_x4.png` row 1) |
 | gloomsilk_edit1/b35e3b1f | delete the solid dark bar across the base of `prop_gloom_silk`; peat clumps and moss tufts with gaps instead | edit_image_pixen | 48² | 1 | ACCEPT | **outside the DIR-10 table** — `prop_gloom_silk` is a KEEP, and the plate sheet is why: on the sheet it is full-bleed grass, but composed against the replaced Hollow backdrop its opaque 48×6 base band was a black bar under a black rectangle, the most visible plinth left in the family. One generation removed it; the stems now rise out of the vale floor (`_r_stage_hollow_after_x2.png`, before over after) |
 | — | **family total** | | | **146 of 155** | | 13 assets shipped from 16 accepted rolls · 9 REJECT with written verdicts (`rejected/gather/VERDICTS.txt`) · 0 re-rolls on a seed |
+
+## Tier 2 — the Stonefall recess (producer-authorised 2026-09-03, +80 generations)
+
+Root cause named in the wave-2 report §5 and confirmed by the producer from
+`_r_stage_mine_after_x2.png`: three mining nodes composite against a **flat,
+pale, unbroken** `bg_stonefall_mining` wall, so *any* ore wedge — however well
+drawn — is a dark shape in front of light rock rather than a face cut into it.
+No amount of re-rolling the prop fixes a backdrop problem. Scope is the wall
+and whatever minimal re-fit of `prop_tin_face` / `prop_deep_tin_lode` the
+recess then makes possible; nothing else.
+
+| job/id | asked | tool | canvas | cost | verdict | reason |
+|---|---|---|---|---:|---|---|
+| sfm_recess_1/ac4e591f | recess cut back into the wall at the subject band: same schist around and above, interior in deep shadow, spoil at the foot, explicitly not a doorway or arch | inpaint_image (mask 120×88 at 20,8) | 180×120 crop from (90,40) of the current composite | 20 | REJECT | it drew a **timber-framed portal** — post-and-lintel opening, a lantern hung on the lintel, a floor receding into it. The four negative clauses ("not a doorway", "not an arch", "nothing beyond", "no opening through the wall") did not hold: in a mine-wall context the word *recess* primes an adit mouth. It invents architecture the location does not have, and its squared frame is the exact hard rectangle this round exists to remove (`_r_sfm_recess1_x3.png`) |
+| sfm_recess_2/fa64b54e | **intent changed, not the seed**: stop asking for a *recess* at all. Describe geology and light instead — the upper boulders overhang, the stone beneath them is therefore in deep shade, spoil at its base; every architectural word banned by name (timber, post, beam, lintel, frame, doorway, arch, gap, passage) | inpaint_image (mask 128×66 at 18,30 — deliberately shorter than roll 1, so the model has no room to build a feature) | 180×120 crop | 20 | ACCEPT | the wall now has a genuine shaded undercut with an amber lantern rim along its top lip and rubble at its foot, and no portal anywhere. Margins verified frozen by `tools/paste.js`, which refuses to write if a single pixel outside the band moved (`_r_sfm_recess2_x2.png`) |
