@@ -1,0 +1,24 @@
+{
+  "asset": "rule_ornate_a",
+  "destination": "assets/ui/v1/kit/rule_ornate_a.png",
+  "kind": "discrete ornament, drawn once at x1 and centred - the illustrated section divider",
+  "corner": null,
+  "band": null,
+  "period": null,
+  "scale": 1,
+  "master": "raw/ui/rule_ornate_a.png (create_image_pro, job d6ef7c80)",
+  "note": "Picture class, like a band: 192 px at x1, centred and clipped, never tiled and never stretched. Its flourishes are once-only ornaments, which is exactly why it may not be a tile - a repeating strip would beat the scrollwork across the page.",
+  "canvas": [
+    192,
+    16
+  ],
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 27,
+    "maxHex": "#534D2C",
+    "maxL": 0.0733,
+    "verdict": "clean"
+  }
+}

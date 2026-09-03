@@ -575,6 +575,14 @@ abstract final class KitFrames {
       band: 4,
       scale: 2,
     ),
+    KitFrame.pageSealed: PanelSkin(
+      assetPath: '$_dir/page_sealed.png',
+      nativeWidth: 61,
+      nativeHeight: 61,
+      corner: 18,
+      band: 15,
+      scale: 1,
+    ),
     KitFrame.btnPlateV2: PanelSkin(
       assetPath: '$_dir/btn_plate_v2.png',
       nativeWidth: 56,
@@ -610,7 +618,7 @@ abstract final class KitFrames {
     KitFrame.slotWell: 8,
     KitFrame.insetStage: 12,
     KitFrame.stageFrame: 19,
-    KitFrame.pageSealed: 12,
+    KitFrame.pageSealed: 15,
     KitFrame.slipPinned: 10,
     KitFrame.ribbonLabel: 6,
     KitFrame.tabPlate: 6,
@@ -856,6 +864,12 @@ abstract final class KitMarks {
 
   static const Map<KitMark, KitOrnamentArt> authored =
       <KitMark, KitOrnamentArt>{
+        KitMark.ruleOrnateA: KitOrnamentArt(
+          assetPath: '$_dir/rule_ornate_a.png',
+          nativeWidth: 192,
+          nativeHeight: 16,
+          scale: 1,
+        ),
         KitMark.ribbonLabel: KitOrnamentArt(
           assetPath: '$_dir/ribbon_label.png',
           nativeWidth: 89,

@@ -174,3 +174,33 @@ for (const [file, meta] of [
 ]) {
   emit(R(file), png.loadAny(R(file)), { ...meta, destination: 'assets/ui/v1/kit/' + path.basename(file) });
 }
+
+// --- EPO03 batch 8 ----------------------------------------------------------
+emit(R('out/ui/kit/rule_ornate_a.png'), png.loadAny(R('out/ui/kit/rule_ornate_a.png')), {
+  asset: 'rule_ornate_a',
+  destination: 'assets/ui/v1/kit/rule_ornate_a.png',
+  kind: 'discrete ornament, drawn once at x1 and centred - the illustrated section divider',
+  corner: null, band: null, period: null, scale: 1,
+  master: 'raw/ui/rule_ornate_a.png (create_image_pro, job d6ef7c80)',
+  note: 'Picture class, like a band: 192 px at x1, centred and clipped, never tiled and never '
+    + 'stretched. Its flourishes are once-only ornaments, which is exactly why it may not be a '
+    + 'tile - a repeating strip would beat the scrollwork across the page.',
+});
+
+emit(R('out/ui/kit/page_sealed.png'), png.loadAny(R('out/ui/kit/page_sealed.png')), {
+  asset: 'page_sealed',
+  destination: 'assets/ui/v1/kit/page_sealed.png',
+  kind: 'nine-patch page frame, drawn through PixelFrame',
+  corner: 18, band: 15, period: null, scale: 1,
+  master: 'raw/ui/pro_sealed_0.png (create_image_pro, job 1f04b00d, candidate 0 of 4)',
+  recipe: {
+    geometry: 'MEASURED band 15/15/15/15, spread 0; proved at corner 18 by ninepatch-proof.js',
+    retry: 'the first pro attempt (job 0974a636) came back WHITE despite a dark style reference. '
+      + 'The retry names the value in the prompt ("dark brown and dim, never white, never cream, '
+      + 'never bright") and references an accepted kit asset rather than a grain tile.',
+  },
+  note: 'Candidates 1-3 carry the torn lower edge the brief asked for and are REJECTED for it: a '
+    + 'tear makes the bottom band 0 at mid-span, so they cannot carry one uniform inset. This one '
+    + 'has a deckled edge on all four sides instead, which reads as an aged page and IS a '
+    + 'nine-patch. The torn-edge idea needs a three-patch or an ornament, not this frame.',
+});

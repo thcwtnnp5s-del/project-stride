@@ -169,6 +169,8 @@ flutter:
     - assets/ui/v1/kit/btn_plate_v2.png
     - assets/ui/v1/kit/edge_spine.png
     - assets/ui/v1/kit/ribbon_label.png
+    - assets/ui/v1/kit/rule_ornate_a.png
+    - assets/ui/v1/kit/page_sealed.png
     - assets/ui/v1/header/header_shelf.png
     # The notable-card grain (FMPO02 wave 2, PROD-REWARDS). A 32² seamless
     # parchment tile drawn under a card body only when the result is notable.
