@@ -780,8 +780,8 @@
         "frames": 8,
         "frameMillis": 120,
         "offset": {
-          "x": 88,
-          "y": 10
+          "x": 86,
+          "y": 14
         }
       },
       "path": {
@@ -820,7 +820,7 @@
         "flip": true,
         "phaseMillis": 0,
         "breathAt": [
-          2,
+          1,
           5
         ],
         "bob": {
@@ -862,8 +862,8 @@
         "frames": 8,
         "frameMillis": 110,
         "offset": {
-          "x": 88,
-          "y": 8
+          "x": 86,
+          "y": 4
         }
       },
       "path": {
