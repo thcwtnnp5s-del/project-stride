@@ -67,7 +67,22 @@ class AtlasSelectionPanel extends StatelessWidget {
     required this.selected,
     required this.onTravelled,
     this.bare = false,
+    this.compact = false,
+    this.travelArmed = false,
   });
+
+  /// The inspector's **head** only — name, kind, status, the way, the travel
+  /// control and the Journey slot — without the Work / Gathering / Encounters
+  /// body or the destination vignette. This is what the World sheet's HALF
+  /// stop shows: the decision, and none of the reading (DIR-15 §1).
+  final bool compact;
+
+  /// Open the travel control already showing its confirmation. The World
+  /// sheet's peek Travel raises the sheet to HALF **with the confirm armed**,
+  /// so one tap on the peek reaches the priced decision rather than a second
+  /// button. Presentation state; the engine re-validates every leg on
+  /// confirm exactly as it always did.
+  final bool travelArmed;
 
   final AtlasScene scene;
 
@@ -113,12 +128,14 @@ class AtlasSelectionPanel extends StatelessWidget {
       ready: watched.session.isReady,
       lastJourney: watched.lastJourney,
       bare: bare,
+      compact: compact,
+      travelArmed: travelArmed,
       // The destination's second framing (RCP01's vignette variants,
       // integrated by Fable V2) — shown for a *reached* place the player is
       // not standing in, so the panel carries a picture of where the walk
       // would end. An unreached place keeps its mystery, and *here* is
       // already on the screen behind the glass.
-      vignette: !place.isCurrent && place.isUnlocked
+      vignette: !compact && !place.isCurrent && place.isUnlocked
           ? PixelIcons.altVignetteFor(place.id)
           : null,
       onTravel: legs.isEmpty
@@ -225,7 +242,17 @@ class AtlasInspector extends StatelessWidget {
     this.journeyTracked = false,
     this.vignette,
     this.bare = false,
+    this.compact = false,
+    this.travelArmed = false,
   });
+
+  /// Head only: no vignette, no Work / Gathering / Encounters. See
+  /// [AtlasSelectionPanel.compact].
+  final bool compact;
+
+  /// Open the travel control on its confirmation. See
+  /// [AtlasSelectionPanel.travelArmed].
+  final bool travelArmed;
 
   final String name;
   final AtlasPlaceInfo info;
@@ -336,7 +363,7 @@ class AtlasInspector extends StatelessWidget {
 
         // The board at a glance — the reason the walk exists. One line of
         // counts, and one sentence when the bag already answers a need.
-        if (info.board case final AtlasBoardLine board) ...<Widget>[
+        if (info.board case final AtlasBoardLine board when !compact) ...<Widget>[
           const SizedBox(height: StrideSpace.s10),
           const SectionHeading(label: 'Work'),
           const SizedBox(height: StrideSpace.s6),
@@ -355,7 +382,7 @@ class AtlasInspector extends StatelessWidget {
           ],
         ],
 
-        if (info.gatherSites.isNotEmpty) ...<Widget>[
+        if (!compact && info.gatherSites.isNotEmpty) ...<Widget>[
           const SizedBox(height: StrideSpace.s10),
           const SectionHeading(label: 'Gathering'),
           const SizedBox(height: StrideSpace.s6),
@@ -375,7 +402,7 @@ class AtlasInspector extends StatelessWidget {
             ),
         ],
 
-        if (info.encounters.isNotEmpty) ...<Widget>[
+        if (!compact && info.encounters.isNotEmpty) ...<Widget>[
           const SizedBox(height: StrideSpace.s10),
           const SectionHeading(label: 'Encounters'),
           const SizedBox(height: StrideSpace.s6),
@@ -431,6 +458,7 @@ class AtlasInspector extends StatelessWidget {
             busy: busy,
             open: open,
             onTravel: onTravel,
+            armed: travelArmed,
           ),
         ],
 
@@ -639,6 +667,7 @@ class _TravelControls extends StatefulWidget {
     required this.busy,
     required this.open,
     required this.onTravel,
+    this.armed = false,
   });
 
   final String destinationName;
@@ -648,12 +677,18 @@ class _TravelControls extends StatefulWidget {
   final bool open;
   final VoidCallback? onTravel;
 
+  /// Start on the confirmation rather than on the Travel button — the World
+  /// sheet's peek Travel raises the sheet to HALF already asking the priced
+  /// question. It still has to be answered: "Set out · N steps" remains the
+  /// only dispatch, and nothing here travels on its own.
+  final bool armed;
+
   @override
   State<_TravelControls> createState() => _TravelControlsState();
 }
 
 class _TravelControlsState extends State<_TravelControls> {
-  bool _confirming = false;
+  late bool _confirming = widget.armed && widget.open;
 
   @override
   void didUpdateWidget(_TravelControls oldWidget) {
@@ -663,6 +698,9 @@ class _TravelControlsState extends State<_TravelControls> {
         oldWidget.way.totalCost != widget.way.totalCost) {
       _confirming = false;
     }
+    // Arming is an edge, not a state: the peek's Travel arms once, and a
+    // Cancel afterwards must not be re-armed by the next rebuild.
+    if (!oldWidget.armed && widget.armed && widget.open) _confirming = true;
   }
 
   @override

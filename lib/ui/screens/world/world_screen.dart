@@ -63,17 +63,22 @@
 /// atlas existing.
 library;
 
+import 'dart:async' show scheduleMicrotask;
+
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/widgets.dart';
 import 'package:stride_core/stride_core.dart' show ContentId;
 
 import '../../../runtime/stride_session.dart';
 import '../../components/adaptive_text.dart';
 import '../../components/data_display.dart';
+import '../../components/panel_skin.dart' show KitFrame, KitMark;
 import '../../components/pixel_asset.dart';
 import '../../components/screen_header.dart' show formatSteps;
 import '../../components/surfaces.dart';
 import '../../components/walking_glyph.dart';
+import '../../icons/atlas_assets.dart';
 import '../../icons/pixel_icons.dart';
 import '../../state/session_controller.dart';
 import '../../state/session_scope.dart';
@@ -86,39 +91,122 @@ import 'atlas/atlas_place_info.dart';
 import 'atlas/atlas_selection_panel.dart';
 import 'atlas/atlas_viewport.dart';
 
-/// The screen is now **map-first**: the atlas fills the whole World content
-/// area and the info panel floats over its lower third, translucent, so the
-/// painting continues behind the words (the owner's device brief). The panel
-/// scrolls within itself; the atlas never scrolls.
+// The screen is **map-first, and the sheet is a stop rather than a state.**
+//
+// The owner named this screen twice: *"the bottom World information sheet
+// currently obscures too much map — fix this; map must remain the hero"*, and
+// *"fix viewed-location vs selected-location confusion"*. Both are answered
+// here, in geometry and in vocabulary.
+//
+// **Geometry.** The panel used to open at `(body × 0.34).clamp(220, 360)` —
+// 247 dp on a 727 dp body, so 480 dp of map, 66 % — and **every marker tap
+// re-expanded it**, so the one gesture a player makes to look at the world
+// was also the gesture that covered a third of it. The sheet now has three
+// stops ([_SheetStop]) and opens at the smallest of them. A marker tap never
+// raises the sheet; a tap on the map drops it to peek.
+//
+// This matters more than it did when the design was written: the terrain
+// underneath is largely new. The whole south coast was repainted, the
+// forest's west face opened into bays and copses, and the fairy glade, the
+// storm house and the ice bastion are painted *into* the terrain rather than
+// placed as props — so unlike props they survive the overview zoom. Every dp
+// of sheet removed here reveals work that did not exist before.
+//
+// **Vocabulary.** Three states used to share one word and one panel: where
+// the player stands, what they tapped, and what the camera happened to be
+// pointing at. They now have three words, three markers and three homes —
+// *You are here* (the pulse and bullseye, said in the peek's status line),
+// the selected place's own name with *Reached* / *Not yet reached* beside it
+// (the ivory ring, the sheet at every stop), and *Journey set* (the gold
+// ring, the Journey slot). **The fourth — what the camera is looking at — is
+// never named**, because naming it was the confusion. It appears only as
+// [_ContextStrip], a 22 dp strip at the map's top edge that exists solely
+// while the selected or the here marker has been panned off-screen, and says
+// which way they lie.
+//
+// **What did not change, and must not.** Travel is a strategic, explicit
+// player command with its cost on it. `Set out · N steps` is still the only
+// dispatch, the peek's compact `Travel` only *arms* that confirm at the half
+// stop, and nothing on this screen auto-travels.
+
+/// The World sheet's three stops (DIR-15 §1), measured on a 393 × 852 phone
+/// whose body is 727 dp (852 − a 61 dp header − a 64 dp nav bar):
 ///
-/// **~1/3 for the panel, down from the old half-and-half split.** The map used
-/// to take a fixed top slice (0.5, clamped 240–560) with an opaque card
-/// beneath; that gave the map at most half the height and none of it behind the
-/// panel. Now the map dominates at ~2/3 and the panel is a responsive fraction
-/// of the height, clamped so it stays readable on a short phone without eating
-/// the map on a tall one. Fraction + clamp, never a device-tuned constant.
-const double _panelFraction = 0.34;
-const double _panelMinHeight = 220;
-const double _panelMaxHeight = 360;
+/// | Stop | Sheet | Map visible | Share of body |
+/// |---|---|---|---|
+/// | [peek] | 64 (+ a 24 dp translucent fade the map shows through) | **663** | **91 %** |
+/// | [half] | 262 | **465** | **64 %** |
+/// | [full] | 509 | **218** | **30 %** |
+///
+/// Peek is the opening state *and* the resting state. Half is the decision —
+/// the inspector's head, the priced travel confirm, the Journey slot. Full is
+/// the reading — the whole inspector.
+enum _SheetStop { peek, half, full }
 
-/// The collapsed panel: a slim strip carrying the selected place's name and a
-/// handle, leaving the atlas essentially full-screen. Collapsing is a player
-/// gesture (drag the handle down, or tap it); selecting a place expands the
-/// panel again, because a tap on the map is a question and the panel is the
-/// answer.
-const double _panelPeekHeight = 76;
+/// 64 dp: a grip and one row. The floor, never the ceiling — the row grows
+/// under Dynamic Type rather than clipping (D-01).
+const double _sheetPeekHeight = 64;
 
-/// The drag handle strip at the top of the panel body: 4px bar inside s8
-/// vertical padding. Named so the camera inset can subtract it — the marker
-/// centres above the *readable* content, and the handle is chrome, not
-/// content.
-const double _panelHandleHeight = StrideSpace.s8 * 2 + 4;
+/// The translucent ramp above the sheet. It is **not** part of the sheet's
+/// height and it does not count against the map: the painting reads through
+/// it, and pointer events in it fall through to the atlas.
+const double _sheetFadeHeight = 24;
 
-/// The panel's top edge fades from fully transparent to the dark fill over this
-/// many logical pixels, and that strip lets drags fall through to the atlas
-/// (see [_WorldInfoPanel]). Kept in sync with the camera inset so the current
-/// location centres above the readable body, not behind it.
-const double _panelFadeHeight = 40;
+/// The grip strip inside the sheet's own top edge.
+const double _sheetGripHeight = 12;
+
+const double _sheetHalfFraction = 0.36;
+const double _sheetHalfMin = 232;
+const double _sheetHalfMax = 300;
+const double _sheetFullFraction = 0.70;
+
+/// Above this, a drag is a fling and moves exactly one stop; below it, the
+/// sheet snaps to whichever stop it was left nearest.
+const double _sheetFlingVelocity = 300;
+
+/// The contextual strip at the map's top edge. Chrome, not content: it exists
+/// only while something the player has named is off-screen.
+const double _stripHeight = 22;
+
+/// The kind glyph in the peek's well, at ×1 — `atlas_layout.json` authors
+/// every kind marker at 20 × 20.
+const double _peekGlyphSize = 20;
+
+/// The sheet, and its grip, by name — so a test measures the thing the player
+/// drags rather than whichever `ListView` happens to be inside it. The map's
+/// visible height is `window.height − getRect(worldSheetKey).height`, and that
+/// is the figure this screen is judged on.
+const Key worldSheetKey = ValueKey<String>('world-sheet');
+const Key worldSheetGripKey = ValueKey<String>('world-sheet-grip');
+
+/// The contextual strip, by name. Absent from the tree entirely when nothing
+/// the player named is off-screen — its absence is the assertion.
+const Key worldContextStripKey = ValueKey<String>('world-context-strip');
+
+double _sheetHeightFor(_SheetStop stop, double body) => switch (stop) {
+  _SheetStop.peek => _sheetPeekHeight,
+  _SheetStop.half => (body * _sheetHalfFraction).clamp(
+    _sheetHalfMin,
+    _sheetHalfMax,
+  ),
+  _SheetStop.full => body * _sheetFullFraction,
+};
+
+/// What [_ContextStrip] has to say, or nothing. A record, so an unchanged
+/// camera compares equal and costs no rebuild.
+typedef _StripState = ({
+  String? selected,
+  bool selectedBefore,
+  bool hereBefore,
+  bool hereOff,
+});
+
+const _StripState _noStrip = (
+  selected: null,
+  selectedBefore: false,
+  hereBefore: false,
+  hereOff: false,
+);
 
 class WorldScreen extends StatefulWidget {
   const WorldScreen({super.key});
@@ -129,18 +217,198 @@ class WorldScreen extends StatefulWidget {
 
 class _WorldScreenState extends State<WorldScreen> {
   /// The place the player tapped. Null means "the current location", which
-  /// is what the panel shows until a tap and again after every journey — so
+  /// is what the sheet shows until a tap and again after every journey — so
   /// arriving somewhere shows *here*, not the place that was here.
   ContentId? _selected;
 
-  /// Whether the panel is folded to its peek strip. Expanded is the default:
-  /// the panel is the screen's information surface, and hiding it is the
-  /// player's own gesture, never the screen's opening move.
-  bool _collapsed = false;
+  /// Which stop the sheet rests at. **Peek is the opening move**: the map is
+  /// the hero, and the sheet rises only when the player asks it to.
+  _SheetStop _stop = _SheetStop.peek;
 
   /// Whether the player has panned or pinched the atlas this app run — the
   /// moment the how-to-look-around hint stops earning its row.
   bool _hasPanned = false;
+
+  /// Set by the peek's compact `Travel`, which raises the sheet to half with
+  /// the confirmation already asked. It is an edge, not a mode: the confirm
+  /// still has to be answered, and `Set out · N steps` is still the only
+  /// dispatch.
+  bool _travelArmed = false;
+
+  /// The sheet's height mid-drag, before it snaps. Null at rest.
+  double? _dragHeight;
+
+  /// Where the atlas camera is, read from the viewport after each pointer
+  /// event. Read-only: moving the camera from here needs an addition to
+  /// `atlas_viewport.dart`, which this team does not own (requested in
+  /// `MILESTONES/evidence/EPO03/wave2/REQUESTS_NAV.md`, 2026-09-02).
+  final GlobalKey<AtlasViewportState> _viewportKey =
+      GlobalKey<AtlasViewportState>();
+
+  _StripState _strip = _noStrip;
+
+  // Carried from build so the pointer callbacks can recompute the strip
+  // without asking the session again.
+  AtlasScene? _scene;
+  AtlasNode? _selectedNode;
+  int _selectedCost = 0;
+  double _sheetHeight = _sheetPeekHeight;
+
+  void _goTo(_SheetStop stop) {
+    setState(() {
+      _stop = stop;
+      _dragHeight = null;
+      if (stop == _SheetStop.peek) _travelArmed = false;
+    });
+  }
+
+  /// A tap on the map — anywhere that is not a marker — drops the sheet to
+  /// peek. Looking at the world is the gesture that clears the words off it.
+  ///
+  /// **Recognised at the pointer, not in the arena, and applied one microtask
+  /// late.** A `GestureDetector` wrapped around the viewport cannot see this
+  /// tap: `AtlasViewport`'s own scale recogniser is deeper in the tree, so it
+  /// is first into the gesture arena and wins the sweep on any tap no marker
+  /// claimed. A [Listener] sees every pointer regardless of the arena — but it
+  /// sees them *before* the sweep, so it cannot yet know whether a marker took
+  /// this one. Hence the microtask: [_onSelect] runs during the sweep and
+  /// cancels the pending drop, so a marker tap selects without collapsing the
+  /// sheet the player deliberately raised, and a tap on open country collapses
+  /// it.
+  Offset? _downAt;
+  int _pointers = 0;
+  bool _tapPending = false;
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointers++;
+    _downAt = _pointers == 1 ? event.position : null;
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    _pointers = _pointers > 0 ? _pointers - 1 : 0;
+    _syncStrip();
+    final Offset? down = _downAt;
+    _downAt = null;
+    if (down == null) return;
+    if ((event.position - down).distance > kTouchSlop) return;
+    _tapPending = true;
+    scheduleMicrotask(() {
+      if (!_tapPending || !mounted) return;
+      _tapPending = false;
+      if (_stop == _SheetStop.peek && _dragHeight == null) return;
+      _goTo(_SheetStop.peek);
+    });
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _pointers = _pointers > 0 ? _pointers - 1 : 0;
+    _downAt = null;
+  }
+
+  /// A marker tap **updates the sheet and never raises it**; a sheet already
+  /// at full comes down to half, because a new question deserves a fresh
+  /// answer at the size the player last chose to read at.
+  void _onSelect(ContentId id) {
+    // A marker claimed this tap, so it is not a tap on the map.
+    _tapPending = false;
+    setState(() {
+      _selected = id;
+      _travelArmed = false;
+      _dragHeight = null;
+      if (_stop == _SheetStop.full) _stop = _SheetStop.half;
+    });
+  }
+
+  void _onDragUpdate(DragUpdateDetails d, double body) {
+    final double from = _dragHeight ?? _sheetHeightFor(_stop, body);
+    setState(
+      () => _dragHeight = (from - d.delta.dy).clamp(
+        _sheetPeekHeight,
+        _sheetHeightFor(_SheetStop.full, body),
+      ),
+    );
+  }
+
+  void _onDragEnd(DragEndDetails d, double body) {
+    final double velocity = d.velocity.pixelsPerSecond.dy;
+    final double height = _dragHeight ?? _sheetHeightFor(_stop, body);
+    if (velocity.abs() > _sheetFlingVelocity) {
+      const List<_SheetStop> order = _SheetStop.values;
+      final int at = order.indexOf(_stop);
+      _goTo(order[(at + (velocity < 0 ? 1 : -1)).clamp(0, order.length - 1)]);
+      return;
+    }
+    _SheetStop nearest = _SheetStop.peek;
+    double best = double.infinity;
+    for (final _SheetStop stop in _SheetStop.values) {
+      final double gap = (_sheetHeightFor(stop, body) - height).abs();
+      if (gap < best) {
+        best = gap;
+        nearest = stop;
+      }
+    }
+    _goTo(nearest);
+  }
+
+  /// Recomputes what the contextual strip says. It only calls `setState` when
+  /// the answer actually changed — a pan that keeps both markers on screen
+  /// costs one record comparison per pointer event.
+  void _syncStrip() {
+    final _StripState next = _readStrip();
+    if (next == _strip) return;
+    if (mounted) setState(() => _strip = next);
+  }
+
+  _StripState _readStrip() {
+    final AtlasViewportState? viewport = _viewportKey.currentState;
+    final AtlasScene? scene = _scene;
+    final AtlasNode? selected = _selectedNode;
+    if (viewport == null || scene == null || selected == null) return _noStrip;
+    final RenderObject? object = _viewportKey.currentContext
+        ?.findRenderObject();
+    if (object is! RenderBox || !object.hasSize) return _noStrip;
+
+    final Size window = object.size;
+    // The map the player can actually see: the window above the sheet. A
+    // marker behind the sheet is off-screen for this purpose, which is the
+    // honest answer — it cannot be looked at.
+    final double visible = (window.height - _sheetHeight).clamp(
+      0.0,
+      window.height,
+    );
+    final Offset camera = viewport.camera;
+    final double zoom = viewport.zoom;
+
+    ({bool off, bool before}) locate(AtlasNode node) {
+      final double x = (node.x - camera.dx) * zoom;
+      final double y = (node.y - camera.dy) * zoom;
+      final bool off = x < 0 || x > window.width || y < 0 || y > visible;
+      // "Before" means left of, or above, the window — the direction the
+      // caret points.
+      return (off: off, before: x < 0 || (x <= window.width && y < 0));
+    }
+
+    final AtlasNode here = scene.current;
+    final ({bool off, bool before}) hereAt = locate(here);
+    if (selected.id == here.id) {
+      return (
+        selected: null,
+        selectedBefore: false,
+        hereBefore: hereAt.before,
+        hereOff: hereAt.off,
+      );
+    }
+    final ({bool off, bool before}) selectedAt = locate(selected);
+    final String cost = _selectedCost > 0
+        ? ' · ${formatSteps(_selectedCost)}'
+        : '';
+    return (
+      selected: selectedAt.off ? '${selected.place.displayName}$cost' : null,
+      selectedBefore: selectedAt.before,
+      hereBefore: hereAt.before,
+      hereOff: hereAt.off,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,107 +432,165 @@ class _WorldScreenState extends State<WorldScreen> {
     // and for a place no chain of roads reaches, and nothing highlights then.
     final AtlasWay? way = scene.routeSummary(selected.id);
 
+    _scene = scene;
+    _selectedNode = selected;
+    _selectedCost = way?.totalCost ?? 0;
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final double expandedHeight = (constraints.maxHeight * _panelFraction)
-            .clamp(_panelMinHeight, _panelMaxHeight);
-        final double panelHeight = _collapsed
-            ? _panelPeekHeight
-            : expandedHeight;
-        // The camera centres above the panel's readable content (below the
-        // fade and the handle), so the you-are-here marker never opens behind
-        // glass.
-        final double bottomInset =
-            (panelHeight - _panelFadeHeight - _panelHandleHeight).clamp(
-              0.0,
-              constraints.maxHeight,
-            );
+        final double body = constraints.maxHeight;
+        final double resting = _sheetHeightFor(_stop, body);
+        final double height = _dragHeight ?? resting;
+        _sheetHeight = height;
+        // The camera centres the selection in the map *above* the sheet. At
+        // peek that is very nearly the whole body, which is the point.
+        final double bottomInset = resting.clamp(0.0, body);
+        final bool stripShown = _strip.selected != null || _strip.hereOff;
+
         return Stack(
           children: <Widget>[
-            // The atlas fills the whole area and continues behind the panel.
+            // The atlas fills the whole area and continues behind the sheet.
             Positioned.fill(
-              child: AtlasViewport(
-                scene: scene,
-                selected: selected.id,
-                kinds: kinds,
-                way: way,
-                bottomInset: bottomInset,
-                // The pulse wears the warm arrival ink for as long as the
-                // journey's result line stands in the panel (F4) — the same
-                // held report, so the two cannot disagree.
-                arrivalStanding: c.lastJourney?.succeeded ?? false,
-                // The walked legs, for the trace's multi-leg course — only a
-                // committed journey's, so a refused walk draws nothing new.
-                travelLegPlaces: c.lastJourney?.succeeded == true
-                    ? c.lastJourney!.legPlaces
-                    : null,
-                // The tracked Journey's destination wears its gold ring —
-                // read from the same goal projection the tracker card
-                // renders, so the map and the card cannot disagree.
-                journey: s.trackedGoals.journey?.destination,
-                onExplored: _hasPanned
-                    ? null
-                    : () => setState(() => _hasPanned = true),
-                // A tap on the map is a question; the panel is the answer, so
-                // selecting always unfolds it.
-                onSelect: (ContentId id) => setState(() {
-                  _selected = id;
-                  _collapsed = false;
-                }),
+              child: Listener(
+                // Raw pointer events, so this never enters the gesture arena
+                // the viewport's pan and pinch are decided in. It reads the
+                // camera afterwards and recognises the map tap itself; it
+                // never competes for the gesture.
+                onPointerDown: _onPointerDown,
+                onPointerMove: (_) => _syncStrip(),
+                onPointerUp: _onPointerUp,
+                onPointerCancel: _onPointerCancel,
+                child: AtlasViewport(
+                  key: _viewportKey,
+                  scene: scene,
+                  selected: selected.id,
+                  kinds: kinds,
+                  way: way,
+                  bottomInset: bottomInset,
+                  // The pulse wears the warm arrival ink for as long as the
+                  // journey's result line stands in the sheet (F4) — the
+                  // same held report, so the two cannot disagree.
+                  arrivalStanding: c.lastJourney?.succeeded ?? false,
+                  // The walked legs, for the trace's multi-leg course —
+                  // only a committed journey's, so a refused walk draws
+                  // nothing new.
+                  travelLegPlaces: c.lastJourney?.succeeded == true
+                      ? c.lastJourney!.legPlaces
+                      : null,
+                  // The tracked Journey's destination wears its gold ring —
+                  // read from the same goal projection the tracker card
+                  // renders, so the map and the card cannot disagree.
+                  journey: s.trackedGoals.journey?.destination,
+                  onExplored: () {
+                    if (!_hasPanned) setState(() => _hasPanned = true);
+                    _syncStrip();
+                  },
+                  onSelect: _onSelect,
+                ),
               ),
             ),
-            // The translucent info panel over the lower third (or its peek
-            // strip, if the player folded it away to look at the painting).
+
+            // The strip, at the map's own top edge, only while something the
+            // player named is off-screen. It never names the camera.
+            if (stripShown)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                height: _stripHeight,
+                child: _ContextStrip(key: worldContextStripKey, state: _strip),
+              ),
+
+            // The translucent ramp above the sheet: pointer-transparent, so a
+            // drag that begins in it pans the atlas.
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 220),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              left: 0,
+              right: 0,
+              bottom: height,
+              height: _sheetFadeHeight,
+              child: const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[Color(0x0014120F), Color(0x9914120F)],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // The sheet itself.
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
               left: 0,
               right: 0,
               bottom: 0,
-              height: panelHeight,
-              child: _WorldInfoPanel(
-                collapsed: _collapsed,
-                onToggle: () => setState(() => _collapsed = !_collapsed),
-                collapsedChild: _PanelPeekRow(
-                  scene: scene,
-                  selected: selected,
-                  way: way,
+              height: height,
+              child: _WorldSheet(
+                key: worldSheetKey,
+                onGripTap: () => _goTo(
+                  _stop == _SheetStop.peek ? _SheetStop.half : _SheetStop.peek,
                 ),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    StrideSpace.screenGutter,
-                    StrideSpace.s4,
-                    StrideSpace.screenGutter,
-                    StrideSpace.s16,
-                  ),
-                  children: <Widget>[
-                    if (s.isStale) ...<Widget>[
-                      StaleBanner(busy: c.busy, onReload: c.reload),
-                      const SizedBox(height: StrideSpace.s10),
-                    ],
-                    AtlasSelectionPanel(
-                      scene: scene,
-                      selected: selected,
-                      bare: true,
-                      onTravelled: () => setState(() => _selected = null),
-                    ),
-                    // The pan/pinch tutorial line earns its place exactly
-                    // once; after the first pan or pinch it stops renting a
-                    // row of the panel (Fable V2 UX audit S8). Ephemeral by
-                    // design — a fresh app start shows it again, which is
-                    // the right cost for a hint.
-                    if (!_hasPanned) ...<Widget>[
-                      const SizedBox(height: StrideSpace.s8),
-                      Text(
-                        'Drag to look around; pinch to look closer. '
-                        'Faint names are landmarks, not destinations.',
-                        style: StrideType.micro.copyWith(
-                          color: StrideColors.textMuted,
+                onDragUpdate: (DragUpdateDetails d) => _onDragUpdate(d, body),
+                onDragEnd: (DragEndDetails d) => _onDragEnd(d, body),
+                child: _stop == _SheetStop.peek && _dragHeight == null
+                    ? _PeekRow(
+                        scene: scene,
+                        selected: selected,
+                        way: way,
+                        onTravel: () => setState(() {
+                          _stop = _SheetStop.half;
+                          _travelArmed = true;
+                        }),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                          StrideSpace.screenGutter,
+                          StrideSpace.s4,
+                          StrideSpace.screenGutter,
+                          StrideSpace.s16,
                         ),
+                        children: <Widget>[
+                          if (s.isStale) ...<Widget>[
+                            StaleBanner(busy: c.busy, onReload: c.reload),
+                            const SizedBox(height: StrideSpace.s10),
+                          ],
+                          AtlasSelectionPanel(
+                            scene: scene,
+                            selected: selected,
+                            bare: true,
+                            // Half is the decision; full is the reading.
+                            compact: _stop == _SheetStop.half,
+                            travelArmed: _travelArmed,
+                            onTravelled: () => setState(() {
+                              _selected = null;
+                              _travelArmed = false;
+                              _stop = _SheetStop.peek;
+                            }),
+                          ),
+                          // The pan/pinch tutorial line earns its place
+                          // exactly once; after the first pan or pinch it
+                          // stops renting a row (Fable V2 UX audit S8). It
+                          // rents one only at the full stop, where there is
+                          // room for a hint.
+                          if (!_hasPanned &&
+                              _stop == _SheetStop.full) ...<Widget>[
+                            const SizedBox(height: StrideSpace.s8),
+                            Text(
+                              'Drag to look around; pinch to look closer. '
+                              'Faint names are landmarks, not destinations.',
+                              style: StrideType.micro.copyWith(
+                                color: StrideColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                  ],
-                ),
               ),
             ),
           ],
@@ -274,155 +600,276 @@ class _WorldScreenState extends State<WorldScreen> {
   }
 }
 
-/// The translucent, warm-brown "smoked parchment" panel the World info sits on,
-/// over the lower third of the atlas.
+/// The 22 dp strip at the map's top edge that says where an off-screen marker
+/// lies — and **never** names the camera.
 ///
-/// Two regions stacked: a top fade strip that ramps from fully transparent to
-/// the dark fill — wrapped in [IgnorePointer] so pans and pinches in it reach
-/// the atlas behind — and a solid translucent body that owns its own gestures
-/// (the list scrolls, the Travel button taps) and reads clearly against the
-/// map. No blur: a [BackdropFilter] over nearest-neighbour pixel art turns the
-/// posts to mush and costs a raster every frame; a semi-transparent dark fill
-/// carries the "atlas continues behind" read at no cost.
-class _WorldInfoPanel extends StatelessWidget {
-  const _WorldInfoPanel({
-    required this.child,
-    required this.collapsedChild,
-    required this.collapsed,
-    required this.onToggle,
-  });
+/// "Viewed location" was a fourth state with no word, no marker and no home,
+/// and it was the confusion the owner asked to be fixed. It is not named here
+/// either: the strip says *Whispering Woods · 1,000* with a caret pointing the
+/// way, or *You are here* with one, and disappears the moment the marker it is
+/// about comes back into the window.
+///
+/// The carets are drawn, not typed: a triangle from a painter renders the same
+/// on every device and in the evidence harness, where a geometric-shapes
+/// codepoint would depend on a fallback font.
+///
+/// **Not yet a control.** DIR-15 has these chips recentre the camera on tap.
+/// `AtlasViewport` publishes no way to move its camera and belongs to no one
+/// team this round; the addition is requested in `REQUESTS_NAV.md`
+/// (2026-09-02). Until it lands the strip is a locator, which is the half of
+/// its job that answers the owner's question.
+class _ContextStrip extends StatelessWidget {
+  const _ContextStrip({super.key, required this.state});
 
-  final Widget child;
+  final _StripState state;
 
-  /// The one-line summary shown while folded to the peek strip.
-  final Widget collapsedChild;
-  final bool collapsed;
-  final VoidCallback onToggle;
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(color: Color(0xA014120F)),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: StrideSpace.s10),
+      child: Row(
+        children: <Widget>[
+          if (state.selected case final String label)
+            Flexible(
+              child: _StripChip(label: label, before: state.selectedBefore),
+            ),
+          const Spacer(),
+          if (state.hereOff)
+            _StripChip(label: 'You are here', before: state.hereBefore),
+        ],
+      ),
+    ),
+  );
+}
+
+class _StripChip extends StatelessWidget {
+  const _StripChip({required this.label, required this.before});
+
+  final String label;
+  final bool before;
 
   @override
   Widget build(BuildContext context) {
-    // The warm-brown ground (StrideColors.surfaceGround is 0xFF14120F), the
-    // same ink the fallback's YOU-ARE-HERE caption fades to. The body is a
-    // gradient rather than a flat fill: light enough near the top that the
-    // painting genuinely reads through the glass, gathering weight toward the
-    // bottom where the controls need a solid ground. No blur — a
-    // [BackdropFilter] over nearest-neighbour pixel art turns the posts to
-    // mush and costs a raster every frame; translucency alone carries the
-    // "atlas continues behind" read at no cost.
-    return Column(
+    final Widget caret = CustomPaint(
+      size: const Size(6, 10),
+      painter: _CaretPainter(before: before),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        IgnorePointer(
-          child: SizedBox(
-            height: _panelFadeHeight,
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[Color(0x0014120F), Color(0xB414120F)],
-                ),
-              ),
-            ),
+        if (before) ...<Widget>[caret, const SizedBox(width: StrideSpace.s4)],
+        Flexible(
+          child: Text(
+            label,
+            style: StrideType.micro.copyWith(color: StrideColors.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        Expanded(
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[Color(0xB414120F), Color(0xE614120F)],
-              ),
-              border: Border(
-                top: BorderSide(color: StrideColors.borderDefault),
-              ),
-            ),
-            child: Column(
-              children: <Widget>[
-                // The handle: the fold's own control. Drag down folds, drag up
-                // unfolds, a tap toggles — and the strip is wide enough to hit
-                // with a thumb.
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onToggle,
-                  onVerticalDragEnd: (DragEndDetails d) {
-                    final double v = d.velocity.pixelsPerSecond.dy;
-                    if (collapsed && v < -80) onToggle();
-                    if (!collapsed && v > 80) onToggle();
-                  },
-                  child: SizedBox(
-                    height: _panelHandleHeight,
-                    child: Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: StrideColors.textMuted,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(child: collapsed ? collapsedChild : child),
-              ],
-            ),
-          ),
-        ),
+        if (!before) ...<Widget>[const SizedBox(width: StrideSpace.s4), caret],
       ],
     );
   }
 }
 
-/// The folded panel's one line: where the eye is (the selected place), what a
-/// journey there costs, and nothing else — the map is the point of the fold.
-class _PanelPeekRow extends StatelessWidget {
-  const _PanelPeekRow({
+class _CaretPainter extends CustomPainter {
+  const _CaretPainter({required this.before});
+
+  final bool before;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path path = Path();
+    if (before) {
+      path
+        ..moveTo(size.width, 0)
+        ..lineTo(0, size.height / 2)
+        ..lineTo(size.width, size.height);
+    } else {
+      path
+        ..moveTo(0, 0)
+        ..lineTo(size.width, size.height / 2)
+        ..lineTo(0, size.height);
+    }
+    canvas.drawPath(path..close(), Paint()..color = StrideColors.textSecondary);
+  }
+
+  @override
+  bool shouldRepaint(_CaretPainter old) => old.before != before;
+}
+
+/// The docked sheet: a grip, and whatever the stop asks for beneath it.
+///
+/// Translucent warm-brown "smoked parchment", never a blur — a
+/// [BackdropFilter] over nearest-neighbour pixel art turns the posts to mush
+/// and costs a raster every frame. There is **no scrim**: the map is the hero
+/// and darkening it to make a sheet legible would be the same mistake in a
+/// different currency.
+class _WorldSheet extends StatelessWidget {
+  const _WorldSheet({
+    super.key,
+    required this.child,
+    required this.onGripTap,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
+
+  final Widget child;
+  final VoidCallback onGripTap;
+  final ValueChanged<DragUpdateDetails> onDragUpdate;
+  final ValueChanged<DragEndDetails> onDragEnd;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: <Color>[Color(0xC814120F), Color(0xF014120F)],
+      ),
+      border: Border(top: BorderSide(color: StrideColors.borderDefault)),
+    ),
+    child: Column(
+      children: <Widget>[
+        // The grip is the sheet's own control: drag it to any stop, tap it to
+        // go up one from peek and all the way down from anywhere else.
+        GestureDetector(
+          key: worldSheetGripKey,
+          behavior: HitTestBehavior.opaque,
+          onTap: onGripTap,
+          onVerticalDragUpdate: onDragUpdate,
+          onVerticalDragEnd: onDragEnd,
+          child: SizedBox(
+            height: _sheetGripHeight,
+            width: double.infinity,
+            child: Center(
+              child: KitOrnament(
+                mark: KitMark.sheetGrip,
+                fallback: Container(
+                  width: 40,
+                  height: 4,
+                  color: StrideColors.textMuted,
+                ),
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    ),
+  );
+}
+
+/// The peek: one row, 52 dp under the grip, and the map above all of it.
+///
+/// It carries the whole vocabulary — the kind glyph, the name, `kind ·
+/// status`, `Journey set` where it applies — and exactly one control: a
+/// compact `Travel` that **arms the priced confirmation at the half stop**.
+/// It does not travel. Nothing on this screen travels without `Set out`.
+class _PeekRow extends StatelessWidget {
+  const _PeekRow({
     required this.scene,
     required this.selected,
     required this.way,
+    required this.onTravel,
   });
 
   final AtlasScene scene;
   final AtlasNode selected;
   final AtlasWay? way;
+  final VoidCallback onTravel;
 
   @override
   Widget build(BuildContext context) {
+    final SessionController c = SessionScope.of(context);
+    final StrideSession s = c.session;
+    final AtlasPlaceInfo info = AtlasPlaceInfo.from(s, selected.place);
+    final int banked = s.usableEnergy;
     final bool here = selected.id == scene.current.id;
-    // The folded strip is exactly the map-browsing mode where "can I afford
-    // this" matters, so the peek carries the panel's own affordability rule:
-    // the figure mutes when the bank falls short, with the shortfall said.
-    final int banked = SessionScope.of(context).session.usableEnergy;
-    final bool affordable = way != null && way!.totalCost <= banked;
+    final bool journeyHere = s.trackedGoals.journey?.destination == selected.id;
+    final AtlasWay? w = way;
+    final bool affordable = w != null && w.totalCost <= banked;
+    final bool open =
+        w != null &&
+        affordable &&
+        s.missingEntryRequirementsFor(selected.place.id).isEmpty &&
+        !c.busy &&
+        s.isReady;
+
+    // Three words that cannot be confused with one another: *You are here*,
+    // *Reached* / *Not yet reached* for the selection, *Journey set* for the
+    // tracked goal.
+    final String status = <String>[
+      info.kindWord,
+      if (here)
+        'You are here'
+      else if (info.isUnlocked)
+        'Reached'
+      else
+        'Not yet reached',
+      if (journeyHere) 'Journey set',
+    ].join(' · ');
+
+    final AtlasLandmark? glyph = scene.layout.markerForKind(
+      info.kind.markerKind,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: StrideSpace.screenGutter),
+      padding: const EdgeInsets.fromLTRB(
+        StrideSpace.screenGutter,
+        0,
+        StrideSpace.screenGutter,
+        StrideSpace.s4,
+      ),
       child: Row(
         children: <Widget>[
+          if (glyph != null) ...<Widget>[
+            KitPlate.well(
+              frame: KitFrame.slotWell,
+              contentWidth: _peekGlyphSize,
+              contentHeight: _peekGlyphSize,
+              child: PixelAsset(
+                assetPath: AtlasAssets.pathFor(glyph.asset),
+                nativeWidth: glyph.width,
+                nativeHeight: glyph.height,
+                scale: 1,
+              ),
+            ),
+            const SizedBox(width: StrideSpace.s10),
+          ],
           Expanded(
-            child: AdaptiveText(
-              selected.place.displayName,
-              style: StrideType.itemName,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                AdaptiveText(selected.place.displayName, style: StrideType.sub),
+                AdaptiveText(
+                  status,
+                  style: StrideType.micro,
+                  color: StrideColors.textSecondary,
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: StrideSpace.s8),
-          if (here)
-            Text('You are here', style: StrideType.micro)
-          else if (way != null) ...<Widget>[
-            if (!affordable) ...<Widget>[
-              Text(
-                'walk ${formatSteps(way!.totalCost - banked)} more · ',
-                style: StrideType.micro.copyWith(color: StrideColors.textMuted),
-              ),
-            ],
+          if (w != null) ...<Widget>[
+            const SizedBox(width: StrideSpace.s8),
             const WalkingGlyph(role: WalkingRole.unit),
             const SizedBox(width: StrideSpace.s4),
-            Text(
-              formatSteps(way!.totalCost),
-              style: StrideType.itemCount.copyWith(
-                color: affordable
-                    ? StrideColors.textPrimary
-                    : StrideColors.textMuted,
+            AdaptiveText(
+              formatSteps(w.totalCost),
+              style: StrideType.itemCount,
+              color: affordable
+                  ? StrideColors.textPrimary
+                  : StrideColors.textMuted,
+            ),
+            const SizedBox(width: StrideSpace.s8),
+            ConstrainedBox(
+              // The accessibility floor, and the reach band's own width.
+              constraints: const BoxConstraints(minWidth: 88, minHeight: 44),
+              child: StrideButton.secondary(
+                label: 'Travel',
+                onPressed: open ? onTravel : null,
               ),
             ),
           ],

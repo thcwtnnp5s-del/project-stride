@@ -153,6 +153,21 @@ void main() {
     return controller;
   }
 
+  /// Raises the sheet from its peek stop to HALF, the way a player does: one
+  /// tap on the grip.
+  ///
+  /// The World sheet opens at PEEK now (DIR-15 §1, the owner's "the sheet
+  /// obscures too much map") and **a marker tap never raises it**, so every
+  /// assertion about the inspector's own words has to say which stop it is
+  /// reading at. HALF carries the whole head — name, kind, terrain, the route
+  /// line, the price and the travel control — which is everything asserted
+  /// below; the sections it drops (Work, Gathering, Encounters) live at FULL
+  /// and have their own test.
+  Future<void> raise(WidgetTester tester) async {
+    await tester.tap(find.byKey(worldSheetGripKey));
+    await tester.pumpAndSettle();
+  }
+
   /// Pans the target into the viewport and taps it.
   Future<void> select(WidgetTester tester, String id) async {
     final Offset from = tester.getCenter(find.byType(AtlasViewport));
@@ -204,8 +219,15 @@ void main() {
     // promises (Outer Shoal retired from the crowded south-east column;
     // Wayfarer's Pass, The White Reach and The Far Isles named on the second
     // frontier ring).
+    // Scoped to the viewport: the peek row now shows the selected place's
+    // kind glyph from the same table, and it is not a marker on the map.
     final List<String> glyphs = tester
-        .widgetList<PixelAsset>(find.byType(PixelAsset))
+        .widgetList<PixelAsset>(
+          find.descendant(
+            of: find.byType(AtlasViewport),
+            matching: find.byType(PixelAsset),
+          ),
+        )
         .map((PixelAsset a) => a.assetPath)
         .where((String path) => path.contains('/world/marker_'))
         .toList();
@@ -225,6 +247,7 @@ void main() {
     final StrideSession session = await boot(tester, banked: 5000);
     await pumpWorld(tester, session);
 
+    await raise(tester);
     // Before any tap: the panel is on the current location. The inspector is
     // now the map-first screen's translucent panel (`bare`, no SectionCard), so
     // the content is scoped to AtlasSelectionPanel rather than the card.
@@ -273,6 +296,7 @@ void main() {
     final StrideSession poor = await boot(tester, banked: 100);
     await pumpWorld(tester, poor);
     await select(tester, 'location.stonefall_mine');
+    await raise(tester);
     Finder button = find.widgetWithText(StrideButton, 'Travel');
     expect(button, findsOneWidget);
     expect((tester.widget(button) as StrideButton).onPressed, isNull);
@@ -285,6 +309,7 @@ void main() {
     final StrideSession rich = await boot(tester, banked: 50000);
     await pumpWorld(tester, rich);
     await select(tester, 'location.stonefall_mine');
+    await raise(tester);
     button = find.widgetWithText(StrideButton, 'Travel');
     expect((tester.widget(button) as StrideButton).onPressed, isNotNull);
     expect(find.textContaining('more steps'), findsNothing);
@@ -297,6 +322,7 @@ void main() {
     final SessionController controller = await pumpWorld(tester, session);
 
     await select(tester, 'location.frostmere');
+    await raise(tester);
     // The whole journey, priced whole, from the content pack's own costs:
     // Haven → Stonefall Mine 1,400, Mine → Frostmere 3,000.
     expect(
@@ -350,6 +376,7 @@ void main() {
     final StrideSession session = await boot(tester, banked: 50000);
     await pumpWorld(tester, session);
     await select(tester, 'location.forgotten_hollow');
+    await raise(tester);
     expect(find.textContaining('By way of Whispering Woods'), findsOneWidget);
   });
 
@@ -409,10 +436,100 @@ void main() {
     expect(session.currentLocation?.value, 'location.whispering_woods');
 
     await select(tester, 'location.forgotten_hollow');
+    await raise(tester);
     expect(find.textContaining('Needs Bronze Sword'), findsOneWidget);
     final Finder button = find.widgetWithText(StrideButton, 'Travel');
     expect(button, findsOneWidget);
     expect((tester.widget(button) as StrideButton).onPressed, isNull);
+  });
+
+  testWidgets('the sheet has three stops and the map stays the hero', (
+    WidgetTester tester,
+  ) async {
+    // The owner's brief, as an assertion: "the bottom World information sheet
+    // currently obscures too much map — fix this; map must remain the hero."
+    // The old panel opened at 34 % of the body and every marker tap re-opened
+    // it. These are the three stops that replaced it (DIR-15 §1).
+    final StrideSession session = await boot(tester, banked: 50000);
+    await pumpWorld(tester, session);
+
+    final Rect window = tester.getRect(find.byType(AtlasViewport));
+    double sheet() => tester.getRect(find.byKey(worldSheetKey)).height;
+    double mapShare() => (window.height - sheet()) / window.height;
+
+    // PEEK is the opening move, and it is 64 dp.
+    expect(sheet(), 64);
+    expect(mapShare(), greaterThan(0.90));
+
+    // A marker tap NEVER raises the sheet — the failure the brief named.
+    await select(tester, 'location.stonefall_mine');
+    expect(sheet(), 64, reason: 'a marker tap must not raise the sheet');
+    // The peek answers the tap: the name is in the sheet, not only on the map.
+    expect(
+      find.descendant(
+        of: find.byKey(worldSheetKey),
+        matching: find.text('Stonefall Mine'),
+      ),
+      findsOneWidget,
+    );
+
+    // The peek's compact Travel does not travel: it raises the sheet to HALF
+    // with the priced confirmation asked. `Set out` is still the only
+    // dispatch, and the session has not moved.
+    await tester.tap(find.widgetWithText(StrideButton, 'Travel'));
+    await tester.pumpAndSettle();
+    expect(
+      sheet(),
+      closeTo((window.height * 0.36).clamp(232, 300), 0.5),
+      reason: 'HALF',
+    );
+    expect(mapShare(), greaterThan(0.60));
+    expect(find.textContaining('Set out for Stonefall Mine'), findsOneWidget);
+    expect(find.widgetWithText(StrideButton, 'Set out'), findsOneWidget);
+    expect(session.currentLocation?.value, 'location.havens_rest');
+
+    // The grip drags to FULL, which is the reading stop, and even there the
+    // map keeps 30 % of the body.
+    await tester.fling(
+      find.byKey(worldSheetGripKey),
+      const Offset(0, -80),
+      900,
+    );
+    await tester.pumpAndSettle();
+    expect(sheet(), closeTo(window.height * 0.70, 0.5), reason: 'FULL');
+    expect(mapShare(), greaterThan(0.29));
+
+    // A tap on open country — no marker under it — drops the sheet back to
+    // peek. Found rather than guessed: the atlas is dense with 44 dp targets.
+    final List<Rect> targets = <Rect>[
+      for (final Element e
+          in find
+              .byWidgetPredicate(
+                (Widget w) =>
+                    w.key is ValueKey<String> &&
+                    (w.key! as ValueKey<String>).value.startsWith('atlas-hit:'),
+              )
+              .evaluate())
+        tester.getRect(find.byWidget(e.widget)),
+    ];
+    Offset? gap;
+    for (
+      double y = window.top + 40;
+      y < window.top + 200 && gap == null;
+      y += 20
+    ) {
+      for (double x = window.left + 12; x < window.right - 12; x += 20) {
+        final Offset point = Offset(x, y);
+        if (targets.every((Rect r) => !r.contains(point))) {
+          gap = point;
+          break;
+        }
+      }
+    }
+    expect(gap, isNotNull, reason: 'the map has some open country on it');
+    await tester.tapAt(gap!);
+    await tester.pumpAndSettle();
+    expect(sheet(), 64, reason: 'a tap on the map drops the sheet to peek');
   });
 
   testWidgets('panning moves the camera and dispatches nothing', (
@@ -437,9 +554,16 @@ void main() {
     expect(session.usableEnergy, bankedBefore);
     expect(session.currentLocation?.value, 'location.havens_rest');
     expect(controller.lastTravel, isNull);
-    // And nothing was selected by dragging: the panel is still on *here*.
-    expect(find.textContaining('You are here'), findsOneWidget);
+    // And nothing was selected by dragging: the sheet is still on *here*, at
+    // its peek stop, saying `Settlement · You are here`.
     expect(find.widgetWithText(StrideButton, 'Travel'), findsNothing);
+
+    // The drag put *here* off the visible map, so the contextual strip has
+    // appeared and says which way it lies — the one place in this screen that
+    // speaks about the camera, and it still never names it. Two sentences
+    // carry the words now: the peek's status line and the strip's chip.
+    expect(find.byKey(worldContextStripKey), findsOneWidget);
+    expect(find.textContaining('You are here'), findsNWidgets(2));
   });
 
   /// A two-finger pinch about the viewport's centre, from [from] to [to]
@@ -624,6 +748,99 @@ void main() {
     );
   });
 
+  testWidgets('high air paints over ground life, with the shadows between', (
+    WidgetTester tester,
+  ) async {
+    // v6 depth. The two dragons are high air and the gull loops are low air;
+    // everything else is ground. The band decides paint order, NOT the row's
+    // place in the JSON array, so a dragon crossing the coast passes over the
+    // gulls instead of through them. Asserted against the shipped layout,
+    // because the risk is a row landing in the wrong band later.
+    final StrideSession session = await boot(tester);
+    await pumpWorld(tester, session);
+    final AtlasLayout layout = session.atlasLayout!;
+    int count(bool Function(AtlasOverlay) test) => layout.overlays
+        .where((AtlasOverlay o) => o.visibleAt(Duration.zero) && test(o))
+        .length;
+    final int ground = count((AtlasOverlay o) => o.depth == 0);
+    final int shadows = count((AtlasOverlay o) => o.shadow != null);
+    final int lowAir = count((AtlasOverlay o) => o.depth == 1);
+    final int highAir = count((AtlasOverlay o) => o.depth == 2);
+    expect(highAir, 2, reason: 'the red wyrm and the storm drake');
+    expect(lowAir, greaterThan(0), reason: 'the gull loops');
+    expect(shadows, greaterThan(0), reason: 'a dragon casts one');
+
+    final Stack band = tester.widget<Stack>(
+      find
+          .descendant(
+            of: find.byType(AtlasOverlayLayer),
+            matching: find.byType(Stack),
+          )
+          .first,
+    );
+    expect(band.children.length, ground + shadows + lowAir + highAir);
+
+    // A shadow is the only thing in this layer wearing a colour filter, so
+    // the filtered children are exactly the shadow pass — and it sits after
+    // the ground and before the air.
+    bool filtered(Widget w) => switch (w) {
+      ColorFiltered() => true,
+      Positioned(child: final Widget c) => filtered(c),
+      Opacity(child: final Widget c) => filtered(c),
+      Transform(child: final Widget c?) => filtered(c),
+      _ => false,
+    };
+    final List<int> shadowRows = <int>[
+      for (final (int i, Widget child) in band.children.indexed)
+        if (filtered(child)) i,
+    ];
+    expect(shadowRows, <int>[for (int i = 0; i < shadows; i++) ground + i]);
+  });
+
+  testWidgets('a stopped ticker stills the world, it does not empty it', (
+    WidgetTester tester,
+  ) async {
+    // M-16. The overlay layer's clock never advances in a widget test, which
+    // is the state reduced motion and a backgrounded app also put it in.
+    // Every path overlay must still be built — pinned at its first waypoint,
+    // frame 0 — because an accessibility setting may take the movement and
+    // not the map.
+    final StrideSession session = await boot(tester);
+    await pumpWorld(tester, session);
+    final AtlasLayout layout = session.atlasLayout!;
+    final List<AtlasOverlay> patrols = layout.overlays
+        .where((AtlasOverlay o) => o.hasPath)
+        .toList();
+    expect(patrols.length, greaterThanOrEqualTo(12));
+
+    for (final AtlasOverlay patrol in patrols) {
+      expect(
+        patrol.visibleAt(Duration.zero),
+        isTrue,
+        reason: '${patrol.asset} patrols, and a patrol has no quiet gap',
+      );
+      expect(
+        patrol.topLeftAt(Duration.zero, layout.scale).x,
+        closeTo(
+          patrol.path!.points.first.x - patrol.width * layout.scale / 2,
+          0.001,
+        ),
+        reason: '${patrol.asset} is pinned at its first waypoint',
+      );
+      expect(patrol.frameIndexAt(Duration.zero), 0);
+    }
+
+    // And they are really on screen: the stilled layer draws sprites, not an
+    // empty stack.
+    expect(
+      find.descendant(
+        of: find.byType(AtlasOverlayLayer),
+        matching: find.byType(PixelAsset),
+      ),
+      findsWidgets,
+    );
+  });
+
   testWidgets('arriving somewhere recentres the window on it', (
     WidgetTester tester,
   ) async {
@@ -642,16 +859,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.currentLocation?.value, 'location.whispering_woods');
 
-    // The map fills the window and the translucent panel overlays its lower
-    // part, so the arrived place centres in the VISIBLE map area above the
-    // panel body — not the full window — or the you-are-here marker would open
-    // behind the glass. The visible area runs from the window top to the panel
-    // body's top (the panel's ListView), and the marker lands at its centre.
+    // The map fills the window and the sheet overlays its lower edge, so the
+    // arrived place centres in the VISIBLE map area above the sheet — not the
+    // full window — or the you-are-here marker would open behind the glass.
+    // Measured against the sheet itself rather than whatever scrollable is
+    // inside it: at the peek stop the sheet is 64 dp and there is no list at
+    // all, which is the whole point of the stop.
     final Rect window = tester.getRect(find.byType(AtlasViewport));
-    final double panelBodyTop = tester.getRect(find.byType(ListView)).top;
+    final double sheetTop = tester.getRect(find.byKey(worldSheetKey)).top;
     final Offset visibleCentre = Offset(
       window.center.dx,
-      (window.top + panelBodyTop) / 2,
+      (window.top + sheetTop) / 2,
     );
     final Offset here = tester.getCenter(hit('location.whispering_woods'));
     expect((visibleCentre - here).distance, lessThan(2));
