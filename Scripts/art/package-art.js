@@ -3884,6 +3884,37 @@ for (const [id, frames, width] of EPO_WARDEN_AMBIENT) {
   }
   emit('portrait/traveler_warden.png', encode(bust));
 }
+/**
+ * **P4 — the Hornpoint Pickaxe stops being the bronze pick** (DIR-08 failure
+ * 2, the half of it that survives).
+ *
+ * Five T2 tool heads all drew the plain bronze head. This ships the one that
+ * came back clean: a **pale bone-white curved horn tip** on the same
+ * copper-bronze socket and the same haft, swapped into each of the five
+ * bodies' own bronze mining loops by one 8-frame `edit_image` text edit. It
+ * reads at a glance because the horn is the opposite value to the copper, and
+ * it holds its shape in all forty frames, with every frame's foot row equal to
+ * its source's.
+ *
+ * **The special AXE head was rejected**, and its two items stay on
+ * `tool.axe.bronze`. The same route gave a wider hooked head with a serrated
+ * bit — genuinely different — but the head *morphs between frames*: on the
+ * warden strip it is pale in f1, small and dark in f2 and a forked orange hook
+ * in f3 and f5, and the plate strip leaves a stray chip in f5. A tool whose
+ * head changes shape mid-swing is a worse defect than the hue-only difference
+ * it was meant to fix, and there was no budget left to re-roll five strips.
+ * The candidates are kept under `EPO03/raw/equip/spec_*_axe/` and the reasoning
+ * is in the ledger; the items resolve to bronze, which is what they are made
+ * of.
+ */
+const EPO_SPECIAL_SRC = path.join(
+  EXPLORE, 'EPO03', 'out', 'equip', 'special',
+);
+for (const body of ['plate', 'jerkin', 'coat', 'base', 'warden']) {
+  epoStrip(`traveler_${body}_hornpick_mine`, 8, 80, 'ambient',
+    ambientFootprints, EPO_SPECIAL_SRC);
+}
+
 
 // ----------------------------------------- EPO03 LANDMARKS (PROD-WORLD-LANDMARKS)
 /**

@@ -232,7 +232,19 @@ abstract final class CombatAssets {
   static const int travelerColumn = 58;
 
   /// The backdrop column the enemy's footprint centre stands on.
-  static const int enemyColumn = 138;
+  ///
+  /// **128 since EPO03, was 138** (`DIR-11` §"Enemy scale"). The wolf's own
+  /// scale was never the defect — 88 × 56 dp with its shoulder at the
+  /// Traveler's hip is the read the brief accepted — but the 80 dp of empty
+  /// ground between the two figures was, and two creatures that far apart
+  /// read as two illustrations rather than one fight. Ten native columns is
+  /// 20 dp closer at ×2, and nothing else moves: sprite sizes, anchor rows,
+  /// footprints and the ground row are untouched. The guardian is the widest
+  /// figure and the constraint this figure is checked against — its opaque
+  /// box spans backdrop columns 120..159 native, so at 128 its right edge is
+  /// 176 dp from the picture's left against a 192 dp half-width, and it stays
+  /// clear of the frame's right band on every phone the stage is drawn at.
+  static const int enemyColumn = 128;
 
   static const String backdropForest = '$_art/backdrop_forest_128.png';
   static const String backdropMine = '$_art/backdrop_mine_128.png';

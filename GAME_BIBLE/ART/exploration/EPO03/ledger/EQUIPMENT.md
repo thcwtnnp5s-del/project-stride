@@ -76,8 +76,18 @@ device proof `review/device/equip/gear_longsword_{idle,swing}.png` beside
 | 76 | warden cook 7f, same route | `edit_image` (reference) | `75d68cb1` | ~20 | **ACCEPT** | pose, spoon, pack and foot row kept exactly; only the clothing changed |
 | 77 | warden smith, **text** mode with "the same pose seen from the side facing right, never turned toward the viewer" | `edit_image` (text) | `e890172e` | ~20 | REJECT | pose fixed, but it invented a small anvil in f3–f4 (box 42 → 61 px) that the stage already draws as its own prop |
 | 78 | warden smith, text mode again with "add nothing to the picture: no anvil, no ground, no workbench" | `edit_image` (text) | `22e82915` | ~20 | **ACCEPT** | every frame's box within ±2 px of the source, foot row 62 throughout, hammer and spark kept, nothing added |
-| 79–83 | **P4** special axe head — a serrated hooked bronze bit with a bone horn spike — swapped into the five bodies' bronze woodcut loops | `edit_image` (text) | `64992fa9` `5a5d48e1` `8e2e05ab` `8bc650b4` `f5ff455f` | ~100 | pending | |
-| 84–88 | **P4** special pick head — a long curved bone horn tip on the bronze socket — swapped into the five bodies' bronze mining loops | `edit_image` (text) | `4f75f715` `0f390aa3` `ae9e2601` `a9f200fb` `76aa8310` | ~100 | pending | |
+| 79–83 | **P4** special axe head — a serrated hooked bronze bit with a bone horn spike — swapped into the five bodies' bronze woodcut loops | `edit_image` (text) | `64992fa9` `5a5d48e1` `8e2e05ab` `8bc650b4` `f5ff455f` | ~100 | **REJECT (class)** | the head is genuinely different — wider, hooked, serrated, bone-spiked — but it **morphs between frames**: on the warden strip it is pale in f1, small and dark in f2 and a forked orange hook in f3/f5; the plate strip leaves a stray chip in f5. A head that changes shape mid-swing is a worse defect than the hue-only one it was meant to fix, and 65 generations could not re-roll five strips. `goblin_toothed_axe` and `hornbound_bronze_axe` stay `tool.axe.bronze`. Sheets `p4_plate_axe_x3.png`, `p4_axes_x3.png` |
+| 84–88 | **P4** special pick head — a long curved bone horn tip on the bronze socket — swapped into the five bodies' bronze mining loops | `edit_image` (text) | `4f75f715` `0f390aa3` `ae9e2601` `a9f200fb` `76aa8310` | ~100 | **ACCEPT (all five)** | one bone-white curved tip, the same shape in all 40 frames, on five unchanged bodies; every frame's foot row equal to its bronze source's; 0 gold, 0 partial alpha. Sheets `p4_picks_x2.png`, `p4_heads_x4.png` |
+
+## Family total
+
+| block | cost lines |
+|---|---:|
+| P1 — base+steel brace, plate pick recolour | 40 |
+| P2 — the longsword class, 4 bodies × 5 tracks | 30 |
+| P3 — the warden body, 30 strips + figure + bust | ~165 |
+| P4 — the special heads (pick accepted, axe rejected) | ~200 |
+| **Total** | **~435 of a 500 cap** |
 
 ## Standing facts, continued
 

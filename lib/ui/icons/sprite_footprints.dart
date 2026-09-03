@@ -603,6 +603,41 @@ abstract final class SpriteFootprints {
     bottom: 62,
   );
 
+  /// `ambient_traveler_plate_hornpick_mine` — 11 px of contact, 31..41.
+  static const SpriteFootprint ambientTravelerPlateHornpickMine = SpriteFootprint(
+    left: 31,
+    right: 41,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_jerkin_hornpick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerJerkinHornpickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 62,
+  );
+
+  /// `ambient_traveler_coat_hornpick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerCoatHornpickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_base_hornpick_mine` — 13 px of contact, 32..44.
+  static const SpriteFootprint ambientTravelerBaseHornpickMine = SpriteFootprint(
+    left: 32,
+    right: 44,
+    bottom: 63,
+  );
+
+  /// `ambient_traveler_warden_hornpick_mine` — 11 px of contact, 40..50.
+  static const SpriteFootprint ambientTravelerWardenHornpickMine = SpriteFootprint(
+    left: 40,
+    right: 50,
+    bottom: 62,
+  );
+
   /// `combat_traveler_attack` — 12 px of contact, 34..45.
   static const SpriteFootprint combatTravelerAttack = SpriteFootprint(
     left: 34,

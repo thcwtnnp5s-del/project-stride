@@ -109,6 +109,13 @@ abstract final class TravelerArt {
   static const String toolPickSteel = 'tool.pick.steel';
   static const String toolPickBronze = 'tool.pick.bronze';
 
+  /// The special pick head (EPO03 P4): a bone horn tip on a bronze socket.
+  /// A **tier above bronze**, not a material of its own — which is why it
+  /// degrades to bronze rather than to steel in [gatherStripFor]. The matching
+  /// axe class is named in the matrix and deliberately unauthored; its two
+  /// items stay bronze (see `Scripts/art/package-art.js`, EPO03 EQUIPMENT).
+  static const String toolPickSpecial = 'tool.pick.special';
+
   /// The base six-frame west walk — the travel card's cycle, canonical
   /// here so the card and any future variant table cannot drift apart.
   static final List<String> travelerWalkWestFrames = List<String>.generate(
@@ -193,7 +200,7 @@ abstract final class TravelerArt {
     'item.training_pickaxe': toolPickSteel,
     'item.bronze_pickaxe': toolPickBronze,
     'item.reinforced_pickaxe': toolPickBronze,
-    'item.hornpoint_pickaxe': toolPickBronze,
+    'item.hornpoint_pickaxe': toolPickSpecial,
     'item.tinbraced_pickaxe': toolPickBronze,
   };
 
@@ -420,6 +427,39 @@ abstract final class TravelerArt {
     // a one-generation edit, then animated: the garment is the state's, so it
     // cannot drift from the figure the Character folio shows. Strike frames
     // are the measured furthest reach of the head.
+    // EPO03 P4 — the Hornpoint Pickaxe's own head: a pale bone horn tip on the
+    // bronze socket, on all five bodies. Strike frames are the bronze strips'
+    // own, because these are the bronze strips with the head swapped.
+    'skill.mining|armor.plate|tool.pick.special': GatherStrip(
+      frames: _strip('traveler_plate_hornpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerPlateHornpickMine,
+      canvasWidth: 80,
+      strikeFrame: 4,
+    ),
+    'skill.mining|armor.jerkin|tool.pick.special': GatherStrip(
+      frames: _strip('traveler_jerkin_hornpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerJerkinHornpickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|armor.coat|tool.pick.special': GatherStrip(
+      frames: _strip('traveler_coat_hornpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerCoatHornpickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|base|tool.pick.special': GatherStrip(
+      frames: _strip('traveler_base_hornpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerBaseHornpickMine,
+      canvasWidth: 80,
+      strikeFrame: 7,
+    ),
+    'skill.mining|armor.warden|tool.pick.special': GatherStrip(
+      frames: _strip('traveler_warden_hornpick_mine', 8),
+      footprint: SpriteFootprints.ambientTravelerWardenHornpickMine,
+      canvasWidth: 80,
+      strikeFrame: 3,
+    ),
     'skill.mining|armor.warden|tool.pick.bronze': GatherStrip(
       frames: _strip('traveler_warden_bronzepick_mine', 8),
       footprint: SpriteFootprints.ambientTravelerWardenBronzepickMine,
@@ -599,6 +639,14 @@ abstract final class TravelerArt {
     final String bronze = pick ? toolPickBronze : toolAxeBronze;
     final String held = tool ?? steel;
     return gatherVariants['$skill|$body|$held'] ??
+        // A **special** head is a tier above bronze, not a material of its
+        // own: a horn-tipped pick with no strip is a bronze pick before it is
+        // a training one, so bronze comes first for it and only for it. Every
+        // authored body has the special row today, so this line is the
+        // guarantee for the next content pack rather than a path taken now.
+        (held.endsWith('.special')
+            ? gatherVariants['$skill|$body|$bronze']
+            : null) ??
         gatherVariants['$skill|$body|$steel'] ??
         // Only an armoured body borrows the other tier: the base body with
         // a steel tool has an honest base loop, and null is that answer.

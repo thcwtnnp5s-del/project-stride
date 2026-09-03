@@ -141,6 +141,8 @@ void main() {
   for (final (String skill, String tool, String label) in <(String, String, String)>[
     ('skill.mining', 'item.bronze_pickaxe', 'mine_bronze'),
     ('skill.mining', 'item.training_pickaxe', 'mine_steel'),
+    // EPO03 P4: the Hornpoint Pickaxe's own bone-tipped head.
+    ('skill.mining', 'item.hornpoint_pickaxe', 'mine_horn'),
     ('skill.woodcutting', 'item.bronze_axe', 'woodcut_bronze'),
     ('skill.woodcutting', 'item.training_axe', 'woodcut_steel'),
     ('skill.foraging', 'item.bronze_pickaxe', 'forage'),
