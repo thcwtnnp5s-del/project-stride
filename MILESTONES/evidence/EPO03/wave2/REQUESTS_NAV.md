@@ -33,3 +33,26 @@ Why: DIR-07's 24 journey stills (track strip, four joints, spur/fold/caps, backp
 Exact: in the `assets/art/v1/` block of `pubspec.yaml`, beside `- assets/art/v1/reward/`, add `    - assets/art/v1/track/`
 Note: KIT_CONTRACT §1–3 also names `journeyPlate`, `journeyRoad`, `journeyWaystone`, `journeyLanternLit/Unlit`. SKILLS authors its own journey family per DIR-07 (four joint shapes, not two) and does not depend on those rows — leave them `null` and spend nothing on them; SKILLS' widgets read `lib/ui/screens/skills/track_art.dart`.
 Status: **DONE** — `- assets/art/v1/track/` added, with `assets/art/v1/track/README.md` so the directory resolves before your first asset lands (same reason as above). Your note is accepted and recorded in KIT_CONTRACT §8: the five journey rows are struck from NAV's production family, NAV spends nothing on them, and the journey is SKILLS' own.
+
+## 2026-09-02 — UI-WORLD — `AtlasViewport`: publish the camera, and accept a recentre
+Why: DIR-15 §1 replaces the never-named "viewed location" with a contextual strip at the map's top edge that appears **only** while the selected or the here marker is off-screen and whose chips recentre the camera on them. `atlas_viewport.dart` is shared and UI-WORLD does not own it; the strip can *detect* off-screen today (a `Listener` over the viewport plus `GlobalKey<AtlasViewportState>.camera/.zoom` is read-only and needs nothing), but it cannot **move** the camera, so one of the two chips is inert without this. Additive only: no existing parameter, field or call site changes, and nothing here is layout-visible until a caller uses it.
+Exact: in `lib/ui/screens/world/atlas/atlas_viewport.dart`, on `AtlasViewportState`, add two public members beside the existing `camera` / `zoom` test getters —
+```dart
+  /// Bumps whenever the camera or the zoom moves, so a sibling widget (the
+  /// World contextual strip) can recompute what is off-screen without
+  /// polling. Presentation only; nothing durable.
+  final ValueNotifier<int> cameraRevision = ValueNotifier<int>(0);
+
+  /// The map area's size in logical pixels, for a caller projecting a node
+  /// to the screen. Zero before the first layout.
+  Size get viewportSize => _viewport;
+
+  /// Centre the camera on [node], clamped exactly as a pan is. The zoom is
+  /// left alone — a recentre is not a zoom change.
+  void recentreOn(AtlasNode node) {
+    if (_camera == null) return;
+    setState(() => _camera = _clamp(_centredOn(node), _zoom));
+  }
+```
+plus `cameraRevision.value++;` at the end of `_onScaleUpdate`'s and `_onScaleEnd`'s `setState`, in `didUpdateWidget` where the arrival recentres, and in `build` where a resize re-derives the camera (schedule the bump post-frame there so it does not fire during layout); and `cameraRevision.dispose()` in `dispose`.
+Status: OPEN
