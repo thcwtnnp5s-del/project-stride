@@ -892,7 +892,7 @@ class _PocketRows extends StatelessWidget {
   /// Below this the rows take fewer columns rather than rescaling the sprite
   /// (ART-12 §2) — the well is the floor now, not the bare 48 dp sprite,
   /// because the sprite sits inside a frame's band on both sides.
-  static double get _columnFloor => SlotPlate.wellEdge;
+  static double get _columnFloor => SlotPlate.wellEdge + _Pocket.padX * 2;
 
   /// How many columns this group takes at [width].
   ///
@@ -977,9 +977,24 @@ class _PocketRows extends StatelessWidget {
         );
         rows.add(
           const KitEdge(
-            tile: KitTile.pocketRule,
-            fallbackColor: StrideColors.separator,
-            fallbackAtEnd: true,
+            // **`ruleChart`, and the phone is why.** The contract names
+            // `KitTile.pocketRule` for this line, and that row did not land —
+            // NAV's ledger records the roll coming back as a blue-grey
+            // checkerboard. Its fallback is a 1 px `separator` hairline, and
+            // the first device render showed it disappearing into the
+            // oilcloth completely: a rule nobody can see is not a ruled
+            // pocket, and the row would have shipped as a claim rather than a
+            // thing on screen. `ruleChart` is a landed row (8 dp at x2), it is
+            // the pack's own rule — the group headings above already draw it —
+            // and using it makes the pockets ruled today. If `pocket_rule`
+            // ever lands, this is a one-name change and the reserve is 12 dp
+            // against 8, so it moves by four.
+            tile: KitTile.ruleChart,
+            fallbackColor: StrideColors.borderDefault,
+            // At the TOP of the reserved run, so the line sits directly under
+            // the pockets it rules rather than at the bottom of the gap, where
+            // the next row's rank marks are already drawing.
+            fallbackAtEnd: false,
           ),
         );
       }
@@ -1040,6 +1055,17 @@ class _Pocket extends StatelessWidget {
     ),
   );
 
+  /// The pocket spends no width of its own.
+  ///
+  /// **Zero, and measured rather than chosen.** The well inside a pocket is
+  /// 64 dp — 48 of sprite inside `slotWell`'s 8 dp band on each side — and
+  /// five across at the 393 reference leaves 67.4 dp per column. Two 2 dp
+  /// pads took that to 63.4, which is 0.6 dp short of the well: `PixelAsset`
+  /// fired its assert and said so, exactly as it is built to. The canvas is
+  /// the pocket's ground and the rules are its edges, so horizontal padding
+  /// was buying nothing and costing the dense row.
+  static const double padX = 0;
+
   /// The room two lines of the item name need **at the ambient scaler**.
   ///
   /// Two lines, always — the pocket reserves the wrap whether or not this
@@ -1053,7 +1079,7 @@ class _Pocket extends StatelessWidget {
       2;
 
   Widget _pocket(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(2, StrideSpace.s8, 2, StrideSpace.s8),
+    padding: const EdgeInsets.fromLTRB(padX, StrideSpace.s8, padX, StrideSpace.s8),
     decoration: selected
         ? const BoxDecoration(
             border: Border(
