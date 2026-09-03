@@ -255,6 +255,91 @@ void main() {
 
     await open(tester, 'Skills');
     await capture(tester, 'skills');
+
+    // EPO03 ITEMS: the three salvage crates, on the three adjacent Craft rows
+    // that made them a collision in the first place. They shipped as three
+    // IDENTICAL boxes (silhouette overlap 0.90-0.93) told apart only by a
+    // ghost stamp on the lid that is illegible at 48 dp; each lid is now open
+    // with a different bronze head standing out of it and breaking the crate's
+    // outline. Captured here rather than on Inventory because a recipe row
+    // needs nothing owned to be seen, and because side by side on this screen
+    // is exactly where the player met the defect.
+    await open(tester, 'Craft');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Reclaim Bronze Axe').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Reclaim Bronze Axe'), findsWidgets);
+    expect(find.text('Reclaim Bronze Pickaxe'), findsWidgets);
+    await capture(tester, 'epo_items_reclaim_rows');
+  });
+
+  // ---------------------------------------------------------------------
+  // EPO03 ITEMS: the Inventory carrying collision group 2 — the ivory curves.
+  //
+  // `pristine_wolf_fang` shipped as a fat ivory wedge that read as a TUSK,
+  // sat next to `boar_tusk` and `great_tusk`, and `pristine_horn` filled 12%
+  // of its frame. All three are wolf and boar drops, so the only way to see
+  // them the way the player does — in the bag, on the dark tile, at 48 dp —
+  // is to go and win them. This drives Whispering Woods until the rare drops
+  // land, then photographs the Materials grid.
+  // ---------------------------------------------------------------------
+  testWidgets('EPO03 items: the ivory drops, side by side in the bag', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    final ContentId haven = ContentId.unchecked('location.havens_rest');
+    final ContentId woods = ContentId.unchecked('location.whispering_woods');
+    final ContentId wolf = ContentId.unchecked('enemy.forest_wolf');
+    final ContentId boar = ContentId.unchecked('enemy.wild_boar');
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync()), page(400000)],
+        ),
+      );
+      await s.syncSteps();
+      await s.syncSteps();
+      await s.equip(trainingSword);
+      await s.equip(tunic);
+      // `great_tusk` is a signature drop at 8%, so this needs many visits.
+      // Alternating the two species keeps both tables in play; travelling
+      // back to Haven's Rest clears the per-visit encounter counter.
+      for (int trip = 0; trip < 60; trip += 1) {
+        if (s.currentLocation != woods) {
+          await s.travel(woods);
+        }
+        if (s.currentLocation != woods) break;
+        // `encountersPerVisit` is 2, so a visit that opens on the wolf spends
+        // both slots there and the boar table is never reached. Left as the
+        // wolf-first form that this run actually verified: the kit owner was
+        // mid-refactor on `inventory_screen.dart`, `pixel_asset.dart` and
+        // `surfaces.dart` when the alternating version was written, so it
+        // could not be compiled, and an unverified drive is not evidence.
+        for (final ContentId beast in <ContentId>[wolf, boar]) {
+          final CombatReport open = await s.startEncounter(beast);
+          if (!open.succeeded) continue;
+          while (s.encounter != null) {
+            final CombatReport r = await s.combatAttack();
+            if (!r.succeeded || r.outcome != null) break;
+          }
+        }
+        await s.travel(haven);
+      }
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+    await open(tester, 'Inventory');
+    await tester.pumpAndSettle();
+    await capture(tester, 'epo_items_inventory_ivory');
   });
 
   testWidgets('Iteration 02: the freshness pass, driven into its moments', (
