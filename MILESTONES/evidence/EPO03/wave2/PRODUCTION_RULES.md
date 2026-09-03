@@ -176,6 +176,15 @@ rim.** `stage_frame`’s iron corner cap is 26 px against a band of 19, and at
 19 the painter tiles the cap along every beam. No measurement shows this;
 render the patch as the painter will (`ninepatch-proof.js`) and look at it.
 
+**A new held item on an existing frame costs 1 generation, not 44.**
+Measured by PROD-EQUIPMENT on 2026-09-02: `edit_image_pixen` on an already
+shipped frame, fed back as a `custom_start_frame_url`, puts a different tool
+or weapon in the figure’s hand for **one** generation — against ≈44 for a
+fresh `create_character_state`. The whole hornpoint-pick column across five
+bodies was produced this way. Before costing any variant of something that
+already ships, ask whether it is an edit of a shipped frame rather than a
+new authoring job; FMPO02 cut a whole tool column as unaffordable on a unit
+cost that was wrong by more than an order of magnitude (M-17).
 **Build the Dart structure first.** Every screen’s page model is mostly
 layout on materials that already ship. A screen rebuilt on existing grains
 and painted rules is transformed even if none of its new marks ever land;
