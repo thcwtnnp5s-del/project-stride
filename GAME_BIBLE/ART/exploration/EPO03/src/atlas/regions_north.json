@@ -8,16 +8,32 @@
       "w": 316,
       "h": 164,
       "atlas": "0-276 x 216-300",
-      "rect": { "x0": -24, "y0": 40, "x1": 276, "y1": 124 },
-      "ramps": { "left": 0, "right": 32, "top": 32, "bottom": 32 },
-      "inpaint": { "x": 0, "y": 40, "w": 276, "h": 84 },
+      "rect": {
+        "x0": -24,
+        "y0": 40,
+        "x1": 276,
+        "y1": 124
+      },
+      "ramps": {
+        "left": 0,
+        "right": 32,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 0,
+        "y": 40,
+        "w": 276,
+        "h": 84
+      },
       "salt": 40,
-      "seed": 0,
-      "status": "pending",
+      "seed": 40,
+      "status": "accepted",
       "coreAuthor": true,
       "reauthorizes": [],
       "intent": "NW snowline RECOMPOSE (DIR-01 failure #4): the drifted snow of N1/GAP comes down onto the W2 foothill meadow and the core wood as altitude, not as a cut-line - melt tongues and drift lobes between rock knolls, a boulder moraine at the snow's foot, bare ground and bracken under the last drifts, firs thinning upward to rime-flagged singles, the meltwater beck running south; palette cooling green -> grey -> blue-white.",
-      "note": "Left is the canvas edge (x0=-24, ramp 0). Frozen margins: top 40 (atlas 176-216, N1 interior), right 40 (atlas 276-316, the core canopy), bottom 40 (atlas 300-340, W2 meadow and its beck). The rect reaches x=276 - through the A-4 rim (256-276) to the hard-core wall - so the join with the treeline region NB is authored by a 20 px rect overlap instead of two ramps meeting on the x=256 lattice (the NB1 lesson). coreAuthor: true for that rim strip. Top ramp 32 starts at 216 so N1's interior north of ~248 is kept; bottom ramp 32 fades out at y=300, the edge NORTH paints and hands to WEST (DIR-01). No golden within 44 px: nearest is roadjoin_corridor_west at y=480."
+      "note": "Left is the canvas edge (x0=-24, ramp 0). Frozen margins: top 40 (atlas 176-216, N1 interior), right 40 (atlas 276-316, the core canopy), bottom 40 (atlas 300-340, W2 meadow and its beck). The rect reaches x=276 - through the A-4 rim (256-276) to the hard-core wall - so the join with the treeline region NB is authored by a 20 px rect overlap instead of two ramps meeting on the x=256 lattice (the NB1 lesson). coreAuthor: true for that rim strip. Top ramp 32 starts at 216 so N1's interior north of ~248 is kept; bottom ramp 32 fades out at y=300, the edge NORTH paints and hands to WEST (DIR-01). No golden within 44 px: nearest is roadjoin_corridor_west at y=480.",
+      "job": "6672f5c4-4545-4efb-8abe-5c5e3a49bbb2"
     },
     {
       "id": "NB",
@@ -26,9 +42,24 @@
       "w": 224,
       "h": 154,
       "atlas": "256-400 x 226-300",
-      "rect": { "x0": 40, "y0": 40, "x1": 184, "y1": 114 },
-      "ramps": { "left": 32, "right": 44, "top": 32, "bottom": 32 },
-      "inpaint": { "x": 40, "y": 40, "w": 144, "h": 74 },
+      "rect": {
+        "x0": 40,
+        "y0": 40,
+        "x1": 184,
+        "y1": 114
+      },
+      "ramps": {
+        "left": 32,
+        "right": 44,
+        "top": 32,
+        "bottom": 32
+      },
+      "inpaint": {
+        "x": 40,
+        "y": 40,
+        "w": 144,
+        "h": 74
+      },
       "salt": 41,
       "seed": 0,
       "status": "pending",
