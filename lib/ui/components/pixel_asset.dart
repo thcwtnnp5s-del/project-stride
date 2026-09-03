@@ -848,6 +848,7 @@ class EdgeStrip extends StatefulWidget {
     this.scale = 2,
     this.fallbackColor,
     this.fallbackAtBottom = false,
+    this.axis = Axis.horizontal,
   }) : assert(scale >= 1, 'integer multiples only, and at least 1');
 
   /// The nav bar's top welt — 8 × 4, period 8, drawn ×2. The boundary it
@@ -856,7 +857,8 @@ class EdgeStrip extends StatefulWidget {
     : assetPath = 'assets/ui/v1/nav/nav_welt.png',
       nativeWidth = 8,
       nativeHeight = 4,
-      fallbackAtBottom = false;
+      fallbackAtBottom = false,
+      axis = Axis.horizontal;
 
   /// The screen header's bottom shelf — 8 × 6, period 8, drawn ×2. The
   /// boundary it replaces is the header's bottom, so the fallback line goes
@@ -865,7 +867,8 @@ class EdgeStrip extends StatefulWidget {
     : assetPath = 'assets/ui/v1/header/header_shelf.png',
       nativeWidth = 8,
       nativeHeight = 6,
-      fallbackAtBottom = true;
+      fallbackAtBottom = true,
+      axis = Axis.horizontal;
 
   final String assetPath;
 
@@ -873,6 +876,21 @@ class EdgeStrip extends StatefulWidget {
   final int nativeWidth;
   final int nativeHeight;
   final int scale;
+
+  /// Which way the run travels.
+  ///
+  /// Horizontal is a rule under a header or over a nav bar: full width, the
+  /// tile repeating left to right, [displayHeight] deep. Vertical is a
+  /// binding down a page's edge: full height, the tile repeating top to
+  /// bottom, [displayHeight] wide.
+  ///
+  /// Defaults to horizontal, which is what every named constructor and every
+  /// caller before EPO03 wants. It exists because [KitEdge] has always known
+  /// its tile's axis and handled it in the *fallback* path, while this widget
+  /// forced a horizontal run the moment the raster landed — so a vertical
+  /// tile silently reversed its own geometry on arrival and threw an
+  /// unbounded-width exception in any column that had reserved it.
+  final Axis axis;
 
   /// The line drawn in the strip's place while the raster is absent. Null
   /// leaves the edge blank, which only a caller that draws its own line wants.
@@ -915,18 +933,35 @@ class _EdgeStripState extends State<EdgeStrip> {
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    height: widget.displayHeight,
-    child: CustomPaint(
-      painter: _EdgeStripPainter(
-        image: _slot.image,
-        scale: widget.scale.toDouble(),
-        fallbackColor: widget.fallbackColor,
-        fallbackAtBottom: widget.fallbackAtBottom,
+  Widget build(BuildContext context) {
+    final bool horizontal = widget.axis == Axis.horizontal;
+    final Widget run = SizedBox(
+      width: horizontal ? double.infinity : widget.displayHeight,
+      height: horizontal ? widget.displayHeight : double.infinity,
+      child: CustomPaint(
+        painter: _EdgeStripPainter(
+          image: _slot.image,
+          scale: widget.scale.toDouble(),
+          fallbackColor: widget.fallbackColor,
+          fallbackAtBottom: widget.fallbackAtBottom,
+          axis: widget.axis,
+        ),
       ),
-    ),
-  );
+    );
+    // `double.infinity` on the main axis means "as long as the parent allows",
+    // and throws outright when the parent allows anything at all — a scroll
+    // view, an intrinsic pass, or a Row child without an Expanded. A strip is
+    // decoration: it should take the run it is given and draw nothing extra
+    // when there is no run to take, never bring the frame down. LimitedBox
+    // applies its bound *only* under an unbounded constraint, so bounded
+    // callers are byte-identical to before and unbounded ones get a finite
+    // run instead of an exception.
+    return LimitedBox(
+      maxWidth: horizontal ? 0 : double.infinity,
+      maxHeight: horizontal ? double.infinity : 0,
+      child: run,
+    );
+  }
 }
 
 class _EdgeStripPainter extends CustomPainter {
@@ -935,25 +970,38 @@ class _EdgeStripPainter extends CustomPainter {
     required this.scale,
     required this.fallbackColor,
     required this.fallbackAtBottom,
+    this.axis = Axis.horizontal,
   });
 
   final ui.Image? image;
   final double scale;
   final Color? fallbackColor;
+
+  /// Which end of the run the fallback line sits on: the strip's first row or
+  /// column when false, its last when true.
   final bool fallbackAtBottom;
+  final Axis axis;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bool horizontal = axis == Axis.horizontal;
     final ui.Image? img = image;
     if (img == null) {
       if (fallbackColor case final Color c) {
         canvas.drawRect(
-          Rect.fromLTWH(
-            0,
-            fallbackAtBottom ? size.height - 1 : 0,
-            size.width,
-            1,
-          ),
+          horizontal
+              ? Rect.fromLTWH(
+                  0,
+                  fallbackAtBottom ? size.height - 1 : 0,
+                  size.width,
+                  1,
+                )
+              : Rect.fromLTWH(
+                  fallbackAtBottom ? size.width - 1 : 0,
+                  0,
+                  1,
+                  size.height,
+                ),
           Paint()..color = c,
         );
       }
@@ -972,8 +1020,17 @@ class _EdgeStripPainter extends CustomPainter {
     final double h = img.height * scale;
     canvas.save();
     canvas.clipRect(Offset.zero & size);
-    for (double x = 0; x < size.width; x += w) {
-      canvas.drawImageRect(img, src, Rect.fromLTWH(x, 0, w, h), paint);
+    if (horizontal) {
+      for (double x = 0; x < size.width; x += w) {
+        canvas.drawImageRect(img, src, Rect.fromLTWH(x, 0, w, h), paint);
+      }
+    } else {
+      // A vertical run repeats down its own length. The tile is authored for
+      // a horizontal rule, so it is drawn unrotated and simply stacked: the
+      // kit's vertical tiles (the page binding) are authored that way.
+      for (double y = 0; y < size.height; y += h) {
+        canvas.drawImageRect(img, src, Rect.fromLTWH(0, y, w, h), paint);
+      }
     }
     canvas.restore();
   }
@@ -983,5 +1040,6 @@ class _EdgeStripPainter extends CustomPainter {
       old.image != image ||
       old.scale != scale ||
       old.fallbackColor != fallbackColor ||
-      old.fallbackAtBottom != fallbackAtBottom;
+      old.fallbackAtBottom != fallbackAtBottom ||
+      old.axis != axis;
 }

@@ -441,6 +441,10 @@ class KitEdge extends StatelessWidget {
         child: line,
       );
     }
+    // The axis travels with the tile. Before EPO03 it was honoured only in the
+    // fallback branch above, so a vertical tile reversed its own geometry the
+    // moment its raster landed — and three screen teams hit the resulting
+    // unbounded-width throw in one afternoon.
     return EdgeStrip(
       assetPath: strip.assetPath,
       nativeWidth: strip.nativeWidth,
@@ -448,6 +452,7 @@ class KitEdge extends StatelessWidget {
       scale: strip.scale,
       fallbackColor: fallbackColor,
       fallbackAtBottom: fallbackAtEnd,
+      axis: axis,
     );
   }
 }
