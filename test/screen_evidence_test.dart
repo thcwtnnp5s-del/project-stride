@@ -18,6 +18,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stride/runtime/stride_session.dart';
+import 'package:stride/ui/components/loadout_readout.dart'
+    show kEmptySlotWord;
 import 'package:stride/ui/components/panel_skin.dart';
 import 'package:stride/ui/components/pixel_asset.dart';
 import 'package:stride/ui/components/stride_tab_bar.dart';
@@ -94,6 +96,37 @@ SyncFetch laterPage(int steps) => SyncFetch(
         origins: SomeOrigins(<StepOriginKey>{phone}),
         intervalStartMillis: t0 + hour,
         intervalEndMillis: t0 + 2 * hour,
+        queryGeneration: 1,
+      ),
+    ),
+  ),
+);
+
+/// One more walked hour at an arbitrary offset — the EPO03 Inventory run
+/// banks a long walk so a real playthrough can be driven through the
+/// product's own commands rather than granted.
+SyncFetch walkedHour(int i, int steps) => SyncFetch(
+  IncrementalSync(
+    observations: <StepObservation>[
+      StepObservation(
+        key: ObservationKey(
+          origin: phone,
+          bucket: TimeBucket(
+            startMillis: t0 + i * hour,
+            endMillis: t0 + (i + 1) * hour,
+          ),
+        ),
+        steps: steps,
+      ),
+    ],
+    nextCursor: SyncCursor.ofString('w$i'),
+    completeness: CompleteThrough(
+      throughMillis: t0 + (i + 1) * hour,
+      scope: CompletenessScope(
+        dataType: HealthDataType.steps,
+        origins: SomeOrigins(<StepOriginKey>{phone}),
+        intervalStartMillis: t0 + i * hour,
+        intervalEndMillis: t0 + (i + 1) * hour,
         queryGeneration: 1,
       ),
     ),
@@ -1272,5 +1305,204 @@ void main() {
         '$dir/epo_world_measurements.txt',
       ).writeAsStringSync(measured.toString());
     }
+  });
+
+  // ===========================================================================
+  // EPO03 — PROD-UI-INVENTORY
+  //
+  // The four states the rebuilt Inventory has to be *looked at* in: a new
+  // game's three empty wells, a worn loadout with one well still empty, the
+  // pack's ruled canvas rows, and a gear pocket's stamped evaluation. Driven
+  // through the real session — gathered, travelled, forged — because the whole
+  // claim of the rebuild is about a screen full of things a player earned.
+  // ===========================================================================
+  testWidgets('EPO03 Adventure: the ledger, a pencilled site, and two slips '
+      'pinned to the cork', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    // A walked save with two goals actually pinned. The other Adventure cases
+    // all render the board empty — "NOTHING PINNED" is a real state and it is
+    // captured three times over — so nothing in the round showed the slips
+    // themselves until this case existed.
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[
+            SyncFetch(const NoChangeSync()),
+            for (int i = 0; i < 20; i++) walkedHour(i, 40000),
+          ],
+        ),
+      );
+      for (int i = 0; i < 21; i++) {
+        await s.syncSteps();
+      }
+      // A journey the walk has already paid for, and a pursuit the player is
+      // still gathering towards: the two slips read differently on purpose —
+      // one is ready, one still names what it needs.
+      await s.trackGoal(
+        GoalSlot.journey,
+        ContentId.unchecked('location.whispering_woods'),
+      );
+      await s.trackGoal(
+        GoalSlot.pursuit,
+        ContentId.unchecked('item.bronze_sword'),
+      );
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+    await open(tester, 'Adventure');
+
+    // The cork sits under the expedition kit, so the board is reached by
+    // scrolling the page rather than by shrinking anything above it.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -260));
+    await tester.pumpAndSettle();
+    expect(find.text('JOURNEY'), findsOneWidget);
+    expect(find.text('PURSUIT'), findsOneWidget);
+    await capture(tester, 'epo_adventure_slips_pinned');
+  });
+
+  testWidgets('EPO03 Inventory: empty wells, a worn loadout, the ruled pack', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+
+    // --- 1. A new game: nothing worn, three empty wells ---------------------
+    final StrideSession fresh = (await tester.runAsync(
+      () => StrideSession.start(
+        overrideRoot: root,
+        source: MockStepSource(
+          script: <SyncFetch>[SyncFetch(const NoChangeSync())],
+        ),
+      ),
+    ))!;
+    await tester.pumpWidget(StrideApp(session: fresh, syncOnStart: false));
+    await tester.pumpAndSettle();
+    await open(tester, 'Inventory');
+    // Weapon, Armour and Tool all standing empty — the class shadow in each
+    // recess, and the word `Empty` nowhere on the screen.
+    expect(find.text(kEmptySlotWord), findsNothing);
+    await capture(tester, 'inv_01_new_game');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+
+    // --- 2..4. A played session: a forged weapon, a full pack ---------------
+    //
+    // Everything below is the product's own commands. The Bronze Sword is
+    // mined, smelted and forged rather than granted, and the pack fills with
+    // what the walking produced along the way.
+    //
+    // **The armour is the Traveler Tunic and the weapon is the Bronze Sword,
+    // and that is the limit of what a test session can reach, not a choice.**
+    // The Bronze Chestplate needs a Pine Plank from Frostmere, which has no
+    // route out of Haven's Rest until the world is opened; the Bronze
+    // Longsword needs a Boar Tusk (a 35 % drop) and Gloom Silk from the
+    // Forgotten Hollow; the Wolfhide Jerkin is taught by a contract. The
+    // render proves what it is for either way: a **crafted, non-starting,
+    // uncommon** weapon seated in its well beside a worn armour, an empty tool
+    // well, and the figure drawn by whatever `TravelerArt` resolves — nothing
+    // in the screen narrows that resolver, so the Waywarden body and the
+    // longsword appear here the day a save reaches them.
+    final Directory played = Directory.systemTemp.createTempSync(
+      'stride_inv_played',
+    );
+    addTearDown(() {
+      try {
+        played.deleteSync(recursive: true);
+      } on FileSystemException {
+        // Windows holds a handle a moment past close.
+      }
+    });
+
+    final StrideSession session = (await tester.runAsync(() async {
+      final StrideSession s = await StrideSession.start(
+        overrideRoot: played,
+        source: MockStepSource(
+          script: <SyncFetch>[
+            SyncFetch(const NoChangeSync()),
+            for (int i = 0; i < 120; i++) walkedHour(i, 40000),
+          ],
+        ),
+      );
+      for (int i = 0; i < 121; i++) {
+        await s.syncSteps();
+      }
+
+      Future<void> go(String loc) => s.travel(ContentId.unchecked(loc));
+
+      Future<void> dig(String node, int n) async {
+        for (int i = 0; i < n; i++) {
+          if (!(await s.gather(ContentId.unchecked(node))).succeeded) return;
+        }
+      }
+
+      Future<void> forge(String recipe, int n) async {
+        for (int i = 0; i < n; i++) {
+          if (!(await s.craft(ContentId.unchecked(recipe))).succeeded) return;
+        }
+      }
+
+      // Mine the ore, smelt the bronze — which is also how Smithing levels.
+      await s.equip(ContentId.unchecked('item.training_pickaxe'));
+      await go('location.stonefall_mine');
+      await dig('resource_node.copper_seam', 150);
+      await dig('resource_node.tin_seam', 95);
+      await forge('recipe.bronze_ingot', 130);
+      // Fell the oak, turn a handle, forge the sword.
+      await go('location.havens_rest');
+      await go('location.whispering_woods');
+      await s.equip(ContentId.unchecked('item.training_axe'));
+      await dig('resource_node.oak_stand', 110);
+      await forge('recipe.oak_handle', 3);
+      await forge('recipe.bronze_sword', 1);
+      // Home, and a season of foraging: herbs, and broth from them.
+      await go('location.havens_rest');
+      await dig('resource_node.meadow_patch', 40);
+      await forge('recipe.herb_broth', 3);
+      // Worn: the forged sword and the tunic. **The tool slot is emptied on
+      // purpose** — both training tools are in the pack, and one empty well
+      // beside two full ones is the state the case exists to show.
+      await s.unequip(EquipmentSlot.tool);
+      await s.equip(ContentId.unchecked('item.bronze_sword'));
+      await s.equip(tunic);
+      return s;
+    }))!;
+
+    await tester.pumpWidget(StrideApp(session: session, syncOnStart: false));
+    await tester.pumpAndSettle();
+    await open(tester, 'Inventory');
+    // The case: the figure in its window, the sword and the tunic seated in
+    // their wells with their figures stamped, and the tool well empty.
+    expect(find.text('WEAPON'), findsOneWidget);
+    expect(find.text('TOOL'), findsOneWidget);
+    await capture(tester, 'inv_02_case_worn_tool_empty');
+
+    // The pack: ruled canvas rows, materials five across, gear three across
+    // with the Equip plate on the pocket.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -420));
+    await tester.pumpAndSettle();
+    await capture(tester, 'inv_03_pack_ruled_rows');
+
+    // A gear pocket opened: the stamped evaluation, ruled on the canvas, with
+    // no dark block under it.
+    await tester.dragUntilVisible(
+      find.text('Bronze Sword'),
+      find.byType(ListView).first,
+      const Offset(0, -160),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bronze Sword').last);
+    await tester.pumpAndSettle();
+    await capture(tester, 'inv_04_gear_open');
   });
 }
