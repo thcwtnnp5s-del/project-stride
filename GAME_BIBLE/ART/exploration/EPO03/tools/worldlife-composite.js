@@ -55,7 +55,14 @@ for (const p of layout.props) {
   placed.push([p.asset, x, y, r.width, r.height, 'prop']);
 }
 
+const patrols = [];
 for (const o of layout.overlays) {
+  // EPO03 schema v6: a `path` overlay has no `x,y` at all — the line says
+  // where it is, and where it is depends on the second. Blitting one here
+  // would compute NaN and drop it from the sheet without a word, which is
+  // exactly the "verified against something that isn't what ships" failure
+  // this tool exists to prevent. Named and skipped instead.
+  if (o.path) { patrols.push(o.asset); continue; }
   const r = sprite(o.asset, o.frames);
   if (!r) continue;
   const x = Math.round(o.x / SCALE);
@@ -73,6 +80,11 @@ png.save(path.join(dir, `${prefix}_north_x2.png`),
 console.log(`${placed.length} entries composited onto the current atlas`);
 for (const [a, x, y, w, h, kind] of placed) {
   console.log(`  ${kind.padEnd(7)} ${a.padEnd(34)} atlas ${x},${y} ${w}x${h}`);
+}
+if (patrols.length) {
+  console.log(`SKIPPED ${patrols.length} v6 path overlay(s) — they have no `
+    + `fixed x,y and their position depends on the clock. Render those with `
+    + `life-patrol-proof.js <prefix> <seconds...>: ${[...new Set(patrols)].join(', ')}`);
 }
 if (missing.length) {
   console.log(`MISSING ${missing.length} packaged sprite(s): ${missing.join(', ')}`);

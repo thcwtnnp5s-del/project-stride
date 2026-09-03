@@ -238,6 +238,15 @@ other world teams are using.
   `reclaim_chestplate`) that another team was writing between my build and my
   check. Not mine, and it moved between runs; the producer should re-check at
   integration.
+- **`worldlife-composite.js` cannot draw a v6 patrol**, and used to do it
+  silently: a path overlay has no `x,y`, so `Math.round(undefined / 6)` gave
+  NaN and all fourteen were dropped from the sheet without a word — a sheet
+  that looked green while proving nothing about the thing this round changed.
+  It now names and skips them and points at `life-patrol-proof.js`, which
+  reimplements the position arithmetic and renders at a wall clock. Both tools
+  were re-run against the atlas AFTER the twelve regions landed
+  (`review/worldlife/life_x1.png`, `review/life/LIFE_t{0,18,43,87}_x1.png`,
+  `review/life/landmarks_current_atlas_x4.png`).
 - **DIR-04's "≤ 12 overlays in the phone FOV" was not measured.** 21 of 39 draw
   at t = 0 and 26 at t = 32 across the whole 1024-px canvas, so the FOV figure
   is very likely met, but I did not compute it per viewport.
