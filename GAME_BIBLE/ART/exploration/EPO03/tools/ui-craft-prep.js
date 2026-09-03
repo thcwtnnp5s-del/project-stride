@@ -140,7 +140,16 @@ if (arg('--crop')) {
 }
 if (arg('--alpha', false)) steps.push(`alpha snapped ${snapAlpha(r)} px`);
 if (arg('--ceiling', false)) { const c = clampCeiling(r); steps.push(`ceiling: ${c.colours} inks over, ${c.changed} px moved`); }
-let ceilingL = C.CEILING_L;
+// The L* ceiling binds INTERFACE art only — `check-art-palette.js` applies it
+// to `assets/ui/v1/frame|surface|ornament` and to nothing else (its own
+// "content art is not bound by the chrome ceiling" self-test). This family
+// ships to `assets/art/v1/ui/`, which is content art: a category glyph and a
+// wax seal are drawn things on a page, like the item icons beside them, not
+// the chassis they sit on. `--content` therefore records the brightest ink
+// as a measurement instead of a violation. It does NOT relax a guard the
+// product applies to this path (G-4); it stops applying one the product
+// does not.
+let ceilingL = arg('--content', false) ? Infinity : C.CEILING_L;
 if (arg('--textsafe', false) !== false) {
   const t = arg('--textsafe') === true ? 0.1403 : Number(arg('--textsafe'));
   const g = textSafe(r, t); steps.push(`textsafe: gain ${g.gain} (max was ${g.max}) -> L <= ${t}`);
@@ -149,7 +158,7 @@ if (arg('--textsafe', false) !== false) {
 const g = guards(r, ceilingL);
 const meta = {
   asset: path.basename(out, '.png'),
-  destination: `assets/art/v1/ui/craft/${path.basename(out)}`,
+  destination: `assets/art/v1/ui/${path.basename(out)}`,
   canvas: [r.width, r.height],
   kind: arg('--kind', 'icon'),
   corner: arg('--corner') ? Number(arg('--corner')) : null,
@@ -159,7 +168,9 @@ const meta = {
   master,
   job: arg('--job', null),
   steps,
-  ceiling: `L <= ${ceilingL.toFixed(4)}`,
+  ceiling: Number.isFinite(ceilingL)
+    ? `L <= ${ceilingL.toFixed(4)}`
+    : 'not applicable — content art, not chrome (check-art-palette CHROME only)',
   guards: g,
   note: arg('--note', ''),
 };

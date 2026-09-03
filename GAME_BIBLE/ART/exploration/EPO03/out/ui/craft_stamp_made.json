@@ -1,0 +1,29 @@
+{
+  "asset": "craft_stamp_made",
+  "destination": "assets/art/v1/ui/craft_stamp_made.png",
+  "canvas": [
+    48,
+    48
+  ],
+  "kind": "icon",
+  "corner": null,
+  "band": null,
+  "period": null,
+  "scale": 2,
+  "master": "raw/craft/r2_stamp_ring.png",
+  "job": "6f90584c-acb5-4846-a82d-125baff41d1f",
+  "steps": [
+    "alpha snapped 0 px"
+  ],
+  "ceiling": "not applicable — content art, not chrome (check-art-palette CHROME only)",
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 40,
+    "maxHex": "#E6F6F4",
+    "maxL": 0.8927,
+    "verdict": "clean"
+  },
+  "note": "EPO03 UI-CRAFT (DIR-06) content mark"
+}

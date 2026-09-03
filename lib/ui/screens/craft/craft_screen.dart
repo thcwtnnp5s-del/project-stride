@@ -1884,7 +1884,7 @@ class _CategoryTab extends StatelessWidget {
               // does not grow the day the art arrives.
               SizedBox(
                 width: CraftArt.categoryGlyph,
-                height: CraftArt.categoryGlyph / 2,
+                height: CraftArt.categoryGlyph,
                 child: glyph == null
                     ? null
                     : Center(

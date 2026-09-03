@@ -1,0 +1,29 @@
+{
+  "asset": "craft_seal_blank",
+  "destination": "assets/art/v1/ui/craft_seal_blank.png",
+  "canvas": [
+    32,
+    32
+  ],
+  "kind": "icon",
+  "corner": null,
+  "band": null,
+  "period": null,
+  "scale": 2,
+  "master": "raw/craft/r2_seal_scallop.png",
+  "job": "15507e4a-933a-4ac8-aa59-fc9dedecaaa1",
+  "steps": [
+    "alpha snapped 0 px"
+  ],
+  "ceiling": "not applicable — content art, not chrome (check-art-palette CHROME only)",
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 31,
+    "maxHex": "#B76E4E",
+    "maxL": 0.2177,
+    "verdict": "clean"
+  },
+  "note": "EPO03 UI-CRAFT (DIR-06) content mark"
+}

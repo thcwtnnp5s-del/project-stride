@@ -75,7 +75,19 @@ abstract final class CraftArt {
   /// **This set is the registry's on-switch.** A mark is declared below with
   /// its real geometry the day it is designed, and starts drawing the day its
   /// name is added here — one line, after the render has been looked at.
-  static const Set<String> _landed = <String>{};
+  static const Set<String> _landed = <String>{
+    // EPO03 wave 2, read on the 393 x 852 evidence renders: the five
+    // category glyphs, the blank wax seal and the made impression.
+    // The dog-ear and the pursuit ribbon are NOT here — their painted
+    // fallbacks read correctly at phone scale and no roll beat them.
+    '$_dir/craft_cat_all.png',
+    '$_dir/craft_cat_materials.png',
+    '$_dir/craft_cat_food.png',
+    '$_dir/craft_cat_gear.png',
+    '$_dir/craft_cat_tools.png',
+    '$_dir/craft_seal_blank.png',
+    '$_dir/craft_stamp_made.png',
+  };
 
   static bool _has(String path) => _landed.contains(path);
 
@@ -115,37 +127,24 @@ abstract final class CraftArt {
     return m == null ? null : _resolve(m);
   }
 
-  /// The wax seals, one per crafting trade plus the taught seal the
-  /// contract-gated chapter wears. Keyed by the lower-cased skill name so a
-  /// trade with no seal of its own falls back to the painted disc rather
-  /// than borrowing another trade's wax.
-  static const Map<String, CraftMark> _seals = <String, CraftMark>{
-    'smithing': CraftMark(
-      assetPath: '$_dir/craft_seal_smithing.png',
-      nativeWidth: 32,
-      nativeHeight: 32,
-    ),
-    'cooking': CraftMark(
-      assetPath: '$_dir/craft_seal_cooking.png',
-      nativeWidth: 32,
-      nativeHeight: 32,
-    ),
-    'woodcutting': CraftMark(
-      assetPath: '$_dir/craft_seal_woodcutting.png',
-      nativeWidth: 32,
-      nativeHeight: 32,
-    ),
-    'taught': CraftMark(
-      assetPath: '$_dir/craft_seal_taught.png',
-      nativeWidth: 32,
-      nativeHeight: 32,
-    ),
-  };
+  /// **One blank wax seal serves every trade and every level.**
+  ///
+  /// Four per-trade impressions were generated and rejected: at 64 dp with
+  /// the required level set over the seal, an anvil or a pot inside the wax
+  /// fights the numeral, and the numeral is the information. The chapter's
+  /// tier header already names the trade, so a per-trade impression was
+  /// saying it twice and costing legibility for the privilege. The seal is
+  /// blank by rule anyway (L-18: no raster carries a numeral), and a blank
+  /// centre is exactly what a numeral needs.
+  static const CraftMark _sealBlank = CraftMark(
+    assetPath: '$_dir/craft_seal_blank.png',
+    nativeWidth: 32,
+    nativeHeight: 32,
+  );
 
-  static CraftMark? sealFor(String skill) {
-    final CraftMark? m = _seals[skill.toLowerCase()];
-    return m == null ? null : _resolve(m);
-  }
+  /// [skill] is accepted and deliberately unused: the seal does not vary by
+  /// trade, and the call sites read better naming what they are sealing.
+  static CraftMark? sealFor(String skill) => _resolve(_sealBlank);
 
   static const CraftMark _dogEarMark = CraftMark(
     assetPath: '$_dir/craft_dogear.png',

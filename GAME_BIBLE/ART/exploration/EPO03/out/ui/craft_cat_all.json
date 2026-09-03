@@ -1,0 +1,29 @@
+{
+  "asset": "craft_cat_all",
+  "destination": "assets/art/v1/ui/craft_cat_all.png",
+  "canvas": [
+    24,
+    24
+  ],
+  "kind": "icon",
+  "corner": null,
+  "band": null,
+  "period": null,
+  "scale": 2,
+  "master": "raw/craft/cat_all.png",
+  "job": "e9353d7d-661e-43e3-8ea8-c7e5c478f28e",
+  "steps": [
+    "alpha snapped 0 px"
+  ],
+  "ceiling": "not applicable — content art, not chrome (check-art-palette CHROME only)",
+  "guards": {
+    "teal": 0,
+    "semi": 0,
+    "over": 0,
+    "colours": 40,
+    "maxHex": "#F6EFEA",
+    "maxL": 0.8727,
+    "verdict": "clean"
+  },
+  "note": "EPO03 UI-CRAFT (DIR-06) content mark"
+}
