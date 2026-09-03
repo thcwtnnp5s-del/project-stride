@@ -27,8 +27,8 @@
         "h": 210
       },
       "salt": 100,
-      "seed": 0,
-      "status": "pending",
+      "seed": 1003,
+      "status": "accepted",
       "reauthorizes": [],
       "cut": {
         "seaMargin": 24,
@@ -46,7 +46,8 @@
           }
         ]
       },
-      "intent": "The front itself. Rolls 1-2 proved a wide ice mask is answered with a generator pattern (a smooth slab, then a fresh dark honeycomb), so the third intent is a RIBBON: the authorization is cut to a band straddling the ice margin (landMargin 26 / seaMargin 24) and the pack interior is frozen. The tool has room only for the edge - a graded face, bergs of several sizes calving off it, brash thinning seaward, leads reaching back into the margin."
+      "intent": "The front itself. Rolls 1-2 proved a wide ice mask is answered with a generator pattern (a smooth slab, then a fresh dark honeycomb), so the third intent is a RIBBON: the authorization is cut to a band straddling the ice margin (landMargin 26 / seaMargin 24) and the pack interior is frozen. The tool has room only for the edge - a graded face, bergs of several sizes calving off it, brash thinning seaward, leads reaching back into the margin.",
+      "job": "05f28ed5-05a5-4840-b5c0-40be6e7d2d32"
     },
     {
       "id": "E3",
