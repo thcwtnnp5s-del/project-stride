@@ -42,3 +42,29 @@ in an empty well — is a deterministic recolour of a shipped item sprite
 (`RULES.md` A-2, the `49c91f9` precedent), not an authoring job: the slot's
 representative sprite drawn through a `ColorFilter` at the well's own value.
 Zero generations, and it cannot drift from the item set.
+
+## What the zero bought instead
+
+Four device renders under
+`GAME_BIBLE/ART/exploration/EPO03/review/device/inventory/`, each Read at the
+393 × 852 phone reference:
+
+| Render | State |
+|---|---|
+| `inv_01_new_game.png` | a new game — the figure in its window, three wells standing empty with their class shadows in them, and the word `Empty` nowhere on the screen |
+| `inv_02_case_worn_tool_empty.png` | a played save — a forged Bronze Sword and the tunic seated in their wells with `ATK 9` and `DEF 2` stamped beside them, the **tool well empty**, 262 items below |
+| `inv_03_pack_ruled_rows.png` | the pack — canvas pockets ruled in rows, materials five across, gear three across with the Equip plate on the pocket |
+| `inv_04_gear_open.png` | a gear pocket opened — the evaluation ruled on the canvas, no dark block under it |
+
+**One deterministic recolour, zero generations:** the class shadow. Each empty
+well holds its slot's starting sprite (`training_sword`, `traveler_tunic`,
+`training_pickaxe`) drawn through a `ColorFilter` at `borderDefault`
+(`ClassShadow`, `loadout_readout.dart`).
+
+**One row substituted after a device read.** `KitTile.pocketRule` never landed,
+and its 1 px `separator` fallback vanished into the oilcloth in the first
+render — a rule nobody can see is not a ruled pocket. The rows are ruled with
+`KitTile.ruleChart` instead, which **has** landed, is the pack's own rule (the
+group headings already draw it), and is a one-name change if `pocket_rule` ever
+ships. Measured, not assumed: the loud-colour proof render confirmed the
+geometry was right before the colour was blamed.
