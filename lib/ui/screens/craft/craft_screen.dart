@@ -2311,11 +2311,25 @@ class _StepperKeyState extends State<_StepperKey> {
     if (!widget.enabled) return;
     setState(() => _down = true);
     widget.onTap();
-    // A hold walks the count up; the caller clamps, so a hold that runs past
-    // the maximum simply stops moving.
-    _repeat = Timer.periodic(const Duration(milliseconds: 140), (Timer _) {
-      if (!widget.enabled) return;
+    _armRepeat();
+  }
+
+  /// A hold walks the count up; the caller clamps, so a hold that runs past
+  /// the maximum simply stops moving.
+  ///
+  /// A **chained one-shot** timer, re-armed after each step — never
+  /// `Timer.periodic`, which `s01a_vertical_slice_test.dart` forbids anywhere
+  /// in `lib/`. That guard is about this project's foreground-only,
+  /// single-writer architecture: a periodic timer is a background execution
+  /// primitive that keeps firing whether or not anyone is still watching, and
+  /// the rule is not relaxed for a button just because this one happens to be
+  /// harmless. `activity_controller.dart` and the audio fade steps use the
+  /// same chained shape for the same reason.
+  void _armRepeat() {
+    _repeat = Timer(const Duration(milliseconds: 140), () {
+      if (!mounted || !_down || !widget.enabled) return;
       widget.onTap();
+      _armRepeat();
     });
   }
 
