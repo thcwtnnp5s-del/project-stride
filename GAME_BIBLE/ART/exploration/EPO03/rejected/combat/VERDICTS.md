@@ -1,0 +1,2 @@
+retreat_1657f52b: REJECT. A gate inside a full stone wall — the wall fills all 256 px, so it is a tiny picture rather than a mark, and it does not sit in the register icon_brace and icon_eat set (a subject on transparent ground). Its baked checkerboard keys out cleanly in three inks, so the recovery was tried and it is the drawing that fails, not the file.
+retreat_4ae2a5ba: REJECT. Off palette — moss green and lantern yellow on a gate, two hues combat does not own, and the shape reads as a lit shrine rather than a way out.

@@ -56,3 +56,32 @@ Exact: in `lib/ui/screens/world/atlas/atlas_viewport.dart`, on `AtlasViewportSta
 ```
 plus `cameraRevision.value++;` at the end of `_onScaleUpdate`'s and `_onScaleEnd`'s `setState`, in `didUpdateWidget` where the arrival recentres, and in `build` where a resize re-derives the camera (schedule the bump post-frame there so it does not fire during layout); and `cameraRevision.dispose()` in `dispose`.
 Status: OPEN
+
+## 2026-09-02 — PROD-UI-COMBAT: one pubspec row for `combat/icon_retreat.png`
+
+**What.** Add one line to `pubspec.yaml`, in the `assets/ui/v1/combat/` block
+that already lists `icon_attack`, `icon_brace` and `icon_eat` (currently
+around line 192):
+
+```yaml
+    - assets/ui/v1/combat/icon_retreat.png
+```
+
+and, in `assets/ui/v1/README.md`, replace the sentence that says Retreat has
+no glyph with a provenance row: `icon_retreat.png` — 16 × 16, `create_image_pixen`,
+job `a059b653-b95e-4af8-9de7-2879cc88a8d7`, EPO03 UI-COMBAT, ledger
+`GAME_BIBLE/ART/exploration/EPO03/ledger/UI_COMBAT.md` row 3. Two dark posts
+under a lintel with a pale road running out between them — `DIR-11`'s new
+subject for the mark, replacing the four "a figure walking away" candidates
+`COMBAT_STAGE_report.md` dropped.
+
+**Why.** `DIR-11` commissions `icon_retreat` and the file is authored,
+accepted and committed at
+`GAME_BIBLE/ART/exploration/EPO03/out/combat/icon_retreat.png`. The
+`assets/ui/v1/` tree is declared file by file and `pubspec.yaml` is NAV's, so
+COMBAT cannot land the row itself. Until it lands, Retreat ships as the micro
+link with no glyph — which is a finished state, not a hole, so nothing is
+blocked. COMBAT wires the glyph at ×1 (16 dp, half the plates' 32) when the
+row is DONE.
+
+**Not blocking.** No reply needed beyond the hash.
