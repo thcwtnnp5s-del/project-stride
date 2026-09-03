@@ -779,7 +779,17 @@ void main() {
       expect(find.text('Traveler Tunic'), findsOneWidget);
       final EquippedSummary worn = session.equippedSummary.single;
       expect(find.text(worn.rarity!.label.toUpperCase()), findsWidgets);
-      // The empty slot still explains its figure in the tile's own words.
+      // The empty slot still explains its figure in the page's own words.
+      // EPO03 turned this screen into a folio, so the combat ledger sits
+      // below the bust and its margin wells rather than in a card near the
+      // top — scroll to it. The note itself is unchanged and still worth
+      // asserting: an Attack figure with no weapon must say why.
+      await tester.scrollUntilVisible(
+        find.text('unarmed'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       expect(find.text('unarmed'), findsOneWidget);
       expect(clippedLines(tester), isEmpty);
     });

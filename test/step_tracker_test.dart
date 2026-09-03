@@ -196,11 +196,31 @@ void main() {
     expect(find.text('TODAY'), findsOneWidget);
     expect(find.text('Step Tracker'), findsOneWidget);
 
+    // The folio is a longer page than the card it replaced, so the tracker's
+    // index tab can sit below the fold. Bring it into view before tapping:
+    // a tap on an off-screen widget hit-tests wherever its centre lands, which
+    // silently does nothing and then fails somewhere else entirely.
+    await tester.ensureVisible(find.text('Step Tracker'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Step Tracker'));
     await tester.pumpAndSettle();
 
     // Week view first: seven day rows, today emphasised, the sync card.
     expect(find.text('TODAY'), findsOneWidget);
+
+    // EPO03 made the tracker a page of the Character folio — ruled sections
+    // with Day/Week as index tabs — so the Sync section sits below the fold
+    // where the old card had it in view. Scroll to it: the control, its
+    // freshness line and its guard are unchanged, and asserting them still
+    // matters. What would NOT be acceptable is dropping the assertions
+    // because the page grew.
+    await tester.dragUntilVisible(
+      find.text('Sync steps'),
+      find.byType(ListView).last,
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('Sync steps'), findsOneWidget);
     expect(find.textContaining('Synced'), findsOneWidget);
     expect(find.textContaining('Lifetime credited'), findsOneWidget);
