@@ -51,28 +51,28 @@
     },
     {
       "id": "E3",
-      "x": 580,
-      "y": 0,
-      "w": 230,
-      "h": 250,
-      "atlas": "620-770 x 30-200",
+      "x": 600,
+      "y": 20,
+      "w": 200,
+      "h": 200,
+      "atlas": "640-760 x 60-180",
       "rect": {
         "x0": 40,
-        "y0": 30,
-        "x1": 190,
-        "y1": 200
+        "y0": 40,
+        "x1": 160,
+        "y1": 160
       },
       "ramps": {
         "left": 24,
-        "right": 32,
+        "right": 24,
         "top": 24,
-        "bottom": 32
+        "bottom": 24
       },
       "inpaint": {
         "x": 40,
-        "y": 30,
-        "w": 150,
-        "h": 170
+        "y": 40,
+        "w": 120,
+        "h": 120
       },
       "salt": 102,
       "seed": 0,
@@ -85,7 +85,7 @@
         "holeInflate": 2,
         "holes": []
       },
-      "intent": "The honeycomb: the regular crack-cell net over the pack ice at 620-770 x 30-200 becomes a real floe field - floes of widely differing sizes and shapes, leads of uneven width at irregular angles, long wind-drift bands across the larger floes, so nothing repeats at a glance."
+      "intent": "The honeycomb. The regular crack-cell net over the pack ice becomes one broad sheet of old fast ice: wide smooth snow-covered ice carrying long low wind-drift bands in one direction, with only a few long single cracks wandering at shallow angles and never meeting. Deliberately SMALL (120x120 authored) because E1 rolls 1-2 proved a wide ice mask is answered with a pattern."
     },
     {
       "id": "E2",
