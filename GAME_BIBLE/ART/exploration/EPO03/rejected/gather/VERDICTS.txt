@@ -1,0 +1,7 @@
+tin_A2 (935cb3ea) REJECT: a cobble arch with a hole through it - a doorway, not an ore face.
+deeptin_A2 (d720496e) REJECT: thin spire with a spiky tail, no rock mass.
+hardened_A2 (7e6baf0b) REJECT: opaque stone-wall background fills the frame - a backdrop tile filed as a subject.
+mill_garden_1 (164755ca) REJECT: contains a kneeling figure; still a high top-down bed grid.
+mill_garden_2 (6ec8d8e2) REJECT: roofed timber structure, one-point corridor - reads as a greenhouse.
+copper_B (577c6c37) REJECT: closed boulder outline standing on the floor.
+copper_C (026381e0) REJECT: closed boulder cluster on a base.
