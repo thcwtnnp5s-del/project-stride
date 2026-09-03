@@ -1224,6 +1224,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(target);
       await tester.pumpAndSettle();
+      // The World sheet opens at its PEEK stop and a marker tap never raises
+      // it (DIR-15 §1, the owner's "the sheet obscures too much map"). The
+      // inspector these tests read is at the HALF stop, one grip tap away —
+      // exactly the gesture a player makes to go from "what is that" to
+      // "what is there, and what does it cost".
+      await tester.tap(find.byKey(worldSheetGripKey));
+      await tester.pumpAndSettle();
     }
 
     testWidgets('navigates, and renders the region from content', (
