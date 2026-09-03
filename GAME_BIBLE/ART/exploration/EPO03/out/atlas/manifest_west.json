@@ -41,6 +41,24 @@
         "stag_box"
       ],
       "intent": "PLAINS->MOUNTAIN (DIR-02): the road loop gets a reason. The existing road geometry is held (enters the west edge at y=602, col at Wayfarer's Pass 187,542, corridor 199-245 x 506-532 keeps road, leaves x=260 at y=517) and the terrain around it is re-authored: rock knolls and scree fans rising westward to the Worldspine's foot, boulders densest at the wall, a snow dusting on the SW shoulders; a beck out of the hills forded by the road and bending SW to leave the rect bottom for WC; the pasted peak (210,590) joined to the range by a rock-and-scree ridge. Rect stops at x=260 so the frozen core wood, Deepwood Shrine (304,556) and LANDMARKS' L1 glade (256-464 x 352-544) are untouched."
+    },
+    {
+      "id": "WC",
+      "name": "downs_bridge_south",
+      "x": 0,
+      "y": 560,
+      "w": 288,
+      "h": 220,
+      "salt": 82,
+      "status": "accepted",
+      "job": "fa915cad-05b2-495e-956e-d5e751c27836",
+      "seed": 821,
+      "atlas": "0-232 x 600-740",
+      "review": "GAME_BIBLE/ART/exploration/EPO03/review/atlas/WC_preview_fov_x2.png",
+      "team": "west",
+      "bridge": "y=700 join with SOUTH (S3)",
+      "reauthorizes": [],
+      "intent": "The bridge region over the y=700 join with SOUTH, and the cure for the pale dead slab above it. The dead downland (atlas 20-200 x 620-720, dominant #9dab70 at 9.2% and almost no marks) gets gorse, bracken, heather, tussock and boulder trains reaching out of the crag on the left; S3's wood, whose north edge runs near-horizontally at y~720, breaks north into bays, promontories and stepping copses so no line can be drawn where it ends; and WB's beck, which stops dead at (193,620), is carried south-west through the heath and into the wood. Both sides of the join are inside the rect (60 px above y=700, 40 px below) with 40 px frozen beyond each - the ATLAS_PRODUCTION_RULES §3 bridge, not a re-touch of S3."
     }
   ]
 }

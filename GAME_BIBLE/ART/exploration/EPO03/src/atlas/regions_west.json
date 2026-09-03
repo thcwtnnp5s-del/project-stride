@@ -104,10 +104,11 @@
         "h": 140
       },
       "salt": 82,
-      "seed": 0,
-      "status": "pending",
+      "seed": 821,
+      "status": "accepted",
       "intent": "The bridge region over the y=700 join with SOUTH, and the cure for the pale dead slab above it. The dead downland (atlas 20-200 x 620-720, dominant #9dab70 at 9.2% and almost no marks) gets gorse, bracken, heather, tussock and boulder trains reaching out of the crag on the left; S3's wood, whose north edge runs near-horizontally at y~720, breaks north into bays, promontories and stepping copses so no line can be drawn where it ends; and WB's beck, which stops dead at (193,620), is carried south-west through the heath and into the wood. Both sides of the join are inside the rect (60 px above y=700, 40 px below) with 40 px frozen beyond each - the ATLAS_PRODUCTION_RULES §3 bridge, not a re-touch of S3.",
-      "note": "No golden within the rect (nearest south_strand_w at y=810). Not coreAuthor: x1=232 is west of the A-4 core at 256. Frozen: top 40 (560-600, WB), bottom 40 (740-780, S3 wood interior), right 56 (232-288, W3 wood). Left is the canvas edge."
+      "note": "No golden within the rect (nearest south_strand_w at y=810). Not coreAuthor: x1=232 is west of the A-4 core at 256. Frozen: top 40 (560-600, WB), bottom 40 (740-780, S3 wood interior), right 56 (232-288, W3 wood). Left is the canvas edge.",
+      "job": "fa915cad-05b2-495e-956e-d5e751c27836"
     }
   ]
 }
