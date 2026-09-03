@@ -19,8 +19,10 @@ recorded as `—` so the re-issue is not mistaken for a re-roll.
 | Batch 4 — the welt, deterministic post-work | 0 | **0** |
 | Batch 5 — `create_image_pro`, three frames | 3 calls / 36 candidates | **60** |
 | Batch 6 — the four brightness rejects, remapped | 0 | **0** |
-| **Spent** | | **92** |
-| Remaining under cap | | **228** |
+| Batch 7 — pro wave 2 (ribbon, sealed page, button, inset stage) + 6 pixen strips | 4 calls + 6 | **86** |
+| Batch 8 — pro wave 3 (ornate rule, sealed retry, nav well, nav plate) | 4 calls | **80** |
+| **Spent** | | **258** |
+| Remaining under cap | | **62** |
 
 **Shipped: eight assets.** The first thirty-two rolls produced one, and the
 conclusion drawn from them — "the frame class is closed" — **was wrong, and the
@@ -176,3 +178,32 @@ the patch the way `_FramePainter` will rather than by trusting the numbers.
 the inked **extent**. Two stray specks in the corners of the chart's sheet made
 the extent the whole 32-row canvas, and a rule eight times taller than its own
 line is not a rule.
+
+
+## Batch 7 — the second pro wave, and six pixen strips (86)
+
+| job / roll | family | cost | verdict |
+|---|---|---:|---|
+| a5f7d9f2 | `ribbon_label` | 20 | **ACCEPT as ornament** (candidate 2). Band 6/0/0/0 — the swallowtail notches are transparent at mid-height, so it is a **three**-patch and `PixelFrame` only draws nine. Ships fixed-width at 89 × 22 |
+| 407e9549 | `btn_plate_v2` | 20 | **ACCEPT** (candidate 1). Came back with a **white face**, which measured as "solid plate, not a frame"; keying every pixel over L 0.5 to alpha 0 turned three rejects into three clean 5/5/5/5 frames. Corner **8**, not 5 — at 5 the rounded corner clips (`np_btn5.png`) |
+| 0974a636 | `page_sealed` | 20 | **REJECT** — all four came back white despite a dark style reference. Retried in batch 8 by naming the value in the prompt |
+| 9ad8fa2b | `inset_stage` | 20 | **REJECT** — all four solid, no hole. (A first attempt 404'd on a stale commit SHA and cost nothing; the reference must be pushed *before* the call) |
+| 9901cfb5 | `edge_spine` | 1 | **ACCEPT** — binding cords at measured rows 1,7,13,20,26,32,38,45,51,57; the 7-row window at row 51 wraps best. Clamped, tiles cleanly (`p_spine_x3.png`) |
+| 6335ee0c | `rule_bench` | 1 | **REJECT** — a pure-black 1 px hairline. `StrideColors.separator` already draws that, better |
+| a75c7706 | `pocket_rule` | 1 | **REJECT** — tiles as a hard blue-grey checkerboard: plaid, and the wrong temperature for waxed canvas |
+| 888538db | `case_strap` | 1 | **REJECT** — too dark to read; no legible material at phone scale |
+| 08e5d885 | `edge_torn` | 1 | **REJECT** — a closed cream scrap, not a tileable edge |
+| 665547a0 | `rail_strap` | 1 | **REJECT** — grey rubble noise with an over-ceiling highlight |
+
+## Batch 8 — the third pro wave (80)
+
+| job | family | cost | verdict |
+|---|---|---:|---|
+| d6ef7c80 | `rule_ornate_a` | 20 | **ACCEPT** — symmetric end flourishes, a centre diamond, dull tarnished brass, 192 × 16 exactly as declared, max L 0.0733. The illustrated section divider Skills, Character and Encounter all wanted |
+| 1f04b00d | `page_sealed` | 20 | **ACCEPT** (candidate 0) — band 15/15/15/15, spread 0, dark deckled page edge. The retry worked because the prompt names the value ("dark brown and dim, never white, never cream") and references an accepted **kit** asset rather than a grain tile. Candidates 1–3 carry the torn lower edge the brief asked for and are rejected *for it*: a tear makes the bottom band 0 at mid-span |
+| 2470cfe8 | `nav_well` | 20 | **REJECT** — 64 candidates, none usable; every one an open or paper-thin outline |
+| a0ae5cc8 | `nav_plate_active` | 20 | **REJECT** — 64 candidates; the best are thin broken outlines with a gold fleck. **They lose to the Flutter-painted plate the producer accepted**, so the nav is not swapped. Spending 40 to learn that the incumbent is better is a real answer, not a waste |
+
+**The nav stays painted.** That is now a measured verdict rather than a
+fallback: pro was given the same brief that produced three good frames, with
+64 candidates per call, and produced nothing that beats what ships.
