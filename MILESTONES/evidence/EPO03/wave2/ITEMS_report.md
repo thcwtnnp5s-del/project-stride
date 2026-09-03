@@ -182,7 +182,13 @@ measure the stated property.
 - `GAME_BIBLE/ART/exploration/EPO03/src/items/*.png` — the 9 hosted edit sources
 - `Scripts/art/package-art.js` — the `EPO03 ITEMS (PROD-ITEMS)` block. It refuses
   any file in `out/items` that does not already name a shipped icon, so this
-  round cannot author a new item by accident (G-3)
+  round cannot author a new item by accident (G-3); the guard is negative-tested.
+  The twenty icons are resolved as a SOURCE through `epo03ItemPath`, the way
+  `fmpo02ItemPath` already works, rather than re-emitted at the foot of the
+  file. The first draft did re-emit, and `package-art.js --check` then reported
+  all twenty as stale on a tree that was perfectly in sync — the earlier block
+  compares its own bytes against the later block’s file. One id, one emit.
+  `--check` is 0 and `flutter analyze` is clean
 - `test/item_icon_distinctness_test.dart` — the five ceilings above
 - `test/screen_evidence_test.dart` — two capture blocks, `epo_items_reclaim_rows`
   and `EPO03 items: the ivory drops, side by side in the bag`

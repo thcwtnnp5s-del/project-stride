@@ -131,7 +131,8 @@ const ITEM_ICON_SOURCE_OVERRIDES = {
 
 for (const [id, file] of Object.entries(ITEM_ICONS)) {
   const raster = png.load(
-    path.join(ITEM_ICON_SOURCE_OVERRIDES[id] ?? path.join(STABLE, 'icons_full'), file),
+    epo03ItemPath(id.replace('item.', '')) ||
+      path.join(ITEM_ICON_SOURCE_OVERRIDES[id] ?? path.join(STABLE, 'icons_full'), file),
   );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${file}: expected 48x48, got ${raster.width}x${raster.height}`);
@@ -650,7 +651,9 @@ const ITEM_ICONS_T01 = [
 for (const id of ITEM_ICONS_T01) {
   // FMPO02 wave 2 re-authored `hearty_stew` — see `fmpo02ItemPath`.
   const raster = png.load(
-    fmpo02ItemPath(id) || path.join(ITEMS_SRC, `icon_${id}_48.png`),
+    epo03ItemPath(id) ||
+      fmpo02ItemPath(id) ||
+      path.join(ITEMS_SRC, `icon_${id}_48.png`),
   );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
@@ -769,7 +772,9 @@ const ITEMS_WRD_SRC = path.join(
 for (const id of ['wolf_pelt', 'lynx_pelt', 'wolfhide_jerkin', 'frostlined_jerkin']) {
   // FMPO02 wave 2 re-authored `lynx_pelt` — see `fmpo02ItemPath`.
   const raster = png.load(
-    fmpo02ItemPath(id) || path.join(ITEMS_WRD_SRC, `icon_${id}_48.png`),
+    epo03ItemPath(id) ||
+      fmpo02ItemPath(id) ||
+      path.join(ITEMS_WRD_SRC, `icon_${id}_48.png`),
   );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`icon_${id}_48: expected 48x48, got ${raster.width}x${raster.height}`);
@@ -1006,7 +1011,9 @@ for (const [id, file] of Object.entries({
   // Gloom Silk joins under `DECISIONS/0027` (Verge tier); pack-accepted.
   gloom_silk: 'icon_gloom_silk_48.png',
 })) {
-  const raster = png.load(path.join(RCP_MATERIALS_SRC, file));
+  const raster = png.load(
+    epo03ItemPath(id) || path.join(RCP_MATERIALS_SRC, file),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${file}: expected 48x48, got ${raster.width}x${raster.height}`);
   }
@@ -1043,7 +1050,9 @@ for (const [id, srcId] of Object.entries({
   // pack's own manifest status is still read first: a withheld icon may not
   // ship, whether or not a later round redrew it.
   const raster = png.load(
-    fmpo02ItemPath(id) || path.join(RCP_GEAR_SRC, `${srcId}.png`),
+    epo03ItemPath(id) ||
+      fmpo02ItemPath(id) ||
+      path.join(RCP_GEAR_SRC, `${srcId}.png`),
   );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${srcId}: expected 48x48, got ${raster.width}x${raster.height}`);
@@ -1117,7 +1126,9 @@ for (const entry of eplManifest) {
   // FMPO02 wave 2 re-authored `pristine_horn` — see `fmpo02ItemPath`. The
   // manifest's accepted/withheld filter above still decides what ships.
   const raster = png.load(
-    fmpo02ItemPath(entry.id) || path.join(EPL_ITEMS_SRC, entry.file),
+    epo03ItemPath(entry.id) ||
+      fmpo02ItemPath(entry.id) ||
+      path.join(EPL_ITEMS_SRC, entry.file),
   );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(`${entry.file}: expected 48x48, got ${raster.width}x${raster.height}`);
@@ -3066,7 +3077,9 @@ for (const id of [
 ]) {
   // FMPO02 wave 2 re-authored five of these twelve — see `fmpo02ItemPath`.
   const raster = png.load(
-    fmpo02ItemPath(id) || path.join(VAWO_ITEM_SRC, `${id}.png`),
+    epo03ItemPath(id) ||
+      fmpo02ItemPath(id) ||
+      path.join(VAWO_ITEM_SRC, `${id}.png`),
   );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(
@@ -3235,7 +3248,9 @@ for (const [id, src] of Object.entries({
   reclaim_pickaxe: 'icon_reclaim_pickaxe_48.png',
   reclaim_chestplate: 'icon_reclaim_chestplate_48.png',
 })) {
-  const raster = png.load(path.join(FMPO02_OUT, 'items', src));
+  const raster = png.load(
+    epo03ItemPath(id) || path.join(FMPO02_OUT, 'items', src),
+  );
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(
       `${src}: expected 48x48, got ${raster.width}x${raster.height}`,
@@ -3280,26 +3295,45 @@ for (const [id, src] of Object.entries({
  * `GAME_BIBLE/ART/exploration/EPO03/review/items/`.
  */
 const EPO03_ITEM_SRC = path.join(EXPLORE, 'EPO03', 'out', 'items');
-for (const id of fs
-  .readdirSync(EPO03_ITEM_SRC)
-  .filter((f) => f.endsWith('.png'))
-  .map((f) => f.slice(0, -4))
-  .sort()) {
-  const raster = png.load(path.join(EPO03_ITEM_SRC, `${id}.png`));
+
+/**
+ * The source file for `item/<id>.png` when the EPO03 collision round
+ * re-authored it, or `null`.
+ *
+ * Resolved as a SOURCE, exactly as `fmpo02ItemPath` is, rather than emitted
+ * again at the foot of the file. A trailing override writes the right bytes
+ * but makes `--check` compare the earlier block's bytes against the later
+ * block's file and report all twenty as stale on a tree that is perfectly in
+ * sync. One id, one emit.
+ */
+function epo03ItemPath(id) {
+  // `EXPLORE` rather than `EPO03_ITEM_SRC`, for the same temporal-dead-zone
+  // reason `fmpo02ItemPath` records: the first caller is the icon block near
+  // the top of this file, where the const above is not yet initialised.
+  const file = path.join(EXPLORE, "EPO03", "out", "items", `${id}.png`);
+  return fs.existsSync(file) ? file : null;
+}
+
+// Every file in `E/out/items` must name an icon some earlier block already
+// ships: this round re-authors collisions and authors no new item (G-3). A
+// stray or misspelled filename would otherwise sit in the directory doing
+// nothing, which is how a silent no-op ships.
+for (const file of fs.readdirSync(EPO03_ITEM_SRC).filter((f) => f.endsWith('.png'))) {
+  const id = file.slice(0, -4);
+  if (!emitted.has(`item/${id}.png`)) {
+    throw new Error(
+      `EPO03 item ${id}: replaces nothing — this round re-authors existing ` +
+        `icons and authors no new item (G-3)`,
+    );
+  }
+  const raster = png.load(path.join(EPO03_ITEM_SRC, file));
   if (raster.width !== 48 || raster.height !== 48) {
     throw new Error(
       `EPO03 item ${id}: expected 48x48, got ${raster.width}x${raster.height}`,
     );
   }
-  if (!emitted.has(`item/${id}.png`)) {
-    throw new Error(
-      `EPO03 item ${id}: replaces nothing — this round authors no new items ` +
-        `(G-3); every file in E/out/items must name a shipped icon`,
-    );
-  }
-  emit(`item/${id}.png`, encode(raster));
 }
-console.log(`  EPO03 items: ${fs.readdirSync(EPO03_ITEM_SRC).filter((f) => f.endsWith('.png')).length} re-authored`);
+
 
 /**
  * THE ENEMY ROUND (`ENEMIES_report.md`, brief `ART-08_enemy_brief.md`).
