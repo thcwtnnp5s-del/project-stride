@@ -137,8 +137,8 @@
         "h": 130
       },
       "salt": 83,
-      "seed": 0,
-      "status": "pending",
+      "seed": 831,
+      "status": "accepted",
       "coreAuthor": true,
       "reauthorizes": [
         "roadjoin_corridor_west",
@@ -146,7 +146,8 @@
         "caravan_corridor"
       ],
       "intent": "The residual of DIR-01 verdict 2, below WA: measured on the shipped composite the canopy edge holds x=238-271 across y 490-600 (a 33 px wander over 110 px of height - a quasi-vertical wall) and a dither column of scattered dark pixels runs down atlas x~264-270 from y 540 to 640. The edge is broken into bays, promontories and stepping copses meeting WB.s outcrop meadow and WC.s downs; the dither column goes; the road through the rect is frozen by a custom inpaint mask (WD_inpaint_mask.png) so the three goldens keep road under them; the wood east of x=296 stays dense so Deepwood Shrine (304,556) and Whispering Woods keep deep wood.",
-      "note": "coreAuthor: the rect reaches 236-296, through the A-4 rim into the core (D0033). Frozen: left 40 (196-236), right 44 (296-340), top 40 (450-490), bottom 40 (620-660)."
+      "note": "coreAuthor: the rect reaches 236-296, through the A-4 rim into the core (D0033). Frozen: left 40 (196-236), right 44 (296-340), top 40 (450-490), bottom 40 (620-660).",
+      "job": "a7f0ad35-8f77-46b7-b85e-7b29c587254a"
     }
   ]
 }

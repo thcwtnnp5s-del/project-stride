@@ -59,6 +59,28 @@
       "bridge": "y=700 join with SOUTH (S3)",
       "reauthorizes": [],
       "intent": "The bridge region over the y=700 join with SOUTH, and the cure for the pale dead slab above it. The dead downland (atlas 20-200 x 620-720, dominant #9dab70 at 9.2% and almost no marks) gets gorse, bracken, heather, tussock and boulder trains reaching out of the crag on the left; S3's wood, whose north edge runs near-horizontally at y~720, breaks north into bays, promontories and stepping copses so no line can be drawn where it ends; and WB's beck, which stops dead at (193,620), is carried south-west through the heath and into the wood. Both sides of the join are inside the rect (60 px above y=700, 40 px below) with 40 px frozen beyond each - the ATLAS_PRODUCTION_RULES §3 bridge, not a re-touch of S3."
+    },
+    {
+      "id": "WD",
+      "name": "core_face_lower",
+      "x": 196,
+      "y": 450,
+      "w": 144,
+      "h": 210,
+      "salt": 83,
+      "status": "accepted",
+      "job": "a7f0ad35-8f77-46b7-b85e-7b29c587254a",
+      "seed": 831,
+      "atlas": "236-296 x 490-620",
+      "review": "GAME_BIBLE/ART/exploration/EPO03/review/atlas/WD_preview_fov_x2.png",
+      "team": "west",
+      "coreAuthor": true,
+      "reauthorizes": [
+        "roadjoin_corridor_west",
+        "west_caravan_road",
+        "caravan_corridor"
+      ],
+      "intent": "The residual of DIR-01 verdict 2, below WA: measured on the shipped composite the canopy edge holds x=238-271 across y 490-600 (a 33 px wander over 110 px of height - a quasi-vertical wall) and a dither column of scattered dark pixels runs down atlas x~264-270 from y 540 to 640. The edge is broken into bays, promontories and stepping copses meeting WB.s outcrop meadow and WC.s downs; the dither column goes; the road through the rect is frozen by a custom inpaint mask (WD_inpaint_mask.png) so the three goldens keep road under them; the wood east of x=296 stays dense so Deepwood Shrine (304,556) and Whispering Woods keep deep wood."
     }
   ]
 }
