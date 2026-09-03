@@ -37,6 +37,7 @@ never repeats them (M-05).
 | south territory complete, kit frames landed, checkpoint 1 | 7,112 | 877 | 6 atlas regions accepted (S1,S2,S3,SA1,L3,L2); packaging 1,971 files |
 | kit complete, skills rebuilt, west bridging | 6,574 | 1,415 | 10 atlas regions; 13 kit rows; overlay schema v6; packaging 2,203 files |
 | third outage; five teams resumed | 6,437 | 1,552 | 12 atlas regions (S1-3,SA1,WA-D,E1,L1-3); equipment, craft, skills, nav complete |
+| all four territories complete | 6,120 | 1,869 | 17 atlas regions; items, world life, combat, world, east, north complete; packaging 2,313 files |
 
 ## Family totals (each lead's own sum of cost lines)
 
