@@ -5,3 +5,4 @@ mill_garden_1 (164755ca) REJECT: contains a kneeling figure; still a high top-do
 mill_garden_2 (6ec8d8e2) REJECT: roofed timber structure, one-point corridor - reads as a greenhouse.
 copper_B (577c6c37) REJECT: closed boulder outline standing on the floor.
 copper_C (026381e0) REJECT: closed boulder cluster on a base.
+tin_B1 (ebcad329) REJECT: small corner wedge with a hard dark diagonal border - reads as the cut corner of a picture.
