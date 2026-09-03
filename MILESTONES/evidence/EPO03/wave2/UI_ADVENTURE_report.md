@@ -82,17 +82,21 @@ asserts, correctly — and is recorded in the source so nobody re-derives it.
   `ColorFiltered` sketches, and `Requires Foraging 3 — you are 1` still found
   exactly once. Nothing was weakened — the test asserts more than it did.
 - `flutter analyze lib/ui/screens/adventure/` — **clean.**
-- `test/gather_queue_ui_test.dart`, `test/goal_board_test.dart`,
-  `test/phase1_ui_test.dart`, `test/screen_evidence_test.dart` — **could not be
-  brought to green in this session, and not because of this team's code.** The
-  shared working tree carries another team's in-flight Inventory rebuild;
-  every exception collected in those runs traces to
-  `lib/ui/screens/inventory/inventory_screen.dart` (a `LayoutBuilder` under an
-  `IntrinsicHeight`, and unlaid-out children after it), and **zero exceptions
-  trace to any Adventure file**. Two runs also died on `flutter test` failing
-  to copy assets while a concurrent `package-art.js` rebuilt them. Re-run these
-  four once Inventory compiles and lays out; nothing in them is expected to
-  need an Adventure change.
+- `test/gather_queue_ui_test.dart` **6/6**, `test/goal_board_test.dart`
+  **all pass**, `test/phase1_ui_test.dart` **27/27**,
+  `test/screen_evidence_test.dart` **10/10** — green on the final run.
+
+  Worth recording, because it cost this session three diagnoses: for roughly
+  an hour none of these four could compile or lay out, and **none of the
+  faults were in Adventure**. The shared tree carried another team's
+  in-flight Inventory rebuild (a `LayoutBuilder` under an `IntrinsicHeight`,
+  and before that a constructor mid-rename), and two runs died outright on
+  `flutter test` failing to copy assets while a concurrent `package-art.js`
+  rewrote them. The way through was to attribute every collected exception to
+  a file before believing any of them: at the point where zero traced to an
+  Adventure file, the screen was finished and the tree was not. It settled on
+  its own and the runs are green.
+
 - **Goldens will legitimately change**: `test/goldens/` for every Adventure and
   Goal Board case. Not regenerated here — the producer regenerates after
   inspection, and `--update-goldens` was not run.
@@ -114,6 +118,5 @@ recorded. **Not blocking**; the call site does not change when it lands.
   square fallback plus this team's pin. That is finished work by the contract's
   own doctrine, not a hole — but the slips will look like paper only when NAV
   or a later round authors the row.
-- **Four test files are unverified** for the reason above.
 - **No Q- raised.** Nothing here needed a design decision that had not been
   made: `DIR-05` names every shape and the kit contract names every material.
